@@ -323,7 +323,7 @@ static mvp_widget_t *rtv_osd_show_descr_widget;           //contained by rtv_osd
 static mvp_widget_t *rtv_popup;                           //show browser popup window
 static mvp_widget_t *rtv_jump_to_time_widget;             //alligned to right of gui.c clock_widget
 static mvp_widget_t *splash;
-static mvp_widget_t *rtv_message_window;
+//static mvp_widget_t *rtv_message_window;
 
 
 static void free_ndx_chunk(rtv_ndx_info_t *ndx_info);
@@ -1140,18 +1140,19 @@ static void play_show(const rtv_show_export_t *show, int start_gop)
 //   GUI stuff
 //+*************************************
 
-// message_window_key_callback()
+// msg_win_destroy_any_key_callback()
 // Destroy for any keypress
-static void message_window_key_callback(mvp_widget_t *widget, char key)
+static void msg_win_destroy_any_key_callback(mvp_widget_t *widget, char key)
 {
    mvpw_destroy(widget);
 }
 
 // show_message_window()
 //
-static void show_message_window(int destroy_on_keypress_bool, char *message)
+static mvp_widget_t* show_message_window(void (*callback)(mvp_widget_t *widget, char key), char *message)
 {
    int x, y, w, h, lines;
+   mvp_widget_t *wp;
 
    rtv_message_window_attr.font = fontid;  
    calc_string_window_sz(message, rtv_message_window_attr.font, &w, &h, &lines);
@@ -1161,17 +1162,16 @@ static void show_message_window(int destroy_on_keypress_bool, char *message)
    x = (scr_info.cols - w) / 2;
    y = (scr_info.rows - h) / 2;
 
-   rtv_message_window = mvpw_create_text(NULL, x, y, w, h, MVPW_BLACK, MVPW_GREEN, 4);
-   mvpw_set_text_attr(rtv_message_window, &rtv_message_window_attr);
-   mvpw_set_text_str(rtv_message_window, message);
-   if ( destroy_on_keypress_bool ) {
-      mvpw_set_key(rtv_message_window, message_window_key_callback);
-   }
-   else {
-      mvpw_set_key(rtv_message_window, NULL);      
-   }
-   mvpw_show(rtv_message_window);
-   mvpw_focus(rtv_message_window);
+   wp = mvpw_create_text(NULL, x, y, w, h, MVPW_BLACK, MVPW_GREEN, 4);
+   mvpw_set_key(wp, callback);
+   mvpw_set_text_attr(wp, &rtv_message_window_attr);
+   mvpw_set_text_str(wp, message);
+   mvpw_raise(wp);
+   mvpw_show(wp);
+   mvpw_focus(wp);
+   mvpw_expose(wp);
+	mvpw_event_flush();
+   return(wp);
 }
 
 // guide_hilite_callback()
@@ -1260,7 +1260,7 @@ static void guide_select_callback(mvp_widget_t *widget, char *item, void *key)
 
 // rtv_get_guide
 //
-static void rtv_get_guide(mvp_widget_t *widget, rtv_device_t *rtv)
+static int rtv_get_guide(mvp_widget_t *widget, rtv_device_t *rtv)
 {
    rtv_fs_volume_t     *volinfo;
    rtv_guide_export_t  *guide;
@@ -1273,13 +1273,23 @@ static void rtv_get_guide(mvp_widget_t *widget, rtv_device_t *rtv)
    if ( rc != 0 ) {
       fprintf(stderr, "**ERROR: Failed to access /Video directory for RTV %s\n", rtv->device.name);
       fprintf(stderr, "         The RTV's clock and this clock must be within 40 seconds of each other\n");
-      return;
+      show_message_window(msg_win_destroy_any_key_callback, 
+                          "ERROR: ReplayTV /Video dir access failed.\n"
+                          "MVP & ReplayTV clocks must not differ by\n"
+                          "more than 40 seconds.\n"
+                          "Press any key to continue");
+      mvpw_event_flush();
+      return(-1);
    }
    
    guide = &(rtv->guide);
    if ( (rc = rtv_get_guide_snapshot( &(rtv->device), NULL, guide)) != 0 ) {
       fprintf(stderr, "**ERROR: Failed to get Show Guilde for RTV %s\n", rtv->device.name);
-      return;
+      show_message_window(msg_win_destroy_any_key_callback, 
+                          "ERROR: Failed to get guide snapshot.\n"
+                          "Press any key to continue");
+      mvpw_event_flush();
+      return(-1);
    }
 
    // Make a sorted list & build menu
@@ -1304,15 +1314,40 @@ static void rtv_get_guide(mvp_widget_t *widget, rtv_device_t *rtv)
    //
    fprintf(stderr, "\n[End of Show:Episode Listing.]\n");
    free(sorted_show_ptr_list);
+   return(0);
 }
 
+// rtv_update_show_browser()
+//
+static void rtv_update_show_browser(rtv_device_t *rtv)
+{
+   char          buf[256];
+   
+   mvpw_clear_menu(rtv_browser);
+   snprintf(buf, sizeof(buf), " %s", rtv->device.name);
+   mvpw_set_menu_title(rtv_browser, buf);
+   
+   current_rtv_device = rtv;   
+   if ( (rtv_get_guide(rtv_browser, rtv)) != 0 ) {
+      return;
+   }
 
-// rtv_device_select_callback
+   // Bind in the video callback functions
+   //
+   video_functions = &replaytv_functions;
+
+   mvpw_show(rtv_browser);
+   mvpw_show(rtv_episode_description);
+   mvpw_focus(rtv_browser);
+   rtv_level = RTV_BROWSER_MENU;
+   return;
+}
+
+//  rtv_device_select_callback()
 //
 static void rtv_device_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
    rtv_device_t *rtv = (rtv_device_t*)key;  
-   char          buf[256];
    
    // We have to do SSDP (discovery) on DVArchive to put it into RTV 4K/5K mode
    //
@@ -1325,21 +1360,7 @@ static void rtv_device_select_callback(mvp_widget_t *widget, char *item, void *k
    }
    
    mvpw_hide(widget);
-   mvpw_clear_menu(rtv_browser);
-   snprintf(buf, sizeof(buf), " %s", rtv->device.name);
-   mvpw_set_menu_title(rtv_browser, buf);
-   
-   current_rtv_device = rtv;   
-   rtv_get_guide(rtv_browser, rtv);
-
-   // Bind in the video callback functions
-   //
-   video_functions = &replaytv_functions;
-
-   mvpw_show(rtv_browser);
-   mvpw_show(rtv_episode_description);
-   mvpw_focus(rtv_browser);
-   rtv_level = RTV_BROWSER_MENU;
+   rtv_update_show_browser(rtv);
    return;
 }
 
@@ -1406,6 +1427,63 @@ static void sub_window_key_callback(mvp_widget_t *widget, char key)
 	}
 }
 
+// msg_win_delete_callback()
+// 
+static void msg_win_delete_callback(mvp_widget_t *widget, char key)
+{
+   mvp_widget_t *wp = NULL;;
+   int           rc;
+   unsigned int  show_idx;
+
+   // hide the "delete confirmation" window
+   //
+   mvpw_hide(widget);
+	mvpw_event_flush();
+
+   if (key != MVPW_KEY_OK) {
+      printf("CANCEL: delete show\n");
+      goto err_exit;
+   }
+
+   printf("OK: delete show\n");
+   if ( get_show_idx((rtv_guide_export_t*)&(current_rtv_device->guide), rtv_video_state.show_p, &show_idx) != 0 ) {
+      goto err_exit;
+   }
+   
+   wp = show_message_window(NULL, "Deleting Show.  \nPlease Wait...  \n");
+   mvpw_event_flush();
+
+   // delete the show
+   //
+   rc = rtv_delete_show((rtv_device_info_t*)&(current_rtv_device->device), 
+                        (rtv_guide_export_t*)&(current_rtv_device->guide), 
+                        show_idx);   
+   if ( rc != 0 ) {
+      printf("Error: rtv_delete_show call failed.");
+      show_message_window(msg_win_destroy_any_key_callback, "Error: rtv_delete_show call failed.\nPress any key to continue");
+      mvpw_event_flush();
+      goto err_exit;
+   }
+
+   rc = rtv_release_show_and_wait((rtv_device_info_t*)&(current_rtv_device->device), 
+                                  (rtv_guide_export_t*)&(current_rtv_device->guide), 
+                                  show_idx);   
+   if ( rc != 0 ) {
+      printf("Error: rtv_release_show_and_wait call failed.");
+   }
+
+   // Update the show browser
+   //
+   rtv_update_show_browser((rtv_device_t*)current_rtv_device); // cast to override volatile warning
+   
+err_exit:
+   if ( wp != NULL ) {
+      mvpw_destroy(wp);
+   }
+   mvpw_destroy(widget); //we're in this guys callback. So destroying him must be the last thing we do.
+   return;
+}
+
 // rtv_popup_select_callback()
 //
 static void rtv_popup_select_callback(mvp_widget_t *widget, char *item, void *key)
@@ -1413,6 +1491,7 @@ static void rtv_popup_select_callback(mvp_widget_t *widget, char *item, void *ke
 	int          which = (int)key;
    int          rc, play_gop, in_use;
    unsigned int show_idx;
+   char         delete_msg[512];
 
 	switch (which) {
 
@@ -1469,13 +1548,16 @@ static void rtv_popup_select_callback(mvp_widget_t *widget, char *item, void *ke
       if ( rc != 0 ) {
          printf("Error: rtv_is_show_inuse call failed.");
          return;
-      }
+      }      
       if ( in_use ) {         
-         show_message_window(1, "Delete Canceled\nShow is in use\nPress any key to continue");
+         show_message_window(msg_win_destroy_any_key_callback, "Delete Canceled\nShow is in use\nPress any key to continue");
          return;
       }
-
-      show_message_window(1, "Delete doesn't work yet\nPress any key to continue");
+      sprintf(delete_msg, "Delete Show:\n%s\n%s\nRecorded: %s\nPress <OK> to confirm\nPress any other key to cancel", 
+              rtv_video_state.show_p->title,
+              rtv_video_state.show_p->episode,
+              rtv_video_state.show_p->file_info->time_str_fmt2);
+      show_message_window(msg_win_delete_callback, delete_msg);
 		break;
 
 	case RTV_POPUP_CANCEL:
@@ -1868,6 +1950,5 @@ int replay_gui_init(void)
    mvpw_raise(rtv_browser);
    mvpw_raise(rtv_device_menu);
 	mvpw_raise(rtv_popup);
-   mvpw_raise(rtv_message_window);
    return(0);
 }
