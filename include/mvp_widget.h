@@ -208,6 +208,7 @@ extern int mvpw_set_bitmap(mvp_widget_t *widget, mvpw_bitmap_attr_t *bitmap);
 #define MVPW_GREEN		MVPW_RGBA(0,255,0,255)
 #define MVPW_BLUE		MVPW_RGBA(0,0,255,255)
 #define MVPW_CYAN		MVPW_RGBA(0,255,255,255)
+#define MVPW_YELLOW		MVPW_RGBA(255,255,0,255)
 #define MVPW_WHITE		MVPW_RGBA(255,255,255,255)
 #define MVPW_BLACK		MVPW_RGBA(0,0,0,255)
 #define MVPW_ORANGE		MVPW_RGBA(255,110,0,255)
