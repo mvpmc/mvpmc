@@ -1,7 +1,7 @@
 /*
  *  $Id$
  *
- *  Copyright (C) 2004, BtB, Jon Gettler
+ *  Copyright (C) 2004, 2005, BtB, Jon Gettler
  *  http://mvpmc.sourceforge.net/
  *
  *  This library is free software; you can redistribute it and/or
@@ -91,6 +91,12 @@ typedef struct {
 	unsigned char lfe;
 } av_volume_t;
 
+typedef struct {
+	int mute;
+	int pause;
+	int ffwd;
+} av_state_t;
+
 /* Presentation time stamp clock frequency */
 #define PTS_HZ 90000
 
@@ -108,6 +114,7 @@ extern int av_move(int x, int y, int video_mode);
 extern int av_ffwd(void);
 extern int av_mute(void);
 extern int av_reset(void);
+extern int av_reset_stc(void);
 extern int get_video_sync(pts_sync_data_t *p);
 extern int av_current_stc(av_stc_t *stc);
 
@@ -134,5 +141,10 @@ extern int av_get_video_status(void);
 extern int av_get_audio_status(void);
 
 extern int av_video_black(void);
+
+extern int set_video_stc(uint64_t stc);
+extern int set_audio_stc(uint64_t stc);
+
+extern int av_get_state(av_state_t *state);
 
 #endif /* MVP_AV_H */

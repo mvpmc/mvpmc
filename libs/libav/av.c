@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2004, Jon Gettler
+ *  Copyright (C) 2004, 2005, Jon Gettler
  *  http://mvpmc.sourceforge.net/
  *
  *  This library is free software; you can redistribute it and/or
@@ -491,6 +491,33 @@ av_reset(void)
 	return 0;
 }
 
+/*
+ * av_reset_stc() - reset audio/video STC to 0
+ *
+ * Arguments:
+ *	none
+ *
+ * Returns:
+ *	0 if it succeeded, -1 if it failed
+ */
+int
+av_reset_stc(void)
+{
+	set_audio_stc(0);
+	set_video_stc(0);
+
+	return 0;
+}
+
+/*
+ * get_audio_sync() - get the audio sync data
+ *
+ * Arguments:
+ *	p	- PTS audio sync pointer
+ *
+ * Returns:
+ *	0 if it succeeded, -1 if it failed
+ */
 int
 get_audio_sync(pts_sync_data_t *p)
 {
@@ -504,6 +531,30 @@ get_audio_sync(pts_sync_data_t *p)
 	return ret;
 }
 
+/*
+ * set_audio_stc() - set the audio STC
+ *
+ * Arguments:
+ *	stc	- new audio STC
+ *
+ * Returns:
+ *	0 if it succeeded, -1 if it failed
+ */
+int
+set_audio_stc(uint64_t stc)
+{
+	return ioctl(fd_audio, AV_SET_AUD_STC, &stc);
+}
+
+/*
+ * get_video_sync() - get the video sync data
+ *
+ * Arguments:
+ *	p	- PTS video sync pointer
+ *
+ * Returns:
+ *	0 if it succeeded, -1 if it failed
+ */
 int
 get_video_sync(pts_sync_data_t *p)
 {
@@ -515,6 +566,21 @@ get_video_sync(pts_sync_data_t *p)
 	}
 
 	return ret;
+}
+
+/*
+ * set_video_stc() - set the video STC
+ *
+ * Arguments:
+ *	stc	- new video STC
+ *
+ * Returns:
+ *	0 if it succeeded, -1 if it failed
+ */
+int
+set_video_stc(uint64_t stc)
+{
+	return ioctl(fd_video, AV_SET_VID_STC, &stc);
 }
 
 int
@@ -750,6 +816,19 @@ av_set_pcm_param(unsigned long rate, int type, int channels,
 
 	if (ioctl(fd_audio, AV_SET_AUD_PLAY, 0) < 0)
 		return -1;
+
+	return 0;
+}
+
+int
+av_get_state(av_state_t *state)
+{
+	if (state == NULL)
+		return -1;
+
+	state->mute = muted;
+	state->pause = paused;
+	state->ffwd = ffwd;
 
 	return 0;
 }

@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2004, Jon Gettler
+ *  Copyright (C) 2004, 2005, Jon Gettler
  *  http://mvpmc.sourceforge.net/
  *
  *  This library is free software; you can redistribute it and/or
@@ -126,7 +126,25 @@ av_reset(void)
 }
 
 int
+av_reset_stc(void)
+{
+	return 0;
+}
+
+int
 get_video_sync(pts_sync_data_t *p)
+{
+	return 0;
+}
+
+int
+get_audio_sync(pts_sync_data_t *p)
+{
+	return 0;
+}
+
+int
+set_audio_stc(uint64_t stc)
 {
 	return 0;
 }
