@@ -83,7 +83,7 @@ is_image(char *item)
 static int
 is_audio(char *item)
 {
-	char *wc[] = { ".mp3", NULL };
+	char *wc[] = { ".mp3", ".wav", ".ac3", NULL };
 	int i = 0;
 
 	while (wc[i] != NULL) {
@@ -225,7 +225,8 @@ add_files(mvp_widget_t *fbw)
 	char pattern[1024], *ptr;
 	int i, w;
 	char *wc[] = { "*.mpg", "*.mpeg", "*.mp3", "*.nuv", "*.vob", "*.gif",
-		       "*.bmp", "*.jpg", "*.jpeg", "*.png", "*.VOB", NULL };
+		       "*.bmp", "*.jpg", "*.jpeg", "*.png", "*.VOB", "*.wav",
+		       "*.ac3", NULL };
 	struct stat64 sb;
 
 	item_attr.select = select_callback;

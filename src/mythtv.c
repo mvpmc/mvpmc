@@ -28,12 +28,26 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <string.h>
+#include <pthread.h>
 
 #include <mvp_widget.h>
 #include <mvp_av.h>
+#include <mvp_demux.h>
 #include <cmyth.h>
 
 #include "mvpmc.h"
+
+#if 0
+#define PRINTF(x...) printf(x)
+#else
+#define PRINTF(x...)
+#endif
+
+#define BSIZE	(512*1024)
+
+static cmyth_file_t file;
+extern demux_handle_t *handle;
+extern int fd_audio, fd_video;
 
 static mvpw_menu_item_attr_t item_attr = {
 	.selectable = 1,
@@ -42,12 +56,16 @@ static mvpw_menu_item_attr_t item_attr = {
 	.checkbox_fg = MVPW_GREEN,
 };
 
+static pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
+static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+
 static cmyth_conn_t control;
 static cmyth_proginfo_t current_prog;
 static cmyth_proglist_t episode_plist;
 static cmyth_proginfo_t episode_prog;
 static char *titles[1024];
 static char *pathname = NULL;
+static char program_name[256];
 
 static int level = 0;
 
@@ -55,6 +73,12 @@ static int show_count, episode_count;
 
 int running_mythtv = 0;
 int mythtv_debug = 0;
+
+static volatile int playing_via_mythtv = 0, reset_mythtv = 1;
+
+static pthread_t control_thread;
+
+static void mythtv_play(mvp_widget_t *widget);
 
 static int
 string_compare(const void *a, const void *b)
@@ -78,9 +102,252 @@ mythtv_show_widgets(void)
 }
 
 static void
+mythtv_close_file(void)
+{
+	if (playing_via_mythtv) {
+		cmyth_file_release(file);
+		reset_mythtv = 1;
+	}
+}
+
+static void
+mythtv_player(void)
+{
+	static int len = 0, n = 0, nput = 0;
+	int alen, vlen;
+	demux_attr_t *attr;
+	video_info_t *vi;
+	static int count = 0, resize = 0;
+	pts_sync_data_t pts;
+	static uint64_t first_stc = 0, old_pts = 0;
+	static struct timeval start;
+	struct timeval now, delta;
+	spu_item_t *spu;
+	static int set_aspect = 1;
+	static int audio_type = 0;
+
+	PRINTF("%s(): line %d\n", __FUNCTION__, __LINE__);
+
+#if 0
+	if (reset) {
+		n = 0;
+		nput = 0;
+		resize = 0;
+		set_aspect = 1;
+		gettimeofday(&start, NULL);
+	}
+#endif
+
+	attr = demux_get_attr(handle);
+	vi = &attr->video.stats.info.video;
+	if (attr->audio.type != audio_type) {
+		audio_type = attr->audio.type;
+		av_set_audio_type(audio_type);
+	}
+	if (set_aspect) {
+		if (vi->aspect == 3) {
+			av_set_video_aspect(1);
+			PRINTF("video aspect ratio: 16:9\n");
+		} else {
+			av_set_video_aspect(0);
+			PRINTF("video aspect ratio: 4:3\n");
+		}
+		set_aspect = 0;
+	}
+
+#if 0
+	if ((seek_attempts == 0) && seeking) {
+		seeking = 0;
+		printf("SEEK ABORTED\n");
+	}
+
+	if (seeking && !attr->gop_valid) {
+		seek_attempts--;
+		printf("SEEK RETRY due to lack of GOP\n");
+		n = 0;
+		nput = 0;
+		demux_flush(handle);
+		demux_seek(handle);
+		return;
+	}
+
+	if (seeking) {
+		int seconds, seek_seconds;
+
+		seconds = (attr->gop.hour * 3600) + (attr->gop.minute * 60) +
+			attr->gop.second;
+		seek_seconds = (seek_stc.hour * 3600) +
+			(seek_stc.minute * 60) + seek_stc.second;
+
+		if (seeking > 0) {
+			if (seconds >= (seek_seconds - SEEK_FUDGE)) {
+				if (seconds > (seek_seconds + SEEK_FUDGE)) {
+					n = 0;
+					nput = 0;
+					lseek(fd,
+					      -(seek_bps *
+						(seconds-seek_seconds)) / 2,
+					      SEEK_CUR);
+					demux_flush(handle);
+					demux_seek(handle);
+					seeking = -1;
+					seek_attempts--;
+					printf("SEEKING 1: %d/%d 0x%llx\n",
+					       seconds, seek_seconds,
+					       lseek(fd, 0, SEEK_CUR));
+					return;
+				}
+				seeking = 0;
+				printf("SEEK DONE: to %d at %d\n",
+				       seek_seconds, seconds);
+			} else {
+				n = 0;
+				nput = 0;
+				lseek(fd,
+				      (seek_bps*(seek_seconds-seconds)) / 2,
+				      SEEK_CUR);
+				demux_flush(handle);
+				demux_seek(handle);
+				seek_attempts--;
+				printf("SEEKING 2: %d/%d 0x%llx\n",
+				       seconds, seek_seconds,
+				       lseek(fd, 0, SEEK_CUR));
+				return;
+			}
+		} else {
+			if (seconds > (seek_seconds + SEEK_FUDGE)) {
+				n = 0;
+				nput = 0;
+				lseek(fd,
+				      -(seek_bps *
+					(seconds-seek_seconds)) / 2,
+				      SEEK_CUR);
+				demux_flush(handle);
+				demux_seek(handle);
+				seek_attempts--;
+				printf("SEEKING 3: %d/%d 0x%llx\n",
+				       seconds, seek_seconds,
+				       lseek(fd, 0, SEEK_CUR));
+				return;
+			} else {
+				if (seek_seconds > (seconds + SEEK_FUDGE)) {
+					n = 0;
+					nput = 0;
+					lseek(fd,
+					      (seek_bps *
+					       (seek_seconds-seconds)) / 2,
+					      SEEK_CUR);
+					demux_flush(handle);
+					demux_seek(handle);
+					seeking = 1;
+					seek_attempts--;
+					printf("SEEKING 4: %d/%d 0x%llx\n",
+					       seconds, seek_seconds,
+					       lseek(fd, 0, SEEK_CUR));
+					return;
+				}
+				seeking = 0;
+				printf("SEEK DONE: to %d at %d\n",
+				       seek_seconds, seconds);
+			}
+		}
+	}
+#endif
+
+	PRINTF("%s(): line %d\n", __FUNCTION__, __LINE__);
+	alen = demux_write_audio(handle, fd_audio);
+	vlen = demux_write_video(handle, fd_video);
+	PRINTF("%s(): line %d\n", __FUNCTION__, __LINE__);
+
+	if ((alen == 0) || (vlen == 0)) {
+		mvpw_set_idle(NULL);
+		mvpw_set_timer(root, mythtv_play, 100);
+	}
+
+#if 0
+	gettimeofday(&now, NULL);
+	timersub(&now, &start, &delta);
+	get_video_sync(&pts);
+	if (reset || (first_stc > pts.stc))
+		first_stc = pts.stc;
+	if (old_pts != pts.stc) {
+		PRINTF("HARDWARE: 0x%llx 0x%llx [%d %d] 0x%x\n",
+		       pts.stc, first_stc, delta.tv_sec, delta.tv_usec,
+		       (unsigned int)(pts.stc /
+				      ((float)delta.tv_sec +
+				       (delta.tv_usec/1000000.0))));
+	}
+	old_pts = pts.stc;
+#endif
+
+	if ((alen == 0) && (vlen == 0) && (n == 0) && demux_empty(handle)) {
+		if (count++ > 10) {
+#if 0
+			close(fd);
+			fd = -1;
+			if (running_mythtv)
+				mythtv_show_widgets();
+			else
+				video_show_widgets();
+#endif
+		}
+	} else
+		count = 0;
+	PRINTF("%s(): line %d\n", __FUNCTION__, __LINE__);
+}
+
+static void
+mythtv_idle(void)
+{
+	static char buf[BSIZE];
+	static int len, nput = 0, n;
+	static int tot = 0, recent = 0;
+
+	if (reset_mythtv) {
+		nput = 0;
+		reset_mythtv = 0;
+	}
+
+	if (nput == 0) {
+		len = cmyth_file_get_block(file, buf, BSIZE);
+	}
+
+	while (nput < len) {
+		if ((n=demux_put(handle, buf+nput, len-nput)) > 0)
+			nput += n;
+		else
+			goto out;
+	}
+
+	nput = 0;
+
+	recent += len;
+	if (recent < (1024*256))
+		return;
+	recent = 0;
+
+ out:
+	if (tot == BSIZE)
+		tot = 0;
+
+	mythtv_player();
+}
+
+static void
+mythtv_play(mvp_widget_t *widget)
+{
+	playing_via_mythtv = 1;
+
+	pthread_cond_signal(&cond);
+
+	mvpw_set_idle(mythtv_idle);
+	mvpw_set_timer(root, NULL, 0);
+}
+
+static void
 hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 {
-	const char *description, *channame;
+	const char *description, *channame, *title, *subtitle;
 
 	mvpw_hide(shows_widget);
 	mvpw_hide(episodes_widget);
@@ -93,6 +360,8 @@ hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 						       (int)key);
 
 		channame = cmyth_proginfo_channame(current_prog);
+		title = cmyth_proginfo_title(current_prog);
+		subtitle = cmyth_proginfo_subtitle(current_prog);
 		if (channame) {
 			mvpw_set_text_str(mythtv_channel, channame);
 		} else {
@@ -116,11 +385,33 @@ hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 		cmyth_timestamp_to_string(end, ts);
 		
 		pathname = cmyth_proginfo_pathname(current_prog);
+
 		if (current)
 			free(current);
-		current = malloc(256);
-		sprintf(current, "%s%s", mythtv_recdir, pathname);
-		mvpw_set_timer(root, video_play, 500);
+
+		if (mythtv_recdir) {
+			current = malloc(strlen(mythtv_recdir)+
+					 strlen(pathname)+1);
+			sprintf(current, "%s%s", mythtv_recdir, pathname);
+			mvpw_set_timer(root, video_play, 500);
+		} else {
+			current = malloc(strlen(pathname)+1);
+			sprintf(current, "%s", pathname);
+
+			if ((file=cmyth_conn_connect_file(current_prog,
+							  BSIZE)) == NULL) {
+				fprintf(stderr, "cannot connect to file\n");
+			}
+
+			printf("starting mythtv file transfer\n");
+			demux_reset(handle);
+			if (si.rows == 480)
+				av_move(475, si.rows-60, 4);
+			else
+				av_move(475, si.rows-113, 4);
+			av_play();
+			mvpw_set_timer(root, mythtv_play, 500);
+		}
 
 		ptr = strchr(start, 'T');
 		*ptr = '\0';
@@ -130,6 +421,9 @@ hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 		strcat(str, ptr+1);
 		mvpw_set_text_str(mythtv_date, str);
 		mvpw_expose(mythtv_date);
+
+		snprintf(program_name, sizeof(program_name), "%s - %s",
+			 title, subtitle);
 	} else {
 		mvpw_set_text_str(mythtv_channel, "");
 		mvpw_expose(mythtv_channel);
@@ -140,6 +434,7 @@ hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 		video_clear();
 		mvpw_set_idle(NULL);
 		mvpw_set_timer(root, NULL, 0);
+		mythtv_close_file();
 	}
 }
 
@@ -292,6 +587,8 @@ mythtv_update(mvp_widget_t *widget)
 	if (control == NULL)
 		mythtv_init(mythtv_server, -1);
 
+	add_osd_widget(mythtv_program_widget, OSD_PROGRAM, 1, NULL);
+
 	mvpw_set_menu_title(widget, "MythTV");
 	mvpw_clear_menu(widget);
 	add_shows(widget);
@@ -330,10 +627,32 @@ mythtv_back(mvp_widget_t *widget)
 		return 0;
 	}
 
+	if (playing_via_mythtv)
+		mythtv_close_file();
+
 	level = 0;
 	mythtv_update(widget);
 
 	return -1;
+}
+
+static void
+control_start(void *arg)
+{
+	int len;
+
+	while (1) {
+		pthread_mutex_lock(&mutex);
+		printf("mythtv control thread sleeping...\n");
+		pthread_cond_wait(&cond, &mutex);
+		pthread_mutex_unlock(&mutex);
+
+		printf("mythtv control thread starting...\n");
+
+		do {
+			len = cmyth_file_request_block(control, file, BSIZE);
+		} while ((len > 0) && (playing_via_mythtv == 1));
+	}
 }
 
 int
@@ -356,5 +675,21 @@ mythtv_init(char *server_name, int portnum)
 		return -1;
 	}
 
+	pthread_create(&control_thread, NULL, control_start, NULL);
+
 	return 0;
+}
+
+void
+mythtv_program(mvp_widget_t *widget)
+{
+	char *description;
+
+	description = mvpw_get_text_str(mythtv_description);
+
+	mvpw_set_text_str(mythtv_osd_description, description);
+	mvpw_expose(mythtv_osd_description);
+
+	mvpw_set_text_str(mythtv_osd_program, program_name);
+	mvpw_expose(mythtv_osd_program);
 }

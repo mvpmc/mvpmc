@@ -22,6 +22,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
 
 #include <mvp_widget.h>
 #include <mvp_av.h>
@@ -64,6 +65,13 @@ static mvpw_menu_attr_t attr = {
 	.title_bg = MVPW_BLUE,
 };
 
+static mvpw_menu_item_attr_t popup_item_attr = {
+	.selectable = 1,
+	.fg = mvpw_color_alpha(MVPW_BLACK, 0x80),
+	.bg = mvpw_color_alpha(MVPW_DARK_ORANGE, 0x80),
+	.checkbox_fg = mvpw_color_alpha(MVPW_PURPLE, 0x80),
+};
+
 static mvpw_menu_item_attr_t item_attr = {
 	.selectable = 1,
 	.fg = MVPW_WHITE,
@@ -83,6 +91,15 @@ static mvpw_menu_item_attr_t sub_settings_item_attr = {
 	.fg = MVPW_BLACK,
 	.bg = MVPW_LIGHTGREY,
 	.checkbox_fg = MVPW_GREEN,
+};
+
+static mvpw_menu_attr_t popup_attr = {
+	.font = 0,
+	.fg = mvpw_color_alpha(MVPW_BLACK, 0x80),
+	.hilite_fg = mvpw_color_alpha(MVPW_BLACK, 0x80),
+	.hilite_bg = mvpw_color_alpha(MVPW_WHITE, 0x80),
+	.title_fg = mvpw_color_alpha(MVPW_BLACK, 0x80),
+	.title_bg = mvpw_color_alpha(MVPW_WHITE, 0x80),
 };
 
 static mvpw_text_attr_t about_attr = {
@@ -109,6 +126,22 @@ static mvpw_text_attr_t display_attr = {
 	.fg = MVPW_WHITE,
 };
 
+static mvpw_text_attr_t mythtv_program_attr = {
+	.wrap = 0,
+	.justify = MVPW_TEXT_LEFT,
+	.margin = 6,
+	.font = 0,
+	.fg = MVPW_CYAN,
+};
+
+static mvpw_text_attr_t mythtv_description_attr = {
+	.wrap = 1,
+	.justify = MVPW_TEXT_LEFT,
+	.margin = 6,
+	.font = 0,
+	.fg = MVPW_WHITE,
+};
+
 static mvpw_text_attr_t splash_attr = {
 	.wrap = 1,
 	.justify = MVPW_TEXT_LEFT,
@@ -117,10 +150,16 @@ static mvpw_text_attr_t splash_attr = {
 	.fg = MVPW_GREEN,
 };
 
-mvpw_graph_attr_t offset_graph_attr = {
+static mvpw_graph_attr_t offset_graph_attr = {
 	.min = 0,
 	.max = 100,
-	.fg = 0x800000ff,
+	.fg = mvpw_color_alpha(MVPW_RED, 0x80),
+};
+
+static mvpw_graph_attr_t demux_graph_attr = {
+	.min = 0,
+	.max = 1024*1024*2,
+	.fg = mvpw_color_alpha(MVPW_BLUE, 0x80),
 };
 
 static int init_done = 0;
@@ -141,6 +180,7 @@ static mvp_widget_t *about_image;
 static mvp_widget_t *exit_image;
 
 mvp_widget_t *file_browser;
+mvp_widget_t *replaytv_browser;
 mvp_widget_t *mythtv_browser;
 mvp_widget_t *mythtv_logo;
 mvp_widget_t *mythtv_date;
@@ -154,9 +194,23 @@ mvp_widget_t *osd_widget;
 mvp_widget_t *offset_widget;
 mvp_widget_t *offset_bar;
 mvp_widget_t *bps_widget;
+mvp_widget_t *time_widget;
 
 mvp_widget_t *shows_widget;
 mvp_widget_t *episodes_widget;
+
+mvp_widget_t *popup_menu;
+mvp_widget_t *audio_stream_menu;
+mvp_widget_t *video_stream_menu;
+mvp_widget_t *osd_menu;
+
+mvp_widget_t *mythtv_program_widget;
+mvp_widget_t *mythtv_osd_program;
+mvp_widget_t *mythtv_osd_description;
+
+mvp_widget_t *clock_widget;
+mvp_widget_t *demux_video;
+mvp_widget_t *demux_audio;
 
 mvpw_screen_info_t si;
 
@@ -166,6 +220,7 @@ enum {
 	MM_FILESYSTEM,
 	MM_ABOUT,
 	MM_SETTINGS,
+	MM_REPLAYTV,
 };
 
 enum {
@@ -174,6 +229,60 @@ enum {
 	SETTINGS_FLICKER,
 	SETTINGS_ASPECT,
 };
+
+enum {
+	MENU_AUDIO_STREAM,
+	MENU_VIDEO_STREAM,
+	MENU_SUBTITLES,
+	MENU_OSD,
+};
+
+osd_widget_t osd_widgets[MAX_OSD_WIDGETS];
+
+void
+add_osd_widget(mvp_widget_t *widget, int type, int visible,
+	       void (*callback)(mvp_widget_t*))
+{
+	int i = 0;
+
+	while (osd_widgets[i].widget != NULL)
+		i++;
+
+	osd_widgets[i].type = type;
+	osd_widgets[i].visible = visible;
+	osd_widgets[i].widget = widget;
+	osd_widgets[i].callback = callback;
+}
+
+int
+osd_widget_toggle(int type)
+{
+	int i = 0, on;
+	void (*callback)(mvp_widget_t*);
+
+	while ((osd_widgets[i].type != type) && (i < MAX_OSD_WIDGETS))
+		i++;
+
+	if (i == MAX_OSD_WIDGETS)
+		return -1;
+
+	on = osd_widgets[i].visible = !osd_widgets[i].visible;
+	callback = osd_widgets[i].callback;
+
+	if (callback) {
+		if (on) {
+			callback(osd_widgets[i].widget);
+			mvpw_set_timer(osd_widgets[i].widget, callback, 1000);
+			mvpw_show(osd_widgets[i].widget);
+			mvpw_expose(osd_widgets[i].widget);
+		} else {
+			mvpw_set_timer(osd_widgets[i].widget, NULL, 0);
+			mvpw_hide(osd_widgets[i].widget);
+		}
+	}
+
+	return on;
+}
 
 static void settings_select_callback(mvp_widget_t*, char*, void*);
 static void sub_settings_select_callback(mvp_widget_t*, char*, void*);
@@ -348,6 +457,25 @@ settings_key_callback(mvp_widget_t *widget, char key)
 }
 
 static void
+replaytv_key_callback(mvp_widget_t *widget, char key)
+{
+	if (key == 'P')
+		power_toggle();
+
+	if (key == 'E') {
+		replaytv_stop();
+
+		mvpw_hide(replaytv_browser);
+
+		mvpw_show(main_menu);
+		mvpw_show(mvpmc_logo);
+		mvpw_show(mythtv_image);
+
+		mvpw_focus(main_menu);
+	}
+}
+
+static void
 fb_key_callback(mvp_widget_t *widget, char key)
 {
 	if (key == 'P')
@@ -393,6 +521,34 @@ mythtv_key_callback(mvp_widget_t *widget, char key)
 	}
 }
 
+static void
+popup_key_callback(mvp_widget_t *widget, char key)
+{
+	if (key == 'P')
+		power_toggle();
+
+	if (key == 'M') {
+		mvpw_hide(popup_menu);
+		mvpw_hide(audio_stream_menu);
+		mvpw_hide(video_stream_menu);
+		mvpw_hide(osd_menu);
+		mvpw_focus(root);
+	}
+
+	if (key == 'E') {
+		if (mvpw_visible(popup_menu)) {
+			mvpw_hide(popup_menu);
+			mvpw_focus(root);
+		} else {
+			mvpw_hide(audio_stream_menu);
+			mvpw_hide(video_stream_menu);
+			mvpw_hide(osd_menu);
+			mvpw_show(popup_menu);
+			mvpw_focus(popup_menu);
+		}
+	}
+}
+
 static int
 file_browser_init(void)
 {
@@ -410,6 +566,61 @@ file_browser_init(void)
 	splash_update();
 
 	return 0;
+}
+
+static void
+audio_stream_select_callback(mvp_widget_t *widget, char *item, void *key)
+{
+	audio_switch_stream(widget, (int)key);
+}
+
+static void
+video_stream_select_callback(mvp_widget_t *widget, char *item, void *key)
+{
+	video_switch_stream(widget, (int)key);
+}
+
+static void
+osd_select_callback(mvp_widget_t *widget, char *item, void *key)
+{
+	osd_type_t type = (osd_type_t)key;
+	int on;
+
+	printf("OSD callback on '%s' %d\n", item, (int)key);
+
+	on = osd_widget_toggle(type);
+
+	mvpw_check_menu_item(osd_menu, (int)key, on);
+	mvpw_expose(osd_menu);
+}
+
+static void
+popup_select_callback(mvp_widget_t *widget, char *item, void *key)
+{
+	mvpw_hide(popup_menu);
+
+	switch ((int)key) {
+	case MENU_AUDIO_STREAM:
+		popup_item_attr.select = audio_stream_select_callback;
+		add_audio_streams(audio_stream_menu, &popup_item_attr);
+		mvpw_show(audio_stream_menu);
+		mvpw_focus(audio_stream_menu);
+		break;
+	case MENU_VIDEO_STREAM:
+		popup_item_attr.select = video_stream_select_callback;
+		add_video_streams(video_stream_menu, &popup_item_attr);
+		mvpw_show(video_stream_menu);
+		mvpw_focus(video_stream_menu);
+		break;
+	case MENU_SUBTITLES:
+		break;
+	case MENU_OSD:
+		mvpw_show(osd_menu);
+		mvpw_focus(osd_menu);
+		break;
+	case 4:
+		break;
+	}
 }
 
 static void
@@ -623,6 +834,26 @@ myth_browser_init(void)
 	return 0;
 }
 
+static int
+replaytv_browser_init(void)
+{
+	replaytv_browser = mvpw_create_menu(NULL, 50, 30,
+					    si.cols-120, si.rows-190,
+					    0xff808080, 0xff606060, 2);
+
+	fb_attr.font = fontid;
+	mvpw_set_menu_attr(replaytv_browser, &fb_attr);
+
+	mvpw_set_menu_title(replaytv_browser, "ReplayTV");
+	mvpw_set_bg(replaytv_browser, MVPW_LIGHTGREY);
+
+	mvpw_set_key(replaytv_browser, replaytv_key_callback);
+
+	splash_update();
+
+	return 0;
+}
+
 static void
 main_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
@@ -666,6 +897,15 @@ main_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mvpw_show(mythtv_logo);
 		mvpw_show(mythtv_browser);
 		break;
+	case MM_REPLAYTV:
+		mvpw_hide(main_menu);
+		mvpw_hide(mvpmc_logo);
+		mvpw_hide(mythtv_image);
+
+		replaytv_update(replaytv_browser);
+
+		mvpw_show(replaytv_browser);
+		break;
 	case MM_ABOUT:
 		mvpw_show(about);
 		mvpw_focus(about);
@@ -692,6 +932,9 @@ main_hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 		case MM_MYTHTV:
 			mvpw_show(mythtv_image);
 			break;
+		case MM_REPLAYTV:
+			mvpw_show(mythtv_image);
+			break;
 		case MM_ABOUT:
 			mvpw_show(about_image);
 			break;
@@ -710,6 +953,9 @@ main_hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 		case MM_MYTHTV:
 			mvpw_hide(mythtv_image);
 			break;
+		case MM_REPLAYTV:
+			mvpw_hide(mythtv_image);
+			break;
 		case MM_ABOUT:
 			mvpw_hide(about_image);
 			break;
@@ -721,7 +967,7 @@ main_hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 }
 
 int
-main_menu_init(char *server)
+main_menu_init(char *server, char *replaytv)
 {
 	mvpw_image_info_t iid;
 	mvpw_widget_info_t wid;
@@ -791,6 +1037,9 @@ main_menu_init(char *server)
 	if (server)
 		mvpw_add_menu_item(main_menu, "MythTV",
 				   (void*)MM_MYTHTV, &item_attr);
+	if (replaytv)
+		mvpw_add_menu_item(main_menu, "ReplayTV",
+				   (void*)MM_REPLAYTV, &item_attr);
 	mvpw_add_menu_item(main_menu, "Filesystem",
 			   (void*)MM_FILESYSTEM, &item_attr);
 	mvpw_add_menu_item(main_menu, "Settings",
@@ -820,7 +1069,13 @@ about_init(void)
 	about = mvpw_create_text(NULL, x, y, w, h,
 				 MVPW_LIGHTGREY, MVPW_DARKGREY, 2);
 
-	mvpw_set_text_str(about, "MediaMVP Media Center http://mvpmc.sourceforge.net/");
+	mvpw_set_text_str(about,
+			  "MediaMVP Media Center\n"
+			  "http://mvpmc.sourceforge.net/\n\n"
+			  "Audio: mp3, wav, ac3\n"
+			  "Video: mpeg1, mpeg2\n"
+			  "Images: bmp, gif, png, jpeg\n"
+			  "Servers: MythTV, ReplayTV, NFS\n");
 	mvpw_set_key(about, about_key_callback);
 
 	about_attr.font = fontid;
@@ -845,61 +1100,117 @@ image_init(void)
 static int
 osd_init(void)
 {
-	int h, w;
+	mvp_widget_t *widget, *contain, *progress;
+	int h, w, x, y;
 
 	display_attr.font = fontid;
 	h = mvpw_font_height(display_attr.font) +
 		(2 * display_attr.margin);
-	w = mvpw_font_width(display_attr.font, " 100");
+	w = mvpw_font_width(display_attr.font, " 000% ");
 
 	/*
 	 * State widgets for pause, mute, fast forward, zoom
 	 */
-	mute_widget = mvpw_create_text(NULL, 50, 25, 125, h, 0x80000000, 0, 0);
+	mute_widget = mvpw_create_text(NULL, 50, 25, 75, h, 0x80000000, 0, 0);
 	mvpw_set_text_attr(mute_widget, &display_attr);
 	mvpw_set_text_str(mute_widget, "MUTE");
 
-	pause_widget = mvpw_create_text(NULL, 50, 25, 125, h, 0x80000000, 0, 0);
+	pause_widget = mvpw_create_text(NULL, 50, 25, 75, h, 0x80000000, 0, 0);
 	mvpw_set_text_attr(pause_widget, &display_attr);
 	mvpw_set_text_str(pause_widget, "PAUSE");
 
-	ffwd_widget = mvpw_create_text(NULL, 50, 25, 125, h, 0x80000000, 0, 0);
+	ffwd_widget = mvpw_create_text(NULL, 50, 25, 75, h, 0x80000000, 0, 0);
 	mvpw_set_text_attr(ffwd_widget, &display_attr);
 	mvpw_set_text_str(ffwd_widget, "FFWD");
 
-	zoom_widget = mvpw_create_text(NULL, 50, 25, 125, h, 0x80000000, 0, 0);
+	zoom_widget = mvpw_create_text(NULL, 50, 25, 75, h, 0x80000000, 0, 0);
 	mvpw_set_text_attr(zoom_widget, &display_attr);
 	mvpw_set_text_str(zoom_widget, "ZOOM");
+
+	clock_widget = mvpw_create_text(NULL, 50, 25, 150, h, 0x80000000, 0, 0);
+	mvpw_set_text_attr(clock_widget, &display_attr);
+	mvpw_set_text_str(clock_widget, "");
 
 	mvpw_attach(mute_widget, pause_widget, MVPW_DIR_RIGHT);
 	mvpw_attach(pause_widget, ffwd_widget, MVPW_DIR_RIGHT);
 	mvpw_attach(ffwd_widget, zoom_widget, MVPW_DIR_RIGHT);
+	mvpw_attach(zoom_widget, clock_widget, MVPW_DIR_RIGHT);
 
 	/*
-	 * OSD
+	 * OSD widgets
 	 */
-	osd_widget = mvpw_create_container(NULL, 50, 80,
-					   300, h*3, 0x80000000, 0, 0);
+	contain = mvpw_create_container(NULL, 50, 80,
+					300, h, 0x80000000, 0, 0);
+	progress = contain;
+	widget = mvpw_create_text(contain, 0, 0, w, h, 0x80000000, 0, 0);
+	mvpw_set_text_attr(widget, &display_attr);
+	mvpw_set_text_str(widget, "0%");
+	mvpw_show(widget);
+	offset_widget = widget;
+	widget = mvpw_create_graph(contain, w, 0, 300-w, h/2,
+				   0x80000000, 0, 0);
+	mvpw_set_graph_attr(widget, &offset_graph_attr);
+	mvpw_show(widget);
+	offset_bar = widget;
+	add_osd_widget(contain, OSD_PROGRESS, 1, NULL);
 
-	offset_widget = mvpw_create_text(osd_widget,
-					 0, 0, w, h, 0x80000000, 0, 0);
-	mvpw_set_text_attr(offset_widget, &display_attr);
-	mvpw_show(offset_widget);
+	mvpw_attach(mute_widget, contain, MVPW_DIR_DOWN);
+	mvpw_set_text_attr(mute_widget, &display_attr);
+	mvpw_show(widget);
 
-	offset_bar = mvpw_create_graph(osd_widget,
-				       0, 0, 300-w, 10, 0x80000000, 0, 0);
-	mvpw_set_graph_attr(offset_bar, &offset_graph_attr);
-	mvpw_show(offset_bar);
+	time_widget = mvpw_create_text(NULL, 0, 0, 150, h, 0x80000000, 0, 0);
+	mvpw_set_text_attr(time_widget, &display_attr);
+	mvpw_set_text_str(time_widget, "");
+	mvpw_attach(contain, time_widget, MVPW_DIR_DOWN);
+	add_osd_widget(time_widget, OSD_TIMECODE, 1, NULL);
 
-	bps_widget = mvpw_create_text(osd_widget,
-				      0, 0, 275, h, 0x80000000, 0, 0);
+	bps_widget = mvpw_create_text(NULL, 0, 0, 150, h, 0x80000000, 0, 0);
 	mvpw_set_text_attr(bps_widget, &display_attr);
-	mvpw_show(bps_widget);
+	mvpw_set_text_str(bps_widget, "");
+	mvpw_attach(time_widget, bps_widget, MVPW_DIR_RIGHT);
+	add_osd_widget(bps_widget, OSD_BITRATE, 1, NULL);
 
-	mvpw_attach(offset_widget, offset_bar, MVPW_DIR_RIGHT);
-	mvpw_attach(offset_widget, bps_widget, MVPW_DIR_DOWN);
+	/*
+	 * myth OSD
+	 */
+	mythtv_program_attr.font = fontid;
+	mythtv_description_attr.font = fontid;
+	x = si.cols - 475;
+	y = si.rows - 125;
+	contain = mvpw_create_container(NULL, x, y,
+					400, h*3, 0x80000000, 0, 0);
+	mythtv_program_widget = contain;
+	widget = mvpw_create_text(contain, 0, 0, 400, h, 0x80000000, 0, 0);
+	mvpw_set_text_attr(widget, &mythtv_program_attr);
+	mvpw_set_text_str(widget, "");
+	mvpw_show(widget);
+	mythtv_osd_program = widget;
+	widget = mvpw_create_text(contain, 0, 0, 400, h*2, 0x80000000, 0, 0);
+	mvpw_set_text_attr(widget, &mythtv_description_attr);
+	mvpw_set_text_str(widget, "");
+	mvpw_show(widget);
+	mythtv_osd_description = widget;
+	mvpw_attach(mythtv_osd_program, mythtv_osd_description, MVPW_DIR_DOWN);
 
-	mvpw_attach(mute_widget, osd_widget, MVPW_DIR_DOWN);
+	x = si.cols - 475;
+	y = si.rows - 125;
+	contain = mvpw_create_container(NULL, x, y,
+					300, h*2, 0x80000000, 0, 0);
+	mvpw_attach(progress, contain, MVPW_DIR_RIGHT);
+	widget = mvpw_create_graph(contain, 0, 0, 300, h,
+				   0x80000000, 0, 0);
+	mvpw_set_graph_attr(widget, &demux_graph_attr);
+	mvpw_show(widget);
+	demux_video = widget;
+	widget = mvpw_create_graph(contain, 0, 0, 300, h,
+				   0x80000000, 0, 0);
+	mvpw_set_graph_attr(widget, &demux_graph_attr);
+	mvpw_show(widget);
+	demux_audio = widget;
+	mvpw_attach(demux_video, demux_audio, MVPW_DIR_DOWN);
+	add_osd_widget(contain, OSD_DEMUX, 0, NULL);
+
+	add_osd_widget(clock_widget, OSD_CLOCK, 0, NULL);
 
 	splash_update();
 
@@ -907,7 +1218,7 @@ osd_init(void)
 }
 
 int
-mw_init(char *server)
+mw_init(char *server, char *replaytv)
 {
 	int h, w, x, y;
 	char buf[128];
@@ -943,7 +1254,102 @@ mw_init(char *server)
 }
 
 int
-gui_init(char *server)
+popup_init(void)
+{
+	int x, y, w, h;
+	unsigned int bg;
+
+	w = 300;
+	h = 150;
+	x = (si.cols - w) / 2;
+	y = (si.rows - h) / 2;
+
+	bg = mvpw_color_alpha(MVPW_DARK_ORANGE, 0x80);
+	popup_menu = mvpw_create_menu(NULL, x, y, w, h,
+				      bg,
+				      mvpw_color_alpha(MVPW_BLACK, 0x80), 2);
+
+	popup_attr.font = fontid;
+	mvpw_set_menu_attr(popup_menu, &popup_attr);
+
+	mvpw_set_menu_title(popup_menu, "Settings");
+	mvpw_set_bg(popup_menu, bg);
+
+	popup_item_attr.select = popup_select_callback;
+
+	mvpw_add_menu_item(popup_menu, "Audio Streams",
+			   (void*)MENU_AUDIO_STREAM, &popup_item_attr);
+	mvpw_add_menu_item(popup_menu, "Video Streams",
+			   (void*)MENU_VIDEO_STREAM, &popup_item_attr);
+#if 0
+	mvpw_add_menu_item(popup_menu, "Subtitles",
+			   (void*)MENU_SUBTITLES, &popup_item_attr);
+#endif
+	mvpw_add_menu_item(popup_menu, "On Screen Display",
+			   (void*)MENU_OSD, &popup_item_attr);
+
+	mvpw_set_key(popup_menu, popup_key_callback);
+
+	/*
+	 * audio stream
+	 */
+	popup_attr.checkboxes = 1;
+	audio_stream_menu = mvpw_create_menu(NULL, x, y, w, h,
+					     bg,mvpw_color_alpha(MVPW_BLACK, 0x80), 2);
+	mvpw_set_menu_attr(audio_stream_menu, &popup_attr);
+	mvpw_set_menu_title(audio_stream_menu, "Audio Streams");
+	mvpw_set_bg(audio_stream_menu, bg);
+	mvpw_set_key(audio_stream_menu, popup_key_callback);
+
+	/*
+	 * video menu
+	 */
+	video_stream_menu = mvpw_create_menu(NULL, x, y, w, h,
+					     bg,mvpw_color_alpha(MVPW_BLACK, 0x80), 2);
+	mvpw_set_menu_attr(video_stream_menu, &popup_attr);
+	mvpw_set_menu_title(video_stream_menu, "Video Streams");
+	mvpw_set_bg(video_stream_menu, bg);
+	mvpw_set_key(video_stream_menu, popup_key_callback);
+
+	/*
+	 * osd menu
+	 */
+	osd_menu = mvpw_create_menu(NULL, x, y, w, h,
+				    bg,mvpw_color_alpha(MVPW_BLACK, 0x80), 2);
+	mvpw_set_menu_attr(osd_menu, &popup_attr);
+	mvpw_set_menu_title(osd_menu, "OSD Settings");
+	mvpw_set_bg(osd_menu, bg);
+	mvpw_set_key(osd_menu, popup_key_callback);
+
+	/*
+	 * osd sub-menu
+	 */
+	popup_item_attr.select = osd_select_callback;
+	mvpw_add_menu_item(osd_menu, "Bitrate", (void*)OSD_BITRATE,
+			   &popup_item_attr);
+	mvpw_add_menu_item(osd_menu, "Clock", (void*)OSD_CLOCK,
+			   &popup_item_attr);
+	mvpw_add_menu_item(osd_menu, "Demux Info", (void*)OSD_DEMUX,
+			   &popup_item_attr);
+	mvpw_add_menu_item(osd_menu, "Progress Meter", (void*)OSD_PROGRESS,
+			   &popup_item_attr);
+	mvpw_add_menu_item(osd_menu, "Program Info", (void*)OSD_PROGRAM,
+			   &popup_item_attr);
+	mvpw_add_menu_item(osd_menu, "Timecode", (void*)OSD_TIMECODE,
+			   &popup_item_attr);
+
+	mvpw_check_menu_item(osd_menu, OSD_BITRATE, 1);
+	mvpw_check_menu_item(osd_menu, OSD_CLOCK, 0);
+	mvpw_check_menu_item(osd_menu, OSD_DEMUX, 0);
+	mvpw_check_menu_item(osd_menu, OSD_PROGRESS, 1);
+	mvpw_check_menu_item(osd_menu, OSD_PROGRAM, 1);
+	mvpw_check_menu_item(osd_menu, OSD_TIMECODE, 1);
+
+	return 0;
+}
+
+int
+gui_init(char *server, char *replaytv)
 {
 	char buf[128], *ptr;
 
@@ -951,19 +1357,21 @@ gui_init(char *server)
 	if (ptr)
 		snprintf(buf, sizeof(buf), "%s\nInitializing GUI", ptr);
 	else
-		snprintf(buf, sizeof(buf), "Initializing GUI", ptr);
+		snprintf(buf, sizeof(buf), "Initializing GUI");
 
 	mvpw_set_text_str(splash, buf);
 	mvpw_expose(splash);
 	mvpw_event_flush();
 
-	main_menu_init(server);
+	main_menu_init(server, replaytv);
 	myth_browser_init();
+	replaytv_browser_init();
 	file_browser_init();
 	settings_init();
 	about_init();
 	image_init();
 	osd_init();
+	popup_init();
 
 	mvpw_destroy(splash);
 
