@@ -1534,3 +1534,15 @@ cmyth_proginfo_compare(cmyth_proginfo_t a, cmyth_proginfo_t b)
 
 	return 0;
 }
+
+char*
+cmyth_proginfo_host(cmyth_proginfo_t prog)
+{
+	if (!prog) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: no program info\n", __FUNCTION__);
+		return NULL;
+	}
+
+	return prog->proginfo_host;
+}
