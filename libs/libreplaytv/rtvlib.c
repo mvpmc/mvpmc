@@ -225,7 +225,7 @@ int rtv_init_lib(void)
    rtv_globals.merge_chunk_sz   = 3;                // 3 - 32K chunks
    rtv_globals.log_fd           = stdout;
    rtv_globals.rtv_debug        = 0x00000000;
-   //rtv_globals.rtv_debug        = 0x000000ff;
+   //rtv_globals.rtv_debug        = 0x100000ff;
 
    rtv_devices.num_rtvs = 0;
    rtv_devices.rtv      = malloc(sizeof(rtv_device_t) * MAX_RTVS);

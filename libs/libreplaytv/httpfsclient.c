@@ -520,6 +520,7 @@ int rtv_get_file_info( const rtv_device_info_t  *device, const char *name,  rtv_
    char            type     = RTV_FS_UNKNOWN;
    u64             filetime = 0;
    u64             size     = 0;
+   int             rc       = 0;
    unsigned long   status;
    unsigned int    num_lines, x;
    char          **lines;
@@ -548,24 +549,27 @@ int rtv_get_file_info( const rtv_device_info_t  *device, const char *name,  rtv_
       }
       else {
          RTV_WARNLOG("%s: unknown response line: %s\n", __FUNCTION__, lines[x]);
+         rc = -EPROTO;
       }
    }
 
-   fileinfo->name = malloc(strlen(name)+1);
-   strcpy(fileinfo->name, name);
-   fileinfo->type          = type;
-   fileinfo->time          = filetime;
-   fileinfo->time_str_fmt1 = rtv_format_time64_1(filetime + 3000); //add 3 seconds to time
-   fileinfo->time_str_fmt2 = rtv_format_time64_2(filetime + 3000); //add 3 seconds to time
-   if ( type == 'f' ) {
-      fileinfo->size     = size;
-      fileinfo->size_k   = size / 1024;
-   }
+   if ( rc == 0 ) {
+      fileinfo->name = malloc(strlen(name)+1);
+      strcpy(fileinfo->name, name);
+      fileinfo->type          = type;
+      fileinfo->time          = filetime;
+      fileinfo->time_str_fmt1 = rtv_format_time64_1(filetime + 3000); //add 3 seconds to time
+      fileinfo->time_str_fmt2 = rtv_format_time64_2(filetime + 3000); //add 3 seconds to time
+      if ( type == 'f' ) {
+         fileinfo->size     = size;
+         fileinfo->size_k   = size / 1024;
+      }
 
    //rtv_print_file_info(fileinfo);
+   }
    free(lines);
    free(data);
-   return(0);
+   return(rc);
 }
 
 
