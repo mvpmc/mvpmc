@@ -579,9 +579,12 @@ int
 av_set_audio_output(av_audio_output_t type)
 {
 	if (audio_output != type) {
+		int mix[5] = { 0, 2, 7, 1, 0 };
+
 		close(fd_audio);
 
-		if (type == AV_AUDIO_MPEG) {
+		switch (type) {
+		case AV_AUDIO_MPEG:
 			if ((fd_audio=open("/dev/adec_mpg",
 					   O_RDWR|O_NONBLOCK)) < 0)
 				return -1;
@@ -597,9 +600,9 @@ av_set_audio_output(av_audio_output_t type)
 
 			if (ioctl(fd_audio, AV_SET_AUD_PLAY, 0) != 0)
 				return -1;
-		} else {
-			int mix[5] = { 0, 2, 7, 1, 0 };
 
+			break;
+		case AV_AUDIO_PCM:
 			if ((fd_audio=open("/dev/adec_pcm",
 					   O_RDWR|O_NONBLOCK)) < 0)
 				return -1;
@@ -615,6 +618,11 @@ av_set_audio_output(av_audio_output_t type)
 
 			if (ioctl(fd_audio, AV_SET_AUD_PLAY, 0) < 0)
 				return -1;
+
+			break;
+		default:
+			return -1;
+			break;
 		}
 	}
 
@@ -623,14 +631,52 @@ av_set_audio_output(av_audio_output_t type)
 	return 0;
 }
 
+/*
+ * av_set_pcm_param() - change the pcm audio parameters
+ *
+ * Arguments:
+ *	rate		- audio bitrate
+ *	type		- type of audio
+ *				0  - Ogg Vorbis
+ *				1  - AC3, WAV
+ *				2+ - ???
+ *	channels	- channels (1 = mono, 2 = stereo)
+ *	big_endian	- 1 = big endian, 0 = little endian
+ *	bits		- 24, 16
+ *
+ * Returns:
+ *	0 if it succeeded, -1 if it failed
+ */
 int
-av_set_pcm_rate(unsigned long rate)
+av_set_pcm_param(unsigned long rate, int type, int channels,
+		 int big_endian, int bits)
 {
 	int iloop;
 	int mix[5];
 
-	mix[0]=0;	/* 0=stereo,1=mono */
-	mix[1]=2;	/* 0,1=24bit(24) , 2,3=16bit */
+	if (channels == 1)
+		mix[0] = 1;
+	else if (channels == 2)
+		mix[0] = 0;
+	else
+		return -1;
+
+	/* 0,1=24bit(24) , 2,3=16bit */
+	if (bits == 16)
+		mix[1] = 2;
+	else if (bits == 24)
+		mix[1] = 0;
+	else
+		return -1;
+
+	mix[3] = type;
+
+	if (big_endian == 1)
+		mix[4] = 1;
+	else if (big_endian == 0)
+		mix[4] = 0;
+	else
+		return -1;
 
 	/*
 	 * if there is an exact match for the frequency, use it.
@@ -652,9 +698,6 @@ av_set_pcm_rate(unsigned long rate)
 			rate);
 		return -1;
 	}
-
-	mix[3]=1;	/* 1 causes 'thump' ?? */
-	mix[4]=0;	/* 0 = MSB First 1 = LSB First */
 
 	if (ioctl(fd_audio, AV_SET_AUD_FORMAT, &mix) < 0)
 		return -1;

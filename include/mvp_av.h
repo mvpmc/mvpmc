@@ -91,7 +91,8 @@ extern int av_set_aspect(int);
 
 extern int av_set_led(int);
 
-extern int av_set_pcm_rate(unsigned long rate);
+extern int av_set_pcm_param(unsigned long rate, int type, int channels,
+			    int big_endian, int bits);
 extern int av_set_audio_output(av_audio_output_t type);
 
 extern int av_sync(void);

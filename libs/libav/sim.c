@@ -180,7 +180,7 @@ av_set_led(int on)
 }
 
 int
-av_set_pcm_rate(unsigned long rate)
+av_set_pcm_param(unsigned long rate, int type, int mono, int endian, int bits)
 {
 	return 0;
 }
