@@ -212,18 +212,6 @@ typedef struct rtv_device_list_t
 } rtv_device_list_t;
 
 
-//+****************************************************
-// rtv_read_file parameter that specifies how many 32K
-// byte chunks to merge together before passing data 
-// to application
-//+****************************************************
-typedef enum rtv_mergechunks_t 
-{
-   RTV_MERGECHUNKS_0 = 0,
-   RTV_MERGECHUNKS_2 = 2,
-   RTV_MERGECHUNKS_4 = 4
-} rtv_mergechunks_t;
-
 //+************************************************************
 // rtv_read_file callback fxn prototype
 // parms:
@@ -235,7 +223,6 @@ typedef enum rtv_mergechunks_t
 //         Return 1 to to abort the transfer.
 //+************************************************************
 typedef int (*rtv_read_chunked_cb_t)(unsigned char *buf, size_t len, void *vd);
-
 
 
 //+************************************************************************
@@ -253,16 +240,17 @@ extern rtv_device_list_t rtv_devices;
 //+**************************   RTV API's *********************************
 //+************************************************************************
 extern int           rtv_init_lib(void);
+extern void          rtv_set_dbgmask(__u32 mask);
+extern __u32         rtv_get_dbgmask(void);
+extern void          rtv_set_32k_chunks_to_merge(int chunks);
+extern int           rtv_route_logs(char *filename);
 extern rtv_device_t *rtv_get_device_struct(const char *ipaddr, int *new);
 extern int           rtv_free_devices(void);
 extern void          rtv_print_device_list(void); 
-extern int           rtv_route_logs(char *filename);
 extern char         *rtv_format_time64_1(__u64 ttk);             // Returned string is malloc'd: user must free
 extern char         *rtv_format_time64_2(__u64 ttk);             // Returned string is malloc'd: user must free
 extern char         *rtv_format_time32(__u32 t);                 // Returned string is malloc'd: user must free
 extern char         *rtv_sec_to_hr_mn_str(unsigned int seconds); // Returned string is malloc'd: user must free
-extern void          rtv_set_dbgmask(__u32 mask);
-extern __u32         rtv_get_dbgmask(void);
 extern int           rtv_crypt_test(void);
 
 extern int  rtv_discover(unsigned int timeout_ms, rtv_device_list_t **device_list);
@@ -279,7 +267,6 @@ extern void rtv_free_guide(rtv_guide_export_t *guide);
 
 extern char *rtv_xref_quality(int key);
 extern char *rtv_xref_input_source(int key);
-
 
 extern int  rtv_get_volinfo( const rtv_device_info_t  *device, const char *name, rtv_fs_volume_t **volinfo );
 extern void rtv_free_volinfo(rtv_fs_volume_t **volinfo); 

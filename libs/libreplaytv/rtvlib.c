@@ -80,13 +80,19 @@ void rtv_print_device_list( void )
    }
 }
 
+void rtv_set_32k_chunks_to_merge(int chunks)
+{
+   rtv_globals.merge_chunk_sz = chunks;
+}
+
 void rtv_set_dbgmask(__u32 mask)
 {
-   rtv_debug = mask;
+   rtv_globals.rtv_debug = mask;
 }
+
 __u32 rtv_get_dbgmask(void)
 {
-   return(rtv_debug);
+   return(rtv_globals.rtv_debug);
 }
 
 char *rtv_format_time64_1(__u64 ttk) 
@@ -172,12 +178,16 @@ int rtv_init_lib(void)
    int                bogus_fd, len, errno_sav;
    struct sockaddr_in ssdp_addr, local_addr;
 
-   log_fd = stdout;
+   rtv_globals.rtv_emulate_mode = RTV_DEVICE_5K;
+   rtv_globals.merge_chunk_sz   = 3;                // 3 - 32K chunks
+   rtv_globals.log_fd           = stdout;
+   rtv_globals.rtv_debug        = 0x00000000;
+   //rtv_globals.rtv_debug        = 0x100000ff;
+
    rtv_devices.num_rtvs = 0;
    rtv_devices.rtv      = malloc(sizeof(rtv_device_t) * MAX_RTVS);
    memset(rtv_devices.rtv, 0, sizeof(rtv_device_t) * MAX_RTVS); 
 
-   rtv_emulate_mode = RTV_DEVICE_5K;
       
    // Determine our IP address & hostname
    // gethostbyname doesn't work on the mvp so setup a bogus socket 

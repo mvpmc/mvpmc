@@ -85,14 +85,24 @@ typedef struct rtv_idns_t
 } rtv_idns_t;
 
 extern rtv_idns_t rtv_idns;
-extern int        rtv_emulate_mode;
+
+
+//+********************************************************************
+// Library globals. Encapsulate in a struct.
+//+********************************************************************
+typedef struct rtv_globals_t
+{
+   int            rtv_emulate_mode; // Kick dvarchive into 4K or 5K mode
+   int            merge_chunk_sz;   // Number or 32K file chunks to merge
+   FILE          *log_fd;           // Where to set logs
+   volatile u32   rtv_debug;        // debug log mask
+} rtv_globals_t;
+
+extern  rtv_globals_t rtv_globals; 
 
 //+********************************************************************
 // Debugging/logging infrastructure
 //+********************************************************************
-extern FILE         *log_fd;
-extern volatile u32  rtv_debug;
-
 extern void rtvVLog(const char *format, va_list ap);
 inline static void rtv_log(const char *format, ...)
 {
@@ -105,14 +115,14 @@ inline static void rtv_log(const char *format, ...)
 //+********************************************************************
 // Debugging/logging API's
 //+********************************************************************
-#define RTVLOG_INFO          (rtv_debug & 0x00000001)
-#define RTVLOG_DSCVR         (rtv_debug & 0x00000002)
-#define RTVLOG_GUIDE         (rtv_debug & 0x00000004)
-#define RTVLOG_HTTP          (rtv_debug & 0x00000008)
-#define RTVLOG_HTTP_VERB     (rtv_debug & 0x00000010)
-#define RTVLOG_NET           (rtv_debug & 0x00000020)
-#define RTVLOG_CMD           (rtv_debug & 0x00000040)
-#define RTVLOG_NETDUMP       (rtv_debug & 0x10000000)
+#define RTVLOG_INFO          (rtv_globals.rtv_debug & 0x00000001)
+#define RTVLOG_DSCVR         (rtv_globals.rtv_debug & 0x00000002)
+#define RTVLOG_GUIDE         (rtv_globals.rtv_debug & 0x00000004)
+#define RTVLOG_HTTP          (rtv_globals.rtv_debug & 0x00000008)
+#define RTVLOG_HTTP_VERB     (rtv_globals.rtv_debug & 0x00000010)
+#define RTVLOG_NET           (rtv_globals.rtv_debug & 0x00000020)
+#define RTVLOG_CMD           (rtv_globals.rtv_debug & 0x00000040)
+#define RTVLOG_NETDUMP       (rtv_globals.rtv_debug & 0x10000000)
 
 #define RTV_PRT(fmt, args...)  rtv_log(fmt, ## args)
 

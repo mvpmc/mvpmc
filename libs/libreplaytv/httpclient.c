@@ -307,13 +307,13 @@ char *hc_lookup_rsp_header(const struct hc *hc, const char *tag)
 extern int hc_read_pieces(const struct hc       *hc,
                           rtv_read_chunked_cb_t  callback,
                           void                  *v,
-                          rtv_mergechunks_t      mergechunks)
+                          int                    mergechunks)
 {
     int          chunked     = 0;
     int          done        = 0;
     int          x           = 1;
     int          rc          = 0;
-    unsigned int multichunk  = 0;
+    int          multichunk  = 0;
     size_t       len_total   = 0;
     char        *buf         = NULL; 
     char        *bufstart    = NULL;
@@ -469,7 +469,7 @@ int hc_read_all(struct hc *hc, char **data_p)
     data.start = data.end = NULL;
     data.total = 0;
     
-    rc = hc_read_pieces(hc, read_all_callback, &data, RTV_MERGECHUNKS_0);
+    rc = hc_read_pieces(hc, read_all_callback, &data, 0);
     if ( rc != 0 ) {
        RTV_ERRLOG("%s: hc_read_pieces call failed: rc=%d\n", __FUNCTION__, rc);
        *data_p = NULL;

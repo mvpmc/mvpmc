@@ -86,7 +86,7 @@ static int make_get_guide_resp( char *buf, int bufsz )
    char *bptr, *p1, *ss;
    char  bodylenstr[20];
    
-   if ( rtv_emulate_mode == RTV_DEVICE_4K ) {
+   if ( rtv_globals.rtv_emulate_mode == RTV_DEVICE_4K ) {
       sslen = build_v1_bogus_snapshot(&ss);
    }
    else {
@@ -187,7 +187,7 @@ int server_process_connection(int fd)
    rxbuff[len] = '\0';
    RTV_DBGLOG(RTVLOG_DSCVR, "%s\n", rxbuff);
    if ( strstr(rxbuff, "Device_Descr.xml") != NULL ) {
-      if ( rtv_emulate_mode == RTV_DEVICE_4K ) {
+      if ( rtv_globals.rtv_emulate_mode == RTV_DEVICE_4K ) {
          len = make_dev_descr_resp( txbuff, TCP_BUF_SZ, local_ip_address, local_hostname, rtv_idns.sn_4k, rtv_idns.uuid_4k);
       }
       else {

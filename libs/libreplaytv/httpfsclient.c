@@ -274,7 +274,7 @@ static int hfs_do_chunked(rtv_read_chunked_cb_t    fn,
                           void                    *v,
                           const rtv_device_info_t *device,
                           __u16                    msec_delay,
-                          rtv_mergechunks_t        mergechunks,
+                          int                      mergechunks,
                           const char              *command,
                           ...)
 {
@@ -695,7 +695,7 @@ __u32  rtv_read_file( const rtv_device_info_t *device,
 
    if ( size != 0 ) {
       snprintf(size_str, 255, "%"U64F"d", size);
-      status = hfs_do_chunked(callback_fxn, callback_data, device, ms_delay, RTV_MERGECHUNKS_4,
+      status = hfs_do_chunked(callback_fxn, callback_data, device, ms_delay, rtv_globals.merge_chunk_sz,
                               "readfile",
                               "pos",  pos_str,
                               "size", size_str,
@@ -703,7 +703,7 @@ __u32  rtv_read_file( const rtv_device_info_t *device,
                               NULL);
    }
    else {
-      status = hfs_do_chunked(callback_fxn, callback_data, device, ms_delay, RTV_MERGECHUNKS_4,
+      status = hfs_do_chunked(callback_fxn, callback_data, device, ms_delay, rtv_globals.merge_chunk_sz,
                               "readfile",
                               "pos",  pos_str,
                               "name", filename,

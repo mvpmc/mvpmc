@@ -180,7 +180,7 @@ int rtv_discover(unsigned int timeout_ms, rtv_device_list_t **device_list)
       goto error;
    }
 
-   if ( rtv_emulate_mode == RTV_DEVICE_4K) {
+   if ( rtv_globals.rtv_emulate_mode == RTV_DEVICE_4K) {
       uuid_str = rtv_idns.uuid_4k;
    }
    else {

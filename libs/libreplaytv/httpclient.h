@@ -89,6 +89,6 @@ extern int             hc_read_all(struct hc *hc, char **data_p);
 extern int             hc_read_pieces(const struct hc *,
                                       rtv_read_chunked_cb_t,
                                       void *,
-                                      rtv_mergechunks_t);
+                                      int);
 extern void            hc_free(struct hc *hc);
 #endif

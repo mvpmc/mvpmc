@@ -37,11 +37,20 @@ rtv_idns_t rtv_idns =
    .uuid_5k = "93da697b-a177-96c3-3858-2c19c9899999"
 };
 
-int rtv_emulate_mode;
 
-FILE        *log_fd;
-volatile u32 rtv_debug = 0x00000000;
-//volatile u32 rtv_debug = 0x100000ff;
+// Globals that can be access by all code.
+// Initialized by rtv_init_lib()
+//
+rtv_globals_t rtv_globals = 
+{
+   .rtv_emulate_mode = 0,
+   .merge_chunk_sz   = 0,
+   .log_fd           = NULL,
+   .rtv_debug        = 0
+
+}; 
+
+
 
 //static unsigned int log_rotate_cnt = 8192;
 static unsigned int log_rotate_cnt = 512;
@@ -166,13 +175,13 @@ static void rotate_logs(void)
    if ( new_fd == NULL ) {
       RTV_ERRLOG("Rotate LogFile fopen error: %s\n      errno=%d=>%s", 
               log_fn, errno, strerror(errno));
-      log_fd      = stderr;
-      log_to_file = 0;         
+      rtv_globals.log_fd = stderr;
+      log_to_file        = 0;         
       return;
    }
 
-   fclose(log_fd);
-   log_fd = new_fd;
+   fclose(rtv_globals.log_fd);
+   rtv_globals.log_fd = new_fd;
    return;
 }
 
@@ -185,17 +194,17 @@ void rtvVLog(const char *format, va_list ap)
       char   *ct  = ctime_r(&tim, tm_buf);
 
       snprintf(newfmt, sizeof(newfmt), "%15.15s %s", &ct[4], format);
-      vfprintf(log_fd, newfmt, ap);
+      vfprintf(rtv_globals.log_fd, newfmt, ap);
 
       // See if it is time to rotate the log file
       //
-      fflush(log_fd);
+      fflush(rtv_globals.log_fd);
       if ( ++log_count > log_rotate_cnt ) {
          rotate_logs();
       }
    } 
    else {
-      vfprintf(log_fd, format, ap);
+      vfprintf(rtv_globals.log_fd, format, ap);
    }
    return;
 }
@@ -206,16 +215,16 @@ int rtv_route_logs(char *filename)
    FILE *tmpfd;
 
    log_count = 0;
-   if ( (log_fd != NULL) && (log_fd != stdout) && (log_fd != stderr) ) {
-      fclose(log_fd);
+   if ( (rtv_globals.log_fd != NULL) && (rtv_globals.log_fd != stdout) && (rtv_globals.log_fd != stderr) ) {
+      fclose(rtv_globals.log_fd);
    }
    if ( strcmp(filename, "stderr") == 0 ) {
-      log_to_file = 0;
-      log_fd      = stderr;
+      log_to_file        = 0;
+      rtv_globals.log_fd = stderr;
    }
    else if ( strcmp(filename, "stdout") == 0 ) {
-      log_to_file = 0;
-      log_fd      = stdout;
+      log_to_file        = 0;
+      rtv_globals.log_fd = stdout;
    } 
    else {
       tmpfd = fopen(filename, "w");
@@ -223,15 +232,15 @@ int rtv_route_logs(char *filename)
          rc = errno;
          RTV_ERRLOG("Failed to open logfile, fopen: %s\n", filename);
          RTV_ERRLOG("       errno=%d=>%s\n", rc, strerror(rc));
-         log_to_file = 0;
-         log_fd      = stderr;
+         log_to_file        = 0;
+         rtv_globals.log_fd = stderr;
       }
       else {
          snprintf(log_fn, PATH_MAX-1, "%s", filename); 
          snprintf(log_backup_fn, PATH_MAX-1, "%s.old", filename);
          RTV_PRT("Sending logs to: %s\n", filename);
-         log_to_file = 1;         
-         log_fd      = tmpfd;
+         log_to_file        = 1;         
+         rtv_globals.log_fd = tmpfd;
       }
    }
    return(rc);

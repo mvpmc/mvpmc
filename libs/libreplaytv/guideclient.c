@@ -188,7 +188,7 @@ int rtv_get_guide_snapshot( const rtv_device_info_t  *device,
     }
 
     hc_send_request(hc, ":80\r\nAccept-Encoding: gzip\r\n");
-    rc = hc_read_pieces(hc, get_rtv5k_snapshot_callback, &data, RTV_MERGECHUNKS_0);
+    rc = hc_read_pieces(hc, get_rtv5k_snapshot_callback, &data, 0);
     hc_free(hc);
     if ( rc != 0 ) {
        RTV_ERRLOG("%s: hc_read_pieces call failed: rc=%d\n", __FUNCTION__, rc);

@@ -249,7 +249,7 @@ int rtv_get_device_info(const char *address, char *queryStr, rtv_device_t **devi
    }
    
    hc_send_request(hc, NULL);
-   rc = hc_read_pieces(hc, get_deviceinfo_callback, NULL, RTV_MERGECHUNKS_0);
+   rc = hc_read_pieces(hc, get_deviceinfo_callback, NULL, 0);
    hc_free(hc);
    if ( rc != 0 ) {
       RTV_ERRLOG("%s: hc_read_pieces call failed: rc=%d\n", __FUNCTION__, rc);
