@@ -877,6 +877,8 @@ static void*
 control_start(void *arg)
 {
 	int len;
+	int size = BSIZE;
+	demux_attr_t *attr;
 
 	while (1) {
 		int count = 0;
@@ -889,14 +891,31 @@ control_start(void *arg)
 
 		printf("mythtv control thread starting...\n");
 
+		attr = demux_get_attr(handle);
+
 		do {
 			if (seeking || jumping) {
-				len = cmyth_file_request_block(control, file,
-							       1024*96);
+				size = 1024*96;
 			} else {
-				len = cmyth_file_request_block(control, file,
-							       BSIZE);
+				if ((attr->video.bufsz -
+				     attr->video.stats.cur_bytes) < BSIZE) {
+					size = attr->video.bufsz -
+						attr->video.stats.cur_bytes -
+						1024;
+				} else {
+					size = BSIZE;
+				}
+
+				if ((file == NULL) || close_mythtv)
+					break;
+			
+				if (size < 2048) {
+					usleep(1000);
+					continue;
+				}
 			}
+
+			len = cmyth_file_request_block(control, file, size);
 
 			/*
 			 * Will block if another command is executing
