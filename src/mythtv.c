@@ -103,6 +103,7 @@ video_callback_t mythtv_functions = {
 	.seek      = mythtv_seek,
 	.size      = mythtv_size,
 	.notify    = NULL,
+	.key       = NULL,
 };
 
 static int

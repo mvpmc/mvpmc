@@ -1715,12 +1715,12 @@ gui_init(char *server, char *replaytv)
 		return -1;
 	if (myth_browser_init() < 0)
 		return -1;
-	replaytv_browser_init();
 	file_browser_init();
 	settings_init();
 	about_init();
 	image_init();
 	osd_init();
+	replaytv_browser_init(); // must come after osd_init
 	popup_init();
 	screensaver_init();
 

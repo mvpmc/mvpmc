@@ -92,6 +92,7 @@ video_callback_t file_functions = {
 	.seek      = file_seek,
 	.size      = file_size,
 	.notify    = NULL,
+	.key       = NULL,
 };
 
 volatile video_callback_t *video_functions = &file_functions;
@@ -416,6 +417,12 @@ video_callback(mvp_widget_t *widget, char key)
 	struct stat64 sb;
 	int jump;
 	long long offset, size;
+
+	if ( video_functions->key != NULL ) {
+		if ( video_functions->key(key) == 1 ) {
+			return;
+		}
+	}
 
 	switch (key) {
 	case MVPW_KEY_STOP:

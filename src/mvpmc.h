@@ -50,7 +50,9 @@ typedef struct {
 	int (*read_dynb)(char**, int);     // For read functions that return a pointer to a dynamic buffer
 	long long (*seek)(long long, int);
 	long long (*size)();               // Current mpeg file size
-	void (*notify)(mvp_notify_t);      // For mvp code code to notify client of whatever 
+	void (*notify)(mvp_notify_t);      // For mvp code to notify client of whatever
+	int (*key)(char);                  // Client specific handling of keypresses during video play.
+                                      // Client should return 1 if it handled the keypress. Else return 0
 } video_callback_t;
 
 extern volatile video_callback_t *video_functions;
