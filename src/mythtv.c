@@ -626,11 +626,9 @@ mythtv_update(mvp_widget_t *widget)
 		mvpw_set_text_str(freespace_widget, buf);
 	}
 
-#if 0
-	mvpw_show(mythtv_channel);
-	mvpw_show(mythtv_date);
-	mvpw_show(mythtv_description);
-#endif
+	mvpw_hide(mythtv_channel);
+	mvpw_hide(mythtv_date);
+	mvpw_hide(mythtv_description);
 
 	mvpw_show(shows_widget);
 	mvpw_show(episodes_widget);
