@@ -26,6 +26,7 @@
 #define pal_mode	__pal_mode
 #define aspect		__aspect
 #define set_output_method		__set_output_method
+#define paused		__paused
 
 extern int fd_video;
 extern int fd_audio;
