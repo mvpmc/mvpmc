@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2004, Jon Gettler
+ *  Copyright (C) 2004,2005, Jon Gettler
  *  http://mvpmc.sourceforge.net/
  *
  *  wav file player by Stephen Rice
@@ -85,6 +85,11 @@ static float next_input_sample = 0;
 static float wav_file_to_input_frequency_ratio = 1;
 static int chunk_size = 0;
 
+static int align;
+static unsigned short channels;
+static unsigned short bps;
+static int pcm_decoded = 0;
+
 #define min(X, Y)  ((X) < (Y) ? (X) : (Y))
 
 static inline uint16_t
@@ -138,7 +143,7 @@ find_chunk(int fd,char searchid[5])
 }
 
 static void
-pcm_play(int fd, int afd, unsigned short align, unsigned short channels,
+wav_play(int fd, int afd, unsigned short align, unsigned short channels,
 	 unsigned short bps)
 {
 	unsigned char *wav_buffer;
@@ -199,28 +204,140 @@ pcm_play(int fd, int afd, unsigned short align, unsigned short channels,
 static void
 ogg_play(int afd)
 {
-	int i = 0;
-	int ret;
+	static int do_read = 1;
+	static int ret = 0;
+	static int pos = 0, len = 0;
 
-	while (i++ < 4) {
+	if (afd < 0) {
+		pos = 0;
+		len = 0;
+		do_read = 1;
+		return;
+	}
+
+ retry:
+	if (do_read) {
 		ret = ov_read(&vf, pcmout, sizeof(pcmout), &current_section);
+		pos = 0;
+		len = 0;
+	}
 
-		if (ret == 0) {
-			fprintf(stderr, "EOF during ogg read...\n");
-			return;
-		} else if (ret < 0) {
-			fprintf(stderr, "Error during ogg read...\n");
-		} else {
-			int pos = 0, len = 0;
-			do {
-				pos += len;
-				if ((len = write(afd, pcmout + pos, ret - pos)) == -1) {
-					fprintf(stderr,
-						"Error during audio write\n");
-					return;
-				}
-			} while (pos + len < ret);
+	if (ret == 0) {
+		fprintf(stderr, "EOF during ogg read...\n");
+		goto next;
+	} else if (ret < 0) {
+		fprintf(stderr, "Error during ogg read...\n");
+		goto next;
+	} else {
+		do {
+			pos += len;
+			if ((len = write(afd, pcmout + pos, ret - pos)) == -1) {
+				fprintf(stderr,
+					"Error during audio write\n");
+				goto next;
+			}
+			if (len == 0)
+				goto full;
+		} while (pos + len < ret);
+	}
+
+	do_read = 1;
+
+	/*
+	 * We shouldn't have any problem filling up the hardware audio buffer,
+	 * so keep processing the file until we're forced to block.
+	 */
+	goto retry;
+
+ full:
+	do_read = 0;
+
+	mvpw_set_idle(NULL);
+	mvpw_set_timer(root, audio_play, 100);
+
+	return;
+
+ next:
+	audio_clear();
+	if(playlist)
+		playlist_next();
+}
+
+static void
+ac3_play(int afd)
+{
+	static char buf[BSIZE];
+	static int ac3more = 0;
+	static int ac3len = 0;
+
+	if (afd < 0) {
+		pcm_decoded = 0;
+		ac3more = 0;
+		ac3len = 0;
+		printf("playing AC3 file\n");
+		return;
+	}
+
+	if (ac3more == -1)
+		ac3more = a52_decode_data(NULL, NULL, pcm_decoded);
+	if (ac3more == 1)
+		ac3more = a52_decode_data(buf, buf + ac3len,
+					  pcm_decoded);
+	if (ac3more == 0) {
+		ac3len = read(fd, buf, BSIZE);
+		ac3more = a52_decode_data(buf, buf + ac3len,
+					  pcm_decoded);
+	}
+	pcm_decoded = 1;
+
+	if (ac3more != 0) {
+		mvpw_set_idle(NULL);
+		mvpw_set_timer(root, audio_play, 100);
+	}
+	else if(ac3len==0){
+		/* fprintf(stderr,"ac3 file finished\n"); */
+		mvpw_set_idle(NULL);
+		audio_clear();
+		if(playlist){
+			playlist_next();
 		}
+	}
+}
+
+static void
+mp3_play(int afd)
+{
+	static char buf[BSIZE];
+	static int n = 0, nput = 0;
+	int tot, len;
+
+	if (afd < 0) {
+		n = 0;
+		nput = 0;
+		return;
+	}
+
+	len = read(fd, buf+n, BSIZE-n);
+	n += len;
+	if(n==0 && nput==0){
+		/* fprintf(stderr,"mp3 file finished\n"); */
+		mvpw_set_idle(NULL);
+		audio_clear();
+		if(playlist){
+			playlist_next();
+		}
+		return;
+	}
+	if ((tot=write(afd, buf+nput, n-nput)) == 0) {
+		mvpw_set_idle(NULL);
+		mvpw_set_timer(root, audio_play, 100);
+		return;
+	}
+	nput += tot;
+
+	if (nput == n) {
+		n = 0;
+		nput = 0;
 	}
 }
 
@@ -228,113 +345,49 @@ static int
 audio_player(int reset)
 {
 	static char buf[BSIZE];
-	static int n = 0, nput = 0, afd = 0, align;
-	static unsigned short channels;
-	static unsigned short bps;
-	static int pcm_decoded = 0;
-	static int ac3more = 0;
-	int tot, len;
-	static int ac3len = 0;
+	static int n = 0, nput = 0, afd = 0;
 
 	if (reset) {
 		n = 0;
 		nput = 0;
-		if (audio_type == AUDIO_FILE_WAV) {
-			int rate;
 
-			read(fd, buf, 12);
-			if (buf[0] != 'R' || buf[1] != 'I' || buf[2] != 'F' ||
-			    buf[3] != 'F' || buf[8] != 'W' || buf[9] != 'A' ||
-			    buf[10] != 'V' || buf[11] != 'E') {
-				return -1;
-			}
-
-			chunk_size = find_chunk(fd, "fmt ");
-			read(fd, buf, chunk_size);
-			rate = buf[4] + (buf[5] << 8) + (buf[6] << 16) +
-				(buf[7] << 24);
-			align = buf[12] + (buf[13] << 8);
-			channels = buf[2] + (buf[3] << 8);
-			bps = align / channels;
-			printf("WAVE file rate %d align %d channels %d\n",
-			       rate, align, channels);
-			av_set_pcm_rate(rate);
-
-			chunk_size = find_chunk(fd, "data");
-			printf("WAVE chunk size %d\n", chunk_size);
-
+		switch (audio_type) {
+		case AUDIO_FILE_WAV:
 			quantised_next_input_sample = 0;
 			last_sample_in_buffer = 0;
 			next_output_sample = 0;
 			next_input_sample = 0;
+			break;
+		case AUDIO_FILE_AC3:
+			ac3_play(-1);
+			break;
+		case AUDIO_FILE_OGG:
+			ogg_play(-1);
+			break;
+		case AUDIO_FILE_MP3:
+			mp3_play(-1);
+			break;
+		default:
+			break;
 		}
-		if (audio_type == AUDIO_FILE_AC3) {
-			pcm_decoded = 0;
-			ac3more = 0;
-			ac3len = 0;
-			printf("playing AC3 file\n");
-		}
+
 		afd = av_audio_fd();
 	}
 
 	switch (audio_type) {
 	case AUDIO_FILE_AC3:
-		if (ac3more == -1)
-			ac3more = a52_decode_data(NULL, NULL, pcm_decoded);
-		if (ac3more == 1)
-			ac3more = a52_decode_data(buf, buf + ac3len,
-						  pcm_decoded);
-		if (ac3more == 0) {
-			ac3len = read(fd, buf, BSIZE);
-			ac3more = a52_decode_data(buf, buf + ac3len,
-						  pcm_decoded);
-		}
-		pcm_decoded = 1;
-
-		if (ac3more != 0) {
-			mvpw_set_idle(NULL);
-			mvpw_set_timer(root, audio_play, 100);
-		}
-		else if(ac3len==0){
-			/* fprintf(stderr,"ac3 file finished\n"); */
-			mvpw_set_idle(NULL);
-			audio_clear();
-			if(playlist){
-				playlist_next();
-			}
-		}
+		ac3_play(afd);
 		break;
 	case AUDIO_FILE_WAV:
-		pcm_play(fd, afd, align, channels, bps);
+		wav_play(fd, afd, align, channels, bps);
 		break;
 	case AUDIO_FILE_MP3:
-		len = read(fd, buf+n, BSIZE-n);
-		n += len;
-		if(n==0 && nput==0){
-			/* fprintf(stderr,"mp3 file finished\n"); */
-			mvpw_set_idle(NULL);
-			audio_clear();
-			if(playlist){
-				playlist_next();
-			}
-			break;
-		}
-		if ((tot=write(afd, buf+nput, n-nput)) == 0) {
-			mvpw_set_idle(NULL);
-			mvpw_set_timer(root, audio_play, 100);
-			break;
-		}
-		nput += tot;
-
-		if (nput == n) {
-			n = 0;
-			nput = 0;
-		}
+		mp3_play(afd);
 		break;
 	case AUDIO_FILE_OGG:
 		ogg_play(afd);
 		break;
-	case AUDIO_FILE_UNKNOWN:
+	default:
 		mvpw_set_idle(NULL);
 		break;
 	}
@@ -370,6 +423,64 @@ get_audio_type(char *path)
 	return AUDIO_FILE_UNKNOWN;
 }
 
+static int
+wav_setup(void)
+{
+	int rate, format;
+	char buf[BSIZE];
+
+	read(fd, buf, 12);
+	if (buf[0] != 'R' || buf[1] != 'I' || buf[2] != 'F' ||
+	    buf[3] != 'F' || buf[8] != 'W' || buf[9] != 'A' ||
+	    buf[10] != 'V' || buf[11] != 'E') {
+		return -1;
+	}
+
+	chunk_size = find_chunk(fd, "fmt ");
+	read(fd, buf, chunk_size);
+	rate = buf[4] + (buf[5] << 8) + (buf[6] << 16) + (buf[7] << 24);
+	align = buf[12] + (buf[13] << 8);
+	channels = buf[2] + (buf[3] << 8);
+	format = buf[0] + (buf[1] << 8);
+	bps = align / channels;
+
+	if (format != 1) {
+		fprintf(stderr, "Unrecognized WAV file!\n");
+		return -1;
+	}
+
+	printf("WAVE file rate %d align %d channels %d\n",
+	       rate, align, channels);
+
+	av_set_audio_output(AV_AUDIO_PCM);
+	if (av_set_pcm_param(rate, 1, 2, 0, 16) < 0)
+		return -1;
+
+	chunk_size = find_chunk(fd, "data");
+	printf("WAVE chunk size %d\n", chunk_size);
+
+	return 0;
+}
+
+static int
+ogg_setup(void)
+{
+	oggfile = fdopen(fd, "r");
+	if (ov_open(oggfile, &vf, NULL, 0) < 0) {
+		fprintf(stderr, "Failed to open Ogg file %s\n", current);
+		return -1;
+	}
+	vi = ov_info(&vf, -1);
+
+	printf("Bitstream is %d channel, %ldHz\n", vi->channels, vi->rate);
+
+	av_set_audio_output(AV_AUDIO_PCM);
+	if (av_set_pcm_param(vi->rate, 0, 2, 0, 16) < 0)
+		return -1;
+
+	return 0;
+}
+
 static void
 audio_idle(void)
 {
@@ -385,25 +496,15 @@ audio_idle(void)
 			av_set_audio_type(0);
 			break;
 		case AUDIO_FILE_OGG:
-			av_set_audio_output(AV_AUDIO_PCM);
-			oggfile = fdopen(fd, "r");
-			if (ov_open(oggfile, &vf, NULL, 0) < 0) {
-				fprintf(stderr,
-					"Failed to open %s\n", current);
-				close(fd);
-				fd = -1;
-				return;
-			}
-			vi = ov_info(&vf, -1);
-			printf("Bitstream is %d channel, %ldHz\n",
-				vi->channels, vi->rate);
-			av_set_pcm_rate(vi->rate);
+			if (ogg_setup() < 0)
+				goto fail;
 			break;
 		case AUDIO_FILE_AC3:
 			av_set_audio_output(AV_AUDIO_PCM);
 			break;
 		case AUDIO_FILE_WAV:
-			av_set_audio_output(AV_AUDIO_PCM);
+			if (wav_setup() < 0)
+				goto fail;
 			break;
 		case AUDIO_FILE_UNKNOWN:
 			mvpw_set_idle(NULL);
@@ -418,6 +519,12 @@ audio_idle(void)
 
 	if (audio_player(reset) < 0)
 		mvpw_set_idle(NULL);
+
+	return;
+
+ fail:
+	close(fd);
+	fd = -1;
 }
 
 void
@@ -430,16 +537,16 @@ audio_play(mvp_widget_t *widget)
 void
 audio_clear(void)
 {
-	if(fd>=0){
+	if(fd >= 0) {
 		close(fd);
+		fd = -1;
 	}
+
 	if (oggfile != NULL) {
-		fclose(oggfile);
 		ov_clear(&vf);
+		fclose(oggfile);
+		oggfile = NULL;
 	}
-	fd = -1;
-	oggfile = NULL;
-	av_reset();
 }
 
 void
@@ -644,7 +751,7 @@ int a52_decode_data (uint8_t * start, uint8_t * end, int reset)
 				if (disable_dynrng)
 					a52_dynrng (a52_state, NULL, NULL);
 				if (!reset)
-					av_set_pcm_rate(sample_rate);
+					av_set_pcm_param(sample_rate, 1, 2, 0, 16);
 
 				for (i = 0; i < 6; i++) {
 					if (a52_block (a52_state))
