@@ -124,6 +124,7 @@ extern int mw_init(char *server, char *replaytv);
 
 extern void audio_clear(void);
 extern void video_clear(void);
+extern void video_stop_play(void);
 
 extern int mythtv_back(mvp_widget_t*);
 extern int fb_update(mvp_widget_t*);

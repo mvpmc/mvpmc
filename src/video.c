@@ -233,6 +233,12 @@ video_clear(void)
 }
 
 void
+video_stop_play(void)
+{
+	video_playing = 0;   
+}
+
+void
 video_progress(mvp_widget_t *widget)
 {
 	struct stat64 sb;
