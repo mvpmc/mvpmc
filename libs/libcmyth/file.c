@@ -419,35 +419,24 @@ cmyth_file_seek(cmyth_conn_t control, cmyth_file_t file, long long offset,
 	}
 
 	count = cmyth_rcv_length(control);
-	if ((r=cmyth_rcv_long(control, &err, &hi, count)) < 0) {
+	if ((r=cmyth_rcv_long_long(control, &err, &c, count)) < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_rcv_length() failed (%d)\n",
 			  __FUNCTION__, r);
-	}
-	count -= r;
-	if ((r=cmyth_rcv_long(control, &err, &lo, count)) < 0) {
-		cmyth_dbg(CMYTH_DBG_ERROR,
-			  "%s: cmyth_rcv_length() failed (%d)\n",
-			  __FUNCTION__, r);
+		return err;
 	}
 
-	c = ((long long)hi << 32) | ((long long)lo);
-
-	if (c >= 0) {
-		switch (whence) {
-		case SEEK_SET:
-			file->file_pos = offset;
-			break;
-		case SEEK_CUR:
-			file->file_pos += offset;
-			break;
-		case SEEK_END:
-			file->file_pos = file->file_length - offset;
-			break;
-		}
-
-		return file->file_pos;
+	switch (whence) {
+	case SEEK_SET:
+		file->file_pos = offset;
+		break;
+	case SEEK_CUR:
+		file->file_pos += offset;
+		break;
+	case SEEK_END:
+		file->file_pos = file->file_length - offset;
+		break;
 	}
-
-	return c;
+	
+	return file->file_pos;
 }

@@ -346,7 +346,7 @@ cmyth_rcv_string(cmyth_conn_t conn, int *err, char *buf, int buflen, int count)
 }
 
 /*
- * cmyth_rcv_ulong_long(cmyth_conn_t conn, int *err, unsigned long long *buf,
+ * cmyth_rcv_ulong(cmyth_conn_t conn, int *err, unsigned long *buf,
  *                      int count)
  * 
  * Scope: PRIVATE (mapped to __cmyth_rcv_ulong_long)
@@ -380,12 +380,13 @@ cmyth_rcv_string(cmyth_conn_t conn, int *err, char *buf, int buflen, int count)
  * EINVAL       The token received is not numeric or is signed
  */
 int
-cmyth_rcv_ulong_long(cmyth_conn_t conn, int *err, unsigned long long *buf,
+cmyth_rcv_ulong(cmyth_conn_t conn, int *err, unsigned long *buf,
 					 int count)
 {
 	char num[32];
 	char *num_p = num;
 	unsigned long long val = 0;
+	unsigned long limit = 0xffffffff;
 	int consumed;
 	int tmp;
 
@@ -407,13 +408,10 @@ cmyth_rcv_ulong_long(cmyth_conn_t conn, int *err, unsigned long long *buf,
 			return consumed;
 		}
 		/*
-		 * The biggest unsigned long long is:
-		 *
-		 *    18446744073709551615
-		 * 
-		 * So, if we are about to make 'val' bigger than that, it is ERANGE.
+		 * If we are about to make 'val' bigger than 32bit,
+		 * it is ERANGE.
 		 */
-		if (val > 1844674407370955161ULL && *num_p > '5') {
+		if (val > limit && *num_p > '5') {
 			*err = ERANGE;
 			return consumed;
 		}
@@ -425,12 +423,12 @@ cmyth_rcv_ulong_long(cmyth_conn_t conn, int *err, unsigned long long *buf,
 	/*
 	 * Got a result, return it.
 	 */
-	*buf = val;
+	*buf = (unsigned long)val;
 	return consumed;
 }
 
 /*
- * cmyth_rcv_long_long(cmyth_conn_t conn, int *err, long long *buf, int count)
+ * cmyth_rcv_long(cmyth_conn_t conn, int *err, long *buf, int count)
  * 
  * Scope: PRIVATE (mapped to __cmyth_rcv_long_long)
  *
@@ -462,13 +460,13 @@ cmyth_rcv_ulong_long(cmyth_conn_t conn, int *err, unsigned long long *buf,
  * EINVAL       The token received is not numeric
  */
 int
-cmyth_rcv_long_long(cmyth_conn_t conn, int *err, long long *buf, int count)
+cmyth_rcv_long(cmyth_conn_t conn, int *err, long *buf, int count)
 {
 	char num[32];
 	char *num_p = num;
 	unsigned long long val = 0;
 	int sign = 1;
-	unsigned long long limit = 9223372036854775807LL;
+	long limit = 0x7fffffff;
 	int consumed;
 	int tmp;
 
@@ -485,7 +483,6 @@ cmyth_rcv_long_long(cmyth_conn_t conn, int *err, long long *buf, int count)
 	if (*num_p && (*num_p == '-')) {
 		++num_p;
 		sign = -1;
-		limit = 9223372036854775808ULL;
 	}
 	while (*num_p) {
 		if (!isdigit(*num_p)) {
@@ -512,7 +509,7 @@ cmyth_rcv_long_long(cmyth_conn_t conn, int *err, long long *buf, int count)
 	/*
 	 * Got a result, return it.
 	 */
-	*buf = (long long)(sign * val);
+	*buf = (long)(sign * val);
 
 	return consumed;
 }
@@ -657,16 +654,16 @@ cmyth_rcv_version(cmyth_conn_t conn, unsigned long *vers)
 int
 cmyth_rcv_byte(cmyth_conn_t conn, int *err, char *buf, int count)
 {
-	long long val;
+	long val;
 	int consumed;
 	int tmp;
 
 	if (!err) {
 		err = &tmp;
 	}
-	consumed = cmyth_rcv_long_long(conn, err, &val, count);
+	consumed = cmyth_rcv_long(conn, err, &val, count);
 	if (*err) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_rcv_long_long() failed (%d)\n",
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_rcv_long() failed (%d)\n",
 				  __FUNCTION__, consumed);
 		return consumed;
 	}
@@ -715,16 +712,16 @@ cmyth_rcv_byte(cmyth_conn_t conn, int *err, char *buf, int count)
 int
 cmyth_rcv_short(cmyth_conn_t conn, int *err, short *buf, int count)
 {
-	long long val;
+	long val;
 	int consumed;
 	int tmp;
 
 	if (!err) {
 		err = &tmp;
 	}
-	consumed = cmyth_rcv_long_long(conn, err, &val, count);
+	consumed = cmyth_rcv_long(conn, err, &val, count);
 	if (*err) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_rcv_long_long() failed (%d)\n",
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_rcv_long() failed (%d)\n",
 				  __FUNCTION__, consumed);
 		return consumed;
 	}
@@ -740,7 +737,7 @@ cmyth_rcv_short(cmyth_conn_t conn, int *err, short *buf, int count)
 }
 
 /*
- * cmyth_rcv_long(cmyth_conn_t conn, int *err, long *buf, int count)
+ * cmyth_rcv_long_long(cmyth_conn_t conn, int *err, long long *buf, int count)
  * 
  * Scope: PRIVATE (mapped to __cmyth_rcv_long)
  *
@@ -771,29 +768,37 @@ cmyth_rcv_short(cmyth_conn_t conn, int *err, short *buf, int count)
  * EINVAL       The token received is not numeric
  */
 int
-cmyth_rcv_long(cmyth_conn_t conn, int *err, long *buf, int count)
+cmyth_rcv_long_long(cmyth_conn_t conn, int *err, long long *buf, int count)
 {
 	long long val;
 	int consumed;
 	int tmp;
+	unsigned long hi, lo;
 
 	if (!err) {
 		err = &tmp;
 	}
-	consumed = cmyth_rcv_long_long(conn, err, &val, count);
+
+	consumed = cmyth_rcv_long(conn, err, &hi, count);
 	if (*err) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_rcv_long_long() failed (%d)\n",
-				  __FUNCTION__, consumed);
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_rcv_long_long() failed (%d)\n",
+			  __FUNCTION__, consumed);
 		return consumed;
 	}
-	if ((val > 2147483647LL) || (val < -2147483648LL)) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: value doesn't fit: '%lld'\n",
-				  __FUNCTION__, val);
-		*err = ERANGE;
+	consumed += cmyth_rcv_long(conn, err, &lo, count-consumed);
+	if (*err) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_rcv_long_long() failed (%d)\n",
+			  __FUNCTION__, consumed);
 		return consumed;
 	}
+
+	val = ((long long)hi << 32) | ((long long)lo);
+
 	*err = 0;
-	*buf = (long)val;
+	*buf = val;
+
 	return consumed;
 }
 
@@ -833,16 +838,16 @@ cmyth_rcv_long(cmyth_conn_t conn, int *err, long *buf, int count)
 int
 cmyth_rcv_ubyte(cmyth_conn_t conn, int *err, unsigned char *buf, int count)
 {
-	unsigned long long val;
+	unsigned long val;
 	int consumed;
 	int tmp;
 
 	if (!err) {
 		err = &tmp;
 	}
-	consumed = cmyth_rcv_ulong_long(conn, err, &val, count);
+	consumed = cmyth_rcv_ulong(conn, err, &val, count);
 	if (*err) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_rcv_ulong_long() failed (%d)\n",
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_rcv_ulong() failed (%d)\n",
 				  __FUNCTION__, consumed);
 		return consumed;
 	}
@@ -901,9 +906,9 @@ cmyth_rcv_ushort(cmyth_conn_t conn, int *err, unsigned short *buf, int count)
 	if (!err) {
 		err = &tmp;
 	}
-	consumed = cmyth_rcv_ulong_long(conn, err, &val, count);
+	consumed = cmyth_rcv_ulong(conn, err, &val, count);
 	if (*err) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_rcv_ulong_long() failed (%d)\n",
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_rcv_ulong() failed (%d)\n",
 				  __FUNCTION__, consumed);
 		return consumed;
 	}
@@ -952,29 +957,38 @@ cmyth_rcv_ushort(cmyth_conn_t conn, int *err, unsigned short *buf, int count)
  * EINVAL       The token received is not numeric or is signed
  */
 int
-cmyth_rcv_ulong(cmyth_conn_t conn, int *err, unsigned long *buf, int count)
+cmyth_rcv_ulong_long(cmyth_conn_t conn, int *err,
+		     unsigned long long *buf, int count)
 {
 	unsigned long long val;
+	unsigned long hi, lo;
 	int consumed;
 	int tmp;
 
 	if (!err) {
 		err = &tmp;
 	}
-	consumed = cmyth_rcv_ulong_long(conn, err, &val, count);
+
+	consumed = cmyth_rcv_long(conn, err, &hi, count);
 	if (*err) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_rcv_ulong_long() failed (%d)\n",
-				  __FUNCTION__, consumed);
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_rcv_ulong_long() failed (%d)\n",
+			  __FUNCTION__, consumed);
 		return consumed;
 	}
-	if (val > 4294967295LL) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: value doesn't fit: '%llu'\n",
-				  __FUNCTION__, val);
-		*err = ERANGE;
+	consumed += cmyth_rcv_long(conn, err, &lo, count);
+	if (*err) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_rcv_ulong_long() failed (%d)\n",
+			  __FUNCTION__, consumed);
 		return consumed;
 	}
+
+	val = ((unsigned long long)hi << 32) | ((unsigned long long)lo);
+
 	*err = 0;
-	*buf = (unsigned long)val;
+	*buf = val;
+
 	return consumed;
 }
 
@@ -1337,18 +1351,6 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 		goto fail;
 	}
 	buf->proginfo_url = strdup(tmp_str);
-
-	/*
-	 * Get proginfo_Start (long_long)
-	 */
-	cmyth_dbg(CMYTH_DBG_INFO, "%s: GOT TO START/LENGTH\n", __FUNCTION__);
-	consumed = cmyth_rcv_long_long(conn, err, &buf->proginfo_Start, count);
-	count -= consumed;
-	total += consumed;
-	if (*err) {
-		failed = "cmyth_rcv_long_long";
-		goto fail;
-	}
 
 	/*
 	 * Get proginfo_Length (long_long)

@@ -217,7 +217,6 @@ struct cmyth_proginfo {
 	char *proginfo_channame;  /* Deprecated in V8, simulated for compat. */
 	char *proginfo_chanicon;  /* New in V8 */
 	char *proginfo_url;
-	long long proginfo_Start;
 	long long proginfo_Length;
 	cmyth_timestamp_t proginfo_start_ts;
 	cmyth_timestamp_t proginfo_end_ts;

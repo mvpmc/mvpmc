@@ -471,14 +471,6 @@ cmyth_conn_connect_file(cmyth_proginfo_t prog, unsigned buflen)
 		goto shut;
 	}
 	count -= r;
-	r = cmyth_rcv_long_long(conn, &err, &ret->file_start, count);
-	if (err) {
-		cmyth_dbg(CMYTH_DBG_ERROR,
-				  "%s: (start) cmyth_rcv_longlong() failed (%d)\n",
-				  __FUNCTION__, err);
-		goto shut;
-	}
-	count -= r;
 	r = cmyth_rcv_long_long(conn, &err, &ret->file_length, count);
 	if (err) {
 		cmyth_dbg(CMYTH_DBG_ERROR,

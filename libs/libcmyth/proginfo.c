@@ -100,7 +100,6 @@ cmyth_proginfo_create(void)
 	ret->proginfo_pathname = NULL;
 	ret->proginfo_host = NULL;
 	ret->proginfo_port = -1;
-	ret->proginfo_Start = 0;
 	ret->proginfo_Length = 0;
 	ret->proginfo_conflicting = 0;
 	ret->proginfo_unknown_0 = NULL;
@@ -434,8 +433,8 @@ delete_command(cmyth_conn_t control, cmyth_proginfo_t prog, char *cmd)
 			prog->proginfo_chansign,
 			prog->proginfo_chanicon,
 			prog->proginfo_url,
-			prog->proginfo_Start,
-			prog->proginfo_Length,
+			prog->proginfo_Length >> 32,
+			(prog->proginfo_Length & 0xffffffff),
 			start_ts_dt,
 			end_ts_dt,
 			prog->proginfo_unknown_0,
@@ -484,8 +483,8 @@ delete_command(cmyth_conn_t control, cmyth_proginfo_t prog, char *cmd)
 			prog->proginfo_chansign,
 			prog->proginfo_chanicon,
 			prog->proginfo_url,
-			prog->proginfo_Start,
-			prog->proginfo_Length,
+			prog->proginfo_Length >> 32,
+			(prog->proginfo_Length & 0xffffffff),
 			start_ts,
 			end_ts,
 			prog->proginfo_unknown_0,
@@ -711,8 +710,8 @@ cmyth_proginfo_string(cmyth_proginfo_t prog)
 				prog->proginfo_chansign,
 				prog->proginfo_chanicon,
 				prog->proginfo_url,
-				prog->proginfo_Start,
-				prog->proginfo_Length,
+				prog->proginfo_Length >> 32,
+				(prog->proginfo_Length & 0xffffffff),
 				start_ts,
 				end_ts,
 				prog->proginfo_unknown_0,
@@ -758,8 +757,8 @@ cmyth_proginfo_string(cmyth_proginfo_t prog)
 				prog->proginfo_chansign,
 				prog->proginfo_chanicon,
 				prog->proginfo_url,
-				prog->proginfo_Start,
-				prog->proginfo_Length,
+				prog->proginfo_Length >> 32,
+				(prog->proginfo_Length & 0xffffffff),
 				start_ts,
 				end_ts,
 				prog->proginfo_unknown_0,
@@ -800,8 +799,8 @@ cmyth_proginfo_string(cmyth_proginfo_t prog)
 				prog->proginfo_chansign,
 				prog->proginfo_channame,
 				prog->proginfo_url,
-				prog->proginfo_Start,
-				prog->proginfo_Length,
+				prog->proginfo_Length >> 32,
+				(prog->proginfo_Length & 0xffffffff),
 				start_ts,
 				end_ts,
 				prog->proginfo_conflicting,
