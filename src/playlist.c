@@ -149,7 +149,7 @@ static int build_playlist_from_file(const char *filename)
   }
   cwd = strdup(filename);
   for(sz=strlen(filename)-1; sz>=0; --sz){
-	if(cwd[sz]=='/'){
+	if ((cwd[sz]=='/') || (cwd[sz]=='\\')) {
 	  cwd[sz]='\0';
 	  break;
 	}
@@ -171,7 +171,7 @@ static int build_playlist_from_file(const char *filename)
 	  if(tmpbuf[0]!='#' && tmpbuf[0]!='\0'){
 		pl_item = (playlist_t*)malloc(sizeof(playlist_t));
 		if(pl_item){
-		  if(tmpbuf[0]=='/'){
+		  if ((tmpbuf[0]=='/') || (tmpbuf[0]=='\\')) {
 			pl_item->filename = strdup(tmpbuf);
 		  }
 		  else{
