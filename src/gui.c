@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2004, Jon Gettler
+ *  Copyright (C) 2004, 2005, Jon Gettler
  *  http://mvpmc.sourceforge.net/
  *
  * This program is free software; you can redistribute it and/or modify
@@ -308,6 +308,13 @@ mvp_widget_t *screensaver_image;
 
 mvp_widget_t *playlist_widget;
 
+mvp_widget_t *fb_progress;
+mvp_widget_t *fb_name;
+mvp_widget_t *fb_time;
+mvp_widget_t *fb_size;
+mvp_widget_t *fb_offset_widget;
+mvp_widget_t *fb_offset_bar;
+
 static int screensaver_enabled = 0;
 volatile int screensaver_timeout = 60;
 volatile int screensaver_default = -1;
@@ -565,6 +572,7 @@ fb_key_callback(mvp_widget_t *widget, char key)
 	case MVPW_KEY_EXIT:
 		mvpw_hide(widget);
 		mvpw_hide(iw);
+		mvpw_hide(fb_progress);
 
 		mvpw_show(main_menu);
 		mvpw_show(mvpmc_logo);
@@ -574,6 +582,7 @@ fb_key_callback(mvp_widget_t *widget, char key)
 
 		mvpw_set_idle(NULL);
 		mvpw_set_timer(root, NULL, 0);
+		mvpw_set_timer(fb_progress, NULL, 0);
 
 		audio_clear();
 		video_clear();
@@ -581,11 +590,13 @@ fb_key_callback(mvp_widget_t *widget, char key)
 	case MVPW_KEY_STOP:
 		mvpw_set_idle(NULL);
 		mvpw_set_timer(root, NULL, 0);
+		mvpw_hide(fb_progress);
 
 		audio_clear();
 		video_clear();
 		break;
 	case MVPW_KEY_FULL:
+		mvpw_hide(fb_progress);
 		mvpw_hide(widget);
 		mvpw_focus(root);
 
@@ -593,6 +604,19 @@ fb_key_callback(mvp_widget_t *widget, char key)
 
 		if (mythtv_livetv == 2)
 			mythtv_livetv = 1;
+		break;
+	case MVPW_KEY_PLAY:
+		fb_start_thumbnail();
+		break;
+	case MVPW_KEY_PAUSE:
+		if (av_pause()) {
+			mvpw_show(pause_widget);
+			paused = 1;
+		} else {
+			mvpw_hide(pause_widget);
+			mvpw_hide(mute_widget);
+			paused = 0;
+		}
 		break;
 	}
 }
@@ -793,6 +817,9 @@ popup_key_callback(mvp_widget_t *widget, char key)
 static int
 file_browser_init(void)
 {
+	mvp_widget_t *contain, *widget;
+	int h, w, w2;
+
 	splash_update("Creating file browser");
 
 	file_browser = mvpw_create_menu(NULL, 50, 30, si.cols-120, si.rows-190,
@@ -805,6 +832,55 @@ file_browser_init(void)
 	mvpw_set_bg(file_browser, MVPW_LIGHTGREY);
 
 	mvpw_set_key(file_browser, fb_key_callback);
+
+	display_attr.font = fontid;
+	h = mvpw_font_height(display_attr.font) + (2 * display_attr.margin);
+	w = 300;
+
+	contain = mvpw_create_container(NULL, 50, 80,
+					w, h*3, 0x80000000, 0, 0);
+	fb_progress = contain;
+
+	widget = mvpw_create_text(contain, 0, 0, w, h, 0x80000000, 0, 0);
+	mvpw_set_text_attr(widget, &display_attr);
+	mvpw_set_text_str(widget, "");
+	mvpw_show(widget);
+	fb_name = widget;
+
+	widget = mvpw_create_text(contain, 0, 0, w/2, h, 0x80000000, 0, 0);
+	mvpw_set_text_attr(widget, &display_attr);
+	mvpw_set_text_str(widget, "");
+	mvpw_show(widget);
+	fb_time = widget;
+
+	widget = mvpw_create_text(contain, 0, 0, w/2, h, 0x80000000, 0, 0);
+	display_attr.justify = MVPW_TEXT_RIGHT;
+	mvpw_set_text_attr(widget, &display_attr);
+	display_attr.justify = MVPW_TEXT_LEFT;
+	mvpw_set_text_str(widget, "");
+	mvpw_show(widget);
+	fb_size = widget;
+
+	w2 = mvpw_font_width(fontid, "1000%");
+	widget = mvpw_create_text(contain, 0, 0, w2, h, 0x80000000, 0, 0);
+	mvpw_set_text_attr(widget, &display_attr);
+	mvpw_set_text_str(widget, "0%");
+	mvpw_show(widget);
+	fb_offset_widget = widget;
+
+	widget = mvpw_create_graph(contain, w, 0, w-w2, h/2,
+				   0x80000000, 0, 0);
+	mvpw_set_graph_attr(widget, &offset_graph_attr);
+	mvpw_show(widget);
+	fb_offset_bar = widget;
+
+	mvpw_attach(fb_name, fb_time, MVPW_DIR_DOWN);
+	mvpw_attach(fb_time, fb_size, MVPW_DIR_RIGHT);
+	mvpw_attach(fb_time, fb_offset_widget, MVPW_DIR_DOWN);
+	mvpw_attach(fb_offset_widget, fb_offset_bar, MVPW_DIR_RIGHT);
+
+	mvpw_raise(file_browser);
+	mvpw_attach(file_browser, fb_progress, MVPW_DIR_DOWN);
 
 	return 0;
 }

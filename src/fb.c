@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2004, Jon Gettler
+ *  Copyright (C) 2004, 2005, Jon Gettler
  *  http://mvpmc.sourceforge.net/
  *
  * This program is free software; you can redistribute it and/or modify
@@ -49,6 +49,7 @@ static void add_dirs(mvp_widget_t*);
 static void add_files(mvp_widget_t*);
 
 char *current = NULL;
+char *current_hilite = NULL;
 
 int
 is_video(char *item)
@@ -115,6 +116,36 @@ is_playlist(char *item)
 }
 
 static void
+fb_osd_update(mvp_widget_t *widget)
+{
+	av_stc_t stc;
+	char buf[256];
+	struct stat64 sb;
+	long long offset;
+	int percent;
+
+	if (fstat64(fd, &sb) < 0)
+		return;
+
+	av_current_stc(&stc);
+	snprintf(buf, sizeof(buf), "%.2d:%.2d:%.2d",
+		 stc.hour, stc.minute, stc.second);
+	mvpw_set_text_str(fb_time, buf);
+
+	snprintf(buf, sizeof(buf), "Bytes: %lld", sb.st_size);
+	mvpw_set_text_str(fb_size, buf);
+
+	offset = lseek(fd, 0, SEEK_CUR);
+	percent = (int)((double)(offset/1000) /
+		    (double)(sb.st_size/1000) * 100.0);
+
+	snprintf(buf, sizeof(buf), "%d%%", percent);
+	mvpw_set_text_str(fb_offset_widget, buf);
+	mvpw_set_graph_current(fb_offset_bar, percent);
+	mvpw_expose(fb_offset_bar);
+}
+
+static void
 select_callback(mvp_widget_t *widget, char *item, void *key)
 {
 	char path[1024], *ptr;
@@ -122,6 +153,15 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 
 	sprintf(path, "%s/%s", cwd, item);
 	stat64(path, &sb);
+
+	if (current && (strcmp(path, current) == 0)) {
+		if (is_video(item)) {
+			mvpw_hide(widget);
+			mvpw_hide(fb_progress);
+			av_move(0, 0, 0);
+			return;
+		}
+	}
 
 	if (S_ISDIR(sb.st_mode)) {
 		if (strcmp(item, "../") == 0) {
@@ -157,17 +197,27 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 			free(current);
 		current = strdup(path);
 
+		mvpw_set_text_str(fb_name, item);
+
 		audio_clear();
 		video_clear();
 
 		if (is_video(item)) {
-			mvpw_hide(widget);
-			av_move(0, 0, 0);
+			if (key != NULL) {
+				mvpw_hide(widget);
+				mvpw_hide(fb_progress);
+				av_move(0, 0, 0);
+			} else {
+				mvpw_show(fb_progress);
+			}
+			mvpw_set_timer(fb_progress, fb_osd_update, 500);
 			video_play(NULL);
 			mvpw_show(root);
 			mvpw_expose(root);
 			mvpw_focus(root);
 		} else if (is_audio(item)) {
+			mvpw_show(fb_progress);
+			mvpw_set_timer(fb_progress, fb_osd_update, 500);
 			audio_play(NULL);
 		} else if (is_image(item)) {
 			mvpw_hide(widget);
@@ -176,6 +226,8 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 			mvpw_show(iw);
 			mvpw_focus(iw);
 		} else if (is_playlist(item)) {
+			mvpw_show(fb_progress);
+			mvpw_set_timer(fb_progress, fb_osd_update, 500);
 			mvpw_hide(widget);
 			printf("Show playlist menu\n");
 			mvpw_show(playlist_widget);
@@ -184,6 +236,12 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 			playlist_play(NULL);
 		}
 	}
+}
+
+void
+fb_start_thumbnail(void)
+{
+	select_callback(file_browser, current_hilite, NULL);
 }
 
 static void
@@ -202,6 +260,10 @@ hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 			 item, sb.st_size, date);
 
 		mvpw_set_text_str(fb_program_widget, str);
+
+		if (current_hilite)
+			free(current_hilite);
+		current_hilite = strdup(item);
 	}
 }
 

@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2004, Jon Gettler
+ *  Copyright (C) 2004, 2005, Jon Gettler
  *  http://mvpmc.sourceforge.net/
  *
  * This program is free software; you can redistribute it and/or modify
@@ -53,7 +53,8 @@ static char inbuf_static[VIDEO_BUFF_SIZE];
 pthread_cond_t video_cond = PTHREAD_COND_INITIALIZER;
 static sem_t   write_threads_idle_sem;
 
-static int fd = -1;
+int fd = -1;
+
 static av_stc_t seek_stc;
 static int seek_seconds;
 volatile int seeking = 0;
@@ -232,7 +233,9 @@ video_clear(void)
 		sem_getvalue(&write_threads_idle_sem, &cnt);
 		pthread_cond_broadcast(&video_cond);
 	}
+	av_stop();
 	av_reset();
+	av_reset_stc();
 	pthread_cond_broadcast(&video_cond);
 }
 
@@ -491,6 +494,7 @@ video_callback(mvp_widget_t *widget, char key)
 			video_playing = 0;
 			replaytv_back_from_video();
 		} else {
+			mvpw_show(fb_progress);
 			mvpw_show(file_browser);
 			mvpw_focus(file_browser);
 		}
@@ -874,6 +878,8 @@ file_open(void)
 {
 	seeking = 1;
 
+	audio_clear();
+
 	close(fd);
 
 	pthread_kill(video_write_thread, SIGURG);
@@ -910,8 +916,6 @@ file_open(void)
 	audio_type = 0;
 	pcm_decoded = 0;
 	ac3len = 0;
-
-	audio_clear();
 
 	video_reopen = 0;
 
@@ -970,7 +974,6 @@ video_read_start(void *arg)
 				reset = 0;
 			pcm_decoded = 0;
 			ac3len = 0;
-			audio_clear();
 			if (jumping) {
 				while (jump_target < 0)
 					usleep(1000);

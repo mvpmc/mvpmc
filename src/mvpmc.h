@@ -4,7 +4,7 @@
 /*
  *  $Id$
  *
- *  Copyright (C) 2004, Jon Gettler
+ *  Copyright (C) 2004, 2005, Jon Gettler
  *  http://mvpmc.sourceforge.net/
  *
  * This program is free software; you can redistribute it and/or modify
@@ -118,6 +118,13 @@ extern mvp_widget_t *playlist_widget;
 
 extern mvp_widget_t *fb_program_widget;
 
+extern mvp_widget_t *fb_progress;
+extern mvp_widget_t *fb_offset_widget;
+extern mvp_widget_t *fb_offset_bar;
+extern mvp_widget_t *fb_name;
+extern mvp_widget_t *fb_time;
+extern mvp_widget_t *fb_size;
+
 extern char *current;
 extern char *mythtv_recdir;
 extern char *mythtv_ringbuf;
@@ -133,6 +140,7 @@ extern int running_mythtv;
 extern int mythtv_main_menu;
 
 extern int fd_audio, fd_video;
+extern int fd;
 
 extern volatile int seeking;
 extern volatile int jumping;
@@ -269,5 +277,7 @@ extern int audio_output_mode;
 
 extern void busy_start(void);
 extern void busy_end(void);
+
+extern void fb_start_thumbnail(void);
 
 #endif /* MVPMC_H */

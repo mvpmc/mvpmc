@@ -32,6 +32,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <assert.h>
+#include <sys/time.h>
 
 #include <mvp_widget.h>
 #include <mvp_av.h>
@@ -50,8 +51,6 @@ static OggVorbis_File vf;
 static int current_section;
 static vorbis_info *vi;
 static FILE *oggfile;
-
-static int fd = -1;
 
 #define BSIZE		(1024*32)
 #define AC3_SIZE	(1024*512)
