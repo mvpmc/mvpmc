@@ -121,22 +121,18 @@ rgb2yuv(unsigned char r, unsigned char g, unsigned char b,
 {
 	int Y, U, V;
 
-	Y = conv_YB[b] + conv_YG[g] + conv_YR[r];
-	U = conv_UB[b] + conv_UG[g] + conv_UR[r] + 128;
-	V = conv_VB[b] + conv_VG[g] + conv_VR[r] + 128;
-
-	if (Y > 255)
-		Y = 255;
-	else if (Y < 0)
-		Y = 0;
-	if (U > 255)
-		U = 255;
-	else if (U < 0)
-		U = 0;
-	if (V > 255)
-		V = 255;
-	else if (V < 0)
-		V = 0;
+	Y  = (unsigned char)((8432*(unsigned long)r +
+			      16425*(unsigned long)g +
+			      3176*(unsigned long)b +
+			      16*32768)>>15);
+	U = (unsigned char)((128*32768 +
+			     14345*(unsigned long)b -
+			     4818*(unsigned long)r -
+			     9527*(unsigned long)g)>>15);
+	V = (unsigned char)((128*32768 +
+			     14345*(unsigned long)r -
+			     12045*(unsigned long)g -
+			     2300*(unsigned long)b)>>15);
 
 	*y = Y;
 	*u = U;
@@ -145,28 +141,31 @@ rgb2yuv(unsigned char r, unsigned char g, unsigned char b,
 
 /*
  * yuv2rgb() - convert a YUV pixel to RGB
- *
- * XXX: This does not work yet.  None of the YUV to RGB conversion functions
- *      that I have found seem to work.
  */
 void
 yuv2rgb(unsigned char y, unsigned char u, unsigned char v,
 	unsigned char *r, unsigned char *g, unsigned char *b)
 {
-	int R, G, B;
+	int R, G, B, Y;
 
-	R = conv_RY[y] + conv_RU[u] + conv_RV[v];
-	G = conv_GY[y] + conv_GU[u] + conv_GV[v];
-	B = conv_BY[y] + conv_BU[u] + conv_BV[v];
+	Y = 38142*(int)y;
+
+	R = (Y + 52298*(int)v - 7287603)>>15;
 
 	if (R > 255)
 		R = 255;
 	else if (R < 0)
 		R = 0;
+
+	G = (Y + 4439671 - 26640*v - 12812*u)>> 15;
+
 	if (G > 255)
 		G = 255;
 	else if (G < 0)
 		G = 0;
+    
+	B = (Y + 66126*u - 9074377)>>15;
+
 	if (B > 255)
 		B = 255;
 	else if (B < 0)
