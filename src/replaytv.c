@@ -716,7 +716,7 @@ static int rtv_video_key(char key)
       }
       jump_str[1] = jump_str[2];
       jump_str[2] = jump_str[3];
-      jump_str[3] = key;
+      jump_str[3] = '0' + key;
       mvpw_set_text_str(rtv_jump_to_time_widget, jump_str);
       if ( rtv_video_state.processing_jump_input ) {
          mvpw_hide(rtv_jump_to_time_widget);
