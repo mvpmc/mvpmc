@@ -30,6 +30,7 @@ typedef enum {
 	MVPW_TEXT,
 	MVPW_MENU,
 	MVPW_CONTAINER,
+	MVPW_IMAGE,
 } mvpw_id_t;
 
 typedef struct {
@@ -73,6 +74,12 @@ typedef struct {
 		mvp_widget_t	 *widget;
 	} *items;
 } mvpw_menu_t;
+
+typedef struct {
+	GR_IMAGE_ID	  iid;
+	int		  stretch;
+	char		 *file;
+} mvpw_image_t;
 
 struct mvp_widget_s {
 	mvpw_id_t	 type;

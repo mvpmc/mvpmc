@@ -37,6 +37,8 @@ static volatile int widget_count = 0;
 
 static mvp_widget_t *root;
 
+static void (*idle)(void);
+
 static mvp_widget_t*
 find_widget(GR_WINDOW_ID wid)
 {
@@ -465,7 +467,10 @@ mvpw_event_loop(void)
 		return -1;
 
 	while (widget_count > 0) {
-		GrGetNextEvent(&event);
+		if (idle)
+			GrCheckNextEvent(&event);
+		else
+			GrGetNextEvent(&event);
 		switch (event.type) {
 		case GR_EVENT_TYPE_EXPOSURE:
 			exposure(&event.exposure);
@@ -475,6 +480,10 @@ mvpw_event_loop(void)
 			break;
 		case GR_EVENT_TYPE_TIMER:
 			timer(&event.timer);
+			break;
+		case GR_EVENT_TYPE_NONE:
+			if (idle)
+				idle();
 			break;
 		}
 	}
@@ -531,4 +540,10 @@ void
 mvpw_set_key(mvp_widget_t *widget, void (*callback)(mvp_widget_t*, char))
 {
 	widget->key = callback;
+}
+
+void
+mvpw_set_idle(void (*callback)(void))
+{
+	idle = callback;
 }

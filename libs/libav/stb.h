@@ -22,6 +22,20 @@
 #ifndef STB_H
 #define STB_H
 
+typedef struct {
+	int w;
+	int h;
+	int scale;
+	int x1;
+	int y;
+	int x;
+	int y2;
+	int x3;
+	int y3;
+	int x4;
+	int y4;
+} vid_pos_regs_t;
+
 /*
  * /dev/adec_mpeg
  */

@@ -46,6 +46,7 @@ typedef struct {
 extern int mvpw_init(void);
 extern int mvpw_event_loop(void);
 extern mvp_widget_t *mvpw_get_root(void);
+extern void mvpw_set_idle(void (*callback)(void));
 
 extern void mvpw_get_widget_info(mvp_widget_t *widget, mvpw_widget_info_t *info);
 extern void mvpw_get_screen_info(mvpw_screen_info_t *info);
@@ -117,5 +118,15 @@ extern int mvpw_set_menu_title(mvp_widget_t *widget, char *title);
 extern int mvpw_add_menu_item(mvp_widget_t *widget, char *label, int key,
 			      void (*callback)(mvp_widget_t*, char*, int),
 			      void (*hilite)(mvp_widget_t*, char*, int, int));
+extern void mvpw_clear_menu(mvp_widget_t *widget);
+
+/*
+ * image widget
+ */
+extern mvp_widget_t* mvpw_create_image(mvp_widget_t *parent,
+				       int x, int y, int w, int h,
+				       uint32_t bg, uint32_t border_color,
+				       int border_size);
+extern int mvpw_set_image(mvp_widget_t *widget, char *file);
 
 #endif /* MVP_WIDGET_H */

@@ -260,3 +260,22 @@ get_vid_state(vid_state_regs_t *p)
 {
 	return ioctl(fd_video, AV_GET_VID_STATE, p);
 }
+
+int
+av_move(int x, int y, int video_mode)
+{
+	vid_pos_regs_t pos_d;
+
+	memset(&pos_d, 0, sizeof(pos_d));
+
+	pos_d.y = y;
+	pos_d.x = x;
+
+	ioctl(fd_video, AV_SET_VID_POSITION, &pos_d);
+	ioctl(fd_video, AV_SET_VID_MODE, video_mode);
+
+	if (video_mode == 0)
+		ioctl(fd_video, AV_SET_VID_SRC, 1);
+
+	return 0;
+}

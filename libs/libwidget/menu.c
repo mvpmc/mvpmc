@@ -361,3 +361,22 @@ mvpw_set_menu_attr(mvp_widget_t *widget, mvpw_menu_attr_t *attr)
 	widget->data.menu.hilite_fg = attr->hilite_fg;
 	widget->data.menu.hilite_bg = attr->hilite_bg;
 }
+
+void
+mvpw_clear_menu(mvp_widget_t *widget)
+{
+	int i;
+
+	for (i=0; i<widget->data.menu.nitems; i++) {
+		if (widget->data.menu.items[i].widget) {
+			mvpw_set_text_str(widget->data.menu.items[i].widget,
+					  "");
+			hilite_item(widget, i, 0);
+			mvpw_expose(widget->data.menu.items[i].widget);
+		}
+	}
+
+	free(widget->data.menu.items);
+	widget->data.menu.nitems = 0;
+	widget->data.menu.current = 0;
+}
