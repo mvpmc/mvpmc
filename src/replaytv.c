@@ -224,6 +224,7 @@ static mvpw_menu_attr_t  rtv_default_menu_attr = {
 	.hilite_bg = MVPW_DARKGREY2,
 	.title_fg = MVPW_WHITE,
 	.title_bg = 0xff701919, //MIDNIGHTBLUE,
+   .rounded = 0,
 };
 
 // show browser popup window menu attributes
@@ -238,6 +239,7 @@ static mvpw_menu_attr_t rtv_popup_attr = {
 	//.title_bg = MVPW_LIGHTGREY,
 	//.title_bg = 0xff08658b,    //DARKGOLDENROD4
 	.title_bg = 0xff701919, //MIDNIGHTBLUE,
+   .rounded = 0,
 };
 
 // show browser popup window list item attributes
@@ -275,7 +277,8 @@ static mvpw_text_attr_t rtv_device_descr_attr = {
 static mvpw_graph_attr_t discspace_graph_attr = {
 	.min = 0,
 	.max = 100,
-   .fg = 0xff2626cd, //FIREBRICK3
+   .fg = 0xff191988, //FIREBRICK3 (2/3 intensity)
+// .fg = 0xff2626cd, //FIREBRICK3
 //	.fg = 0xff701919, //MIDNIGHTBLUE
 };
 
