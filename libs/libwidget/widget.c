@@ -462,6 +462,9 @@ timer(GR_EVENT_TIMER *timer)
 	if ((widget=find_widget(timer->wid)) == NULL)
 		return;
 
+	if (widget->tid != timer->tid)
+		return;
+
 	if (widget->callback_timer)
 		widget->callback_timer(widget);
 	if (widget->timer)
