@@ -69,6 +69,8 @@ av_video_blank(void)
 	if (ioctl(fd_video, AV_SET_VID_FB, 1) != 0)
 		return -1;
 
+	usleep(1000);
+
 	return 0;
 }
 
