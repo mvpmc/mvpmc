@@ -97,6 +97,10 @@ static long long mythtv_size(void);
 static volatile int myth_seeking = 0;
 
 static char *hilite_path = NULL;
+char *mythtv_recdir_tosplit = NULL;
+char *recdir_token = NULL;
+char *test_path = NULL;
+FILE *test_file;
 
 video_callback_t mythtv_functions = {
 	.open      = mythtv_open,
@@ -303,9 +307,20 @@ hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 			free(hilite_path);
 
 		if (mythtv_recdir) {
-			hilite_path = malloc(strlen(mythtv_recdir)+
-					     strlen(pathname)+1);
-			sprintf(hilite_path, "%s%s", mythtv_recdir, pathname);
+			mythtv_recdir_tosplit = strdup(mythtv_recdir);
+			recdir_token = strtok(mythtv_recdir_tosplit,":");
+			while (recdir_token != NULL)
+			{
+				if (test_path) free(test_path);
+				test_path = malloc(strlen(recdir_token)+strlen(pathname)+1);
+				sprintf(test_path,"%s%s",recdir_token, pathname);
+				if ((test_file=fopen(test_path,"r")) != NULL)
+				{
+					hilite_path = strdup(test_path);
+					fclose(test_file);
+				}
+				recdir_token = strtok(NULL,":");
+			}
 		} else {
 			hilite_path = malloc(strlen(pathname)+1);
 			sprintf(hilite_path, "%s", pathname);
