@@ -143,7 +143,6 @@ typedef struct rtv_show_flags_t
 //+****************************************
 // RTV Exported Show structure
 //+****************************************
-
 typedef struct rtv_show_export_t 
 {
    int                 rtvchan_idx;        //index into rtv channel array (JBH: Not yet parsing RTV channel info)
@@ -212,6 +211,57 @@ typedef struct rtv_device_list_t
 } rtv_device_list_t;
 
 
+//+****************************************
+// ndx file formats
+//+****************************************
+
+// RTV 4K ndx file header: size=32 bytes
+//
+typedef struct rtv_ndx_22_header_t 
+{
+   __u8 major_version;    // 2
+   __u8 minor_version;    // 2
+   __u8 flags;            // 0x01 = copy protected; none others seen
+   __u8 unused[29];       // all 0s
+} rtv_ndx_22_header_t;
+
+// RTV 4K ndx record: size=32 bytes
+//
+typedef struct rtv_ndx_22_record_t 
+{
+   __u8  flag_1;
+   __u8  commercial_flag;
+   __u16 video_offset;     // relative to stream_position
+   __u8  unk_fe;
+   __u8  macrovision;
+   __u16 macrovision_count;
+   __u32 audio_offset;     // relative to stream_position + video_offset
+   __u32 unused1;          // always 0 */
+   __u64 timestamp;        // seconds * 10e9, from an unknown base
+   __u64 stream_position;
+} rtv_ndx_22_record_t; 
+
+// RTV 5K ndx file header: size=32 bytes
+//
+typedef struct rtv_ndx_30_header_t 
+{
+   __u8 major_version;    // 3
+   __u8 minor_version;    // 0
+   __u8 unknown[30];      // unknown
+} rtv_ndx_30_header_t;
+
+// RTV 5K ndx record: size=24 bytes
+//
+typedef struct rtv_ndx_30_record_t 
+{
+   __u64 timestamp;            // 8 byte timestamp, in nanoseconds
+   __u64 filepos_iframe;       // File position to an I-frame
+   __u32 iframe_size;          // Size of the I-Frame (including PES Headers)
+   __u32 empty;                // Always Zero, possibly for alignment
+} rtv_ndx_30_record_t; 
+
+
+
 //+************************************************************
 // rtv_read_file callback fxn prototype
 // parms:
@@ -256,6 +306,9 @@ extern char         *rtv_format_time64_2(__u64 ttk);             // Returned str
 extern char         *rtv_format_time32(__u32 t);                 // Returned string is malloc'd: user must free
 extern char         *rtv_sec_to_hr_mn_str(unsigned int seconds); // Returned string is malloc'd: user must free
 extern int           rtv_crypt_test(void);
+extern void          rtv_convert_22_ndx_rec(rtv_ndx_22_record_t *rec);
+extern void          rtv_convert_30_ndx_rec(rtv_ndx_30_record_t *rec);
+extern void          rtv_hex_dump(char * tag, unsigned char * buf, unsigned int sz);
 
 extern int  rtv_discover(unsigned int timeout_ms, rtv_device_list_t **device_list);
 extern int  rtv_get_device_info(const char *address,  char *queryStr, rtv_device_t **device_p);

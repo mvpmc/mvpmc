@@ -595,7 +595,7 @@ static int parse_show(replay_show_t *show_rec, rtv_show_export_t *sh)
    bufptr = show_rec->programInfo.szDescription;
    
    if ( RTVLOG_GUIDE ) {
-      hex_dump("SHOW_DUMP", (char*)show_rec, sizeof(replay_show_t));
+      rtv_hex_dump("SHOW_DUMP", (char*)show_rec, sizeof(replay_show_t));
    }
 
    // process the record's flags

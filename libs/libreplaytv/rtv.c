@@ -26,7 +26,6 @@
 #include <errno.h>
 #include "rtv.h"
 
-
 // ID Numbers used for communication with RTV's
 //
 rtv_idns_t rtv_idns = 
@@ -60,49 +59,6 @@ static char         log_fn[PATH_MAX];
 static char         log_backup_fn[PATH_MAX];
 
 int rtv_route_logs(char *filename);
-
-
-void hex_dump(char * tag, unsigned char * buf, size_t sz)
-{
-    unsigned int  rows, row, col, i, c;
-    unsigned long addr;
-    char          tmpstr[512];
-    char         *strp = tmpstr;
-
-    RTV_PRT("rtv:HEX DUMP: %s\n", tag);
-    rows = (sz + 15)/16;
-    for (row = 0; row < rows; row++) {
-        addr = (unsigned long)(buf + (row*16));
-        strp += sprintf(strp, "0x%08lx | ", addr);
-        for (col = 0; col < 16; col++) {
-            i = row * 16 + col;
-            if (i < sz) {
-               strp += sprintf(strp, "%02x", buf[i]);
-            }
-            else {
-                strp += sprintf(strp, "  ");
-            }
-            if ((i & 3) == 3) {
-               strp += sprintf(strp, " ");
-            }
-        }
-        strp += sprintf(strp, "  |  ");
-        for (col = 0; col < 16; col++) {
-            i = row * 16 + col;
-            if (i < sz) {
-                c = buf[i];
-                strp += sprintf(strp, "%c", (c >= ' ' && c <= '~') ? c : '.');
-            } else {
-                strp += sprintf(strp, " ");
-            }
-            if ((i & 3) == 3) {
-                strp += sprintf(strp, " ");
-            }
-        }
-        RTV_PRT("%s |\n", tmpstr);
-        strp = tmpstr;
-    }
-}
 
 int split_lines(char * src, char *** pdst)
 {

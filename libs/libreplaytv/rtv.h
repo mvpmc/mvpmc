@@ -55,7 +55,6 @@ typedef          __int64   s64;
 #   endif
 #endif
 
-extern void hex_dump(char * tag, unsigned char * buf, unsigned int sz);
 extern int  split_lines(char * src, char *** pdst);
 
 

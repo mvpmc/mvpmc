@@ -32,6 +32,8 @@ char local_hostname[255]   = "NoHostName";
 // ReplayTV device list
 rtv_device_list_t rtv_devices;
 
+// rtv_get_device_struct()
+//
 rtv_device_t *rtv_get_device_struct(const char *ipaddr, int *new) 
 {
    int first_null_idx = -1;
@@ -55,6 +57,8 @@ rtv_device_t *rtv_get_device_struct(const char *ipaddr, int *new)
    return(NULL);
 }
 
+// rtv_free_devices()
+//
 int rtv_free_devices(void)
 {
    int x;
@@ -68,6 +72,8 @@ int rtv_free_devices(void)
    return(0);
 }
 
+// rtv_print_device_list()
+//
 void rtv_print_device_list( void ) 
 {
    int x;
@@ -80,21 +86,28 @@ void rtv_print_device_list( void )
    }
 }
 
+// rtv_set_32k_chunks_to_merge()
+//
 void rtv_set_32k_chunks_to_merge(int chunks)
 {
    rtv_globals.merge_chunk_sz = chunks;
 }
 
+// rtv_set_dbgmask()
+// rtv_get_dbgmask()
+//
 void rtv_set_dbgmask(__u32 mask)
 {
    rtv_globals.rtv_debug = mask;
 }
-
 __u32 rtv_get_dbgmask(void)
 {
    return(rtv_globals.rtv_debug);
 }
 
+
+// Time formatting api's
+//
 char *rtv_format_time64_1(__u64 ttk) 
 {
    char      *results;   
@@ -172,6 +185,8 @@ char *rtv_sec_to_hr_mn_str(unsigned int seconds)
    return(result);
 }
 
+// rtv_init_lib()
+//
 int rtv_init_lib(void) 
 {
    struct utsname     myname;
@@ -217,4 +232,71 @@ int rtv_init_lib(void)
    }
    close(bogus_fd);
    return(0);
+}
+
+// rtv_convert_22_ndx_rec()
+//
+void rtv_convert_22_ndx_rec(rtv_ndx_22_record_t *rec)
+{
+   rec->video_offset      = ntohs(rec->video_offset);
+   rec->macrovision_count = ntohs(rec->macrovision_count);
+   rec->audio_offset      = ntohl(rec->audio_offset);
+   rec->timestamp         = ntohll(rec->timestamp);
+   rec->stream_position   = ntohll(rec->stream_position);
+   return;
+}
+
+// rtv_convert_30_ndx_rec()
+//
+void rtv_convert_30_ndx_rec(rtv_ndx_30_record_t *rec)
+{
+   rec->timestamp      = ntohll(rec->timestamp);
+   rec->filepos_iframe = ntohll(rec->filepos_iframe);
+   rec->iframe_size    = ntohl(rec->iframe_size);
+   return;
+}
+
+
+// rtv_hex_dump()
+//
+void rtv_hex_dump(char * tag, unsigned char * buf, size_t sz)
+{
+    unsigned int  rows, row, col, i, c;
+    unsigned long addr;
+    char          tmpstr[512];
+    char         *strp = tmpstr;
+
+    RTV_PRT("rtv:HEX DUMP: %s\n", tag);
+    rows = (sz + 15)/16;
+    for (row = 0; row < rows; row++) {
+        addr = (unsigned long)(buf + (row*16));
+        strp += sprintf(strp, "0x%08lx | ", addr);
+        for (col = 0; col < 16; col++) {
+            i = row * 16 + col;
+            if (i < sz) {
+               strp += sprintf(strp, "%02x", buf[i]);
+            }
+            else {
+                strp += sprintf(strp, "  ");
+            }
+            if ((i & 3) == 3) {
+               strp += sprintf(strp, " ");
+            }
+        }
+        strp += sprintf(strp, "  |  ");
+        for (col = 0; col < 16; col++) {
+            i = row * 16 + col;
+            if (i < sz) {
+                c = buf[i];
+                strp += sprintf(strp, "%c", (c >= ' ' && c <= '~') ? c : '.');
+            } else {
+                strp += sprintf(strp, " ");
+            }
+            if ((i & 3) == 3) {
+                strp += sprintf(strp, " ");
+            }
+        }
+        RTV_PRT("%s |\n", tmpstr);
+        strp = tmpstr;
+    }
 }
