@@ -30,6 +30,9 @@ insmod gfx
 insmod osdfb
 #insmod xrmod
 
+#default timezone
+TZ=CST+6CDT,M4.1.0/2,M10.5.0/2; export TZ
+
 udhcpc
 . /etc/udhcpc.config
 
