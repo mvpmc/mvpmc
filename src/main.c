@@ -27,6 +27,8 @@
 #include <errno.h>
 #include <sys/wait.h>
 #include <pthread.h>
+#include <sys/select.h>
+#include <fcntl.h>
 
 #include <mvp_widget.h>
 #include <mvp_av.h>
@@ -104,22 +106,71 @@ sighandler(int sig)
  * then another child should be started.  If the child exits with a signal,
  * restart another child.  If the child exits with a 1, the parent should
  * just give up and exit.
+ *
+ * Also, if the power key is pressed once, kill the child.  If it is pressed
+ * again, restart the child.
  */
 void
 spawn_child(void)
 {
 	int status;
+	fd_set fds;
+	int fd;
+	struct timeval to;
+	int power = 1;
+	int ret;
+
+	if ((fd=open("/dev/rawir", O_RDONLY)) < 0) {
+		perror("/dev/rawir");
+		exit(1);
+	}
+	signal(SIGINT, sighandler);
+	signal(SIGTERM, sighandler);
 
 	while (1) {
 		if ((child=fork()) == 0) {
 			printf("child pid %d\n", getpid());
+			close(fd);
+			signal(SIGINT, SIG_DFL);
+			signal(SIGTERM, SIG_DFL);
 			return;
 		}
 
-		signal(SIGINT, sighandler);
-		signal(SIGTERM, sighandler);
+		while (1) {
+			FD_ZERO(&fds);
+			FD_SET(fd, &fds);
+			to.tv_sec = 1;
+			to.tv_usec = 0;
 
-		while ((waitpid(child, &status, 0) < 0) && (errno == EINTR));
+			if (select(fd+1, &fds, NULL, NULL, &to) > 0) {
+				unsigned short key;
+
+				read(fd, &key, sizeof(key));
+				read(fd, &key, sizeof(key));
+
+				if ((key & 0xff) == 0x3d) {
+					power = !power;
+
+					if (power == 0) {
+						printf("Power OFF\n");
+						kill(child, SIGKILL);
+						av_set_led(0);
+					} else {
+						printf("Power ON\n");
+						av_set_led(1);
+						break;
+					}
+				}
+			}
+
+			if (((ret=waitpid(child, &status, WNOHANG)) < 0) &&
+			    (errno == EINTR)) {
+				break;
+			}
+
+			if ((ret == child) && (power == 1))
+				break;
+		}
 
 		switch (status) {
 		case 0:

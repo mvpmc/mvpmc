@@ -490,9 +490,6 @@ video_callback(mvp_widget_t *widget, char key)
 	case 'L':
 		av_set_video_aspect(1-av_get_video_aspect());
 		break;
-	case 'P':
-		power_toggle();
-		break;
 	case '\n':
 		av_move(0, 0, 0);
 		pthread_cond_broadcast(&video_cond);
@@ -683,11 +680,10 @@ do_seek(void)
 
 	if (seeking ) {
 		if (!attr->gop_valid) {
-			if ( --gop_seek_attempts > 0 ) {
+			if ( --seek_attempts > 0 ) {
 				printf("GOP retry\n");
 				return -1;
 			}
-			seek_attempts--;
 			printf("SEEK RETRY due to lack of GOP\n");
 			demux_flush(handle);
 			demux_seek(handle);
