@@ -265,7 +265,7 @@ static int guide_do_request(  const char  *url,
 {
     char                 *tmp, *e;
     struct hc            *hc;
-    int                   rc;
+    int                   rc, hc_stat;
     unsigned int          len;
     unsigned long         status;
 
@@ -292,8 +292,8 @@ static int guide_do_request(  const char  *url,
        }
        return(rc);
     }
-    if ( hc_get_status(hc) != 200 ) {
-       RTV_ERRLOG("%s: http_status == %d\n",  __FUNCTION__,  hc_get_status(hc));
+    if ( ((hc_stat = hc_get_status(hc)) / 100) != 2 ) {
+       RTV_ERRLOG("%s: http_status == %d\n",  __FUNCTION__,  hc_stat);
        hc_free(hc);
        if ( tmp != NULL ) {
           free(tmp);
@@ -314,6 +314,10 @@ static int guide_do_request(  const char  *url,
           status = strtoul(tmp, NULL, 16);
           RTV_DBGLOG(RTVLOG_CMD, "%s: http_status=0x%08lx(%lu)\n", __FUNCTION__, status);    
           rc = map_guide_status_to_rc(status);
+       } else if (hc_stat == 204) {
+          RTV_WARNLOG("%s: http_status == *** 204 ***\n",  __FUNCTION__);
+          *response = NULL;;
+          rc = 0;;
        } else {
           RTV_ERRLOG("%s: end of http guide status line not found\n", __FUNCTION__);
           rc = -EPROTO;

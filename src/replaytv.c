@@ -756,6 +756,13 @@ static int rtv_video_key(char key)
       printf("-->%s: noaction: key='%c'\n", __FUNCTION__, key);
       rc = 1;
 		break;
+	case MVPW_KEY_FFWD:
+      if ( (rtv_video_state.show_p->quality != RTV_QUALITY_STANDARD) && 
+           (atoi(current_rtv_device->device.modelNumber) != 4999)   ) {
+         printf("RTV: 2X-FFWD not allowed for Medium/Highres shows\n");
+         rc = 1;
+      }
+		break;
 	default:
 		break;
 	}
@@ -1378,6 +1385,8 @@ static void rtv_device_hilite_callback(mvp_widget_t *widget, char *item, void *k
    rtv_device_t    *rtv = (rtv_device_t*)key;  
    char             strp[128];
    rtv_fs_volume_t  *volinfo;
+   rtv_fs_file_t     fileinfo;
+
    int              percentage;
    int              rc;
    double           size_gig, used_gig, free_gig;
@@ -1389,7 +1398,7 @@ static void rtv_device_hilite_callback(mvp_widget_t *widget, char *item, void *k
       // Pull volume info for the Video directory. If we get an error the RTV's time is probably off by more
       // than 40 seconds from ours.
       //
-      rc = rtv_get_volinfo( &(rtv->device), "/Video", &volinfo );
+      rc = rtv_get_volinfo(&(rtv->device), "/Video", &volinfo);
       if ( rc != 0 ) {
          fprintf(stderr, "**ERROR: Failed to access /Video directory for RTV %s\n", rtv->device.name);
          fprintf(stderr, "         The RTV's clock and this clock must be within 40 seconds of each other\n");
@@ -1418,7 +1427,6 @@ static void rtv_device_hilite_callback(mvp_widget_t *widget, char *item, void *k
       mvpw_set_text_str(rtv_device_descr.ipaddr, strp);
 
       if ( volinfo->size == 0 ) {
-         //
          // Probably DVArchive. It sends zero for the volume size.
          //
          sprintf(strp, "Capacity: Unknown");
@@ -1430,6 +1438,16 @@ static void rtv_device_hilite_callback(mvp_widget_t *widget, char *item, void *k
          mvpw_set_graph_current(rtv_device_descr.graph, 0);
       }
       else {
+         // Get status of circular buffer file so we can subtract it from 
+         // the volume's used space.
+         //
+         rc = rtv_get_file_info(&(rtv->device), "/Video/circular.mpg", &fileinfo);
+         if ( rc == 0 ) {
+            volinfo->used   -= fileinfo.size;
+            volinfo->used_k -= fileinfo.size_k;
+            rtv_free_file_info(&fileinfo);
+         }
+
          size_gig   = (double)volinfo->size / (double)(1000 * 1000 * 1000);
          used_gig   = (double)volinfo->used / (double)(1000 * 1000 * 1000);
          free_gig   = size_gig - used_gig;

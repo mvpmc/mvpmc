@@ -209,7 +209,7 @@ static unsigned long hfs_do_simple(char **presult, const rtv_device_info_t *devi
     if (e) {
        *presult = strdup(e+1);
        rtv_status = strtoul(tmp, NULL, 10);
-       RTV_DBGLOG(RTVLOG_CMD, "%s: http_status=%lu\n", __FUNCTION__, rtv_status);    
+       RTV_DBGLOG(RTVLOG_CMD, "%s: httpfs_status=%lu\n", __FUNCTION__, rtv_status);    
        free(tmp);
        return(map_httpfs_status_to_rc(rtv_status));
     } else if ( hc_stat == 204 ) {
@@ -378,7 +378,7 @@ unsigned long hfs_do_post_simple(char **presult, const rtv_device_info_t *device
     char *        tmp, * e;
     int           http_status, rc;
     unsigned long rtv_status;
-    unsigned int  len, hc_stat;
+    unsigned int  len;
     
     va_start(ap, command);
     if (make_httpfs_url(buf, sizeof buf, device, command, ap) < 0)
@@ -412,7 +412,6 @@ unsigned long hfs_do_post_simple(char **presult, const rtv_device_info_t *device
        hc_free(hc);
        return(rc);
     }
-    hc_stat = hc_get_status(hc);
     hc_free(hc);
 
     e = strchr(tmp, '\n');
@@ -421,7 +420,7 @@ unsigned long hfs_do_post_simple(char **presult, const rtv_device_info_t *device
        rtv_status = strtoul(tmp, NULL, 10);
        free(tmp);
        return(map_httpfs_status_to_rc(rtv_status));
-    } else if (hc_stat == 204) {
+    } else if (http_status == 204) {
        RTV_WARNLOG("%s: http_status == *** 204 ***\n",  __FUNCTION__);
        *presult = NULL;
        free(tmp);
