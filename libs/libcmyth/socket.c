@@ -1530,7 +1530,7 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 
 	if (buf->proginfo_version >= 8) {
 		/*
-		 * Get proginfo_rec_profile (string)
+		 * Get proginfo_recgroup (string)
 		 */
 		consumed = cmyth_rcv_string(conn, err,
 									tmp_str, sizeof(tmp_str) - 1, count);
@@ -1540,12 +1540,12 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 			failed = "cmyth_rcv_string";
 			goto fail;
 		}
-		buf->proginfo_rec_profile = strdup(tmp_str);
+		buf->proginfo_recgroup = strdup(tmp_str);
 	}
 
 	if (buf->proginfo_version >= 8) {
 		/*
-		 * Get proginfo_unknown_2 (string)
+		 * Get proginfo_chancommfree (string)
 		 */
 		consumed = cmyth_rcv_string(conn, err,
 									tmp_str, sizeof(tmp_str) - 1, count);
@@ -1555,12 +1555,12 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 			failed = "cmyth_rcv_string";
 			goto fail;
 		}
-		buf->proginfo_unknown_2 = strdup(tmp_str);
+		buf->proginfo_chancommfree = strdup(tmp_str);
 	}
 
 	if (buf->proginfo_version >= 8) {
 		/*
-		 * Get proginfo_unknown_3 (string)
+		 * Get proginfo_chan_output_filters (string)
 		 */
 		consumed = cmyth_rcv_string(conn, err,
 									tmp_str, sizeof(tmp_str) - 1, count);
@@ -1570,12 +1570,12 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 			failed = "cmyth_rcv_string";
 			goto fail;
 		}
-		buf->proginfo_unknown_3 = strdup(tmp_str);
+		buf->proginfo_chan_output_filters = strdup(tmp_str);
 	}
 
 	if (buf->proginfo_version >= 8) {
 		/*
-		 * Get proginfo_unknown_4 (string)
+		 * Get proginfo_seriesid (string)
 		 */
 		consumed = cmyth_rcv_string(conn, err,
 									tmp_str, sizeof(tmp_str) - 1, count);
@@ -1585,29 +1585,28 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 			failed = "cmyth_rcv_string";
 			goto fail;
 		}
-		buf->proginfo_unknown_4 = strdup(tmp_str);
-	}
-
-	if (buf->proginfo_version >= 8) {
-		/*
-		 * Get proginfo_unknown_5 (string)
-		 */
-		consumed = cmyth_rcv_string(conn, err,
-									tmp_str, sizeof(tmp_str) - 1, count);
-		count -= consumed;
-		total += consumed;
-		if (*err) {
-			failed = "cmyth_rcv_string";
-			goto fail;
-		}
-		buf->proginfo_unknown_5 = strdup(tmp_str);
+		buf->proginfo_seriesid = strdup(tmp_str);
 	}
 
 	if (buf->proginfo_version >= 12) {
 		/*
-		 * Get lastmodified (timestamp)
+		 * Get programid (string)
 		 */
-		cmyth_dbg(CMYTH_DBG_INFO, "%s: GOT TO LASTMODIFIED\n", __FUNCTION__);
+		consumed = cmyth_rcv_string(conn, err, tmp_str,
+					    sizeof(tmp_str) - 1, count);
+		count -= consumed;
+		total += consumed;
+		if (*err) {
+			failed = "cmyth_rcv_timestamp";
+			goto fail;
+		}
+		buf->proginfo_programid = strdup(tmp_str);
+	}
+
+	if (buf->proginfo_version >= 12) {
+		/*
+		 * Get lastmodified (string)
+		 */
 		consumed = cmyth_rcv_timestamp(conn, err, buf->proginfo_lastmodified, count);
 		count -= consumed;
 		total += consumed;
@@ -1619,31 +1618,33 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 
 	if (buf->proginfo_version >= 12) {
 		/*
-		 * Get stars
+		 * Get stars (string)
 		 */
-		consumed = cmyth_rcv_long(conn, err, &buf->proginfo_stars, count);
-		count -= consumed;
-		total += consumed;
-		if (*err) {
-			failed = "cmyth_rcv_long";
-			goto fail;
-		}
-	}
-
-	if (buf->proginfo_version >= 12) {
-		/*
-		 * Get original_air_date (string)
-		 */
-		consumed = cmyth_rcv_string(conn, err,
-									tmp_str, sizeof(tmp_str) - 1, count);
+		consumed = cmyth_rcv_string(conn, err, tmp_str,
+					    sizeof(tmp_str) - 1, count);
 		count -= consumed;
 		total += consumed;
 		if (*err) {
 			failed = "cmyth_rcv_string";
 			goto fail;
 		}
-		buf->proginfo_originalairdate = strdup(tmp_str);
+		buf->proginfo_stars = strdup(tmp_str);
 	}
+
+	if (buf->proginfo_version >= 12) {
+		/*
+		 * Get original_air_date (string)
+		 */
+		consumed = cmyth_rcv_timestamp(conn, err, buf->proginfo_originalairdate, count);
+		count -= consumed;
+		total += consumed;
+		if (*err) {
+			failed = "cmyth_rcv_string";
+			goto fail;
+		}
+	}
+
+	cmyth_dbg(CMYTH_DBG_INFO, "%s: got recording info\n", __FUNCTION__);
 
 	cmyth_proginfo_parse_url(buf);
 	return total;

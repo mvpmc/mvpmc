@@ -176,6 +176,7 @@ int
 cmyth_timestamp_from_string(cmyth_timestamp_t ts, char *str)
 {
 	int i;
+	int datetime = 1;
 	char *yyyy = &str[0];
 	char *MM = &str[5];
 	char *dd = &str[8];
@@ -192,22 +193,39 @@ cmyth_timestamp_from_string(cmyth_timestamp_t ts, char *str)
 		return -EINVAL;
 	}
 	if (strlen(str) != CMYTH_TIMESTAMP_LEN) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: string is not a timestamp '%s'\n",
+		datetime = 0;
+		if (strlen(str) != CMYTH_DATESTAMP_LEN) {
+			cmyth_dbg(CMYTH_DBG_ERROR,
+				  "%s: string is not a timestamp '%s'\n",
 				  __FUNCTION__, str);
-		return -EINVAL;
+			return -EINVAL;
+		}
 	}
-	if ((str[4] != '-') || (str[7] != '-') || (str[10] != 'T') ||
-		(str[13] != ':') || (str[16] != ':')) {
+
+	if ((datetime == 1) &&
+	    ((str[4] != '-') || (str[7] != '-') || (str[10] != 'T') ||
+	     (str[13] != ':') || (str[16] != ':'))) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: string is badly formed '%s'\n",
 				  __FUNCTION__, str);
 		return -EINVAL;
 	}
+	if ((datetime == 0) &&
+	    ((str[4] != '-') || (str[7] != '-'))) {
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: string is badly formed '%s'\n",
+				  __FUNCTION__, str);
+		return -EINVAL;
+	}
+
+	memset(ts, 0, sizeof(*ts));
+
 	str[4] = '\0';
 	str[7] = '\0';
-	str[10] = '\0';
-	str[13] = '\0';
-	str[16] = '\0';
-	for (i = 0; i < CMYTH_TIMESTAMP_LEN; ++i) {
+	if (datetime) {
+		str[10] = '\0';
+		str[13] = '\0';
+		str[16] = '\0';
+	}
+	for (i = 0; i < (datetime ? CMYTH_TIMESTAMP_LEN : CMYTH_DATESTAMP_LEN); ++i) {
 		if (str[i] && !isdigit(str[i])) {
 			cmyth_dbg(CMYTH_DBG_ERROR, "%s: expected numeral at '%s'[%d]\n",
 					  __FUNCTION__, str, i);
@@ -227,6 +245,10 @@ cmyth_timestamp_from_string(cmyth_timestamp_t ts, char *str)
 				  __FUNCTION__, str);
 		return -EINVAL;
 	}
+
+	if (datetime == 0)
+		return 0;
+
 	ts->timestamp_hour = atoi(hh);
 	if (ts->timestamp_hour > 23) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: hour value too big'%s'\n",

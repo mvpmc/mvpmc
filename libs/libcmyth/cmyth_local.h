@@ -33,6 +33,7 @@
 #define CMYTH_SHORT_LEN (sizeof("-65536") - 1)
 #define CMYTH_BYTE_LEN (sizeof("-256") - 1)
 #define CMYTH_TIMESTAMP_LEN (sizeof("YYYY-MM-DDTHH:MM:SS") - 1)
+#define CMYTH_DATESTAMP_LEN (sizeof("YYYY-MM-DD") - 1)
 
 /*
  * Atomic operations for reference counts.  For now, these are not
@@ -46,7 +47,7 @@ static inline unsigned
 __cmyth_atomic_increment(cmyth_atomic_t *ref)
 {
     cmyth_atomic_t __val;
-#if defined __i486__ || defined __i586__ || defined __i686__
+#if defined __i386__ || defined __i486__ || defined __i586__ || defined __i686__
 	asm volatile (".byte 0xf0, 0x0f, 0xc1, 0x02" /*lock; xaddl %eax, (%edx) */
 	     : "=a" (__val)
 	     : "0" (1), "m" (*ref), "d" (ref)
@@ -77,7 +78,7 @@ static inline unsigned
 __cmyth_atomic_decrement(cmyth_atomic_t *ref)
 {
     cmyth_atomic_t __val;
-#if defined __i486__ || defined __i586__ || defined __i686__
+#if defined __i386__ || defined __i486__ || defined __i586__ || defined __i686__
 	/*
      * This opcode exists as a .byte instead of as a mnemonic for the
      * benefit of SCO OpenServer 5.  The system assembler (which is
@@ -220,7 +221,7 @@ struct cmyth_proginfo {
 	cmyth_timestamp_t proginfo_start_ts;
 	cmyth_timestamp_t proginfo_end_ts;
 	unsigned long proginfo_conflicting; /* Deprecated in V8, always 0 */
-    unsigned char *proginfo_unknown_0;   /* May be new 'conflicting' in V8 */
+	unsigned char *proginfo_unknown_0;   /* May be new 'conflicting' in V8 */
 	unsigned long proginfo_recording;
 	unsigned long proginfo_override;
 	char *proginfo_hostname;
@@ -237,18 +238,19 @@ struct cmyth_proginfo {
 	cmyth_timestamp_t proginfo_rec_end_ts;
 	unsigned long proginfo_repeat;   /* ??? in V8 */
 	long proginfo_program_flags;
-    char *proginfo_rec_profile;  /* new in V8 */
-	char *proginfo_unknown_2;    /* new in V8 */
-	char *proginfo_unknown_3;    /* new in V8 */
-	char *proginfo_unknown_4;    /* new in V8 */
-	char *proginfo_unknown_5;    /* new in V8 */
+	char *proginfo_rec_profile;  /* new in V8 */
+	char *proginfo_recgroup;    /* new in V8 */
+	char *proginfo_chancommfree;    /* new in V8 */
+	char *proginfo_chan_output_filters;    /* new in V8 */
+	char *proginfo_seriesid;    /* new in V8 */
+	char *proginfo_programid;    /* new in V12 */
+	cmyth_timestamp_t proginfo_lastmodified;    /* new in V12 */
+	char *proginfo_stars;    /* new in V12 */
+	cmyth_timestamp_t proginfo_originalairdate;	/* new in V12 */
 	char *proginfo_pathname;
-	char *proginfo_originalairdate;	/* new in V12 */
-	cmyth_timestamp_t proginfo_lastmodified;		/* new in V12 */
-	long proginfo_stars;				/* new in V12 */
 	int proginfo_port;
 	char *proginfo_host;
-    unsigned long proginfo_version;
+	unsigned long proginfo_version;
 	cmyth_atomic_t refcount;
 };
 

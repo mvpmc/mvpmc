@@ -388,9 +388,17 @@ extern long cmyth_proginfo_chan_id(cmyth_proginfo_t prog);
 
 extern const char *cmyth_proginfo_pathname(cmyth_proginfo_t prog);
 
+extern const char *cmyth_proginfo_seriesid(cmyth_proginfo_t prog);
+
+extern const char *cmyth_proginfo_programid(cmyth_proginfo_t prog);
+
+extern const char *cmyth_proginfo_stars(cmyth_proginfo_t prog);
+
 extern cmyth_timestamp_t cmyth_proginfo_rec_start(cmyth_proginfo_t prog);
 
 extern cmyth_timestamp_t cmyth_proginfo_rec_end(cmyth_proginfo_t prog);
+
+extern cmyth_timestamp_t cmyth_proginfo_originalairdate(cmyth_proginfo_t prog);
 /*
  * -----------------------------------------------------------------
  * Program List Operations

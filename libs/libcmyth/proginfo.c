@@ -83,6 +83,10 @@ cmyth_proginfo_create(void)
 	if (!ret->proginfo_lastmodified) {
 		goto err;
 	}
+	ret->proginfo_originalairdate = cmyth_timestamp_create();
+	if (!ret->proginfo_originalairdate) {
+		goto err;
+	}
 	ret->proginfo_title = NULL;
 	ret->proginfo_subtitle = NULL;
 	ret->proginfo_description = NULL;
@@ -115,11 +119,12 @@ cmyth_proginfo_create(void)
 	ret->proginfo_repeat = 0;
 	ret->proginfo_program_flags = 0;
 	ret->proginfo_rec_profile = NULL;
-	ret->proginfo_unknown_2 = NULL;
-	ret->proginfo_unknown_3 = NULL;
-	ret->proginfo_unknown_4 = NULL;
-	ret->proginfo_unknown_5 = NULL;
-	ret->proginfo_originalairdate = NULL;
+	ret->proginfo_recgroup = NULL;
+	ret->proginfo_chancommfree = NULL;
+	ret->proginfo_chan_output_filters = NULL;
+	ret->proginfo_seriesid = NULL;
+	ret->proginfo_programid = NULL;
+	ret->proginfo_stars = NULL;
 	ret->proginfo_version = 12;
 	return ret;
 
@@ -191,23 +196,29 @@ cmyth_proginfo_destroy(cmyth_proginfo_t p)
 	if (p->proginfo_rec_profile) {
 		free(p->proginfo_rec_profile);
 	}
-	if (p->proginfo_unknown_2) {
-		free(p->proginfo_unknown_2);
+	if (p->proginfo_recgroup) {
+		free(p->proginfo_recgroup);
 	}
-	if (p->proginfo_unknown_3) {
-		free(p->proginfo_unknown_3);
+	if (p->proginfo_chan_output_filters) {
+		free(p->proginfo_chan_output_filters);
 	}
-	if (p->proginfo_unknown_4) {
-		free(p->proginfo_unknown_4);
+	if (p->proginfo_seriesid) {
+		free(p->proginfo_seriesid);
 	}
-	if (p->proginfo_unknown_5) {
-		free(p->proginfo_unknown_5);
+	if (p->proginfo_programid) {
+		free(p->proginfo_programid);
+	}
+	if (p->proginfo_stars) {
+		free(p->proginfo_stars);
 	}
 	if (p->proginfo_pathname) {
 		free(p->proginfo_pathname);
 	}
 	if (p->proginfo_host) {
 		free(p->proginfo_host);
+	}
+	if (p->proginfo_lastmodified) {
+		cmyth_timestamp_release(p->proginfo_lastmodified);
 	}
 	if (p->proginfo_start_ts) {
 		cmyth_timestamp_release(p->proginfo_start_ts);
@@ -223,6 +234,12 @@ cmyth_proginfo_destroy(cmyth_proginfo_t p)
 	}
 	if (p->proginfo_rec_end_ts) {
 		cmyth_timestamp_release(p->proginfo_rec_end_ts);
+	}
+	if (p->proginfo_originalairdate) {
+		cmyth_timestamp_release(p->proginfo_originalairdate);
+	}
+	if (p->proginfo_chancommfree) {
+		free(p->proginfo_chancommfree);
 	}
 }
 
@@ -337,6 +354,133 @@ programinfo_check_recording(cmyth_conn_t control,
 	return -ENOSYS;
 }
 
+static int
+delete_command(cmyth_conn_t control, cmyth_proginfo_t prog, char *cmd)
+{
+	long c = 0;
+	char *ret;
+	unsigned int len = ((2 * CMYTH_LONGLONG_LEN) + 
+			    (4 * CMYTH_TIMESTAMP_LEN) +
+			    (13 * CMYTH_LONG_LEN));
+	char start_ts[CMYTH_TIMESTAMP_LEN + 1];
+	char end_ts[CMYTH_TIMESTAMP_LEN + 1];
+	char rec_start_ts[CMYTH_TIMESTAMP_LEN + 1];
+	char rec_end_ts[CMYTH_TIMESTAMP_LEN + 1];
+	char originalairdate[CMYTH_TIMESTAMP_LEN + 1];
+	char lastmodified[CMYTH_TIMESTAMP_LEN + 1];
+	char msg[128];
+	int err;
+	int count;
+	long r;
+
+	if (!prog) {
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: no program info\n",
+			  __FUNCTION__);
+		return -EINVAL;
+	}
+
+	len += strlen(prog->proginfo_title);
+	len += strlen(prog->proginfo_subtitle);
+	len += strlen(prog->proginfo_description);
+	len += strlen(prog->proginfo_category);
+	len += strlen(prog->proginfo_chanstr);
+	len += strlen(prog->proginfo_chansign);
+	len += strlen(prog->proginfo_channame);
+	len += strlen(prog->proginfo_url);
+	len += strlen(prog->proginfo_hostname);
+
+	ret = alloca(len + 1+2048);
+	if (!ret) {
+		return -ENOMEM;
+	}
+
+	cmyth_timestamp_to_string(start_ts, prog->proginfo_start_ts);
+	cmyth_timestamp_to_string(end_ts, prog->proginfo_end_ts);
+	cmyth_timestamp_to_string(rec_start_ts, prog->proginfo_rec_start_ts);
+	cmyth_timestamp_to_string(rec_end_ts, prog->proginfo_rec_end_ts);
+	cmyth_timestamp_to_string(originalairdate, prog->proginfo_originalairdate);
+	cmyth_timestamp_to_string(lastmodified, prog->proginfo_lastmodified);
+
+	if (control->conn_version >= 13) {
+		sprintf(ret,
+			"%s 0[]:[]"
+			"%s[]:[]%s[]:[]%s[]:[]%s[]:[]%ld[]:[]"
+			"%s[]:[]%s[]:[]%s[]:[]%s[]:[]%lld[]:[]"
+			"%lld[]:[]%s[]:[]%s[]:[]%s[]:[]%ld[]:[]"
+			"%ld[]:[]%s[]:[]%ld[]:[]%ld[]:[]%ld[]:[]"
+			"%s[]:[]%ld[]:[]%ld[]:[]%ld[]:[]%ld[]:[]"
+			"%ld[]:[]%s[]:[]%s[]:[]%ld[]:[]%ld[]:[]"
+			"%s[]:[]%s[]:[]%s[]:[]%s[]:[]"
+			"%s[]:[]%s[]:[]%s[]:[]%s[]:[]",
+			cmd,
+			prog->proginfo_title,
+			prog->proginfo_subtitle,
+			prog->proginfo_description,
+			prog->proginfo_category,
+			prog->proginfo_chanId,
+			prog->proginfo_chanstr,
+			prog->proginfo_chansign,
+			prog->proginfo_chanicon,
+			prog->proginfo_url,
+			prog->proginfo_Start,
+			prog->proginfo_Length,
+			start_ts,
+			end_ts,
+			prog->proginfo_unknown_0,
+			prog->proginfo_recording,
+			prog->proginfo_override,
+			prog->proginfo_hostname,
+			prog->proginfo_source_id,
+			prog->proginfo_card_id,
+			prog->proginfo_input_id,
+			prog->proginfo_rec_priority,
+			prog->proginfo_rec_status,
+			prog->proginfo_record_id,
+			prog->proginfo_rec_type,
+			prog->proginfo_rec_dups,
+			prog->proginfo_unknown_1,
+			rec_start_ts,
+			rec_end_ts,
+			prog->proginfo_repeat,
+			prog->proginfo_program_flags,
+			prog->proginfo_recgroup,
+			prog->proginfo_chancommfree,
+			prog->proginfo_chan_output_filters,
+			prog->proginfo_seriesid,
+			prog->proginfo_programid,
+			lastmodified,
+			prog->proginfo_stars,
+			originalairdate);
+	} else {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: delete not supported with protocol ver %d\n",
+			  __FUNCTION__, control->conn_version);
+		return -EINVAL;
+	}
+
+	if ((err = cmyth_send_message(control, ret)) < 0) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_send_message() failed (%d)\n",
+			  __FUNCTION__, err);
+		return err;
+	}
+
+	count = cmyth_rcv_length(control);
+	if ((r=cmyth_rcv_long(control, &err, &c, count)) < 0) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_rcv_length() failed (%d)\n",
+			  __FUNCTION__, r);
+		return err;
+	}
+
+	/*
+	 * XXX: for some reason, this seems to return an error, even though
+	 *      it succeeds...
+	 */
+
+	return 0;
+}
+
 /*
  * cmyth_proginfo_delete_recording(cmyth_conn_t control,
  *                                 cmyth_proginfo_t prog)
@@ -355,10 +499,9 @@ programinfo_check_recording(cmyth_conn_t control,
  * Failure: -(ERRNO)
  */
 int
-programinfo_delete_recording(cmyth_conn_t control,
-							 cmyth_proginfo_t prog)
+cmyth_proginfo_delete_recording(cmyth_conn_t control, cmyth_proginfo_t prog)
 {
-	return -ENOSYS;
+	return delete_command(control, prog, "DELETE_RECORDING");
 }
 
 /*
@@ -379,10 +522,9 @@ programinfo_delete_recording(cmyth_conn_t control,
  * Failure: -(ERRNO)
  */
 int
-programinfo_forget_recording(cmyth_conn_t control,
-							 cmyth_proginfo_t prog)
+cmyth_proginfo_forget_recording(cmyth_conn_t control, cmyth_proginfo_t prog)
 {
-	return -ENOSYS;
+	return delete_command(control, prog, "FORGET_RECORDING");
 }
 
 /*
@@ -464,6 +606,8 @@ cmyth_proginfo_string(cmyth_proginfo_t prog)
 	char end_ts[CMYTH_TIMESTAMP_LEN + 1];
 	char rec_start_ts[CMYTH_TIMESTAMP_LEN + 1];
 	char rec_end_ts[CMYTH_TIMESTAMP_LEN + 1];
+	char originalairdate[CMYTH_TIMESTAMP_LEN + 1];
+	char lastmodified[CMYTH_TIMESTAMP_LEN + 1];
 	char *ret;
 
 	len += strlen(prog->proginfo_title);
@@ -476,7 +620,7 @@ cmyth_proginfo_string(cmyth_proginfo_t prog)
 	len += strlen(prog->proginfo_url);
 	len += strlen(prog->proginfo_hostname);
 
-	ret = malloc(len + 1);
+	ret = malloc(len + 1+2048);
 	if (!ret) {
 		return NULL;
 	}
@@ -484,7 +628,57 @@ cmyth_proginfo_string(cmyth_proginfo_t prog)
 	cmyth_timestamp_to_string(end_ts, prog->proginfo_end_ts);
 	cmyth_timestamp_to_string(rec_start_ts, prog->proginfo_rec_start_ts);
 	cmyth_timestamp_to_string(rec_end_ts, prog->proginfo_rec_end_ts);
-	if (prog->proginfo_version >= 8) {
+	cmyth_timestamp_to_string(originalairdate, prog->proginfo_originalairdate);
+	cmyth_timestamp_to_string(lastmodified, prog->proginfo_lastmodified);
+	if (prog->proginfo_version >= 13) {
+		sprintf(ret,
+				"%s[]:[]%s[]:[]%s[]:[]%s[]:[]%ld[]:[]"
+				"%s[]:[]%s[]:[]%s[]:[]%s[]:[]"
+				"%lld[]:[]%s[]:[]%s[]:[]%s[]:[]%ld[]:[]"
+				"%ld[]:[]%s[]:[]%ld[]:[]%ld[]:[]%ld[]:[]"
+				"%s[]:[]%ld[]:[]%ld[]:[]%ld[]:[]%ld[]:[]"
+				"%ld[]:[]%s[]:[]%s[]:[]%ld[]:[]%ld[]:[]"
+				"%s[]:[]%s[]:[]%s[]:[]%s[]:[]"
+				"%s[]:[]%s[]:[]%s[]:[]%s[]:[]",
+				prog->proginfo_title,
+				prog->proginfo_subtitle,
+				prog->proginfo_description,
+				prog->proginfo_category,
+				prog->proginfo_chanId,
+				prog->proginfo_chanstr,
+				prog->proginfo_chansign,
+				prog->proginfo_chanicon,
+				prog->proginfo_url,
+				prog->proginfo_Start,
+				prog->proginfo_Length,
+				start_ts,
+				end_ts,
+				prog->proginfo_unknown_0,
+				prog->proginfo_recording,
+				prog->proginfo_override,
+				prog->proginfo_hostname,
+				prog->proginfo_source_id,
+				prog->proginfo_card_id,
+				prog->proginfo_input_id,
+				prog->proginfo_rec_priority,
+				prog->proginfo_rec_status,
+				prog->proginfo_record_id,
+				prog->proginfo_rec_type,
+				prog->proginfo_rec_dups,
+				prog->proginfo_unknown_1,
+				rec_start_ts,
+				rec_end_ts,
+				prog->proginfo_repeat,
+				prog->proginfo_program_flags,
+				prog->proginfo_recgroup,
+				prog->proginfo_chancommfree,
+				prog->proginfo_chan_output_filters,
+				prog->proginfo_seriesid,
+				prog->proginfo_programid,
+				lastmodified,
+				prog->proginfo_stars,
+				originalairdate);
+	} else if (prog->proginfo_version >= 8) {
 		sprintf(ret,
 				"%s[]:[]%s[]:[]%s[]:[]%s[]:[]%ld[]:[]"
 				"%s[]:[]%s[]:[]%s[]:[]%s[]:[]%lld[]:[]"
@@ -523,10 +717,10 @@ cmyth_proginfo_string(cmyth_proginfo_t prog)
 				rec_end_ts,
 				prog->proginfo_repeat,
 				prog->proginfo_program_flags,
-				prog->proginfo_unknown_2,
-				prog->proginfo_unknown_3,
-				prog->proginfo_unknown_4,
-				prog->proginfo_unknown_5);
+				prog->proginfo_recgroup,
+				prog->proginfo_chancommfree,
+				prog->proginfo_chan_output_filters,
+				prog->proginfo_seriesid);
 	} else { /* Assume Version 1 */
 		sprintf(ret,
 				"%s[]:[]%s[]:[]%s[]:[]%s[]:[]%ld[]:[]"
@@ -567,6 +761,7 @@ cmyth_proginfo_string(cmyth_proginfo_t prog)
 	}
 	return ret;
 }
+
 /*
  * cmyth_chaninfo_string(cmyth_proginfo_t prog)
  *
@@ -746,6 +941,50 @@ cmyth_proginfo_category(cmyth_proginfo_t prog)
 		return NULL;
 	}
 	return prog->proginfo_category;
+}
+
+const char *
+cmyth_proginfo_seriesid(cmyth_proginfo_t prog)
+{
+    if (!prog) {
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: NULL series ID\n",
+					__FUNCTION__);
+		return NULL;
+	}
+	return prog->proginfo_seriesid;
+}
+
+const char *
+cmyth_proginfo_programid(cmyth_proginfo_t prog)
+{
+    if (!prog) {
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: NULL program ID\n",
+					__FUNCTION__);
+		return NULL;
+	}
+	return prog->proginfo_programid;
+}
+
+const char *
+cmyth_proginfo_stars(cmyth_proginfo_t prog)
+{
+    if (!prog) {
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: NULL stars\n",
+					__FUNCTION__);
+		return NULL;
+	}
+	return prog->proginfo_stars;
+}
+
+cmyth_timestamp_t
+cmyth_proginfo_originalairdate(cmyth_proginfo_t prog)
+{
+    if (!prog) {
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: NULL original air date\n",
+					__FUNCTION__);
+		return NULL;
+	}
+	return cmyth_timestamp_hold(prog->proginfo_originalairdate);
 }
 
 /*
