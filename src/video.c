@@ -383,6 +383,7 @@ video_callback(mvp_widget_t *widget, char key)
 {
 	struct stat64 sb;
 	int jump;
+	long long offset;
 
 	switch (key) {
 	case '.':
@@ -451,6 +452,26 @@ video_callback(mvp_widget_t *widget, char key)
 			av_mute();
 			mvpw_show(ffwd_widget);
 		}
+		break;
+	case '<':
+		jump_target = -1;
+		jumping = 1;
+		pthread_kill(video_write_thread, SIGURG);
+		pthread_kill(audio_write_thread, SIGURG);
+		fstat64(fd, &sb);
+		offset = lseek(fd, 0, SEEK_CUR);
+		jump_target = ((-sb.st_size / 100.0) + offset);
+		pthread_cond_broadcast(&video_cond);
+		break;
+	case '>':
+		jump_target = -1;
+		jumping = 1;
+		pthread_kill(video_write_thread, SIGURG);
+		pthread_kill(audio_write_thread, SIGURG);
+		fstat64(fd, &sb);
+		offset = lseek(fd, 0, SEEK_CUR);
+		jump_target = ((sb.st_size / 100.0) + offset);
+		pthread_cond_broadcast(&video_cond);
 		break;
 	case '0' ... '9':
 		jump_target = -1;
