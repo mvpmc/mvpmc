@@ -357,7 +357,7 @@ static int ciHttpFsListFiles(int argc, char **argv)
 
 static int ciHttpFsGetFile(int argc, char ** argv)
 {
-   __u32                 delay        = 75;
+   __u32                 delay        = 300;
    unsigned int          pos_kb       = 0;
    unsigned int          getsize_kb   = 0;
    const char           *ipaddr;
@@ -439,7 +439,7 @@ static int ciHttpFsGetFile(int argc, char ** argv)
    
    pos64     = pos_kb * 1024;
    getsize64 = getsize_kb *1024;
-   status = rtv_read_file(&(rtv->device), f_from, pos64, getsize64, 32, delay, hfs_rf_callback, &data);
+   status = rtv_read_file(&(rtv->device), f_from, pos64, getsize64, delay, hfs_rf_callback, &data);
    
    if (status != 0) {
       printf("\nError: rtv_read_file: rc=%ld\n\n", status);

@@ -157,7 +157,7 @@ int rtv_get_guide_snapshot( const rtv_device_info_t  *device,
     }
 
     hc_send_request(hc, ":80\r\nAccept-Encoding: gzip\r\n");
-    hc_read_pieces(hc, get_rtv5k_snapshot_callback, &data);
+    hc_read_pieces(hc, get_rtv5k_snapshot_callback, &data, RTV_MERGECHUNKS_0);
     hc_free(hc);
 
     guide->timestamp =  data.timestamp;

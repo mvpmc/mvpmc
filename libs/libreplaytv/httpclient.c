@@ -19,6 +19,7 @@
 #include <errno.h>
 
 #include "rtv.h"
+#include "rtvlib.h"
 #include "httpclient.h"
 
 struct hc_headers 
@@ -303,16 +304,20 @@ char * hc_lookup_rsp_header(struct hc * hc, const char * tag)
     return NULL;
 }
 
-extern int hc_read_pieces(struct hc * hc,
+extern int hc_read_pieces(struct hc *hc,
                           void (*callback)(unsigned char *, size_t, void *),
-                          void * v)
+                          void  *v,
+                          rtv_mergechunks_t mergechunks)
 {
-    char * te;
-    int chunked = 0;
-    int done = 0;
-    char * buf;
-    size_t len, len_read;
-    int x = 1;
+    int          chunked     = 0;
+    int          done        = 0;
+    int          x           = 1;
+    unsigned int multichunk  = 0;
+    size_t       len_total   = 0;
+    char        *buf         = NULL; 
+    char        *bufstart    = NULL;
+    char        *te;
+    size_t       len, len_read;
     
     RTV_DBGLOG(RTVLOG_HTTP_VERB, "%s: hc struct dump:\n", __FUNCTION__);
     if ( RTVLOG_HTTP_VERB ) {
@@ -322,6 +327,13 @@ extern int hc_read_pieces(struct hc * hc,
     RTV_DBGLOG(RTVLOG_HTTP, "%s: lookup_rsp_header: tag: %s    value: %s\n", __FUNCTION__, "Transfer-Encoding", te);    
     if (te && strcmp(te, "chunked") == 0) {
         chunked = 1;
+    }
+
+    if (mergechunks > 1) {
+       multichunk = mergechunks;
+    } 
+    else {
+       mergechunks = 0;
     }
 
     while (!done) {
@@ -335,17 +347,50 @@ extern int hc_read_pieces(struct hc * hc,
             len = 4096;
         }
         if (len) {
-            buf = malloc(len+1);
+            if ( mergechunks == 0 ) {
+               buf = malloc(len+1);
+            }
+            else if ( multichunk == mergechunks ) {
+               bufstart = buf = malloc((RTV_CHUNK_SZ * multichunk) + 1);
+               len_total = 0;
+               RTV_DBGLOG(RTVLOG_HTTP, "%s: multichunk start: malloc=%p sz=%d \n", __FUNCTION__, buf, (RTV_CHUNK_SZ * multichunk) + 1); 
+            }
+
             len_read = nc_read(hc->nc, buf, len);
-            if (len_read < len)
+            if (len_read < len) {
                 done = 1;
-            buf[len_read] = '\0';
-            RTV_DBGLOG(RTVLOG_HTTP_VERB, "%s: line: %d: len=%d len_rd=%d\n %s\n", __FUNCTION__, x++, len, len_read, buf); 
-            callback(buf, len_read, v);
+            }
+
+            if  ( mergechunks == 0 ) {
+               buf[len_read] = '\0';
+               RTV_DBGLOG(RTVLOG_HTTP_VERB, "%s: line: %d: len=%d len_rd=%d\n %s\n", __FUNCTION__, x++, len, len_read, buf); 
+               callback(buf, len_read, v);
+            }
+            else {
+               len_total += len_read;
+               buf[len_read] = '\0';
+               if ( multichunk > 1 ) {
+                  RTV_DBGLOG(RTVLOG_HTTP, "%s: multichunk add: bp=%p sz=%d \n", __FUNCTION__, buf, len_read); 
+                  multichunk--;
+                  buf += len_read;
+               }
+               else {
+                  RTV_DBGLOG(RTVLOG_HTTP, "%s: multichunk callback: bstart=%p sz_tot=%d \n", __FUNCTION__, bufstart, len_total); 
+                  callback(bufstart, len_total, v);
+                  multichunk = mergechunks;
+               }
+            }
+
+
         } else {
+            if ( (mergechunks) && (multichunk != mergechunks) ) {
+               RTV_DBGLOG(RTVLOG_HTTP, "%s: multichunk DONE callback: bstart=%p sz_tot=%d \n", __FUNCTION__, bufstart, len_total); 
+                callback(bufstart, len_total, v);
+            }
             RTV_DBGLOG(RTVLOG_HTTP, "%s: LEN=0\n", __FUNCTION__); 
             done = 1;
         }
+
         if (chunked) {
             char linebuf[80];
             /* if done, then any non-blank lines read here are
@@ -406,7 +451,7 @@ unsigned char * hc_read_all(struct hc * hc)
     data.start = data.end = NULL;
     data.total = 0;
     
-    hc_read_pieces(hc, read_all_callback, &data);
+    hc_read_pieces(hc, read_all_callback, &data, RTV_MERGECHUNKS_0);
     
     r = malloc(data.total + 1);
     cur = 0;

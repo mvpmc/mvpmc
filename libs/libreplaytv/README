@@ -63,12 +63,21 @@ Status
 -Added api for reading a httpfs file.
 -Added rtv_shell debug command 'fsget' to copy a httpfs file to local disk.
 -Added rtv_shell commands to get volume info, get file status, & list a directory
+09/29/04:
+-Got medium res & highres shows streaming properly.
+ Added parm to hc_read_pieces to specify how many 32K chunks to merge before calling callback fxn.
+ (The mvpmc demuxer likes 128K chunks better than 32K chunks)
+-Added nc_open() socket option to set SORCVBUF to 4K. This is needed to get the mvp to ack 
+ packets in a timely manner so the RTV doesn't back off an starve the demuxer.
+ Note: I haven't been able to get a RTV5K streaming to the mvp to set a tcp window greater than 
+       8K. (This is why it needs timely ACK's) DVArchive sets a 64K window. Snooping two RTV5K's 
+       streaming shows 32K tcp windows.
+-Added new API to allow rerouting RTV_PRT's to a file instead of stdout. 
 
 Library TODO
 ------------
 -Set up autoconf and get rid of Makefile
 -Cleanup internal header files
--Added ability & api to re-direct RTV_PRT statements to a file.
 -Finish 5K Guide parsing and string formatting routines.
 -Add 4K Guide parsing
 -Get DVArchive to send a 5K guide instead of an XML formatted guide.
@@ -86,6 +95,7 @@ Library TODO
  
 09/28/2004:DONE: -Create httpfs api's. rtv_fsget_dir_list(), rtv_fsget_vol_info(), rtv_fsget_filestat().
 09/28/2004:DONE: -Get copying a file from replayTV to local or NFS working.
+09/29/2004:DONE: -Add ability & api to re-direct RTV_PRT statements to a file.
 
 mvpmv TODO
 ----------
@@ -93,6 +103,6 @@ mvpmv TODO
 -Add support to display replay device 'friendly name', Den, Bedroom, etc...
 -Add support for displaying the show synopsys, actors, recorded
  date/time, etc...
--Add commandline option for setting library debug flags and re-dirrecting library 
+-Add commandline option for setting library debug flags and re-directing library 
  RTV_PRT statements to a file.
 

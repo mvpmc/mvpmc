@@ -128,7 +128,6 @@ typedef struct rtv_device_t
 //+****************************************
 // RTV Filesystem types/ structures
 //+****************************************
-
 typedef enum rtv_filesystype_t 
 {
    RTV_FS_DIRECTORY = 'd',
@@ -161,6 +160,18 @@ typedef struct rtv_fs_volume_t
    __u64      used;
    __u32      used_k;
 } rtv_fs_volume_t;
+
+//+****************************************************
+// rtv_read_file parameter that specifies how many 32K
+// byte chunks to merge together before passing data 
+// to application
+//+****************************************************
+typedef enum rtv_mergechunks_t 
+{
+   RTV_MERGECHUNKS_0 = 0,
+   RTV_MERGECHUNKS_2 = 2,
+   RTV_MERGECHUNKS_4 = 4
+} rtv_mergechunks_t;
 
 
 //+************************************************************************
@@ -203,22 +214,9 @@ extern __u32  rtv_read_file( const rtv_device_info_t *device,
                              const char              *filename, 
                              __u64                    pos,        //fileposition
                              __u64                    size,       //amount of file to read ( 0 reads all of file )
-                             unsigned int             chunk_sz,   //chunksize to return data in.
                              unsigned int             ms_delay,   //mS delay between reads
                              void                     (*callback_fxn)(unsigned char *, size_t, void *),
                              void                    *callback_data                                     ); 
-
-// TODO: Following 2 api's need to be abstracted before being exported.
-//
-extern unsigned long hfs_do_simple(char **presult, const rtv_device_info_t *device, const char * command, ...);
-
-extern unsigned long hfs_do_chunked(void (*fn)(unsigned char *, size_t, void *),
-                                    void *v,
-                                    const rtv_device_info_t *device,
-                                    __u16 msec_delay,
-                                    const char *command,
-                                    ...);
-
 
 #ifdef __cplusplus
 }

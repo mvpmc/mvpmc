@@ -31,6 +31,7 @@
 #  include <sys/socket.h>
 #  include <netinet/in.h>
 #  include <arpa/inet.h>
+
 #  define closesocket(fd) close(fd)
    typedef int socket_fd;
 #  define INVALID_SOCKET (-1)
@@ -129,6 +130,7 @@ struct nc * nc_open(char * address_str, short port)
 {
     struct nc * nc;
     struct sockaddr_in address;
+    int rcvbuf_window_size =  4 * 1024;	/*  4 kilobytes */
 
     RTV_DBGLOG(RTVLOG_NET, "%s: addr=%s port=%d\n", __FUNCTION__, address_str, port); 
     if (!nc_initted) {
@@ -158,6 +160,12 @@ struct nc * nc_open(char * address_str, short port)
         return NULL;
     }
     nc_dump("created", NULL, 0);
+
+    // Set a small 4K RCVBUF window size to force tcp stack to quickly ack packets.
+    // Without this, streaming highres shows is jerky.
+    //
+    setsockopt(nc->fd, SOL_SOCKET, SO_RCVBUF,
+               (char *) &rcvbuf_window_size, sizeof(rcvbuf_window_size));
 
     nc_dump("connecting", NULL, 0);
     if (connect(nc->fd, (struct sockaddr *)&address, sizeof(address)) == -1) {

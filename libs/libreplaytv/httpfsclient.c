@@ -140,7 +140,7 @@ exit:
 }
 
     
-unsigned long hfs_do_simple(char **presult, const rtv_device_info_t *device, const char * command, ...)
+static unsigned long hfs_do_simple(char **presult, const rtv_device_info_t *device, const char * command, ...)
 {
     va_list       ap;
     struct hc *   hc;
@@ -215,12 +215,13 @@ static void hfs_callback(unsigned char * buf, size_t len, void * vd)
         rtv_sleep(data->msec_delay);
 }
 
-unsigned long hfs_do_chunked(void (*fn)(unsigned char *, size_t, void *),
-                             void *v,
-                             const rtv_device_info_t *device,
-                             __u16 msec_delay,
-                             const char *command,
-                             ...)
+static unsigned long hfs_do_chunked(void (*fn)(unsigned char *, size_t, void *),
+                                    void                    *v,
+                                    const rtv_device_info_t *device,
+                                   __u16                    msec_delay,
+                                   rtv_mergechunks_t        mergechunks,
+                                   const char              *command,
+                                   ...)
 {
     struct hfs_data data;
     struct hc *   hc;
@@ -241,7 +242,7 @@ unsigned long hfs_do_chunked(void (*fn)(unsigned char *, size_t, void *),
     data.firsttime  = 1;
     data.msec_delay = msec_delay;
     
-    hc_read_pieces(hc, hfs_callback, &data);
+    hc_read_pieces(hc, hfs_callback, &data, mergechunks);
     hc_free(hc);
 
     return data.status;
@@ -605,14 +606,14 @@ void rtv_print_file_list(const rtv_fs_filelist_t *filelist, int detailed)
 }
 
 
-// read a file from the RTV. 
+// read a file from the RTV.
+// Callback data returned in 128KB chunks
 // Returns 0 for success
 //
 __u32  rtv_read_file( const rtv_device_info_t *device, 
                       const char              *filename, 
                       __u64                    pos,        //fileposition
                       __u64                    size,       //amount of file to read ( 0 reads all of file )
-                      unsigned int             chunk_sz,   //chunksize to return data in.
                       unsigned int             ms_delay,   //mS delay between reads
                       void                     (*callback_fxn)(unsigned char *, size_t, void *),
                       void                    *callback_data                                     )
@@ -625,7 +626,7 @@ __u32  rtv_read_file( const rtv_device_info_t *device,
 
    if ( size != 0 ) {
       snprintf(size_str, 255, "%"U64F"d", size);
-      status = hfs_do_chunked(callback_fxn, callback_data, device, ms_delay,
+      status = hfs_do_chunked(callback_fxn, callback_data, device, ms_delay, RTV_MERGECHUNKS_4,
                               "readfile",
                               "pos",  pos_str,
                               "size", size_str,
@@ -633,7 +634,7 @@ __u32  rtv_read_file( const rtv_device_info_t *device,
                               NULL);
    }
    else {
-      status = hfs_do_chunked(callback_fxn, callback_data, device, ms_delay,
+      status = hfs_do_chunked(callback_fxn, callback_data, device, ms_delay, RTV_MERGECHUNKS_4,
                               "readfile",
                               "pos",  pos_str,
                               "name", filename,

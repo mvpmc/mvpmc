@@ -231,7 +231,7 @@ int rtv_get_device_info(const char *address, rtv_device_info_t *devinfo )
    }
    
    hc_send_request(hc, NULL);
-   hc_read_pieces(hc, get_deviceinfo_callback, NULL);
+   hc_read_pieces(hc, get_deviceinfo_callback, NULL, RTV_MERGECHUNKS_0);
    hc_free(hc);
 
    if ( (devinfo->status & RTV_EXPECTED_FIELDS) != RTV_EXPECTED_FIELDS ) {

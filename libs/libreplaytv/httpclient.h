@@ -74,6 +74,8 @@
 # define strcasecmp(a, b)  strcmp(a, b)
 #endif
 
+#define RTV_CHUNK_SZ (32 *1024)
+
 struct hc;
 
 extern struct hc      *hc_start_request(char *url);
@@ -86,6 +88,7 @@ extern char           *hc_lookup_rsp_header(struct hc *hc, const char *tag);
 extern unsigned char  *hc_read_all(struct hc * hc);
 extern int             hc_read_pieces(struct hc * hc,
                                       void (*)(unsigned char *, size_t, void *),
-                                      void *);
+                                      void *,
+                                      rtv_mergechunks_t);
 extern void            hc_free(struct hc *hc);
 #endif
