@@ -94,5 +94,6 @@ extern int av_set_audio_output(av_audio_output_t type);
 extern int av_sync(void);
 
 extern int av_set_video_aspect(int wide);
+extern int av_get_video_aspect(void);
 
 #endif /* MVP_AV_H */
