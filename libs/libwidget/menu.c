@@ -218,12 +218,14 @@ key(mvp_widget_t *widget, char c)
 		}
 		break;
 	case '\n':
-		i = widget->data.menu.current;
-		str = widget->data.menu.items[i].label;
-		k = widget->data.menu.items[i].key;
-		if (widget->data.menu.items[i].select &&
-		    widget->data.menu.items[i].selectable)
-			widget->data.menu.items[i].select(widget, str, k);
+		if (widget->data.menu.current < widget->data.menu.nitems) {
+			i = widget->data.menu.current;
+			str = widget->data.menu.items[i].label;
+			k = widget->data.menu.items[i].key;
+			if (widget->data.menu.items[i].select &&
+			    widget->data.menu.items[i].selectable)
+				widget->data.menu.items[i].select(widget, str, k);
+		}
 		break;
 	}
 }
@@ -499,6 +501,8 @@ mvpw_set_menu_title(mvp_widget_t *widget, char *title)
 void
 mvpw_set_menu_attr(mvp_widget_t *widget, mvpw_menu_attr_t *attr)
 {
+	int i;
+
 	widget->data.menu.font = attr->font;
 	widget->data.menu.fg = attr->fg;
 	widget->data.menu.hilite_fg = attr->hilite_fg;
@@ -507,6 +511,10 @@ mvpw_set_menu_attr(mvp_widget_t *widget, mvpw_menu_attr_t *attr)
 	widget->data.menu.title_bg = attr->title_bg;
 	widget->data.menu.title_justify = attr->title_justify;
 	widget->data.menu.checkboxes = attr->checkboxes;
+
+	i = widget->data.menu.current;
+	if (i < widget->data.menu.nitems)
+		hilite_item(widget, i, 1);
 }
 
 void
@@ -556,4 +564,27 @@ mvpw_check_menu_item(mvp_widget_t *widget, void *key, int checked)
 			}
 		}
 	}
+}
+
+int
+mvpw_menu_hilite_item(mvp_widget_t *widget, void *key)
+{
+	struct menu_item_s *item;
+	void *k;
+	int i;
+	int ret = -1;
+
+	for (i=0; i<widget->data.menu.nitems; i++) {
+		item = widget->data.menu.items + i;
+		k = item->key;
+		if (k == key) {
+			widget->data.menu.current = i;
+			hilite_item(widget, i, 1);
+			ret = 0;
+		} else {
+			hilite_item(widget, i, 0);
+		}
+	}
+
+	return ret;
 }

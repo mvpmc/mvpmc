@@ -572,6 +572,9 @@ mvpw_get_root(void)
 void
 mvpw_set_key(mvp_widget_t *widget, void (*callback)(mvp_widget_t*, char))
 {
+	widget->event_mask |= GR_EVENT_MASK_KEY_DOWN;
+	GrSelectEvents(widget->wid, widget->event_mask);
+
 	widget->callback_key = callback;
 }
 

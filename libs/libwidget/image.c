@@ -30,7 +30,6 @@
 static void
 expose(mvp_widget_t *widget)
 {
-	printf("image expose\n");
 }
 
 mvp_widget_t*
@@ -96,6 +95,25 @@ mvpw_set_image(mvp_widget_t *widget, char *file)
 
 	widget->data.image.wid = wid;
 	widget->data.image.pid = pid;
+
+	return 0;
+}
+
+int
+mvpw_get_image_info(char *file, mvpw_image_info_t *info)
+{
+	GR_IMAGE_ID iid;
+	GR_IMAGE_INFO iif;
+
+	if ((iid=GrLoadImageFromFile(file, 0)) == 0)
+		return -1;
+
+        GrGetImageInfo(iid, &iif);
+
+	info->width = iif.width;
+	info->height = iif.height;
+
+        GrFreeImage(iid);
 
 	return 0;
 }

@@ -28,6 +28,15 @@
 #include "widget.h"
 
 static void
+expose(mvp_widget_t *widget)
+{
+	int i;
+
+	for (i=0; i<widget->data.container.nitems; i++)
+		mvpw_expose(widget->data.container.widgets[i]);
+}
+
+static void
 destroy(mvp_widget_t *widget)
 {
 	int i;
@@ -79,6 +88,7 @@ mvpw_create_container(mvp_widget_t *parent,
 		return NULL;
 
 	widget->type = MVPW_CONTAINER;
+	widget->expose = expose;
 	widget->key = key;
 	widget->add_child = add_child;
 	widget->remove_child = remove_child;

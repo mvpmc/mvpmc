@@ -140,15 +140,22 @@ extern int mvpw_add_menu_item(mvp_widget_t *widget, char *label, void *key,
 extern void mvpw_clear_menu(mvp_widget_t *widget);
 extern int mvpw_delete_menu_item(mvp_widget_t *widget, void *key);
 extern void mvpw_check_menu_item(mvp_widget_t *widget, void *key, int checked);
+extern int mvpw_menu_hilite_item(mvp_widget_t *widget, void *key);
 
 /*
  * image widget
  */
+typedef struct {
+	int 		width;
+	int 		height;
+} mvpw_image_info_t;
+
 extern mvp_widget_t* mvpw_create_image(mvp_widget_t *parent,
 				       int x, int y, int w, int h,
 				       uint32_t bg, uint32_t border_color,
 				       int border_size);
 extern int mvpw_set_image(mvp_widget_t *widget, char *file);
+extern int mvpw_get_image_info(char *file, mvpw_image_info_t *data);
 
 /*
  * graph widget
