@@ -112,6 +112,18 @@ hilite_item(mvp_widget_t *widget, int which, int hilite)
 	char *str;
 	void *key;
 
+	/*
+	 * If the widget to be unhilighted is not visible, skip it
+	 */
+	if ((widget->data.menu.items[which].widget == NULL) && !hilite)
+		return 0;
+
+	/*
+	 * If the widget to be hilighted is not visible, make it visible
+	 */
+	if ((widget->data.menu.items[which].widget == NULL) && hilite)
+		change_items(widget, which);
+
 	if (hilite) {
 		if (!widget->data.menu.items[which].selectable)
 			return -1;
