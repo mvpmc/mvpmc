@@ -170,14 +170,14 @@ void
 osd_draw_horz_line(osd_surface_t *surface, int x1, int x2, int y,
 		   unsigned int c)
 {
-	osd_fillblt(surface, x1, y, x2-x1, 1, c);
+	osd_fillblt(surface, x1, y, x2-x1+1, 1, c);
 }
 
 void
 osd_draw_vert_line(osd_surface_t *surface, int x, int y1, int y2,
 		   unsigned int c)
 {
-	osd_fillblt(surface, x, y1, 1, y2-y1, c);
+	osd_fillblt(surface, x, y1, 1, y2-y1+1, c);
 }
 
 void
