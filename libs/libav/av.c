@@ -31,7 +31,7 @@
 #include "stb.h"
 #include "av_local.h"
 
-static int letterbox = 0;
+static av_aspect_t letterbox = 0;
 static int output = -1;
 
 static av_audio_output_t audio_output = AV_AUDIO_MPEG;
@@ -55,6 +55,24 @@ static int pcmfrequencies[][3] = {{9 ,8000 ,32000},
 static int numfrequencies = sizeof(pcmfrequencies)/12;
 
 /*
+ * av_video_blank() - blank the video screen
+ *
+ * Arguments:
+ *	none
+ *
+ * Returns:
+ *	0 if it succeeded, -1 if it failed
+ */
+int
+av_video_blank(void)
+{
+	if (ioctl(fd_video, AV_SET_VID_FB, 1) != 0)
+		return -1;
+
+	return 0;
+}
+
+/*
  * av_sync() - synchronize the audio and video output devices
  *
  * Arguments:
@@ -66,7 +84,7 @@ static int numfrequencies = sizeof(pcmfrequencies)/12;
 int
 av_sync(void)
 {
-	if (ioctl(fd_video, AV_SET_VID_SYNC, 2) != 0)
+	if (ioctl(fd_video, AV_SET_VID_SYNC, VID_SYNC_AUD) != 0)
 		return -1;
 	if (ioctl(fd_audio, AV_SET_AUD_SYNC, 2) != 0)
 		return -1;
@@ -104,7 +122,7 @@ set_output_method(void)
 	if (output == -1)
 		output = scart;
 
-	if (ioctl(fd_video, AV_SET_VID_DISP_FMT, pal_mode) != 0)
+	if (ioctl(fd_video, AV_SET_VID_DISP_FMT, vid_mode) != 0)
 		return -1;
 	if (ioctl(fd_video, AV_SET_VID_SRC, 1) != 0)
 		return -1;
@@ -152,13 +170,13 @@ av_get_output(void)
  * av_set_video_aspect() - set the aspect ratio of the video being played
  *
  * Arguments:
- *	wide	- 1 if the video is 16:9, 0 if it is 4:3
+ *	wide	- AV_ASPECT_4x3 or AV_ASPECT_16x9
  *
  * Returns:
- *	AV_OUTPUT_SVIDEO or AV_OUTPUT_COMPOSITE
+ *	0 on success
  */
 int
-av_set_video_aspect(int wide)
+av_set_video_aspect(av_aspect_t wide)
 {
 	letterbox = wide;
 
@@ -172,9 +190,9 @@ av_set_video_aspect(int wide)
  *	none
  *
  * Returns:
- *	1 if the video is 16:9, 0 if it is 4:3
+ *	AV_ASPECT_4x3 or AV_ASPECT_16x9
  */
-int
+av_aspect_t
 av_get_video_aspect(void)
 {
 	return letterbox;
@@ -189,13 +207,10 @@ av_get_video_aspect(void)
  * Returns:
  *	AV_MODE_PAL or AV_MODE_NTSC
  */
-int
+av_mode_t
 av_get_mode(void)
 {
-	if (pal_mode)
-		return AV_MODE_PAL;
-	else
-		return AV_MODE_NTSC;
+	return vid_mode;
 }
 
 /*
@@ -208,20 +223,14 @@ av_get_mode(void)
  *	0 if it succeeded in changing the output mode, -1 if it failed
  */
 int
-av_set_mode(int mode)
+av_set_mode(av_mode_t mode)
 {
 	if ((mode != AV_MODE_PAL) && (mode != AV_MODE_NTSC))
 		return -1;
+	if (ioctl(fd_video, AV_SET_VID_DISP_FMT, mode) != 0)
+		return -1;
 
-	if (mode == AV_MODE_PAL) {
-		if (ioctl(fd_video, AV_SET_VID_DISP_FMT, 1) != 0)
-			return -1;
-		pal_mode = 1;
-	} else {
-		if (ioctl(fd_video, AV_SET_VID_DISP_FMT, 0) != 0)
-			return -1;
-		pal_mode = 0;
-	}
+	vid_mode = mode;
 
 	return 0;
 }
@@ -236,8 +245,11 @@ av_set_mode(int mode)
  *	0 if it succeeded in changing the aspect ratio, -1 if it failed
  */
 int
-av_set_aspect(int ratio)
+av_set_aspect(av_aspect_t ratio)
 {
+	if ((ratio != AV_ASPECT_4x3) && (ratio != AV_ASPECT_16x9))
+		return -1;
+
 	if (ioctl(fd_video, AV_SET_VID_RATIO, ratio) < 0)
 		return -1;
 	aspect = ratio;
@@ -254,7 +266,7 @@ av_set_aspect(int ratio)
  * Returns:
  *	AV_ASPECT_4x3 or AV_ASPECT_16x9
  */
-int
+av_aspect_t
 av_get_aspect(void)
 {
 	return aspect;
@@ -434,6 +446,11 @@ av_ffwd(void)
 int
 av_stop(void)
 {
+	if (ioctl(fd_audio, AV_SET_AUD_STOP, 0) < 0)
+		return -1;
+	if (ioctl(fd_video, AV_SET_VID_STOP, 0) < 0)
+		return -1;
+
 	if (ioctl(fd_audio, AV_SET_AUD_RESET, 0x11) < 0)
 		return -1;
 	if (ioctl(fd_video, AV_SET_VID_RESET, 0x11) < 0)
@@ -550,8 +567,8 @@ av_move(int x, int y, int video_mode)
 
 	memset(&pos_d, 0, sizeof(pos_d));
 
-	pos_d.y = y;
-	pos_d.x = x;
+	pos_d.dest.y = y;
+	pos_d.dest.x = x;
 
 	ioctl(fd_video, AV_SET_VID_POSITION, &pos_d);
 

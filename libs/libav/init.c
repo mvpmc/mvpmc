@@ -35,7 +35,8 @@ int fd_audio = -1;
 int paused = 0;
 int muted = 0;
 int ffwd = 0;
-int pal_mode, aspect;
+av_mode_t vid_mode;
+av_aspect_t aspect;
 
 /*
  * av_init() - initialze the audio/video devices

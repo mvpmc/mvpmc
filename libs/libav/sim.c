@@ -137,7 +137,7 @@ av_current_stc(av_stc_t *stc)
 	return 0;
 }
 
-int
+av_mode_t
 av_get_mode(void)
 {
 	return AV_MODE_NTSC;
@@ -149,14 +149,14 @@ av_get_output(void)
 	return AV_OUTPUT_COMPOSITE;
 }
 
-int
+av_aspect_t
 av_get_aspect(void)
 {
 	return AV_ASPECT_4x3;
 }
 
 int
-av_set_mode(int mode)
+av_set_mode(av_mode_t mode)
 {
 	return 0;
 }
@@ -168,7 +168,7 @@ av_set_output(int output)
 }
 
 int
-av_set_aspect(int aspect)
+av_set_aspect(av_aspect_t aspect)
 {
 	return 0;
 }
@@ -192,12 +192,12 @@ av_set_audio_output(av_audio_output_t type)
 }
 
 int
-av_set_video_aspect(int wide)
+av_set_video_aspect(av_aspect_t wide)
 {
 	return 0;
 }
 
-int
+av_aspect_t
 av_get_video_aspect(void)
 {
 	return 0;

@@ -24,10 +24,11 @@
 
 #include <stdint.h>
 
-enum {
-	AV_MODE_PAL,
+typedef enum {
 	AV_MODE_NTSC,
-};
+	AV_MODE_PAL,
+	AV_MODE_UNKNOWN,
+} av_mode_t;
 
 enum {
 	AV_OUTPUT_SCART = 0,
@@ -35,10 +36,18 @@ enum {
 	AV_OUTPUT_SVIDEO = 2,
 };
 
-enum {
+typedef enum {
 	AV_ASPECT_4x3 = 0,
 	AV_ASPECT_16x9 = 1,
-};
+} av_aspect_t;
+
+typedef enum {
+	AV_AUDIO_STREAM_ES,
+	AV_AUDIO_STREAM_PCM,
+	AV_AUDIO_STREAM_PES,
+	AV_AUDIO_STREAM_MPEG1,
+	AV_AUDIO_STREAM_UNKNOWN,
+} av_audio_stream_t;
 
 typedef enum {
 	AV_AUDIO_MPEG,
@@ -61,6 +70,15 @@ typedef struct {
         int second;
 } av_stc_t;
 
+typedef struct {
+	unsigned char front_left;
+	unsigned char front_right;
+	unsigned char rear_left;
+	unsigned char rear_right;
+	unsigned char center;
+	unsigned char lfe;
+} av_volume_t;
+
 /* Presentation time stamp clock frequency */
 #define PTS_HZ 90000
 
@@ -81,13 +99,13 @@ extern int av_reset(void);
 extern int get_video_sync(pts_sync_data_t *p);
 extern int av_current_stc(av_stc_t *stc);
 
-extern int av_get_mode(void);
+extern av_mode_t av_get_mode(void);
 extern int av_get_output(void);
-extern int av_get_aspect(void);
+extern av_aspect_t av_get_aspect(void);
 
-extern int av_set_mode(int);
+extern int av_set_mode(av_mode_t);
 extern int av_set_output(int);
-extern int av_set_aspect(int);
+extern int av_set_aspect(av_aspect_t);
 
 extern int av_set_led(int);
 
@@ -97,7 +115,12 @@ extern int av_set_audio_output(av_audio_output_t type);
 
 extern int av_sync(void);
 
-extern int av_set_video_aspect(int wide);
-extern int av_get_video_aspect(void);
+extern int av_set_video_aspect(av_aspect_t wide);
+extern av_aspect_t av_get_video_aspect(void);
+
+extern int av_get_video_status(void);
+extern int av_get_audio_status(void);
+
+extern int av_video_black(void);
 
 #endif /* MVP_AV_H */

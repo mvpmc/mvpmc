@@ -23,18 +23,76 @@
 #define STB_H
 
 typedef struct {
-	int w;
-	int h;
-	int scale;
-	int x1;
 	int y;
 	int x;
-	int y2;
-	int x3;
-	int y3;
-	int x4;
-	int y4;
+	int w;
+	int h;
+} vid_rect_t;
+
+typedef struct {
+	vid_rect_t src;
+	vid_rect_t dest;
 } vid_pos_regs_t;
+
+typedef enum {
+	VID_DISPMODE_NORM,
+	VID_DISPMODE_LETTERBOX,
+	VID_DISPMODE_1_2 = 3,
+	VID_DISPMODE_1_4 = 4,
+	VID_DISPMODE_2x = 5,
+	VID_DISPMODE_SCALE = 6,
+	VID_DISPMODE_DISEXP
+} vid_disp_mode_t;
+
+typedef struct {
+	unsigned int reserved           :30;
+	unsigned int freeze             :1;
+	unsigned int picture_start      :1;
+} vid_status_t;
+
+typedef struct {
+	unsigned long dsp_status;
+	unsigned long stream_decode_type;
+	unsigned long sample_rate;
+	unsigned long bit_rate;
+	unsigned long raw[64/sizeof(unsigned long)];
+} aud_status_t;
+
+typedef enum {
+	VID_SYNC_OFF,
+	VID_SYNC_VID,
+	VID_SYNC_AUD,
+} vid_sync_t;
+
+typedef enum {
+	AUD_PCM_STEREO = 0,
+	AUD_PCM_MONO,
+} aud_pcm_channels_t;
+
+typedef enum {
+	AUD_PCM_20BIT = 0,
+	AUD_PCM_18BIT,
+	AUD_PCM_16BIT,
+	AUD_PCM_8BIT,
+} aud_pcm_bits_t;
+
+typedef enum {
+	AUD_PCM_SIGNED = 0,
+	AUD_PCM_UNSIGNED,
+} aud_pcm_signed_t;
+
+typedef enum {
+	AUD_PCM_BIG_ENDIAN = 0,
+	AUD_PCM_LITTLE_ENDIAN,
+} aud_pcm_endian_t;
+
+typedef struct {
+	aud_pcm_channels_t      channels;
+	aud_pcm_bits_t          bits;
+	int                     freq;
+	aud_pcm_signed_t        sign;
+	aud_pcm_endian_t        endian;
+} aud_pcm_t;
 
 /*
  * /dev/adec_mpeg
@@ -47,7 +105,7 @@ typedef struct {
 #define AV_SET_AUD_MUTE		_IOW('a',6,int)
 #define AV_SET_AUD_BYPASS	_IOW('a',8,int)
 #define AV_SET_AUD_CHANNEL	_IOW('a',9,int)
-#define AV_GET_AUD_INFO		_IOR('a',10,int)
+#define AV_GET_AUD_STATUS	_IOR('a',10,aud_status_t)
 #define AV_SET_AUD_VOLUME	_IOW('a',13,int)
 #define AV_GET_AUD_VOLUME	_IOR('a',14,int)
 #define AV_SET_AUD_STREAMTYPE	_IOW('a',15,int)
@@ -64,6 +122,7 @@ typedef struct {
 /*
  * /dev/vdec_dev
  */
+#define AV_SET_VID_STOP		_IOW('v',21,int)
 #define AV_SET_VID_PLAY		_IOW('v',22,int)
 #define AV_SET_VID_FREEZE	_IOW('v',23,int)
 #define AV_SET_VID_RESUME	_IOW('v',24,int)
@@ -77,7 +136,7 @@ typedef struct {
 #define AV_SET_VID_POSITION	_IOW('v',36,vid_pos_regs_t*)
 #define AV_SET_VID_SCALE_ON	_IOW('v',37,int)
 #define AV_SET_VID_SCALE_OFF	_IOW('v',38,int)
-#define AV_GET_VID_SYNC		_IOR('v',39,int)
+#define AV_GET_VID_SYNC		_IOR('v',39,vid_sync_t)
 #define AV_SET_VID_STC		_IOW('v',40,uint64_t *)
 #define AV_SET_VID_RATIO	_IOW('v',41,int)
 #define AV_SET_VID_SYNC		_IOW('v',42,int)
@@ -86,7 +145,7 @@ typedef struct {
 #define AV_SET_VID_RESET	_IOW('v',51,int)
 #define AV_SET_VID_OUTPUT	_IOW('v',57,int)
 #define AV_SET_VID_MODE		_IOW('v',58,int)
-#define AV_GET_VID_REGS		_IOR('v',61,struct vid_regs*)
+#define AV_GET_VID_STATUS	_IOR('v',61,vid_status_t*)
 #define AV_SET_VID_COLORBAR	_IOW('v',62,int)
 #define AV_SET_VID_DENC		_IOW('v',63,int)
 #define AV_CHK_SCART		_IOW('v',64,int) 
