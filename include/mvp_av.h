@@ -61,6 +61,9 @@ typedef struct {
         int second;
 } av_stc_t;
 
+/* Presentation time stamp clock frequency */
+#define PTS_HZ 90000
+
 extern int av_init(void);
 extern int av_video_set_nonblock(int);
 extern int av_audio_set_nonblock(int);

@@ -34,6 +34,7 @@ typedef struct {
 	unsigned char second;
 	unsigned char frame;
 	unsigned int offset;
+	unsigned int pts;
 } gop_t;
 
 typedef struct {

@@ -513,7 +513,7 @@ av_current_stc(av_stc_t *stc)
 	int hour, minute, second;
 
 	if (get_video_sync(&pts) == 0) {
-		second = pts.stc / 90000;
+		second = pts.stc / PTS_HZ;
 		hour = second / 3600;
 		minute = second / 60 - hour * 60;
 		second = second % 60;

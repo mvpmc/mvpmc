@@ -56,6 +56,7 @@
 #include <string.h>
 
 #include "mvp_demux.h"
+#include "mvp_av.h"
 #include "demux.h"
 
 #if 0
@@ -395,24 +396,26 @@ parse_video_frame(demux_handle_t *handle, unsigned char *buf, int len)
 	int hour, minute, second, frame;
 	int ret = -1;
 	video_info_t *vi;
-	int dts, pts;
+	unsigned int dts, pts;
 	int delta;
 
 	dts = (buf[1] >> 6) & 0x1;
 	pts = (buf[1] >> 7);
 
-	if (dts && pts) {
-		pts = (buf[13] >> 1) |
-			(buf[12] << 7) |
-			((buf[11] >> 1) << 14) |
-			(buf[10] << 22) |
-			(((buf[9] >> 1) & 0x7) << 29);
+	if (pts) {
+		pts = (buf[7] >> 1) |
+			(buf[6] << 7) |
+			((buf[5] >> 1) << 15) |
+			(buf[4] << 22) |
+			(((buf[3] >> 1) & 0x7) << 30);
 		PRINTF("pts 0x%.8x\n", pts);
-		dts = (buf[18] >> 1) |
-			(buf[17] << 7) |
-			((buf[16] >> 1) << 14) |
-			(buf[15] << 22) |
-			(((buf[14] >> 1) & 0x7) << 29);
+	}
+	if (dts) {
+		dts = (buf[8] >> 1) |
+			(buf[9] << 7) |
+			((buf[10] >> 1) << 15) |
+			(buf[11] << 22) |
+			(((buf[12] >> 1) & 0x7) << 30);
 		PRINTF("dts 0x%.8x\n", dts);
 	}
 
@@ -479,26 +482,30 @@ parse_video_frame(demux_handle_t *handle, unsigned char *buf, int len)
 					(buf[i+6] >> 5);
 				frame = ((buf[i+6] & 0x1f) << 1) |
 					(buf[i+7] >> 7);
-				PRINTF("GOP: %.2d:%.2d:%.2d %d [%d] PTS 0x%.8x\n",
-				       hour, minute, second, frame, i, pts);
 				delta = (hour - handle->attr.gop.hour) * 3600 +
 					(minute - handle->attr.gop.minute) * 60 +
 					(second - handle->attr.gop.second);
+
+				PRINTF("GOP: %.2d:%.2d:%.2d %d [%d] PTS 0x%.8x %d\n",
+				       hour, minute, second, frame, i, pts, handle->bytes);
 				if (handle->seeking == 0) {
-					if (delta < 0) {
-						PRINTF("OLD GOP: %.2d:%.2d:%.2d %d\n",
-						       handle->attr.gop.hour,
-						       handle->attr.gop.minute,
-						       handle->attr.gop.second,
-						       handle->attr.gop.frame);
-						PRINTF("NEW GOP: %.2d:%.2d:%.2d %d\n",
-						       hour, minute, second, frame);
+					int newbps = 0;
+					if (handle->attr.gop_valid) {
+						/* BPS from pts if possible */
+						if (handle->attr.gop.pts &&
+						    pts > handle->attr.gop.pts)
+							/* Calculate BPS from PTS difference. The PTS/1000 expression avoids integer overflow */
+							handle->attr.bps = ((handle->bytes - handle->attr.gop.offset)*(PTS_HZ/1000)/(pts-handle->attr.gop.pts))*1000;
+						else { /* Fall back on GOP timestamp */
+							delta = (hour - handle->attr.gop.hour) * 3600 +
+								(minute - handle->attr.gop.minute) * 60 +
+								(second - handle->attr.gop.second);
+							if (delta > 0)
+								newbps = (handle->bytes - handle->attr.gop.offset)/delta;
+						}
 					}
-					if (delta != 0) {
-						handle->attr.bps =
-							(handle->bytes -
-							 handle->attr.gop.offset) /
-							delta;
+					if (newbps != 0) {
+						handle->attr.bps = newbps;
 						PRINTF("BPS: %d\n",
 						       handle->attr.bps);
 						handle->attr.gop.offset = handle->bytes;
@@ -506,8 +513,10 @@ parse_video_frame(demux_handle_t *handle, unsigned char *buf, int len)
 						handle->attr.gop.minute = minute;
 						handle->attr.gop.second = second;
 						handle->attr.gop.frame = frame;
+						handle->attr.gop.pts = pts;
 						handle->attr.gop_valid = 1;
 					}
+					ret = 0;
 					goto out;
 				} else {
 					handle->attr.bps = 0;
@@ -516,6 +525,7 @@ parse_video_frame(demux_handle_t *handle, unsigned char *buf, int len)
 					handle->attr.gop.minute = minute;
 					handle->attr.gop.second = second;
 					handle->attr.gop.frame = frame;
+					handle->attr.gop.pts = pts;
 					handle->attr.gop_valid = 1;
 				}
 				ret = 0;
