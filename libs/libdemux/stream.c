@@ -490,19 +490,18 @@ parse_video_frame(demux_handle_t *handle, unsigned char *buf, int len)
 				       hour, minute, second, frame, i, pts, handle->bytes);
 				if (handle->seeking == 0) {
 					int newbps = 0;
-					if (handle->attr.gop_valid) {
-						/* BPS from pts if possible */
-						if (handle->attr.gop.pts &&
-						    pts > handle->attr.gop.pts)
-							/* Calculate BPS from PTS difference. The PTS/1000 expression avoids integer overflow */
-							handle->attr.bps = ((handle->bytes - handle->attr.gop.offset)*(PTS_HZ/1000)/(pts-handle->attr.gop.pts))*1000;
-						else { /* Fall back on GOP timestamp */
-							delta = (hour - handle->attr.gop.hour) * 3600 +
-								(minute - handle->attr.gop.minute) * 60 +
-								(second - handle->attr.gop.second);
-							if (delta > 0)
-								newbps = (handle->bytes - handle->attr.gop.offset)/delta;
-						}
+
+					/* BPS from pts if possible */
+					if (handle->attr.gop.pts &&
+					    pts > handle->attr.gop.pts) {
+						/* Calculate BPS from PTS difference. The PTS/1000 expression avoids integer overflow */
+						newbps = ((handle->bytes - handle->attr.gop.offset)*(PTS_HZ/1000)/(pts-handle->attr.gop.pts))*1000;
+					} else { /* Fall back on GOP timestamp */
+						delta = (hour - handle->attr.gop.hour) * 3600 +
+							(minute - handle->attr.gop.minute) * 60 +
+							(second - handle->attr.gop.second);
+						if (delta > 0)
+							newbps = (handle->bytes - handle->attr.gop.offset)/delta;
 					}
 					if (newbps != 0) {
 						handle->attr.bps = newbps;
