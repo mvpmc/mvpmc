@@ -191,6 +191,12 @@ static volatile rtv_menu_level_t  rtv_level = RTV_NO_MENU;
 // currently selected replaytv device
 static volatile rtv_device_t *current_rtv_device = NULL;
 
+// Set to 1 by popup call back when show delete is confirmed.   
+static volatile int confirm_show_delete;
+
+// Set to 1 when callback is ready for message window to be destroyed.
+static volatile int message_window_done;
+
 // state of currently playing file
 static rtv_selected_show_state_t rtv_video_state;
 
@@ -1178,15 +1184,17 @@ static void play_show(const rtv_show_export_t *show, int start_gop)
 // Destroy for any keypress
 static void msg_win_destroy_any_key_callback(mvp_widget_t *widget, char key)
 {
-   mvpw_destroy(widget);
+   message_window_done = 1;
 }
 
 // show_message_window()
-//
+// If callback is NOT NULL then wait for callback to set 'message_window_done'
+// Then destroy window and return.
 static mvp_widget_t* show_message_window(void (*callback)(mvp_widget_t *widget, char key), char *message)
 {
    int x, y, w, h, lines;
    mvp_widget_t *wp;
+   struct timespec ts;
 
    rtv_message_window_attr.font = fontid;  
    calc_string_window_sz(message, rtv_message_window_attr.font, &w, &h, &lines);
@@ -1204,8 +1212,28 @@ static mvp_widget_t* show_message_window(void (*callback)(mvp_widget_t *widget, 
    mvpw_show(wp);
    mvpw_focus(wp);
    mvpw_expose(wp);
-	mvpw_event_flush();
-   return(wp);
+
+   // Just return widget pointer
+   //
+   if ( callback == NULL ) {
+      mvpw_event_flush();
+      return(wp);
+   }
+
+   // Wait for callback 
+   //
+   message_window_done = 0;
+   while ( !(message_window_done) ) {
+      mvpw_event_flush();
+      if ( message_window_done ) {
+         break;
+      }
+      ts.tv_sec  = 0;
+      ts.tv_nsec = 50 * 1000 * 1000; //50mS
+      nanosleep(&ts, NULL);
+   }
+   mvpw_destroy(wp);
+   return(NULL);
 }
 
 // rtv_guide_hilite_callback()
@@ -1312,7 +1340,6 @@ static int rtv_get_guide(mvp_widget_t *widget, rtv_device_t *rtv)
                           "MVP & ReplayTV clocks must not differ by\n"
                           "more than 40 seconds.\n"
                           "Press any key to continue");
-      mvpw_event_flush();
       return(-1);
    }
    rtv_free_volinfo(&volinfo);
@@ -1323,7 +1350,6 @@ static int rtv_get_guide(mvp_widget_t *widget, rtv_device_t *rtv)
       show_message_window(msg_win_destroy_any_key_callback, 
                           "ERROR: Failed to get guide snapshot.\n"
                           "Press any key to continue");
-      mvpw_event_flush();
       return(-1);
    }
 
@@ -1407,9 +1433,8 @@ static void rtv_device_hilite_callback(mvp_widget_t *widget, char *item, void *k
                              "MVP & ReplayTV clocks must not differ by\n"
                              "more than 40 seconds.\n"
                              "Press any key to continue");
-         mvpw_event_flush();
          volinfo = malloc(sizeof(rtv_fs_volume_t));
-         memset(volinfo, 0,sizeof(rtv_fs_volume_t)); 
+         memset(volinfo, 0, sizeof(rtv_fs_volume_t)); 
       }
 
       sprintf(strp, "Name:  %s", rtv->device.name);
@@ -1513,7 +1538,7 @@ static int bogus_discover(void)
          // Hack for dvarchive failing on first attempt is not auto-discovered 
          if ( (rc = rtv_get_device_info(rtv_ip_addrs[x], NULL, &rtv)) != 0 ) {
             printf("**ERROR: Unable to get RTV Device Info for: %s. Giving up\n", rtv_ip_addrs[x]);
-            return 0;
+            continue;
          } 
       } 
       //rtv_print_device_info(&(rtv->device));
@@ -1565,27 +1590,20 @@ static void sub_window_key_callback(mvp_widget_t *widget, char key)
 // 
 static void msg_win_delete_callback(mvp_widget_t *widget, char key)
 {
-   mvp_widget_t *wp = NULL;;
-   int           rc;
-   unsigned int  show_idx;
-
-   // hide the "delete confirmation" window
-   //
-   mvpw_hide(widget);
-	mvpw_event_flush();
-
-   if (key != MVPW_KEY_OK) {
-      printf("CANCEL: delete show\n");
-      goto err_exit;
+  if ( key == MVPW_KEY_OK ) {
+      confirm_show_delete = 1;
+      printf("delete show confirmed\n");
    }
+   message_window_done = 1;
+   return;
+}
 
-   printf("OK: delete show\n");
-   if ( get_show_idx((rtv_guide_export_t*)&(current_rtv_device->guide), rtv_video_state.show_p, &show_idx) != 0 ) {
-      goto err_exit;
-   }
-   
+static void delete_show_from_guide( unsigned int show_idx )
+{
+   mvp_widget_t *wp;
+   int rc;
+
    wp = show_message_window(NULL, "Deleting Show.  \nPlease Wait...  \n");
-   mvpw_event_flush();
 
    // delete the show
    //
@@ -1595,8 +1613,8 @@ static void msg_win_delete_callback(mvp_widget_t *widget, char key)
    if ( rc != 0 ) {
       printf("Error: rtv_delete_show call failed.\n");
       show_message_window(msg_win_destroy_any_key_callback, "Error: rtv_delete_show call failed.\nPress any key to continue");
-      mvpw_event_flush();
-      goto err_exit;
+      mvpw_destroy(wp);
+      return;
    }
 
    rc = rtv_release_show_and_wait((rtv_device_info_t*)&(current_rtv_device->device), 
@@ -1610,11 +1628,7 @@ static void msg_win_delete_callback(mvp_widget_t *widget, char key)
    //
    rtv_update_show_browser((rtv_device_t*)current_rtv_device); // cast to override volatile warning
    
-err_exit:
-   if ( wp != NULL ) {
-      mvpw_destroy(wp);
-   }
-   mvpw_destroy(widget); //we're in this guys callback. So destroying him must be the last thing we do.
+   mvpw_destroy(wp);
    return;
 }
 
@@ -1691,7 +1705,18 @@ static void rtv_popup_select_callback(mvp_widget_t *widget, char *item, void *ke
               rtv_video_state.show_p->title,
               rtv_video_state.show_p->episode,
               rtv_video_state.show_p->file_info->time_str_fmt2);
+
+      confirm_show_delete = 0;
       show_message_window(msg_win_delete_callback, delete_msg);
+      if ( confirm_show_delete ) {
+         unsigned int show_idx;
+
+         if ( get_show_idx((rtv_guide_export_t*)&(current_rtv_device->guide), rtv_video_state.show_p, &show_idx) != 0 ) {
+            show_message_window(msg_win_destroy_any_key_callback, "Delete Canceled\nInvalid Show index\nPress any key to continue");
+            return;
+         }
+         delete_show_from_guide(show_idx);         
+      }
 		break;
 
 	case RTV_POPUP_CANCEL:

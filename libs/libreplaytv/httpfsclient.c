@@ -168,8 +168,9 @@ static struct hc *make_request(const rtv_device_info_t *device, const char * com
     return hc;
     
 exit:
-    if (hc)
+    if (hc) {
         hc_free(hc);
+    }
     return NULL;
 }
 
@@ -178,7 +179,7 @@ exit:
 // hfs_do_simple()
 // JBH: This function only works for string results.
 //
-static unsigned long hfs_do_simple(char **presult, const rtv_device_info_t *device, const char * command, ...)
+static int hfs_do_simple(char **presult, const rtv_device_info_t *device, const char * command, ...)
 {
     va_list        ap;
     struct hc     *hc;
@@ -188,6 +189,7 @@ static unsigned long hfs_do_simple(char **presult, const rtv_device_info_t *devi
     int            rc; 
     
     RTV_DBGLOG(RTVLOG_CMD, "%s: ip_addr=%s cmd=%s\n", __FUNCTION__, device->ipaddr, command);    
+    *presult = NULL;
     va_start(ap, command);
     hc = make_request(device, command, ap);
     va_end(ap);
@@ -214,12 +216,10 @@ static unsigned long hfs_do_simple(char **presult, const rtv_device_info_t *devi
        return(map_httpfs_status_to_rc(rtv_status));
     } else if ( hc_stat == 204 ) {
        RTV_WARNLOG("%s: http_status == *** 204 ***\n",  __FUNCTION__);
-       *presult = NULL;
        free(tmp);
        return -ECONNABORTED;
     } else {
        RTV_ERRLOG("%s: end of httpfs status line not found\n", __FUNCTION__);
-       *presult = NULL;
        free(tmp);
        return -EPROTO;
     }
@@ -228,7 +228,7 @@ static unsigned long hfs_do_simple(char **presult, const rtv_device_info_t *devi
 // hfs_do_simple_binary()
 // This function works for binary data.
 //
-static unsigned long hfs_do_simple_binary(rtv_http_resp_data_t *data, const rtv_device_info_t *device, const char * command, ...)
+static int hfs_do_simple_binary(rtv_http_resp_data_t *data, const rtv_device_info_t *device, const char * command, ...)
 {
     va_list        ap;
     struct hc     *hc;
@@ -238,6 +238,7 @@ static unsigned long hfs_do_simple_binary(rtv_http_resp_data_t *data, const rtv_
     int            rc; 
     
     RTV_DBGLOG(RTVLOG_CMD, "%s: ip_addr=%s cmd=%s\n", __FUNCTION__, device->ipaddr, command);    
+    data->buf = NULL;
     va_start(ap, command);
     hc = make_request(device, command, ap);
     va_end(ap);
@@ -346,9 +347,9 @@ static int hfs_do_chunked(rtv_read_file_chunked_cb_t  fn,
     hc = make_request(device, command, ap);
     va_end(ap);
 
-    if (!hc)
+    if (!hc) {
         return -ECANCELED;
-
+    }
     memset(&data, 0, sizeof data);
     data.fn         = fn;
     data.v          = v;
@@ -448,7 +449,7 @@ static int vstrcmp(const void * v1, const void * v2)
 int rtv_get_volinfo( const rtv_device_info_t  *device, const char *name, rtv_fs_volume_t **volinfo )
 {
    char             *data;
-   unsigned long     status;
+   int               status;
    rtv_fs_volume_t  *rec;
    int               num_lines, x;
    char            **lines;
@@ -526,7 +527,7 @@ int rtv_get_file_info( const rtv_device_info_t  *device, const char *name,  rtv_
    u64             filetime = 0;
    u64             size     = 0;
    int             rc       = 0;
-   unsigned long   status;
+   int             status;
    unsigned int    num_lines, x;
    char          **lines;
 
@@ -536,7 +537,12 @@ int rtv_get_file_info( const rtv_device_info_t  *device, const char *name,  rtv_
                           "name", name,
                           NULL);
    if (status != 0) {
-      RTV_ERRLOG("%s: hfs_do_simple fstat failed: %ld\n", __FUNCTION__, status);
+      if ( status == -ENOENT ) {
+         // File not found. Do nothing.
+      }
+      else {
+         RTV_ERRLOG("%s: hfs_do_simple fstat failed: %ld\n", __FUNCTION__, status);
+      }
       if ( data != NULL) free(data);
       return(status);
    }
@@ -613,7 +619,7 @@ void rtv_print_file_info(const rtv_fs_file_t *fileinfo)
 int rtv_get_filelist( const rtv_device_info_t  *device, const char *name, int details, rtv_fs_filelist_t **filelist )
 {
    char               *data;
-   unsigned long       status;
+   int                 status;
    rtv_fs_filelist_t  *rec;
    unsigned int        num_lines, x;
    char              **lines;
@@ -787,7 +793,7 @@ __u32  rtv_read_file( const rtv_device_info_t  *device,
                       __u64                     size,       //amount of file to read
                       rtv_http_resp_data_t     *data  )
 {
-   __u32 status;
+   int   status;
    char  pos_str[256];
    char  size_str[256];
    
