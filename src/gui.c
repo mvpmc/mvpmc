@@ -420,6 +420,8 @@ mythtv_menu_callback(mvp_widget_t *widget, char key)
 		mvpw_show(mvpmc_logo);
 		mvpw_show(black_bg);
 		mvpw_focus(main_menu);
+
+		mythtv_main_menu = 0;
 	}
 
 	if (key == MVPW_KEY_FULL) {
@@ -1401,7 +1403,7 @@ main_menu_init(char *server, char *replaytv)
 	splash_update("Creating main menu");
 
 	main_menu = mvpw_create_menu(NULL, 50, 50, iid.width, si.rows-150,
-				     0, 0, 0);
+				     MVPW_BLACK, 0, 0);
 
 	mvpw_attach(mvpmc_logo, main_menu, MVPW_DIR_DOWN);
 	mvpw_attach(main_menu, setup_image, MVPW_DIR_RIGHT);
