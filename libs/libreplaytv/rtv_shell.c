@@ -353,7 +353,7 @@ static int ciHttpFsListFiles(int argc, char **argv)
       rtv_print_file_list(filelist, detailed_listing);
       rtv_free_file_list(&filelist);
    }
-   return(0);
+   return(rc);
 }
 
 static int ciHttpFsGetFile(int argc, char ** argv)

@@ -41,7 +41,7 @@ struct hc
 };
 
 
-static void hc_dump_struct( struct hc * hc_struct ) 
+static void hc_dump_struct( const struct hc * hc_struct ) 
 {
    RTV_PRT("         hostname:  %s  port: %d\n", hc_struct->hostname,  hc_struct->port);
    RTV_PRT("         status:    %s\n", hc_struct->status);
@@ -294,7 +294,7 @@ int hc_get_status(struct hc *hc)
     return strtoul(hc->status + 9, NULL, 10);
 }
 
-char *hc_lookup_rsp_header(struct hc *hc, const char *tag)
+char *hc_lookup_rsp_header(const struct hc *hc, const char *tag)
 {
     struct hc_headers * h;
     
@@ -304,7 +304,7 @@ char *hc_lookup_rsp_header(struct hc *hc, const char *tag)
     return NULL;
 }
 
-extern int hc_read_pieces(struct hc             *hc,
+extern int hc_read_pieces(const struct hc       *hc,
                           rtv_read_chunked_cb_t  callback,
                           void                  *v,
                           rtv_mergechunks_t      mergechunks)
@@ -323,6 +323,12 @@ extern int hc_read_pieces(struct hc             *hc,
     RTV_DBGLOG(RTVLOG_HTTP_VERB, "%s: hc struct dump:\n", __FUNCTION__);
     if ( RTVLOG_HTTP_VERB ) {
        hc_dump_struct(hc);
+    }
+    if ( hc->status ) {
+       if ( (hc_get_status(hc) / 100) != 2 ) {
+          RTV_ERRLOG("%s: HTTP status error code: %s\n", __FUNCTION__, hc->status);
+          return(-EBADMSG);
+       }
     }
     te = hc_lookup_rsp_header(hc, "Transfer-Encoding");
     RTV_DBGLOG(RTVLOG_HTTP, "%s: lookup_rsp_header: tag: %s    value: %s\n", __FUNCTION__, "Transfer-Encoding", te);    
@@ -452,17 +458,23 @@ static int read_all_callback(unsigned char * buf, size_t len, void * vd)
     return(0);
 }
 
-unsigned char *hc_read_all(struct hc *hc)
+int hc_read_all(struct hc *hc, char **data_p)
 {
     struct read_all_data  data;
     struct chunk         *chunk, *next;
     size_t                cur;
     unsigned char        *r;
-    
+    int                   rc;
+
     data.start = data.end = NULL;
     data.total = 0;
     
-    hc_read_pieces(hc, read_all_callback, &data, RTV_MERGECHUNKS_0);
+    rc = hc_read_pieces(hc, read_all_callback, &data, RTV_MERGECHUNKS_0);
+    if ( rc != 0 ) {
+       RTV_ERRLOG("%s: hc_read_pieces call failed: rc=%d\n", __FUNCTION__, rc);
+       *data_p = NULL;
+       return(rc);
+    }
     
     r = malloc(data.total + 1);
     cur = 0;
@@ -475,7 +487,8 @@ unsigned char *hc_read_all(struct hc *hc)
     }
 
     r[data.total] = '\0';
-    return r;
+    *data_p = r;
+    return (0);
 }
 
 

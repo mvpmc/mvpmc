@@ -1,6 +1,6 @@
 ReplayTV Client Interface Library (replaytvlib) Readme
 ------------------------------------------------------
-John Honeycutt (honeycut@nc.rr.com) 09/20/2004
+John Honeycutt (honeycut@nc.rr.com) 10/04/2004
 
 General
 -------
@@ -24,8 +24,9 @@ All public structure types and api fuctions are exported through this header.
 Usage
 -----
 -Just link libreplaytv.a to the application.
- WARNING: Make sure the applications system time is within 40 seconds of the 
-          replaytv device's time or the replaytv device will refuse to communicate.
+*******WARNING*********
+ Make sure the applications system time is within 40 seconds of the 
+ replaytv device's time or the replaytv device will refuse to communicate.
 
 Dependencies
 ------------
@@ -73,6 +74,11 @@ Status
        8K. (This is why it needs timely ACK's) DVArchive sets a 64K window. Snooping two RTV5K's 
        streaming shows 32K tcp windows.
 -Added new API to allow rerouting RTV_PRT's to a file instead of stdout. 
+10/04/04:
+-Cleanud up much of the library's error checking.
+-Added ability to redirect RTV_PRT statements to a file
+-Added initial mvpmc gui support for multiple RTV's
+-Added mvpmc command line options for setting rtv debug mask & sending logs to a file.
 
 Library TODO
 ------------
@@ -83,9 +89,6 @@ Library TODO
 -Get DVArchive to send a 5K guide instead of an XML formatted guide.
  (Need to implement ssdp. DVArchive thinks it is talking to another DVArchive)
 -Remove the expat lib dependency. It's only used for rtv_get_device_info() response parsing.
--Cleanup error checking. Current code is inconsistent. Can hang under some conditions, etc...
--Add rtv_get_device_info() check to compare replaytv device's time to application platform's
- time. Spew error message if greater than 30 second difference.
 -Add replay unit discovery (SSDP). i.e. Autodiscover replaytv devices instead of passing 
  ipaddr at application command line.
 -Add support for deleting a show.
@@ -96,13 +99,15 @@ Library TODO
 09/28/2004:DONE: -Create httpfs api's. rtv_fsget_dir_list(), rtv_fsget_vol_info(), rtv_fsget_filestat().
 09/28/2004:DONE: -Get copying a file from replayTV to local or NFS working.
 09/29/2004:DONE: -Add ability & api to re-direct RTV_PRT statements to a file.
+10/04/2004:DONE: -Cleanup error checking. Current code is inconsistent. Can hang under some conditions, etc...
 
 mvpmv TODO
 ----------
--Add support for multiple replaytv devices
--Add support to display replay device 'friendly name', Den, Bedroom, etc...
 -Add support for displaying the show synopsys, actors, recorded
  date/time, etc...
--Add commandline option for setting library debug flags and re-directing library 
- RTV_PRT statements to a file.
+-Still much cleaning up & stuff to add to mvpmc replaytv gui i/f.
+10/04/2004:DONE: -Add commandline option for setting library debug flags and re-directing library 
+                  RTV_PRT statements to a file.
+10/04/2004:DONE: -Add support for multiple replaytv devices
+10/04/2004:DONE: -Add support to display replay device 'friendly name', Den, Bedroom, etc...
 

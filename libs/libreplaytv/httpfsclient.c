@@ -25,6 +25,35 @@
 #include "httpfsclient.h"
 
 #define ARGBUFSIZE 2048
+
+static int map_httpfs_status_to_rc(unsigned long status)
+{
+   int rc;
+   //
+   // returncodes: 
+   // 80820005 - No such file 
+   // 80820018 - File already exists 
+   // 80820024 - Insufficiant permission
+   if ( status == 0 ) {
+      rc = 0;
+   }
+   else if ( status == 80820005 ) {
+      rc = -ENOENT;
+   }
+   else if ( status == 80820018 ) {
+      rc = -EEXIST;
+   }
+   else if ( status == 80820024 ) {
+      rc = -EACCES;
+   }
+   else {
+      RTV_ERRLOG("%s: unknown return code: %lu\n", __FUNCTION__, status);
+      rc  = -ENOSYS;
+   }
+   return(rc);
+
+}
+
 static int make_httpfs_url(char *dst, size_t size, const rtv_device_info_t *device, 
                            const char *command, va_list args) 
 {
@@ -102,12 +131,12 @@ static int add_httpfs_headers(struct hc * hc)
     return 0;
 }
 
-static struct hc * make_request(const rtv_device_info_t *device, const char * command,
-                                va_list ap)
+static struct hc *make_request(const rtv_device_info_t *device, const char * command,
+                               va_list ap)
 {
-    struct hc * hc = NULL;
-    char url[URLSIZE];
-    int http_status;
+    struct hc *hc = NULL;
+    char       url[URLSIZE];
+    int        http_status;
 
     RTV_DBGLOG(RTVLOG_CMD, "%s: ip_addr=%s cmd=%s\n", __FUNCTION__, device->ipaddr, command);    
     if (make_httpfs_url(url, sizeof url, device, command, ap) < 0)
@@ -142,35 +171,45 @@ exit:
     
 static unsigned long hfs_do_simple(char **presult, const rtv_device_info_t *device, const char * command, ...)
 {
-    va_list       ap;
-    struct hc *   hc;
-    char *        tmp, * e;
-    unsigned long rtv_status;
+    va_list        ap;
+    struct hc     *hc;
+    char          *tmp, *e;
+    unsigned long  rtv_status;
+    int            rc; 
     
     RTV_DBGLOG(RTVLOG_CMD, "%s: ip_addr=%s cmd=%s\n", __FUNCTION__, device->ipaddr, command);    
     va_start(ap, command);
     hc = make_request(device, command, ap);
     va_end(ap);
 
-    if (!hc)
-        return -1;
+    if (!hc) {
+       return -ECANCELED;
+    }
 
-    tmp = hc_read_all(hc);
+    rc = hc_read_all(hc, &tmp);
     hc_free(hc);
+    if ( rc != 0 ) {
+       RTV_ERRLOG("%s: hc_read_all call failed rc=%d\n", __FUNCTION__, rc);
+       return(rc);
+    }
 
     e = strchr(tmp, '\n');
     if (e) {
-        *presult = strdup(e+1);
-        rtv_status = strtoul(tmp, NULL, 10);
-        free(tmp);
-        return rtv_status;
+       *presult = strdup(e+1);
+       rtv_status = strtoul(tmp, NULL, 10);
+       RTV_DBGLOG(RTVLOG_CMD, "%s: status=%s\n", __FUNCTION__, tmp);    
+       free(tmp);
+       return(map_httpfs_status_to_rc(rtv_status));
     } else if (hc_get_status(hc) == 204) {
-        *presult = NULL;
-        free(tmp);
-        return 0;
+       RTV_WARNLOG("%s: http_status == *** 204 ***\n",  __FUNCTION__);
+       *presult = NULL;
+       free(tmp);
+       return 0;
     } else {
-        RTV_ERRLOG("end of httpfs status line not found\n");
-        return -1;
+       RTV_ERRLOG("%s: end of httpfs status line not found\n", __FUNCTION__);
+       *presult = NULL;
+       free(tmp);
+       return -EPROTO;
     }
 }
 
@@ -192,7 +231,7 @@ static int hfs_callback(unsigned char * buf, size_t len, void * vd)
     int              rc;
 
     if (data->firsttime) {
-        unsigned char * e;
+        unsigned char *e;
 
         data->firsttime = 0;
 
@@ -201,7 +240,12 @@ static int hfs_callback(unsigned char * buf, size_t len, void * vd)
         if (e)
             *e = '\0';
         data->status = strtoul(buf, NULL, 16);
-
+        RTV_DBGLOG(RTVLOG_CMD, "%s: status: %s (%u)\n", __FUNCTION__, buf, data->status);
+        if ( (rc = map_httpfs_status_to_rc(data->status)) != 0 ) {
+           RTV_ERRLOG("%s: bad httpfs returncode: %d", __FUNCTION__, rc);
+           free(buf);
+           return(1); //abort the transfer
+        }
         e++;
         len -= (e - buf);
         buf_data_start = e;
@@ -221,17 +265,18 @@ static int hfs_callback(unsigned char * buf, size_t len, void * vd)
     return(rc);
 }
 
-static unsigned long hfs_do_chunked(rtv_read_chunked_cb_t    fn,
-                                    void                    *v,
-                                    const rtv_device_info_t *device,
-                                    __u16                    msec_delay,
-                                    rtv_mergechunks_t        mergechunks,
-                                    const char              *command,
-                                    ...)
+static int hfs_do_chunked(rtv_read_chunked_cb_t    fn,
+                          void                    *v,
+                          const rtv_device_info_t *device,
+                          __u16                    msec_delay,
+                          rtv_mergechunks_t        mergechunks,
+                          const char              *command,
+                          ...)
 {
     struct hfs_data data;
     struct hc *   hc;
     va_list ap;
+    int rc;
     
     RTV_DBGLOG(RTVLOG_CMD, "%s: ip_addr=%s cmd=%s\n", __FUNCTION__, device->ipaddr, command);    
     RTV_DBGLOG(RTVLOG_CMD, "%s: cback=%p cback_data=%p delay=%u\n", __FUNCTION__, fn, v, msec_delay);    
@@ -240,7 +285,7 @@ static unsigned long hfs_do_chunked(rtv_read_chunked_cb_t    fn,
     va_end(ap);
 
     if (!hc)
-        return -1;
+        return -ECANCELED;
 
     memset(&data, 0, sizeof data);
     data.fn         = fn;
@@ -248,10 +293,13 @@ static unsigned long hfs_do_chunked(rtv_read_chunked_cb_t    fn,
     data.firsttime  = 1;
     data.msec_delay = msec_delay;
     
-    hc_read_pieces(hc, hfs_callback, &data, mergechunks);
+    rc = hc_read_pieces(hc, hfs_callback, &data, mergechunks);
     hc_free(hc);
-
-    return data.status;
+    if ( rc != 0 ) {
+       RTV_ERRLOG("%s: hc_read_pieces call failed: rc=%d\n", __FUNCTION__, rc);
+       return(rc);
+    }
+    return(map_httpfs_status_to_rc(data.status));
 }
 
 unsigned long hfs_do_post_simple(char **presult, const rtv_device_info_t *device,
@@ -264,7 +312,7 @@ unsigned long hfs_do_post_simple(char **presult, const rtv_device_info_t *device
     va_list       ap;
     struct hc *   hc;
     char *        tmp, * e;
-    int           http_status;
+    int           http_status, rc;
     unsigned long rtv_status;
     
     va_start(ap, command);
@@ -275,12 +323,12 @@ unsigned long hfs_do_post_simple(char **presult, const rtv_device_info_t *device
     RTV_DBGLOG(RTVLOG_CMD, "%s: ip_addr=%s cmd=%s\n", __FUNCTION__, device->ipaddr, command);    
     hc = hc_start_request(buf);
     if (!hc) {
-        RTV_ERRLOG("hfs_do_simple(): hc_start_request(): %d=>%s", errno, strerror(errno));
-        return -1;
+        RTV_ERRLOG("%s: hc_start_request(): %d=>%s",  __FUNCTION__, errno, strerror(errno));
+        return -EPROTO;
     } 
     sprintf(buf, "%lu", size);
     if (add_httpfs_headers(hc) != 0)
-        return -1;
+        return -EPROTO;
     
     hc_add_req_header(hc, "Content-Length",  buf);
     
@@ -288,27 +336,35 @@ unsigned long hfs_do_post_simple(char **presult, const rtv_device_info_t *device
 
     http_status = hc_get_status(hc);
     if (http_status/100 != 2) {
-        RTV_ERRLOG("http status %d\n", http_status);
+        RTV_ERRLOG("%s: http status %d\n", __FUNCTION__, http_status);
         hc_free(hc);
-        return http_status;
+        return -ECANCELED;
     }
     
-    tmp = hc_read_all(hc);
+    rc = hc_read_all(hc, &tmp);
     hc_free(hc);
+    if ( rc != 0 ) {
+       RTV_ERRLOG("%s: hc_read_all call failed rc=%d\n", __FUNCTION__, rc);
+       return(rc);
+    }
+
 
     e = strchr(tmp, '\n');
     if (e) {
-        *presult = strdup(e+1);
-        rtv_status = strtoul(tmp, NULL, 10);
-        free(tmp);
-        return rtv_status;
+       *presult = strdup(e+1);
+       rtv_status = strtoul(tmp, NULL, 10);
+       free(tmp);
+       return(map_httpfs_status_to_rc(rtv_status));
     } else if (http_status == 204) {
-        *presult = NULL;
-        free(tmp);
-        return 0;
+       RTV_WARNLOG("%s: http_status == *** 204 ***\n",  __FUNCTION__);
+       *presult = NULL;
+       free(tmp);
+       return 0;
     } else {
-        RTV_ERRLOG("end of httpfs status line not found\n");
-        return -1;
+       RTV_ERRLOG("%s: end of httpfs status line not found\n",  __FUNCTION__);
+       *presult = NULL;
+       free(tmp);
+       return -EPROTO;
     }
 }
 
@@ -338,7 +394,7 @@ int rtv_get_volinfo( const rtv_device_info_t  *device, const char *name, rtv_fs_
                           NULL);
    if (status != 0) {
       RTV_ERRLOG("%s:  hfs_do_simple returned %ld\n", __FUNCTION__, status);
-      free(data);
+      if ( data != NULL) free(data);
       *volinfo = NULL;
       return status;
    }
@@ -497,7 +553,6 @@ int rtv_get_filelist( const rtv_device_info_t  *device, const char *name, int de
    status = rtv_get_file_info(device, name, &fileinfo);
    if (status != 0) {
       RTV_ERRLOG("%s:  rtv_get_file_info returned %ld\n", __FUNCTION__, status);
-      free(data);
       *filelist = NULL;
       return status;
    }
@@ -523,7 +578,7 @@ int rtv_get_filelist( const rtv_device_info_t  *device, const char *name, int de
                           NULL);
    if (status != 0) {
       RTV_ERRLOG("%s:  hfs_do_simple returned %ld\n", __FUNCTION__, status);
-      free(data);
+      if ( data != NULL) free(data);
       *filelist = NULL;
       return status;
    }

@@ -78,15 +78,15 @@
 
 struct hc;
 
-extern struct hc      *hc_start_request(char *url);
+extern struct hc*      hc_start_request(char *url);
 extern int             hc_add_req_header(struct hc *hc, const char *tag, const char *value);
 extern int             hc_send_request(struct hc *hc, const char *append);
 extern int             hc_post_request(struct hc *hc,
                                        int (*callback)(unsigned char *, size_t, void *), void *v);
 extern int             hc_get_status(struct hc * hc);
-extern char           *hc_lookup_rsp_header(struct hc *hc, const char *tag);
-extern unsigned char  *hc_read_all(struct hc * hc);
-extern int             hc_read_pieces(struct hc * hc,
+extern char*           hc_lookup_rsp_header(const struct hc *hc, const char *tag);
+extern int             hc_read_all(struct hc *hc, char **data_p);
+extern int             hc_read_pieces(const struct hc *,
                                       rtv_read_chunked_cb_t,
                                       void *,
                                       rtv_mergechunks_t);
