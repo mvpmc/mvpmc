@@ -63,7 +63,8 @@ static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t seek_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t myth_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-static volatile cmyth_conn_t control;
+static volatile cmyth_conn_t control;		/* master backend */
+static volatile cmyth_conn_t control_slave;	/* slave backend */
 static volatile cmyth_proginfo_t current_prog;	/* program currently being played */
 static cmyth_proginfo_t hilite_prog;	/* program currently hilighted */
 static cmyth_proglist_t episode_plist;
@@ -195,6 +196,10 @@ mythtv_close(void)
 	if (control) {
 		cmyth_conn_release(control);
 		control = NULL;
+	}
+	if (control_slave) {
+		cmyth_conn_release(control_slave);
+		control_slave = NULL;
 	}
 }
 
@@ -957,7 +962,8 @@ control_start(void *arg)
 				}
 			}
 
-			len = cmyth_file_request_block(control, file, size);
+			len = cmyth_file_request_block(control_slave,
+						       file, size);
 
 			/*
 			 * Will block if another command is executing
@@ -1186,6 +1192,25 @@ mythtv_cleanup(void)
 static int
 mythtv_open(void)
 {
+	char *host;
+	int port = 6543;
+
+	if ((host=cmyth_proginfo_host(current_prog)) == NULL) {
+		fprintf(stderr, "unknown myth backend\n");
+		return -1;
+	}
+
+	if (control_slave) {
+		cmyth_conn_release(control_slave);
+	}
+	printf("connecting to mythtv (slave) backend %s\n", host);
+	if ((control_slave=cmyth_conn_connect_ctrl(host, port,
+						   16*1024)) == NULL) {
+		fprintf(stderr, "cannot connect to mythtv server %s\n",
+			host);
+		return -1;
+	}
+
 	playing_via_mythtv = 1;
 
 	if ((file=cmyth_conn_connect_file(current_prog,
@@ -1212,7 +1237,7 @@ mythtv_seek(long long offset, int whence)
 	long long seek_pos;
 
 	if ((offset == 0) && (whence == SEEK_CUR))
-		return cmyth_file_seek(control, file, 0, SEEK_CUR);
+		return cmyth_file_seek(control_slave, file, 0, SEEK_CUR);
 
 	pthread_mutex_lock(&seek_mutex);
 	pthread_mutex_lock(&myth_mutex);
@@ -1246,7 +1271,7 @@ mythtv_seek(long long offset, int whence)
 		}
 	}
 
-	seek_pos = cmyth_file_seek(control, file, offset, whence);
+	seek_pos = cmyth_file_seek(control_slave, file, offset, whence);
 
 	pthread_mutex_unlock(&myth_mutex);
 	pthread_mutex_unlock(&seek_mutex);
