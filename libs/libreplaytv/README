@@ -87,12 +87,13 @@ Status
 11/11/2004:
 -Added ability to put rtvlib server to put DVArchive into 4K mode (RTV guide version 3.1).
 -Got RTV 4K guide parsing working.
+11/15/2004:
+-Finished guide parsing. (Atleast everything I care about)
 
 Library TODO
 ------------
 -Set up autoconf and get rid of Makefile
 -Cleanup internal header files
--Finish 5K Guide parsing and string formatting routines.
 -Remove the expat lib dependency. It's only used for rtv_get_device_info() response parsing.
 -Add support for deleting a show.
 -Add support for the replay show ".ndx" files to allow jumping
@@ -104,6 +105,7 @@ Library TODO
 09/29/2004:DONE: -Add ability & api to re-direct RTV_PRT statements to a file.
 10/04/2004:DONE: -Cleanup error checking. Current code is inconsistent. Can hang under some conditions, etc...
 11/11/2004:DONE: -Add 4K Guide parsing
+11/15/2004:DONE: -Finish 5K Guide parsing and string formatting routines.
 
 mvpmv TODO
 ----------

@@ -33,8 +33,10 @@
 #include "guideparser.h"
 
 
-#define V1_SHOW_REC_SIZE (444)
 #define V1_CHAN_REC_SIZE (624)
+#define DAYSOFWEEK_STR_SZ (32)
+#define SHOW_RATING_STR_SZ (40)
+#define GENRE_STR_SZ (70)
 
 typedef enum rtv_guide_ver_t 
 {
@@ -42,6 +44,369 @@ typedef enum rtv_guide_ver_t
    RTV_GV_1       = 1,
    RTV_GV_2       = 2,
 } rtv_guide_ver_t;
+
+//+***********************************************************************************************
+//  String conversion functions
+//+***********************************************************************************************
+
+typedef struct str_xref_t
+{
+   int   key;
+   char *val;
+} str_xref_t;
+
+static char* xref_string(int key, str_xref_t *data_st)
+{
+   int idx = 0;
+   while ( data_st[idx].key != -1 ) {
+      if ( data_st[idx].key == key ) {
+         break;
+      }
+      idx++;
+   }
+   return(data_st[idx].val);
+}
+
+static char* xref_as_mask_string(int key, str_xref_t *data_st)
+{
+   int idx = 0;
+   while ( data_st[idx].key != -1 ) {
+      if ( key & data_st[idx].key ) {
+         break;
+      }
+      idx++;
+   }
+   return(data_st[idx].val);
+}
+
+// Recording Quality
+//
+str_xref_t rtv_quality[] =
+{
+   { RTV_QUALITY_HIGH, "High" }, 
+   { RTV_QUALITY_MEDIUM, "Medium"} , 
+   { RTV_QUALITY_STANDARD, "Standard" }, 
+   { -1, "" }
+};
+
+char *rtv_xref_quality(int key)
+{
+   return(xref_string(key, rtv_quality));
+}
+
+// Input Source
+//
+str_xref_t input_source[] =
+{
+   { 0, "Direct RF" }, 
+   { 1, "Direct Line 1"} , 
+   { 2, "Direct Line 2" }, 
+   { 3, "Tuner"} , 
+   { 16, "Pre-loaded" }, 
+   { -1, "" }
+};
+char *rtv_xref_input_source(int key)
+{
+   return(xref_string(key, input_source));
+}
+
+
+// Show Genre
+//
+str_xref_t show_genre[] =
+{
+   {1,"Action"},
+   {2,"Adult"},
+   {3,"Adventure"},
+   {4,"Animals"},
+   {5,"Animated"},
+   {8,"Art"},
+   {9,"Automotive"},
+   {10,"AwardShow"},
+   {12,"Baseball"},
+   {13,"Baseketball"},
+   {14,"Beauty"},
+   {15,"Bicycling"},
+   {16,"Billiards"},
+   {17,"Biography"},
+   {18,"Boating"},
+   {19,"BodyBuilding"},
+   {21,"Boxing"},
+   {26,"Children"},
+   {30,"ClassicTV"},
+   {31,"Collectibles"},
+   {32,"Comedy"},
+   {33,"Comedy-Drama"},
+   {34,"Computers"},
+   {35,"Cooking"},
+   {36,"Crime"},
+   {37,"CrimeDrama"},
+   {39,"Dance"},
+   {43,"Drama"},
+   {44,"Educational"},
+   {45,"Electronics"},
+   {47,"Exercise"},
+   {48,"Family"},
+   {49,"Fantasy"},
+   {50,"Fashion"},
+   {52,"Fishing"},
+   {53,"Football"},
+   {55,"Fundraising"},
+   {56,"GameShow"},
+   {57,"Golf"},
+   {58,"Gymnastics"},
+   {59,"Health"},
+   {60,"History"},
+   {61,"HistoricalDrama"},
+   {62,"Hockey"},
+   {68,"Holiday"},
+   {69,"Horror"},
+   {70,"Horses"},
+   {71,"Home&Garden"},
+   {72,"Housewares"},
+   {73,"How-To"},
+   {74,"International"},
+   {75,"Interview"},
+   {76,"Jewelry"},
+   {77,"Lacross"},
+   {78,"Magazine"},
+   {79,"MartialArts"},
+   {80,"Medical"},
+   {83,"Motorcycles"},
+   {90,"Mystery"},
+   {91,"Nature"},
+   {92,"News"},
+   {94,"Olympics"},
+   {96,"Outdoors"},
+   {99,"PublicAffairs"},
+   {100,"Racing"},
+   {102,"RealityShow"},
+   {103,"Religious"},
+   {104,"Rodeo"},
+   {105,"Romance"},
+   {106,"RomanticComedy"},
+   {107,"Rugby"},
+   {108,"Running"},
+   {109,"Satire"},
+   {110,"Science"},
+   {111,"ScienceFiction"},
+   {113,"Shopping"},
+   {114,"Sitcom"},
+   {115,"Skating"},
+   {116,"Skiing"},
+   {117,"SlegDog"},
+   {118,"SnowSports"},
+   {119,"SoapOpera"},
+   {123,"Soccer"},
+   {125,"Spanish"},
+   {131,"Suspense"},
+   {132,"SuspenseComedy"},
+   {133,"Swimming"},
+   {134,"TalkShow"},
+   {135,"Tennis"},
+   {136,"Thriller"},
+   {137,"TrackandField"},
+   {138,"Travel"},
+   {139,"Variety"},
+   {141,"War"},
+   {143,"Weather"},
+   {144,"Western"},
+   {146,"Wrestling"},
+   { -1, "" }
+};
+
+// Input device
+//
+str_xref_t input_device[] =
+{
+   { 64, "Standard" },
+   { 65, "A Lineup" },
+   { 66, "B Lineup" },
+   { 68, "Rebuild Lineup" },
+   { 71, "Non-Addressable Converter" },
+   { 72, "Hamlin" },
+   { 73, "Jerrold Impulse" },
+   { 74, "Jerrold" },
+   { 76, "Digital Rebuild" },
+   { 77, "Multiple Converters" },
+   { 78, "Pioneer" },
+   { 79, "Oak" },
+   { 80, "Premium" },
+   { 82, "Cable-ready-TV" },
+   { 83, "Converter Switch" },
+   { 84, "Tocom" },
+   { 85, "A Lineup Cable-ready-TV" },
+   { 86, "B Lineup Cable-ready-TV" },
+   { 87, "Scientific-Atlanta" },
+   { 88, "Digital" },
+   { 90, "Zenith" },
+   { -1, "" }
+};
+
+
+// Service Tier
+//
+str_xref_t service_tier[] =
+{
+   { 1, "Basic" }, 
+   { 2, "Expanded Basi" } , 
+   { 3, "Premium" }, 
+   { 4, "PPV" } , 
+   { 5, "DMX/Music" }, 
+   { -1, "" }
+};
+
+// IVS Status
+//
+str_xref_t ivs_status[] =
+{
+   { 0, "Local" }, 
+   { 1, "LAN" } , 
+   { 2, "Internet Downloadable" }, 
+   { 3, "Internet Download Failed" }, 
+   { 4, "Internet Index Download Restart" } , 
+   { 5, "Internet Index Downloading" }, 
+   { 6, "Internet Index Download Complete" }, 
+   { 7, "Internet MPEG Download Restart" } , 
+   { 8, "Internet MPEG Downloading" }, 
+   { 9, "Internet MPEG Download Complete" } , 
+   { 10, "Internet File Not Found" }, 
+   { -1, "" }
+};
+
+// TV Rating
+//
+str_xref_t tv_rating[] =
+{
+   { 0x00008000, "TV-Y" }, 
+   { 0x00010000, "TV-Y7"} , 
+   { 0x00001000, "TV-G" }, 
+   { 0x00004000, "TV-PG" }, 
+   { 0x00002000, "TV-MA"} , 
+   { 0x00000800, "TV-14" }, 
+   { -1, "" }
+};
+
+
+// MPAA Rating
+//
+str_xref_t mpaa_rating[] =
+{
+   { 0x00000002, "G"} , 
+   { 0x00000004, "NC-17" }, 
+   { 0x00000008, "NR" }, 
+   { 0x00000010, "PG"} , 
+   { 0x00000020, "PG-13" }, 
+   { 0x00000040, "R" }, 
+   { -1, "" }
+};
+
+str_xref_t recording_type[] =
+{
+   { 1, "Recurring" }, 
+   { 2, "Theme"} , 
+   { 3, "Single" }, 
+   { 4, "Zone" }, 
+   { -1, "" }
+};
+
+static void mapDaysOfWeek(int dayofweek, char **daysStr)
+{
+   char *szDisplayString = malloc(DAYSOFWEEK_STR_SZ);
+   strcpy( szDisplayString, "");
+   
+   if ( dayofweek & CE_SUN ) {
+      strcat(szDisplayString, "SU ");
+   }
+   if ( dayofweek & CE_MON ) {
+      strcat(szDisplayString, "MO ");
+   }
+   if ( dayofweek & CE_TUE ) {
+      strcat(szDisplayString, "TU ");
+   }
+   if ( dayofweek & CE_WED ) {
+      strcat(szDisplayString, "WE ");
+   }
+   if ( dayofweek & CE_THU ) {
+      strcat(szDisplayString, "TH ");
+   }
+   if ( dayofweek & CE_FRI ) {
+      strcat(szDisplayString, "FR ");
+   }
+   if ( dayofweek & CE_SAT ) {
+      strcat(szDisplayString, "SA");
+   }
+   if ( dayofweek == 127) {
+      // Display something less ugly!
+      memset(szDisplayString,0,sizeof(szDisplayString));
+      strcpy(szDisplayString, "Everyday");
+   }
+   
+   *daysStr = szDisplayString;
+}
+
+static void mapExtendedTVRating(int tvrating, char **ratingStr)
+{
+   char *szRating = malloc(SHOW_RATING_STR_SZ);
+   strcpy( szRating, "");
+   
+   if (tvrating &  0x00020000) {
+      strcat( szRating, "S" );    // Sex
+   }
+   if (tvrating &  0x00040000) {
+      strcat( szRating, "V" );    // Violence
+   }
+   if (tvrating &  0x00080000) {
+      strcat( szRating, "L" );    // Language
+   }
+   if (tvrating &  0x00100000) {
+      strcat( szRating, "D" );    // Drug Use
+   }
+   if (tvrating &  0x00200000){
+      strcat( szRating, "F" );    // Fantasy Violence
+   }
+
+   *ratingStr = szRating;
+}
+
+static void mapExtendedMPAARating(int mpaarating, char **ratingStr)
+{
+   char *szRating = malloc(SHOW_RATING_STR_SZ);
+   strcpy( szRating, "");
+   
+   if (mpaarating & 0x00400000) {
+      strcat( szRating, "AC " );    // Adult Content
+   }
+   if (mpaarating & 0x00800000) {
+      strcat( szRating, "BN " );   // Brief Nudity
+   }
+   if (mpaarating & 0x01000000) {
+      strcat( szRating, "GL " );   // Graphic Language
+   }
+   if (mpaarating & 0x02000000) {
+      strcat( szRating, "GV " );   // Graphic Violence
+   }
+   if (mpaarating & 0x04000000) {
+      strcat( szRating, "AL " );   // Adult Language
+   }
+   if (mpaarating & 0x08000000) {
+      strcat( szRating, "MV " );   // Mild Violence
+   }
+   if (mpaarating & 0x10000000) {
+      strcat( szRating, "N " );    // Nudity
+   }
+   if (mpaarating & 0x20000000) {
+      strcat( szRating, "RP " );   // Rape
+   }
+   if (mpaarating & 0x40000000) {
+      strcat( szRating, "SC " );   // Sexual Content
+   }
+   if (mpaarating & 0x80000000) {
+      strcat( szRating, "V " );    // Violence
+   }
+   
+   *ratingStr = szRating;
+}
 
 //+***********************************************************************************************
 //  Data structure endian conversion functions
@@ -138,21 +503,20 @@ static void convertV2ReplayChannelEndian(replay_channel_v2_t *strReplayChannel)
    strReplayChannel->keep = ntohl(strReplayChannel->keep);
    strReplayChannel->stored = ntohl(strReplayChannel->stored);
    strReplayChannel->quality = ntohl(strReplayChannel->quality);
-   
-   {
-      strReplayChannel->unknown1 = ntohl(strReplayChannel->unknown1);
-      strReplayChannel->unknown2 = ntohl(strReplayChannel->unknown2);
-      strReplayChannel->unknown3 = ntohl(strReplayChannel->unknown3);
-      strReplayChannel->unknown4 = ntohl(strReplayChannel->unknown4);
-      strReplayChannel->unknown5 = ntohl(strReplayChannel->unknown5);
-      strReplayChannel->unknown6 = ntohl(strReplayChannel->unknown6);
-      strReplayChannel->unknown7 = ntohl(strReplayChannel->unknown7);
-      strReplayChannel->unknown8 = ntohl(strReplayChannel->unknown8);
-      strReplayChannel->unknown9 = ntohl(strReplayChannel->unknown9);
-      strReplayChannel->unknown10 = ntohl(strReplayChannel->unknown10);
-      strReplayChannel->unknown11 = ntohl(strReplayChannel->unknown11);
-      strReplayChannel->unknown12 = ntohl(strReplayChannel->unknown12);
-   }   
+   return;
+}
+
+//-------------------------------------------------------------------------
+static void convertV1ReplayChannelEndian(replay_channel_v1_t *strReplayChannel)
+{
+   strReplayChannel->created = ntohl(strReplayChannel->created);
+   strReplayChannel->timereserved = ntohll(strReplayChannel->timereserved);
+   strReplayChannel->allocatedspace = ntohll(strReplayChannel->allocatedspace);
+   strReplayChannel->category = ntohl(strReplayChannel->category);
+   strReplayChannel->channeltype = ntohl(strReplayChannel->channeltype);
+   strReplayChannel->keep = ntohl(strReplayChannel->keep);
+   strReplayChannel->stored = ntohl(strReplayChannel->stored);
+   strReplayChannel->quality = ntohl(strReplayChannel->quality);
    return;
 }
 
@@ -169,9 +533,7 @@ static void convertReplayGuideEndian(guide_header_t *strGuideHeader)
    strGuideHeader->guideSnapshotHeader.flags = ntohl(strGuideHeader->guideSnapshotHeader.flags);
    strGuideHeader->guideSnapshotHeader.groupdataoffset = ntohl(strGuideHeader->guideSnapshotHeader.groupdataoffset);
    strGuideHeader->guideSnapshotHeader.osversion = ntohs(strGuideHeader->guideSnapshotHeader.osversion);
-   printf("------------->SS1 %04X %d\n", strGuideHeader->guideSnapshotHeader.snapshotversion, strGuideHeader->guideSnapshotHeader.snapshotversion);
    strGuideHeader->guideSnapshotHeader.snapshotversion = ntohs(strGuideHeader->guideSnapshotHeader.snapshotversion);
-   printf("------------->SS2 %04X %d\n", strGuideHeader->guideSnapshotHeader.snapshotversion, strGuideHeader->guideSnapshotHeader.snapshotversion);
    strGuideHeader->guideSnapshotHeader.channelcount = ntohl(strGuideHeader->guideSnapshotHeader.channelcount);
    strGuideHeader->guideSnapshotHeader.channelcountcheck = ntohl(strGuideHeader->guideSnapshotHeader.channelcountcheck);
    strGuideHeader->guideSnapshotHeader.showoffset = ntohl(strGuideHeader->guideSnapshotHeader.showoffset);
@@ -224,6 +586,7 @@ static char* convertCodepage(char *szString)
 static int parse_show(replay_show_t *show_rec, rtv_show_export_t *sh)
 {
    char *bufptr;
+   char *genre_str, *genre;
 
    convertReplayShowEndian(show_rec);
    convertProgramInfoEndian(&(show_rec->programInfo));
@@ -232,9 +595,7 @@ static int parse_show(replay_show_t *show_rec, rtv_show_export_t *sh)
    bufptr = show_rec->programInfo.szDescription;
    
    if ( RTVLOG_GUIDE ) {
-      // Use V1_SHOW_REC_SIZE since V2 is the same with just 68 bytes of padding at end.
-      //
-      hex_dump("SHOW_DUMP", (char*)show_rec, V1_SHOW_REC_SIZE);
+      hex_dump("SHOW_DUMP", (char*)show_rec, sizeof(replay_show_t));
    }
 
    // process the record's flags
@@ -274,13 +635,23 @@ static int parse_show(replay_show_t *show_rec, rtv_show_export_t *sh)
       bufptr += sizeof(movie_info_t);
       convertMovieInfoEndian(movie);
       
-      // JBH: todo: need to parse the movie info
-      //
+      sh->rating = xref_as_mask_string(movie->mpaa, mpaa_rating);
+      mapExtendedMPAARating(show_rec->programInfo.flags, &(sh->rating_extended));
+      sh->movie_stars = movie->stars / 10;
+      sh->movie_year = movie->year;
+      sh->movie_runtime = ((movie->runtime / 100) * 60) + (movie->runtime % 100);
+
       RTV_DBGLOG(RTVLOG_GUIDE, "Parse movie_info_t:\n");
       RTV_DBGLOG(RTVLOG_GUIDE, "    mpaa: %d\n", movie->mpaa);
       RTV_DBGLOG(RTVLOG_GUIDE, "    stars: %d\n", movie->stars);
       RTV_DBGLOG(RTVLOG_GUIDE, "    year: %d\n", movie->year);
       RTV_DBGLOG(RTVLOG_GUIDE, "    runtime: %d\n", movie->runtime);
+   }
+   else {
+      // Do TV Ratings
+      //
+      sh->rating = xref_as_mask_string(show_rec->programInfo.flags, tv_rating);
+      mapExtendedTVRating(show_rec->programInfo.flags, &(sh->rating_extended));
    }
    
    if (sh->flags.multipart) {
@@ -331,11 +702,53 @@ static int parse_show(replay_show_t *show_rec, rtv_show_export_t *sh)
    strncpy(sh->director, convertCodepage(bufptr), show_rec->programInfo.directorLen);
    bufptr += show_rec->programInfo.directorLen;
 
-   // mpg filename
+   // mpg filename, gop count, durartion
    //
    sh->file_name = malloc(20);
    snprintf(sh->file_name, 19, "%lu.mpg", show_rec->recorded);
-   
+   sh->gop_count       = show_rec->GOP_count;
+   sh->duration_sec    = show_rec->seconds;
+   sh->padding_before  = show_rec->beforepadding;
+   sh->sch_start_time  = show_rec->programInfo.eventtime;
+   sh->sch_show_length = show_rec->programInfo.minutes;
+   sh->sch_st_tm_str   = rtv_format_time32(sh->sch_start_time);
+
+   // Misc show info
+   //
+   sh->quality      = show_rec->quality;
+   sh->input_source = show_rec->inputsource;
+   if ( show_rec->channelInfo.isvalid && show_rec->channelInfo.usetuner ) { 
+      sh->tuning = show_rec->programInfo.tuning;
+      strncpy(sh->tune_chan_name, show_rec->channelInfo.szChannelName, 15);
+      sh->tune_chan_name[15] = '\0';
+      strncpy(sh->tune_chan_desc, show_rec->channelInfo.szChannelLabel, 31);
+      sh->tune_chan_desc[31] = '\0';
+   }
+      
+   genre_str = malloc(GENRE_STR_SZ+1);
+   genre_str[0] = '\0';
+   genre = xref_string(show_rec->programInfo.genre1, show_genre);
+   if ( genre[0] != '\0' ) {
+      strncpy(genre_str, genre, GENRE_STR_SZ);
+      strncat(genre_str, " ", GENRE_STR_SZ);
+   }
+   genre = xref_string(show_rec->programInfo.genre2, show_genre);
+   if ( genre[0] != '\0' ) {
+      strncat(genre_str, genre, GENRE_STR_SZ);
+      strncat(genre_str, " ", GENRE_STR_SZ);
+   }
+   genre = xref_string(show_rec->programInfo.genre3, show_genre);
+   if ( genre[0] != '\0' ) {
+      strncat(genre_str, genre, GENRE_STR_SZ);
+      strncat(genre_str, " ", GENRE_STR_SZ);
+   }
+   genre = xref_string(show_rec->programInfo.genre4, show_genre);
+   if ( genre[0] != '\0' ) {
+      strncat(genre_str, genre, GENRE_STR_SZ);
+   }
+   sh->genre = genre_str;
+
+
    return(0);
 }
 
@@ -457,6 +870,7 @@ int parse_guide_snapshot(const char *guideDump, int size, rtv_guide_export_t *gu
    guide_header_t             *guidehdr       = (guide_header_t*)guideDump;
    v2_guide_snapshot_header_t *sshdr          = &(guidehdr->guideSnapshotHeader);
    group_data_t               *gdatahdr       = &(guidehdr->groupData);
+   rtv_channel_export_t      **rtvChanExportP = &(guideExport->channel_list);
    rtv_show_export_t         **rtvShowExportP = &(guideExport->rec_show_list);
 
    rtv_guide_ver_t             gver;
@@ -511,20 +925,20 @@ int parse_guide_snapshot(const char *guideDump, int size, rtv_guide_export_t *gu
 
    memAllocShows = sshdr->snapshotsize - sshdr->showoffset;
    if ( gver == RTV_GV_1 ) {
-      if ( (memAllocShows % V1_SHOW_REC_SIZE) != 0 ) { 
-         RTV_ERRLOG("Invalid V1 show storage size: allocated=%u show_sz=%u\n", memAllocShows, V1_SHOW_REC_SIZE);
-         print_v2_guide_snapshot_header(sshdr);
-         return(-1);
-      }
-      numShows = memAllocShows / V1_SHOW_REC_SIZE;
-   }
-   else {
       if ( (memAllocShows % sizeof(replay_show_t)) != 0 ) { 
-         RTV_ERRLOG("Invalid show storage size: allocated=%u show_sz=%u\n", memAllocShows, sizeof(replay_show_t));
+         RTV_ERRLOG("Invalid V1 show storage size: allocated=%u show_sz=%u\n", memAllocShows, sizeof(replay_show_t));
          print_v2_guide_snapshot_header(sshdr);
          return(-1);
       }
       numShows = memAllocShows / sizeof(replay_show_t);
+   }
+   else {
+      if ( (memAllocShows % (sizeof(replay_show_t) + REPLAYSHOW_V2_PADDING)) != 0 ) { 
+         RTV_ERRLOG("Invalid show storage size: allocated=%u show_sz=%u\n", memAllocShows, sizeof(replay_show_t) + REPLAYSHOW_V2_PADDING);
+         print_v2_guide_snapshot_header(sshdr);
+         return(-1);
+      }
+      numShows = memAllocShows / (sizeof(replay_show_t) + REPLAYSHOW_V2_PADDING);
    }
 
    // Copy categories into a buffer
@@ -540,6 +954,35 @@ int parse_guide_snapshot(const char *guideDump, int size, rtv_guide_export_t *gu
       print_category_array(catArray, gdatahdr->categories);
    }
 
+   // Process Replay Channels
+   //
+   *rtvChanExportP = malloc(sizeof(rtv_channel_export_t) * sshdr->channelcount);   
+   //
+   // JBH: TODO: Parse rest of channel info. Not really needed for anything right now.
+   //
+   if ( gver == RTV_GV_1 ) {
+      replay_channel_v1_t  *chan_rec   = (replay_channel_v1_t*)(guideDump + sshdr->channeloffset);
+      rtv_channel_export_t *chanExport = *rtvChanExportP;       
+      for( x = 0 ; x < sshdr->channelcount; x++ ) {
+         convertV1ReplayChannelEndian(chan_rec);
+         convertReplayShowEndian(&(chan_rec->replayShow));
+         convertThemeInfoEndian(&(chan_rec->themeInfo));
+         chanExport[x].channel_id   = chan_rec->created;
+         mapDaysOfWeek(chan_rec->daysofweek, &(chanExport[x].days_of_week));   
+      }      
+   }
+   else {
+      replay_channel_v2_t  *chan_rec   = (replay_channel_v2_t*)(guideDump + sshdr->channeloffset);
+      rtv_channel_export_t *chanExport = *rtvChanExportP;       
+      for( x = 0 ; x < sshdr->channelcount; x++ ) {
+         convertV2ReplayChannelEndian(chan_rec);
+         convertReplayShowEndian(&(chan_rec->replayShow));
+         convertThemeInfoEndian(&(chan_rec->themeInfo));
+         chanExport[x].channel_id   = chan_rec->created;
+         mapDaysOfWeek(chan_rec->daysofweek, &(chanExport[x].days_of_week));   
+      }      
+   }
+
    // Process the recorded shows
    //
    show_rec        = (replay_show_t*)(guideDump + sshdr->showoffset);
@@ -551,16 +994,15 @@ int parse_guide_snapshot(const char *guideDump, int size, rtv_guide_export_t *gu
    for( x = 0 ; x < numShows; x++ ) {
       replay_show_t *show_p;
       if ( gver == RTV_GV_1 ) {
-         show_p = (replay_show_t*)((guideDump + sshdr->showoffset) + (V1_SHOW_REC_SIZE * x));
+         show_p = &(show_rec[x]); 
       }
       else {
-         show_p = &(show_rec[x]); 
+         show_p = (replay_show_t*)( (char*)&(show_rec[0]) + ((sizeof(replay_show_t) + REPLAYSHOW_V2_PADDING) * x) );
       }
       RTV_DBGLOG(RTVLOG_GUIDE, "show[%u] struct base address: %p\n", x, show_p); 
       if ( (rc = parse_show( show_p, &(rtvShowExport[x]))) != 0 ) {
          return(rc);
       }
-
       if ( RTVLOG_GUIDE ) {
          rtv_print_show(&(rtvShowExport[x]), x);
       }

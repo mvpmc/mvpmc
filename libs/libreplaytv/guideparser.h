@@ -22,7 +22,7 @@
 #ifndef __GUIDEPARSER_H__
 #define __GUIDEPARSER_H__
 
-#define REPLAYSHOW_SZ      512    // needed size of replayshow structure
+#define REPLAYSHOW_SZ      444    // needed size of replayshow structure
 #define REPLAYCHANNEL_SZ   712    // needed size of replaychannel structure
 #define PROGRAMINFO_SZ     272    // needed size of programinfo structure
 #define CHANNELINFO_SZ     80     // needed size of channelinfo structure
@@ -83,13 +83,13 @@ typedef struct guide_header_t {
 } guide_header_t;
 
 
+#define THEMEINFO_V1_PADDING (4)
 typedef struct theme_info_t {
     u32  flags;               // Search Flags
     u32  suzuki_id;           // Suzuki ID
     u32  thememinutes;        // Minutes Allocated
-    char szSearchString[48];  // Search Text
+    char szSearchString[48];  // Search Text     (52 bytes for V1 snapshot)
 } theme_info_t;
-
 
 typedef struct movie_info_t {
     u16 mpaa;          // MPAA Rating
@@ -130,7 +130,6 @@ typedef struct program_info_t {
     u8   szDescription[228];  // This can have parts/movie sub-structure
 } program_info_t;
 
-
 typedef struct channel_info_t {
     u32 structuresize;        // Should always be 80 (0x50)
     u32 usetuner;             // If non-zero the tuner is used, otherwise it's a direct input.
@@ -146,7 +145,7 @@ typedef struct channel_info_t {
 } channel_info_t;
 
 
-#define REPLAYSHOW_SZ      512    // needed size of replayshow structure
+#define REPLAYSHOW_V2_PADDING (68)     // V2 guide bytes of padding at end of show structure
 typedef struct replay_show_t {
     u32 created;              // ReplayChannel ID (tagReplayChannel.created)
     u32 recorded;             // Filename/Time of Recording (aka ShowID)
@@ -173,39 +172,65 @@ typedef struct replay_show_t {
     u8 afterpadding;          // After Show Padding
     u64 indexsize;            // Size of NDX file (IVS Shows Only)
     u64 mpegsize;             // Size of MPG file (IVS Shows Only)
-    char szReserved[68];      // Show Label
 } replay_show_t;
 
 typedef struct replay_channel_v2_t {
-    replay_show_t replayShow;
-    theme_info_t  themeInfo;
-    u32   created;            // Timestamp Entry Created
-    u32   category;           // 2 ^ Category Number
-    u32   channeltype;        // Channel Type (Recurring, Theme, Single)
-    u32   quality;            // Recording Quality (High, Medium, Low)
-    u32   stored;             // Number of Episodes Recorded
-    u32   keep;               // Number of Episodes to Keep
-    u8    daysofweek;         // Day of the Week to Record Bitmask (Sun = LSB and Sat = MSB)
-    u8    afterpadding;       // End of Show Padding
-    u8    beforepadding;      // Beginning of Show Padding
-    u8    flags;              // ChannelFlags
-    u64   timereserved;       // Total Time Allocated (For Guaranteed Shows)
-    char  szShowLabel[48];    // Show Label
-    u32   unknown1;           // Unknown (Reserved For Don array)
-    u32   unknown2;           // Unknown
-    u32   unknown3;           // Unknown
-    u32   unknown4;           // Unknown
-    u32   unknown5;           // Unknown
-    u32   unknown6;           // Unknown
-    u32   unknown7;           // Unknown
-    u32   unknown8;           // Unknown
-    u64   allocatedspace;     // Total Space Allocated
-    u32   unknown9;           // Unknown
-    u32   unknown10;          // Unknown
-    u32   unknown11;          // Unknown
-    u32   unknown12;          // Unknown
+   replay_show_t replayShow;
+   u8     v2show_padding[REPLAYSHOW_V2_PADDING];
+   theme_info_t  themeInfo;
+   u32   created;            // Timestamp Entry Created
+   u32   category;           // 2 ^ Category Number
+   u32   channeltype;        // Channel Type (Recurring, Theme, Single)
+   u32   quality;            // Recording Quality (High, Medium, Low)
+   u32   stored;             // Number of Episodes Recorded
+   u32   keep;               // Number of Episodes to Keep
+   u8    daysofweek;         // Day of the Week to Record Bitmask (Sun = LSB and Sat = MSB)
+   u8    afterpadding;       // End of Show Padding
+   u8    beforepadding;      // Beginning of Show Padding
+   u8    flags;              // ChannelFlags
+   u64   timereserved;       // Total Time Allocated (For Guaranteed Shows)
+   char  szShowLabel[48];    // Show Label
+   u32   unknown1;           // Unknown (Reserved For Don array)
+   u32   unknown2;           // Unknown
+   u32   unknown3;           // Unknown
+   u32   unknown4;           // Unknown
+   u32   unknown5;           // Unknown
+   u32   unknown6;           // Unknown
+   u32   unknown7;           // Unknown
+   u32   unknown8;           // Unknown
+   u64   allocatedspace;     // Total Space Allocated
+   u32   unknown9;           // Unknown
+   u32   unknown10;          // Unknown
+   u32   unknown11;          // Unknown
+   u32   unknown12;          // Unknown
 } replay_channel_v2_t;
 
+
+typedef struct replay_channel_v1_t {
+   u32   channeltype;        // Channel Type (Recurring, Theme, Single)
+   u32   quality;            // Recording Quality (High, Medium, Low)
+   u64   allocatedspace;     // Total Space Allocated
+   u32   keep;               // Number of Episodes to Keep
+   u32   stored;             // Number of Episodes Recorded
+   u8    daysofweek;         // Day of the Week to Record Bitmask (Sun = LSB and Sat = MSB)
+   u8    afterpadding;       // End of Show Padding
+   u8    beforepadding;      // Beginning of Show Padding
+   u8    flags;              // ChannelFlags
+   u32   category;           // 2 ^ Category Number
+   u32   created;            // Timestamp Entry Created
+   u32   unknown1;           // Unknown (Reserved For Don array)
+   u32   unknown2;           // Unknown
+   u32   unknown3;           // Unknown
+   u32   unknown4;           // Unknown
+   u32   unknown5;           // Unknown
+   u32   unknown6;           // Unknown
+   u32   unknown7;           // Unknown
+   u64   timereserved;       // Total Time Allocated (For Guaranteed Shows)
+   char  szShowLabel[48];    // Show Label
+   replay_show_t replayShow;
+   theme_info_t  themeInfo;
+   u8     v2show_padding[THEMEINFO_V1_PADDING];
+} replay_channel_v1_t;
 
 typedef struct category_array_t {
    u32   index;            // Index Value

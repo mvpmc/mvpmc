@@ -106,6 +106,16 @@ char *rtv_format_time(__u64 ttk)
    return results;
 }
 
+char *rtv_format_time32(__u32 t) 
+{
+   char      *result = malloc(20);
+   struct tm *tm;
+    
+   tm = localtime(&t);
+   strftime(result, 20, "%Y-%m-%d %H:%M:%S", tm);
+   return result;
+}
+
 int rtv_init_lib(void) 
 {
    struct utsname     myname;

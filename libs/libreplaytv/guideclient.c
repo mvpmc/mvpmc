@@ -105,6 +105,31 @@ static int get_rtv5k_snapshot_callback(unsigned char *buf, size_t len, void *vd)
     return(0);
 }
 
+static void rtv_free_channel(rtv_channel_export_t *chan) 
+{
+   if ( chan != NULL ) {
+      if ( chan->days_of_week != NULL ) free(chan->days_of_week);
+   }
+}
+
+static void rtv_free_show(rtv_show_export_t *show) 
+{
+   if ( show != NULL ) {
+      if ( show->title       != NULL ) free(show->title);
+      if ( show->episode     != NULL ) free(show->episode);
+      if ( show->description != NULL ) free(show->description);
+      if ( show->actors      != NULL ) free(show->actors);
+      if ( show->guest       != NULL ) free(show->guest);
+      if ( show->suzuki      != NULL ) free(show->suzuki);
+      if ( show->producer    != NULL ) free(show->producer);
+      if ( show->director    != NULL ) free(show->director);
+      if ( show->file_name   != NULL ) free(show->file_name);
+      if ( show->genre       != NULL ) free(show->genre);
+      if ( show->rating_extended != NULL ) free(show->rating_extended);
+      if ( show->sch_st_tm_str   != NULL ) free(show->sch_st_tm_str);
+   }
+}
+
 //+***********************************************************************************
 //                         PUBLIC FUNCTIONS
 //+***********************************************************************************
@@ -174,22 +199,6 @@ int rtv_get_guide_snapshot( const rtv_device_info_t  *device,
     return(rc);
 }
 
-void rtv_free_show(rtv_show_export_t *show) 
-{
-   if ( show != NULL ) {
-      if ( show->title       != NULL ) free(show->title);
-      if ( show->episode     != NULL ) free(show->episode);
-      if ( show->description != NULL ) free(show->description);
-      if ( show->actors      != NULL ) free(show->actors);
-      if ( show->guest       != NULL ) free(show->guest);
-      if ( show->suzuki      != NULL ) free(show->suzuki);
-      if ( show->producer    != NULL ) free(show->producer);
-      if ( show->director    != NULL ) free(show->director);
-      if ( show->file_name   != NULL ) free(show->file_name);
-   }
-   memset(show, 0, sizeof(rtv_show_export_t));
-}
-
 void rtv_free_guide(rtv_guide_export_t *guide) 
 {
    unsigned int x;
@@ -198,8 +207,18 @@ void rtv_free_guide(rtv_guide_export_t *guide)
       if ( guide->timestamp != NULL ) {
          free( guide->timestamp);
       }
+      for (x=0; x < guide->num_channels; x++) {
+         rtv_free_channel(&(guide->channel_list[x]));
+      }
+      if ( guide->channel_list != NULL ) {
+         free(guide->channel_list);
+      }
+      
       for (x=0; x < guide->num_rec_shows; x++) {
          rtv_free_show(&(guide->rec_show_list[x]));
+      }
+      if ( guide->rec_show_list != NULL ) {
+         free(guide->rec_show_list);
       }
       memset(guide, 0, sizeof(rtv_guide_export_t));
    }
@@ -220,7 +239,12 @@ void rtv_print_show(const rtv_show_export_t *show, int num)
       RTV_PRT("  suzuki:      %s\n", show->suzuki);
       RTV_PRT("  producer:    %s\n", show->producer);
       RTV_PRT("  director:    %s\n", show->director);
-
+      RTV_PRT("  genre:       %s\n", show->genre);
+      RTV_PRT("  rating:      %s\n", show->rating);
+      RTV_PRT("  rating ext:  %s\n", show->rating_extended);
+      RTV_PRT("  quality:     %s\n", rtv_xref_quality(show->quality));
+      RTV_PRT("  input src:   %s\n", rtv_xref_input_source(show->input_source));
+      RTV_PRT("  tuning:      %d  (%s) %s\n", show->tuning, show->tune_chan_name, show->tune_chan_desc);
       strp += sprintf(strp, "  flags:      ");
       if (show->flags.multipart)  strp += sprintf(strp, " MPART"); 
       if (show->flags.guaranteed) strp += sprintf(strp, " GUAR"); 
@@ -233,7 +257,17 @@ void rtv_print_show(const rtv_show_export_t *show, int num)
       if (show->flags.movie)      strp += sprintf(strp, " MOVIE"); 
       strp += sprintf(strp, "\n");
       RTV_PRT("%s", tmpstr);
-      RTV_PRT("  filename:    %s\n", show->file_name);
+      if (show->flags.movie) {
+         RTV_PRT("  movie_stars: %d    movie_year: %d    movie_runtime: %d\n", show->movie_stars, show->movie_year, show-> movie_runtime);
+      }
+      RTV_PRT("  filename:           %s\n", show->file_name);
+      RTV_PRT("  GOP_count:          %u\n", show->gop_count);
+      RTV_PRT("  duration (seconds): %u\n", show->duration_sec);
+      RTV_PRT("  sch start time:     %u\n", show->sch_start_time);
+      RTV_PRT("  sch start time:     %s\n", show->sch_st_tm_str);
+      RTV_PRT("  sch len (minutes):  %u\n", show->sch_show_length);
+      RTV_PRT("  minutes padding before: %u minutes padding after: %u\n", show->padding_before, show->padding_after);
+
    }
    else {
       RTV_PRT("Show object is NULL!\n");
@@ -251,6 +285,7 @@ void rtv_print_guide(const rtv_guide_export_t *guide)
    RTV_PRT("numshows:    %u\n\n", guide->num_rec_shows); 
    for ( x=0; x < guide->num_rec_shows; x++ ) {
       rtv_print_show(&(guide->rec_show_list[x]), x);
+      RTV_PRT("\n");
    }
 
 }

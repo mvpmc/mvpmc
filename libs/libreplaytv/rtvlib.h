@@ -32,6 +32,16 @@ typedef unsigned long long __u64;
 typedef signed   long long __s64;
 
 //+****************************************
+// RTV Show Information Types
+//+****************************************
+typedef enum rtv_show_quality_t 
+{
+   RTV_QUALITY_HIGH     = 0, 
+   RTV_QUALITY_MEDIUM   = 1, 
+   RTV_QUALITY_STANDARD = 2 
+} rtv_show_quality_t;
+
+//+****************************************
 // RTV Device Information structure
 //+****************************************
 typedef enum rtv_vintage_t 
@@ -66,6 +76,18 @@ typedef struct rtv_device_info_t
 } rtv_device_info_t;
 
 //+****************************************
+// RTV Exported channel structure
+//+****************************************
+typedef struct rtv_channel_export_t 
+{
+   __u32  channel_id;                 // Time when channel was created
+   char  *channel_type;               // static string (recording_type)
+   char  *days_of_week;               // malloc'd string.
+   int    tuning;                     // TV channel number
+   char   label[50];
+} rtv_channel_export_t;
+
+//+****************************************
 // Show Flags structure
 //+****************************************
 typedef struct rtv_show_flags_t 
@@ -84,26 +106,38 @@ typedef struct rtv_show_flags_t
 //+****************************************
 // RTV Exported Show structure
 //+****************************************
+
 typedef struct rtv_show_export_t 
 {
-   rtv_show_flags_t  flags;
-   char             *title;
-   char             *episode; 
-   char             *description; 
-   char             *actors; 
-   char             *guest; 
-   char             *suzuki; 
-   char             *producer; 
-   char             *director; 
-   char             *file_name;
-//   char             *ch_id; 
-//   char             *ch_name;
-//   char             *ch_num; 
-//   char             *quality; 
-//   char             *duration; 
-//   char             *rec_time; 
-//   char             *rec_date; 
-//   char             *id;
+   int                 rtvchan_idx;        //index into rtv channel array (JBH: Not yet parsing RTV channel info)
+   rtv_show_flags_t    flags;
+   rtv_show_quality_t  quality;            // recording quality 
+   int                 input_source;       // xref with rtv_xref_input_source()
+   int                 tuning;             // TV channel number
+   char                tune_chan_name[16]; // Tuned channel name
+   char                tune_chan_desc[32]; // Tuned channel description
+   char               *title;
+   char               *episode; 
+   char               *description; 
+   char               *actors; 
+   char               *guest; 
+   char               *suzuki; 
+   char               *producer; 
+   char               *director; 
+   char               *genre;
+   char               *rating;             // TV/Movie rating 
+   char               *rating_extended;    // TV/Movie extended rating
+   int                 movie_stars;        // Zero to 5 stars
+   int                 movie_year;         // Year made
+   int                 movie_runtime;      // Movie run time (minutes)
+   char               *file_name;          // mpg file name
+   __u32               gop_count;          // MPEG Group of Picture Count
+   __u32               duration_sec;       // duration of the recording (seconds)
+   __u8                padding_before;     // minutes padding before show
+   __u8                padding_after;      // minutes padding after show
+   __u32               sch_start_time;     // Scheduled Time of the Show (TimeT format)
+   __u32               sch_show_length;    // Scheduled Length of Show (minutes)
+   char               *sch_st_tm_str;      // Scheduled Time of the Show (String)
    __u32               status;
 } rtv_show_export_t;
 
@@ -112,10 +146,12 @@ typedef struct rtv_show_export_t
 //+****************************************
 typedef struct rtv_guide_export_t 
 {
-   char              *timestamp;            //Snapshot timestamp
-   unsigned int       num_rec_shows;
-   rtv_show_export_t *rec_show_list;
-   unsigned long      status;
+   char                  *timestamp;            //Snapshot timestamp
+   unsigned int           num_channels;
+   rtv_channel_export_t  *channel_list;
+   unsigned int           num_rec_shows;
+   rtv_show_export_t     *rec_show_list;
+   unsigned long          status;
 } rtv_guide_export_t;
 
 //+****************************************
@@ -218,7 +254,8 @@ extern rtv_device_t *rtv_get_device_struct(const char *ipaddr, int *new);
 extern int           rtv_free_devices(void);
 extern void          rtv_print_device_list(void); 
 extern int           rtv_route_logs(char *filename);
-extern char         *rtv_format_time(__u64 ttk); 
+extern char         *rtv_format_time(__u64 ttk);     // Returned string is malloc'd: user must free
+extern char         *rtv_format_time32(__u32 t);     // Returned string is malloc'd: user must free
 extern void          rtv_set_dbgmask(__u32 mask);
 extern __u32         rtv_get_dbgmask(void);
 extern int           rtv_crypt_test(void);
@@ -231,10 +268,13 @@ extern void rtv_print_device_info(const rtv_device_info_t *devinfo);
 extern int  rtv_get_guide_snapshot(const rtv_device_info_t  *device,
                                    const char               *cur_timestamp,
                                          rtv_guide_export_t *guide          );
-extern void rtv_free_show(rtv_show_export_t *show); 
 extern void rtv_print_show(const rtv_show_export_t *show, int num);
 extern void rtv_print_guide(const rtv_guide_export_t *guide); 
 extern void rtv_free_guide(rtv_guide_export_t *guide); 
+
+extern char *rtv_xref_quality(int key);
+extern char *rtv_xref_input_source(int key);
+
 
 extern int  rtv_get_volinfo( const rtv_device_info_t  *device, const char *name, rtv_fs_volume_t **volinfo );
 extern void rtv_free_volinfo(rtv_fs_volume_t **volinfo); 
