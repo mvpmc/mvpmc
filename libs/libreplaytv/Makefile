@@ -54,7 +54,6 @@ LIBOBJS=			\
 	headend.o		\
 	httpclient.o		\
 	httpfsclient.o		\
-	httpfscmd.o		\
 	netclient.o 		\
 	rtv.o			\
 	sleep.o			\

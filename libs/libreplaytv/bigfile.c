@@ -16,6 +16,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "rtv.h"
+#include "rtvlib.h"
 #include "bigfile.h"
 
 #ifdef WIN32

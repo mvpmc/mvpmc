@@ -19,8 +19,10 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/errno.h>
+
 #include "shell/cli.h"
 #include "rtvlib.h"
+#include "bigfile.h"
 
 int ciCmdTestFxn(int argc, char **argv);
 int ciSetDbgLevel(int argc, char **argv);
@@ -30,10 +32,53 @@ int ciSetDbgLevel(int argc, char **argv);
 
 #define MAX_RTVS 10
 
+
+// for http fs read file callback
+typedef struct get_file_read_data_t
+{
+   BIGFILE *dstfile;
+   __u64    bytes;
+   __u64    fullsize;
+} get_file_read_data_t;
+
+
+
 // Top level replayTV structure
 rtv_device_t rtv_top[MAX_RTVS];
 
-static rtv_device_t *get_rtv_device_struct(char* ipaddr, int *new) {
+
+static void print_status_bar(FILE * fp, __u64 done, __u64 total) 
+{
+   int   percent;
+   char  buf[100];
+   int   i;
+   char *p;
+   
+   percent = (done*100)/total;
+   p = buf;
+   *p++ = '[';
+   for (i = 0; i < 50; i++) {
+      if (i*2 < percent)
+         *p++ = '#';
+      else
+         *p++ = ' ';
+   }
+   *p++ = ']';
+   sprintf(p, "  %lld/%lld (%d%%)\r", done, total, percent);
+   fprintf(fp, "%s", buf);
+}
+
+// http fs read file callback
+static void hfs_rf_callback(unsigned char * buf, size_t len, void * vd)
+{
+   get_file_read_data_t *rd = vd;
+   
+   bfwrite(buf, len, 1, rd->dstfile);
+   rd->bytes += len;
+   print_status_bar(stderr, rd->bytes, rd->fullsize);
+}
+
+static rtv_device_t *get_rtv_device_struct(const char *ipaddr, int *new) {
    int x;
 
    *new = 0;
@@ -67,6 +112,7 @@ static int isaHexNum (const char *str)
    strtoul(str, &str2, 16);
    return *str2 ? 0 : -1;
 }
+#if 0
 static int isaDecNum (const char *str)
 {
    char *str2 = NULL;
@@ -74,7 +120,7 @@ static int isaDecNum (const char *str)
    strtoul(str, &str2, 10);
    return *str2 ? 0 : -1;
 }
-
+#endif
 
 int ciCmdTestFxn(int argc, char **argv)
 {
@@ -198,21 +244,16 @@ static int ciCryptTest(int argc, char **argv)
    return(0);
 }
 
-static int ciHttpFs(int argc, char **argv)
+static int ciHttpFsVolinfo(int argc, char **argv)
 {
-   rtv_device_t       *rtv;  
+   rtv_device_t       *rtv;
+   rtv_fs_volume_t   *volinfo;
    int                 rc, new_entry;
 
-   USAGE("<ip address> <command [args...]>\n"
-         "   commands:\n"
-         "     ls [path]\n"
-         "     fstat <name>\n"
-         "     volinfo <name>\n"
-         "\n"
-      );
+   USAGE("<ip address> <volume>\n");
 
-   if ( argc < 2 ) {
-      printf("Parm Error: <ipaddress> parameter required\n");
+   if ( argc < 3 ) {
+      printf("Parm Error: <ipaddress> <volume> parameters required\n");
       return(0); 
    }
 
@@ -222,19 +263,194 @@ static int ciHttpFs(int argc, char **argv)
       return(0);
    }
 
-   rc = rtv_httpfs_cli_cmd( &(rtv->device), argc, argv);
+   rc = rtv_get_volinfo( &(rtv->device), argv[2], &volinfo );
+   if ( rc == 0 ) {
+      rtv_print_volinfo(volinfo);
+      rtv_free_volinfo(&volinfo);
+   }
    return(rc);
 }
 
+static int ciHttpFsStatus(int argc, char **argv)
+{
+   rtv_device_t       *rtv;
+   int                 rc, new_entry;
+   rtv_fs_file_t       fileinfo;
+
+   USAGE("<ip address> <filename>\n");
+
+   if ( argc < 3 ) {
+      printf("Parm Error: <ipaddress> <filename>\n");
+      return(0); 
+   }
+
+   rtv = get_rtv_device_struct(argv[1], &new_entry);
+   if ( new_entry ) {
+      printf("\nYou need to get device info first.\n");
+      return(0);
+   }
+
+   rc = rtv_get_file_info( &(rtv->device), argv[2], &fileinfo );
+   if ( rc == 0 ) {
+      rtv_print_file_info(&fileinfo);
+      rtv_free_file_info(&fileinfo);
+   }
+   return(rc);
+}
+
+static int ciHttpFsListFiles(int argc, char **argv)
+{
+   int                 detailed_listing = 0;
+   rtv_device_t       *rtv;
+   rtv_fs_filelist_t  *filelist;
+   int                 rc, new_entry, ch;
+   const char         *ipaddr, *path;
+
+
+   USAGE("<ip address> <path> [-l]\n");
+
+   optind = 0;
+   while ((ch = getopt(argc, argv, "l")) != EOF) {
+      switch(ch) {
+      case 'l':
+         detailed_listing = 1;
+         break;
+      default:
+         printf("Parm error: Invalid argument: -%c\n", ch);
+         printf("   Do: \"%s -h\" for help\n", argv[0]);
+         return(0);
+         
+      }
+   }
+
+   if ( argc - optind != 2 ) {
+      printf("Parm Error: <ipaddress> <path> parameters required\n");
+      return(0); 
+   }
+   ipaddr = argv[optind++];
+   path   = argv[optind];
+
+   rtv = get_rtv_device_struct(ipaddr, &new_entry);
+   if ( new_entry ) {
+      printf("\nYou need to get device info first.\n");
+      return(0);
+   }
+
+   rc = rtv_get_filelist( &(rtv->device), path, detailed_listing, &filelist );
+   if ( rc == 0 ) {
+      rtv_print_file_list(filelist, detailed_listing);
+      rtv_free_file_list(&filelist);
+   }
+   return(0);
+}
+
+static int ciHttpFsGetFile(int argc, char ** argv)
+{
+   __u32                 delay        = 75;
+   unsigned int          pos_kb       = 0;
+   unsigned int          getsize_kb   = 0;
+   const char           *ipaddr;
+   const char           *f_from;
+   const char           *f_to;
+   unsigned int          filesize_kb;
+   __u64                 pos64;
+   __u64                 getsize64;
+   get_file_read_data_t  data;
+   unsigned long         status;
+   rtv_device_t         *rtv;
+   rtv_fs_file_t         fileinfo;
+   int                   new_entry, rc;
+   int                   ch;
+   
+
+   USAGE("<ip address> <from_file> <to_file> [options]\n"
+   "                      where options are:\n"
+   "                         -p <start pos (kb)>\n"
+   "                         -s <size (kb)>\n"
+   "                         -d <delay (mS)>\n");
+
+   memset(&data, 0, sizeof data);
+   optind = 0;
+   while ((ch = getopt(argc, argv, "d:p:s:")) != EOF) {
+      switch(ch) {
+      case 'p':
+         pos_kb = atoi(optarg);
+         break;
+      case 's':
+         getsize_kb = atoi(optarg);
+         break;
+      case 'd':
+         delay = atoi(optarg);
+         break;
+      default:
+         printf("Parm error: Invalid argument: -%c\n", ch);
+         printf("   Do: \"%s -h\" for help\n", argv[0]);
+         return(0);
+         
+      }
+   }
+   
+   if (argc - optind != 3) {
+      printf("Parm error: Need to specify <ip address> <from_file> <to_file>\n");
+      printf("   Do: \"%s -h\" for help\n", argv[0]);
+      return(0);
+   }
+
+   ipaddr = argv[optind++];
+   f_from = argv[optind++];
+   f_to   = argv[optind];
+   
+   rtv = get_rtv_device_struct(ipaddr, &new_entry);
+   if ( new_entry ) {
+      printf("\nYou need to get device info first.\n");
+      return(0);
+   }
+
+   rc = rtv_get_file_info( &(rtv->device), f_from, &fileinfo );
+   if ( rc != 0 ) {
+      printf("Error getting info for file: %s:%s\n", ipaddr, f_from);
+      return(0);
+   }
+   data.fullsize = fileinfo.size;
+   filesize_kb   = fileinfo.size_k;   
+   rtv_print_file_info(&fileinfo);
+   rtv_free_file_info(&fileinfo);
+
+   printf("\ngetfile: from=%s:%s to=%s   file_size(KB)=%u\n         options: pos=%u copy_size(KB)=%u delay=%lu(mS)\n\n", 
+          ipaddr, f_from, f_to, filesize_kb, pos_kb, getsize_kb, delay);
+   printf("getting file...\n\n");
+          
+   data.dstfile = bfopen(f_to, "w");
+   if (!data.dstfile) {
+      printf("Error: failed to open dstfile: %s: %d=>%s", f_to, errno, strerror(errno));
+      return(0);;
+   }
+   
+   pos64     = pos_kb * 1024;
+   getsize64 = getsize_kb *1024;
+   status = rtv_read_file(&(rtv->device), f_from, pos64, getsize64, 32, delay, hfs_rf_callback, &data);
+   
+   if (status != 0) {
+      printf("\nError: rtv_read_file: rc=%ld\n\n", status);
+   }
+   else { 
+      printf("\ndone.\n\n"); 
+   }
+   return(0);;
+}
+
 cmdb_t cmd_list[] = {
-   {"setdbgmask", ciSetDbgLevel,   0, MAX_PARMS, "set the debug trace mask"   },
-   {"devinfo",    ciGetDeviceInfo, 0, MAX_PARMS, "get RTV device information" },
-   {"guide",      ciGetGuide,      0, MAX_PARMS, "get RTV guide"              },
-   {"free",       ciFree,          0, MAX_PARMS, "free rtv data struct"       },
-   {"fs",         ciHttpFs,        0, MAX_PARMS, "http filesystem cmds"       },
-   {"crypttest",  ciCryptTest,     0, MAX_PARMS, "Test encryption routines"   },
-   {"clitestfxn", ciCmdTestFxn,    0, MAX_PARMS, "test parameter parsing"     },
-   {"",           NULL,            0, 0,         ""                           },
+   {"sdm",        ciSetDbgLevel,     0, MAX_PARMS, "set the debug trace mask"         },
+   {"di",         ciGetDeviceInfo,   0, MAX_PARMS, "get RTV device information"       },
+   {"guide",      ciGetGuide,        0, MAX_PARMS, "get RTV guide"                    },
+   {"free",       ciFree,            0, MAX_PARMS, "free rtv data struct"             },
+   {"fsvi",       ciHttpFsVolinfo,   0, MAX_PARMS, "http filesystem: get volume info" },
+   {"fsstat",     ciHttpFsStatus,    0, MAX_PARMS, "http filesystem: get file status" },
+   {"fsls",       ciHttpFsListFiles, 0, MAX_PARMS, "http filesystem: list directory"  },
+   {"fsget",      ciHttpFsGetFile,   0, MAX_PARMS, "http filesystem: get file"        },
+   {"crypttest",  ciCryptTest,       0, MAX_PARMS, "Test encryption routines"         },
+   {"clitestfxn", ciCmdTestFxn,      0, MAX_PARMS, "test parameter parsing"           },
+   {"",           NULL,              0, 0,         ""                                 },
 };
 
 

@@ -27,6 +27,7 @@ typedef unsigned char      __u8;
 typedef unsigned short     __u16;
 typedef unsigned long      __u32;
 typedef unsigned long long __u64;
+typedef signed   long long __s64;
 
 //+****************************************
 // RTV Device Information structure
@@ -124,9 +125,49 @@ typedef struct rtv_device_t
 } rtv_device_t;
 
 
+//+****************************************
+// RTV Filesystem types/ structures
+//+****************************************
+
+typedef enum rtv_filesystype_t 
+{
+   RTV_FS_DIRECTORY = 'd',
+   RTV_FS_FILE      = 'f',
+   RTV_FS_UNKNOWN   = '?'
+} rtv_filesystype_t;
+
+typedef struct rtv_fs_file_t
+{
+   char              *name;
+   rtv_filesystype_t  type;
+   __u64              size;
+   __u64              time;
+   __u32              size_k;
+   char              *time_str;
+} rtv_fs_file_t;
+
+typedef struct rtv_fs_filelist_t
+{
+   char              *pathname;
+   unsigned int       num_files;
+   rtv_fs_file_t     *files;
+} rtv_fs_filelist_t;
+
+typedef struct rtv_fs_volume_t
+{
+   char      *name;
+   __u64      size;
+   __u32      size_k;
+   __u64      used;
+   __u32      used_k;
+} rtv_fs_volume_t;
+
+
 //+************************************************************************
 //+**************************   RTV API's *********************************
 //+************************************************************************
+extern char *rtv_format_time(__u64 ttk); 
+
 extern void   rtv_set_dbgmask(__u32 mask);
 extern __u32  rtv_get_dbgmask(void);
 extern int    rtv_crypt_test(void);
@@ -144,9 +185,31 @@ extern void rtv_print_show(const rtv_show_export_t *show, int num);
 extern void rtv_print_guide(const rtv_guide_export_t *guide); 
 extern void rtv_free_guide(rtv_guide_export_t *guide); 
 
+extern int  rtv_get_volinfo( const rtv_device_info_t  *device, const char *name, rtv_fs_volume_t **volinfo );
+extern void rtv_free_volinfo(rtv_fs_volume_t **volinfo); 
+extern void rtv_print_volinfo(const rtv_fs_volume_t *volinfo); 
+
+extern int  rtv_get_file_info( const rtv_device_info_t  *device, const char *name,  rtv_fs_file_t *fileinfo  );
+extern void rtv_free_file_info(rtv_fs_file_t *fileinfo); 
+extern void rtv_print_file_info(const rtv_fs_file_t *fileinfo); 
+
+extern int  rtv_get_filelist( const rtv_device_info_t  *device, const char *name, int details, rtv_fs_filelist_t **filelist );
+extern void rtv_free_file_list( rtv_fs_filelist_t **filelist ); 
+extern void rtv_print_file_list(const rtv_fs_filelist_t *filelist, int detailed);
+
+extern __u32  rtv_read_file( const rtv_device_info_t *device, 
+                             const char              *filename, 
+                             __u64                    pos,        //fileposition
+                             __u64                    size,       //amount of file to read ( 0 reads all of file )
+                             unsigned int             chunk_sz,   //chunksize to return data in.
+                             unsigned int             ms_delay,   //mS delay between reads
+                             void                     (*callback_fxn)(unsigned char *, size_t, void *),
+                             void                    *callback_data                                     ); 
+
 // TODO: Following 2 api's need to be abstracted before being exported.
 //
 extern unsigned long hfs_do_simple(char **presult, const rtv_device_info_t *device, const char * command, ...);
+
 extern unsigned long hfs_do_chunked(void (*fn)(unsigned char *, size_t, void *),
                                     void *v,
                                     const rtv_device_info_t *device,

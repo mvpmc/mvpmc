@@ -16,15 +16,14 @@
 #ifndef BIGFILE_H
 #define BIGFILE_H
 
-#include "rtv.h"
 #include <stdio.h>
 
 struct big_file;
 typedef struct big_file BIGFILE;
 BIGFILE  *bfopen(const char *filename, const char *mode);
 BIGFILE  *bfreopen(FILE *fp);
-int       bfseek(BIGFILE *stream, s64 offset, int whence);
-u64       bftell(BIGFILE *stream);
+int       bfseek(BIGFILE *stream, __s64 offset, int whence);
+__u64     bftell(BIGFILE *stream);
 size_t    bfread(void *ptr, size_t size, size_t nmemb, BIGFILE *stream);
 size_t    bfwrite(const void *ptr, size_t size, size_t nmemb, BIGFILE *stream);
 int       bfclose(BIGFILE *stream);

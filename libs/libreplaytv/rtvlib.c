@@ -13,17 +13,36 @@
  *    GNU General Public License for more details.
  */
 
+#include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <time.h>
 #include "rtv.h"
 #include "rtvlib.h"
 
 
-void rtv_set_dbgmask(u32 mask)
+void rtv_set_dbgmask(__u32 mask)
 {
    rtv_debug = mask;
 }
-u32 rtv_get_dbgmask(void)
+__u32 rtv_get_dbgmask(void)
 {
    return(rtv_debug);
+}
+
+char *rtv_format_time(__u64 ttk) 
+{
+   char      *results;   
+   time_t     tt;
+   int        msec;
+   struct tm  tm_st;
+
+   results = malloc(256);
+   tt      = ttk / 1000;
+   msec    = ttk % 1000;
+   localtime_r(&tt, &tm_st);
+  
+   strftime(results, 255, "%Y-%m-%d %H:%M:%S", &tm_st);   
+//   sprintf(results + 19, ".%03d", msec);
+   return results;
 }

@@ -61,4 +61,38 @@ void hex_dump(char * tag, unsigned char * buf, size_t sz)
     }
 }
 
+int split_lines(char * src, char *** pdst)
+{
+    int num_lines, i;
+    char * p;
+    char ** dst;
+
+    num_lines = 0;
+    p = src;
+    while (p) {
+        p = strchr(p, '\n');
+        if (p) {
+            p++;
+            num_lines++;
+        }
+    }
+
+    dst = malloc((num_lines + 1) * sizeof(char *));
+    dst[0] = src;
+    p = src;
+    i = 1;
+    while (p) {
+        p = strchr(p, '\n');
+        if (p) {
+            *p = '\0';
+            p++;
+            dst[i] = p;
+            i++;
+        }
+    }
+
+    *pdst = dst;
+
+    return num_lines;
+}
 

@@ -6,7 +6,7 @@ General
 -------
 This is replaytvlib, a C library for communicating with ReplayTV 4XXX & 5XXX series 
 PVR's. i.e. obtaining show guide information, streaming video, etc...
-It is based on the replaypc-0.4.0 source code. http://replaypc.sourceforge.net/
+Much of it is based on the replaypc-0.4.0 source code. http://replaypc.sourceforge.net/
 Where replaypc is a commandline driven toolset, replaytvlib is intended to be a library
 which is linked by applications desiring to communicate with ReplayTV devices.
 The initial user of replaytvlib is MediaMVP. http://mvpmc.sourceforge.net/
@@ -58,6 +58,11 @@ Status
 - api's for setting/getting library debug flags.
 - raw httpfs access functions exported. (Need create targeted api's and quit exporting these)
 - rtv_shell debug executable fully functional
+09/28/2004:
+-Added httpfs api's to get dir listings, get file status, get volume info.
+-Added api for reading a httpfs file.
+-Added rtv_shell debug command 'fsget' to copy a httpfs file to local disk.
+-Added rtv_shell commands to get volume info, get file status, & list a directory
 
 Library TODO
 ------------
@@ -66,13 +71,10 @@ Library TODO
 -Added ability & api to re-direct RTV_PRT statements to a file.
 -Finish 5K Guide parsing and string formatting routines.
 -Add 4K Guide parsing
--Figure out how to get DVArchive to send a 5K guide instead of an XML formatted guide.
- (I know this can be done because I've snooped DVArchive communicating w/ my RTV5K)
--Maybe remove the expat lib dependency. It's only used for rtv_get_device_info() response 
- parsing.
+-Get DVArchive to send a 5K guide instead of an XML formatted guide.
+ (Need to implement ssdp. DVArchive thinks it is talking to another DVArchive)
+-Remove the expat lib dependency. It's only used for rtv_get_device_info() response parsing.
 -Cleanup error checking. Current code is inconsistent. Can hang under some conditions, etc...
--Create httpfs api's. rtv_fsget_dir_list(), rtv_fsget_vol_info(), rtv_fsget_filestat().
--Get copying a file from replayTV to local or NFS working.
 -Add rtv_get_device_info() check to compare replaytv device's time to application platform's
  time. Spew error message if greater than 30 second difference.
 -Add replay unit discovery (SSDP). i.e. Autodiscover replaytv devices instead of passing 
@@ -82,6 +84,9 @@ Library TODO
  around the show by timestamp.
 -Add commercial skip support.
  
+09/28/2004:DONE: -Create httpfs api's. rtv_fsget_dir_list(), rtv_fsget_vol_info(), rtv_fsget_filestat().
+09/28/2004:DONE: -Get copying a file from replayTV to local or NFS working.
+
 mvpmv TODO
 ----------
 -Add support for multiple replaytv devices
@@ -90,13 +95,4 @@ mvpmv TODO
  date/time, etc...
 -Add commandline option for setting library debug flags and re-dirrecting library 
  RTV_PRT statements to a file.
-
-
-
-
-
-
-
-
-
 

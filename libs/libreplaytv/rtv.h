@@ -54,9 +54,11 @@ typedef          __int64   s64;
 #endif
 
 extern void hex_dump(char * tag, unsigned char * buf, unsigned int sz);
+extern int  split_lines(char * src, char *** pdst);
+
+
 //+*************************************************************************************************
 
-// JBH: why is this needed???
 #ifdef __APPLE__
 #define U64F "q"
 #else

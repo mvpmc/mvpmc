@@ -268,6 +268,7 @@ static void ci_output_thread(cmdb_t cmd_list[], char *hello_msg, char *prompt)
    printf("  %s\n", hello_msg);
    printf("  %d subcommands bound\n", cmdmax);
    printf("  Enter \"help\" for help\n");
+   printf("  Enter \"<command> -h\" for detailed command help\n");
    printf("  <CNTL>-\\ or <CNTL>-C Exits\n");
    printf("*************************************\n\n");
    printf("%s", prompt);
