@@ -286,7 +286,8 @@ add_osd_widget(mvp_widget_t *widget, int type, int visible,
 {
 	int i = 0;
 
-	while (osd_widgets[i].widget != NULL)
+	while ((osd_widgets[i].widget != NULL) &&
+	       (osd_widgets[i].type != type))
 		i++;
 
 	osd_widgets[i].type = type;
