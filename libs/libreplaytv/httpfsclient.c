@@ -29,6 +29,11 @@
 static int map_httpfs_status_to_rc(unsigned long status)
 {
    int rc;
+
+   // JBH: Fixme: codes should be hex not dec.
+   // Attempting to get volume info for / returns code 8082000a
+   //
+
    //
    // returncodes: 
    // 80820005 - No such file 
