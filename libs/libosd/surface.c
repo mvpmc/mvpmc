@@ -36,6 +36,29 @@
 #define PRINTF(x...)
 #endif
 
+static int full_width = 720, full_height = 480;
+
+void
+osd_set_surface_size(int w, int h)
+{
+	full_width = w;
+	full_height = h;
+}
+
+int
+osd_get_surface_size(osd_surface_t *surface, int *w, int *h)
+{
+	if (surface == NULL)
+		return -1;
+
+	if (w)
+		*w = surface->sfc.width;
+	if (h)
+		*h = surface->sfc.height;
+
+	return 0;
+}
+
 /*
  * osd_create_surface() - create a drawing surface
  */
@@ -44,6 +67,11 @@ osd_create_surface(int w, int h)
 {
 	osd_surface_t *surface;
 	int ret, num = 0;
+
+	if (w == -1)
+		w = full_width;
+	if (h == -1)
+		h = full_height;
 
 	PRINTF("%s(): stbgfx %d\n", __FUNCTION__, stbgfx);
 
@@ -97,12 +125,15 @@ osd_create_surface(int w, int h)
 
 	surface->display.num = num;
 	if ((ret=ioctl(stbgfx, GFX_FB_MOVE_DISPLAY, &surface->display)) != 0)
-		return NULL;
+		goto err;
 	PRINTF("Display width: %ld  height: %ld\n",
 	       surface->display.width, surface->display.height);
 
 	if ((ret=ioctl(stbgfx, GFX_FB_SET_DISPLAY, &surface->display)) != 0)
-		return NULL;
+		goto err;
+
+	PRINTF("surface 0x%.8x created of size %d x %d   [%d]\n",
+	       surface, w, h, surface->map.map[0].size);
 
 	return surface;
 

@@ -30,6 +30,8 @@ typedef struct osd_surface_s osd_surface_t;
 extern osd_surface_t *osd_create_surface(int w, int h);
 extern int osd_destroy_surface(osd_surface_t *surface);
 extern void osd_display_surface(osd_surface_t *surface);
+extern int osd_get_surface_size(osd_surface_t *surface, int *w, int *h);
+extern int osd_set_surface_size(int w, int h);
 
 /*
  * drawing primitives

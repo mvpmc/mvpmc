@@ -86,28 +86,28 @@ gfx_init(void)
 	}
 
 	for (i=0; i<256; i++) {
-		conv_UB[i] = 0.62 * (double)i;
+		conv_UB[i] = 0.5 * (double)i;
 		conv_BU[i] = 1.732 * (i - 128);
 	}
 	for (i=0; i<256; i++) {
-		conv_UG[i] = -0.52 * (double)i;
+		conv_UG[i] = -0.33126 * (double)i;
 		conv_GU[i] = -0.338 * (i - 128);
 	}
 	for (i=0; i<256; i++) {
-		conv_UR[i] = 0.10 * (double)i;
+		conv_UR[i] = -0.16874 * (double)i;
 		conv_RU[i] = 0;
 	}
 
 	for (i=0; i<256; i++) {
-		conv_VB[i] = -0.15 * (double)i;
+		conv_VB[i] = -0.08131 * (double)i;
 		conv_BV[i] = 0;
 	}
 	for (i=0; i<256; i++) {
-		conv_VG[i] = -0.29 * (double)i;
+		conv_VG[i] = -0.41869 * (double)i;
 		conv_GV[i] = -0.698 * (i - 128);
 	}
 	for (i=0; i<256; i++) {
-		conv_VR[i] = 0.44 * (double)i;
+		conv_VR[i] = 0.5 * (double)i;
 		conv_RV[i] = 1.370 * ((double)i - 128);
 	}
 }
