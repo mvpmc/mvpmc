@@ -405,6 +405,7 @@ hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 
 			printf("starting mythtv file transfer\n");
 			demux_reset(handle);
+			demux_attr_reset(handle);
 			if (si.rows == 480)
 				av_move(475, si.rows-60, 4);
 			else

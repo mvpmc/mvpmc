@@ -31,6 +31,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <string.h>
+#include <assert.h>
 
 #include <mvp_widget.h>
 #include <mvp_av.h>
@@ -43,14 +44,17 @@
 
 static int fd = -1;
 
-#define BSIZE	(1024*32)
+#define BSIZE		(1024*32)
+#define AC3_SIZE	(1024*512)
 
 a52_state_t *a52_state;
 static int disable_adjust=0;
 static int disable_dynrng=0;
 static float gain = 1;
-static char *ac3_buf, *ac3_end;
-static int ac3_size;
+static char ac3_buf[AC3_SIZE];
+static volatile char *ac3_end;
+static int ac3_size = AC3_SIZE;
+static volatile int ac3_head = 0, ac3_tail = AC3_SIZE - 1;
 
 typedef enum {
 	AUDIO_FILE_UNKNOWN,
@@ -74,25 +78,30 @@ static int chunk_size = 0;
 
 #define min(X, Y)  ((X) < (Y) ? (X) : (Y))
 
-static inline uint16_t convert (int32_t j)
-{ int sample;
+static inline uint16_t
+convert(int32_t j)
+{
+	int sample;
 
-  j >>= 15;
-  sample=((j > 32767) ? 32767 : ((j < -32768) ? -32768 : j));
+	j >>= 15;
+	sample = ((j > 32767) ? 32767 : ((j < -32768) ? -32768 : j));
 
-  if(sample >= (1 << 15)) sample -= (1 << 16);
-  sample += (1<<15);
-  return(sample);
+	if (sample >= (1 << 15))
+		sample -= (1 << 16);
+	sample += (1<<15);
+
+	return(sample);
 }
 
-static void ao_convert(sample_t* samples, uint16_t *out, int flags)
+static void
+ao_convert(sample_t* samples, uint16_t *out, int flags)
 {
-    int i;
+	int i;
     
-    for (i=0;i<256;i++) {
-        out[2*i] = convert (samples[i]);
-        out[2*i+1] = convert (samples[i+256]);
-    }
+	for (i=0;i<256;i++) {
+		out[2*i] = convert (samples[i]);
+		out[2*i+1] = convert (samples[i+256]);
+	}
 }
 
 static int
@@ -347,45 +356,127 @@ audio_clear(void)
 	av_reset();
 }
 
-static void
-buffer_ac3(uint16_t *buf, int size)
+void
+empty_ac3(void)
 {
-	memcpy(ac3_end, buf, size);
-	ac3_end += size;
+	ac3_end = ac3_buf;
+	ac3_head = 0;
+	ac3_tail = ac3_size - 1;
+}
+
+static inline int
+ac3_add(uint16_t *buf, int len)
+{
+	unsigned int end;
+	int size1, size2;
+
+	if (len <= 0)
+		return 0;
+
+	assert(len < ac3_size);
+	assert(ac3_head != ac3_tail);
+
+	end = (ac3_head + len + 6) % ac3_size;
+
+	if (ac3_head > ac3_tail) {
+		if ((end < ac3_head) && (end > ac3_tail)) {
+			goto full;
+		}
+	} else {
+		if ((end > ac3_tail) || (end < ac3_head)) {
+			goto full;
+		}
+	}
+
+	end = (ac3_head + len) % ac3_size;
+
+	if (end > ac3_head) {
+		size1 = len;
+		size2 = 0;
+	} else {
+		size1 = ac3_size - ac3_head;
+		size2 = end;
+	}
+
+	assert((size1 + size2) == len);
+
+	memcpy(ac3_buf+ac3_head, buf, size1);
+	if (size2)
+		memcpy(ac3_buf, buf+size1, size2);
+
+	ac3_head = end;
+
+	assert(len == (size1 + size2));
+
+	return (size1 + size2);
+
+ full:
+	printf("AC3 free bytes %d\n", ac3_freespace());
+	printf("AC3 abort: len %d end %d head %d tail %d size %d\n",
+	       len, end, ac3_head, ac3_tail, ac3_size);
+	abort();
+
+	return 0;
 }
 
 static int
-flush_ac3(void)
+ac3_freespace(void)
 {
-	int n, len;
-	static int total = 0;
+	int size1, size2;
 
-	if (ac3_end == ac3_buf)
-		return 0;
-
-	len = ac3_end - ac3_buf;
-	n = write(fd_audio, ac3_buf, len);
-	if (n > 0)
-		total += n;
-
-	if (len == n) {
-#if 0
-		printf("AC3: flushed %d bytes (total %d)\n", len, total);
-#endif
-		ac3_end = ac3_buf;
-		return 0;
+	if (ac3_head >= ac3_tail) {
+		size1 = ac3_head - ac3_tail - 1;
+		size2 = 0;
 	} else {
-#if 0
-		printf("AC3: wrote %d of %d bytes\n", n, len);
-#endif
+		size1 = ac3_size - ac3_tail - 1;
+		size2 = ac3_head;
 	}
 
-	if (n > 0) {
-		memmove(ac3_buf, ac3_buf+n, len-n);
-		ac3_end -= n;
+	return (ac3_size - (size1 + size2));
+}
+
+static int
+ac3_flush(void)
+{
+	int size1, size2;
+	int n;
+
+	if (ac3_head >= ac3_tail) {
+		size1 = ac3_head - ac3_tail - 1;
+		size2 = 0;
+	} else {
+		size1 = ac3_size - ac3_tail - 1;
+		size2 = ac3_head;
 	}
 
-	return -1;
+	if ((size1 + size2) == 0)
+		goto empty;
+
+	if (size1 > 0) {
+		n = write(fd_audio, ac3_buf+ac3_tail+1, size1);
+		if (n < 0)
+			return 0;
+		if (n != size1) {
+			size1 = n;
+			size2 = 0;
+			goto out;
+		}
+	}
+	if (size2 > 0) {
+		n = write(fd_audio, ac3_buf, size2);
+		if (n < 0)
+			size2 = 0;
+		else
+			size2 = n;
+	}
+
+ out:
+	ac3_tail = (ac3_tail + size1 + size2) % ac3_size;
+
+	return size1 + size2;
+
+ empty:
+	return 0;
 }
 
 int a52_decode_data (uint8_t * start, uint8_t * end, int reset)
@@ -404,25 +495,26 @@ int a52_decode_data (uint8_t * start, uint8_t * end, int reset)
 	static int flags;
 	static int bit_rate;
 	static int len;
+	int n, total;
 
-	if (ac3_buf == NULL) {
-                ac3_size = 1024*256;
-                ac3_buf = malloc(ac3_size);
-                ac3_end = ac3_buf;
-	}
-
-	flush_ac3();
+	ac3_flush();
 
 	if (start == NULL)
 		return 0;
 
-	if ((ac3_end - ac3_buf) > (1024*128)) {
-#if 0
-		printf("AC3: buffer full (%d bytes)\n", (ac3_end - ac3_buf));
-#endif
+	/*
+	 * Make sure there is enough room in the buffer for whatever we
+	 * want to put into it.
+	 *
+	 * XXX: This code needs to be rewritten so we can add partial
+	 *      buffers and resume later when there is more room.
+	 */
+	total = end - start;
+	if ((n=ac3_freespace()) < (total*14)) {
 		return 1;
 	}
 
+	n = 0;
 	while (1) {
 		len = end - start;
 		if (!len)
@@ -439,9 +531,6 @@ int a52_decode_data (uint8_t * start, uint8_t * end, int reset)
 				length = a52_syncinfo (buf, &flags,
 						       &sample_rate,
 						       &bit_rate);
-#if 0
-				printf("a52 flags %d 0x%.8x\n", flags, flags);
-#endif
 				if (!length) {
 #if 0
 					fprintf (stderr, "skip\n");
@@ -476,7 +565,7 @@ int a52_decode_data (uint8_t * start, uint8_t * end, int reset)
 						goto error;
 					ao_convert (a52_samples (a52_state),
 						    out, flags);
-					buffer_ac3(out, sizeof(uint16_t)*256*2);
+					n += ac3_add(out, sizeof(uint16_t)*256*2);
 				}
 				bufptr = buf;
 				bufpos = buf + 7;
@@ -489,17 +578,7 @@ int a52_decode_data (uint8_t * start, uint8_t * end, int reset)
 		}
 	}
 
-	flush_ac3();
-
-	/*
-	 * XXX: prevent the buffer from overfilling
-	 */
-	if ((ac3_end - ac3_buf) > (1024*128)) {
-#if 0
-		printf("AC3: buffer full (%d bytes)\n", (ac3_end - ac3_buf));
-#endif
-		return -1;
-	}
+	ac3_flush();
 
 	return 0;
 }

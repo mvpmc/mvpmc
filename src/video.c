@@ -50,7 +50,7 @@
 static char inbuf[BSIZE];
 
 static pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
-static pthread_cond_t video_cond = PTHREAD_COND_INITIALIZER;
+pthread_cond_t video_cond = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 static int fd = -1;
@@ -68,7 +68,7 @@ demux_handle_t *handle;
 
 static stream_type_t audio_output = STREAM_MPEG;
 
-static unsigned char ac3buf[BSIZE];
+static unsigned char ac3buf[1024*32];
 static volatile int ac3len = 0, ac3more = 0;
 
 static volatile int video_reopen = 0;
@@ -92,11 +92,70 @@ video_show_widgets(void)
 	mvpw_show(file_browser);
 }
 
+static void
+video_subtitle_display(mvp_widget_t *widget)
+{
+	spu_item_t *spu;
+
+	spu = demux_spu_get_next(handle);
+
+	if (spu) {
+		char *image;
+
+		if ((image=demux_spu_decompress(handle, spu)) != NULL) {
+			mvpw_bitmap_attr_t bitmap;
+
+			if (spu_widget) {
+				mvpw_hide(spu_widget);
+				mvpw_expose(root);
+				mvpw_destroy(spu_widget);
+			}
+
+			spu_widget = mvpw_create_bitmap(NULL,
+							spu->x, spu->y,
+							spu->w, spu->h,
+							0, 0, 0);
+
+			bitmap.image = image;
+
+			/*
+			 * XXX: we really should wait until the proper
+			 *      moment to display the subtitle
+			 */
+			if (spu_widget) {
+				mvpw_set_bitmap(spu_widget, &bitmap);
+				mvpw_lower(spu_widget);
+				mvpw_show(spu_widget);
+				mvpw_expose(spu_widget);
+			}
+
+			free(image);
+		} else {
+			printf("fb: got subtitle, decompress failed\n");
+		}
+
+		free(spu);
+	}
+}
+
+void
+video_subtitle_check(mvp_widget_t *widget)
+{
+	if (demux_spu_get_id(handle) >= 0)
+		mvpw_set_timer(root, video_subtitle_display, 250);
+	else
+		mvpw_set_timer(root, video_subtitle_check, 1000);
+}
+
 void
 video_play(mvp_widget_t *widget)
 {
 	mvpw_set_idle(NULL);
-	mvpw_set_timer(root, NULL, 0);
+
+	if (demux_spu_get_id(handle) < 0)
+		mvpw_set_timer(root, video_subtitle_check, 1000);
+	else
+		mvpw_set_timer(root, video_subtitle_display, 250);
 
 	video_reopen = 1;
 	video_playing = 1;
@@ -258,6 +317,13 @@ video_callback(mvp_widget_t *widget, char key)
 			av_move(475, si.rows-60, 4);
 		else
 			av_move(475, si.rows-113, 4);
+		if (spu_widget) {
+			mvpw_hide(spu_widget);
+			mvpw_expose(root);
+			mvpw_destroy(spu_widget);
+			spu_widget = NULL;
+			mvpw_set_timer(root, NULL, 0);
+		}
 		mvpw_hide(osd_widget);
 		mvpw_hide(mute_widget);
 		mvpw_hide(pause_widget);
@@ -467,6 +533,31 @@ add_video_streams(mvp_widget_t *widget, mvpw_menu_item_attr_t *item_attr)
 }
 
 void
+add_subtitle_streams(mvp_widget_t *widget, mvpw_menu_item_attr_t *item_attr)
+{
+	demux_attr_t *attr;
+	int i, current;
+	char buf[32];
+
+	mvpw_clear_menu(widget);
+
+	attr = demux_get_attr(handle);
+
+	current = demux_spu_get_id(handle);
+
+	for (i=0; i<32; i++) {
+		if (attr->spu[i].bytes > 0) {
+			snprintf(buf, sizeof(buf), "Stream ID 0x%x", i);
+			mvpw_add_menu_item(widget, buf, (void*)i, item_attr);
+			if (current == i)
+				mvpw_check_menu_item(widget, (void*)i, 1);
+			else
+				mvpw_check_menu_item(widget, (void*)i, 0);
+		}
+	}
+}
+
+void
 audio_switch_stream(mvp_widget_t *widget, int stream)
 {
 	demux_attr_t *attr;
@@ -522,6 +613,25 @@ video_switch_stream(mvp_widget_t *widget, int stream)
 		mvpw_check_menu_item(widget, (void*)stream, 1);
 
 		printf("switched from video stream 0x%x to 0x%x\n",
+		       old, stream);
+	}
+}
+
+void
+subtitle_switch_stream(mvp_widget_t *widget, int stream)
+{
+	demux_attr_t *attr;
+	int old;
+
+	old = demux_spu_get_id(handle);
+
+	demux_spu_set_id(handle, stream);
+
+	if (old >= 0)
+		mvpw_check_menu_item(widget, (void*)old, 0);
+	if (old != stream) {
+		mvpw_check_menu_item(widget, (void*)stream, 1);
+		printf("switched from subtitle stream 0x%x to 0x%x\n",
 		       old, stream);
 	}
 }
@@ -640,6 +750,7 @@ open_file(void)
 	av_play();
 
 	demux_reset(handle);
+	demux_attr_reset(handle);
 	demux_seek(handle);
 	if (si.rows == 480)
 		av_move(475, si.rows-60, 4);
@@ -674,9 +785,16 @@ video_read_start(void *arg)
 
 	while (1) {
 		while (!video_playing) {
-			demux_reset(handle);
-			demux_seek(handle);
-			printf("mpeg read thread sleeping...\n");
+			if (!running_replaytv) {
+				demux_reset(handle);
+				demux_seek(handle);
+				printf("mpeg read thread sleeping...\n");
+			} else {
+				/*
+				 * avoid using too much cpu when not needed
+				 */
+				sleep(1);
+			}
 			pthread_cond_wait(&video_cond, &mutex);
 		}
 
@@ -730,7 +848,6 @@ video_read_start(void *arg)
 			audio_type = attr->audio.type;
 			switch (audio_type) {
 			case AUDIO_MODE_AC3:
-				pthread_cond_signal(&cond);
 			case AUDIO_MODE_PCM:
 				audio_output = AV_AUDIO_PCM;
 				printf("switch to PCM audio output device\n");
@@ -777,7 +894,9 @@ video_write_start(void *arg)
 	pthread_cond_wait(&video_cond, &mutex);
 
 	while (1) {
-		if (video_playing &&
+		while (seeking || jumping)
+			pthread_cond_wait(&video_cond, &mutex);
+		if ((video_playing || running_replaytv) &&
 		    (len=demux_write_video(handle, fd_video)) > 0)
 			pthread_cond_broadcast(&video_cond);
 		else
@@ -794,6 +913,8 @@ audio_write_start(void *arg)
 	int len;
 	int pcm_decoded = 0;
 	sigset_t sigs;
+	demux_attr_t *attr;
+	video_info_t *vi;
 
 	signal(SIGURG, sighandler);
 	sigemptyset(&sigs);
@@ -806,8 +927,35 @@ audio_write_start(void *arg)
 	pthread_cond_wait(&video_cond, &mutex);
 
 	while (1) {
-		while (!video_playing)
+		while (seeking || jumping)
 			pthread_cond_wait(&video_cond, &mutex);
+
+		while (!video_playing && !running_replaytv) {
+			pcm_decoded = 0;
+			empty_ac3();
+			pthread_cond_wait(&video_cond, &mutex);
+		}
+
+		if (running_replaytv) {
+			attr = demux_get_attr(handle);
+			vi = &attr->video.stats.info.video;
+			if (attr->audio.type != audio_type) {
+				audio_type = attr->audio.type;
+				switch (audio_type) {
+				case AUDIO_MODE_AC3:
+				case AUDIO_MODE_PCM:
+					audio_output = AV_AUDIO_PCM;
+					printf("switch to PCM audio\n");
+					break;
+				default:
+					av_set_audio_type(audio_type);
+					audio_output = AV_AUDIO_MPEG;
+					printf("switch to MPEG audio\n");
+					break;
+				}
+				av_set_audio_output(audio_output);
+			}
+		}
 
 		switch (audio_type) {
 		case AUDIO_MODE_MPEG1_PES:
@@ -828,10 +976,16 @@ audio_write_start(void *arg)
 			if (ac3more == -1)
 				ac3more = a52_decode_data(NULL, NULL,
 							  pcm_decoded);
-			if (ac3more == 1)
+			if (ac3more == 1) {
 				ac3more = a52_decode_data(ac3buf,
 							  ac3buf + ac3len,
 							  pcm_decoded);
+				if (ac3more == 1) {
+					pthread_cond_wait(&video_cond, &mutex);
+					break;
+				}
+			}
+
 			if (ac3more == 0) {
 				ac3len = demux_get_audio(handle, ac3buf,
 							 sizeof(ac3buf));

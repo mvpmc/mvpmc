@@ -199,6 +199,7 @@ mvp_widget_t *offset_widget;
 mvp_widget_t *offset_bar;
 mvp_widget_t *bps_widget;
 mvp_widget_t *time_widget;
+mvp_widget_t *spu_widget;
 
 mvp_widget_t *shows_widget;
 mvp_widget_t *episodes_widget;
@@ -206,6 +207,7 @@ mvp_widget_t *episodes_widget;
 mvp_widget_t *popup_menu;
 mvp_widget_t *audio_stream_menu;
 mvp_widget_t *video_stream_menu;
+mvp_widget_t *subtitle_stream_menu;
 mvp_widget_t *osd_menu;
 
 mvp_widget_t *mythtv_program_widget;
@@ -367,6 +369,13 @@ hide_widgets(void)
 	mvpw_hide(fb_image);
 	mvpw_hide(shows_widget);
 	mvpw_hide(episodes_widget);
+
+	if (spu_widget) {
+		mvpw_hide(spu_widget);
+		mvpw_expose(root);
+		mvpw_destroy(spu_widget);
+		spu_widget = NULL;
+	}
 }
 
 static void
@@ -537,6 +546,7 @@ popup_key_callback(mvp_widget_t *widget, char key)
 		mvpw_hide(popup_menu);
 		mvpw_hide(audio_stream_menu);
 		mvpw_hide(video_stream_menu);
+		mvpw_hide(subtitle_stream_menu);
 		mvpw_hide(osd_menu);
 		mvpw_focus(root);
 	}
@@ -548,6 +558,7 @@ popup_key_callback(mvp_widget_t *widget, char key)
 		} else {
 			mvpw_hide(audio_stream_menu);
 			mvpw_hide(video_stream_menu);
+			mvpw_hide(subtitle_stream_menu);
 			mvpw_hide(osd_menu);
 			mvpw_show(popup_menu);
 			mvpw_focus(popup_menu);
@@ -587,6 +598,12 @@ video_stream_select_callback(mvp_widget_t *widget, char *item, void *key)
 }
 
 static void
+subtitle_stream_select_callback(mvp_widget_t *widget, char *item, void *key)
+{
+	subtitle_switch_stream(widget, (int)key);
+}
+
+static void
 osd_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
 	osd_type_t type = (osd_type_t)key;
@@ -619,6 +636,10 @@ popup_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mvpw_focus(video_stream_menu);
 		break;
 	case MENU_SUBTITLES:
+		popup_item_attr.select = subtitle_stream_select_callback;
+		add_subtitle_streams(subtitle_stream_menu, &popup_item_attr);
+		mvpw_show(subtitle_stream_menu);
+		mvpw_focus(subtitle_stream_menu);
 		break;
 	case MENU_OSD:
 		mvpw_show(osd_menu);
@@ -1305,10 +1326,8 @@ popup_init(void)
 			   (void*)MENU_AUDIO_STREAM, &popup_item_attr);
 	mvpw_add_menu_item(popup_menu, "Video Streams",
 			   (void*)MENU_VIDEO_STREAM, &popup_item_attr);
-#if 0
 	mvpw_add_menu_item(popup_menu, "Subtitles",
 			   (void*)MENU_SUBTITLES, &popup_item_attr);
-#endif
 	mvpw_add_menu_item(popup_menu, "On Screen Display",
 			   (void*)MENU_OSD, &popup_item_attr);
 
@@ -1334,6 +1353,16 @@ popup_init(void)
 	mvpw_set_menu_title(video_stream_menu, "Video Streams");
 	mvpw_set_bg(video_stream_menu, bg);
 	mvpw_set_key(video_stream_menu, popup_key_callback);
+
+	/*
+	 * subtitle menu
+	 */
+	subtitle_stream_menu = mvpw_create_menu(NULL, x, y, w, h,
+						bg, mvpw_color_alpha(MVPW_BLACK, 0x80), 2);
+	mvpw_set_menu_attr(subtitle_stream_menu, &popup_attr);
+	mvpw_set_menu_title(subtitle_stream_menu, "Subtitles");
+	mvpw_set_bg(subtitle_stream_menu, bg);
+	mvpw_set_key(subtitle_stream_menu, popup_key_callback);
 
 	/*
 	 * osd menu

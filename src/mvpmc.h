@@ -58,6 +58,7 @@ extern mvp_widget_t *osd_widget;
 extern mvp_widget_t *offset_widget;
 extern mvp_widget_t *offset_bar;
 extern mvp_widget_t *bps_widget;
+extern mvp_widget_t *spu_widget;
 
 extern mvp_widget_t *episodes_widget;
 extern mvp_widget_t *shows_widget;
@@ -83,7 +84,7 @@ extern int fontid;
 extern mvpw_screen_info_t si;
 
 extern int running_mythtv;
-extern int running_replaytv;
+extern volatile int running_replaytv;
 
 extern int fd_audio, fd_video;
 
@@ -118,8 +119,10 @@ extern void *video_read_start(void*);
 extern void *video_write_start(void*);
 extern void *audio_write_start(void*);
 
-pthread_t video_write_thread;
-pthread_t audio_write_thread;
+extern pthread_t video_write_thread;
+extern pthread_t audio_write_thread;
+
+extern pthread_cond_t video_cond;
 
 extern void add_osd_widget(mvp_widget_t *widget, int type, int visible,
 			   void (*callback)(mvp_widget_t*));

@@ -136,6 +136,7 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 		if (is_video(item)) {
 			mvpw_hide(widget);
 			av_move(0, 0, 0);
+			video_subtitle_check(NULL);
 			mvpw_show(root);
 			mvpw_expose(root);
 			mvpw_focus(root);
