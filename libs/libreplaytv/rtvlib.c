@@ -22,18 +22,6 @@
 #include "rtv.h"
 #include "rtvlib.h"
 
-static int fprintf_flush(FILE *stream, const char *format, ...)
-{
-   int rc;
-   va_list ap;
-   va_start(ap, format);
-   rc = vfprintf(stream, format, ap);
-   va_end(ap);
-   fflush(stream);
-   return(rc);
-}
-
-
 void rtv_set_dbgmask(__u32 mask)
 {
    rtv_debug = mask;
@@ -63,38 +51,5 @@ char *rtv_format_time(__u64 ttk)
 int rtv_init_lib(void) 
 {
    log_fd    = stdout;
-   rtvlogfxn = fprintf;
    return(0);
-}
-
-int rtv_route_logs(char *filename)
-{
-   int   rc = 0;
-   FILE *tmpfd;
-
-   if ( (log_fd != NULL) && (log_fd != stdout) && (log_fd != stderr) ) {
-      fclose(log_fd);
-   }
-   if ( strcmp(filename, "stderr") == 0 ) {
-      log_fd    = stderr;
-      rtvlogfxn = fprintf;
-   }
-   else if ( strcmp(filename, "stdout") == 0 ) {
-      log_fd    = stdout;
-      rtvlogfxn = fprintf;
-   } 
-   else {
-      tmpfd = fopen(filename, "w");
-      if ( tmpfd == NULL ) {
-         rc = errno;
-         RTV_ERRLOG("Failed to open logfile, fopen: %s\n", filename);
-         RTV_ERRLOG("       errno=%d=>%s\n", rc, strerror(rc));
-      }
-      else {
-         RTV_PRT("Sending logs to: %s\n", filename);
-         rtvlogfxn = fprintf_flush;
-         log_fd    = tmpfd;
-      }
-   }
-   return(rc);
 }

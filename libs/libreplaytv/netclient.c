@@ -62,35 +62,43 @@ static void nc_fini(void)
 
 static void nc_dump(char * tag, unsigned char * buf, size_t sz)
 {
-    unsigned int rows, row, col, i, c;
+    unsigned int  rows, row, col, i, c;
+    char          tmpstr[512];
+    char         *strp = tmpstr;
+
     if (!nc_do_dump)
         return;
     RTV_PRT("rtv:NC DUMP: %s\n", tag);
     rows = (sz + 15)/16;
     for (row = 0; row < rows; row++) {
-        RTV_PRT("| ");
+        strp += sprintf(strp, "| ");
         for (col = 0; col < 16; col++) {
             i = row * 16 + col;
-            if (i < sz)
-                RTV_PRT("%02x", buf[i]);
-            else
-                RTV_PRT("  ");
-            if ((i & 3) == 3)
-                RTV_PRT(" ");
+            if (i < sz) {
+                strp += sprintf(strp, "%02x", buf[i]);
+            }
+            else {
+                strp += sprintf(strp, "  ");
+            }
+            if ((i & 3) == 3) {
+                strp += sprintf(strp, " ");
+            }
         }
-        RTV_PRT("  |  ");
+        strp += sprintf(strp, "  |  ");
         for (col = 0; col < 16; col++) {
             i = row * 16 + col;
             if (i < sz) {
                 c = buf[i];
-                RTV_PRT("%c", (c >= ' ' && c <= '~') ? c : '.');
+                strp += sprintf(strp, "%c", (c >= ' ' && c <= '~') ? c : '.');
             } else {
-                RTV_PRT(" ");
+                strp += sprintf(strp, " ");
             }
-            if ((i & 3) == 3)
-                RTV_PRT(" ");
+            if ((i & 3) == 3) {
+                strp += sprintf(strp, " ");
+            }
         }
-        RTV_PRT(" |\n");
+        RTV_PRT("%s |\n", tmpstr);
+        strp = tmpstr;
     }
 }
 

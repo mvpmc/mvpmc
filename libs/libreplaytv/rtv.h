@@ -13,6 +13,7 @@
  *    GNU General Public License for more details.
  */
 #include <stdio.h>
+#include <stdarg.h>
 
 #ifndef RTV_H
 #define RTV_H
@@ -74,13 +75,23 @@ struct mapping
 };
 
 //+********************************************************************
-// Debugging
+// Debugging/logging infrastructure
 //+********************************************************************
-typedef int (*rtvlogfxn_t)(FILE *, const char *, ...);
-extern rtvlogfxn_t rtvlogfxn; 
-extern FILE *log_fd;
-extern u32   rtv_debug;
+extern FILE         *log_fd;
+extern volatile u32  rtv_debug;
 
+extern void rtvVLog(const char *format, va_list ap);
+inline static void rtv_log(const char *format, ...)
+{
+	va_list ap;
+	va_start(ap, format);
+	rtvVLog(format, ap);
+	va_end(ap);
+}
+
+//+********************************************************************
+// Debugging/logging API's
+//+********************************************************************
 #define RTVLOG_INFO          (rtv_debug & 0x00000001)
 #define RTVLOG_DSCVR         (rtv_debug & 0x00000002)
 #define RTVLOG_GUIDE         (rtv_debug & 0x00000004)
@@ -90,7 +101,7 @@ extern u32   rtv_debug;
 #define RTVLOG_CMD           (rtv_debug & 0x00000040)
 #define RTVLOG_NETDUMP       (rtv_debug & 0x10000000)
 
-#define RTV_PRT(fmt, args...)  rtvlogfxn(log_fd, fmt, ## args)
+#define RTV_PRT(fmt, args...)  rtv_log(fmt, ## args)
 
 #define RTV_ERRLOG(fmt, args...) RTV_PRT("rtv:ERROR: " fmt, ## args)
 #define RTV_WARNLOG(fmt, args...) RTV_PRT("rtv:WARN: " fmt, ## args)

@@ -210,6 +210,9 @@ static int hfs_callback(unsigned char * buf, size_t len, void * vd)
     }
 
     rc = data->fn(buf_data_start, len, data->v);
+    if ( rc == 1 ) {
+       RTV_DBGLOG(RTVLOG_CMD, "%s: got abort_read rc from app callback\n", __FUNCTION__);    
+    }
     free(buf);
 
     if (data->msec_delay) {

@@ -201,6 +201,9 @@ void rtv_free_guide(rtv_guide_export_t *guide)
 
 void rtv_print_show(const rtv_show_export_t *show, int num) 
 {
+   char *tmpstr[512];
+   char *strp = tmpstr;
+
    if ( show != NULL ) {
       RTV_PRT("Show #%d:\n", num);
       RTV_PRT("  title:       %s\n", show->title);
@@ -212,18 +215,18 @@ void rtv_print_show(const rtv_show_export_t *show, int num)
       RTV_PRT("  producer:    %s\n", show->producer);
       RTV_PRT("  director:    %s\n", show->director);
 
-      RTV_PRT("  flags:      ");
-      if (show->flags.multipart)  RTV_PRT(" MPART"); 
-      if (show->flags.guaranteed) RTV_PRT(" GUAR"); 
-      if (show->flags.guide_id)   RTV_PRT(" GID"); 
-      if (show->flags.cc)         RTV_PRT(" CC"); 
-      if (show->flags.stereo)     RTV_PRT(" STEREO"); 
-      if (show->flags.repeat)     RTV_PRT(" REPEAT"); 
-      if (show->flags.sap)        RTV_PRT(" SAP"); 
-      if (show->flags.letterbox)  RTV_PRT(" LBOX"); 
-      if (show->flags.movie)      RTV_PRT(" MOVIE"); 
-      RTV_PRT("\n");
-
+      strp += sprintf(strp, "  flags:      ");
+      if (show->flags.multipart)  strp += sprintf(strp, " MPART"); 
+      if (show->flags.guaranteed) strp += sprintf(strp, " GUAR"); 
+      if (show->flags.guide_id)   strp += sprintf(strp, " GID"); 
+      if (show->flags.cc)         strp += sprintf(strp, " CC"); 
+      if (show->flags.stereo)     strp += sprintf(strp, " STEREO"); 
+      if (show->flags.repeat)     strp += sprintf(strp, " REPEAT"); 
+      if (show->flags.sap)        strp += sprintf(strp, " SAP"); 
+      if (show->flags.letterbox)  strp += sprintf(strp, " LBOX"); 
+      if (show->flags.movie)      strp += sprintf(strp, " MOVIE"); 
+      strp += sprintf(strp, "\n");
+      RTV_PRT("%s", tmpstr);
       RTV_PRT("  filename:    %s\n", show->file_name);
    }
    else {
