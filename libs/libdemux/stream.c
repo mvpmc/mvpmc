@@ -556,6 +556,9 @@ parse_spu_frame(demux_handle_t *handle, unsigned char *buf, int len)
 	if (id > 31)
 		return -1;
 
+	if (len <= 0)
+		return -1;
+
 	start = (buf[7] >> 1) | (buf[6] << 7) | ((buf[5] >> 1) << 14) |
 		(buf[4] << 22) | (((buf[3] >> 1) & 0x7) << 29);
 
@@ -591,10 +594,12 @@ parse_spu_frame(demux_handle_t *handle, unsigned char *buf, int len)
 		/* secondary or final frame */
 		if (handle->spu[id].size <
 		    (handle->spu[id].len + len - header)) {
-			PRINTF("too much data!  size %d new %d\n",
-			       handle->spu[id].size,
-			       handle->spu[id].len + len - header);
-			abort();
+			fprintf(stderr,
+				"libdemux: too much spu data! (%d < %d)\n",
+				handle->spu[id].size,
+				handle->spu[id].len + len - header);
+			handle->spu[id].size = 0;
+			return -1;
 		}
 		buf += header;
 		memcpy(handle->spu[id].buf+handle->spu[id].len,
@@ -691,14 +696,15 @@ parse_spu_frame(demux_handle_t *handle, unsigned char *buf, int len)
 			PRINTF("end command\n");
 			break;
 		default:
-			PRINTF("unknown spu command 0x%x\n", buf[cmd]);
+			fprintf(stderr, 
+				"unknown spu command 0x%x\n", buf[cmd]);
 			goto err;
 			break;
 		}
 	}
 
 	if ((w == 0) || (h == 0)) {
-		PRINTF("error in subpicture\n");
+		fprintf(stderr, "error in subpicture\n");
 		goto err;
 	}
 	

@@ -363,6 +363,19 @@ demux_flush(demux_handle_t *handle)
 }
 
 int
+demux_attr_reset(demux_handle_t *handle)
+{
+	int i;
+
+	for (i=0; i<SPU_MAX; i++) {
+		handle->attr.spu[i].bytes = 0;
+		handle->attr.spu[i].frames = 0;
+	}
+
+	return 0;
+}
+
+int
 demux_reset(demux_handle_t *handle)
 {
 	int i, j;
@@ -471,6 +484,12 @@ demux_spu_set_id(demux_handle_t *handle, int id)
 	}
 
 	return 0;
+}
+
+int
+demux_spu_get_id(demux_handle_t *handle)
+{
+	return handle->spu_current;
 }
 
 /*
