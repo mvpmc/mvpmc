@@ -79,6 +79,7 @@ volatile int mythtv_level = 0;
 static int show_count, episode_count;
 
 int running_mythtv = 0;
+int mythtv_live = 0;
 int mythtv_main_menu = 0;
 int mythtv_debug = 0;
 
@@ -997,13 +998,17 @@ mythtv_program(mvp_widget_t *widget)
 	char *title, *subtitle;
 
 	if (current_prog) {
-		title = cmyth_proginfo_title(current_prog);
-		subtitle = cmyth_proginfo_subtitle(current_prog);
+		if (mythtv_live)
+			cmyth_recorder_get_program_info(control, recorder,
+							current_prog);
+
+		title = (char *) cmyth_proginfo_title(current_prog);
+		subtitle = (char *) cmyth_proginfo_subtitle(current_prog);
 
 		program = alloca(strlen(title) + strlen(subtitle) + 16);
 		sprintf(program, "%s - %s", title, subtitle);
 
-		description = cmyth_proginfo_description(current_prog);
+		description = (char *) cmyth_proginfo_description(current_prog);
 
 		mvpw_set_text_str(mythtv_osd_description, description);
 		mvpw_set_text_str(mythtv_osd_program, program);
@@ -1338,14 +1343,28 @@ mythtv_livetv_start(void)
 		free(current);
 	current = malloc(strlen(mythtv_ringbuf)+32);
 
-	rb_file = cmyth_recorder_get_filename(recorder);
+	rb_file = (char *) cmyth_recorder_get_filename(recorder);
 	sprintf(current, "%s/%s", mythtv_ringbuf, rb_file);
+
+	// get the information about the current programme
+	// we assume last used structure is cleared already...
+	//
+	current_prog = NULL;
+	current_prog = cmyth_proginfo_create();
+	cmyth_proginfo_hold(current_prog);
 
 	demux_reset(handle);
 	demux_attr_reset(handle);
 	av_move(0, 0, 0);
 	av_play();
 	video_play(root);
+
+	// enable program info widget
+	//
+	add_osd_widget(mythtv_program_widget, OSD_PROGRAM, 1, NULL);
+	mvpw_hide(mythtv_description);
+	running_mythtv = 1;
+	mythtv_live = 1;
 
 	return 0;
 
@@ -1372,34 +1391,62 @@ mythtv_livetv_stop(void)
 
 	cmyth_recorder_release(recorder);
 	cmyth_ringbuf_release(ring);
+	if (current_prog)
+		cmyth_proginfo_release(current_prog);
 
 	video_clear();
 	mvpw_set_idle(NULL);
 	mvpw_set_timer(root, NULL, 0);
 
+	running_mythtv = 0;
+	mythtv_live = 0;
+
 	return 0;
+}
+
+int __change_channel(direction)
+{
+	long long frames;
+
+	if (cmyth_recorder_pause(control, recorder) < 0) {
+		fprintf(stderr, "channel change (pause) failed\n");
+		return -1;
+	}
+
+	if (cmyth_recorder_change_channel(control, recorder,
+					  direction) < 0) {
+		fprintf(stderr, "channel change failed\n");
+		return -1;
+	}
+
+        // this number ensures we don't start reading until there is enough
+        // video for us to read, however, on dead channels or suttering ones
+        // we could be waiting for a long time, we need to have a timer...
+        frames = 0;
+        sleep(6);
+
+	// we need to reset the ringbuffer reader to the start of the file
+	// since the backend always resets the pointer.
+	// but we must be sure there is correct data on the buffer.
+	//
+	demux_reset(handle);
+	demux_attr_reset(handle);
+	av_move(0, 0, 0);
+	av_play();
+	video_play(root);
+
+        return 0;
 }
 
 int
 mythtv_channel_up(void)
 {
-	if (cmyth_recorder_change_channel(control, recorder,
-					  CHANNEL_DIRECTION_UP) < 0) {
-		fprintf(stderr, "channel up failed\n");
-		return -1;
-	}
-
-	return 0;
+	return __change_channel(CHANNEL_DIRECTION_UP);
 }
 
 int
 mythtv_channel_down(void)
 {
-	if (cmyth_recorder_change_channel(control, recorder,
-					  CHANNEL_DIRECTION_DOWN) < 0) {
-		fprintf(stderr, "channel down failed\n");
-		return -1;
-	}
-
-	return 0;
+	return __change_channel(CHANNEL_DIRECTION_DOWN);
 }
+
