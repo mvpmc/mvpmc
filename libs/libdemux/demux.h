@@ -61,10 +61,10 @@ struct demux_handle_s {
 #define AUDIO_MODE_MPEG2_PES	2
 #define AUDIO_MODE_MPEG1_PES	3
 
-extern stream_t* stream_init(char *buf, int size);
 extern int start_stream(demux_handle_t *handle, char *buf, int len);
 extern int add_buffer(demux_handle_t *handle, char *buf, int len);
-extern int parse_frame(demux_handle_t *handle, char *buf, int len, int type);
+extern int parse_frame(demux_handle_t *handle, unsigned char *buf,
+		       int len, int type);
 extern int stream_drain(stream_t *stream, char *buf, int max);
 extern int stream_drain_fd(stream_t *stream, int fd);
 extern int stream_resize(stream_t *stream, char *start, int size);

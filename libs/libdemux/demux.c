@@ -47,6 +47,8 @@
 #define PRINTF(x...)
 #endif
 
+int demux_seeking;
+
 /*
  * demux_init() - Create and initialize a demux context
  *
@@ -339,5 +341,23 @@ demux_flush(demux_handle_t *handle)
 		handle->video->tail = handle->video->size - 1;
 	}
 
+	demux_seeking = 1;
+
 	return 0;
 }
+
+/*
+ * demux_seek() - Put the demuxer into seek mode, looking for the next i-frame
+ *
+ * Arguments:
+ *	void
+ *
+ * Returns:
+ *	void
+ */
+void
+demux_seek(void)
+{
+	demux_seeking = 1;
+}
+

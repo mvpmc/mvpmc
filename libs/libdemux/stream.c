@@ -64,6 +64,8 @@
 #define PRINTF(x...)
 #endif
 
+extern int demux_seeking;
+
 /*
  * stream_resize() - Resize a stream buffer
  *
@@ -166,6 +168,9 @@ stream_add(stream_t *stream, char *buf, int len)
 
 	if (len <= 0)
 		return 0;
+
+	if (demux_seeking)
+		return len;
 
 	PRINTF("%s(): stream 0x%p buf 0x%p len %d\n",
 	       __FUNCTION__, stream, buf, len);
@@ -358,7 +363,7 @@ stream_drain_fd(stream_t *stream, int fd)
  *	number of bytes consumed from the buffer
  */
 int
-parse_frame(demux_handle_t *handle, char *buf, int len, int type)
+parse_frame(demux_handle_t *handle, unsigned char *buf, int len, int type)
 {
 	int n, m, ret = 0;
 	unsigned char header[4];
@@ -557,6 +562,20 @@ parse_frame(demux_handle_t *handle, char *buf, int len, int type)
 		handle->attr.video.stats.frames++;
 
 		if (n <= (len-ret)) {
+			if ((n >= 20) && (demux_seeking)) {
+				if ((buf[16] == 0) && (buf[17] == 0) &&
+				    (buf[18] == 1) && (buf[19] == 0xb3)) {
+					demux_seeking = 0;
+					header[0] = 0;
+					header[1] = 0;
+					header[2] = 1;
+					header[3] = video_stream;
+					stream_add(handle->video, header, 4);
+					stream_add(handle->video, handle->buf,
+						   handle->bufsz);
+				}
+			}
+
 			m = stream_add(handle->video, buf, n);
 			PRINTF("line %d: n %d m %d\n", __LINE__, n, m);
 			buf += m;
@@ -784,6 +803,7 @@ start_stream(demux_handle_t *handle, char *buf, int len)
 
 	if ((stream_buf=malloc(handle->size)) == NULL)
 		return -1;
+	memset(stream_buf, 0, handle->size);
 
 	n = handle->size / 2;
 	if ((handle->video=stream_init(stream_buf, n)) == NULL)
