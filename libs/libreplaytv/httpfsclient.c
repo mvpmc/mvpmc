@@ -184,7 +184,7 @@ static unsigned long hfs_do_simple(char **presult, const rtv_device_info_t *devi
     struct hc     *hc;
     char          *tmp, *e;
     unsigned long  rtv_status;
-    unsigned int   len;
+    unsigned int   len, hc_stat;
     int            rc; 
     
     RTV_DBGLOG(RTVLOG_CMD, "%s: ip_addr=%s cmd=%s\n", __FUNCTION__, device->ipaddr, command);    
@@ -197,11 +197,13 @@ static unsigned long hfs_do_simple(char **presult, const rtv_device_info_t *devi
     }
 
     rc = hc_read_all(hc, &tmp, &len);
-    hc_free(hc);
     if ( rc != 0 ) {
        RTV_ERRLOG("%s: hc_read_all call failed rc=%d\n", __FUNCTION__, rc);
+       hc_free(hc);
        return(rc);
     }
+    hc_stat = hc_get_status(hc);
+    hc_free(hc);
 
     e = strchr(tmp, '\n');
     if (e) {
@@ -210,7 +212,7 @@ static unsigned long hfs_do_simple(char **presult, const rtv_device_info_t *devi
        RTV_DBGLOG(RTVLOG_CMD, "%s: http_status=%lu\n", __FUNCTION__, rtv_status);    
        free(tmp);
        return(map_httpfs_status_to_rc(rtv_status));
-    } else if (hc_get_status(hc) == 204) {
+    } else if ( hc_stat == 204 ) {
        RTV_WARNLOG("%s: http_status == *** 204 ***\n",  __FUNCTION__);
        *presult = NULL;
        free(tmp);
@@ -232,6 +234,7 @@ static unsigned long hfs_do_simple_binary(rtv_http_resp_data_t *data, const rtv_
     struct hc     *hc;
     char          *e;
     unsigned long  rtv_status;
+    unsigned int   hc_stat;
     int            rc; 
     
     RTV_DBGLOG(RTVLOG_CMD, "%s: ip_addr=%s cmd=%s\n", __FUNCTION__, device->ipaddr, command);    
@@ -244,11 +247,13 @@ static unsigned long hfs_do_simple_binary(rtv_http_resp_data_t *data, const rtv_
     }
 
     rc = hc_read_all(hc, &(data->buf), &(data->len));
-    hc_free(hc);
     if ( rc != 0 ) {
        RTV_ERRLOG("%s: hc_read_all call failed rc=%d\n", __FUNCTION__, rc);
+       hc_free(hc);
        return(rc);
     }
+    hc_stat = hc_get_status(hc);
+    hc_free(hc);
 
     e = strchr(data->buf, '\n');
     if (e) {
@@ -257,7 +262,7 @@ static unsigned long hfs_do_simple_binary(rtv_http_resp_data_t *data, const rtv_
        rtv_status       = strtoul(data->buf, NULL, 10);
        RTV_DBGLOG(RTVLOG_CMD, "%s: http_status=%lu\n", __FUNCTION__, rtv_status);    
        return(map_httpfs_status_to_rc(rtv_status));
-    } else if (hc_get_status(hc) == 204) {
+    } else if (hc_stat == 204) {
        RTV_WARNLOG("%s: http_status == *** 204 ***\n",  __FUNCTION__);
        free(data->buf);
        data->buf = NULL;
@@ -373,7 +378,7 @@ unsigned long hfs_do_post_simple(char **presult, const rtv_device_info_t *device
     char *        tmp, * e;
     int           http_status, rc;
     unsigned long rtv_status;
-    unsigned int  len;
+    unsigned int  len, hc_stat;
     
     va_start(ap, command);
     if (make_httpfs_url(buf, sizeof buf, device, command, ap) < 0)
@@ -402,12 +407,13 @@ unsigned long hfs_do_post_simple(char **presult, const rtv_device_info_t *device
     }
     
     rc = hc_read_all(hc, &tmp, &len);
-    hc_free(hc);
     if ( rc != 0 ) {
        RTV_ERRLOG("%s: hc_read_all call failed rc=%d\n", __FUNCTION__, rc);
+       hc_free(hc);
        return(rc);
     }
-
+    hc_stat = hc_get_status(hc);
+    hc_free(hc);
 
     e = strchr(tmp, '\n');
     if (e) {
@@ -415,7 +421,7 @@ unsigned long hfs_do_post_simple(char **presult, const rtv_device_info_t *device
        rtv_status = strtoul(tmp, NULL, 10);
        free(tmp);
        return(map_httpfs_status_to_rc(rtv_status));
-    } else if (http_status == 204) {
+    } else if (hc_stat == 204) {
        RTV_WARNLOG("%s: http_status == *** 204 ***\n",  __FUNCTION__);
        *presult = NULL;
        free(tmp);

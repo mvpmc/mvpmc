@@ -25,7 +25,7 @@
 #include "bigfile.h"
 
 #define STRTOHEX(x) strtoul((x), NULL, 16)
-#define STRTODEC(x) strtol((x), NULL, 10)
+#define STRTODEC(x) strtoul((x), NULL, 10)
 
 
 // for http fs read file callback
@@ -241,6 +241,106 @@ static int ciCryptTest(int argc, char **argv)
    return(0);
 }
 
+static int ciDeleteShow(int argc, char **argv)
+{
+   rtv_device_t       *rtv;
+   int                 rc, new_entry, inuse;
+   unsigned int        show_idx;
+   char               *leftover;
+
+   USAGE("<ip address> <show #>\n");
+
+   if ( argc < 3 ) {
+      printf("Parm Error: <ipaddress> <show #> parameters required\n");
+      return(0); 
+   }
+  
+   rtv = rtv_get_device_struct(argv[1], &new_entry);
+   if ( new_entry ) {
+      printf("\nYou need to get device info first.\n");
+      return(0);
+   }
+
+   show_idx = strtoul(argv[2], &leftover, 10);
+   if ( argv[2] == leftover ) {
+      printf("Parm Error: Invalid <show #> parameter\n");
+      return(0); 
+   }
+
+   if ( show_idx >= rtv->guide.num_rec_shows ) {
+      printf("Parm Error: Invalid <show #> parameter: number of shows: %u\n", rtv->guide.num_rec_shows);
+      return(0);
+   }
+
+   rc = rtv_is_show_inuse(&(rtv->device), &(rtv->guide), show_idx, &inuse);
+   if ( rc != 0 ) {
+      printf("Error: rtv_is_show_inuse() call failed.");
+      return(rc);
+   }
+   printf("show_in_use=%d\n", inuse);
+
+   if ( inuse ) {
+      printf("Show is inuse. Delete aborted.\n");
+      return(0);
+   } 
+
+   rc = rtv_delete_show(&(rtv->device), &(rtv->guide), show_idx);
+   if ( rc != 0 ) {
+      printf("Error: rtv_delete_show call failed.");
+      return(rc);
+   }
+   printf("Show deleted: Waiting for guide release...\n");
+
+   rc = rtv_release_show_and_wait(&(rtv->device), &(rtv->guide), show_idx);
+   if ( rc != 0 ) {
+      printf("Error: rtv_release_show_and_wait call failed.");
+      return(rc);
+   }
+
+   printf("Done.\n");
+   return(0);
+}
+
+static int ciGetPlayPosition(int argc, char **argv)
+{
+   rtv_device_t       *rtv;
+   int                 rc, new_entry, playpos;
+   unsigned int        show_idx;
+   char               *leftover;
+
+   USAGE("<ip address> <show #>\n");
+
+   if ( argc < 3 ) {
+      printf("Parm Error: <ipaddress> <show #> parameters required\n");
+      return(0); 
+   }
+  
+   rtv = rtv_get_device_struct(argv[1], &new_entry);
+   if ( new_entry ) {
+      printf("\nYou need to get device info first.\n");
+      return(0);
+   }
+
+   show_idx = strtoul(argv[2], &leftover, 10);
+   if ( argv[2] == leftover ) {
+      printf("Parm Error: Invalid <show #> parameter\n");
+      return(0); 
+   }
+
+   if ( show_idx >= rtv->guide.num_rec_shows ) {
+      printf("Parm Error: Invalid <show #> parameter: number of shows: %u\n", rtv->guide.num_rec_shows);
+      return(0);
+   }
+
+   rc = rtv_get_play_position(&(rtv->device), &(rtv->guide), show_idx, &playpos);
+   if ( rc != 0 ) {
+      printf("Error: rtv_get_play_position call failed.");
+      return(rc);
+   }
+   printf("CurrentGopPosition=0x%x (%u)\n", playpos, playpos);
+   return(0);
+}
+
 static int ciHttpFsVolinfo(int argc, char **argv)
 {
    rtv_device_t       *rtv;
@@ -443,6 +543,8 @@ cmdb_t cmd_list[] = {
    {"di",         ciGetDeviceInfo,   0, MAX_PARMS, "get RTV device information"       },
    {"devlist",    ciDeviceList,      0, MAX_PARMS, "print device list summary"        },
    {"guide",      ciGetGuide,        0, MAX_PARMS, "get RTV guide"                    },
+   {"delshow",    ciDeleteShow,      0, MAX_PARMS, "delete a show"                    },
+   {"playpos",    ciGetPlayPosition, 0, MAX_PARMS, "get shows current play position"  },
    {"free",       ciFree,            0, MAX_PARMS, "free rtv data struct"             },
    {"fsvi",       ciHttpFsVolinfo,   0, MAX_PARMS, "http filesystem: get volume info" },
    {"fsstat",     ciHttpFsStatus,    0, MAX_PARMS, "http filesystem: get file status" },

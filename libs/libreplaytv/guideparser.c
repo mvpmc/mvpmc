@@ -469,7 +469,7 @@ static void convertPartsInfoEndian(parts_info_t *strPartsInfo)
 static void convertReplayShowEndian(replay_show_t *strReplayShow)
 {
    strReplayShow->checkpointed = ntohl(strReplayShow->checkpointed);
-   strReplayShow->created = ntohl(strReplayShow->created);
+   strReplayShow->channel_id   = ntohl(strReplayShow->channel_id);
    strReplayShow->downloadid = ntohl(strReplayShow->downloadid);
    strReplayShow->GOP_count = ntohl(strReplayShow->GOP_count);
    strReplayShow->GOP_highest = ntohl(strReplayShow->GOP_highest);
@@ -484,7 +484,7 @@ static void convertReplayShowEndian(replay_show_t *strReplayShow)
    strReplayShow->mpegsize = ntohll(strReplayShow->mpegsize);
    strReplayShow->playbackflags = ntohl(strReplayShow->playbackflags);
    strReplayShow->quality = ntohl(strReplayShow->quality);
-   strReplayShow->recorded = ntohl(strReplayShow->recorded);
+   strReplayShow->show_id = ntohl(strReplayShow->show_id);
    strReplayShow->seconds = ntohl(strReplayShow->seconds);
    strReplayShow->timessent = ntohl(strReplayShow->timessent);
    strReplayShow->upgradeflag = ntohl(strReplayShow->upgradeflag);
@@ -591,6 +591,9 @@ static int parse_show(replay_show_t *show_rec, rtv_show_export_t *sh)
    convertReplayShowEndian(show_rec);
    convertProgramInfoEndian(&(show_rec->programInfo));
    convertChannelInfoEndian(&(show_rec->channelInfo));
+
+   sh->show_id    = show_rec->show_id;
+   sh->channel_id = show_rec->channel_id;
    
    bufptr = show_rec->programInfo.szDescription;
    
@@ -705,7 +708,7 @@ static int parse_show(replay_show_t *show_rec, rtv_show_export_t *sh)
    // mpg filename, gop count, durartion
    //
    sh->file_name = malloc(20);
-   snprintf(sh->file_name, 19, "%lu.mpg", show_rec->recorded);
+   snprintf(sh->file_name, 19, "%lu.mpg", show_rec->show_id);
    sh->gop_count       = show_rec->GOP_count;
    sh->duration_sec    = show_rec->seconds;
    sh->duration_str    = rtv_sec_to_hr_mn_str(show_rec->seconds);

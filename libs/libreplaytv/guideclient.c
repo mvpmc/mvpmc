@@ -16,6 +16,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
+#include <unistd.h>
 
 #include "rtv.h"
 #include "rtvlib.h"
@@ -35,6 +36,24 @@ struct snapshot_data
     u32   status;
 };
 
+static int map_guide_status_to_rc(unsigned long status)
+{
+   int rc;
+
+   // returncodes: 
+   // 0x94780001: for invalid show_id or invalid channel_id
+   // 0x94780004: invalid request string parameters
+   //
+   if ( status == 0 ) {
+      rc = 0;
+   }
+   else {
+      RTV_ERRLOG("%s: guide http response code: 0x%08lx:(%lu)\n", __FUNCTION__, status, status);
+      rc  = -EPROTO;
+   }
+   return(rc);
+
+}
 static int get_rtv5k_snapshot_callback(unsigned char *buf, size_t len, void *vd)
 {
     struct snapshot_data *data = vd;
@@ -133,20 +152,20 @@ static void rtv_free_show(rtv_show_export_t *show)
    }
 }
 
-//+***********************************************************************************
-//                         PUBLIC FUNCTIONS
-//+***********************************************************************************
-
-int rtv_get_guide_snapshot( const rtv_device_info_t  *device,
-                            const char               *cur_timestamp,
-                                  rtv_guide_export_t *guide          )
+//+******************************************
+// get_guide_ss()
+// Internal get guide snapshot function
+// Returns 0 for success
+//+******************************************
+static int get_guide_ss( const rtv_device_info_t  *device,
+                         const char               *cur_timestamp,
+                         rtv_guide_export_t       *guide          )
 {
     const char           *send_timestamp = "0";
     char                  url[512];
     struct hc            *hc;
     struct snapshot_data  data;
     int                   rc;
-    unsigned int          x;
 
     rtv_free_guide(guide);
     memset(&data, 0, sizeof data);
@@ -183,7 +202,7 @@ int rtv_get_guide_snapshot( const rtv_device_info_t  *device,
     RTV_DBGLOG(RTVLOG_GUIDE, "%s: url=%s\n", __FUNCTION__, url); 
     hc = hc_start_request(url);
     if (!hc) {
-        RTV_ERRLOG("guide_client_get_snapshot(): hc_start_request(): %d=>%s\n", errno, strerror(errno));
+        RTV_ERRLOG("%s: hc_start_request(): %d=>%s\n", __FUNCTION__, errno, strerror(errno));
         return(-1);
     }
 
@@ -199,7 +218,20 @@ int rtv_get_guide_snapshot( const rtv_device_info_t  *device,
     guide->status    =  data.status;
 
     rc = parse_guide_snapshot(data.buf, data.bytes_read, guide);
-    free(data.buf);
+    free(data.buf);    
+    return(rc);
+}
+
+//+******************************************
+// update_shows_file_info()
+// Update the file info for guide show mpg files.
+// Returns 0 for success
+//+******************************************
+static int update_shows_file_info( const rtv_device_info_t  *device,
+                                   rtv_guide_export_t       *guide  )
+{
+    int                   rc = 0;
+    unsigned int          x;
 
     // Get file info for the show mpg files
     //
@@ -211,13 +243,107 @@ int rtv_get_guide_snapshot( const rtv_device_info_t  *device,
        sprintf(path, "/Video/%s", guide->rec_show_list[x].file_name);
        rc = rtv_get_file_info(device, path, fileinfo);
        if ( rc != 0 ) {
-          RTV_ERRLOG("guide_client_get_snapshot(): rtv_get_file_info failed: %d=>%s\n", errno, strerror(errno));
+          RTV_ERRLOG("%s: rtv_get_file_info failed: %d=>%s\n", __FUNCTION__, rc, strerror(abs(rc)));
           free(fileinfo);
-          rtv_free_guide(guide);
-          guide = NULL;
           return(rc);
        }
        guide->rec_show_list[x].file_info = fileinfo;
+    }
+    
+    return(rc);
+}
+
+//+******************************************
+// guide_do_request()
+// Send a guide request
+// If response is not NULL then parses http response and
+// returns in *malloc'd *response. 
+// Returns 0 for success
+//+******************************************
+static int guide_do_request(  const char  *url,
+                              char       **response )
+{
+    char                 *tmp, *e;
+    struct hc            *hc;
+    int                   rc;
+    unsigned int          len;
+    unsigned long         status;
+
+
+    RTV_DBGLOG(RTVLOG_GUIDE, "%s: url=%s\n", __FUNCTION__, url); 
+
+    // Send the request & get the response back
+    //
+    hc = hc_start_request((char*)url); //JBH: hack cast to eliminate warning
+    if (!hc) {
+        RTV_ERRLOG("%s: hc_start_request(): %d=>%s\n", __FUNCTION__, errno, strerror(errno));
+        return(-1);
+    }
+    hc_send_request(hc, ":80\r\nAccept-Encoding: gzip\r\n");
+
+    rc = hc_read_all(hc, &tmp, &len);
+
+    if ( rc != 0 ) {
+       RTV_ERRLOG("%s: hc_read_all call failed rc=%d\n", __FUNCTION__, rc);
+       hc_free(hc);
+       if ( tmp != NULL ) {
+          free(tmp);
+       }
+       return(rc);
+    }
+    if ( hc_get_status(hc) != 200 ) {
+       RTV_ERRLOG("%s: http_status == %d\n",  __FUNCTION__,  hc_get_status(hc));
+       hc_free(hc);
+       if ( tmp != NULL ) {
+          free(tmp);
+       }
+       return -ECONNABORTED;
+    }
+    hc_free(hc);
+
+    if ( response != NULL ) {
+
+       // A text response is expected
+       //
+       RTV_DBGLOG(RTVLOG_GUIDE, "%s: response=%s\n", __FUNCTION__, tmp); 
+       
+       e = strchr(tmp, '\n');
+       if (e) {
+          *response = strdup(e+1);
+          status = strtoul(tmp, NULL, 16);
+          RTV_DBGLOG(RTVLOG_CMD, "%s: http_status=0x%08lx(%lu)\n", __FUNCTION__, status);    
+          rc = map_guide_status_to_rc(status);
+       } else {
+          RTV_ERRLOG("%s: end of http guide status line not found\n", __FUNCTION__);
+          *response = NULL;
+          rc = -EPROTO;
+       }
+    }
+    free(tmp);
+    return(rc);
+}
+
+//+***********************************************************************************
+//                         PUBLIC FUNCTIONS
+//+***********************************************************************************
+
+int rtv_get_guide_snapshot( const rtv_device_info_t  *device,
+                            const char               *cur_timestamp,
+                                  rtv_guide_export_t *guide          )
+{
+    int rc;
+
+    // Get the guide snapshot
+    //
+    if ( (rc = get_guide_ss(device, cur_timestamp, guide)) != 0 ) {
+       //If get_guide_ss failed then the guide has already been free'd
+       return(rc);
+    }
+
+    // Get file info for the show mpg files
+    //
+    if ( (rc = update_shows_file_info(device, guide)) != 0 ) {
+       rtv_free_guide(guide);
     }
     
     return(rc);
@@ -283,7 +409,8 @@ void rtv_print_show(const rtv_show_export_t *show, int num)
       RTV_PRT("%s", tmpstr);
       if (show->flags.movie) {
          RTV_PRT("  movie_stars: %d    movie_year: %d    movie_runtime: %d\n", show->movie_stars, show->movie_year, show-> movie_runtime);
-      }
+      }      
+      RTV_PRT("  show_id:  0x%08x   channel_id:  0x%08x\n", show->show_id, show->channel_id);
       RTV_PRT("  filename:           %s\n", show->file_name);
       if ( show->file_info != NULL ) {
       RTV_PRT("  file size           %"U64F"d %lu(MB)\n", show->file_info->size, show->file_info->size_k / 1024);
@@ -323,3 +450,238 @@ void rtv_print_guide(const rtv_guide_export_t *guide)
    }
 
 }
+
+
+//+******************************************
+// rtv_is_show_inuse()
+// *in_use set to 1 is show is in use 
+// Returns 0 for success
+//+******************************************
+int rtv_is_show_inuse( const rtv_device_info_t   *device,
+                       const rtv_guide_export_t  *guide, 
+                       const unsigned int         show_idx,
+                       int                       *in_use )
+{
+    char   url[512];
+    char  *response, *e;
+    int    rc;
+
+    if ( (atoi(device->modelNumber) == 4999) && (device->autodiscovered != 1) ) {
+       RTV_ERRLOG("%s: DVArchive must be auto-discovered before guide snapshot can be retrieved\n", __FUNCTION__);
+       return(-ENOTSUP);
+    }
+
+    if ( guide == NULL ) {
+       RTV_ERRLOG("%s: Guide is NULL\n", __FUNCTION__);
+       return(-EINVAL);
+    }
+    if ( show_idx >= guide->num_rec_shows ) {
+       RTV_ERRLOG("%s: show_idx out-of-range: idx=%u, num_rec_shows=%u\n", __FUNCTION__, show_idx, guide->num_rec_shows);
+       return(-EINVAL);
+    }
+
+    sprintf(url, "http://%s/http_replay_guide-is_show_in_use?"
+            "channel_id=0x%08lx&show_id=0x%08lx&serial_no=%s",
+            device->ipaddr,
+            guide->rec_show_list[show_idx].channel_id,
+            guide->rec_show_list[show_idx].show_id,
+            device->serialNum);
+
+    RTV_DBGLOG(RTVLOG_GUIDE, "%s: url=%s\n", __FUNCTION__, url); 
+
+    rc = guide_do_request(url, &response);
+
+    //response format: "show_in_use=0x0" or "show_in_use=0x1"
+    if ( rc == 0 ) {
+       if ( (e = strchr(response, '=')) == NULL ) {
+          rc = -EILSEQ;
+          *in_use = 1;
+       }
+       else {
+          *in_use = e[3] - '0';
+       }
+    }
+
+    free(response);
+    return(rc);
+}
+
+//+******************************************
+// rtv_delete_show()
+// Returns 0 for success
+//+******************************************
+int rtv_delete_show( const rtv_device_info_t   *device,
+                     const rtv_guide_export_t  *guide, 
+                     const unsigned int         show_idx)
+{
+    char   url[512];
+    char  *response;
+    int    rc;
+
+    if ( (atoi(device->modelNumber) == 4999) && (device->autodiscovered != 1) ) {
+       RTV_ERRLOG("%s: DVArchive must be auto-discovered before guide snapshot can be retrieved\n", __FUNCTION__);
+       return(-ENOTSUP);
+    }
+
+    if ( guide == NULL ) {
+       RTV_ERRLOG("%s: Guide is NULL\n", __FUNCTION__);
+       return(-EINVAL);
+    }
+    if ( show_idx >= guide->num_rec_shows ) {
+       RTV_ERRLOG("%s: show_idx out-of-range: idx=%u, num_rec_shows=%u\n", __FUNCTION__, show_idx, guide->num_rec_shows);
+       return(-EINVAL);
+    }
+
+    sprintf(url, "http://%s/http_replay_guide-delete_show?"
+            "channel_id=0x%08lx&show_id=0x%08lx&serial_no=%s",
+            device->ipaddr,
+            guide->rec_show_list[show_idx].channel_id,
+            guide->rec_show_list[show_idx].show_id,
+            device->serialNum);
+
+    RTV_DBGLOG(RTVLOG_GUIDE, "%s: url=%s\n", __FUNCTION__, url); 
+
+    rc = guide_do_request(url, &response);
+
+    //response format: nothing
+    free(response);
+    return(rc);
+}
+
+//+******************************************
+// rtv_release_show()
+// Waits for a deleted show to be released and updates
+// the guide snapshot
+// Returns 0 for success
+//+******************************************
+int rtv_release_show_and_wait( const rtv_device_info_t   *device,
+                                     rtv_guide_export_t  *guide, 
+                               const unsigned int         show_idx)
+{
+   int           trys_left = 10;
+   int           done      = 0;
+   char          url[512];
+   char         *response;
+   unsigned int  x;
+   int           rc;
+   __u32         show_id;
+   
+   // Send the http_replay_guide-release_show command.
+   // The release_show stuff does not seem to work right unless it is sent in a 2nd thread
+   // before the delete_show command completes.
+   // We don't do that because it would be a PITA. We just wait for the guide to get updated.
+   //
+   if ( (atoi(device->modelNumber) == 4999) && (device->autodiscovered != 1) ) {
+      RTV_ERRLOG("%s: DVArchive must be auto-discovered before guide snapshot can be retrieved\n", __FUNCTION__);
+      return(-ENOTSUP);
+   }
+   
+   if ( guide == NULL ) {
+      RTV_ERRLOG("%s: Guide is NULL\n", __FUNCTION__);
+      return(-EINVAL);
+   }
+   if ( show_idx >= guide->num_rec_shows ) {
+      RTV_ERRLOG("%s: show_idx out-of-range: idx=%u, num_rec_shows=%u\n", __FUNCTION__, show_idx, guide->num_rec_shows);
+      return(-EINVAL);
+   }
+   
+   show_id = guide->rec_show_list[show_idx].show_id;
+   sprintf(url, "http://%s/http_replay_guide-release_show?"
+           "channel_id=0x11%06lx&show_id=0x%08lx&serial_no=%s",
+           device->ipaddr,
+           guide->rec_show_list[show_idx].channel_id,
+           show_id,
+           device->serialNum);
+   
+   RTV_DBGLOG(RTVLOG_GUIDE, "%s: url=%s\n", __FUNCTION__, url);
+   guide_do_request(url, &response);
+   
+   //response format: nothing
+   free(response);
+   
+   // Wait for the guide to update
+   //
+   while ( (trys_left-- > 0) && !(done) ) {
+      sleep(5);
+      if ( (rc = get_guide_ss(device, NULL, guide)) != 0 ) {
+         return(rc);
+      }
+      
+      // See if the show is gone yet.
+      //
+      for (x=0; x < guide->num_rec_shows; x++ ) {
+         if ( guide->rec_show_list[show_idx].show_id == show_id ) {
+            break;
+         }
+      }
+
+      if ( x == guide->num_rec_shows ) {
+         done = 1;;
+      }
+   } //while
+   
+   if ( !(done) ) {
+      return(-ETIMEDOUT);
+   }
+
+   if ( (rc = update_shows_file_info(device, guide)) != 0 ) {
+      rtv_free_guide(guide);
+   }
+   
+   return(rc);
+}
+
+//+******************************************
+// rtv_get_play_position()
+// *play_pos is set to the current play position (GOP)
+// Returns 0 for success
+//+******************************************
+int rtv_get_play_position( const rtv_device_info_t   *device,
+                           const rtv_guide_export_t  *guide, 
+                           const unsigned int         show_idx,
+                           unsigned int              *play_pos )
+{
+    char   url[512];
+    char  *response, *e;
+    int    rc;
+
+    if ( (atoi(device->modelNumber) == 4999) && (device->autodiscovered != 1) ) {
+       RTV_ERRLOG("%s: DVArchive must be auto-discovered before guide snapshot can be retrieved\n", __FUNCTION__);
+       return(-ENOTSUP);
+    }
+
+    if ( guide == NULL ) {
+       RTV_ERRLOG("%s: Guide is NULL\n", __FUNCTION__);
+       return(-EINVAL);
+    }
+    if ( show_idx >= guide->num_rec_shows ) {
+       RTV_ERRLOG("%s: show_idx out-of-range: idx=%u, num_rec_shows=%u\n", __FUNCTION__, show_idx, guide->num_rec_shows);
+       return(-EINVAL);
+    }
+
+    sprintf(url, "http://%s/http_replay_guide-get_play_position?"
+            "channel_id=0x%08lx&show_id=0x%08lx&serial_no=%s",
+            device->ipaddr,
+            guide->rec_show_list[show_idx].channel_id,
+            guide->rec_show_list[show_idx].show_id,
+            device->serialNum);
+
+    RTV_DBGLOG(RTVLOG_GUIDE, "%s: url=%s\n", __FUNCTION__, url); 
+
+    rc = guide_do_request(url, &response);
+
+    //response format: "gop_pos=0xXXXXXXXX"
+    if ( rc == 0 ) {
+       if ( (e = strchr(response, '=')) == NULL ) {
+          rc = -EILSEQ;
+          *play_pos = 0;;
+       }
+       else {
+          *play_pos = strtoul(&(e[1]), NULL, 16);
+       }
+    }
+
+    free(response);
+    return(rc);
+}
+

@@ -145,6 +145,8 @@ typedef struct rtv_show_flags_t
 //+****************************************
 typedef struct rtv_show_export_t 
 {
+   __u32               show_id;            //show id: show creation time
+   __u32               channel_id;         //channel id: channel creation time
    int                 rtvchan_idx;        //index into rtv channel array (JBH: Not yet parsing RTV channel info)
    rtv_show_flags_t    flags;
    rtv_show_quality_t  quality;            // recording quality 
@@ -340,11 +342,30 @@ extern void rtv_print_device_info(const rtv_device_info_t *devinfo);
 
 extern int  rtv_get_guide_snapshot(const rtv_device_info_t  *device,
                                    const char               *cur_timestamp,
-                                         rtv_guide_export_t *guide          );
+                                         rtv_guide_export_t *guide);
+
 extern void rtv_print_show(const rtv_show_export_t *show, int num);
 extern void rtv_print_guide(const rtv_guide_export_t *guide); 
 extern void rtv_free_guide(rtv_guide_export_t *guide); 
 
+extern int rtv_is_show_inuse(const rtv_device_info_t   *device,
+                             const rtv_guide_export_t  *guide, 
+                             const unsigned int         show_idx,
+                             int                       *in_use);
+
+extern int rtv_delete_show(const rtv_device_info_t   *device,
+                           const rtv_guide_export_t  *guide, 
+                           const unsigned int         show_idx);
+
+extern int rtv_release_show_and_wait(const rtv_device_info_t   *device,
+                                           rtv_guide_export_t  *guide, 
+                                     const unsigned int         show_idx);
+
+extern int rtv_get_play_position(const rtv_device_info_t   *device,
+                                 const rtv_guide_export_t  *guide, 
+                                 const unsigned int         show_idx,
+                                 unsigned int              *play_pos);
+   
 extern char *rtv_xref_quality(int key);
 extern char *rtv_xref_input_source(int key);
 

@@ -147,8 +147,8 @@ typedef struct channel_info_t {
 
 #define REPLAYSHOW_V2_PADDING (68)     // V2 guide bytes of padding at end of show structure
 typedef struct replay_show_t {
-    u32 created;              // ReplayChannel ID (tagReplayChannel.created)
-    u32 recorded;             // Filename/Time of Recording (aka ShowID)
+    u32 channel_id;           // ReplayChannel ID (tagReplayChannel.created)
+    u32 show_id;              // Filename/Time of Recording (aka ShowID)
     u32 inputsource;          // Replay Input Source
     u32 quality;              // Recording Quality Level
     u32 guaranteed;           // (0xFFFFFFFF if guaranteed)
