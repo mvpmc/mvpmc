@@ -68,6 +68,24 @@ static mvpw_menu_item_attr_t item_attr = {
    .checkbox_fg = MVPW_GREEN,
 };
 
+static mvpw_menu_item_attr_t device_menu_item_attr = {
+   .selectable = 1,
+   .fg = MVPW_BLACK,
+   .bg = MVPW_LIGHTGREY,
+   .checkbox_fg = MVPW_GREEN,
+};
+
+static mvpw_text_attr_t splash_attr = {
+	.wrap = 1,
+	.justify = MVPW_TEXT_LEFT,
+	.margin = 6,
+	.font = 0,
+	.fg = MVPW_GREEN,
+};
+
+static mvp_widget_t      *splash;
+static mvpw_screen_info_t scr_info;
+
 extern int fd_audio, fd_video;
 extern demux_handle_t *handle;
 
@@ -75,8 +93,9 @@ static int playing    = 0;
 static int abort_read = 0;
 
 // Top level replayTV structure
-static int          num_rtv = 0;
-static rtv_device_t rtv_top[MAX_RTVS];
+static int           num_rtv = 0;
+static rtv_device_t  rtv_top[MAX_RTVS];
+static rtv_device_t *current_rtv_device = NULL;
 
 //hack
 #define MAX_IP_SZ (50)
@@ -212,23 +231,20 @@ static int GetMpgCallback(unsigned char * buf, size_t len, void * vd)
         return(0);
 }
 
-void GetMpgFile(char *IPAddress, char *FileName, int ToStdOut) 
+void GetMpgFile(rtv_device_t *rtv, char *filename, int ToStdOut) 
 {
-    rtv_device_t *rtv;  
     char pathname[256];
-    int i, new_entry;
+    int i;
 
-    if (strlen(FileName) + strlen("/Video/") + 1 > sizeof pathname) {
+    if (strlen(filename) + strlen("/Video/") + 1 > sizeof pathname) {
         fprintf(stderr, "Filename too long\n");
         exit(-1);
     }
 
-    sprintf(pathname, "/Video/%s", FileName);
+    sprintf(pathname, "/Video/%s", filename);
 
     //Tell the user we're up to something
-    fprintf(stderr, "Retrieving /Video/%s...\n", FileName); 
-
-    rtv = get_rtv_device_struct(IPAddress, &new_entry);
+    fprintf(stderr, "Retrieving /Video/%s...\n", filename); 
 
     //Send the request for the file
     i = rtv_read_file( &(rtv->device), pathname, 0, 0, 0, GetMpgCallback, NULL );
@@ -245,7 +261,7 @@ read_start(void *arg)
    pthread_mutex_init(&mutex, NULL);
    pthread_mutex_lock(&mutex);
 
-   GetMpgFile(rtv_ip_addrs[0], (char*)arg, 0);
+   GetMpgFile(current_rtv_device, (char*)arg, 0);
    pthread_exit(NULL);
    return NULL;
 }
@@ -308,14 +324,11 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
    playing = 1;
 }
 
-void GetDir(mvp_widget_t *widget, char *IPAddress)
+void GetDir(mvp_widget_t *widget, rtv_device_t *rtv)
 {
-    rtv_device_t       *rtv;  
     rtv_fs_filelist_t  *filelist;
-    int                 i, new_entry;
+    int                 i;
 
-    rtv = get_rtv_device_struct(IPAddress, &new_entry);
-    
     i = rtv_get_filelist( &(rtv->device), "/Video", 0, &filelist );
     if ( i == 0 ) {
        rtv_print_file_list(filelist, 0);
@@ -335,80 +348,134 @@ void GetDir(mvp_widget_t *widget, char *IPAddress)
     rtv_free_file_list(&filelist);
 }
 
-void GetGuide(mvp_widget_t *widget, char *IPAddress)
+void GetGuide(mvp_widget_t *widget, rtv_device_t *rtv)
 {
-    rtv_device_t       *rtv;  
-    rtv_guide_export_t *guide;
-    int                 x, new_entry, rc;
-
-    rtv = get_rtv_device_struct(IPAddress, &new_entry);
-    if ( new_entry == 1 ) {
-       fprintf(stderr, "**ERROR: Failed to get existing RTV device info for %s\n", IPAddress);
-       return;
-    }
-    guide = &(rtv->guide);
-    if ( (rc = rtv_get_guide_snapshot( &(rtv->device), NULL, guide)) != 0 ) {
-       fprintf(stderr, "**ERROR: Failed to get Show Guilde for %s\n", IPAddress);
-       return;
-    }
-    rtv_print_guide(guide);
-    item_attr.select = select_callback;
- 
-    for ( x=0; x < guide->num_rec_shows; x++ ) {
-       char title_episode[255];
-       snprintf(title_episode, 254, "%s: %s", guide->rec_show_list[x].title, guide->rec_show_list[x].episode);
-       printf("%d:  %s\n", x, title_episode);
-       mvpw_add_menu_item(widget, title_episode, &(guide->rec_show_list[x]), &item_attr);
-    }
-
-    //all done, cleanup as we leave 
-    fprintf(stderr, "\n[End of Show:Episode Listing.]\n");
+   rtv_fs_volume_t    *volinfo;
+   rtv_guide_export_t *guide;
+   int                 x, rc;
+   
+   // Verfify we can access the Video directory. If not the RTV's time is probably off by more
+   // than 40 seconds from ours.
+   rc = rtv_get_volinfo( &(rtv->device), "/Video", &volinfo );
+   if ( rc != 0 ) {
+      fprintf(stderr, "**ERROR: Failed to access /Video directory for RTV %s\n", rtv->device.name);
+      fprintf(stderr, "         The RTV's clock and this clock must be within 40 seconds of each other\n");
+      return;
+   }
+   
+   guide = &(rtv->guide);
+   if ( (rc = rtv_get_guide_snapshot( &(rtv->device), NULL, guide)) != 0 ) {
+      fprintf(stderr, "**ERROR: Failed to get Show Guilde for RTV %s\n", rtv->device.name);
+      return;
+   }
+   rtv_print_guide(guide);
+   item_attr.select = select_callback;
+   
+   for ( x=0; x < guide->num_rec_shows; x++ ) {
+      char title_episode[255];
+      snprintf(title_episode, 254, "%s: %s", guide->rec_show_list[x].title, guide->rec_show_list[x].episode);
+      printf("%d:  %s\n", x, title_episode);
+      mvpw_add_menu_item(widget, title_episode, &(guide->rec_show_list[x]), &item_attr);
+   }
+   
+   //all done, cleanup as we leave 
+   fprintf(stderr, "\n[End of Show:Episode Listing.]\n");
 }
 
-int
-replaytv_update(mvp_widget_t *widget)
+static void
+rtv_device_select_callback(mvp_widget_t *widget, char *item, void *key)
+{
+   rtv_device_t *rtv = (rtv_device_t*)key;  
+   char          buf[256];
+
+	mvpw_clear_menu(widget);
+	snprintf(buf, sizeof(buf), "ReplayTV-%s", rtv->device.name);
+	mvpw_set_menu_title(widget, buf);
+
+   current_rtv_device = rtv;
+   if ( atoi(rtv->device.modelNumber) == 4999 ) {
+      //DVArchive hack since guide doesn't work yet
+      GetDir(widget, rtv);
+   }
+   else {
+      GetGuide(widget, rtv);
+   }   
+   return;
+}
+
+static int bogus_discover(void) 
 {
    rtv_device_t      *rtv;  
    rtv_device_info_t *devinfo;
-   int                rc, new_entry;
+   int                rc, new_entry, x;
+
+   for ( x=0; x < num_rtv; x++ ) {
+      printf( "\nGetting replaytv (%s) device info...\n", rtv_ip_addrs[x]);
+      rtv = get_rtv_device_struct(rtv_ip_addrs[x], &new_entry);
+      if ( new_entry ) {
+         printf("Got New RTV Device Struct Entry\n");
+      }
+      else {
+         printf("Found Existing RTV Device Struct Entry\n");
+      }
+      devinfo = &(rtv->device);
+      
+      if ( (rc = rtv_get_device_info(rtv_ip_addrs[x], devinfo)) != 0 ) {
+         printf("Failed to get RTV Device Info. Retrying...\n");
+         
+         // JBH: Fixme: Hack for dvarchive failing on first attempt. Need to get discovery working  
+         if ( (rc = rtv_get_device_info(rtv_ip_addrs[x], devinfo)) != 0 ) {
+            printf("**ERROR: Unable to get RTV Device Info for: %s. Giving up\n", rtv_ip_addrs[x]);
+            return 0;
+         } 
+      } 
+      rtv_print_device_info(devinfo);
+   }
+   return(0);
+}
+
+int replaytv_update(mvp_widget_t *widget)
+{
+   int h, w, x, y, idx;
+	char buf[128];
 
    running_replaytv = 1;
 
-   printf( "\nGetting replaytv (%s) device info...\n", rtv_ip_addrs[0]);
-   rtv = get_rtv_device_struct(rtv_ip_addrs[0], &new_entry);
-   if ( new_entry ) {
-      printf("Got New RTV Device Struct Entry\n");
-   }
-   else {
-      printf("Found Existing RTV Device Struct Entry\n");
-   }
-   devinfo = &(rtv->device);
-
-   if ( (rc = rtv_get_device_info(rtv_ip_addrs[0], devinfo)) != 0 ) {
-      printf("Failed to get RTV Device Info. Retrying...\n");
-
-      // JBH: Fixme: Hack for dvarchive failing on first attempt. Need to get discovery working  
-      if ( (rc = rtv_get_device_info(rtv_ip_addrs[0], devinfo)) != 0 ) {
-         printf("**ERROR: Unable to get RTV Device Info. Giving up\n");
-         return 0;
-      } 
-   } 
-   rtv_print_device_info(devinfo);
-
-
-
    mvpw_show(root);
    mvpw_expose(root);
-
    mvpw_clear_menu(widget);
 
-   if ( atoi(rtv->device.modelNumber) == 4999 ) {
-      //DVArchive hack since guide doesn't work yet
-      GetDir(widget, rtv_ip_addrs[0]);
+   mvpw_get_screen_info(&scr_info);
+
+	snprintf(buf, sizeof(buf), "Discovering ReplayTV devices...");
+
+	splash_attr.font = fontid;
+	h = (mvpw_font_height(splash_attr.font) +
+	     (2 * splash_attr.margin)) * 2;
+	w = mvpw_font_width(fontid, buf) + 8;
+   
+	x = (scr_info.cols - w) / 2;
+	y = (scr_info.rows - h) / 2;
+   
+	splash = mvpw_create_text(NULL, x, y, w, h, 0x80000000, 0, 0);
+	mvpw_set_text_attr(splash, &splash_attr);
+   
+   mvpw_set_text_str(splash, buf);
+	mvpw_show(splash);
+	mvpw_event_flush();
+
+   sleep(1);
+	mvpw_destroy(splash);
+
+   bogus_discover();
+
+   device_menu_item_attr.select = rtv_device_select_callback;
+   for ( idx=0; idx < num_rtv; idx++ ) {
+      if ( rtv_top[idx].device.name != NULL ) {
+         mvpw_add_menu_item(widget, rtv_top[idx].device.name, &(rtv_top[idx]), &device_menu_item_attr);
+      }
    }
-   else {
-      GetGuide(widget, rtv_ip_addrs[0]);
-   }
+
    return 0;
 }
 
