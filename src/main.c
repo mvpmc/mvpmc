@@ -49,6 +49,7 @@ int fontid;
 extern demux_handle_t *handle;
 
 char *mythtv_recdir = NULL;
+char *mythtv_ringbuf = NULL;
 char *rtv_init_str  = NULL;
 
 char *saved_argv[32];
@@ -78,6 +79,7 @@ print_help(char *prog)
 	printf("Usage: %s <options>\n", prog);
 
 	printf("\t-a aspect \taspect ratio (4:3 or 16:9)\n");
+	printf("\t-b path   \tpath to NFS mounted mythtv ringbuf directory\n");
 	printf("\t-f font   \tfont file\n");
 	printf("\t-h        \tprint this help\n");
 	printf("\t-i dir    \tmvpmc image directory\n");
@@ -210,7 +212,7 @@ main(int argc, char **argv)
 
 	tzset();
 
-	while ((c=getopt(argc, argv, "a:f:hi:m:Mo:r:R:s:")) != -1) {
+	while ((c=getopt(argc, argv, "a:b:f:hi:m:Mo:r:R:s:")) != -1) {
 		switch (c) {
 		case 'a':
 			if (strcmp(optarg, "4:3") == 0) {
@@ -223,6 +225,9 @@ main(int argc, char **argv)
 				print_help(argv[0]);
 				exit(1);
 			}
+			break;
+		case 'b':
+			mythtv_ringbuf = strdup(optarg);
 			break;
 		case 'h':
 			print_help(argv[0]);

@@ -96,6 +96,7 @@ extern mvp_widget_t *demux_audio;
 
 extern char *current;
 extern char *mythtv_recdir;
+extern char *mythtv_ringbuf;
 
 extern char *imagedir;
 
@@ -103,6 +104,7 @@ extern int fontid;
 extern mvpw_screen_info_t si;
 
 extern int running_mythtv;
+extern int mythtv_main_menu;
 
 extern int fd_audio, fd_video;
 
@@ -187,5 +189,7 @@ extern int a52_decode_data (uint8_t * start, uint8_t * end, int reset);
 
 extern void screensaver_enable(void);
 extern void screensaver_disable(void);
+
+extern int mythtv_livetv;
 
 #endif /* MVPMC_H */

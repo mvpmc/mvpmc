@@ -71,12 +71,15 @@ static cmyth_proglist_t pending_plist;
 static cmyth_proginfo_t episode_prog;
 static cmyth_proginfo_t pending_prog;
 static char *pathname = NULL;
+static cmyth_recorder_t recorder;
+static cmyth_ringbuf_t ring;
 
 volatile int mythtv_level = 0;
 
 static int show_count, episode_count;
 
 int running_mythtv = 0;
+int mythtv_main_menu = 0;
 int mythtv_debug = 0;
 
 static volatile int playing_via_mythtv = 0, reset_mythtv = 1;
@@ -551,6 +554,18 @@ pending_hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 		case RS_PREVIOUS_RECORDING:
 			ptr = "Previous Recording";
 			break;
+		case RS_LATER_SHOWING:
+			ptr = "Later Showing";
+			break;
+		case RS_EARLIER_RECORDING:
+			ptr = "Earlier Recording";
+			break;
+		case RS_REPEAT:
+			ptr = "Repeat";
+			break;
+		case RS_CURRENT_RECORDING:
+			ptr = "Current Recording";
+			break;
 		default:
 			ptr = "";
 			break;
@@ -669,7 +684,7 @@ mythtv_pending(mvp_widget_t *widget)
 
 		switch (status) {
 		case RS_RECORDING:
-			item_attr.fg = MVPW_ORANGE;
+			item_attr.fg = mvpw_rgba(255,165,79,255);
 			type = '1';
 			break;
 		case RS_WILL_RECORD:
@@ -691,6 +706,22 @@ mythtv_pending(mvp_widget_t *widget)
 		case RS_PREVIOUS_RECORDING:
 			item_attr.fg = MVPW_LIGHTGREY;
 			type = 'P';
+			break;
+		case RS_LATER_SHOWING:
+			item_attr.fg = MVPW_LIGHTGREY;
+			type = 'L';
+			break;
+		case RS_EARLIER_RECORDING:
+			item_attr.fg = MVPW_LIGHTGREY;
+			type = 'E';
+			break;
+		case RS_REPEAT:
+			item_attr.fg = MVPW_LIGHTGREY;
+			type = 'r';
+			break;
+		case RS_CURRENT_RECORDING:
+			item_attr.fg = MVPW_LIGHTGREY;
+			type = 'R';
 			break;
 		default:
 			item_attr.fg = MVPW_LIGHTGREY;
@@ -848,8 +879,12 @@ mythtv_delete(void)
 
 	pthread_mutex_lock(&myth_mutex);
 	ret = cmyth_proginfo_delete_recording(control, hilite_prog);
-	if (cmyth_proginfo_compare(hilite_prog, current_prog) == 0)
+	if (cmyth_proginfo_compare(hilite_prog, current_prog) == 0) {
 		mythtv_close_file();
+		video_clear();
+		mvpw_set_idle(NULL);
+		mvpw_set_timer(root, NULL, 0);
+	}
 	pthread_mutex_unlock(&myth_mutex);
 
 	return ret;
@@ -862,8 +897,12 @@ mythtv_forget(void)
 
 	pthread_mutex_lock(&myth_mutex);
 	ret = cmyth_proginfo_forget_recording(control, hilite_prog);
-	if (cmyth_proginfo_compare(hilite_prog, current_prog) == 0)
+	if (cmyth_proginfo_compare(hilite_prog, current_prog) == 0) {
 		mythtv_close_file();
+		video_clear();
+		mvpw_set_idle(NULL);
+		mvpw_set_timer(root, NULL, 0);
+	}
 	pthread_mutex_unlock(&myth_mutex);
 
 	return ret;
@@ -1087,4 +1126,115 @@ mythtv_size(void)
 
  out:
 	return ret;
+}
+
+int
+mythtv_livetv_start(void)
+{
+	cmyth_conn_t conn;
+	double rate;
+	char *rb_file;
+
+	printf("Starting Live TV...\n");
+
+	playing_via_mythtv = 1;
+	video_functions = &file_functions;
+
+	ring = cmyth_ringbuf_create();
+
+	if ((recorder=cmyth_conn_get_free_recorder(control)) == NULL) {
+		fprintf(stderr, "failed to get free recorder\n");
+		return -1;
+	}
+
+	if (cmyth_ringbuf_setup(control, recorder, ring) != 0) {
+		fprintf(stderr, "failed to setup ringbuffer\n");
+		return -1;
+	}
+
+	if ((conn=cmyth_conn_connect_ring(recorder, 16*1024)) == NULL) {
+		fprintf(stderr, "cannot conntect to mythtv ringbuffer\n");
+		return -1;
+	}
+
+	if (cmyth_recorder_spawn_livetv(control, recorder) != 0) {
+		fprintf(stderr, "spawn livetv failed\n");
+		return -1;
+	}
+
+	if (cmyth_recorder_is_recording(control, recorder) != 1) {
+		fprintf(stderr, "livetv not recording!\n");
+		return -1;
+	}
+
+	if (cmyth_recorder_get_framerate(control, recorder, &rate) != 0) {
+		fprintf(stderr, "get framerate failed!\n");
+		return -1;
+	}
+
+	printf("recorder framerate is %5.2f\n", rate);
+
+	if (current)
+		free(current);
+	current = malloc(strlen(mythtv_ringbuf)+32);
+
+	rb_file = cmyth_recorder_get_filename(recorder);
+	sprintf(current, "%s/%s", mythtv_ringbuf, rb_file);
+
+	demux_reset(handle);
+	demux_attr_reset(handle);
+	av_move(0, 0, 0);
+	av_play();
+	video_play(root);
+
+	return 0;
+}
+
+int
+mythtv_livetv_stop(void)
+{
+	printf("Stopping Live TV\n");
+
+	if (cmyth_recorder_stop_livetv(control, recorder) != 0) {
+		fprintf(stderr, "stop livetv failed\n");
+		return -1;
+	}
+
+	if (cmyth_recorder_done_ringbuf(control, recorder) != 0) {
+		fprintf(stderr, "done ringbuf failed\n");
+		return -1;
+	}
+
+	cmyth_recorder_release(recorder);
+	cmyth_ringbuf_release(ring);
+
+	video_clear();
+	mvpw_set_idle(NULL);
+	mvpw_set_timer(root, NULL, 0);
+
+	return 0;
+}
+
+int
+mythtv_channel_up(void)
+{
+	if (cmyth_recorder_change_channel(control, recorder,
+					  CHANNEL_DIRECTION_UP) < 0) {
+		fprintf(stderr, "channel up failed\n");
+		return -1;
+	}
+
+	return 0;
+}
+
+int
+mythtv_channel_down(void)
+{
+	if (cmyth_recorder_change_channel(control, recorder,
+					  CHANNEL_DIRECTION_DOWN) < 0) {
+		fprintf(stderr, "channel down failed\n");
+		return -1;
+	}
+
+	return 0;
 }

@@ -418,8 +418,8 @@ video_callback(mvp_widget_t *widget, char key)
 	long long offset, size;
 
 	switch (key) {
-	case '.':
-	case 'E':
+	case MVPW_KEY_STOP:
+	case MVPW_KEY_EXIT:
 		disable_osd();
 		if ( !running_replaytv ) {
 			video_thumbnail(1);
@@ -438,7 +438,16 @@ video_callback(mvp_widget_t *widget, char key)
 		mvpw_hide(zoom_widget);
 		display_on = 0;
 		zoomed = 0;
-		if (running_mythtv) {
+		if (mythtv_livetv) {
+			mvpw_show(mythtv_logo);
+			mvpw_show(mythtv_menu);
+			mythtv_livetv_stop();
+			mythtv_livetv = 0;
+		} else if (mythtv_main_menu) {
+			mvpw_show(mythtv_logo);
+			mvpw_show(mythtv_menu);
+			mvpw_focus(mythtv_menu);
+		} else if (running_mythtv) {
 			mvpw_show(mythtv_logo);
 			mvpw_show(mythtv_channel);
 			mvpw_show(mythtv_date);
@@ -454,7 +463,7 @@ video_callback(mvp_widget_t *widget, char key)
 		}
 		mvpw_expose(root);
 		break;
-	case ',':
+	case MVPW_KEY_PAUSE:
 		if (av_pause()) {
 			mvpw_show(pause_widget);
 			paused = 1;
@@ -466,16 +475,16 @@ video_callback(mvp_widget_t *widget, char key)
 			screensaver_disable();
 		}
 		break;
-	case '(':
+	case MVPW_KEY_REPLAY:
 		seek_by(-30);
 		break;
-	case '{':
+	case MVPW_KEY_REWIND:
 		seek_by(-10);
 		break;
-	case ')':
+	case MVPW_KEY_SKIP:
 		seek_by(30);
 		break;
-	case '}':
+	case MVPW_KEY_FFWD:
 		if (av_ffwd() == 0) {
 			demux_flush(handle);
 			demux_seek(handle);
@@ -488,7 +497,7 @@ video_callback(mvp_widget_t *widget, char key)
 			mvpw_show(ffwd_widget);
 		}
 		break;
-	case '<':
+	case MVPW_KEY_LEFT:
 		jump_target = -1;
 		jumping = 1;
 		pthread_kill(video_write_thread, SIGURG);
@@ -498,7 +507,7 @@ video_callback(mvp_widget_t *widget, char key)
 		jump_target = ((-size / 100.0) + offset);
 		pthread_cond_broadcast(&video_cond);
 		break;
-	case '>':
+	case MVPW_KEY_RIGHT:
 		jump_target = -1;
 		jumping = 1;
 		pthread_kill(video_write_thread, SIGURG);
@@ -508,7 +517,7 @@ video_callback(mvp_widget_t *widget, char key)
 		jump_target = ((size / 100.0) + offset);
 		pthread_cond_broadcast(&video_cond);
 		break;
-	case '0' ... '9':
+	case MVPW_KEY_ZERO ... MVPW_KEY_NINE:
 		jump_target = -1;
 		jumping = 1;
 		pthread_kill(video_write_thread, SIGURG);
@@ -518,17 +527,17 @@ video_callback(mvp_widget_t *widget, char key)
 		jump_target = size * (jump / 10.0);
 		pthread_cond_broadcast(&video_cond);
 		break;
-	case 'M':
+	case MVPW_KEY_MENU:
 		mvpw_show(popup_menu);
 		mvpw_focus(popup_menu);
 		break;
-	case 'Q':
+	case MVPW_KEY_MUTE:
 		if (av_mute() == 1)
 			mvpw_show(mute_widget);
 		else
 			mvpw_hide(mute_widget);
 		break;
-	case ' ':
+	case MVPW_KEY_BLANK:
 		if (display_on) {
 			disable_osd();
 			mvpw_expose(root);
@@ -545,12 +554,20 @@ video_callback(mvp_widget_t *widget, char key)
 		}
 		display_on = !display_on;
 		break;
-	case 'L':
+	case MVPW_KEY_FULL:
 		av_set_video_aspect(1-av_get_video_aspect());
 		break;
-	case '\n':
+	case MVPW_KEY_OK:
 		video_thumbnail(0);
 		pthread_cond_broadcast(&video_cond);
+		break;
+	case MVPW_KEY_UP:
+		if (mythtv_livetv)
+			mythtv_channel_up();
+		break;
+	case MVPW_KEY_DOWN:
+		if (mythtv_livetv)
+			mythtv_channel_down();
 		break;
 	default:
 		printf("char '%c'\n", key);

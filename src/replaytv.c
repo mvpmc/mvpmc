@@ -862,7 +862,7 @@ static int bogus_discover(void)
 // 
 static void rtv_device_menu_callback(mvp_widget_t *widget, char key)
 {
-   if (key == 'E') {
+   if (key == MVPW_KEY_EXIT) {
       running_replaytv = 0;
       replaytv_back_to_mvp_main_menu();
    }
@@ -889,13 +889,13 @@ static void rtv_browser_key_callback(mvp_widget_t *widget, char key)
 {
    // Back/Exit
    //
-   if (key == 'E') {
+   if (key == MVPW_KEY_EXIT) {
       rtv_back_to_device_menu(widget);
    }
    
    // Menu button
    //
-   if ( key == 'M' ) {
+   if ( key == MVPW_KEY_MENU ) {
 #if 0                      // ************ JBH menu button not implemented
       printf("replaytv popup menu\n");
       mvpw_clear_menu(rtv_popup);

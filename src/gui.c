@@ -37,6 +37,7 @@
 #include "replaytv.h"
 
 volatile int running_replaytv = 0;
+int mythtv_livetv = 0;
 
 static mvpw_menu_attr_t fb_attr = {
 	.font = 0,
@@ -368,7 +369,7 @@ main_menu_callback(mvp_widget_t *widget, char key)
 static void
 mythtv_menu_callback(mvp_widget_t *widget, char key)
 {
-	if (key == 'E') {
+	if (key == MVPW_KEY_EXIT) {
 		mvpw_hide(mythtv_browser);
 		mvpw_hide(mythtv_menu);
 		mvpw_hide(mythtv_logo);
@@ -386,6 +387,32 @@ mythtv_menu_callback(mvp_widget_t *widget, char key)
 		mvpw_show(main_menu);
 		mvpw_show(mvpmc_logo);
 		mvpw_focus(main_menu);
+	}
+
+	if (key == MVPW_KEY_FULL) {
+		mvpw_hide(mythtv_logo);
+		mvpw_hide(mythtv_menu);
+		mvpw_focus(root);
+
+		av_move(0, 0, 0);
+	}
+
+	if (key == MVPW_KEY_STOP) {
+		mythtv_stop();
+	}
+
+	switch (key) {
+	case MVPW_KEY_REPLAY:
+	case MVPW_KEY_SKIP:
+	case MVPW_KEY_REWIND:
+	case MVPW_KEY_FFWD:
+	case MVPW_KEY_LEFT:
+	case MVPW_KEY_RIGHT:
+	case MVPW_KEY_PAUSE:
+	case MVPW_KEY_MUTE:
+	case MVPW_KEY_ZERO ... MVPW_KEY_NINE:
+		video_callback(widget, key);
+		break;
 	}
 }
 
@@ -425,7 +452,7 @@ mythtv_info_key_callback(mvp_widget_t *widget, char key)
 static void
 sub_settings_key_callback(mvp_widget_t *widget, char key)
 {
-	if (key == 'E') {
+	if (key == MVPW_KEY_EXIT) {
 		mvpw_hide(settings);
 		mvpw_hide(sub_settings);
 
@@ -436,7 +463,7 @@ sub_settings_key_callback(mvp_widget_t *widget, char key)
 		mvpw_focus(main_menu);
 	}
 
-	if (key == '<') {
+	if (key == MVPW_KEY_LEFT) {
 		settings_attr.hilite_bg = MVPW_BLUE;
 		mvpw_set_menu_attr(settings, &settings_attr);
 
@@ -452,7 +479,7 @@ sub_settings_key_callback(mvp_widget_t *widget, char key)
 static void
 settings_key_callback(mvp_widget_t *widget, char key)
 {
-	if (key == 'E') {
+	if (key == MVPW_KEY_EXIT) {
 		mvpw_hide(settings);
 		mvpw_hide(sub_settings);
 
@@ -463,7 +490,7 @@ settings_key_callback(mvp_widget_t *widget, char key)
 		mvpw_focus(main_menu);
 	}
 
-	if (key == '>') {
+	if (key == MVPW_KEY_RIGHT) {
 		settings_select_callback(NULL, NULL, NULL);
 	}
 }
@@ -471,7 +498,7 @@ settings_key_callback(mvp_widget_t *widget, char key)
 static void
 fb_key_callback(mvp_widget_t *widget, char key)
 {
-	if (key == 'E') {
+	if (key == MVPW_KEY_EXIT) {
 		mvpw_hide(widget);
 		mvpw_hide(iw);
 
@@ -527,7 +554,7 @@ mythtv_popup_select_callback(mvp_widget_t *widget, char *item, void *key)
 static void
 mythtv_key_callback(mvp_widget_t *widget, char key)
 {
-	if (key == 'E') {
+	if (key == MVPW_KEY_EXIT) {
 		if (mythtv_back(widget) == 0) {
 			mvpw_hide(mythtv_browser);
 			mvpw_hide(mythtv_channel);
@@ -541,10 +568,12 @@ mythtv_key_callback(mvp_widget_t *widget, char key)
 			mvpw_show(mythtv_logo);
 			mvpw_show(mythtv_menu);
 			mvpw_focus(mythtv_menu);
+
+			mythtv_main_menu = 1;
 		}
 	}
 
-	if ((key == 'M') && (mythtv_level)) {
+	if ((key == MVPW_KEY_MENU) && (mythtv_level)) {
 		printf("mythtv popup menu\n");
 		mvpw_clear_menu(mythtv_popup);
 		mythtv_popup_item_attr.select = mythtv_popup_select_callback;
@@ -562,7 +591,7 @@ mythtv_key_callback(mvp_widget_t *widget, char key)
 		mvpw_focus(mythtv_popup);
 	}
 
-	if (key == 'L') {
+	if (key == MVPW_KEY_FULL) {
 		mvpw_hide(mythtv_logo);
 		mvpw_hide(mythtv_channel);
 		mvpw_hide(mythtv_date);
@@ -577,24 +606,24 @@ mythtv_key_callback(mvp_widget_t *widget, char key)
 		av_move(0, 0, 0);
 	}
 
-	if (key == '#') {
+	if (key == MVPW_KEY_PLAY) {
 		mythtv_start_thumbnail();
 	}
 
-	if (key == '.') {
+	if (key == MVPW_KEY_STOP) {
 		mythtv_stop();
 	}
 
 	switch (key) {
-	case '(':
-	case ')':
-	case '{':
-	case '}':
-	case '<':
-	case '>':
-	case ',':
-	case 'Q':
-	case '0' ... '9':
+	case MVPW_KEY_REPLAY:
+	case MVPW_KEY_SKIP:
+	case MVPW_KEY_REWIND:
+	case MVPW_KEY_FFWD:
+	case MVPW_KEY_LEFT:
+	case MVPW_KEY_RIGHT:
+	case MVPW_KEY_PAUSE:
+	case MVPW_KEY_MUTE:
+	case MVPW_KEY_ZERO ... MVPW_KEY_NINE:
 		video_callback(widget, key);
 		break;
 	}
@@ -603,11 +632,11 @@ mythtv_key_callback(mvp_widget_t *widget, char key)
 static void
 mythtv_popup_key_callback(mvp_widget_t *widget, char key)
 {
-	if (key == 'M') {
+	if (key == MVPW_KEY_MENU) {
 		mvpw_hide(mythtv_popup);
 	}
 
-	if (key == 'E') {
+	if (key == MVPW_KEY_EXIT) {
 		mvpw_hide(mythtv_popup);
 	}
 }
@@ -615,7 +644,7 @@ mythtv_popup_key_callback(mvp_widget_t *widget, char key)
 static void
 popup_key_callback(mvp_widget_t *widget, char key)
 {
-	if (key == 'M') {
+	if (key == MVPW_KEY_MENU) {
 		mvpw_hide(popup_menu);
 		mvpw_hide(audio_stream_menu);
 		mvpw_hide(video_stream_menu);
@@ -624,7 +653,7 @@ popup_key_callback(mvp_widget_t *widget, char key)
 		mvpw_focus(root);
 	}
 
-	if (key == 'E') {
+	if (key == MVPW_KEY_EXIT) {
 		if (mvpw_visible(popup_menu)) {
 			mvpw_hide(popup_menu);
 			mvpw_focus(root);
@@ -880,6 +909,8 @@ myth_menu_select_callback(mvp_widget_t *widget, char *item, void *key)
 
 		mvpw_hide(mythtv_menu);
 		mvpw_focus(mythtv_browser);
+
+		mythtv_main_menu = 0;
 		break;
 	case 1:
 		mythtv_pending(mythtv_browser);
@@ -887,6 +918,19 @@ myth_menu_select_callback(mvp_widget_t *widget, char *item, void *key)
 
 		mvpw_hide(mythtv_menu);
 		mvpw_focus(mythtv_browser);
+
+		mythtv_main_menu = 0;
+		break;
+	case 2:
+		if (mythtv_livetv_start() == 0) {
+			mythtv_livetv = 1;
+			running_mythtv = 1;
+			mvpw_hide(mythtv_menu);
+			mvpw_hide(mythtv_logo);
+			mvpw_focus(root);
+
+			mythtv_main_menu = 0;
+		}
 		break;
 	}
 }
@@ -918,6 +962,9 @@ myth_browser_init(void)
 			   (void*)0, &myth_menu_item_attr);
 	mvpw_add_menu_item(mythtv_menu, "Upcoming Recordings",
 			   (void*)1, &myth_menu_item_attr);
+	if (mythtv_ringbuf)
+		mvpw_add_menu_item(mythtv_menu, "Live TV",
+				   (void*)2, &myth_menu_item_attr);
 
 	mvpw_set_key(mythtv_menu, mythtv_menu_callback);
 
@@ -1076,6 +1123,8 @@ main_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mvpw_show(mythtv_logo);
 		mvpw_show(mythtv_menu);
 		mvpw_focus(mythtv_menu);
+
+		mythtv_main_menu = 1;
 		break;
 	case MM_REPLAYTV:
 		mvpw_hide(main_menu);
