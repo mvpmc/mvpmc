@@ -83,7 +83,7 @@ is_image(char *item)
 int
 is_audio(char *item)
 {
-	char *wc[] = { ".mp3", ".wav", ".ac3", NULL };
+	char *wc[] = { ".mp3", ".ogg", ".wav", ".ac3", NULL };
 	int i = 0;
 
 	while (wc[i] != NULL) {
@@ -274,10 +274,10 @@ add_files(mvp_widget_t *fbw)
 {
 	char *wc[] = { "*.mpg", "*.mpeg", "*.mp3", "*.nuv", "*.vob", "*.gif",
 		       "*.bmp", "*.m3u", "*.jpg", "*.jpeg", "*.png", "*.wav", "*.ac3",
-		       NULL };
+	           "*.ogg", NULL };
 	char *WC[] = { "*.MPG", "*.MPEG", "*.MP3", "*.NUV", "*.VOB", "*.GIF",
 		       "*.BMP", "*.M3U", "*.JPG", "*.JPEG", "*.PNG", "*.WAV", "*.AC3",
-		       NULL };
+	           "*.OGG", NULL };
 
 	item_attr.select = select_callback;
 	item_attr.hilite = hilite_callback;

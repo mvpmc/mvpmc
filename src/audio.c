@@ -42,6 +42,14 @@
 #include "a52dec/a52.h"
 #include "a52dec/mm_accel.h"
 
+#include "tremor/ivorbiscodec.h"
+#include "tremor/ivorbisfile.h"
+static char pcmout[4096];
+static OggVorbis_File vf;
+static int current_section;
+static vorbis_info *vi;
+static FILE *oggfile;
+
 static int fd = -1;
 
 #define BSIZE		(1024*32)
@@ -61,6 +69,7 @@ typedef enum {
 	AUDIO_FILE_MP3,
 	AUDIO_FILE_AC3,
 	AUDIO_FILE_WAV,
+	AUDIO_FILE_OGG,
 } audio_file_t;
 
 static audio_file_t audio_type;
@@ -187,6 +196,34 @@ pcm_play(int fd, int afd, unsigned short align, unsigned short channels,
 	}
 }
 
+static void
+ogg_play(int afd)
+{
+	int i = 0;
+	int ret;
+
+	while (i++ < 4) {
+		ret = ov_read(&vf, pcmout, sizeof(pcmout), &current_section);
+
+		if (ret == 0) {
+			fprintf(stderr, "EOF during ogg read...\n");
+			return;
+		} else if (ret < 0) {
+			fprintf(stderr, "Error during ogg read...\n");
+		} else {
+			int pos = 0, len = 0;
+			do {
+				pos += len;
+				if ((len = write(afd, pcmout + pos, ret - pos)) == -1) {
+					fprintf(stderr,
+						"Error during audio write\n");
+					return;
+				}
+			} while (pos + len < ret);
+		}
+	}
+}
+
 static int
 audio_player(int reset)
 {
@@ -294,6 +331,9 @@ audio_player(int reset)
 			nput = 0;
 		}
 		break;
+	case AUDIO_FILE_OGG:
+		ogg_play(afd);
+		break;
 	case AUDIO_FILE_UNKNOWN:
 		mvpw_set_idle(NULL);
 		break;
@@ -311,6 +351,11 @@ get_audio_type(char *path)
 	if ((strlen(path) >= strlen(suffix)) &&
 	    (strcmp(path+strlen(path)-strlen(suffix), suffix) == 0))
 		return AUDIO_FILE_MP3;
+
+	suffix = ".ogg";
+	if ((strlen(path) >= strlen(suffix)) &&
+	    (strcmp(path+strlen(path)-strlen(suffix), suffix) == 0))
+		return AUDIO_FILE_OGG;
 
 	suffix = ".ac3";
 	if ((strlen(path) >= strlen(suffix)) &&
@@ -331,10 +376,28 @@ audio_idle(void)
 	int reset = 0;
 
 	if (fd == -1) {
+		if ((fd=open(current, O_RDONLY|O_LARGEFILE|O_NDELAY)) < 0)
+			return;
+
 		switch ((audio_type=get_audio_type(current))) {
 		case AUDIO_FILE_MP3:
 			av_set_audio_output(AV_AUDIO_MPEG);
 			av_set_audio_type(0);
+			break;
+		case AUDIO_FILE_OGG:
+			av_set_audio_output(AV_AUDIO_PCM);
+			oggfile = fdopen(fd, "r");
+			if (ov_open(oggfile, &vf, NULL, 0) < 0) {
+				fprintf(stderr,
+					"Failed to open %s\n", current);
+				close(fd);
+				fd = -1;
+				return;
+			}
+			vi = ov_info(&vf, -1);
+			printf("Bitstream is %d channel, %ldHz\n",
+				vi->channels, vi->rate);
+			av_set_pcm_rate(vi->rate);
 			break;
 		case AUDIO_FILE_AC3:
 			av_set_audio_output(AV_AUDIO_PCM);
@@ -348,8 +411,6 @@ audio_idle(void)
 			break;
 		}
 
-		if ((fd=open(current, O_RDONLY|O_LARGEFILE|O_NDELAY)) < 0)
-			return;
 		av_play();
 
 		reset = 1;
@@ -372,7 +433,12 @@ audio_clear(void)
 	if(fd>=0){
 		close(fd);
 	}
+	if (oggfile != NULL) {
+		fclose(oggfile);
+		ov_clear(&vf);
+	}
 	fd = -1;
+	oggfile = NULL;
 	av_reset();
 }
 

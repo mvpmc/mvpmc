@@ -1320,7 +1320,7 @@ about_init(void)
 	mvpw_set_text_str(about,
 			  "MediaMVP Media Center\n"
 			  "http://mvpmc.sourceforge.net/\n\n"
-			  "Audio: mp3, wav, ac3\n"
+			  "Audio: mp3, ogg, wav, ac3\n"
 			  "Video: mpeg1, mpeg2\n"
 			  "Images: bmp, gif, png, jpeg\n"
 			  "Servers: MythTV, ReplayTV, NFS\n");
