@@ -221,6 +221,36 @@ static mvp_widget_t *splash;
 //******************         local functions             *****************************************************************
 //************************************************************************************************************************
 
+// sort_devices()
+// called by qsort to sort device list
+//
+static int sort_devices(const void *item1, const void *item2)
+{
+   const rtv_device_t *dev1 = *(rtv_device_t**)item1;
+   const rtv_device_t *dev2 = *(rtv_device_t**)item2;
+   return(strcmp(dev1->device.name, dev2->device.name));
+}
+
+// sort_shows()
+// called by qsort to sort show list
+//
+static int sort_shows(const void *item1, const void *item2)
+{
+   const rtv_show_export_t *sh1 = *(rtv_show_export_t**)item1;
+   const rtv_show_export_t *sh2 = *(rtv_show_export_t**)item2;
+   int rc;
+
+   if ( (rc = strcmp(sh1->title, sh2->title)) == 0 ) {
+      if ( sh1->file_info->time < sh2->file_info->time ) {
+         rc = -1;
+      }
+      else {
+         rc = 1;
+      }
+   }
+   return(rc);
+}
+
 // strip_spaces
 //
 static char* strip_spaces(char *str)
@@ -601,9 +631,10 @@ static void rtv_get_video_dir_list(mvp_widget_t *widget, rtv_device_t *rtv)
 //
 static void rtv_get_guide(mvp_widget_t *widget, rtv_device_t *rtv)
 {
-   rtv_fs_volume_t    *volinfo;
-   rtv_guide_export_t *guide;
-   int                 x, rc;
+   rtv_fs_volume_t     *volinfo;
+   rtv_guide_export_t  *guide;
+   rtv_show_export_t  **sorted_show_ptr_list;
+   int                  x, rc;
    
    // Verify we can access the Video directory. If not the RTV's time is probably off by more
    // than 40 seconds from ours.
@@ -620,18 +651,28 @@ static void rtv_get_guide(mvp_widget_t *widget, rtv_device_t *rtv)
       return;
    }
 
+   // Make a sorted list & build menu
+   //
+   sorted_show_ptr_list = malloc(sizeof(sorted_show_ptr_list) * guide->num_rec_shows);
+   for ( x=0; x < guide->num_rec_shows; x++ ) {
+      sorted_show_ptr_list[x] = &(guide->rec_show_list[x]);
+   }
+   qsort(sorted_show_ptr_list, guide->num_rec_shows, sizeof(sorted_show_ptr_list), sort_shows);
+
    rtv_default_item_attr.select = guide_select_callback;
    rtv_default_item_attr.hilite = guide_hilite_callback;
 
    for ( x=0; x < guide->num_rec_shows; x++ ) {
       char title_episode[255];
-      snprintf(title_episode, 254, "%s: %s", guide->rec_show_list[x].title, guide->rec_show_list[x].episode);
+      snprintf(title_episode, 254, "%s: %s", sorted_show_ptr_list[x]->title, sorted_show_ptr_list[x]->episode);
       printf("%d:  %s\n", x, title_episode);
-      mvpw_add_menu_item(widget, title_episode, &(guide->rec_show_list[x]), &rtv_default_item_attr);
+      mvpw_add_menu_item(widget, title_episode, sorted_show_ptr_list[x], &rtv_default_item_attr);
    }
    
    //all done, cleanup as we leave 
+   //
    fprintf(stderr, "\n[End of Show:Episode Listing.]\n");
+   free(sorted_show_ptr_list);
 }
 
 
@@ -836,7 +877,7 @@ int replaytv_device_update(void)
    int                h, w, x, y, idx, rc;
    char               buf[128];
    rtv_device_list_t *rtv_list;
-   
+   rtv_device_t      **sorted_device_ptr_list;   
    running_replaytv = 1;
 
    add_osd_widget(rtv_osd_proginfo_widget, OSD_PROGRAM, 1, NULL);
@@ -883,15 +924,25 @@ int replaytv_device_update(void)
    }
    mvpw_destroy(splash);
    
+   // Make a sorted list
+   //
+   sorted_device_ptr_list = malloc(sizeof(sorted_device_ptr_list) * rtv_devices.num_rtvs);
+   for ( idx=0; idx < rtv_devices.num_rtvs; idx++ ) {
+      sorted_device_ptr_list[idx] = &(rtv_devices.rtv[idx]);
+    }
+   qsort(sorted_device_ptr_list, rtv_devices.num_rtvs, sizeof(sorted_device_ptr_list), sort_devices);
+   
    // Add discovered devices to the list
    //
    device_menu_item_attr.select = rtv_device_select_callback;
+
    for ( idx=0; idx < rtv_devices.num_rtvs; idx++ ) {
-      if ( rtv_devices.rtv[idx].device.name != NULL ) {
-         mvpw_add_menu_item(widget, rtv_devices.rtv[idx].device.name, &(rtv_devices.rtv[idx]), &device_menu_item_attr);
+      if ( sorted_device_ptr_list[idx]->device.name != NULL ) {
+         mvpw_add_menu_item(widget, sorted_device_ptr_list[idx]->device.name, sorted_device_ptr_list[idx], &device_menu_item_attr);
       }
    }
    
+   free(sorted_device_ptr_list);
    rtv_level = RTV_DEVICE_MENU;
    return 0;
 }
