@@ -454,6 +454,7 @@ static void dirlist_select_callback(mvp_widget_t *widget, char *item, void *key)
    mvpw_hide(replaytv_logo);
    mvpw_hide(rtv_episode_description);
    av_move(0, 0, 0);
+   screensaver_disable();
    mvpw_show(root);
    mvpw_expose(root);
    mvpw_focus(root);
@@ -553,6 +554,7 @@ static void guide_select_callback(mvp_widget_t *widget, char *item, void *key)
    mvpw_hide(replaytv_logo);
    mvpw_hide(rtv_episode_description);
    av_move(0, 0, 0);
+   screensaver_disable();
    mvpw_show(root);
    mvpw_expose(root);
    mvpw_focus(root);
@@ -838,6 +840,7 @@ int replaytv_device_update(void)
    running_replaytv = 1;
 
    add_osd_widget(rtv_osd_proginfo_widget, OSD_PROGRAM, 1, NULL);
+   screensaver_enable();
    
    mvpw_show(root);
    mvpw_expose(root);

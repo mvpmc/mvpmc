@@ -172,6 +172,7 @@ video_subtitle_check(mvp_widget_t *widget)
 	if (! (mvpw_visible(file_browser) ||
 	       mvpw_visible(mythtv_browser))) {
 		av_move(0, 0, 0);
+		screensaver_disable();
 	}
 }
 
@@ -409,6 +410,7 @@ video_callback(mvp_widget_t *widget, char key)
 			av_move(475, si.rows-60, 4);
 		else
 			av_move(475, si.rows-113, 4);
+		screensaver_enable();
 		if (spu_widget) {
 			mvpw_hide(spu_widget);
 			mvpw_expose(root);
@@ -532,6 +534,7 @@ video_callback(mvp_widget_t *widget, char key)
 		break;
 	case '\n':
 		av_move(0, 0, 0);
+		screensaver_disable();
 		pthread_cond_broadcast(&video_cond);
 		break;
 	default:
@@ -825,6 +828,7 @@ file_open(void)
 		av_move(475, si.rows-60, 4);
 	else
 		av_move(475, si.rows-113, 4);
+	screensaver_enable();
 	
 	av_play();
 
@@ -847,6 +851,7 @@ file_open(void)
 
 	return 0;
 }
+
 void*
 video_read_start(void *arg)
 {

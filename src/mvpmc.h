@@ -176,4 +176,7 @@ set_osd_callback(int type, void (*callback)(mvp_widget_t*))
 
 extern int a52_decode_data (uint8_t * start, uint8_t * end, int reset);
 
+extern void screensaver_enable(void);
+extern void screensaver_disable(void);
+
 #endif /* MVPMC_H */

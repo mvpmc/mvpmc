@@ -258,6 +258,11 @@ mvp_widget_t *clock_widget;
 mvp_widget_t *demux_video;
 mvp_widget_t *demux_audio;
 
+mvp_widget_t *screensaver;
+mvp_widget_t *screensaver_image;
+
+mvp_widget_t *focus_widget;
+
 mvpw_screen_info_t si;
 
 enum {
@@ -1555,6 +1560,88 @@ popup_init(void)
 	return 0;
 }
 
+static void
+screensaver_timer(mvp_widget_t *widget)
+{
+	mvpw_widget_info_t info;
+	int x, y;
+
+	if (focus_widget == NULL)
+		focus_widget = mvpw_get_focus();
+
+	mvpw_set_timer(screensaver, screensaver_timer, 1000);
+
+	mvpw_get_widget_info(screensaver_image, &info);
+
+	x = rand() % (si.cols - info.w);
+	y = rand() % (si.rows - info.h);
+
+	mvpw_moveto(screensaver_image, x, y);
+
+	mvpw_show(screensaver);
+	mvpw_raise(screensaver);
+	mvpw_focus(screensaver);
+}
+
+static void
+screensaver_callback(void)
+{
+	mvpw_set_timer(screensaver, screensaver_timer, 60*1000);
+
+	mvpw_hide(screensaver);
+
+	mvpw_focus(focus_widget);
+	focus_widget = NULL;
+}
+
+static void
+screensaver_cb(mvp_widget_t *widget, char key)
+{
+	screensaver_callback();
+}
+
+void
+screensaver_enable(void)
+{
+	mvpw_set_timer(screensaver, screensaver_timer, 60*1000);
+}
+
+void
+screensaver_disable(void)
+{
+	mvpw_set_timer(screensaver, NULL, 0);
+}
+
+static int
+screensaver_init(void)
+{
+	mvpw_image_info_t iid;
+	char file[128];
+
+	screensaver = mvpw_create_container(NULL, 0, 0,
+					    si.cols, si.rows,
+					    MVPW_BLACK, 0, 0);
+
+	snprintf(file, sizeof(file), "%s/mvpmc_logo.png", imagedir);
+	if (mvpw_get_image_info(file, &iid) < 0)
+		return -1;
+	screensaver_image = mvpw_create_image(screensaver, 50, 25,
+					      iid.width, iid.height,
+					      0, 0, 0);
+	mvpw_set_image(screensaver_image, file);
+
+	mvpw_keystroke_callback(screensaver_callback);
+	mvpw_set_key(screensaver, screensaver_cb);
+
+	mvpw_show(screensaver_image);
+
+	screensaver_enable();
+
+	splash_update();
+
+	return 0;
+}
+
 int
 gui_init(char *server, char *replaytv)
 {
@@ -1581,6 +1668,7 @@ gui_init(char *server, char *replaytv)
 	image_init();
 	osd_init();
 	popup_init();
+	screensaver_init();
 
 	mvpw_destroy(splash);
 
