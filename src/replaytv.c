@@ -32,6 +32,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <pthread.h>
+#include <signal.h>
 #include <time.h>
 #include <sys/types.h>
 
@@ -51,6 +52,9 @@
 
 #define MAX_RTVS 10
 
+extern pthread_t video_write_thread;
+extern pthread_t audio_write_thread;
+
 static pthread_t read_thread;
 static pthread_t write_thread;
 
@@ -58,10 +62,10 @@ static pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 static mvpw_menu_item_attr_t item_attr = {
-	.selectable = 1,
-	.fg = MVPW_BLACK,
-	.bg = MVPW_LIGHTGREY,
-	.checkbox_fg = MVPW_GREEN,
+   .selectable = 1,
+   .fg = MVPW_BLACK,
+   .bg = MVPW_LIGHTGREY,
+   .checkbox_fg = MVPW_GREEN,
 };
 
 extern int fd_audio, fd_video;
@@ -98,33 +102,6 @@ static rtv_device_t *get_rtv_device_struct(char* ipaddr, int *new) {
    }
    return(NULL);
 }
-
-#if 0
-static void
-write_start(void *arg)
-{
-	struct timespec ts;
-	int nput = 0, len;
-	int alen, vlen, sbl;
-	unsigned char *buf, *sb;
-	unsigned long *b;
-	int i;
-
-	printf("write thread is pid %d\n", getpid());
-
-	sleep(1);
-
-	while (1) {
-		alen = demux_write_audio(handle, fd_audio);
-		vlen = demux_write_video(handle, fd_video);
-
-		if ((alen == 0) && (vlen == 0))
-			usleep(1000);
-
-		pthread_testcancel();
-	}
-}
-#endif
 
 static int GetMpgCallback(unsigned char * buf, size_t len, void * vd)
 {
@@ -173,31 +150,42 @@ void GetMpgFile(char *IPAddress, char *FileName, int ToStdOut)
 static void*
 read_start(void *arg)
 {
-	printf("read thread is pid %d\n", getpid());
+   printf("read thread is pid %d\n", getpid());
 
-	pthread_mutex_init(&mutex, NULL);
-	pthread_mutex_lock(&mutex);
+   pthread_mutex_init(&mutex, NULL);
+   pthread_mutex_lock(&mutex);
 
-	GetMpgFile(replaytv_server, (char*)arg, 0);
+   GetMpgFile(replaytv_server, (char*)arg, 0);
    pthread_exit(NULL);
-	return NULL;
+   return NULL;
 }
 
 static void
 old_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
-	mvpw_hide(widget);
-	av_move(0, 0, 0);
-	mvpw_show(root);
-	mvpw_expose(root);
-	mvpw_focus(root);
-	
-	av_play();
-	demux_reset(handle);
+   mvpw_hide(widget);
+   av_move(0, 0, 0);
+   mvpw_show(root);
+   mvpw_expose(root);
+   mvpw_focus(root);
+   
+   if (playing) {
+      abort_read = 1;
+      running_replaytv = 0;
+      pthread_join(read_thread, NULL);
+      pthread_kill(video_write_thread, SIGURG);
+      pthread_kill(audio_write_thread, SIGURG);
+      av_reset();
+      running_replaytv = 1;
+   }
+   
+   printf("Playing file: %s\n", item);
+   av_play();
+   demux_reset(handle);
 
    abort_read = 0;
-	pthread_create(&read_thread, NULL, read_start, (void*)item);
-	playing = 1;
+   pthread_create(&read_thread, NULL, read_start, (void*)item);
+   playing = 1;
 }
 
 static void
@@ -205,20 +193,29 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 {
    rtv_show_export_t  *show = (rtv_show_export_t*)key;
 
-	mvpw_hide(widget);
-	av_move(0, 0, 0);
-	mvpw_show(root);
-	mvpw_expose(root);
-	mvpw_focus(root);
+   mvpw_hide(widget);
+   av_move(0, 0, 0);
+   mvpw_show(root);
+   mvpw_expose(root);
+   mvpw_focus(root);
 
-   printf("Playing file: %s\n", show->file_name);
- 	
-	av_play();
-	demux_reset(handle);
+   if (playing) {
+      abort_read = 1;
+      running_replaytv = 0;
+      pthread_join(read_thread, NULL);
+      pthread_kill(video_write_thread, SIGURG);
+      pthread_kill(audio_write_thread, SIGURG);
+      av_reset();
+      running_replaytv = 1;
+  }
+
+   printf("Playing file: %s\n", show->file_name);  
+   av_play();
+   demux_reset(handle);
 
    abort_read = 0;
-	pthread_create(&read_thread, NULL, read_start, (void*)show->file_name);
-	playing = 1;
+   pthread_create(&read_thread, NULL, read_start, (void*)show->file_name);
+   playing = 1;
 }
 
 void GetDir(mvp_widget_t *widget, char *IPAddress)
@@ -285,7 +282,7 @@ replaytv_update(mvp_widget_t *widget)
    rtv_device_info_t *devinfo;
    int                rc, new_entry;
 
-	running_replaytv = 1;
+   running_replaytv = 1;
    rtv_init();
 
    printf( "\nGetting replaytv (%s) device info...\n", replaytv_server);
@@ -311,10 +308,10 @@ replaytv_update(mvp_widget_t *widget)
 
 
 
-	mvpw_show(root);
-	mvpw_expose(root);
+   mvpw_show(root);
+   mvpw_expose(root);
 
-	mvpw_clear_menu(widget);
+   mvpw_clear_menu(widget);
 
    if ( atoi(rtv->device.modelNumber) == 4999 ) {
       //DVArchive hack since guide doesn't work yet
@@ -323,18 +320,22 @@ replaytv_update(mvp_widget_t *widget)
    else {
       GetGuide(widget, replaytv_server);
    }
-	return 0;
+   return 0;
 }
 
 void
 replaytv_stop(void)
 {
    printf("In replaytv_stop\n");
-	running_replaytv = 0;
-   abort_read       = 1;
+   running_replaytv = 0;
 
    if (playing) {
+      abort_read = 1;
       pthread_join(read_thread, NULL);
+      pthread_join(read_thread, NULL);
+      pthread_kill(video_write_thread, SIGURG);
+      pthread_kill(audio_write_thread, SIGURG);
+      av_reset();
       playing    = 0;
       abort_read = 0;
    }
