@@ -337,6 +337,8 @@ stream_drain_fd(stream_t *stream, int fd)
 	ret = 0;
 	if (size1) {
 		n = write(fd, stream->buf+stream->tail+1, size1);
+		if (n < 0)
+			return 0;
 		ret += n;
 		if (n != size1) {
 			size1 = n;
@@ -347,8 +349,12 @@ stream_drain_fd(stream_t *stream, int fd)
 
 	if (size2) {
 		n = write(fd, stream->buf, size2);
-		size2 = n;
-		ret += n;
+		if (n < 0) {
+			size2 = 0;
+		} else {
+			size2 = n;
+			ret += n;
+		}
 	}
 
  out:
@@ -357,12 +363,12 @@ stream_drain_fd(stream_t *stream, int fd)
 	PRINTF("%s(): wrote %d bytes, head %d tail %d\n", __FUNCTION__,
 	       ret, head, stream->tail);
 
-	if ((size1 + size2) == 0)
+	if ((size1 + size2) == 0) {
 		stream->attr->stats.empty_count++;
-	else
+	} else {
 		stream->attr->stats.drain_count++;
-
-	stream->attr->stats.cur_bytes -= (size1 + size2);
+		stream->attr->stats.cur_bytes -= (size1 + size2);
+	}
 
 	return (size1 + size2);
 }
@@ -1394,39 +1400,38 @@ stream_init(char *buf, int size)
  *	number of bytes consumed from the buffer
  */
 int
-start_stream(demux_handle_t *handle, char *buf, int len)
+start_stream(demux_handle_t *handle)
 {
-	int ret = 0, n;
+	int n;
 	char *stream_buf;
-
-	if (len < 4)
-		return 0;
+	stream_t *video, *audio;
 
 	if ((stream_buf=malloc(handle->size)) == NULL)
 		return -1;
 	memset(stream_buf, 0, handle->size);
 
 	n = handle->size / 2;
-	if ((handle->video=stream_init(stream_buf, n)) == NULL)
+	if ((video=stream_init(stream_buf, n)) == NULL)
 		goto err;
-	if ((handle->audio=stream_init(stream_buf+n, n)) == NULL)
+	if ((audio=stream_init(stream_buf+n, n)) == NULL)
 		goto err;
 
 	if ((handle->spu_buf=malloc(64*1024)) == NULL)
 		goto err;
 	handle->spu_len = 0;
 
-	handle->audio->attr = &handle->attr.audio;
-	handle->video->attr = &handle->attr.video;
+	audio->attr = &handle->attr.audio;
+	video->attr = &handle->attr.video;
 
 	handle->attr.audio.bufsz = n;
 	handle->attr.video.bufsz = n;
 
+	handle->audio = audio;
+	handle->video = video;
+
 	handle->state = 1;
 
-	ret += add_buffer(handle, buf+ret, len-ret);
-
-	return ret;
+	return 0;
 
  err:
 	if (stream_buf)

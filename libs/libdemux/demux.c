@@ -74,6 +74,9 @@ demux_init(unsigned int size)
 
 	demux_reset(handle);
 
+	if (start_stream(handle) < 0)
+		return NULL;
+
 	return handle;
 }
 
@@ -104,10 +107,6 @@ demux_put(demux_handle_t *handle, char *buf, int len)
 		return 0;
 
 	switch (handle->state) {
-	case 0:
-		/* start of stream */
-		ret += start_stream(handle, buf, len);
-		break;
 	case 1 ... 4:
 		/* frame header */
 		ret += add_buffer(handle, buf, len);

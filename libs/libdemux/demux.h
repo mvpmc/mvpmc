@@ -94,7 +94,7 @@ struct demux_handle_s {
 #define MPEG1		1
 #define MPEG2		2
 
-extern int start_stream(demux_handle_t *handle, char *buf, int len);
+extern int start_stream(demux_handle_t *handle);
 extern int add_buffer(demux_handle_t *handle, char *buf, int len);
 extern int parse_frame(demux_handle_t *handle, unsigned char *buf,
 		       int len, int type);
