@@ -230,8 +230,8 @@ static int get_guide_ss( const rtv_device_info_t  *device,
 static int update_shows_file_info( const rtv_device_info_t  *device,
                                    rtv_guide_export_t       *guide  )
 {
-    int                   rc = 0;
-    unsigned int          x;
+    int          rc = 0;
+    unsigned int x;
 
     // Get file info for the show mpg files
     //
@@ -241,16 +241,16 @@ static int update_shows_file_info( const rtv_device_info_t  *device,
        
        fileinfo = malloc(sizeof(rtv_fs_file_t));
        sprintf(path, "/Video/%s", guide->rec_show_list[x].file_name);
+       RTV_DBGLOG(RTVLOG_GUIDE, "%s: idx=%d: show=%s\n", __FUNCTION__, x, path); 
        rc = rtv_get_file_info(device, path, fileinfo);
        if ( rc != 0 ) {
-          RTV_ERRLOG("%s: rtv_get_file_info failed: %d=>%s\n", __FUNCTION__, rc, strerror(abs(rc)));
-          free(fileinfo);
-          return(rc);
+          RTV_ERRLOG("%s: rtv_get_file_info failed: %s: %d=>%s\n", __FUNCTION__, rc, path, strerror(abs(rc)));
+          memset(fileinfo, 0, sizeof(fileinfo));
        }
        guide->rec_show_list[x].file_info = fileinfo;
     }
     
-    return(rc);
+    return(0);
 }
 
 //+******************************************

@@ -59,6 +59,9 @@
 #define RTV_VID_Q_SZ (2)
 #define MAX_FILENAME_LEN (256)
 
+
+#define MVPW_MIDNIGHTBLUE 0xff701919
+
 //+***********************************************
 //    externals 
 //+***********************************************
@@ -223,7 +226,7 @@ static mvpw_menu_attr_t  rtv_default_menu_attr = {
 	.hilite_fg = MVPW_WHITE,
 	.hilite_bg = MVPW_DARKGREY2,
 	.title_fg = MVPW_WHITE,
-	.title_bg = 0xff701919, //MIDNIGHTBLUE,
+	.title_bg = MVPW_MIDNIGHTBLUE,
    .rounded = 0,
 };
 
@@ -234,11 +237,11 @@ static mvpw_menu_attr_t rtv_popup_attr = {
 	.hilite_fg = MVPW_BLACK,
 	.hilite_bg = MVPW_WHITE,
 	//.title_fg = MVPW_BLACK,
-	//.title_fg = 0xff701919,    //MIDNIGHTBLUE
+	//.title_fg = MVPW_MIDNIGHTBLUE,
 	.title_fg = MVPW_WHITE,
 	//.title_bg = MVPW_LIGHTGREY,
 	//.title_bg = 0xff08658b,    //DARKGOLDENROD4
-	.title_bg = 0xff701919, //MIDNIGHTBLUE,
+	.title_bg = MVPW_MIDNIGHTBLUE,
    .rounded = 0,
 };
 
@@ -279,7 +282,7 @@ static mvpw_graph_attr_t discspace_graph_attr = {
 	.max = 100,
    .fg = 0xff191988, //FIREBRICK3 (2/3 intensity)
 // .fg = 0xff2626cd, //FIREBRICK3
-//	.fg = 0xff701919, //MIDNIGHTBLUE
+//	.fg = MVPW_MIDNIGHTBLUE,
 };
 
 // show episode description window text attributes
@@ -322,9 +325,9 @@ static mvpw_text_attr_t rtv_osd_show_desc_attr = {
 static mvpw_text_attr_t rtv_message_window_attr = {
    .wrap = 1,
    .justify = MVPW_TEXT_LEFT,
-   .margin = 6,
+   .margin = 12,
    .font = 0,
-   .fg = MVPW_GREEN,
+   .fg = MVPW_WHITE,
 };
 
 // numeric keypad jump_to_time attributes
@@ -337,7 +340,8 @@ static mvpw_text_attr_t rtv_jump_to_time_attr = {
 };
 
 // widgets
-static mvp_widget_t *replaytv_logo;
+static mvp_widget_t *rtv_menu_bg;
+static mvp_widget_t *rtv_logo;
 static mvp_widget_t *rtv_device_menu;
 static mvp_widget_t *rtv_browser;
 static mvp_widget_t *rtv_episode_description;
@@ -1050,7 +1054,7 @@ static void play_show(const rtv_show_export_t *show, int start_gop)
    devinfo = (rtv_device_info_t*)&(current_rtv_device->device); //cast to override volatile warning
 
    mvpw_hide(rtv_browser);
-   mvpw_hide(replaytv_logo);
+   mvpw_hide(rtv_menu_bg);
    mvpw_hide(rtv_episode_description);
    av_move(0, 0, 0);
    screensaver_disable();
@@ -1063,6 +1067,16 @@ static void play_show(const rtv_show_export_t *show, int start_gop)
       printf("***ERROR: show file name too long: %d\n", len);
       return;
    } 
+
+   if ( show->file_info->name == NULL ) {
+      //
+      // Show is in the guide but the mpg doesn't exist.
+      //
+      char buf[128];
+      snprintf(buf, sizeof(buf), "ERROR: mpg file not present in rtv filesystem. ");
+      gui_error(buf);
+      return;
+   }
 
    // Get .ndx & .evt info
    //
@@ -1183,13 +1197,6 @@ static void play_show(const rtv_show_export_t *show, int start_gop)
 //   GUI stuff
 //+*************************************
 
-// msg_win_destroy_any_key_callback()
-// Destroy for any keypress
-static void msg_win_destroy_any_key_callback(mvp_widget_t *widget, char key)
-{
-   message_window_done = 1;
-}
-
 // show_message_window()
 // If callback is NOT NULL then wait for callback to set 'message_window_done'
 // Then destroy window and return.
@@ -1204,10 +1211,10 @@ static mvp_widget_t* show_message_window(void (*callback)(mvp_widget_t *widget, 
    w += (rtv_message_window_attr.margin * 2);
    h += (rtv_message_window_attr.margin * lines);
 
-   x = (scr_info.cols - w) / 2;
-   y = (scr_info.rows - h) / 2;
+   x = (scr_info.cols - w) / 2 + 20;
+   y = (scr_info.rows - h) / 2 + 20;
 
-   wp = mvpw_create_text(NULL, x, y, w, h, MVPW_BLACK, MVPW_GREEN, 4);
+   wp = mvpw_create_text(NULL, x, y, w, h, MVPW_LIGHTGREY, MVPW_MIDNIGHTBLUE, 4);
    mvpw_set_key(wp, callback);
    mvpw_set_text_attr(wp, &rtv_message_window_attr);
    mvpw_set_text_str(wp, message);
@@ -1331,28 +1338,25 @@ static int rtv_get_guide(mvp_widget_t *widget, rtv_device_t *rtv)
    rtv_guide_export_t  *guide;
    rtv_show_export_t  **sorted_show_ptr_list;
    int                  x, rc;
-   
+   char                 buf[256];
+
    // Verify we can access the Video directory. If not the RTV's time is probably off by more
    // than 40 seconds from ours.
    rc = rtv_get_volinfo( &(rtv->device), "/Video", &volinfo );
    if ( rc != 0 ) {
-      fprintf(stderr, "**ERROR: Failed to access /Video directory for RTV %s\n", rtv->device.name);
-      fprintf(stderr, "         The RTV's clock and this clock must be within 40 seconds of each other\n");
-      show_message_window(msg_win_destroy_any_key_callback, 
-                          "ERROR: ReplayTV /Video dir access failed.\n"
-                          "MVP & ReplayTV clocks must not differ by\n"
-                          "more than 40 seconds.\n"
-                          "Press any key to continue");
+      snprintf(buf, sizeof(buf),
+               "ERROR: ReplayTV /Video dir access failed. "
+               "MVP & ReplayTV clocks must not differ by "
+               "more than 40 seconds.");
+      gui_error(buf);
       return(-1);
    }
    rtv_free_volinfo(&volinfo);
    
    guide = &(rtv->guide);
    if ( (rc = rtv_get_guide_snapshot( &(rtv->device), NULL, guide)) != 0 ) {
-      fprintf(stderr, "**ERROR: Failed to get Show Guilde for RTV %s\n", rtv->device.name);
-      show_message_window(msg_win_destroy_any_key_callback, 
-                          "ERROR: Failed to get guide snapshot.\n"
-                          "Press any key to continue");
+      snprintf(buf, sizeof(buf), "ERROR: Failed to get guide snapshot.");
+      gui_error(buf);
       return(-1);
    }
 
@@ -1411,15 +1415,14 @@ static void rtv_update_show_browser(rtv_device_t *rtv)
 //
 static void rtv_device_hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 {
-   rtv_device_t    *rtv = (rtv_device_t*)key;  
-   char             strp[128];
+   rtv_device_t     *rtv = (rtv_device_t*)key;  
+   char              strp[128];
    rtv_fs_volume_t  *volinfo;
    rtv_fs_file_t     fileinfo;
-
-   int              percentage;
-   int              rc;
-   double           size_gig, used_gig, free_gig;
-
+   int               percentage;
+   int               rc;
+   double            size_gig, used_gig, free_gig;
+   char              buf[256];
 
 
 	if (hilite) {
@@ -1429,13 +1432,11 @@ static void rtv_device_hilite_callback(mvp_widget_t *widget, char *item, void *k
       //
       rc = rtv_get_volinfo(&(rtv->device), "/Video", &volinfo);
       if ( rc != 0 ) {
-         fprintf(stderr, "**ERROR: Failed to access /Video directory for RTV %s\n", rtv->device.name);
-         fprintf(stderr, "         The RTV's clock and this clock must be within 40 seconds of each other\n");
-         show_message_window(msg_win_destroy_any_key_callback, 
-                             "ERROR: ReplayTV /Video dir access failed.\n"
-                             "MVP & ReplayTV clocks must not differ by\n"
-                             "more than 40 seconds.\n"
-                             "Press any key to continue");
+         snprintf(buf, sizeof(buf),
+                  "ERROR: ReplayTV /Video dir access failed. "
+                  "MVP & ReplayTV clocks must not differ by "
+                  "more than 40 seconds.");
+         gui_error(buf);
          volinfo = malloc(sizeof(rtv_fs_volume_t));
          memset(volinfo, 0, sizeof(rtv_fs_volume_t)); 
       }
@@ -1614,8 +1615,9 @@ static void delete_show_from_guide( unsigned int show_idx )
                         (rtv_guide_export_t*)&(current_rtv_device->guide), 
                         show_idx);   
    if ( rc != 0 ) {
-      printf("Error: rtv_delete_show call failed.\n");
-      show_message_window(msg_win_destroy_any_key_callback, "Error: rtv_delete_show call failed.\nPress any key to continue");
+      char buf[128];
+      snprintf(buf, sizeof(buf), "Error: rtv_delete_show call failed.");
+      gui_error(buf);
       mvpw_destroy(wp);
       return;
    }
@@ -1701,7 +1703,9 @@ static void rtv_popup_select_callback(mvp_widget_t *widget, char *item, void *ke
          return;
       }      
       if ( in_use ) {         
-         show_message_window(msg_win_destroy_any_key_callback, "Delete Canceled\nShow is in use\nPress any key to continue");
+         char buf[128];
+         snprintf(buf, sizeof(buf), "Delete Canceled\nShow is in use");
+         gui_error(buf);
          return;
       }
       sprintf(delete_msg, "Delete Show:\n%s\n%s\nRecorded: %s\nPress <OK> to confirm\nPress any other key to cancel", 
@@ -1715,7 +1719,9 @@ static void rtv_popup_select_callback(mvp_widget_t *widget, char *item, void *ke
          unsigned int show_idx;
 
          if ( get_show_idx((rtv_guide_export_t*)&(current_rtv_device->guide), rtv_video_state.show_p, &show_idx) != 0 ) {
-            show_message_window(msg_win_destroy_any_key_callback, "Delete Canceled\nInvalid Show index\nPress any key to continue");
+            char buf[128];
+            snprintf(buf, sizeof(buf), "Delete Canceled\nInvalid Show index");
+            gui_error(buf);
             return;
          }
          delete_show_from_guide(show_idx);         
@@ -1848,7 +1854,6 @@ int replaytv_init(char *init_str)
 //
 int replaytv_device_update(void)
 {
-   mvp_widget_t      *widget = rtv_device_menu;
    int                h, w, x, y, idx, rc;
    char               buf[128];
    rtv_device_list_t *rtv_list;
@@ -1860,8 +1865,8 @@ int replaytv_device_update(void)
    
    mvpw_show(root);
    mvpw_expose(root);
-   mvpw_clear_menu(widget);
-   mvpw_set_menu_title(widget, "Device List");
+   mvpw_clear_menu(rtv_device_menu);
+   mvpw_set_menu_title(rtv_device_menu, "Device List");
    
    // build discovery splash window
    //
@@ -1873,7 +1878,7 @@ int replaytv_device_update(void)
    x = (scr_info.cols - w) / 2;
    y = (scr_info.rows - h) / 2;
    
-   splash = mvpw_create_text(NULL, x, y, w, h, 0x80000000, 0, 0);
+   splash = mvpw_create_text(NULL, x, y, w, h, 0x00000000, 0, 0);
    mvpw_set_text_attr(splash, &splash_attr);
    
    mvpw_set_text_str(splash, buf);
@@ -1918,10 +1923,10 @@ int replaytv_device_update(void)
             //
             char name[80];
             snprintf(name, 80, "%s:(Unavailable)", sorted_device_ptr_list[idx]->device.name);
-            mvpw_add_menu_item(widget, name, sorted_device_ptr_list[idx], &device_menu_item_attr);
+            mvpw_add_menu_item(rtv_device_menu, name, sorted_device_ptr_list[idx], &device_menu_item_attr);
          }
          else {
-            mvpw_add_menu_item(widget, sorted_device_ptr_list[idx]->device.name, sorted_device_ptr_list[idx], &device_menu_item_attr);
+            mvpw_add_menu_item(rtv_device_menu, sorted_device_ptr_list[idx]->device.name, sorted_device_ptr_list[idx], &device_menu_item_attr);
          }
       }
    }
@@ -1935,7 +1940,7 @@ int replaytv_device_update(void)
 //
 int replaytv_show_device_menu(void)
 {
-   mvpw_show(replaytv_logo);
+   mvpw_show(rtv_menu_bg);
    mvpw_show(rtv_device_menu);
    mvpw_focus(rtv_device_menu);
    return(0);
@@ -1945,7 +1950,7 @@ int replaytv_show_device_menu(void)
 //
 int replaytv_hide_device_menu(void)
 {
-   mvpw_hide(replaytv_logo);
+   mvpw_hide(rtv_menu_bg);
    mvpw_hide(rtv_device_menu);
    mvpw_hide(rtv_device_descr.container);
    return(0);
@@ -1958,7 +1963,7 @@ void replaytv_back_from_video(void)
    video_stop_play();
    rtv_abort_read();
    video_clear();               //kick video.c
-   mvpw_show(replaytv_logo);
+   mvpw_show(rtv_menu_bg);
    mvpw_show(rtv_browser);
    mvpw_show(rtv_episode_description);
    mvpw_focus(rtv_browser);
@@ -2009,15 +2014,18 @@ int replay_gui_init(void)
    mvpw_get_screen_info(&scr_info);
    rtv_default_menu_attr.font = fontid;
    
+	rtv_menu_bg = mvpw_create_container(NULL, 0, 0, scr_info.cols, scr_info.rows, MVPW_BLACK, 0, 0);
+
    // init replaytv logo image
    //
    snprintf(logo_file, sizeof(logo_file), "%s/replaytv1_rotate.png", imagedir);
    if (mvpw_get_image_info(logo_file, &iid) < 0) {
       return -1;
    }
-   replaytv_logo = mvpw_create_image(NULL, 50, 15, iid.width, iid.height, 0, 0, 0);
-   mvpw_set_image(replaytv_logo, logo_file);
-   
+   rtv_logo = mvpw_create_image(rtv_menu_bg, 50, 15, iid.width, iid.height, 0, 0, 0);
+   mvpw_set_image(rtv_logo, logo_file);
+   mvpw_show(rtv_logo);
+ 
    // init device selection menu
    //
    rtv_device_menu = mvpw_create_menu(NULL, 50+iid.width, 30, scr_info.cols-120-iid.width, 
@@ -2036,7 +2044,7 @@ int replay_gui_init(void)
    
    // init show-browser-episode-info window
    //
-   mvpw_get_widget_info(replaytv_logo, &wid);
+   mvpw_get_widget_info(rtv_logo, &wid);
    mvpw_get_widget_info(rtv_browser, &wid2);
    //printf("logo: x=%d y=%d w=%d h=%d\n", wid.x, wid.y, wid.w, wid.h);
    //printf("brow: x=%d y=%d w=%d h=%d\n", wid2.x, wid2.y, wid2.w, wid2.h);
@@ -2053,9 +2061,9 @@ int replay_gui_init(void)
 
    // Set up NUM_EPISODE_LINES for episode description and place in a container widget 
    //
-	rtv_episode_description = mvpw_create_container(NULL, x, container_y, w, h*NUM_EPISODE_LINES, 0x80000000, 0, 0);
+	rtv_episode_description = mvpw_create_container(NULL, x, container_y, w, h*NUM_EPISODE_LINES, MVPW_BLACK, 0, 0);
    for ( i=0; i < NUM_EPISODE_LINES; i++ ) {
-      rtv_episode_line[i] = mvpw_create_text(rtv_episode_description, 0, h*i, w, h, 0, 0, 0);	
+      rtv_episode_line[i] = mvpw_create_text(rtv_episode_description, 0, h*i, w, h, MVPW_BLACK, 0, 0);	
       mvpw_set_text_attr(rtv_episode_line[i], &rtv_episode_descr_attr);
       mvpw_set_text_str(rtv_episode_line[i], "");
       mvpw_show(rtv_episode_line[i]);
@@ -2064,7 +2072,7 @@ int replay_gui_init(void)
 
    // init device-browser-info window
    //
-   mvpw_get_widget_info(replaytv_logo, &wid);
+   mvpw_get_widget_info(rtv_logo, &wid);
    mvpw_get_widget_info(rtv_device_menu, &wid2);
    
    rtv_device_descr_attr.font = fontid;
@@ -2076,30 +2084,30 @@ int replay_gui_init(void)
    w = scr_info.cols - x - 50; // width between logo x:start and right side of screen
    h = mvpw_font_height(rtv_device_descr_attr.font);
 
-	rtv_device_descr.container = mvpw_create_container(NULL, x, container_y + h, w, h*3, 0x00000000, 0, 0);
+	rtv_device_descr.container = mvpw_create_container(NULL, x, container_y + h, w, h*3, MVPW_BLACK, 0, 0);
 
-   rtv_device_descr.name = mvpw_create_text(rtv_device_descr.container, 0, h*0, w/2, h, 0, 0, 0);	
+   rtv_device_descr.name = mvpw_create_text(rtv_device_descr.container, 0, h*0, w/2, h, MVPW_BLACK, 0, 0);	
    mvpw_set_text_attr(rtv_device_descr.name, &rtv_device_descr_attr);
    mvpw_set_text_str(rtv_device_descr.name, "");
    mvpw_show(rtv_device_descr.name);
 
-   rtv_device_descr.model = mvpw_create_text(rtv_device_descr.container, 0, h*1, w/2, h, 0, 0, 0);	
+   rtv_device_descr.model = mvpw_create_text(rtv_device_descr.container, 0, h*1, w/2, h, MVPW_BLACK, 0, 0);	
    mvpw_set_text_attr(rtv_device_descr.model, &rtv_device_descr_attr);
    mvpw_set_text_str(rtv_device_descr.model, "");
    mvpw_show(rtv_device_descr.model);
 
-   rtv_device_descr.ipaddr = mvpw_create_text(rtv_device_descr.container, 0, h*2, w/2, h, 0, 0, 0);	
+   rtv_device_descr.ipaddr = mvpw_create_text(rtv_device_descr.container, 0, h*2, w/2, h, MVPW_BLACK, 0, 0);	
    mvpw_set_text_attr(rtv_device_descr.ipaddr, &rtv_device_descr_attr);
    mvpw_set_text_str(rtv_device_descr.ipaddr, "");
    mvpw_show(rtv_device_descr.ipaddr);
 
-   rtv_device_descr.capacity = mvpw_create_text(rtv_device_descr.container, w/2, h*0, w/2, h, 0, 0, 0);	
+   rtv_device_descr.capacity = mvpw_create_text(rtv_device_descr.container, w/2, h*0, w/2, h, MVPW_BLACK, 0, 0);	
    mvpw_set_text_attr(rtv_device_descr.capacity, &rtv_device_descr_attr);
    mvpw_set_text_str(rtv_device_descr.capacity, "");
    mvpw_show(rtv_device_descr.capacity);
 
    i = mvpw_font_width(rtv_device_descr_attr.font, "XXX%");
-   rtv_device_descr.percentage = mvpw_create_text(rtv_device_descr.container, w-20-i, h*0, i, h, 0, 0, 0);	
+   rtv_device_descr.percentage = mvpw_create_text(rtv_device_descr.container, w-20-i, h*0, i, h, MVPW_BLACK, 0, 0);	
    mvpw_set_text_attr(rtv_device_descr.percentage, &rtv_device_descr_attr);
    mvpw_set_text_str(rtv_device_descr.percentage, "");
    mvpw_show(rtv_device_descr.percentage);
@@ -2108,12 +2116,12 @@ int replay_gui_init(void)
 	mvpw_set_graph_attr(rtv_device_descr.graph, &discspace_graph_attr);
    mvpw_show(rtv_device_descr.graph);
 
-   rtv_device_descr.inuse = mvpw_create_text(rtv_device_descr.container, w/2, h*2, w/4, h, 0, 0, 0);	
+   rtv_device_descr.inuse = mvpw_create_text(rtv_device_descr.container, w/2, h*2, w/4, h, MVPW_BLACK, 0, 0);	
    mvpw_set_text_attr(rtv_device_descr.inuse, &rtv_device_descr_attr);
    mvpw_set_text_str(rtv_device_descr.inuse, "");
    mvpw_show(rtv_device_descr.inuse);
    
-   rtv_device_descr.free = mvpw_create_text(rtv_device_descr.container, w-(w/4), h*2, w/4, h, 0, 0, 0);	
+   rtv_device_descr.free = mvpw_create_text(rtv_device_descr.container, w-(w/4), h*2, w/4, h, MVPW_BLACK, 0, 0);	
    mvpw_set_text_attr(rtv_device_descr.free, &rtv_device_descr_attr);
    mvpw_set_text_str(rtv_device_descr.free, "");
    mvpw_show(rtv_device_descr.free);
