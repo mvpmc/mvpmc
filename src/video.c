@@ -49,9 +49,7 @@
 
 static char inbuf_static[VIDEO_BUFF_SIZE];
 
-static pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
 pthread_cond_t video_cond = PTHREAD_COND_INITIALIZER;
-static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 static int fd = -1;
 static av_stc_t seek_stc;
@@ -82,8 +80,6 @@ static volatile int ac3len = 0, ac3more = 0;
 static volatile int video_reopen = 0;
 static volatile int video_playing = 0;
 
-volatile video_callback_t *video_functions = NULL;
-
 static int file_open(void);
 static int file_read(char*, int);
 static long long file_seek(long long, int);
@@ -97,6 +93,8 @@ video_callback_t file_functions = {
 	.size      = file_size,
 	.notify    = NULL,
 };
+
+volatile video_callback_t *video_functions = &file_functions;
 
 void video_play(mvp_widget_t *widget);
 
@@ -128,12 +126,6 @@ video_thumbnail(int on)
 			screensaver_disable();
 		enable = 0;
 	}
-}
-
-static void
-video_show_widgets(void)
-{
-	mvpw_show(file_browser);
 }
 
 static void
@@ -191,7 +183,8 @@ video_subtitle_check(mvp_widget_t *widget)
 		mvpw_set_timer(root, video_subtitle_check, 1000);
 
 	if (! (mvpw_visible(file_browser) ||
-	       mvpw_visible(mythtv_browser))) {
+	       mvpw_visible(mythtv_browser) ||
+	       mvpw_visible(mythtv_menu))) {
 		video_thumbnail(0);
 	}
 }
@@ -214,11 +207,13 @@ video_play(mvp_widget_t *widget)
 void
 video_clear(void)
 {
-	close(fd);
+	if (fd >= 0)
+		close(fd);
 	fd = -1;
 	video_playing = 0;
 	pthread_kill(video_write_thread, SIGURG);
 	pthread_kill(audio_write_thread, SIGURG);
+	usleep(3000);
 	av_reset();
 	pthread_cond_broadcast(&video_cond);
 }
@@ -760,7 +755,8 @@ do_seek(void)
 	} else if (gop_seek_attempts > 0) {
 		seconds = (attr->gop.hour * 3600) +
 			(attr->gop.minute * 60) + attr->gop.second;
-		
+	} else {
+		seconds = 0;
 	}
 
 	/*
@@ -844,7 +840,10 @@ file_open(void)
 	demux_attr_reset(handle);
 	demux_seek(handle);
 
-	video_thumbnail(1);
+	if (si.rows == 480)
+		av_move(475, si.rows-60, 4);
+	else
+		av_move(475, si.rows-113, 4);
 	
 	av_play();
 
@@ -871,7 +870,6 @@ file_open(void)
 void*
 video_read_start(void *arg)
 {
-	static int on = 0;
 	pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 	int ret;
 	int n = 0, len = 0, reset = 1;
@@ -896,8 +894,6 @@ video_read_start(void *arg)
 				video_functions->notify(MVP_READ_THREAD_IDLE);
 				sent_idle_notify = 1;
 			}
-			screensaver_enable();
-			on = 1;
 			pthread_cond_wait(&video_cond, &mutex);
 		}
 
@@ -939,16 +935,6 @@ video_read_start(void *arg)
 				len = video_functions->read(inbuf, sizeof(inbuf_static));
 			}
 			n = 0;
-
-			if ((len < 0) && !on) {
-				screensaver_enable();
-				on = 1;
-			}
-
-			if ((len > 0) && on) {
-				screensaver_disable();
-				on = 0;
-			}
 		}
 
 		if ( !video_playing ) {

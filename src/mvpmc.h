@@ -62,6 +62,7 @@ extern volatile int mythtv_level;
 
 extern mvp_widget_t *file_browser;
 extern mvp_widget_t *mythtv_browser;
+extern mvp_widget_t *mythtv_menu;
 extern mvp_widget_t *mythtv_logo;
 extern mvp_widget_t *mythtv_date;
 extern mvp_widget_t *mythtv_description;

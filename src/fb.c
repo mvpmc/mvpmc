@@ -139,7 +139,6 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 			mvpw_show(root);
 			mvpw_expose(root);
 			mvpw_focus(root);
-			video_play(widget);
 		} else if (is_image(item)) {
 			mvpw_hide(widget);
 			mvpw_focus(iw);

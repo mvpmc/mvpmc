@@ -340,7 +340,6 @@ osd_widget_toggle(int type)
 
 static void settings_select_callback(mvp_widget_t*, char*, void*);
 static void sub_settings_select_callback(mvp_widget_t*, char*, void*);
-static void hide_widgets(void);
 
 static void
 splash_update(void)
@@ -356,46 +355,9 @@ splash_update(void)
 }
 
 static void
-hide_widgets(void)
-{
-	mvpw_hide(main_menu);
-	mvpw_hide(mvpmc_logo);
-	mvpw_hide(file_browser);
-	mvpw_hide(settings);
-	mvpw_hide(sub_settings);
-	mvpw_hide(mythtv_browser);
-	mvpw_hide(mythtv_logo);
-	mvpw_hide(mythtv_channel);
-	mvpw_hide(mythtv_date);
-	mvpw_hide(mythtv_description);
-	mvpw_hide(mythtv_record);
-	mvpw_hide(about);
-	mvpw_hide(settings);
-	mvpw_hide(sub_settings);
-	mvpw_hide(iw);
-	mvpw_hide(fb_image);
-	mvpw_hide(mythtv_image);
-	mvpw_hide(replaytv_image);
-	mvpw_hide(setup_image);
-	mvpw_hide(about_image);
-	mvpw_hide(exit_image);
-	mvpw_hide(fb_image);
-	mvpw_hide(shows_widget);
-	mvpw_hide(episodes_widget);
-	mvpw_hide(freespace_widget);
-
-	if (spu_widget) {
-		mvpw_hide(spu_widget);
-		mvpw_expose(root);
-		mvpw_destroy(spu_widget);
-		spu_widget = NULL;
-	}
-}
-
-static void
 root_callback(mvp_widget_t *widget, char key)
 {
-    video_callback(widget, key);
+	video_callback(widget, key);
 }
 
 static void
@@ -568,7 +530,6 @@ mythtv_key_callback(mvp_widget_t *widget, char key)
 	if (key == 'E') {
 		if (mythtv_back(widget) == 0) {
 			mvpw_hide(mythtv_browser);
-			mvpw_hide(mythtv_logo);
 			mvpw_hide(mythtv_channel);
 			mvpw_hide(mythtv_date);
 			mvpw_hide(mythtv_description);
@@ -577,10 +538,9 @@ mythtv_key_callback(mvp_widget_t *widget, char key)
 			mvpw_hide(episodes_widget);
 			mvpw_hide(freespace_widget);
 
-			mvpw_show(mythtv_image);
-			mvpw_show(main_menu);
-			mvpw_show(mvpmc_logo);
-			mvpw_focus(main_menu);
+			mvpw_show(mythtv_logo);
+			mvpw_show(mythtv_menu);
+			mvpw_focus(mythtv_menu);
 		}
 	}
 
@@ -600,6 +560,43 @@ mythtv_key_callback(mvp_widget_t *widget, char key)
 		mvpw_menu_hilite_item(mythtv_popup, (void*)3);
 		mvpw_show(mythtv_popup);
 		mvpw_focus(mythtv_popup);
+	}
+
+	if (key == 'L') {
+		mvpw_hide(mythtv_logo);
+		mvpw_hide(mythtv_channel);
+		mvpw_hide(mythtv_date);
+		mvpw_hide(mythtv_description);
+		mvpw_hide(mythtv_record);
+		mvpw_hide(mythtv_browser);
+		mvpw_hide(shows_widget);
+		mvpw_hide(episodes_widget);
+		mvpw_hide(freespace_widget);
+		mvpw_focus(root);
+
+		av_move(0, 0, 0);
+	}
+
+	if (key == '#') {
+		mythtv_start_thumbnail();
+	}
+
+	if (key == '.') {
+		mythtv_stop();
+	}
+
+	switch (key) {
+	case '(':
+	case ')':
+	case '{':
+	case '}':
+	case '<':
+	case '>':
+	case ',':
+	case 'Q':
+	case '0' ... '9':
+		video_callback(widget, key);
+		break;
 	}
 }
 
@@ -910,7 +907,7 @@ myth_browser_init(void)
 	mvpw_set_image(mythtv_logo, file);
 
 	mythtv_menu = mvpw_create_menu(NULL, 50+iid.width, 25,
-				       si.cols-120-iid.width, si.rows-190,
+				       si.cols-130-iid.width, si.rows-190,
 				       MVPW_BLACK, 0, 0);
 	attr.font = fontid;
 	mvpw_set_menu_attr(mythtv_menu, &attr);
@@ -925,7 +922,7 @@ myth_browser_init(void)
 	mvpw_set_key(mythtv_menu, mythtv_menu_callback);
 
 	mythtv_browser = mvpw_create_menu(NULL, 50, 30,
-					  si.cols-120-iid.width, si.rows-190,
+					  si.cols-130-iid.width, si.rows-190,
 					  0xff808080, 0xff606060, 2);
 
 	mvpw_attach(mythtv_logo, mythtv_browser, MVPW_DIR_RIGHT);

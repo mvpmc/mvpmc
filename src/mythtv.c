@@ -26,6 +26,7 @@
 #include <glob.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include <fcntl.h>
 #include <string.h>
 #include <pthread.h>
@@ -63,13 +64,13 @@ static pthread_mutex_t seek_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t myth_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 static cmyth_conn_t control;
-static cmyth_proginfo_t current_prog;
+static cmyth_proginfo_t current_prog;	/* program currently being played */
+static cmyth_proginfo_t hilite_prog;	/* program currently hilighted */
 static cmyth_proglist_t episode_plist;
 static cmyth_proglist_t pending_plist;
 static cmyth_proginfo_t episode_prog;
 static cmyth_proginfo_t pending_prog;
 static char *pathname = NULL;
-static char program_name[256];
 
 volatile int mythtv_level = 0;
 
@@ -83,17 +84,14 @@ static volatile int close_mythtv = 0;
 
 static pthread_t control_thread;
 
-static void mythtv_play(mvp_widget_t *widget);
-
 static int mythtv_open(void);
 static int mythtv_read(char*, int);
 static long long mythtv_seek(long long, int);
 static long long mythtv_size(void);
 
 static volatile int myth_seeking = 0;
-static volatile long long seek_pos;
-static volatile long long seek_offset;
-static volatile int seek_whence;
+
+static char *hilite_path = NULL;
 
 video_callback_t mythtv_functions = {
 	.open      = mythtv_open,
@@ -130,9 +128,15 @@ mythtv_close_file(void)
 {
 	printf("%s(): closing file\n", __FUNCTION__);
 	if (playing_via_mythtv && file) {
-		printf("%s(): releasing file\n", __FUNCTION__);
-		cmyth_file_release(control, file);
-		file = NULL;
+		if (file) {
+			printf("%s(): releasing file\n", __FUNCTION__);
+			cmyth_file_release(control, file);
+			file = NULL;
+		}
+		if (current_prog) {
+			cmyth_proginfo_release(current_prog);
+			current_prog = NULL;
+		}
 		reset_mythtv = 1;
 	}
 
@@ -156,15 +160,14 @@ hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 		mvpw_show(mythtv_date);
 		mvpw_show(mythtv_description);
 
-		if (current_prog)
-			cmyth_proginfo_release(current_prog);
+		if (hilite_prog)
+			cmyth_proginfo_release(hilite_prog);
 
-		current_prog = cmyth_proglist_get_item(episode_plist,
-						       (int)key);
+		hilite_prog = cmyth_proglist_get_item(episode_plist, (int)key);
 
-		channame = cmyth_proginfo_channame(current_prog);
-		title = cmyth_proginfo_title(current_prog);
-		subtitle = cmyth_proginfo_subtitle(current_prog);
+		channame = cmyth_proginfo_channame(hilite_prog);
+		title = cmyth_proginfo_title(hilite_prog);
+		subtitle = cmyth_proginfo_subtitle(hilite_prog);
 		if (channame) {
 			mvpw_set_text_str(mythtv_channel, channame);
 		} else {
@@ -173,7 +176,7 @@ hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 		}
 		mvpw_expose(mythtv_channel);
 
-		description = cmyth_proginfo_description(current_prog);
+		description = cmyth_proginfo_description(hilite_prog);
 		if (description) {
 			mvpw_set_text_str(mythtv_description, description);
 		} else {
@@ -182,33 +185,23 @@ hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 		}
 		mvpw_expose(mythtv_description);
 
-		ts = cmyth_proginfo_rec_start(current_prog);
+		ts = cmyth_proginfo_rec_start(hilite_prog);
 		cmyth_timestamp_to_string(start, ts);
-		ts = cmyth_proginfo_rec_end(current_prog);
+		ts = cmyth_proginfo_rec_end(hilite_prog);
 		cmyth_timestamp_to_string(end, ts);
 		
-		pathname = cmyth_proginfo_pathname(current_prog);
+		pathname = cmyth_proginfo_pathname(hilite_prog);
 
-		if (current)
-			free(current);
+		if (hilite_path)
+			free(hilite_path);
 
 		if (mythtv_recdir) {
-			current = malloc(strlen(mythtv_recdir)+
-					 strlen(pathname)+1);
-			sprintf(current, "%s%s", mythtv_recdir, pathname);
-			mvpw_set_timer(root, video_play, 500);
+			hilite_path = malloc(strlen(mythtv_recdir)+
+					     strlen(pathname)+1);
+			sprintf(hilite_path, "%s%s", mythtv_recdir, pathname);
 		} else {
-			current = malloc(strlen(pathname)+1);
-			sprintf(current, "%s", pathname);
-
-			demux_reset(handle);
-			demux_attr_reset(handle);
-			if (si.rows == 480)
-				av_move(475, si.rows-60, 4);
-			else
-				av_move(475, si.rows-113, 4);
-			av_play();
-			mvpw_set_timer(root, video_play, 500);
+			hilite_path = malloc(strlen(pathname)+1);
+			sprintf(hilite_path, "%s", pathname);
 		}
 
 		ptr = strchr(start, 'T');
@@ -219,9 +212,6 @@ hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 		strcat(str, ptr+1);
 		mvpw_set_text_str(mythtv_date, str);
 		mvpw_expose(mythtv_date);
-
-		snprintf(program_name, sizeof(program_name), "%s - %s",
-			 title, subtitle);
 	} else {
 		mvpw_set_text_str(mythtv_channel, "");
 		mvpw_expose(mythtv_channel);
@@ -229,16 +219,6 @@ hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 		mvpw_expose(mythtv_date);
 		mvpw_set_text_str(mythtv_description, "");
 		mvpw_expose(mythtv_description);
-		video_clear();
-		mvpw_set_idle(NULL);
-		mvpw_set_timer(root, NULL, 0);
-
-		if (file) {
-			close_mythtv = 1;
-			printf("closing myth file, line %d\n", __LINE__);
-			while (close_mythtv)
-				usleep(1000);
-		}
 	}
 }
 
@@ -261,6 +241,56 @@ show_select_callback(mvp_widget_t *widget, char *item, void *key)
 	mvpw_focus(root);
 
 	printf("fullscreen video mode\n");
+
+	if (current_prog != hilite_prog) {
+		if (current_prog)
+			cmyth_proginfo_release(current_prog);
+
+		current_prog = cmyth_proginfo_hold(hilite_prog);
+
+		if (current)
+			free(current);
+
+		current = malloc(strlen(hilite_path) + 1);
+		strcpy(current, hilite_path);
+
+		demux_reset(handle);
+		demux_attr_reset(handle);
+		av_move(0, 0, 0);
+		av_play();
+		video_play(root);
+	}
+}
+
+void
+mythtv_start_thumbnail(void)
+{
+	if (current_prog != hilite_prog) {
+		if (si.rows == 480)
+			av_move(475, si.rows-60, 4);
+		else
+			av_move(475, si.rows-113, 4);
+
+		printf("thumbnail video mode\n");
+
+		if (current_prog)
+			cmyth_proginfo_release(current_prog);
+
+		current_prog = cmyth_proginfo_hold(hilite_prog);
+
+		if (current)
+			free(current);
+
+		current = malloc(strlen(hilite_path) + 1);
+		strcpy(current, hilite_path);
+
+		demux_reset(handle);
+		demux_seek(handle);
+		demux_attr_reset(handle);
+		av_reset();
+		av_play();
+		video_play(root);
+	}
 }
 
 static void
@@ -269,6 +299,8 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 	const char *title, *subtitle;
 	int err, count, i, n = 0, episodes = 0;
 	char buf[256];
+
+	pthread_mutex_lock(&myth_mutex);
 
 	mythtv_level = 1;
 
@@ -282,12 +314,12 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 
 	if ((episode_plist=cmyth_proglist_create()) == NULL) {
 		fprintf(stderr, "cannot get program list\n");
-		return;
+		goto out;
 	}
 
 	if ((err=cmyth_proglist_get_all_recorded(control, episode_plist)) < 0) {
 		fprintf(stderr, "get recorded failed, err %d\n", err);
-		return;
+		goto out;
 	}
 
 	count = cmyth_proglist_get_count(episode_plist);
@@ -331,6 +363,9 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 
 	snprintf(buf, sizeof(buf), "%s - %d episodes", item, episodes);
 	mvpw_set_menu_title(widget, buf);
+
+ out:
+	pthread_mutex_unlock(&myth_mutex);
 }
 
 static void
@@ -350,6 +385,8 @@ add_shows(mvp_widget_t *widget)
 		fprintf(stderr, "cannot get program list\n");
 		return;
 	}
+
+	pthread_mutex_lock(&myth_mutex);
 
 	if ((err=cmyth_proglist_get_all_recorded(control, plist)) < 0) {
 		fprintf(stderr, "get recorded failed, err %d\n", err);
@@ -383,13 +420,14 @@ add_shows(mvp_widget_t *widget)
 
  out:
 	cmyth_proglist_release(plist);
+	pthread_mutex_unlock(&myth_mutex);
 }
 
 int
 mythtv_update(mvp_widget_t *widget)
 {
 	char buf[64];
-	unsigned int total, used;
+	int total, used;
 
 	if (mythtv_recdir)
 		video_functions = &file_functions;
@@ -400,10 +438,6 @@ mythtv_update(mvp_widget_t *widget)
 
 	mvpw_show(root);
 	mvpw_expose(root);
-
-	video_clear();
-	mvpw_set_idle(NULL);
-	mvpw_set_timer(root, NULL, 0);
 
 	if (control == NULL)
 		mythtv_init(mythtv_server, -1);
@@ -419,6 +453,8 @@ mythtv_update(mvp_widget_t *widget)
 	snprintf(buf, sizeof(buf), "Total episodes: %d", episode_count);
 	mvpw_set_text_str(episodes_widget, buf);
 
+	pthread_mutex_lock(&myth_mutex);
+
 	if (cmyth_conn_get_freespace(control, &total, &used) == 0) {
 		snprintf(buf, sizeof(buf),
 			 "Diskspace: %5.2f GB (%5.2f%%) free",
@@ -426,6 +462,8 @@ mythtv_update(mvp_widget_t *widget)
 			 100.0-((float)used/total)*100.0);
 		mvpw_set_text_str(freespace_widget, buf);
 	}
+
+	pthread_mutex_unlock(&myth_mutex);
 
 	mvpw_hide(mythtv_channel);
 	mvpw_hide(mythtv_date);
@@ -453,15 +491,7 @@ mythtv_back(mvp_widget_t *widget)
 	mvpw_show(episodes_widget);
 	mvpw_show(freespace_widget);
 
-	if (file) {
-		close_mythtv = 1;
-		printf("closing myth file, line %d\n", __LINE__);
-		while (close_mythtv)
-			usleep(1000);
-	}
-
 	if (mythtv_level == 0) {
-		running_mythtv = 0;
 		return 0;
 	}
 
@@ -541,10 +571,12 @@ pending_hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 int
 mythtv_pending(mvp_widget_t *widget)
 {
-	int err, i, count;
+	int err, i, count, ret = 0;
 	char *title, *subtitle;
 	time_t t, rec_t;
 	struct tm *tm, rec_tm;
+
+	pthread_mutex_lock(&myth_mutex);
 
 	t = time(NULL);
 	tm = localtime(&t);
@@ -566,12 +598,14 @@ mythtv_pending(mvp_widget_t *widget)
 
 	if ((pending_plist=cmyth_proglist_create()) == NULL) {
 		fprintf(stderr, "cannot get program list\n");
-		return -1;
+		ret = -1;
+		goto out;
 	}
 
 	if ((err=cmyth_proglist_get_all_pending(control, pending_plist)) < 0) {
 		fprintf(stderr, "get pending failed, err %d\n", err);
-		return -1;
+		ret = -1;
+		goto out;
 	}
 
 	item_attr.select = NULL;
@@ -683,7 +717,10 @@ mythtv_pending(mvp_widget_t *widget)
 	item_attr.fg = MVPW_BLACK;
 	item_attr.bg = MVPW_LIGHTGREY;
 
-	return 0;
+ out:
+	pthread_mutex_unlock(&myth_mutex);
+
+	return ret;
 }
 
 static void*
@@ -692,6 +729,8 @@ control_start(void *arg)
 	int len;
 
 	while (1) {
+		int count = 0;
+
 		pthread_mutex_lock(&mutex);
 		printf("mythtv control thread sleeping...\n");
 		while (file == NULL)
@@ -718,11 +757,23 @@ control_start(void *arg)
 			if ((len < 0) && paused) {
 				printf("%s(): waiting to unpause...\n",
 				       __FUNCTION__);
-				while (paused)
+				while (paused && file)
 					usleep(1000);
 				len = 1;
 			}
-		} while ((len > 0) && (playing_via_mythtv == 1) && (!close_mythtv));
+
+			/*
+			 * Require cmyth_file_request_block() fail twice
+			 */
+			if ((len < 0) && (count++ == 0))
+				len = 1;
+			else
+				count = 0;
+		} while (file && (len > 0) &&
+			 (playing_via_mythtv == 1) && (!close_mythtv));
+
+		printf("%s(): len %d playing_via_mythtv %d close_mythtv %d\n",
+		       __FUNCTION__, len, playing_via_mythtv, close_mythtv);
 
 		mythtv_close_file();
 	}
@@ -758,15 +809,36 @@ mythtv_init(char *server_name, int portnum)
 void
 mythtv_program(mvp_widget_t *widget)
 {
-	char *description;
+	char *description, *program;
+	char *title, *subtitle;
 
-	description = mvpw_get_text_str(mythtv_description);
+	if (current_prog) {
+		title = cmyth_proginfo_title(current_prog);
+		subtitle = cmyth_proginfo_subtitle(current_prog);
 
-	mvpw_set_text_str(mythtv_osd_description, description);
-	mvpw_expose(mythtv_osd_description);
+		program = alloca(strlen(title) + strlen(subtitle) + 16);
+		sprintf(program, "%s - %s", title, subtitle);
 
-	mvpw_set_text_str(mythtv_osd_program, program_name);
-	mvpw_expose(mythtv_osd_program);
+		description = cmyth_proginfo_description(current_prog);
+
+		mvpw_set_text_str(mythtv_osd_description, description);
+		mvpw_expose(mythtv_osd_description);
+
+		mvpw_set_text_str(mythtv_osd_program, program);
+		mvpw_expose(mythtv_osd_program);
+	}
+}
+
+void
+mythtv_stop(void)
+{
+	pthread_mutex_lock(&myth_mutex);
+	mythtv_close_file();
+	pthread_mutex_unlock(&myth_mutex);
+
+	video_clear();
+	mvpw_set_idle(NULL);
+	mvpw_set_timer(root, NULL, 0);
 }
 
 int
@@ -775,8 +847,9 @@ mythtv_delete(void)
 	int ret;
 
 	pthread_mutex_lock(&myth_mutex);
-	ret = cmyth_proginfo_delete_recording(control, current_prog);
-	mythtv_close_file();
+	ret = cmyth_proginfo_delete_recording(control, hilite_prog);
+	if (hilite_prog == current_prog)
+		mythtv_close_file();
 	pthread_mutex_unlock(&myth_mutex);
 
 	return ret;
@@ -788,8 +861,9 @@ mythtv_forget(void)
 	int ret;
 
 	pthread_mutex_lock(&myth_mutex);
-	ret = cmyth_proginfo_forget_recording(control, current_prog);
-	mythtv_close_file();
+	ret = cmyth_proginfo_forget_recording(control, hilite_prog);
+	if (hilite_prog == current_prog)
+		mythtv_close_file();
 	pthread_mutex_unlock(&myth_mutex);
 
 	return ret;
@@ -802,11 +876,11 @@ mythtv_proginfo(char *buf, int size)
 	char airdate[256], start[256], end[256];
 	char *ptr;
 
-	ts = cmyth_proginfo_originalairdate(current_prog);
+	ts = cmyth_proginfo_originalairdate(hilite_prog);
 	cmyth_timestamp_to_string(airdate, ts);
-	ts = cmyth_proginfo_rec_start(current_prog);
+	ts = cmyth_proginfo_rec_start(hilite_prog);
 	cmyth_timestamp_to_string(start, ts);
-	ts = cmyth_proginfo_rec_end(current_prog);
+	ts = cmyth_proginfo_rec_end(hilite_prog);
 	cmyth_timestamp_to_string(end, ts);
 
 	if ((ptr=strchr(airdate, 'T')) != NULL)
@@ -827,16 +901,16 @@ mythtv_proginfo(char *buf, int size)
 		 "Series ID: %s\n"
 		 "Program ID: %s\n"
 		 "Stars: %s\n",
-		 cmyth_proginfo_title(current_prog),
-		 cmyth_proginfo_subtitle(current_prog),
-		 cmyth_proginfo_description(current_prog),
+		 cmyth_proginfo_title(hilite_prog),
+		 cmyth_proginfo_subtitle(hilite_prog),
+		 cmyth_proginfo_description(hilite_prog),
 		 start,
 		 end,
-		 cmyth_proginfo_category(current_prog),
-		 cmyth_proginfo_channame(current_prog),
-		 cmyth_proginfo_seriesid(current_prog),
-		 cmyth_proginfo_programid(current_prog),
-		 cmyth_proginfo_stars(current_prog));
+		 cmyth_proginfo_category(hilite_prog),
+		 cmyth_proginfo_channame(hilite_prog),
+		 cmyth_proginfo_seriesid(hilite_prog),
+		 cmyth_proginfo_programid(hilite_prog),
+		 cmyth_proginfo_stars(hilite_prog));
 
 	return 0;
 }
@@ -844,6 +918,19 @@ mythtv_proginfo(char *buf, int size)
 void
 mythtv_cleanup(void)
 {
+	if (file) {
+		close_mythtv = 1;
+		printf("closing myth file, line %d\n", __LINE__);
+		while (close_mythtv)
+			usleep(1000);
+	}
+
+	printf("stopping all video playback...\n");
+
+	video_clear();
+	mvpw_set_idle(NULL);
+	mvpw_set_timer(root, NULL, 0);
+
 	printf("cleanup mythtv data structures\n");
 
 	if (pending_plist) {
@@ -854,6 +941,8 @@ mythtv_cleanup(void)
 		cmyth_proglist_release(episode_plist);
 		episode_plist = NULL;
 	}
+
+	running_mythtv = 0;
 }
 
 static int
@@ -878,13 +967,11 @@ static long long
 mythtv_seek(long long offset, int whence)
 {
 	struct timeval to;
-	pid_t me;
 	int count = 0;
+	long long seek_pos;
 
 	if ((offset == 0) && (whence == SEEK_CUR))
 		return cmyth_file_seek(control, file, 0, SEEK_CUR);
-
-	me = getpid();
 
 	pthread_mutex_lock(&seek_mutex);
 	pthread_mutex_lock(&myth_mutex);
