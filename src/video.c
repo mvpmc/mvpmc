@@ -62,6 +62,7 @@ static volatile long long jump_target;
 static volatile int seek_bps;
 static volatile int seek_attempts;
 static volatile int gop_seek_attempts;
+static volatile int pts_seek_attempts;
 static volatile off_t seek_start_pos;
 static volatile int seek_start_seconds;
 static volatile int audio_type = 0;
@@ -314,8 +315,10 @@ seek_by(int seconds)
 	pthread_kill(video_write_thread, SIGURG);
 	pthread_kill(audio_write_thread, SIGURG);
 
+	gop_seek_attempts = 0;
+	pts_seek_attempts = 0;
+
 	av_current_stc(&seek_stc);
-	get_video_sync(&pts);
 
 	seek_bps = ((1024*1024) * 4) / 8;  /* default to 4 megabits per second */
 	gop_time = 0;
@@ -325,7 +328,7 @@ seek_by(int seconds)
 		if (attr->bps)
 			seek_bps = attr->bps;
 	}
-	pts_time = pts.stc/PTS_HZ;
+	pts_time = attr->gop.pts/PTS_HZ;
 	stc_time = (seek_stc.hour*60 + seek_stc.minute)*60 + seek_stc.second;
 
 	/*
@@ -336,12 +339,15 @@ seek_by(int seconds)
 	if (abs(gop_time - stc_time) < 10) {
 		printf("STC SEEK from: %d, (%d)\n", stc_time, gop_time);
 		seek_start_seconds = stc_time;
+		gop_seek_attempts = 4;
 	} else if (gop_time) {
 		printf("GOP SEEK from: %d, (%d)\n", gop_time, pts_time);
 		seek_start_seconds = gop_time;
+		gop_seek_attempts = 4;
 	} else {
 		printf("PTS SEEK from: %d, (%d)\n", pts_time, gop_time);
 		seek_start_seconds = pts_time;
+		pts_seek_attempts = 4;
 	}
 	seek_start_pos = lseek(fd, 0, SEEK_CUR);
 
@@ -356,7 +362,6 @@ seek_by(int seconds)
 	printf("-> %lld\n", lseek(fd, 0, SEEK_CUR));
 
 	seek_attempts = 8;
-	gop_seek_attempts = 4;
 	seeking = 1;
 
 	pthread_cond_broadcast(&video_cond);
@@ -667,35 +672,37 @@ do_seek(void)
 {
 	demux_attr_t *attr;
 	pts_sync_data_t pts;
+	int seconds, new_seek_bps;
 
 	attr = demux_get_attr(handle);
-	get_video_sync(&pts);
 
 	if ((seek_attempts <= 0) && seeking) {
 		seeking = 0;
 		printf("SEEK ABORTED\n");
 	}
 
-	if (seeking && !attr->gop_valid) {
-		if ( --gop_seek_attempts > 0 ) {
-			printf("GOP retry\n");
+	if (seeking ) {
+		if (!attr->gop_valid) {
+			if ( --gop_seek_attempts > 0 ) {
+				printf("GOP retry\n");
+				return -1;
+			}
+			seek_attempts--;
+			printf("SEEK RETRY due to lack of GOP\n");
+			demux_flush(handle);
+			demux_seek(handle);
 			return -1;
 		}
-		seek_attempts--;
-		printf("SEEK RETRY due to lack of GOP\n");
-		demux_flush(handle);
-		demux_seek(handle);
-		return -1;
-	} else {
-		gop_seek_attempts = 4;
+		if (pts_seek_attempts > 0) {
+			seconds = attr->gop.pts/PTS_HZ;
+		} else if (gop_seek_attempts > 0) {
+			seconds = (attr->gop.hour * 3600) +
+				(attr->gop.minute * 60) + attr->gop.second;
+
+		}
 	}
 
 	if (seeking) {
-		int seconds, new_seek_bps;
-
-		seconds = (attr->gop.hour * 3600) + (attr->gop.minute * 60) +
-			attr->gop.second;
-
 		/*
 		 * Recompute bps from actual time and position differences
 		 * provided the time difference is big enough
