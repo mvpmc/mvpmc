@@ -72,7 +72,7 @@ is_image(char *item)
 
 	while (wc[i] != NULL) {
 		if ((strlen(item) >= strlen(wc[i])) &&
-		    (strcmp(item+strlen(item)-strlen(wc[i]), wc[i]) == 0))
+		    (strcasecmp(item+strlen(item)-strlen(wc[i]), wc[i]) == 0))
 			return 1;
 		i++;
 	}
@@ -88,7 +88,7 @@ is_audio(char *item)
 
 	while (wc[i] != NULL) {
 		if ((strlen(item) >= strlen(wc[i])) &&
-		    (strcmp(item+strlen(item)-strlen(wc[i]), wc[i]) == 0))
+		    (strcasecmp(item+strlen(item)-strlen(wc[i]), wc[i]) == 0))
 			return 1;
 		i++;
 	}
@@ -220,18 +220,12 @@ add_dirs(mvp_widget_t *fbw)
 }
 
 static void
-add_files(mvp_widget_t *fbw)
+do_glob(mvp_widget_t *fbw, char *wc[])
 {
+	int w, i;
+	struct stat64 sb;
 	glob_t gb;
 	char pattern[1024], *ptr;
-	int i, w;
-	char *wc[] = { "*.mpg", "*.mpeg", "*.mp3", "*.nuv", "*.vob", "*.gif",
-		       "*.bmp", "*.jpg", "*.jpeg", "*.png", "*.VOB", "*.wav",
-		       "*.ac3", NULL };
-	struct stat64 sb;
-
-	item_attr.select = select_callback;
-	item_attr.hilite = hilite_callback;
 
 	w = 0;
 	while (wc[w] != NULL) {
@@ -253,6 +247,23 @@ add_files(mvp_widget_t *fbw)
 		}
 		w++;
 	}
+}
+
+static void
+add_files(mvp_widget_t *fbw)
+{
+	char *wc[] = { "*.mpg", "*.mpeg", "*.mp3", "*.nuv", "*.vob", "*.gif",
+		       "*.bmp", "*.jpg", "*.jpeg", "*.png", "*.wav", "*.ac3",
+		       NULL };
+	char *WC[] = { "*.MPG", "*.MPEG", "*.MP3", "*.NUV", "*.VOB", "*.GIF",
+		       "*.BMP", "*.JPG", "*.JPEG", "*.PNG", "*.WAV", "*.AC3",
+		       NULL };
+
+	item_attr.select = select_callback;
+	item_attr.hilite = hilite_callback;
+
+	do_glob(fbw, wc);
+	do_glob(fbw, WC);
 }
 
 int
