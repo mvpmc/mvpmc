@@ -174,7 +174,7 @@ void GetMpgFile(char *IPAddress, char *FileName, int ToStdOut)
     rtv = get_rtv_device_struct(replaytv_server, &new_entry);
 
     //Send the request for the file
-    i = rtv_read_file( &(rtv->device), pathname, 0, 0, 32, 0, GetMpgCallback, NULL );
+    i = rtv_read_file( &(rtv->device), pathname, 0, 0, 0, GetMpgCallback, NULL );
 
     //all done, cleanup as we leave 
     fprintf(stderr, "\nDone.\n"); 
@@ -309,8 +309,13 @@ replaytv_update(mvp_widget_t *widget)
    devinfo = &(rtv->device);
 
    if ( (rc = rtv_get_device_info(replaytv_server, devinfo)) != 0 ) {
-      printf("**ERROR: Failed to get RTV Device Info.\n");
-      return 0;
+      printf("Failed to get RTV Device Info. Retrying...\n");
+
+      // JBH: Fixme: Hack for dvarchive failing on first attempt. Need to get discovery working  
+      if ( (rc = rtv_get_device_info(replaytv_server, devinfo)) != 0 ) {
+         printf("**ERROR: Unable to get RTV Device Info. Giving up\n");
+         return 0;
+      } 
    } 
    rtv_print_device_info(devinfo);
 
