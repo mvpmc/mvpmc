@@ -157,6 +157,8 @@ cmyth_file_release(cmyth_conn_t control, cmyth_file_t file)
 	if (cmyth_atomic_dec_and_test(&file->refcount) == 0)
 		return 0;
 
+	pthread_mutex_lock(&mutex);
+
 	snprintf(msg, sizeof(msg),
 		 "QUERY_FILETRANSFER %ld[]:[]DONE", file->file_id);
 
@@ -180,10 +182,14 @@ cmyth_file_release(cmyth_conn_t control, cmyth_file_t file)
 	 */
 	cmyth_file_destroy(file);
 
+	pthread_mutex_unlock(&mutex);
+
 	return 0;
 
  fail:
 	cmyth_atomic_inc(&file->refcount);
+
+	pthread_mutex_unlock(&mutex);
 
 	return err;
 }
@@ -330,7 +336,7 @@ cmyth_file_request_block(cmyth_conn_t control, cmyth_file_t file,
 {
 	int err, count;
 	int r;
-	long c;
+	long c, ret;
 	char msg[256];
 
 	if (!file) {
@@ -338,6 +344,8 @@ cmyth_file_request_block(cmyth_conn_t control, cmyth_file_t file,
 			  __FUNCTION__);
 		return -EINVAL;
 	}
+
+	pthread_mutex_lock(&mutex);
 
 	snprintf(msg, sizeof(msg),
 		 "QUERY_FILETRANSFER %ld[]:[]REQUEST_BLOCK[]:[]%ld",
@@ -347,7 +355,8 @@ cmyth_file_request_block(cmyth_conn_t control, cmyth_file_t file,
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_send_message() failed (%d)\n",
 			  __FUNCTION__, err);
-		return err;
+		ret = err;
+		goto out;
 	}
 
 	count = cmyth_rcv_length(control);
@@ -355,12 +364,17 @@ cmyth_file_request_block(cmyth_conn_t control, cmyth_file_t file,
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_rcv_length() failed (%d)\n",
 			  __FUNCTION__, r);
-		return err;
+		ret = err;
+		goto out;
 	}
 
 	file->file_pos += c;
+	ret = c;
 
-	return c;
+ out:
+	pthread_mutex_unlock(&mutex);
+
+	return ret;
 }
 
 /*
@@ -395,12 +409,15 @@ cmyth_file_seek(cmyth_conn_t control, cmyth_file_t file, long long offset,
 	long long c;
 	long r;
 	long hi, lo;
+	long long ret;
 
 	if ((control == NULL) || (file == NULL))
 		return -EINVAL;
 
 	if ((offset == 0) && (whence == SEEK_CUR))
 		return file->file_pos;
+
+	pthread_mutex_lock(&mutex);
 
 	snprintf(msg, sizeof(msg),
 		 "QUERY_FILETRANSFER %ld[]:[]SEEK[]:[]%ld[]:[]%ld[]:[]%d[]:[]%ld[]:[]%ld",
@@ -415,7 +432,8 @@ cmyth_file_seek(cmyth_conn_t control, cmyth_file_t file, long long offset,
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_send_message() failed (%d)\n",
 			  __FUNCTION__, err);
-		return err;
+		ret = err;
+		goto out;
 	}
 
 	count = cmyth_rcv_length(control);
@@ -423,7 +441,8 @@ cmyth_file_seek(cmyth_conn_t control, cmyth_file_t file, long long offset,
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_rcv_length() failed (%d)\n",
 			  __FUNCTION__, r);
-		return err;
+		ret = err;
+		goto out;
 	}
 
 	switch (whence) {
@@ -437,6 +456,11 @@ cmyth_file_seek(cmyth_conn_t control, cmyth_file_t file, long long offset,
 		file->file_pos = file->file_length - offset;
 		break;
 	}
+
+	ret = file->file_pos;
+
+ out:
+	pthread_mutex_unlock(&mutex);
 	
-	return file->file_pos;
+	return ret;
 }

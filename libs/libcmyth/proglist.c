@@ -251,6 +251,7 @@ cmyth_proglist_get_list(cmyth_conn_t conn,
 {
 	int err = 0;
 	int count;
+	int ret;
 
 	if (!conn) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: no connection\n", func);
@@ -260,16 +261,21 @@ cmyth_proglist_get_list(cmyth_conn_t conn,
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: no program list\n", func);
 		return -EINVAL;
 	}
+
+	pthread_mutex_lock(&mutex);
+
 	if ((err = cmyth_send_message(conn, msg)) < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_send_message() failed (%d)\n",
 				  func, err);
-		return err;
+		ret = err;
+		goto out;
 	}
 	count = cmyth_rcv_length(conn);
 	if (count < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_rcv_length() failed (%d)\n",
 				  func, count);
-		return count;
+		ret = count;
+		goto out;
 	}
 	if (strcmp(msg, "QUERY_GETALLPENDING") == 0) {
 		long c;
@@ -278,7 +284,8 @@ cmyth_proglist_get_list(cmyth_conn_t conn,
 			cmyth_dbg(CMYTH_DBG_ERROR,
 				  "%s: cmyth_rcv_length() failed (%d)\n",
 				  __FUNCTION__, r);
-			return err;
+			ret = err;
+			goto out;
 		}
 		count -= r;
 	}
@@ -289,10 +296,16 @@ cmyth_proglist_get_list(cmyth_conn_t conn,
 	if (err) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_rcv_proglist() failed (%d)\n",
 				  func, err);
-		err = -1 * err;
-		return err;
+		ret = -1 * err;
+		goto out;
 	}
-	return 0;
+
+	ret = 0;
+
+ out:
+	pthread_mutex_unlock(&mutex);
+
+	return ret;
 }
 
 /*

@@ -25,6 +25,10 @@
 #include <unistd.h>
 #include <cmyth.h>
 #include <time.h>
+#include <pthread.h>
+
+#define mutex __cmyth_mutex
+extern pthread_mutex_t mutex;
 
 /*
  * Some useful constants

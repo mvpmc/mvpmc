@@ -34,6 +34,8 @@
 #include <cmyth.h>
 #include <cmyth_local.h>
 
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+
 /*
  * cmyth_conn_create(void)
  * 
