@@ -2029,16 +2029,18 @@ busy_loop(void *arg)
 			usleep(1000*250);  /* 0.25 seconds */
 		}
 	}
+
+	return NULL;
 }
 
-int
+void
 busy_start(void)
 {
 	busy = 1;
 	pthread_cond_signal(&busy_cond);
 }
 
-int
+void
 busy_end(void)
 {
 	busy = 0;

@@ -267,4 +267,7 @@ extern void add_subtitle_streams(mvp_widget_t*, mvpw_menu_item_attr_t*);
 
 extern int audio_output_mode;
 
+extern void busy_start(void);
+extern void busy_end(void);
+
 #endif /* MVPMC_H */
