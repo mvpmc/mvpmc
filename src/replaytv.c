@@ -706,7 +706,8 @@ static int rtv_video_key(char key)
    int                  rc          = 0;
    int                  jump        = 0;
    int                  jumpto_secs = 0;
-   int                  cur_secs, tmp, rec_no, start_rec;
+   int                  rec_no      = 0;
+   int                  cur_secs, tmp, start_rec;
    av_stc_t             stc_time;
    
 	switch (key) {
@@ -783,25 +784,27 @@ static int rtv_video_key(char key)
    if ( jump == 1 ) {
       int rtn;
 
-      if ( jumpto_secs < 0 ) {
+      // Handle jumping before the beginning & jumping after the end.
+      // If the mpg duration is less than 10 seconds just always go to zero.
+      //
+      if ( (jumpto_secs < 0) || (rtv_video_state.show_p->duration_sec < 10) ) {
          jumpto_secs = 0;
       }
-      if ( jumpto_secs >= rtv_video_state.show_p->duration_sec ) {
-         jumpto_secs = rtv_video_state.show_p->duration_sec - 1;
+      if ( jumpto_secs > (rtv_video_state.show_p->duration_sec - 3) ) {
+         jumpto_secs = rtv_video_state.show_p->duration_sec - 3;
       }
       printf("-->%s: jumpto: %d\n", __FUNCTION__, jumpto_secs);
 
       if ( jumpto_secs != 0) {
          rec_no = (jumpto_secs * 2) - 1;
       }
-      else {
-         rec_no = 0;
-      }
+
+      // Check if we need to load a new ndx file block.
+      // If so make the record we are looking for 25% of the way into the block.
+      //
       if ( (rec_no < rtv_video_state.ndx_info.start_rec_num)                                        || 
            (rec_no >= (rtv_video_state.ndx_info.start_rec_num + rtv_video_state.ndx_info.recs_in_mem)) ) {
-         // Need to load a new ndx file block.
-         // Make the record we are looking for 25% of the way into the block.
-         //
+
          start_rec = rec_no - (rtv_video_state.ndx_info.rec_cnt_to_load / 4);
          if ( start_rec < 0 ) {
             start_rec = 0;
@@ -849,6 +852,7 @@ static int rtv_video_key(char key)
          
          // Stop streaming
          //
+         av_video_blank(); //Need to call this first or may get artifacts
          video_stop_play();
          rtv_abort_read();
          video_clear();
@@ -858,7 +862,7 @@ static int rtv_video_key(char key)
          av_play();
          demux_reset(handle);         
          if ( rtv_video_state.pos != 0 ) {
-            rtv_video_state.chunk_offset = rtv_video_state.pos % 0x7FFF; //offset withing 32K chunk
+            rtv_video_state.chunk_offset = rtv_video_state.pos % 0x7FFF; //offset within 32K chunk
          }
          pthread_create(&rtv_stream_read_thread, NULL, thread_read_start, (void*)rtv_video_state.show_p->file_name);
          rtv_video_state.play_state = RTV_VID_PLAYING;
@@ -1960,6 +1964,7 @@ int replaytv_hide_device_menu(void)
 //
 void replaytv_back_from_video(void)
 {
+   av_video_blank(); //Need to call this first or may get artifacts
    video_stop_play();
    rtv_abort_read();
    video_clear();               //kick video.c

@@ -156,23 +156,24 @@ char *rtv_format_time32(__u32 t)
 //
 char *rtv_format_nsec64(__u64 nsec)
 {
-   char *result; 
-   int   minutes;
-   float seconds;
+   char         *result; 
+   unsigned int  minutes;
+   unsigned int  seconds;
+   unsigned int  msec;
 
    result  = malloc(20);
-   seconds = nsec / 1000000000.0;
-
-   minutes = (int)seconds / 60;
-   seconds -= minutes * 60;
-   
+   msec    = nsec / 1000000;
+   seconds = msec / 1000;
+   minutes = seconds / 60;
+   seconds %= 60;
+   msec    %= 1000;
    if (minutes) {
       sprintf(result, "%03d:", minutes);
    }
    else {
       strcpy(result, "    ");
    }
-   sprintf(result + 4, "%07.4f", seconds);
+   sprintf(result + 4, "%02u.%03u", seconds, msec);
    
    return(result);
 }
