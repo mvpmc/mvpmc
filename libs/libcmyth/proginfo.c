@@ -369,12 +369,12 @@ delete_command(cmyth_conn_t control, cmyth_proginfo_t prog, char *cmd)
 	char rec_end_ts[CMYTH_TIMESTAMP_LEN + 1];
 	char originalairdate[CMYTH_TIMESTAMP_LEN + 1];
 	char lastmodified[CMYTH_TIMESTAMP_LEN + 1];
-	char start_ts_dt[CMYTH_LONG_LEN + 1];
-	char end_ts_dt[CMYTH_LONG_LEN + 1];
-	char rec_start_ts_dt[CMYTH_LONG_LEN + 1];
-	char rec_end_ts_dt[CMYTH_LONG_LEN + 1];
-	char originalairdate_dt[CMYTH_LONG_LEN + 1];
-	char lastmodified_dt[CMYTH_LONG_LEN + 1];
+	char start_ts_dt[CMYTH_TIMESTAMP_LEN + 1];
+	char end_ts_dt[CMYTH_TIMESTAMP_LEN + 1];
+	char rec_start_ts_dt[CMYTH_TIMESTAMP_LEN + 1];
+	char rec_end_ts_dt[CMYTH_TIMESTAMP_LEN + 1];
+	char originalairdate_dt[CMYTH_TIMESTAMP_LEN + 1];
+	char lastmodified_dt[CMYTH_TIMESTAMP_LEN + 1];
 	int err;
 	int count;
 	long r;
