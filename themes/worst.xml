@@ -1,0 +1,101 @@
+<mvpmctheme version="0">
+  <!--
+     - example mvpmc theme
+     - "Worst Theme Ever!"
+     - This is a good example, but it is pretty ugly.
+     - http://mvpmc.sourceforge.net/
+     - $Id$
+    -->
+
+  <!--
+     - Load fonts (ignored under X11)
+    -->
+  <font name="standard">/etc/helvR10.fnt</font>
+  <font name="large">/etc/helvB18.pcf</font>
+
+  <!--
+     - Text widget settings
+    -->
+  <widget type="text" name="splash">
+    <color type="bg">lightslategray</color>
+    <color type="fg">black</color>
+    <font>large</font>
+  </widget>
+
+  <widget type="text" name="myth_info">
+    <color type="bg" alpha="0%">black</color>
+    <color type="fg">white</color>
+    <font>large</font>
+  </widget>
+
+  <widget type="text" name="myth_program">
+    <color type="bg" alpha="50%">black</color>
+    <color type="fg">green</color>
+    <font>large</font>
+  </widget>
+
+  <widget type="text" name="myth_description">
+    <color type="bg" alpha="50%">orange</color>
+    <color type="fg">black</color>
+    <font>standard</font>
+  </widget>
+
+  <widget type="text" name="description">
+    <color type="bg" alpha="50%">black</color>
+    <color type="fg">green</color>
+  </widget>
+
+  <widget type="text" name="display">
+    <color type="bg" alpha="50%">black</color>
+    <color type="fg">yellow</color>
+  </widget>
+
+  <!--
+     - Menu widget settings
+    -->
+  <widget type="menu" name="main_menu">
+    <color type="bg">darkslategray</color>
+    <color type="fg">yellow</color>
+    <color type="hilite_bg">yellow</color>
+    <color type="hilite_fg">blue</color>
+    <style type="hilite">rounded</style>
+    <font>large</font>
+  </widget>
+
+  <widget type="menu" name="myth_menu" copy="main_menu">
+    <color type="hilite_fg">darkslategray</color>
+    <style type="hilite">square</style>
+  </widget>
+
+  <widget type="menu" name="myth_browser">
+    <color type="bg">white</color>
+    <color type="fg">black</color>
+    <color type="hilite_bg">orange</color>
+    <color type="hilite_fg">black</color>
+    <color type="title_bg">green</color>
+    <color type="title_fg">black</color>
+    <style type="hilite">rounded</style>
+    <font>standard</font>
+  </widget>
+
+  <widget type="menu" name="file_browser" copy="myth_browser">
+    <color type="bg">white</color>
+    <color type="title_bg">orange</color>
+  </widget>
+
+  <widget type="menu" name="popup">
+    <color type="bg" alpha="50%">orange</color>
+    <color type="fg">white</color>
+    <color type="title_bg" alpha="50%">green</color>
+    <color type="title_fg">black</color>
+    <color type="hilite_bg">white</color>
+    <color type="hilite_fg">orange</color>
+    <style type="hilite">square</style>
+    <font>standard</font>
+  </widget>
+
+  <widget type="menu" name="myth_delete" copy="popup">
+    <color type="hilite_bg">black</color>
+  </widget>
+
+</mvpmctheme>
