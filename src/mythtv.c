@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2004, Jon Gettler
+ *  Copyright (C) 2004, 2005, Jon Gettler
  *  http://mvpmc.sourceforge.net/
  *
  * This program is free software; you can redistribute it and/or modify
@@ -474,7 +474,9 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 		n++;
 	}
 
-	snprintf(buf, sizeof(buf), "%s - %d episodes", item, episodes);
+	snprintf(buf, sizeof(buf), "%s - %d episode", item, episodes);
+	if (episodes > 1)
+		strcat(buf, "s");
 	mvpw_set_menu_title(widget, buf);
 
 	pthread_mutex_unlock(&myth_mutex);
@@ -1150,13 +1152,18 @@ mythtv_proginfo(char *buf, int size)
 void
 mythtv_cleanup(void)
 {
+	printf("stopping all video playback...\n");
+
 	if (file) {
 		close_mythtv = 1;
 		while (close_mythtv)
 			usleep(1000);
 	}
 
-	printf("stopping all video playback...\n");
+	if (mythtv_livetv) {
+		mythtv_livetv_stop();
+		mythtv_livetv = 0;
+	}
 
 	video_clear();
 	mvpw_set_idle(NULL);
