@@ -160,7 +160,8 @@ mvpw_set_dialog_title(mvp_widget_t *widget, char *title)
 	if ((widget == NULL) || (title == NULL))
 		return -1;
 
-	mvpw_set_text_str(widget->data.dialog.title_widget, title);
+	if (widget->data.dialog.title_widget)
+		mvpw_set_text_str(widget->data.dialog.title_widget, title);
 
 	return 0;
 }
@@ -171,7 +172,8 @@ mvpw_set_dialog_text(mvp_widget_t *widget, char *text)
 	if ((widget == NULL) || (text == NULL))
 		return -1;
 
-	mvpw_set_text_str(widget->data.dialog.text_widget, text);
+	if (widget->data.dialog.title_widget)
+		mvpw_set_text_str(widget->data.dialog.text_widget, text);
 
 	return 0;
 }
