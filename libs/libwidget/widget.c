@@ -38,6 +38,11 @@ static volatile int widget_count = 0;
 
 static mvp_widget_t *root;
 
+static volatile int modal_mode = 0;
+static volatile mvp_widget_t *modal_focus = NULL;
+static volatile mvp_widget_t *screensaver_widget = NULL;
+static volatile void (*screensaver_callback)(mvp_widget_t*, int) = NULL;
+
 static void (*idle)(void);
 static void (*keystroke_callback)(void);
 
@@ -111,6 +116,45 @@ remove_widget(mvp_widget_t *widget)
 	return -1;
 }
 
+static void
+raise_widget(mvp_widget_t *widget, mvp_widget_t *top)
+{
+	int wid;
+
+	if (widget) {
+		if (top == NULL) {
+			wid = GrGetFocus();
+			top = find_widget(wid);
+		}
+
+		if (top == widget)
+			return;
+
+		if (widget->below)
+			widget->below->above = widget->above;
+		if (widget->above)
+			widget->above->below = widget->below;
+		widget->below = top;
+		widget->above = NULL;
+
+		if (mvpw_visible(widget)) {
+			GrSetFocus(widget->wid);
+		}
+	}
+}
+
+static void
+lower_widget(mvp_widget_t *widget)
+{
+	if (widget->above)
+		widget->above->below = widget->below;
+	if (widget->below)
+		widget->below->above = widget->above;
+
+	widget->below = NULL;
+	widget->above = NULL;
+}
+
 mvp_widget_t*
 mvpw_create(mvp_widget_t *parent,
 	    GR_COORD x, GR_COORD y,
@@ -164,6 +208,8 @@ mvpw_create(mvp_widget_t *parent,
 void
 mvpw_destroy(mvp_widget_t *widget)
 {
+	mvpw_hide(widget);
+
 	if (widget->callback_destroy)
 		widget->callback_destroy(widget);
 	if (widget->destroy)
@@ -179,22 +225,69 @@ mvpw_destroy(mvp_widget_t *widget)
 void
 mvpw_focus(const mvp_widget_t *widget)
 {
-	if (widget)
-		GrSetFocus(widget->wid);
+	if (mvpw_get_focus() == widget)
+		return;
+
+	if (widget) {
+		if ((widget->type == MVPW_DIALOG) &&
+		    (widget->data.dialog.modal == 1)) {
+			raise_widget(widget, NULL);
+			modal_focus = widget;
+		} else {
+			raise_widget(widget, NULL);
+			if ((widget != screensaver_widget) && (modal_mode))
+				raise_widget(modal_focus, NULL);
+		}
+	}
 }
 
 void
 mvpw_show(const mvp_widget_t *widget)
 {
-	if (widget)
-		GrMapWindow(widget->wid);
+	mvp_widget_t *top;
+
+	if (mvpw_visible(widget))
+		return;
+
+	if (widget) {
+		if ((widget->type == MVPW_DIALOG) &&
+		    (widget->data.dialog.modal == 1)) {
+			top = mvpw_get_focus();
+			modal_mode = 1;
+			GrMapWindow(widget->wid);
+			raise_widget(widget, top);
+		} else {
+			GrMapWindow(widget->wid);
+		}
+	}
 }
 
 void
 mvpw_hide(const mvp_widget_t *widget)
 {
-	if (widget)
+	mvp_widget_t *top;
+
+	if (widget) {
+		if (!mvpw_visible(widget))
+			return;
+
+		if ((widget->type == MVPW_DIALOG) &&
+		    (widget->data.dialog.modal == 1)) {
+			modal_mode = 0;
+			modal_focus = NULL;
+		}
 		GrUnmapWindow(widget->wid);
+		if ((top=widget->below))
+			widget->below->above = widget->above;
+		if (widget->above) {
+			top = widget->above;
+			widget->above->below = widget->below;
+		}
+		if ((widget->above == NULL) && top)
+			GrSetFocus(top->wid);
+		widget->below = NULL;
+		widget->above = NULL;
+	}
 }
 
 void
@@ -471,6 +564,14 @@ timer(GR_EVENT_TIMER *timer)
 		widget->timer(widget);
 }
 
+static void
+screensaver(GR_EVENT_SCREENSAVER *event)
+{
+	if (screensaver_callback) {
+		screensaver_callback(screensaver_widget, event->activate);
+	}
+}
+
 void
 mvpw_set_bg(mvp_widget_t *widget, uint32_t bg)
 {
@@ -525,6 +626,9 @@ mvpw_event_flush(void)
 		case GR_EVENT_TYPE_TIMER:
 			timer(&event.timer);
 			break;
+		case GR_EVENT_TYPE_SCREENSAVER:
+			screensaver(&event.timer);
+			break;
 		case GR_EVENT_TYPE_NONE:
 			return 0;
 			break;
@@ -543,10 +647,7 @@ mvpw_event_loop(void)
 		return -1;
 
 	while (widget_count > 0) {
-		if (idle)
-			GrCheckNextEvent(&event);
-		else
-			GrGetNextEvent(&event);
+		GrCheckNextEvent(&event);
 		switch (event.type) {
 		case GR_EVENT_TYPE_EXPOSURE:
 			exposure(&event.exposure);
@@ -557,9 +658,14 @@ mvpw_event_loop(void)
 		case GR_EVENT_TYPE_TIMER:
 			timer(&event.timer);
 			break;
+		case GR_EVENT_TYPE_SCREENSAVER:
+			screensaver(&event.timer);
+			break;
 		case GR_EVENT_TYPE_NONE:
 			if (idle)
 				idle();
+			else
+				usleep(1000);
 			break;
 		}
 	}
@@ -582,7 +688,8 @@ mvpw_init(void)
 
 	GrSetWindowBackgroundColor(GR_ROOT_WINDOW_ID, 0);
 
-	root->event_mask = GR_EVENT_MASK_KEY_DOWN | GR_EVENT_MASK_TIMER;
+	root->event_mask = GR_EVENT_MASK_KEY_DOWN | GR_EVENT_MASK_TIMER |
+		GR_EVENT_MASK_SCREENSAVER;
 	GrSelectEvents(GR_ROOT_WINDOW_ID, root->event_mask);
 
 	return 0;
@@ -632,15 +739,25 @@ mvpw_set_idle(void (*callback)(void))
 void
 mvpw_raise(const mvp_widget_t *widget)
 {
-	if (widget)
-		GrRaiseWindow(widget->wid);
+	if (widget) {
+		if (modal_mode) {
+			if ((widget->type == MVPW_DIALOG) ||
+			    (widget == screensaver_widget)) {
+				GrRaiseWindow(widget->wid);
+			}
+		} else {
+			GrRaiseWindow(widget->wid);
+		}
+	}
 }
 
 void
 mvpw_lower(const mvp_widget_t *widget)
 {
-	if (widget)
+	if (widget) {
+		lower_widget(widget);
 		GrLowerWindow(widget->wid);
+	}
 }
 
 int
@@ -672,4 +789,20 @@ mvpw_get_focus(void)
 	wid = GrGetFocus();
 
 	return find_widget(wid);
+}
+
+int
+mvpw_set_screensaver(const mvp_widget_t *widget, int seconds,
+	void (*callback)(mvp_widget_t*, int))
+{
+	if (widget) {
+		GrSetScreenSaverTimeout(seconds);
+	} else {
+		GrSetScreenSaverTimeout(0);
+	}
+
+	screensaver_widget = widget;
+	screensaver_callback = callback;
+
+	return 0;
 }

@@ -76,6 +76,8 @@ extern void mvpw_set_key(mvp_widget_t *widget,
 extern void mvpw_destroy(mvp_widget_t *widget);
 extern int mvpw_visible(const mvp_widget_t *widget);
 extern int mvpw_keystroke_callback(void (*callback)(void));
+extern int mvpw_set_screensaver(const mvp_widget_t *widget, int seconds,
+				void (*callback)(mvp_widget_t*, int));
 
 /*
  * container widget
@@ -201,6 +203,27 @@ extern mvp_widget_t* mvpw_create_bitmap(mvp_widget_t *parent,
 					uint32_t bg, uint32_t border_color,
 					int border_size);
 extern int mvpw_set_bitmap(mvp_widget_t *widget, mvpw_bitmap_attr_t *bitmap);
+
+/*
+ * dialog widget
+ */
+typedef struct {
+	uint32_t 	fg;
+	uint32_t 	title_fg;
+	uint32_t 	title_bg;
+	char 		*image;
+	int 		modal;
+	int	 	font;
+} mvpw_dialog_attr_t;
+
+extern mvp_widget_t* mvpw_create_dialog(mvp_widget_t *parent,
+					int x, int y, int w, int h,
+					uint32_t bg, uint32_t border_color,
+					int border_size);
+extern int mvpw_set_dialog_attr(mvp_widget_t *widget,
+				mvpw_dialog_attr_t *attr);
+extern int mvpw_set_dialog_title(mvp_widget_t *widget, char *title);
+extern int mvpw_set_dialog_text(mvp_widget_t *widget, char *text);
 
 /*
  * common colors

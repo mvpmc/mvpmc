@@ -553,7 +553,9 @@ mvpw_clear_menu(mvp_widget_t *widget)
 		       sizeof(*(widget->data.menu.items+i)));
 	}
 
-	free(widget->data.menu.items);
+	if (widget->data.menu.items)
+		free(widget->data.menu.items);
+	widget->data.menu.items = NULL;
 	widget->data.menu.nitems = 0;
 	widget->data.menu.current = 0;
 }

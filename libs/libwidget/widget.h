@@ -34,6 +34,7 @@ typedef enum {
 	MVPW_GRAPH,
 	MVPW_CHECKBOX,
 	MVPW_BITMAP,
+	MVPW_DIALOG,
 } mvpw_id_t;
 
 typedef struct {
@@ -114,6 +115,17 @@ typedef struct {
 	char		*image;
 } mvpw_bitmap_t;
 
+typedef struct {
+	int		 modal;
+	GR_COLOR	 fg;
+	GR_COLOR	 title_fg;
+	GR_COLOR	 title_bg;
+	int		 font;
+	mvp_widget_t	*title_widget;
+	mvp_widget_t	*text_widget;
+	mvp_widget_t	*image_widget;
+} mvpw_dialog_t;
+
 struct mvp_widget_s {
 	mvpw_id_t	 type;
 	GR_WINDOW_ID	 wid;
@@ -128,6 +140,8 @@ struct mvp_widget_s {
 	int		 border_size;
 	GR_EVENT_MASK	 event_mask;
 	mvp_widget_t	*attach[4];
+	mvp_widget_t	*above;
+	mvp_widget_t	*below;
 
 	void (*resize)(mvp_widget_t*);
 	int (*add_child)(mvp_widget_t*, mvp_widget_t*);
@@ -151,6 +165,7 @@ struct mvp_widget_s {
 		mvpw_graph_t		graph;
 		mvpw_checkbox_t		checkbox;
 		mvpw_bitmap_t		bitmap;
+		mvpw_dialog_t		dialog;
 	} data;
 };
 
