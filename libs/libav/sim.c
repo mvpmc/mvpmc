@@ -197,3 +197,8 @@ av_set_video_aspect(int wide)
 	return 0;
 }
 
+int
+av_get_video_aspect(void)
+{
+	return 0;
+}
