@@ -55,10 +55,14 @@ static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 static int fd = -1;
 static av_stc_t seek_stc;
+static int seek_seconds;
 static volatile int seeking = 0;
 static volatile int jumping = 0;
 static volatile int seek_bps;
 static volatile int seek_attempts;
+static volatile int gop_seek_attempts;
+static volatile off_t seek_start_pos;
+static volatile int seek_start_seconds;
 static volatile int audio_type = 0;
 static volatile int pcm_decoded = 0;
 static int zoomed = 0;
@@ -299,6 +303,67 @@ osd_callback(mvp_widget_t *widget)
 }
 
 static void
+seek_by(int seconds)
+{
+	demux_attr_t *attr = demux_get_attr(handle);
+	int delta;
+	int stc_time, gop_time;
+
+	if ( !attr->gop_valid )
+		return; /* Don't know where to start from */
+
+	seeking = 1;
+
+	pthread_kill(video_write_thread, SIGURG);
+	pthread_kill(audio_write_thread, SIGURG);
+
+	av_current_stc(&seek_stc);
+
+	gop_time = (attr->gop.hour*60 + attr->gop.minute)*60 +
+		attr->gop.second;
+	stc_time = (seek_stc.hour*60 + seek_stc.minute)*60 + seek_stc.second;
+
+	/*
+	 * If the STC and GOP timestamps are close, use the STC timestamp as
+	 * the starting point, because it is the timestamp for the frame the
+	 * hardware is currently playing.
+	 */
+	if (abs(gop_time - stc_time) > 10) {
+		printf("GOP SEEK from: %.2d:%.2d:%.2d\n",
+		       attr->gop.hour, attr->gop.minute, attr->gop.second);
+
+		seek_start_seconds = (attr->gop.hour*60 +
+				      attr->gop.minute)*60 + attr->gop.second;
+	} else {
+		printf("STC SEEK from: %.2d:%.2d:%.2d\n",
+		       seek_stc.hour, seek_stc.minute, seek_stc.second);
+
+		seek_start_seconds = (seek_stc.hour*60 +
+				      seek_stc.minute)*60 + seek_stc.second;
+	}
+
+	seek_seconds = seek_start_seconds + seconds;
+	delta = attr->bps * seconds;
+	seek_start_pos = lseek(fd, 0, SEEK_CUR);
+
+	printf("%d bps, currently 0x%llx + 0x%x\n",
+	       attr->bps, seek_start_pos, delta);
+
+	lseek(fd, delta, SEEK_CUR);
+
+	printf("-> 0x%llx\n", lseek(fd, 0, SEEK_CUR));
+
+	if (attr->bps == 0)
+		seek_bps = ((1024*1024) * 4) / 8;  /* 4 megabits per second */
+	else
+		seek_bps = attr->bps;
+	seek_attempts = 8;
+	gop_seek_attempts = 4;
+
+	pthread_cond_broadcast(&video_cond);
+}
+
+static void
 disable_osd(void)
 {
 	set_osd_callback(OSD_BITRATE, NULL);
@@ -314,11 +379,11 @@ video_callback(mvp_widget_t *widget, char key)
 {
 	struct stat64 sb;
 	long long offset;
-	int jump, delta;
-	demux_attr_t *attr;
+	int jump;
 
 	switch (key) {
 	case '.':
+	case 'E':
 		disable_osd();
 		if (si.rows == 480)
 			av_move(475, si.rows-60, 4);
@@ -363,49 +428,13 @@ video_callback(mvp_widget_t *widget, char key)
 		}
 		break;
 	case '(':
+		seek_by(-30);
+		break;
 	case '{':
-		seeking = 1;
-		pthread_kill(video_write_thread, SIGURG);
-		pthread_kill(audio_write_thread, SIGURG);
-		av_current_stc(&seek_stc);
-		seek_stc.second -= 30;
-		if (seek_stc.second >= 60) {
-			seek_stc.second = seek_stc.second % 60;
-			if (++seek_stc.minute == 60) {
-				seek_stc.minute = 0;
-				seek_stc.hour++;
-			}
-		}
-		PRINTF("SEEK: %.2d:%.2d:%.2d\n",
-		       seek_stc.hour, seek_stc.minute, seek_stc.second);
-		attr = demux_get_attr(handle);
-		delta = attr->bps * 30;
-		lseek(fd, -delta, SEEK_CUR);
-		seek_bps = attr->bps;
-		seek_attempts = 4;
-		pthread_cond_broadcast(&video_cond);
+		seek_by(-10);
 		break;
 	case ')':
-		seeking = 1;
-		pthread_kill(video_write_thread, SIGURG);
-		pthread_kill(audio_write_thread, SIGURG);
-		av_current_stc(&seek_stc);
-		seek_stc.second += 30;
-		if (seek_stc.second >= 60) {
-			seek_stc.second = seek_stc.second % 60;
-			if (++seek_stc.minute == 60) {
-				seek_stc.minute = 0;
-				seek_stc.hour++;
-			}
-		}
-		printf("SEEK: %.2d:%.2d:%.2d\n",
-		       seek_stc.hour, seek_stc.minute, seek_stc.second);
-		attr = demux_get_attr(handle);
-		delta = attr->bps * 30;
-		lseek(fd, delta, SEEK_CUR);
-		seek_bps = attr->bps;
-		seek_attempts = 4;
-		pthread_cond_broadcast(&video_cond);
+		seek_by(30);
 		break;
 	case '}':
 		if (av_ffwd() == 0) {
@@ -456,14 +485,7 @@ video_callback(mvp_widget_t *widget, char key)
 		display_on = !display_on;
 		break;
 	case 'L':
-		if (zoomed) {
-			mvpw_hide(zoom_widget);
-			av_move(0, 0, 0);
-		} else {
-			mvpw_show(zoom_widget);
-			av_move(0, 0, 5);
-		}
-		zoomed = !zoomed;
+		av_set_video_aspect(1-av_get_video_aspect());
 		break;
 	case 'P':
 		power_toggle();
@@ -627,7 +649,6 @@ video_switch_stream(mvp_widget_t *widget, int stream)
 void
 subtitle_switch_stream(mvp_widget_t *widget, int stream)
 {
-	demux_attr_t *attr;
 	int old;
 
 	old = demux_spu_get_id(handle);
@@ -656,83 +677,54 @@ do_seek(void)
 	}
 
 	if (seeking && !attr->gop_valid) {
+		if ( --gop_seek_attempts > 0 ) {
+			printf("GOP retry\n");
+			return -1;
+		}
 		seek_attempts--;
 		printf("SEEK RETRY due to lack of GOP\n");
 		demux_flush(handle);
 		demux_seek(handle);
+		return -1;
+	} else {
+		gop_seek_attempts = 4;
 	}
 
 	if (seeking) {
-		int seconds, seek_seconds;
+		int seconds, new_seek_bps;
 
 		seconds = (attr->gop.hour * 3600) + (attr->gop.minute * 60) +
 			attr->gop.second;
-		seek_seconds = (seek_stc.hour * 3600) +
-			(seek_stc.minute * 60) + seek_stc.second;
 
-		if (seeking > 0) {
-			if (seconds >= (seek_seconds - SEEK_FUDGE)) {
-				if (seconds > (seek_seconds + SEEK_FUDGE)) {
-					lseek(fd,
-					      -(seek_bps *
-						(seconds-seek_seconds)) / 2,
-					      SEEK_CUR);
-					demux_flush(handle);
-					demux_seek(handle);
-					seeking = -1;
-					seek_attempts--;
-					printf("SEEKING 1: %d/%d 0x%llx\n",
-					       seconds, seek_seconds,
-					       lseek(fd, 0, SEEK_CUR));
-					return -1;
-				}
-				seeking = 0;
-				printf("SEEK DONE: to %d at %d\n",
-				       seek_seconds, seconds);
-			} else {
-				lseek(fd,
-				      (seek_bps*(seek_seconds-seconds)) / 2,
-				      SEEK_CUR);
-				demux_flush(handle);
-				demux_seek(handle);
-				seek_attempts--;
-				printf("SEEKING 2: %d/%d 0x%llx\n",
-				       seconds, seek_seconds,
-				       lseek(fd, 0, SEEK_CUR));
-				return -1;
-			}
+		/*
+		 * Recompute bps from actual time and position differences
+		 * provided the time difference is big enough
+		 */
+		if ( abs(seconds - seek_start_seconds) > SEEK_FUDGE ) {
+			new_seek_bps =
+				(lseek(fd, 0, SEEK_CUR) - seek_start_pos) /
+				(seconds - seek_start_seconds);
+			if ( new_seek_bps > 10000 ) /* Sanity check */
+				seek_bps = new_seek_bps;
+		}
+
+		printf("New BPS %d\n", seek_bps);
+
+		if ( abs(seconds - seek_seconds) <= SEEK_FUDGE ) {
+			seeking = 0;
+			printf("SEEK DONE: to %d at %d\n",
+			       seek_seconds, seconds);
 		} else {
-			if (seconds > (seek_seconds + SEEK_FUDGE)) {
-				lseek(fd,
-				      -(seek_bps *
-					(seconds-seek_seconds)) / 2,
-				      SEEK_CUR);
-				demux_flush(handle);
-				demux_seek(handle);
-				seek_attempts--;
-				printf("SEEKING 3: %d/%d 0x%llx\n",
-				       seconds, seek_seconds,
-				       lseek(fd, 0, SEEK_CUR));
-				return -1;
-			} else {
-				if (seek_seconds > (seconds + SEEK_FUDGE)) {
-					lseek(fd,
-					      (seek_bps *
-					       (seek_seconds-seconds)) / 2,
-					      SEEK_CUR);
-					demux_flush(handle);
-					demux_seek(handle);
-					seeking = 1;
-					seek_attempts--;
-					printf("SEEKING 4: %d/%d 0x%llx\n",
-					       seconds, seek_seconds,
-					       lseek(fd, 0, SEEK_CUR));
-					return -1;
-				}
-				seeking = 0;
-				printf("SEEK DONE: to %d at %d\n",
-				       seek_seconds, seconds);
-			}
+			printf("RESEEK: From 0x%llx + 0x%x\n",
+			       lseek(fd, 0, SEEK_CUR),
+			       seek_bps * (seek_seconds-seconds));
+			lseek(fd, seek_bps * (seek_seconds-seconds), SEEK_CUR);
+			demux_flush(handle);
+			demux_seek(handle);
+			seek_attempts--;
+			printf("SEEKING 1: %d/%d 0x%llx\n",
+			       seconds, seek_seconds, lseek(fd, 0, SEEK_CUR));
+			return -1;
 		}
 	}
 
