@@ -270,6 +270,8 @@ add_files(mvp_widget_t *fbw)
 int
 fb_update(mvp_widget_t *fb)
 {
+	video_functions = &file_functions;
+
 	mvpw_show(root);
 	mvpw_expose(root);
 

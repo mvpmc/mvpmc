@@ -58,6 +58,7 @@ static mvpw_menu_item_attr_t item_attr = {
 
 static pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t seek_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 static cmyth_conn_t control;
 static cmyth_proginfo_t current_prog;
@@ -81,6 +82,23 @@ static volatile int close_mythtv = 0;
 static pthread_t control_thread;
 
 static void mythtv_play(mvp_widget_t *widget);
+
+static int mythtv_open(void);
+static int mythtv_read(char*, int);
+static long long mythtv_seek(long long, int);
+static long long mythtv_size(void);
+
+static volatile int myth_seeking = 0;
+static volatile long long seek_pos;
+static volatile long long seek_offset;
+static volatile int seek_whence;
+
+video_callback_t mythtv_functions = {
+	.open = mythtv_open,
+	.read = mythtv_read,
+	.seek = mythtv_seek,
+	.size = mythtv_size,
+};
 
 static int
 string_compare(const void *a, const void *b)
@@ -106,253 +124,15 @@ mythtv_show_widgets(void)
 static void
 mythtv_close_file(void)
 {
+	printf("%s(): closing file\n", __FUNCTION__);
 	if (playing_via_mythtv) {
+		printf("%s(): releasing file\n", __FUNCTION__);
 		cmyth_file_release(control, file);
 		file = NULL;
 		reset_mythtv = 1;
 	}
 
 	close_mythtv = 0;
-}
-
-static void
-mythtv_player(void)
-{
-	static int len = 0, n = 0, nput = 0;
-	int alen, vlen;
-	demux_attr_t *attr;
-	video_info_t *vi;
-	static int count = 0, resize = 0;
-	pts_sync_data_t pts;
-	static uint64_t first_stc = 0, old_pts = 0;
-	static struct timeval start;
-	struct timeval now, delta;
-	spu_item_t *spu;
-	static int set_aspect = 1;
-	static int audio_type = 0;
-
-	PRINTF("%s(): line %d\n", __FUNCTION__, __LINE__);
-
-#if 0
-	if (reset) {
-		n = 0;
-		nput = 0;
-		resize = 0;
-		set_aspect = 1;
-		gettimeofday(&start, NULL);
-	}
-#endif
-
-	attr = demux_get_attr(handle);
-	vi = &attr->video.stats.info.video;
-	if (attr->audio.type != audio_type) {
-		audio_type = attr->audio.type;
-		av_set_audio_type(audio_type);
-	}
-	if (set_aspect) {
-		if (vi->aspect == 3) {
-			av_set_video_aspect(1);
-			PRINTF("video aspect ratio: 16:9\n");
-		} else {
-			av_set_video_aspect(0);
-			PRINTF("video aspect ratio: 4:3\n");
-		}
-		set_aspect = 0;
-	}
-
-#if 0
-	if ((seek_attempts == 0) && seeking) {
-		seeking = 0;
-		printf("SEEK ABORTED\n");
-	}
-
-	if (seeking && !attr->gop_valid) {
-		seek_attempts--;
-		printf("SEEK RETRY due to lack of GOP\n");
-		n = 0;
-		nput = 0;
-		demux_flush(handle);
-		demux_seek(handle);
-		return;
-	}
-
-	if (seeking) {
-		int seconds, seek_seconds;
-
-		seconds = (attr->gop.hour * 3600) + (attr->gop.minute * 60) +
-			attr->gop.second;
-		seek_seconds = (seek_stc.hour * 3600) +
-			(seek_stc.minute * 60) + seek_stc.second;
-
-		if (seeking > 0) {
-			if (seconds >= (seek_seconds - SEEK_FUDGE)) {
-				if (seconds > (seek_seconds + SEEK_FUDGE)) {
-					n = 0;
-					nput = 0;
-					lseek(fd,
-					      -(seek_bps *
-						(seconds-seek_seconds)) / 2,
-					      SEEK_CUR);
-					demux_flush(handle);
-					demux_seek(handle);
-					seeking = -1;
-					seek_attempts--;
-					printf("SEEKING 1: %d/%d 0x%llx\n",
-					       seconds, seek_seconds,
-					       lseek(fd, 0, SEEK_CUR));
-					return;
-				}
-				seeking = 0;
-				printf("SEEK DONE: to %d at %d\n",
-				       seek_seconds, seconds);
-			} else {
-				n = 0;
-				nput = 0;
-				lseek(fd,
-				      (seek_bps*(seek_seconds-seconds)) / 2,
-				      SEEK_CUR);
-				demux_flush(handle);
-				demux_seek(handle);
-				seek_attempts--;
-				printf("SEEKING 2: %d/%d 0x%llx\n",
-				       seconds, seek_seconds,
-				       lseek(fd, 0, SEEK_CUR));
-				return;
-			}
-		} else {
-			if (seconds > (seek_seconds + SEEK_FUDGE)) {
-				n = 0;
-				nput = 0;
-				lseek(fd,
-				      -(seek_bps *
-					(seconds-seek_seconds)) / 2,
-				      SEEK_CUR);
-				demux_flush(handle);
-				demux_seek(handle);
-				seek_attempts--;
-				printf("SEEKING 3: %d/%d 0x%llx\n",
-				       seconds, seek_seconds,
-				       lseek(fd, 0, SEEK_CUR));
-				return;
-			} else {
-				if (seek_seconds > (seconds + SEEK_FUDGE)) {
-					n = 0;
-					nput = 0;
-					lseek(fd,
-					      (seek_bps *
-					       (seek_seconds-seconds)) / 2,
-					      SEEK_CUR);
-					demux_flush(handle);
-					demux_seek(handle);
-					seeking = 1;
-					seek_attempts--;
-					printf("SEEKING 4: %d/%d 0x%llx\n",
-					       seconds, seek_seconds,
-					       lseek(fd, 0, SEEK_CUR));
-					return;
-				}
-				seeking = 0;
-				printf("SEEK DONE: to %d at %d\n",
-				       seek_seconds, seconds);
-			}
-		}
-	}
-#endif
-
-	PRINTF("%s(): line %d\n", __FUNCTION__, __LINE__);
-	alen = demux_write_audio(handle, fd_audio);
-	vlen = demux_write_video(handle, fd_video);
-	PRINTF("%s(): line %d\n", __FUNCTION__, __LINE__);
-
-	if ((alen == 0) || (vlen == 0)) {
-		mvpw_set_idle(NULL);
-		mvpw_set_timer(root, mythtv_play, 100);
-	}
-
-#if 0
-	gettimeofday(&now, NULL);
-	timersub(&now, &start, &delta);
-	get_video_sync(&pts);
-	if (reset || (first_stc > pts.stc))
-		first_stc = pts.stc;
-	if (old_pts != pts.stc) {
-		PRINTF("HARDWARE: 0x%llx 0x%llx [%d %d] 0x%x\n",
-		       pts.stc, first_stc, delta.tv_sec, delta.tv_usec,
-		       (unsigned int)(pts.stc /
-				      ((float)delta.tv_sec +
-				       (delta.tv_usec/1000000.0))));
-	}
-	old_pts = pts.stc;
-#endif
-
-	if ((alen == 0) && (vlen == 0) && (n == 0) && demux_empty(handle)) {
-		if (count++ > 10) {
-#if 0
-			close(fd);
-			fd = -1;
-			if (running_mythtv)
-				mythtv_show_widgets();
-			else
-				video_show_widgets();
-#endif
-		}
-	} else
-		count = 0;
-	PRINTF("%s(): line %d\n", __FUNCTION__, __LINE__);
-}
-
-static void
-mythtv_idle(void)
-{
-	static char buf[BSIZE];
-	static int len, nput = 0, n;
-	static int tot = 0, recent = 0;
-
-	if (close_mythtv) {
-		nput = 0;
-		cmyth_file_get_block(file, buf, BSIZE);
-		return;
-	}
-
-	if (reset_mythtv) {
-		nput = 0;
-		reset_mythtv = 0;
-	}
-
-	if (nput == 0) {
-		len = cmyth_file_get_block(file, buf, BSIZE);
-	}
-
-	while (nput < len) {
-		if ((n=demux_put(handle, buf+nput, len-nput)) > 0)
-			nput += n;
-		else
-			goto out;
-	}
-
-	nput = 0;
-
-	recent += len;
-	if (recent < (1024*256))
-		return;
-	recent = 0;
-
- out:
-	if (tot == BSIZE)
-		tot = 0;
-
-	mythtv_player();
-}
-
-static void
-mythtv_play(mvp_widget_t *widget)
-{
-	playing_via_mythtv = 1;
-
-	pthread_cond_signal(&cond);
-
-	mvpw_set_idle(mythtv_idle);
-	mvpw_set_timer(root, NULL, 0);
 }
 
 static void
@@ -417,12 +197,6 @@ hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 			current = malloc(strlen(pathname)+1);
 			sprintf(current, "%s", pathname);
 
-			if ((file=cmyth_conn_connect_file(current_prog,
-							  BSIZE)) == NULL) {
-				fprintf(stderr, "cannot connect to file\n");
-			}
-
-			printf("starting mythtv file transfer\n");
 			demux_reset(handle);
 			demux_attr_reset(handle);
 			if (si.rows == 480)
@@ -430,7 +204,7 @@ hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 			else
 				av_move(475, si.rows-113, 4);
 			av_play();
-			mvpw_set_timer(root, mythtv_play, 500);
+			mvpw_set_timer(root, video_play, 500);
 		}
 
 		ptr = strchr(start, 'T');
@@ -612,6 +386,11 @@ mythtv_update(mvp_widget_t *widget)
 {
 	char buf[64];
 	unsigned int total, used;
+
+	if (mythtv_recdir)
+		video_functions = &file_functions;
+	else
+		video_functions = &mythtv_functions;
 
 	running_mythtv = 1;
 
@@ -884,6 +663,16 @@ control_start(void *arg)
 		printf("mythtv control thread starting...\n");
 
 		do {
+			if (seeking || jumping) {
+				while (myth_seeking == 0)
+					usleep(1000);
+				printf("%s(): seeking...\n", __FUNCTION__);
+				seek_pos = cmyth_file_seek(control, file,
+							   seek_offset,
+							   seek_whence);
+				printf("%s(): done\n", __FUNCTION__);
+				myth_seeking = 0;
+			}
 			len = cmyth_file_request_block(control, file, BSIZE);
 		} while ((len > 0) && (playing_via_mythtv == 1) && (!close_mythtv));
 
@@ -1011,4 +800,124 @@ mythtv_cleanup(void)
 		cmyth_proglist_release(episode_plist);
 		episode_plist = NULL;
 	}
+}
+
+static int
+mythtv_open(void)
+{
+	playing_via_mythtv = 1;
+
+	if ((file=cmyth_conn_connect_file(current_prog,
+					  BSIZE)) == NULL) {
+		fprintf(stderr, "cannot connect to file\n");
+		return -1;
+	}
+
+	printf("starting mythtv file transfer\n");
+
+	pthread_cond_signal(&cond);
+
+	return 0;
+}
+
+static long long
+mythtv_seek(long long offset, int whence)
+{
+	struct timeval to;
+	pid_t me;
+	int count = 0;
+
+	if ((offset == 0) && (whence == SEEK_CUR))
+		return cmyth_file_seek(control, file, 0, SEEK_CUR);
+
+	me = getpid();
+
+	pthread_mutex_lock(&seek_mutex);
+
+	printf("%s(): pid %d doing seek...\n", __FUNCTION__, me);
+
+	seek_offset = offset;
+	seek_whence = whence;
+
+	while (1) {
+		char buf[4096];
+		int len;
+
+		to.tv_sec = 0;
+		to.tv_usec = 10;
+		len = 0;
+		if (cmyth_file_select(file, &to) > 0) {
+			PRINTF("%s(): reading...\n", __FUNCTION__);
+			len = cmyth_file_get_block(file, buf, sizeof(buf));
+			PRINTF("%s(): read returned %d\n", __FUNCTION__, len);
+		}
+
+		if (len < 0)
+			break;
+
+		if (len == 0) {
+			if (count++ > 4)
+				break;
+			else
+				usleep(1000);
+		}
+
+		if (len > 0) {
+			count = 0;
+			PRINTF("%s(): read %d bytes\n", __FUNCTION__, len);
+		}
+	}
+
+	printf("%s(): waiting for seek...\n", __FUNCTION__);
+
+	myth_seeking = 1;
+	while (myth_seeking)
+		usleep(1000);
+
+	printf("%s(): pid %d done\n", __FUNCTION__, me);
+
+	pthread_mutex_unlock(&seek_mutex);
+
+	return seek_pos;
+}
+
+static int
+mythtv_read(char *buf, int len)
+{
+	int ret;
+	int tot = 0;
+
+	while (myth_seeking)
+		usleep(1000);
+
+	pthread_mutex_lock(&seek_mutex);
+
+	pthread_cond_signal(&cond);
+
+	PRINTF("cmyth getting block of size %d\n", len);
+
+	while ((tot < len) && !myth_seeking) {
+		struct timeval to;
+
+		to.tv_sec = 0;
+		to.tv_usec = 10;
+		if (cmyth_file_select(file, &to) <= 0)
+			break;
+		ret = cmyth_file_get_block(file, buf+tot, len-tot);
+		if (ret <= 0)
+			break;
+		tot += ret;
+	}
+
+	PRINTF("cmyth got block of size %d (out of %d)\n", tot, len);
+
+	pthread_mutex_unlock(&seek_mutex);
+
+	return tot;
+}
+
+static long long
+mythtv_size(void)
+{
+	return cmyth_file_length(file);
 }

@@ -56,8 +56,8 @@ static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 static int fd = -1;
 static av_stc_t seek_stc;
 static int seek_seconds;
-static volatile int seeking = 0;
-static volatile int jumping = 0;
+volatile int seeking = 0;
+volatile int jumping = 0;
 static volatile long long jump_target;
 static volatile int seek_bps;
 static volatile int seek_attempts;
@@ -80,6 +80,20 @@ static volatile int ac3len = 0, ac3more = 0;
 
 static volatile int video_reopen = 0;
 static volatile int video_playing = 0;
+
+volatile video_callback_t *video_functions = NULL;
+
+static int file_open(void);
+static int file_read(char*, int);
+static long long file_seek(long long, int);
+static long long file_size(void);
+
+video_callback_t file_functions = {
+	.open = file_open,
+	.read = file_read,
+	.seek = file_seek,
+	.size = file_size,
+};
 
 void video_play(mvp_widget_t *widget);
 
@@ -191,14 +205,14 @@ void
 video_progress(mvp_widget_t *widget)
 {
 	struct stat64 sb;
-	long long offset;
+	long long offset, size;
 	int off;
 	char buf[32];
 
-	fstat64(fd, &sb);
-	offset = lseek(fd, 0, SEEK_CUR);
+	size = video_functions->size();
+	offset = video_functions->seek(0, SEEK_CUR);
 	off = (int)((double)(offset/1000) /
-		    (double)(sb.st_size/1000) * 100.0);
+		    (double)(size/1000) * 100.0);
 	snprintf(buf, sizeof(buf), "%d%%", off);
 	mvpw_set_text_str(offset_widget, buf);
 
@@ -282,7 +296,7 @@ osd_callback(mvp_widget_t *widget)
 	demux_attr_t *attr;
 
 	fstat64(fd, &sb);
-	offset = lseek(fd, 0, SEEK_CUR);
+	offset = video_functions->seek(0, SEEK_CUR);
 	off = (int)((double)(offset/1000) /
 		    (double)(sb.st_size/1000) * 100.0);
 	snprintf(buf, sizeof(buf), "%d", off);
@@ -311,6 +325,7 @@ seek_by(int seconds)
 	int delta;
 	int stc_time, gop_time, pts_time;
 	pts_sync_data_t pts;
+	long long offset;
 
 	pthread_kill(video_write_thread, SIGURG);
 	pthread_kill(audio_write_thread, SIGURG);
@@ -349,7 +364,7 @@ seek_by(int seconds)
 		seek_start_seconds = pts_time;
 		pts_seek_attempts = 4;
 	}
-	seek_start_pos = lseek(fd, 0, SEEK_CUR);
+	seek_start_pos = video_functions->seek(0, SEEK_CUR);
 
 	seek_seconds = seek_start_seconds + seconds;
 	delta = seek_bps * seconds;
@@ -357,12 +372,12 @@ seek_by(int seconds)
 	printf("%d bps, currently %lld + %d\n",
 	       seek_bps, seek_start_pos, delta);
 
-	lseek(fd, delta, SEEK_CUR);
-
-	printf("-> %lld\n", lseek(fd, 0, SEEK_CUR));
-
-	seek_attempts = 8;
 	seeking = 1;
+	seek_attempts = 8;
+	
+	offset = video_functions->seek(delta, SEEK_CUR);
+
+	printf("-> %lld\n", offset);
 
 	pthread_cond_broadcast(&video_cond);
 }
@@ -383,7 +398,7 @@ video_callback(mvp_widget_t *widget, char key)
 {
 	struct stat64 sb;
 	int jump;
-	long long offset;
+	long long offset, size;
 
 	switch (key) {
 	case '.':
@@ -458,9 +473,9 @@ video_callback(mvp_widget_t *widget, char key)
 		jumping = 1;
 		pthread_kill(video_write_thread, SIGURG);
 		pthread_kill(audio_write_thread, SIGURG);
-		fstat64(fd, &sb);
-		offset = lseek(fd, 0, SEEK_CUR);
-		jump_target = ((-sb.st_size / 100.0) + offset);
+		size = video_functions->size();
+		offset = video_functions->seek(0, SEEK_CUR);
+		jump_target = ((-size / 100.0) + offset);
 		pthread_cond_broadcast(&video_cond);
 		break;
 	case '>':
@@ -468,9 +483,9 @@ video_callback(mvp_widget_t *widget, char key)
 		jumping = 1;
 		pthread_kill(video_write_thread, SIGURG);
 		pthread_kill(audio_write_thread, SIGURG);
-		fstat64(fd, &sb);
-		offset = lseek(fd, 0, SEEK_CUR);
-		jump_target = ((sb.st_size / 100.0) + offset);
+		size = video_functions->size();
+		offset = video_functions->seek(0, SEEK_CUR);
+		jump_target = ((size / 100.0) + offset);
 		pthread_cond_broadcast(&video_cond);
 		break;
 	case '0' ... '9':
@@ -479,8 +494,8 @@ video_callback(mvp_widget_t *widget, char key)
 		pthread_kill(video_write_thread, SIGURG);
 		pthread_kill(audio_write_thread, SIGURG);
 		jump = key - '0';
-		fstat64(fd, &sb);
-		jump_target = sb.st_size * (jump / 10.0);
+		size = video_functions->size();
+		jump_target = size * (jump / 10.0);
 		pthread_cond_broadcast(&video_cond);
 		break;
 	case 'M':
@@ -691,6 +706,7 @@ do_seek(void)
 	demux_attr_t *attr;
 	pts_sync_data_t pts;
 	int seconds, new_seek_bps;
+	long long offset;
 
 	attr = demux_get_attr(handle);
 
@@ -725,8 +741,9 @@ do_seek(void)
 		 * provided the time difference is big enough
 		 */
 		if ( abs(seconds - seek_start_seconds) > SEEK_FUDGE ) {
+			offset = video_functions->seek(0, SEEK_CUR);
 			new_seek_bps =
-				(lseek(fd, 0, SEEK_CUR) - seek_start_pos) /
+				(offset - seek_start_pos) /
 				(seconds - seek_start_seconds);
 			if ( new_seek_bps > 10000 ) /* Sanity check */
 				seek_bps = new_seek_bps;
@@ -739,15 +756,16 @@ do_seek(void)
 			printf("SEEK DONE: to %d at %d\n",
 			       seek_seconds, seconds);
 		} else {
+			offset = video_functions->seek(0, SEEK_CUR);
 			printf("RESEEK: From %lld + %d\n",
-			       lseek(fd, 0, SEEK_CUR),
+			       offset,
 			       seek_bps * (seek_seconds-seconds));
-			lseek(fd, seek_bps * (seek_seconds-seconds), SEEK_CUR);
+			offset = video_functions->seek(seek_bps * (seek_seconds-seconds), SEEK_CUR);
 			demux_flush(handle);
 			demux_seek(handle);
 			seek_attempts--;
 			printf("SEEKING 1: %d/%d %lld\n",
-			       seconds, seek_seconds, lseek(fd, 0, SEEK_CUR));
+			       seconds, seek_seconds, offset);
 			return -1;
 		}
 	}
@@ -755,8 +773,30 @@ do_seek(void)
 	return 0;
 }
 
-static void
-open_file(void)
+static long long
+file_size(void)
+{
+	struct stat64 sb;
+
+	fstat64(fd, &sb);
+
+	return sb.st_size;
+}
+
+static long long
+file_seek(long long offset, int whence)
+{
+	return lseek(fd, offset, whence);
+}
+
+static int
+file_read(char *buf, int len)
+{
+	return read(fd, buf, len);
+}
+
+static int
+file_open(void)
 {
 	seeking = 1;
 
@@ -768,7 +808,7 @@ open_file(void)
 	if ((fd=open(current, O_RDONLY|O_LARGEFILE)) < 0) {
 		printf("failed to open %s\n", current);
 		video_reopen = 0;
-		return;
+		return -1;
 	}
 	printf("opened %s\n", current);
 
@@ -804,6 +844,8 @@ open_file(void)
 	pthread_cond_broadcast(&video_cond);
 
 	printf("write threads released\n");
+
+	return 0;
 }
 void*
 video_read_start(void *arg)
@@ -836,7 +878,8 @@ video_read_start(void *arg)
 		}
 
 		if (video_reopen) {
-			open_file();
+			if (video_functions->open() == 0)
+				video_reopen = 0;
 			len = 0;
 			reset = 1;
 			set_aspect = 1;
@@ -854,13 +897,13 @@ video_read_start(void *arg)
 			if (jumping) {
 				while (jump_target < 0)
 					usleep(1000);
-				lseek(fd, jump_target, SEEK_SET);
+				video_functions->seek(jump_target, SEEK_SET);
 			}
 			jumping = 0;
 		}
 
 		if (len == 0) {
-			len = read(fd, inbuf, sizeof(inbuf));
+			len = video_functions->read(inbuf, sizeof(inbuf));
 			n = 0;
 		}
 

@@ -38,6 +38,16 @@ typedef struct {
 	void (*callback)(mvp_widget_t *widget);
 } osd_widget_t;
 
+typedef struct {
+	int (*open)(void);
+	int (*read)(char*, int);
+	long long (*seek)(long long, int);
+	long long (*size)();
+} video_callback_t;
+
+extern volatile video_callback_t *video_functions;
+extern video_callback_t file_functions, mythtv_functions;
+
 extern char *mythtv_server;
 extern int mythtv_debug;
 extern volatile int mythtv_level;
@@ -90,6 +100,9 @@ extern int running_mythtv;
 extern volatile int running_replaytv;
 
 extern int fd_audio, fd_video;
+
+extern volatile int seeking;
+extern volatile int jumping;
 
 extern void audio_play(mvp_widget_t*);
 extern void video_play(mvp_widget_t*);
