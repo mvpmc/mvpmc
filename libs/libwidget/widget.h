@@ -1,0 +1,118 @@
+/*
+ *  $Id$
+ *
+ *  Copyright (C) 2004, Jon Gettler
+ *  http://mvpmc.sourceforge.net/
+ *
+ *  This library is free software; you can redistribute it and/or
+ *  modify it under the terms of the GNU Lesser General Public
+ *  License as published by the Free Software Foundation; either
+ *  version 2.1 of the License, or (at your option) any later version.
+ *
+ *  This library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ *  Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public
+ *  License along with this library; if not, write to the Free Software
+ *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
+
+#ifndef WIDGET_H
+#define WIDGET_H
+
+#include "nano-X.h"
+
+typedef enum {
+	MVPW_UNKNOWN,
+	MVPW_ROOT,
+	MVPW_TEXT,
+	MVPW_MENU,
+	MVPW_CONTAINER,
+} mvpw_id_t;
+
+typedef struct {
+	int		  nitems;
+	int		  max_items;
+	mvp_widget_t	**widgets;
+} mvpw_container_t;
+
+typedef struct {
+	char		*str;
+	int		 wrap;
+	int		 justify;
+	int		 margin;
+	GR_FONT_ID	 font;
+	GR_COLOR	 fg;
+	GR_COLOR	 text_bg;
+
+	void (*callback_key)(char*, char);
+} mvpw_text_t;
+
+typedef struct {
+	char		*title;
+	int		 nitems;
+	int		 max_items;
+	int		 current;
+	GR_FONT_ID	 font;
+	GR_COLOR	 fg;
+	GR_COLOR	 hilite_fg;
+	GR_COLOR	 hilite_bg;
+	int		 columns;
+	int		 rows;
+
+	mvp_widget_t	*title_widget;
+	mvp_widget_t	*container_widget;
+
+	struct menu_item_s {
+		char		 *label;
+		int		  key;
+		void		(*callback)(mvp_widget_t*, char*, int);
+		void		(*hilite)(mvp_widget_t*, char*, int, int);
+		mvp_widget_t	 *widget;
+	} *items;
+} mvpw_menu_t;
+
+struct mvp_widget_s {
+	mvpw_id_t	 type;
+	GR_WINDOW_ID	 wid;
+	mvp_widget_t	*parent;
+	GR_COORD	 x;
+	GR_COORD	 y;
+	unsigned int	 width;
+	unsigned int	 height;
+	GR_COLOR	 bg;
+	GR_COLOR	 border_color;
+	int		 border_size;
+	GR_EVENT_MASK	 event_mask;
+	mvp_widget_t	*attach[4];
+
+	void (*resize)(mvp_widget_t*);
+	int (*add_child)(mvp_widget_t*, mvp_widget_t*);
+	int (*remove_child)(mvp_widget_t*, mvp_widget_t*);
+
+	void (*destroy)(mvp_widget_t*);
+	void (*expose)(mvp_widget_t*);
+	void (*key)(mvp_widget_t*, char);
+	void (*timer)(mvp_widget_t*);
+
+	void (*callback_destroy)(mvp_widget_t*);
+	void (*callback_expose)(mvp_widget_t*);
+	void (*callback_key)(mvp_widget_t*, char);
+	void (*callback_timer)(mvp_widget_t*);
+
+	union {
+		mvpw_text_t		text;
+		mvpw_menu_t		menu;
+		mvpw_container_t	container;
+	} data;
+};
+
+extern mvp_widget_t* mvpw_create(mvp_widget_t *parent, GR_COORD x, GR_COORD y,
+				 unsigned int width, unsigned int height,
+				 GR_COLOR bg,
+				 GR_COLOR border_color, int border_size);
+extern void mvpw_destroy(mvp_widget_t *widget);
+
+#endif /* WIDGET_H */
