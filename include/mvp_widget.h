@@ -230,4 +230,76 @@ mvpw_rgba(unsigned char r, unsigned char g, unsigned char b, unsigned char a)
 
 #define mvpw_color_alpha(c,a)	((a << 24) | (c & 0x00ffffff))
 
+#ifdef MVPMC_HOST
+#define MVPW_KEY_UP	2
+#define MVPW_KEY_DOWN	3
+#define MVPW_KEY_LEFT	0
+#define MVPW_KEY_RIGHT	1
+#define MVPW_KEY_OK	'\r'
+#define MVPW_KEY_ZERO	'0'
+#define MVPW_KEY_ONE	'1'
+#define MVPW_KEY_TWO	'2'
+#define MVPW_KEY_THREE	'3'
+#define MVPW_KEY_FOUR	'4'
+#define MVPW_KEY_FIVE	'5'
+#define MVPW_KEY_SIX	'6'
+#define MVPW_KEY_SEVEN	'7'
+#define MVPW_KEY_EIGHT	'8'
+#define MVPW_KEY_NINE	'9'
+#define MVPW_KEY_POWER	'P'
+#define MVPW_KEY_GO	'G'
+#define MVPW_KEY_EXIT	27
+#define MVPW_KEY_MENU	'M'
+#define MVPW_KEY_RED	8
+#define MVPW_KEY_YELLOW	9
+#define MVPW_KEY_BLUE	'b'
+#define MVPW_KEY_GREEN	'g'
+#define MVPW_KEY_MUTE	'Q'
+#define MVPW_KEY_BLANK	' '
+#define MVPW_KEY_FULL	'L'
+#define MVPW_KEY_PLAY	'#'
+#define MVPW_KEY_RECORD	'*'
+#define MVPW_KEY_PAUSE	','
+#define MVPW_KEY_STOP	'.'
+#define MVPW_KEY_REWIND	'{'
+#define MVPW_KEY_FFWD	'}'
+#define MVPW_KEY_REPLAY	'('
+#define MVPW_KEY_SKIP	')'
+#else
+#define MVPW_KEY_UP	'^'
+#define MVPW_KEY_DOWN	'V'
+#define MVPW_KEY_LEFT	'<'
+#define MVPW_KEY_RIGHT	'>'
+#define MVPW_KEY_OK	'\n'
+#define MVPW_KEY_ZERO	'0'
+#define MVPW_KEY_ONE	'1'
+#define MVPW_KEY_TWO	'2'
+#define MVPW_KEY_THREE	'3'
+#define MVPW_KEY_FOUR	'4'
+#define MVPW_KEY_FIVE	'5'
+#define MVPW_KEY_SIX	'6'
+#define MVPW_KEY_SEVEN	'7'
+#define MVPW_KEY_EIGHT	'8'
+#define MVPW_KEY_NINE	'9'
+#define MVPW_KEY_POWER	'P'
+#define MVPW_KEY_GO	'G'
+#define MVPW_KEY_EXIT	'E'
+#define MVPW_KEY_MENU	'M'
+#define MVPW_KEY_RED	'r'
+#define MVPW_KEY_YELLOW	'y'
+#define MVPW_KEY_BLUE	'b'
+#define MVPW_KEY_GREEN	'g'
+#define MVPW_KEY_MUTE	'Q'
+#define MVPW_KEY_BLANK	' '
+#define MVPW_KEY_FULL	'L'
+#define MVPW_KEY_PLAY	'#'
+#define MVPW_KEY_RECORD	'*'
+#define MVPW_KEY_PAUSE	','
+#define MVPW_KEY_STOP	'.'
+#define MVPW_KEY_REWIND	'{'
+#define MVPW_KEY_FFWD	'}'
+#define MVPW_KEY_REPLAY	'('
+#define MVPW_KEY_SKIP	')'
+#endif /* MVPMC_HOST */
+
 #endif /* MVP_WIDGET_H */

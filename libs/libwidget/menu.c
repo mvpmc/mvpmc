@@ -153,7 +153,7 @@ key(mvp_widget_t *widget, char c)
 	char *str;
 
 	switch (c) {
-	case 'r':
+	case MVPW_KEY_RED:
 		if (widget->data.menu.current > 0) {
 			i = widget->data.menu.current;
 			hilite_item(widget, i, 0);
@@ -168,7 +168,7 @@ key(mvp_widget_t *widget, char c)
 			hilite_item(widget, i, 1);
 		}
 		break;
-	case 'y':
+	case MVPW_KEY_YELLOW:
 		if (widget->data.menu.current < (widget->data.menu.nitems-1)) {
 			i = widget->data.menu.current;
 			hilite_item(widget, i, 0);
@@ -189,7 +189,7 @@ key(mvp_widget_t *widget, char c)
 			hilite_item(widget, i, 1);
 		}
 		break;
-	case '^':
+	case MVPW_KEY_UP:
 		if (widget->data.menu.current > 0) {
 			i = widget->data.menu.current;
 			hilite_item(widget, i, 0);
@@ -203,7 +203,7 @@ key(mvp_widget_t *widget, char c)
 			hilite_item(widget, i, 1);
 		}
 		break;
-	case 'V':
+	case MVPW_KEY_DOWN:
 		if (widget->data.menu.current < (widget->data.menu.nitems-1)) {
 			i = widget->data.menu.current;
 			hilite_item(widget, i, 0);
@@ -218,7 +218,7 @@ key(mvp_widget_t *widget, char c)
 			hilite_item(widget, i, 1);
 		}
 		break;
-	case '\n':
+	case MVPW_KEY_OK:
 		if (widget->data.menu.current < widget->data.menu.nitems) {
 			i = widget->data.menu.current;
 			str = widget->data.menu.items[i].label;
