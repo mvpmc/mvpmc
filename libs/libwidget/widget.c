@@ -169,6 +169,8 @@ mvpw_destroy(mvp_widget_t *widget)
 
 	remove_widget(widget);
 
+	GrDestroyWindow(widget->wid);
+
 	free(widget);
 }
 
@@ -487,6 +489,35 @@ mvpw_set_timer(mvp_widget_t *widget, void (*callback)(mvp_widget_t*),
 		widget->tid = GrCreateTimer(widget->wid, timeout);
 	}
 
+}
+
+int
+mvpw_event_flush(void)
+{
+	GR_EVENT event;
+
+	if (widget_count == 0)
+		return -1;
+
+	while (widget_count > 0) {
+		GrCheckNextEvent(&event);
+		switch (event.type) {
+		case GR_EVENT_TYPE_EXPOSURE:
+			exposure(&event.exposure);
+			break;
+		case GR_EVENT_TYPE_KEY_DOWN:
+			keystroke(&event.keystroke);
+			break;
+		case GR_EVENT_TYPE_TIMER:
+			timer(&event.timer);
+			break;
+		case GR_EVENT_TYPE_NONE:
+			return 0;
+			break;
+		}
+	}
+
+	return 0;
 }
 
 int

@@ -34,6 +34,7 @@ expose(mvp_widget_t *widget)
 	GR_FONT_INFO finfo;
 	int x, y, h, w;
 	char *str;
+	int i, nl = 0;
 
 	if (widget->data.text.str == NULL)
 		return;
@@ -67,10 +68,17 @@ expose(mvp_widget_t *widget)
 	}
 	y = h + widget->data.text.margin;
 
-	if (widget->data.text.wrap && (w > widget->width)) {
-		int i = 0;
+	for (i=0; i<strlen(str); i++) {
+		if (str[i] == '\n') {
+			nl = 1;
+			break;
+		}
+	}
+
+	if (widget->data.text.wrap && ((w > widget->width) || nl)) {
 		char buf[256];
 
+		i = 0;
 		while (i < strlen(str)) {
 			int j = 0;
 
@@ -80,14 +88,16 @@ expose(mvp_widget_t *widget)
 			memset(buf, 0, sizeof(buf));
 
 			w = 0;
-			while ((w < widget->width) && ((j+i) < strlen(str))) {
+			while (((w < widget->width) &&
+				((j+i) < strlen(str))) &&
+			       (str[i+j] != '\n')) {
 				strncpy(buf, str+i, j+1);
 				w = mvpw_font_width(widget->data.text.font,
 						    buf);
 				j++;
 			}
 
-			if ((j+i) < strlen(str)) {
+			if (((j+i) < strlen(str)) && (str[i+j] != '\n')) {
 				while ((j > 0) && (buf[j] != ' '))
 					j--;
 				while ((j > 0) && (buf[j] == ' '))
@@ -112,10 +122,15 @@ expose(mvp_widget_t *widget)
 			default:
 				break;
 			}
+			if (buf[strlen(buf)-1] == '\n')
+				buf[strlen(buf)-1] = '\0';
 			GrText(widget->wid, gc, x, y, buf, strlen(buf), 0);
 			y += h;
 
 			i += j;
+
+			if (str[i] == '\n')
+				i++;
 		}
 	} else {
 		GrText(widget->wid, gc, x, y, str, strlen(str), 0);
@@ -152,6 +167,12 @@ mvpw_set_text_str(mvp_widget_t *widget, char *str)
 		free(widget->data.text.str);
 
 	widget->data.text.str = strdup(str);
+}
+
+char*
+mvpw_get_text_str(mvp_widget_t *widget)
+{
+	return widget->data.text.str;
 }
 
 void

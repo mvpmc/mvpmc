@@ -45,6 +45,7 @@ typedef struct {
 
 extern int mvpw_init(void);
 extern int mvpw_event_loop(void);
+extern int mvpw_event_flush(void);
 extern mvp_widget_t *mvpw_get_root(void);
 extern void mvpw_set_idle(void (*callback)(void));
 
@@ -101,6 +102,7 @@ extern mvp_widget_t *mvpw_create_text(mvp_widget_t *parent,
 				      uint32_t bg, uint32_t border_color,
 				      int border_size);
 extern void mvpw_set_text_str(mvp_widget_t *widget, char *str);
+extern char *mvpw_get_text_str(mvp_widget_t *widget);
 extern void mvpw_set_text_attr(mvp_widget_t *widget, mvpw_text_attr_t *attr);
 extern void mvpw_get_text_attr(mvp_widget_t *widget, mvpw_text_attr_t *attr);
 extern void mvpw_set_text_fg(mvp_widget_t *widget, uint32_t fg);
