@@ -47,7 +47,7 @@
 
 #define SEEK_FUDGE	2
 
-static char inbuf[VIDEO_BUFF_SIZE];
+static char inbuf_static[VIDEO_BUFF_SIZE];
 
 static pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
 pthread_cond_t video_cond = PTHREAD_COND_INITIALIZER;
@@ -90,10 +90,12 @@ static long long file_seek(long long, int);
 static long long file_size(void);
 
 video_callback_t file_functions = {
-	.open = file_open,
-	.read = file_read,
-	.seek = file_seek,
-	.size = file_size,
+	.open      = file_open,
+	.read      = file_read,
+	.read_dynb = NULL,
+	.seek      = file_seek,
+	.size      = file_size,
+	.notify    = NULL,
 };
 
 void video_play(mvp_widget_t *widget);
@@ -424,7 +426,9 @@ video_callback(mvp_widget_t *widget, char key)
 	case '.':
 	case 'E':
 		disable_osd();
-		video_thumbnail(1);
+		if ( !running_replaytv ) {
+			video_thumbnail(1);
+		}
 		if (spu_widget) {
 			mvpw_hide(spu_widget);
 			mvpw_expose(root);
@@ -447,6 +451,7 @@ video_callback(mvp_widget_t *widget, char key)
 			mvpw_show(mythtv_browser);
 			mvpw_focus(mythtv_browser);
 		} else if (running_replaytv) {
+			video_playing = 0;
 			replaytv_back_from_video();
 		} else {
 			mvpw_show(file_browser);
@@ -866,12 +871,15 @@ file_open(void)
 void*
 video_read_start(void *arg)
 {
+	static int on = 0;
 	pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 	int ret;
 	int n = 0, len = 0, reset = 1;
+	int sent_idle_notify;
 	demux_attr_t *attr;
 	video_info_t *vi;
 	int set_aspect = 1;
+	char *inbuf;
 
 	pthread_mutex_lock(&mutex);
 
@@ -879,17 +887,17 @@ video_read_start(void *arg)
 	pthread_cond_wait(&video_cond, &mutex);
 
 	while (1) {
+		sent_idle_notify = 0;
 		while (!video_playing) {
-			if (!running_replaytv) {
-				demux_reset(handle);
-				demux_seek(handle);
-				printf("mpeg read thread sleeping...\n");
-			} else {
-				/*
-				 * avoid using too much cpu when not needed
-				 */
-				sleep(1);
+			demux_reset(handle);
+			demux_seek(handle);
+			printf("mpeg read thread sleeping...\n");
+			if ( !(sent_idle_notify) && (video_functions->notify != NULL) ) {
+				video_functions->notify(MVP_READ_THREAD_IDLE);
+				sent_idle_notify = 1;
 			}
+			screensaver_enable();
+			on = 1;
 			pthread_cond_wait(&video_cond, &mutex);
 		}
 
@@ -918,10 +926,18 @@ video_read_start(void *arg)
 			jumping = 0;
 		}
 
-		if (len == 0) {
-			static int on = 0;
+		if ( !video_playing ) {
+			continue;
+		}
 
-			len = video_functions->read(inbuf, sizeof(inbuf));
+		if (len == 0) {
+			if ( video_functions->read_dynb != NULL ){
+				len = video_functions->read_dynb(&inbuf, VIDEO_BUFF_SIZE);
+			}
+			else {
+				inbuf = inbuf_static;
+				len = video_functions->read(inbuf, sizeof(inbuf_static));
+			}
 			n = 0;
 
 			if ((len < 0) && !on) {
@@ -933,6 +949,10 @@ video_read_start(void *arg)
 				screensaver_disable();
 				on = 0;
 			}
+		}
+
+		if ( !video_playing ) {
+			continue;
 		}
 
 		ret = demux_put(handle, inbuf+n, len-n);
@@ -987,7 +1007,7 @@ video_read_start(void *arg)
 			}
 			set_aspect = 0;
 		}
-	}
+	} //while
 
 	return NULL;
 }

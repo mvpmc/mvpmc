@@ -96,10 +96,12 @@ static volatile long long seek_offset;
 static volatile int seek_whence;
 
 video_callback_t mythtv_functions = {
-	.open = mythtv_open,
-	.read = mythtv_read,
-	.seek = mythtv_seek,
-	.size = mythtv_size,
+	.open      = mythtv_open,
+	.read      = mythtv_read,
+	.read_dynb = NULL,
+	.seek      = mythtv_seek,
+	.size      = mythtv_size,
+	.notify    = NULL,
 };
 
 static int

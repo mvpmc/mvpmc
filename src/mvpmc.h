@@ -33,6 +33,10 @@ typedef enum {
 	OSD_TIMECODE,
 } osd_type_t;
 
+typedef enum {
+   MVP_READ_THREAD_IDLE = 1,
+} mvp_notify_t;
+
 typedef struct {
 	int type;
 	int visible;
@@ -42,9 +46,11 @@ typedef struct {
 
 typedef struct {
 	int (*open)(void);
-	int (*read)(char*, int);
+	int (*read)(char*, int);           // For read functions that fill in a buffer passed by the caller
+	int (*read_dynb)(char**, int);     // For read functions that return a pointer to a dynamic buffer
 	long long (*seek)(long long, int);
-	long long (*size)();
+	long long (*size)();               // Current mpeg file size
+	void (*notify)(mvp_notify_t);      // For mvp code code to notify client of whatever 
 } video_callback_t;
 
 extern volatile video_callback_t *video_functions;

@@ -32,8 +32,10 @@
 #include <fcntl.h>
 #include <string.h>
 #include <pthread.h>
+#include <semaphore.h>
 #include <signal.h>
 #include <time.h>
+#include <errno.h>
 #include <sys/types.h>
 
 #include <mvp_widget.h>
@@ -54,6 +56,7 @@
 #define MAX_IP_SZ (50)
 #define NUM_EPISODE_LINES (5)
 #define RTV_XFER_CHUNK_SZ (1024 * 32)
+#define RTV_VID_Q_SZ (2)
 
 //+***********************************************
 //    externals 
@@ -88,11 +91,25 @@ typedef enum rtv_play_state_t
    RTV_VID_ABORT_PLAY = 4
 } rtv_play_state_t;
 
+typedef struct rtv_video_queue_t 
+{
+   char *buffer[RTV_VID_Q_SZ];    //buffer pointer
+   int   data_off[RTV_VID_Q_SZ];  //data start offset in buffer
+   int   data_len[RTV_VID_Q_SZ];  //data len 
+   int   write_pos;
+   int   read_pos;
+   char *last_read_buf;
+   pthread_mutex_t queue_lock;
+   sem_t           sem_not_empty;
+   sem_t           sem_not_full;
+} rtv_video_queue_t;
+
 typedef struct rtv_selected_show_state_t 
 {
-   rtv_play_state_t   play_state;
-   rtv_show_export_t *show_p;     // currently playing show record
-   __u64              pos;        // mpg file position
+   volatile rtv_play_state_t  play_state;
+   rtv_show_export_t         *show_p;      // currently playing show record
+   __u64                      pos;         // mpg file position
+   rtv_video_queue_t          vidq;        // video stream buffer queue
 } rtv_selected_show_state_t;
 
 
@@ -100,15 +117,18 @@ typedef struct rtv_selected_show_state_t
 //   callback functions
 //+***********************************************
 static int rtv_open(void);
-static int rtv_read(char*, int);
+static int rtv_video_queue_read(char**, int);
 static long long rtv_seek(long long, int);
 static long long rtv_size(void);
+static void rtv_notify(mvp_notify_t);
 
 video_callback_t replaytv_functions = {
-	.open = rtv_open,
-	.read = rtv_read,
-	.seek = rtv_seek,
-	.size = rtv_size,
+   .open      = rtv_open,
+   .read      = NULL,
+   .read_dynb = rtv_video_queue_read,
+   .seek      = rtv_seek,
+   .size      = rtv_size,
+   .notify    = rtv_notify,
 };
 
 //+***********************************************
@@ -122,11 +142,7 @@ static volatile rtv_menu_level_t  rtv_level = RTV_NO_MENU;
 static volatile rtv_device_t *current_rtv_device = NULL;
 
 // state of currently playing file
-static volatile rtv_selected_show_state_t rtv_video_state = {
-   .play_state = RTV_VID_STOPPED,
-   .show_p     = NULL,
-   .pos        = 0,
-};
+static rtv_selected_show_state_t rtv_video_state;
 
 // set true when ssdp discovery is performed 
 static int rtvs_discovered = 0;
@@ -138,8 +154,8 @@ static int num_cmdline_ipaddrs = 0;
 static char rtv_ip_addrs[MAX_RTVS][MAX_IP_SZ + 1];
 
 // threading
-static pthread_t       read_thread;
-static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_t       rtv_stream_read_thread;
+static sem_t           sem_mvp_readthread_idle;
 
 // screen info
 static mvpw_screen_info_t scr_info;
@@ -349,6 +365,58 @@ static int breakup_string(char *str, char **line_ptrs, int num_lines, int font_i
    return(0);
 }
 
+
+// rtv_video_queue_write()
+// rtv_video_queue_read() 
+// rtv_video_queue_flush() 
+
+// Classical producer / consumer implementation of a ping-pong buffer.
+// rtv_video_queue_write() is called from get_mpeg_callback() that is in the 
+// thread that is reading the streaming rtv file. 
+// rtv_video_queue_read() is called from the video_callback_t read_dyn fxn ptr
+// in the video.c video_read_thread.
+//
+static int rtv_video_queue_write(char *buf, int off, int len)
+{
+	//printf("------------->>> IN %s\n", __FUNCTION__);
+   sem_wait(&rtv_video_state.vidq.sem_not_full);
+   pthread_mutex_lock(&rtv_video_state.vidq.queue_lock);
+  
+   rtv_video_state.vidq.buffer[rtv_video_state.vidq.write_pos]   = buf;
+   rtv_video_state.vidq.data_off[rtv_video_state.vidq.write_pos] = off;
+   rtv_video_state.vidq.data_len[rtv_video_state.vidq.write_pos] = len;
+   rtv_video_state.vidq.write_pos++;
+   rtv_video_state.vidq.write_pos %= RTV_VID_Q_SZ;
+
+   pthread_mutex_unlock(&rtv_video_state.vidq.queue_lock);
+   sem_post(&rtv_video_state.vidq.sem_not_empty);
+	return(len);
+}
+
+static void rtv_video_queue_flush(void)
+{
+   int x;
+
+   pthread_mutex_lock(&rtv_video_state.vidq.queue_lock);
+   if ( rtv_video_state.vidq.last_read_buf != NULL ) {
+      free(rtv_video_state.vidq.last_read_buf);
+      rtv_video_state.vidq.last_read_buf = NULL;
+   }
+   for ( x=0; x < RTV_VID_Q_SZ; x++ ) {
+      if ( sem_trywait(&rtv_video_state.vidq.sem_not_empty) != 0 ) {
+            break;
+      }
+      if ( rtv_video_state.vidq.buffer[rtv_video_state.vidq.read_pos] != NULL ) {
+         free(rtv_video_state.vidq.buffer[rtv_video_state.vidq.read_pos]);
+      }
+      sem_post(&rtv_video_state.vidq.sem_not_full);
+      rtv_video_state.vidq.read_pos++;
+      rtv_video_state.vidq.read_pos %= RTV_VID_Q_SZ;
+   }
+   pthread_mutex_unlock(&rtv_video_state.vidq.queue_lock);
+
+}
+
 //+*************************************
 //   Callback functions
 //+*************************************
@@ -371,10 +439,34 @@ static long long rtv_seek(long long offset, int whence)
 
 // read callback
 //
-static int rtv_read(char *buf, int len)
+static int rtv_video_queue_read(char **bufp, int len)
 {
-	printf("------------->>> IN %s\n", __FUNCTION__);
-	return 0;
+   int buflen;
+
+   //printf("------------->>> IN %s\n", __FUNCTION__);
+   sem_wait(&rtv_video_state.vidq.sem_not_empty);
+   pthread_mutex_lock(&rtv_video_state.vidq.queue_lock);
+
+   if ( rtv_video_state.vidq.data_len[rtv_video_state.vidq.read_pos] > len ) {
+      printf("***ERROR: %s: data sz(%d) > req sz(%d)\n", __FUNCTION__, 
+             rtv_video_state.vidq.data_len[rtv_video_state.vidq.read_pos], len);
+      return(-ERANGE);
+   }
+
+   if ( rtv_video_state.vidq.last_read_buf != NULL ) {
+      free(rtv_video_state.vidq.last_read_buf);
+   }
+   rtv_video_state.vidq.last_read_buf = rtv_video_state.vidq.buffer[rtv_video_state.vidq.read_pos];
+  
+   *bufp  = rtv_video_state.vidq.buffer[rtv_video_state.vidq.read_pos] + rtv_video_state.vidq.data_off[rtv_video_state.vidq.read_pos];
+   buflen = rtv_video_state.vidq.data_len[rtv_video_state.vidq.read_pos];
+   rtv_video_state.vidq.buffer[rtv_video_state.vidq.read_pos] = NULL;
+   rtv_video_state.vidq.read_pos++;
+   rtv_video_state.vidq.read_pos %= RTV_VID_Q_SZ;
+
+   pthread_mutex_unlock(&rtv_video_state.vidq.queue_lock);
+   sem_post(&rtv_video_state.vidq.sem_not_full);
+	return (buflen);
 }
 
 // file size callback
@@ -383,6 +475,16 @@ static long long rtv_size(void)
 {
 	printf("------------->>> IN %s: %lld\n", __FUNCTION__, rtv_video_state.show_p->file_info->size);
 	return(rtv_video_state.show_p->file_info->size);
+}
+
+// rtv_notify
+// get mvp core events
+//
+static void rtv_notify(mvp_notify_t event) 
+{
+   if ( event == MVP_READ_THREAD_IDLE ) {
+      sem_post(&sem_mvp_readthread_idle);
+   }
 }
 
 //+*************************************
@@ -396,11 +498,21 @@ static int rtv_abort_read(void)
 {
    if ( (rtv_video_state.play_state != RTV_VID_STOPPED)    &&
         (rtv_video_state.play_state != RTV_VID_ABORT_PLAY)  ) {
+
+      // Set state to ABORT_PLAY so rtv_stream_read_thread will exit.
+      // Flush the video queue incase rtv_stream_read_thread is 
+      // blocked trying to write to a full queue.
+      // Write a null buffer to the video queue incase the mvp read thread is 
+      // blocked waiting on an empty video queue.
+      //
+      sem_init(&sem_mvp_readthread_idle, 0, 0);
       rtv_video_state.play_state = RTV_VID_ABORT_PLAY;
-      pthread_join(read_thread, NULL);
-      pthread_kill(video_write_thread, SIGURG);
-      pthread_kill(audio_write_thread, SIGURG);
-      av_reset();
+      rtv_video_queue_flush();
+      pthread_join(rtv_stream_read_thread, NULL);
+      rtv_video_queue_flush();
+      rtv_video_queue_write(NULL, 0, -1);
+
+      sem_wait(&sem_mvp_readthread_idle); // wait for the mvp read thread to idle
       rtv_video_state.play_state = RTV_VID_STOPPED;
    }
    return(0);
@@ -411,26 +523,15 @@ static int rtv_abort_read(void)
 //
 static int get_mpeg_callback(unsigned char *buf, size_t len, size_t offset, void *vd)
 {
-   unsigned char *buf_start = buf;
-   int nput                 = 0;
-   int n;
-
-   buf+=offset;
-   while (nput < len) {
-      n = demux_put(handle, buf+nput, len-nput);
-      pthread_cond_broadcast(&video_cond);
-      if (n > 0) {
-         nput += n;
-         rtv_video_state.pos += n;
-      }
-      else {
-         usleep(1000);
-      }
-      if ( rtv_video_state.play_state == RTV_VID_ABORT_PLAY ) {
-         return(1);
-      }
+   if ( rtv_video_state.play_state == RTV_VID_ABORT_PLAY ) {
+      free(buf);
+      return(1);
    }
-   free(buf_start);
+   rtv_video_queue_write(buf, offset, len);
+   rtv_video_state.pos += len;
+   if ( rtv_video_state.play_state == RTV_VID_ABORT_PLAY ) {
+      return(1);
+   }
    return(0);
 }
 
@@ -466,12 +567,29 @@ static void get_mpeg_file(rtv_device_t *rtv, char *filename, int ToStdOut)
 //
 static void* thread_read_start(void *arg)
 {
-   printf("read thread is pid %d\n", getpid());
-   
-   pthread_mutex_init(&mutex, NULL);
-   pthread_mutex_lock(&mutex);
+   int x;
 
-   rtv_video_state.pos = 0;
+   printf("rtv stream read thread is pid %d\n", getpid());
+   
+   // Init the video structure & queue
+   //
+   rtv_video_state.pos                = 0;
+   rtv_video_state.vidq.write_pos     = 0;
+   rtv_video_state.vidq.read_pos      = 0;
+   rtv_video_state.vidq.last_read_buf = NULL;
+
+   for ( x=0; x < RTV_VID_Q_SZ; x++ ) {
+      rtv_video_state.vidq.buffer[x]   = NULL;
+      rtv_video_state.vidq.data_off[x] = 0;
+      rtv_video_state.vidq.data_len[x] = 0;
+   }
+
+   pthread_mutex_init(&rtv_video_state.vidq.queue_lock, NULL);
+   sem_init(&rtv_video_state.vidq.sem_not_empty, 0, 0);
+   sem_init(&rtv_video_state.vidq.sem_not_full, 0, RTV_VID_Q_SZ);
+
+   // Stream the file
+   //
    get_mpeg_file(current_rtv_device, (char*)arg, 0);
    pthread_exit(NULL);
    return NULL;
@@ -494,14 +612,13 @@ static void dirlist_select_callback(mvp_widget_t *widget, char *item, void *key)
    mvpw_expose(root);
    mvpw_focus(root);
    
-   rtv_abort_read();
-   
    printf("Playing file: %s\n", item);
    av_play();
    demux_reset(handle);
    
-   pthread_create(&read_thread, NULL, thread_read_start, (void*)item);
+   pthread_create(&rtv_stream_read_thread, NULL, thread_read_start, (void*)item);
    rtv_video_state.play_state = RTV_VID_PLAYING;
+   video_play(widget); // kick video.c 
 }
 
 // guide_hilite_callback()
@@ -594,16 +711,15 @@ static void guide_select_callback(mvp_widget_t *widget, char *item, void *key)
    mvpw_expose(root);
    mvpw_focus(root);
    
-   rtv_abort_read();
-   
    rtv_print_show(show, 0);
    printf("Playing file: %s\n", show->file_name);  
    av_play();
    demux_reset(handle);
    
-   pthread_create(&read_thread, NULL, thread_read_start, (void*)show->file_name);
+   pthread_create(&rtv_stream_read_thread, NULL, thread_read_start, (void*)show->file_name);
    rtv_video_state.show_p     = show;
    rtv_video_state.play_state = RTV_VID_PLAYING;
+   video_play(widget); // kick video.c 
 }
 
 // rtv_get_video_dir_lis
@@ -869,7 +985,14 @@ int replaytv_init(char *init_str)
          cur = next_cur;
       } //while
    }
-   
+
+   // Init the video state structure
+   //
+   rtv_video_state.play_state         = RTV_VID_STOPPED;
+   rtv_video_state.show_p             = NULL;
+
+   sem_init(&sem_mvp_readthread_idle, 0, 0); // posted by rtv_notify callback
+
    rtv_initialized = 1;
    return(0);
 }
@@ -977,6 +1100,7 @@ int replaytv_hide_device_menu(void)
 void replaytv_back_from_video(void)
 {
    rtv_abort_read();
+   video_clear();               //kick video.c
    mvpw_show(replaytv_logo);
    mvpw_show(rtv_browser);
    mvpw_show(rtv_episode_description);
