@@ -1236,7 +1236,7 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 	buf->proginfo_chansign = strdup(tmp_str);
 
 	/*
-	 * Get proginfo_channame (string) Verion 1 or proginfo_chanicon
+	 * Get proginfo_channame (string) Version 1 or proginfo_chanicon
 	 * (string) Version 8.
 	 */
 	consumed = cmyth_rcv_string(conn, err,
@@ -1249,10 +1249,16 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 	}
 	if (buf->proginfo_version >= 8) {
 		buf->proginfo_chanicon = strdup(tmp_str);
-		buf->proginfo_channame = NULL;
+		/*
+		 * Simulate a channel name (Number and Callsign) for
+		 * compatibility.
+		 */
+		sprintf(tmp_str,
+				"%s %s", buf->proginfo_chanstr, buf->proginfo_chansign);
+		buf->proginfo_channame = strdup(tmp_str);
 	} else { /* Assume version 1 */
 		buf->proginfo_channame = strdup(tmp_str);
-		buf->proginfo_chanicon = NULL;
+		buf->proginfo_chanicon = strdup("");
 	}
 
 	/*

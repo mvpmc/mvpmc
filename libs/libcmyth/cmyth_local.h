@@ -211,14 +211,14 @@ struct cmyth_proginfo {
 	long proginfo_chanId;
 	char *proginfo_chanstr;
 	char *proginfo_chansign;
-	char *proginfo_channame;  /* Deprecated in V8 */
+	char *proginfo_channame;  /* Deprecated in V8, simulated for compat. */
 	char *proginfo_chanicon;  /* New in V8 */
 	char *proginfo_url;
 	long long proginfo_Start;
 	long long proginfo_Length;
 	cmyth_timestamp_t proginfo_start_ts;
 	cmyth_timestamp_t proginfo_end_ts;
-	unsigned long proginfo_conflicting; /* Deprectated in V8 */
+	unsigned long proginfo_conflicting; /* Deprecated in V8, always 0 */
     unsigned char *proginfo_unknown_0;   /* May be new 'conflicting' in V8 */
 	unsigned long proginfo_recording;
 	unsigned long proginfo_override;
