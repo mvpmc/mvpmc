@@ -58,6 +58,7 @@ static av_stc_t seek_stc;
 static int seek_seconds;
 static volatile int seeking = 0;
 static volatile int jumping = 0;
+static volatile long long jump_target;
 static volatile int seek_bps;
 static volatile int seek_attempts;
 static volatile int gop_seek_attempts;
@@ -378,7 +379,6 @@ void
 video_callback(mvp_widget_t *widget, char key)
 {
 	struct stat64 sb;
-	long long offset;
 	int jump;
 
 	switch (key) {
@@ -450,13 +450,13 @@ video_callback(mvp_widget_t *widget, char key)
 		}
 		break;
 	case '0' ... '9':
+		jump_target = -1;
 		jumping = 1;
 		pthread_kill(video_write_thread, SIGURG);
 		pthread_kill(audio_write_thread, SIGURG);
 		jump = key - '0';
 		fstat64(fd, &sb);
-		offset = sb.st_size * (jump / 10.0);
-		lseek(fd, offset, SEEK_SET);
+		jump_target = sb.st_size * (jump / 10.0);
 		pthread_cond_broadcast(&video_cond);
 		break;
 	case 'M':
@@ -827,6 +827,11 @@ video_read_start(void *arg)
 			pcm_decoded = 0;
 			ac3len = 0;
 			audio_clear();
+			if (jumping) {
+				while (jump_target < 0)
+					usleep(1000);
+				lseek(fd, jump_target, SEEK_SET);
+			}
 			jumping = 0;
 		}
 
