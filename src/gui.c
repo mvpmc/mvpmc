@@ -880,8 +880,8 @@ sub_settings_select_callback(mvp_widget_t *widget, char *item, void *key)
 	}
 
 	if ((strcmp(item, "off") == 0) ||
-	    (strstr(item, "minute") == 0) ||
-	    (strstr(item, "second") == 0)) {
+	    (strstr(item, "minute") != 0) ||
+	    (strstr(item, "second") != 0)) {
 		screensaver_timeout = (int)key;
 		printf("screensaver timeout changed to %d\n",
 		       screensaver_timeout);
