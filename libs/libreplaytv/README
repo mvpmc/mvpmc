@@ -64,7 +64,7 @@ Status
 -Added api for reading a httpfs file.
 -Added rtv_shell debug command 'fsget' to copy a httpfs file to local disk.
 -Added rtv_shell commands to get volume info, get file status, & list a directory
-09/29/04:
+09/29/2004:
 -Got medium res & highres shows streaming properly.
  Added parm to hc_read_pieces to specify how many 32K chunks to merge before calling callback fxn.
  (The mvpmc demuxer likes 128K chunks better than 32K chunks)
@@ -74,23 +74,25 @@ Status
        8K. (This is why it needs timely ACK's) DVArchive sets a 64K window. Snooping two RTV5K's 
        streaming shows 32K tcp windows.
 -Added new API to allow rerouting RTV_PRT's to a file instead of stdout. 
-10/04/04:
+10/04/2004:
 -Cleanud up much of the library's error checking.
 -Added ability to redirect RTV_PRT statements to a file
 -Added initial mvpmc gui support for multiple RTV's
 -Added mvpmc command line options for setting rtv debug mask & sending logs to a file.
-11/04/04:
+11/04/2004:
 -Added discovery (SSDP). i.e. Autodiscover replaytv devices instead of passing 
  ipaddr at application command line.
 -Got DVArchive to send a 5K guide instead of an XML formatted guide.
  (Needed to implement ssdp and a bogus RTV server to make DVArchive think it is talking to another DVArchive)
+11/11/2004:
+-Added ability to put rtvlib server to put DVArchive into 4K mode (RTV guide version 3.1).
+-Got RTV 4K guide parsing working.
 
 Library TODO
 ------------
 -Set up autoconf and get rid of Makefile
 -Cleanup internal header files
 -Finish 5K Guide parsing and string formatting routines.
--Add 4K Guide parsing
 -Remove the expat lib dependency. It's only used for rtv_get_device_info() response parsing.
 -Add support for deleting a show.
 -Add support for the replay show ".ndx" files to allow jumping
@@ -101,6 +103,7 @@ Library TODO
 09/28/2004:DONE: -Get copying a file from replayTV to local or NFS working.
 09/29/2004:DONE: -Add ability & api to re-direct RTV_PRT statements to a file.
 10/04/2004:DONE: -Cleanup error checking. Current code is inconsistent. Can hang under some conditions, etc...
+11/11/2004:DONE: -Add 4K Guide parsing
 
 mvpmv TODO
 ----------

@@ -102,6 +102,7 @@ int rtv_discover(unsigned int timeout_ms, rtv_device_list_t **device_list)
    char               buff[SSDP_BUF_SZ + 1];
    char               tm_buf[255];
    char               ip_addr[INET_ADDRSTRLEN+1];
+   char               *uuid_str;
    time_t             tim;
    rtv_device_t      *rtv;
 
@@ -179,23 +180,27 @@ int rtv_discover(unsigned int timeout_ms, rtv_device_list_t **device_list)
       goto error;
    }
 
-   snprintf(buff, SSDP_BUF_SZ, SSDP_NOTIFY_HEAD_STR SSDP_NOTIFY_TAIL1_STR, "byebye", inet_ntoa(local_addr.sin_addr), rtv_idns.uuid_5k);
+   if ( rtv_emulate_mode == RTV_DEVICE_4K) {
+      uuid_str = rtv_idns.uuid_4k;
+   }
+   else {
+      uuid_str = rtv_idns.uuid_5k;
+   }
+   snprintf(buff, SSDP_BUF_SZ, SSDP_NOTIFY_HEAD_STR SSDP_NOTIFY_TAIL1_STR, "byebye", inet_ntoa(local_addr.sin_addr), uuid_str);
    rc = send(ssdp_sendfd, buff, strlen(buff), 0);
-   snprintf(buff, SSDP_BUF_SZ, SSDP_NOTIFY_HEAD_STR SSDP_NOTIFY_TAIL2_STR, "byebye", inet_ntoa(local_addr.sin_addr), rtv_idns.uuid_5k, rtv_idns.uuid_5k);
+   snprintf(buff, SSDP_BUF_SZ, SSDP_NOTIFY_HEAD_STR SSDP_NOTIFY_TAIL2_STR, "byebye", inet_ntoa(local_addr.sin_addr), uuid_str, uuid_str);
    rc = send(ssdp_sendfd, buff, strlen(buff), 0);
-   snprintf(buff, SSDP_BUF_SZ, SSDP_NOTIFY_HEAD_STR SSDP_NOTIFY_TAIL3_STR, "byebye", inet_ntoa(local_addr.sin_addr), rtv_idns.uuid_5k);
+   snprintf(buff, SSDP_BUF_SZ, SSDP_NOTIFY_HEAD_STR SSDP_NOTIFY_TAIL3_STR, "byebye", inet_ntoa(local_addr.sin_addr), uuid_str);
    rc = send(ssdp_sendfd, buff, strlen(buff), 0);
 
    sleep(1);
 
-   snprintf(buff, SSDP_BUF_SZ, SSDP_NOTIFY_HEAD_STR SSDP_NOTIFY_TAIL1_STR, "alive", inet_ntoa(local_addr.sin_addr), rtv_idns.uuid_5k);
+   snprintf(buff, SSDP_BUF_SZ, SSDP_NOTIFY_HEAD_STR SSDP_NOTIFY_TAIL1_STR, "alive", inet_ntoa(local_addr.sin_addr), uuid_str);
    rc = send(ssdp_sendfd, buff, strlen(buff), 0);
-   snprintf(buff, SSDP_BUF_SZ, SSDP_NOTIFY_HEAD_STR SSDP_NOTIFY_TAIL2_STR, "alive", inet_ntoa(local_addr.sin_addr), rtv_idns.uuid_5k, rtv_idns.uuid_5k);
+   snprintf(buff, SSDP_BUF_SZ, SSDP_NOTIFY_HEAD_STR SSDP_NOTIFY_TAIL2_STR, "alive", inet_ntoa(local_addr.sin_addr), uuid_str, uuid_str);
    rc = send(ssdp_sendfd, buff, strlen(buff), 0);
-   snprintf(buff, SSDP_BUF_SZ, SSDP_NOTIFY_HEAD_STR SSDP_NOTIFY_TAIL3_STR, "alive", inet_ntoa(local_addr.sin_addr), rtv_idns.uuid_5k);
+   snprintf(buff, SSDP_BUF_SZ, SSDP_NOTIFY_HEAD_STR SSDP_NOTIFY_TAIL3_STR, "alive", inet_ntoa(local_addr.sin_addr), uuid_str);
    rc = send(ssdp_sendfd, buff, strlen(buff), 0);
-#if 0
-#endif
    
    // Get responses
    //

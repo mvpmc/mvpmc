@@ -117,6 +117,8 @@ int rtv_init_lib(void)
    rtv_devices.rtv      = malloc(sizeof(rtv_device_t) * MAX_RTVS);
    memset(rtv_devices.rtv, 0, sizeof(rtv_device_t) * MAX_RTVS); 
 
+   rtv_emulate_mode = RTV_DEVICE_5K;
+      
    // Determine our IP address & hostname
    // gethostbyname doesn't work on the mvp so setup a bogus socket 
    // to figure out the ip address.

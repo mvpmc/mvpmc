@@ -27,6 +27,8 @@
 #include "rtv.h"
 
 
+// ID Numbers used for communication with RTV's
+//
 rtv_idns_t rtv_idns = 
 {
    .sn_4k   = "RTV4080L1AA5319999",
@@ -34,6 +36,8 @@ rtv_idns_t rtv_idns =
    .sn_5k   = "RTV5040J3TR0209999",
    .uuid_5k = "93da697b-a177-96c3-3858-2c19c9899999"
 };
+
+int rtv_emulate_mode;
 
 FILE        *log_fd;
 volatile u32 rtv_debug = 0x00000000;

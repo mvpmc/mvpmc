@@ -169,7 +169,7 @@ int rtv_get_guide_snapshot( const rtv_device_info_t  *device,
     guide->timestamp =  data.timestamp;
     guide->status    =  data.status;
 
-    rc = parse_v2_guide_snapshot(data.buf, guide);
+    rc = parse_guide_snapshot(data.buf, data.bytes_read, guide);
     free(data.buf);
     return(rc);
 }

@@ -85,7 +85,7 @@ typedef struct rtv_idns_t
 } rtv_idns_t;
 
 extern rtv_idns_t rtv_idns;
-
+extern int        rtv_emulate_mode;
 
 //+********************************************************************
 // Debugging/logging infrastructure

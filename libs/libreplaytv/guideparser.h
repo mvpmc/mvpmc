@@ -43,6 +43,8 @@ typedef enum day_of_week_t
 
 #pragma pack(1)  // byte alignment
 
+// RTV 5K OSVersion 5.0 
+//
 typedef struct v2_guide_snapshot_header_t { 
    u16 osversion;            // OS Version (5 for 4.5, 3 for 4.3, 0 on 5.0)
    u16 snapshotversion;      // Snapshot Version (1) (2 on 5.0)    This might be better termed as snapshot version
@@ -174,7 +176,7 @@ typedef struct replay_show_t {
     char szReserved[68];      // Show Label
 } replay_show_t;
 
-typedef struct replay_channel_t {
+typedef struct replay_channel_v2_t {
     replay_show_t replayShow;
     theme_info_t  themeInfo;
     u32   created;            // Timestamp Entry Created
@@ -202,7 +204,7 @@ typedef struct replay_channel_t {
     u32   unknown10;          // Unknown
     u32   unknown11;          // Unknown
     u32   unknown12;          // Unknown
-} replay_channel_t;
+} replay_channel_v2_t;
 
 
 typedef struct category_array_t {
@@ -221,11 +223,35 @@ typedef struct  channel_array_t {
    char  szShowLabel[48];     // Show Label
 } channel_array_t;
 
+
+// 4K OSVersion 4.3
+typedef struct v1_guide_snapshot_header_t { 
+    u16 osversion;          // Major Revision (3 for Replay 4000/4500s)
+    u16 snapshotversion;    // Minor Revision (1)
+    u32 structuresize;      // Should always be 32
+    u32 channelcount;       // Number of Replay Channels
+    u32 channelcountcheck;  // Number of Replay Channels (Copy 2; should always match)
+    u32 groupdataoffset;    // Offset of Group Data
+    u32 channeloffset;      // Offset of First Replay Channel
+    u32 showoffset;         // Offset of First Replay Show
+    u32 flags;              // this is uninitialized, ignore invalid bits
+} v1_guide_snapshot_header_t; 
+
+
+// 4K OSVersion 4.3
+#define GUIDEHEADER_V1_SZ     808    // needed size of 4K guideheader structure
+typedef struct v1_guide_header_t {
+    struct  v1_guide_snapshot_header_t guideSnapshotHeader;
+    struct  group_data_t               groupData;
+} v1_guide_header_t;
+
 #pragma pack(4)  // back to normal alignment
 
 //+******************************************************
 //+****          Prototypes
 //+******************************************************
-extern int  parse_v2_guide_snapshot(const char *guideDump, rtv_guide_export_t *guideExport);
+extern int parse_guide_snapshot(const char *guideDump, int size, rtv_guide_export_t *guideExport);
+extern int build_v2_bogus_snapshot(char **snapshot);
+extern int build_v1_bogus_snapshot(char **snapshot);
 
 #endif

@@ -33,6 +33,16 @@
 #include "guideparser.h"
 
 
+#define V1_SHOW_REC_SIZE (444)
+#define V1_CHAN_REC_SIZE (624)
+
+typedef enum rtv_guide_ver_t 
+{
+   RTV_GV_UNKNOWN = 0,
+   RTV_GV_1       = 1,
+   RTV_GV_2       = 2,
+} rtv_guide_ver_t;
+
 //+***********************************************************************************************
 //  Data structure endian conversion functions
 //+***********************************************************************************************
@@ -118,7 +128,7 @@ static void convertReplayShowEndian(replay_show_t *strReplayShow)
 }
 
 //-------------------------------------------------------------------------
-static void convertReplayChannelEndian(replay_channel_t *strReplayChannel)
+static void convertV2ReplayChannelEndian(replay_channel_v2_t *strReplayChannel)
 {
    strReplayChannel->created = ntohl(strReplayChannel->created);
    strReplayChannel->timereserved = ntohll(strReplayChannel->timereserved);
@@ -159,7 +169,9 @@ static void convertReplayGuideEndian(guide_header_t *strGuideHeader)
    strGuideHeader->guideSnapshotHeader.flags = ntohl(strGuideHeader->guideSnapshotHeader.flags);
    strGuideHeader->guideSnapshotHeader.groupdataoffset = ntohl(strGuideHeader->guideSnapshotHeader.groupdataoffset);
    strGuideHeader->guideSnapshotHeader.osversion = ntohs(strGuideHeader->guideSnapshotHeader.osversion);
+   printf("------------->SS1 %04X %d\n", strGuideHeader->guideSnapshotHeader.snapshotversion, strGuideHeader->guideSnapshotHeader.snapshotversion);
    strGuideHeader->guideSnapshotHeader.snapshotversion = ntohs(strGuideHeader->guideSnapshotHeader.snapshotversion);
+   printf("------------->SS2 %04X %d\n", strGuideHeader->guideSnapshotHeader.snapshotversion, strGuideHeader->guideSnapshotHeader.snapshotversion);
    strGuideHeader->guideSnapshotHeader.channelcount = ntohl(strGuideHeader->guideSnapshotHeader.channelcount);
    strGuideHeader->guideSnapshotHeader.channelcountcheck = ntohl(strGuideHeader->guideSnapshotHeader.channelcountcheck);
    strGuideHeader->guideSnapshotHeader.showoffset = ntohl(strGuideHeader->guideSnapshotHeader.showoffset);
@@ -220,7 +232,9 @@ static int parse_show(replay_show_t *show_rec, rtv_show_export_t *sh)
    bufptr = show_rec->programInfo.szDescription;
    
    if ( RTVLOG_GUIDE ) {
-      hex_dump("SHOW_DUMP", (char*)show_rec, 512);
+      // Use V1_SHOW_REC_SIZE since V2 is the same with just 68 bytes of padding at end.
+      //
+      hex_dump("SHOW_DUMP", (char*)show_rec, V1_SHOW_REC_SIZE);
    }
 
    // process the record's flags
@@ -397,29 +411,56 @@ static int rtv_struct_chk(void)
       RTV_ERRLOG("replay_show_t structure, needs to be %u instead of %u\n",REPLAYSHOW_SZ,sizeof(replay_show_t));
       rc = -1;
    }
-   if (sizeof(replay_channel_t) != REPLAYCHANNEL_SZ) {
-      RTV_ERRLOG("replay_channel_t structure, needs to be %u instead of %u\n",REPLAYCHANNEL_SZ,sizeof(replay_channel_t));
+   if (sizeof(replay_channel_v2_t) != REPLAYCHANNEL_SZ) {
+      RTV_ERRLOG("replay_channel_t structure, needs to be %u instead of %u\n",REPLAYCHANNEL_SZ,sizeof(replay_channel_v2_t));
       rc = -1;
    }
    if (sizeof(guide_header_t) != GUIDEHEADER_SZ) {
       RTV_ERRLOG("guide_header_t structure, needs to be %u instead of %u\n",GUIDEHEADER_SZ,sizeof(guide_header_t));
       rc = -1;
    }
+   if (sizeof(v1_guide_header_t) != GUIDEHEADER_V1_SZ) {
+      RTV_ERRLOG("v1_guide_header_t structure, needs to be %u instead of %u\n",GUIDEHEADER_V1_SZ,sizeof(v1_guide_header_t));
+      rc = -1;
+   }
    return(rc);
 }
 
+//+***********************************************************************************************
+//  Name: convert_v1_to_v2_snapshotheader
+//+***********************************************************************************************
+static int convert_v1_to_v2_snapshot_header(guide_header_t *v2hdr, v1_guide_header_t *v1hdr) 
+{
+   u32 chancount;
+   memset(v2hdr, 0, sizeof(guide_header_t));
+   v2hdr->guideSnapshotHeader.osversion         = htons(0);
+   v2hdr->guideSnapshotHeader.snapshotversion   = htons(2);
+   v2hdr->guideSnapshotHeader.structuresize     = htonl(64);
+   v2hdr->guideSnapshotHeader.channelcount      = v1hdr->guideSnapshotHeader.channelcount;
+   v2hdr->guideSnapshotHeader.channelcountcheck = v1hdr->guideSnapshotHeader.channelcountcheck;
+   v2hdr->guideSnapshotHeader.groupdataoffset   = htonl(64);
+   v2hdr->guideSnapshotHeader.channeloffset     = htonl(808); //offset from v1 header start
+   chancount                                    = ntohl(v1hdr->guideSnapshotHeader.channelcount);
+   v2hdr->guideSnapshotHeader.showoffset        = htonl(808 + (V1_CHAN_REC_SIZE * chancount)); //offset from v1 header start
+   v2hdr->guideSnapshotHeader.flags             = v1hdr->guideSnapshotHeader.flags;
+
+   memcpy(&(v2hdr->groupData), &(v1hdr->groupData), sizeof(group_data_t));
+   return(0);
+}
 
 //+***********************************************************************************
 //                         PUBLIC FUNCTIONS
 //+***********************************************************************************
 
-int parse_v2_guide_snapshot(const char *guideDump, rtv_guide_export_t *guideExport)
+int parse_guide_snapshot(const char *guideDump, int size, rtv_guide_export_t *guideExport)
 {
    guide_header_t             *guidehdr       = (guide_header_t*)guideDump;
    v2_guide_snapshot_header_t *sshdr          = &(guidehdr->guideSnapshotHeader);
    group_data_t               *gdatahdr       = &(guidehdr->groupData);
    rtv_show_export_t         **rtvShowExportP = &(guideExport->rec_show_list);
 
+   rtv_guide_ver_t             gver;
+   guide_header_t              v2hdr;
    rtv_show_export_t          *rtvShowExport;
    replay_show_t              *show_rec;
    category_array_t            catArray[GRP_DATA_NUM_CATEGORIES];
@@ -433,18 +474,35 @@ int parse_v2_guide_snapshot(const char *guideDump, rtv_guide_export_t *guideExpo
       return(-1);
    }
 
-   RTV_DBGLOG(RTVLOG_GUIDE, "guide struct base address: %p\n", guideDump); 
-   convertReplayGuideEndian((guide_header_t*)guideDump);
+   RTV_DBGLOG(RTVLOG_GUIDE, "guide struct base address: %p\n", guideDump);
 
-   // guide header error checking & some setup.
+   // Determine guide version.
    //
-   if ( (sshdr->osversion != 0) || (sshdr->snapshotversion != 2) ) { 
-      RTV_ERRLOG("Guide file is either damaged or from an older ReplayTV\n");
+   if ( (sshdr->osversion == ntohs(0)) && (sshdr->snapshotversion == ntohs(2)) ) { 
+      RTV_DBGLOG(RTVLOG_GUIDE, "Processing Version 2 Guide\n");
+      gver = RTV_GV_2; //5K
+   }
+   else if ( (sshdr->osversion == ntohs(3)) && (sshdr->snapshotversion == ntohs(1)) ) {
+      v1_guide_header_t *v1hdr = (v1_guide_header_t*)guideDump;
+      RTV_DBGLOG(RTVLOG_GUIDE, "Processing Version 1 Guide\n");
+      gver = RTV_GV_1; //4K
+      convert_v1_to_v2_snapshot_header(&v2hdr, v1hdr);
+      v2hdr.guideSnapshotHeader.snapshotsize = htonl(size);
+      guidehdr = &v2hdr;
+      sshdr    = &(v2hdr.guideSnapshotHeader);
+      gdatahdr = &(v2hdr.groupData);
+   }
+   else {
+      RTV_ERRLOG("Guide file is either damaged or from an unsupported ReplayTV OS Version\n");
       RTV_ERRLOG("    osver.snapshotver=%d.%d   shected=0.2\n", sshdr->osversion, sshdr->snapshotversion);
       print_v2_guide_snapshot_header(sshdr);
       return(-1);
    }
 
+   convertReplayGuideEndian(guidehdr);
+
+   // guide header error checking & some setup.
+   //
    if (sshdr->channelcount != sshdr->channelcountcheck) {
       RTV_ERRLOG("channelcount mismatch: Guide Snapshot might be damaged\n");
       print_v2_guide_snapshot_header(sshdr);
@@ -452,12 +510,22 @@ int parse_v2_guide_snapshot(const char *guideDump, rtv_guide_export_t *guideExpo
    }
 
    memAllocShows = sshdr->snapshotsize - sshdr->showoffset;
-   if ( (memAllocShows % sizeof(replay_show_t)) != 0 ) { 
-      RTV_ERRLOG("Invalid show storage size: allocated=%u show_sz=%u\n", memAllocShows, sizeof(replay_show_t));
-      print_v2_guide_snapshot_header(sshdr);
-      return(-1);
+   if ( gver == RTV_GV_1 ) {
+      if ( (memAllocShows % V1_SHOW_REC_SIZE) != 0 ) { 
+         RTV_ERRLOG("Invalid V1 show storage size: allocated=%u show_sz=%u\n", memAllocShows, V1_SHOW_REC_SIZE);
+         print_v2_guide_snapshot_header(sshdr);
+         return(-1);
+      }
+      numShows = memAllocShows / V1_SHOW_REC_SIZE;
    }
-   numShows = memAllocShows / sizeof(replay_show_t);
+   else {
+      if ( (memAllocShows % sizeof(replay_show_t)) != 0 ) { 
+         RTV_ERRLOG("Invalid show storage size: allocated=%u show_sz=%u\n", memAllocShows, sizeof(replay_show_t));
+         print_v2_guide_snapshot_header(sshdr);
+         return(-1);
+      }
+      numShows = memAllocShows / sizeof(replay_show_t);
+   }
 
    // Copy categories into a buffer
    //
@@ -477,13 +545,19 @@ int parse_v2_guide_snapshot(const char *guideDump, rtv_guide_export_t *guideExpo
    show_rec        = (replay_show_t*)(guideDump + sshdr->showoffset);
    *rtvShowExportP = malloc(sizeof(rtv_show_export_t) * numShows);
    rtvShowExport   = *rtvShowExportP;
-
    memset(rtvShowExport, 0, sizeof(rtv_show_export_t) * numShows);
 
    RTV_DBGLOG(RTVLOG_GUIDE, "show array base address:   %p    num_shows=%d\n", show_rec, numShows); 
    for( x = 0 ; x < numShows; x++ ) {
-      RTV_DBGLOG(RTVLOG_GUIDE, "show[%u] struct base address: %p\n", x, &(show_rec[x])); 
-      if ( (rc = parse_show( &(show_rec[x]), &(rtvShowExport[x]))) != 0 ) {
+      replay_show_t *show_p;
+      if ( gver == RTV_GV_1 ) {
+         show_p = (replay_show_t*)((guideDump + sshdr->showoffset) + (V1_SHOW_REC_SIZE * x));
+      }
+      else {
+         show_p = &(show_rec[x]); 
+      }
+      RTV_DBGLOG(RTVLOG_GUIDE, "show[%u] struct base address: %p\n", x, show_p); 
+      if ( (rc = parse_show( show_p, &(rtvShowExport[x]))) != 0 ) {
          return(rc);
       }
 
@@ -495,3 +569,68 @@ int parse_v2_guide_snapshot(const char *guideDump, rtv_guide_export_t *guideExpo
    guideExport->num_rec_shows = numShows;
    return(0);
 }
+
+
+//+********************************************************************************
+// build_v2_bogus_snapshot:
+// Makes a RTV 5K (5.0 OS Version) snapshot.
+// This is used to make DVArchive go into RTV 5K mode
+// DVArchive expects a minimum of the snapshot header, group data and one channel. 
+//+********************************************************************************
+int build_v2_bogus_snapshot( char **snapshot )
+{
+   guide_header_t      *ss;
+   replay_channel_v2_t *chan;
+
+   ss = malloc(sizeof(v2_guide_snapshot_header_t) + sizeof(group_data_t) + sizeof(replay_channel_v2_t));
+   memset(ss, 0, sizeof(v2_guide_snapshot_header_t) + sizeof(group_data_t) + sizeof(replay_channel_v2_t));
+   ss->guideSnapshotHeader.osversion         = htons(0);
+   ss->guideSnapshotHeader.snapshotversion   = htons(2);
+   ss->guideSnapshotHeader.structuresize     = htonl(sizeof(v2_guide_snapshot_header_t));
+   ss->guideSnapshotHeader.unknown1          = htonl(2);
+   ss->guideSnapshotHeader.unknown2          = htonl(5);
+   ss->guideSnapshotHeader.channelcount      = htonl(1);
+   ss->guideSnapshotHeader.channelcountcheck = htonl(1);
+   ss->guideSnapshotHeader.groupdataoffset   = htonl(sizeof(v2_guide_snapshot_header_t));
+   ss->guideSnapshotHeader.channeloffset     = htonl(sizeof(v2_guide_snapshot_header_t) + sizeof(group_data_t));
+   ss->guideSnapshotHeader.showoffset        = htonl(sizeof(v2_guide_snapshot_header_t) + sizeof(group_data_t) + sizeof(replay_channel_v2_t));
+   ss->guideSnapshotHeader.snapshotsize      = htonl(sizeof(v2_guide_snapshot_header_t) + sizeof(group_data_t) + sizeof(replay_channel_v2_t));
+
+   ss->groupData.structuresize = htonl(sizeof(group_data_t));
+
+   chan = (replay_channel_v2_t*)((char*)ss + sizeof(v2_guide_snapshot_header_t) + sizeof(group_data_t));
+   chan->created     = htonl(0x00012345);
+   chan->channeltype =  htonl(1);
+   strcpy(chan->szShowLabel, "MVPMC_Bogus_5K_Channel");
+
+   *snapshot = (char*)ss;
+   return(sizeof(v2_guide_snapshot_header_t) + sizeof(group_data_t) + sizeof(replay_channel_v2_t));
+}
+
+//+********************************************************************************
+// build_v1_bogus_snapshot:
+// Makes a RTV 4K (3.1 OS Version) snapshot.
+// This is used to make DVArchive go into RTV 4K mode
+// DVArchive expects a minimum of the snapshot header & group data. 
+//+********************************************************************************
+int build_v1_bogus_snapshot( char **snapshot )
+{
+   v1_guide_header_t *ss;
+
+   ss = malloc(sizeof(v1_guide_snapshot_header_t) + sizeof(group_data_t));
+   memset(ss, 0, sizeof(v1_guide_snapshot_header_t) + sizeof(group_data_t));
+   ss->guideSnapshotHeader.osversion         = htons(3);
+   ss->guideSnapshotHeader.snapshotversion   = htons(1);
+   ss->guideSnapshotHeader.structuresize     = htonl(sizeof(v1_guide_snapshot_header_t));
+   ss->guideSnapshotHeader.channelcount      = htonl(0);
+   ss->guideSnapshotHeader.channelcountcheck = htonl(0);
+   ss->guideSnapshotHeader.groupdataoffset   = htonl(sizeof(v1_guide_snapshot_header_t));
+   ss->guideSnapshotHeader.channeloffset     = htonl(sizeof(v1_guide_snapshot_header_t) + sizeof(group_data_t));
+   ss->guideSnapshotHeader.showoffset        = htonl(sizeof(v1_guide_snapshot_header_t) + sizeof(group_data_t));
+
+   ss->groupData.structuresize = htonl(sizeof(group_data_t));
+
+   *snapshot = (char*)ss;
+   return(sizeof(v1_guide_snapshot_header_t) + sizeof(group_data_t));
+}
+

@@ -24,7 +24,7 @@
 #include <arpa/inet.h>
 #include "rtv.h"
 #include "rtvlib.h"
-#include "fake_v2_guide.h"
+#include "guideparser.h"
 #include "rtvserver.h"
 
 #define TCP_BUF_SZ (4096)
@@ -82,21 +82,28 @@ static int make_dev_descr_resp( char *buf, int bufsz, char *ip, char *name, char
 
 static int make_get_guide_resp( char *buf, int bufsz )
 {
-   int   hdrlen;
-   char *bptr, *p1;
+   int   hdrlen, sslen;
+   char *bptr, *p1, *ss;
    char  bodylenstr[20];
-
-   RTV_DBGLOG(RTVLOG_DSCVR, "%s:----------guide_sz=%d\n", __FUNCTION__, sizeof(fake_v2_guide));
+   
+   if ( rtv_emulate_mode == RTV_DEVICE_4K ) {
+      sslen = build_v1_bogus_snapshot(&ss);
+   }
+   else {
+      sslen = build_v2_bogus_snapshot(&ss);
+   }
+   RTV_DBGLOG(RTVLOG_DSCVR, "%s:----------guide_sz=%d\n", __FUNCTION__, sslen);
    hdrlen  = snprintf(buf, bufsz-1, HTTP_HEAD_STR); 
    bptr    = buf + hdrlen + 10; // 10 is body size string (8 ASCII digits plus cr/lf)
-   p1 = bptr + snprintf(bptr, bufsz - hdrlen - 10, GUIDE_SS_START_STR, sizeof(fake_v2_guide));
-   memcpy(p1, fake_v2_guide, sizeof(fake_v2_guide));
-   p1 += sizeof(fake_v2_guide);
+   p1 = bptr + snprintf(bptr, bufsz - hdrlen - 10, GUIDE_SS_START_STR, sslen);
+   memcpy(p1, ss, sslen);
+   p1 += sslen;
    p1 += snprintf(p1, bufsz - (p1-buf), "#####ATTACHED_FILE_END#####");
    sprintf(bodylenstr, "%08x\r\n", p1-bptr);
    RTV_DBGLOG(RTVLOG_DSCVR, "%s:body len ---------------> %d\n", __FUNCTION__, p1-bptr);
    memcpy(buf+hdrlen, bodylenstr, 10);
    p1 += snprintf(p1, bufsz - (p1-buf), "\r\n0\r\n\r\n");
+   free(ss);
    return(p1-buf);
 } 
 
@@ -180,7 +187,12 @@ int server_process_connection(int fd)
    rxbuff[len] = '\0';
    RTV_DBGLOG(RTVLOG_DSCVR, "%s\n", rxbuff);
    if ( strstr(rxbuff, "Device_Descr.xml") != NULL ) {
-      len = make_dev_descr_resp( txbuff, TCP_BUF_SZ, local_ip_address, local_hostname, rtv_idns.sn_5k, rtv_idns.uuid_5k);
+      if ( rtv_emulate_mode == RTV_DEVICE_4K ) {
+         len = make_dev_descr_resp( txbuff, TCP_BUF_SZ, local_ip_address, local_hostname, rtv_idns.sn_4k, rtv_idns.uuid_4k);
+      }
+      else {
+         len = make_dev_descr_resp( txbuff, TCP_BUF_SZ, local_ip_address, local_hostname, rtv_idns.sn_5k, rtv_idns.uuid_5k);
+      }
       RTV_DBGLOG(RTVLOG_DSCVR, "%s: Respond Device_Descr.xml\n", __FUNCTION__);
       send(fd, txbuff, len, 0);
    }
