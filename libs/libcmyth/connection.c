@@ -305,7 +305,9 @@ cmyth_conn_connect_ctrl(char *server, unsigned short port, unsigned buflen)
 	cmyth_conn_t conn;
 	char announcement[256];
 	unsigned long tmp_ver;
+	int attempt = 0;
 
+top:
 	conn = cmyth_connect(server, port, buflen);
 	if (!conn) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_connect(%s, %d, %d) failed\n",
@@ -317,21 +319,31 @@ cmyth_conn_connect_ctrl(char *server, unsigned short port, unsigned buflen)
 	 * Find out what the Myth Protocol Version is for this connection.
 	 * Loop around until we get agreement from the server.
 	 */
-	tmp_ver = conn->conn_version;
-	do {
-		conn->conn_version = tmp_ver;
-		sprintf(announcement, "MYTH_PROTO_VERSION %ld", conn->conn_version);
-		if (cmyth_send_message(conn, announcement) < 0) {
-			cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_send_message('%s') failed\n",
-					  __FUNCTION__, announcement);
+	if (attempt == 0)
+		tmp_ver = conn->conn_version;
+	conn->conn_version = tmp_ver;
+	sprintf(announcement, "MYTH_PROTO_VERSION %ld", conn->conn_version);
+	if (cmyth_send_message(conn, announcement) < 0) {
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_send_message('%s') failed\n",
+				  __FUNCTION__, announcement);
+		goto shut;
+	}
+	if (cmyth_rcv_version(conn, &tmp_ver) < 0) {
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_rcv_version() failed\n",
+				  __FUNCTION__);
+		goto shut;
+	}
+	if (conn->conn_version != tmp_ver) {
+		if (attempt == 1) {
+			cmyth_dbg(CMYTH_DBG_ERROR,
+				"%s: failed to connect with any version\n",
+			 	__FUNCTION__);
 			goto shut;
 		}
-		if (cmyth_rcv_version(conn, &tmp_ver) < 0) {
-			cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_rcv_version() failed\n",
-					  __FUNCTION__);
-			goto shut;
-		}
-	} while (conn->conn_version != tmp_ver);
+		attempt = 1;
+		cmyth_conn_release(conn);
+		goto top;
+	}
 	printf("%s: agreed on Version %ld protocol\n",
 		   __FUNCTION__, conn->conn_version);
 	cmyth_dbg(CMYTH_DBG_ERROR, "%s: agreed on Version %ld protocol\n",
@@ -423,7 +435,6 @@ cmyth_conn_connect_file(cmyth_proginfo_t prog, unsigned buflen)
 	}
 	sprintf(announcement, "ANN FileTransfer %s[]:[]%s",
 			my_hostname, prog->proginfo_pathname);
-	printf("PATH: '%s'\n", prog->proginfo_pathname);
 	if (cmyth_send_message(conn, announcement) < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_send_message('%s') failed\n",
 				  __FUNCTION__, announcement);
