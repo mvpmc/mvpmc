@@ -1145,7 +1145,7 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 	tmp_str[sizeof(tmp_str) - 1] = '\0';
 
 	buf->proginfo_version = conn->conn_version;
-	printf("%s: VERSION IS %ld\n", __FUNCTION__, buf->proginfo_version);
+	cmyth_dbg(CMYTH_DBG_INFO, "%s: VERSION IS %ld\n", __FUNCTION__, buf->proginfo_version);
 	/*
 	 * Get proginfo_title (string)
 	 */
@@ -1248,7 +1248,7 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 		goto fail;
 	}
 /* FIXME: doesn't seem to match the dump? */
-	printf("%s: GOT TO ICON/NAME\n", __FUNCTION__);
+	cmyth_dbg(CMYTH_DBG_INFO, "%s: GOT TO ICON/NAME\n", __FUNCTION__);
 	if (buf->proginfo_version >= 8) {
 		buf->proginfo_chanicon = strdup(tmp_str);
 		/*
@@ -1279,7 +1279,7 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 	/*
 	 * Get proginfo_Start (long_long)
 	 */
-	printf("%s: GOT TO START/LENGTH\n", __FUNCTION__);
+	cmyth_dbg(CMYTH_DBG_INFO, "%s: GOT TO START/LENGTH\n", __FUNCTION__);
 	consumed = cmyth_rcv_long_long(conn, err, &buf->proginfo_Start, count);
 	count -= consumed;
 	total += consumed;
@@ -1302,7 +1302,7 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 	/*
 	 * Get proginfo_start_ts (timestamp)
 	 */
-	printf("%s: GOT TO START_TS\n", __FUNCTION__);
+	cmyth_dbg(CMYTH_DBG_INFO, "%s: GOT TO START_TS\n", __FUNCTION__);
 	consumed = cmyth_rcv_timestamp(conn, err, buf->proginfo_start_ts, count);
 	count -= consumed;
 	total += consumed;
@@ -1607,7 +1607,7 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 		/*
 		 * Get lastmodified (timestamp)
 		 */
-		printf("%s: GOT TO LASTMODIFIED\n", __FUNCTION__);
+		cmyth_dbg(CMYTH_DBG_INFO, "%s: GOT TO LASTMODIFIED\n", __FUNCTION__);
 		consumed = cmyth_rcv_timestamp(conn, err, buf->proginfo_lastmodified, count);
 		count -= consumed;
 		total += consumed;

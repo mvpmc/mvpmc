@@ -226,8 +226,47 @@ cmyth_file_length(cmyth_file_t file)
 	return file->file_length;
 }
 
+/*
+ * cmyth_file_get_block(cmyth_file_t file, char *buf, unsigned long len)
+ * 
+ * Scope: PUBLIC
+ *
+ * Description
+ *
+ * Read incoming file data off the network into a buffer of length len.
+ *
+ * Return Value:
+ *
+ * Sucess: number of bytes read into buf
+ *
+ * Failure: -1
+ */
 int
-cmyth_file_request_block(cmyth_conn_t control, cmyth_file_t file, char *buf, unsigned long len)
+cmyth_file_get_block(cmyth_file_t file, char *buf, unsigned long len)
+{
+	return read(file->file_data->conn_fd, buf, len);
+}
+
+/*
+ * cmyth_file_request_block(cmyth_file_t control, cmyth_file_t file,
+ *                          unsigned long len)
+ * 
+ * Scope: PUBLIC
+ *
+ * Description
+ *
+ * Request a file data block of a certain size, and return when the
+ * block has been transfered.
+ *
+ * Return Value:
+ *
+ * Sucess: number of bytes transfered
+ *
+ * Failure: an int containing -errno
+ */
+int
+cmyth_file_request_block(cmyth_conn_t control, cmyth_file_t file,
+			 unsigned long len)
 {
 	int err, count;
 	int r;
@@ -252,29 +291,44 @@ cmyth_file_request_block(cmyth_conn_t control, cmyth_file_t file, char *buf, uns
 		return err;
 	}
 
-	while (tot < len) {
-		count = read(file->file_data->conn_fd, buf+tot, len-tot);
-		if (count > 0)
-			tot += count;
-	}
-
 	count = cmyth_rcv_length(control);
 	if ((r=cmyth_rcv_long(control, &err, &c, count)) < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_rcv_length() failed (%d)\n",
 			  __FUNCTION__, r);
+		return err;
 	}
-#if 0
-	printf("%s(): c is %ld\n", __FUNCTION__, c);
-#endif
 
-	file->file_pos += tot;
+	file->file_pos += c;
 
-	return tot;
+	return c;
 }
 
-int
-cmyth_file_seek(cmyth_conn_t control, cmyth_file_t file, int delta)
+/*
+ * cmyth_file_seek(cmyth_file_t control, cmyth_file_t file, long long offset,
+ *                 int whence)
+ * 
+ * Scope: PUBLIC
+ *
+ * Description
+ *
+ * Seek to a new position in the file based on the value of whence:
+ *	SEEK_SET
+ *		The offset is set to offset bytes.
+ *	SEEK_CUR
+ *		The offset is set to the current position plus offset bytes.
+ *	SEEK_END
+ *		The offset is set to the size of the file minus offset bytes.
+ *
+ * Return Value:
+ *
+ * Sucess: 0
+ *
+ * Failure: an int containing -errno
+ */
+long long
+cmyth_file_seek(cmyth_conn_t control, cmyth_file_t file, long long offset,
+		int whence)
 {
 	char msg[128];
 	int err;
@@ -283,11 +337,9 @@ cmyth_file_seek(cmyth_conn_t control, cmyth_file_t file, int delta)
 	long r;
 
 	snprintf(msg, sizeof(msg),
-		 "QUERY_FILETRANSFER %ld[]:[]SEEK[]:[]%d[]:[]0[]:[]%d[]:[]%lld[]:[]0",
-		 file->file_id,
-		 delta, SEEK_CUR, file->file_pos);
+		 "QUERY_FILETRANSFER %ld[]:[]SEEK[]:[]%lld[]:[]0[]:[]%d[]:[]%lld[]:[]0",
+		 file->file_id, offset, whence, file->file_pos);
 
-	printf("%s(): line %d\n", __FUNCTION__, __LINE__);
 	if ((err = cmyth_send_message(control, msg)) < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_send_message() failed (%d)\n",
@@ -295,20 +347,26 @@ cmyth_file_seek(cmyth_conn_t control, cmyth_file_t file, int delta)
 		return err;
 	}
 
-	printf("%s(): line %d\n", __FUNCTION__, __LINE__);
 	count = cmyth_rcv_length(control);
-	printf("%s(): line %d\n", __FUNCTION__, __LINE__);
 	if ((r=cmyth_rcv_long_long(control, &err, &c, count)) < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_rcv_length() failed (%d)\n",
 			  __FUNCTION__, r);
 	}
-	printf("%s(): line %d\n", __FUNCTION__, __LINE__);
 
-	printf("SEEK: count %d c %lld\n", count, c);
-
-	if (c >= 0)
-		file->file_pos += delta;
+	if (c >= 0) {
+		switch (whence) {
+		case SEEK_SET:
+			file->file_pos = offset;
+			break;
+		case SEEK_CUR:
+			file->file_pos += offset;
+			break;
+		case SEEK_END:
+			file->file_pos = file->file_length - offset;
+			break;
+		}
+	}
 
 	return 0;
 }

@@ -1,4 +1,6 @@
 /*
+ * $Id$
+ *
  *  Copyright (C) 2004, Eric Lund
  *  http://mvpmc.sourceforge.net/
  *
@@ -16,7 +18,6 @@
  *  License along with this library; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-#ident "$Id$"
 
 #ifndef __CMYTH_LOCAL_H
 #define __CMYTH_LOCAL_H
