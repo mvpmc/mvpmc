@@ -1132,6 +1132,13 @@ cmyth_rcv_timestamp(cmyth_conn_t conn, int *err, cmyth_timestamp_t buf,
 				  __FUNCTION__, *err);
 		return consumed;
 	}
+
+	/*
+	 * Allow for the timestamp to be empty in the case of livetv
+	 */
+        if ((strlen(tbuf) == 1) && (tbuf[0] = ' '))
+                return consumed;
+
 	*err = -1 * cmyth_timestamp_from_string(buf, tbuf);
 	if (*err) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
@@ -1215,10 +1222,12 @@ cmyth_proginfo_parse_url(cmyth_proginfo_t p)
 	char *port = NULL;
 	char *path = NULL;
 
-	if (!p || ! p->proginfo_url) {
+        if (!p || ! p->proginfo_url ||
+	    (!strcmp(p->proginfo_url, "none")) ||
+	    (!strcmp(p->proginfo_url, " "))) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
-				  "%s: the proginfo or url was NULL, p = %p, url = %p\n",
-				  __FUNCTION__, p, p ? p->proginfo_url : NULL);
+			  "%s: proginfo or url was NULL, p = %p, url = %p\n",
+			  __FUNCTION__, p, p ? p->proginfo_url : NULL);
 		return;
 	}
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s: url is: '%s'\n",
@@ -1904,7 +1913,7 @@ cmyth_rcv_chaninfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 	 * Get proginfo_title (string)
 	 */
 	consumed = cmyth_rcv_string(conn, err,
-								tmp_str, sizeof(tmp_str) - 1, count);
+				    tmp_str, sizeof(tmp_str) - 1, count);
 	count -= consumed;
 	total += consumed;
 	if (*err) {
@@ -1917,7 +1926,7 @@ cmyth_rcv_chaninfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 	 * Get proginfo_subtitle (string)
 	 */
 	consumed = cmyth_rcv_string(conn, err,
-								tmp_str, sizeof(tmp_str) - 1, count);
+				    tmp_str, sizeof(tmp_str) - 1, count);
 	count -= consumed;
 	total += consumed;
 	if (*err) {
@@ -1930,7 +1939,7 @@ cmyth_rcv_chaninfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 	 * Get proginfo_description (string)
 	 */
 	consumed = cmyth_rcv_string(conn, err,
-								tmp_str, sizeof(tmp_str) - 1, count);
+				    tmp_str, sizeof(tmp_str) - 1, count);
 	count -= consumed;
 	total += consumed;
 	if (*err) {
@@ -1943,7 +1952,7 @@ cmyth_rcv_chaninfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 	 * Get proginfo_category (string)
 	 */
 	consumed = cmyth_rcv_string(conn, err,
-								tmp_str, sizeof(tmp_str) - 1, count);
+				    tmp_str, sizeof(tmp_str) - 1, count);
 	count -= consumed;
 	total += consumed;
 	if (*err) {
@@ -1978,7 +1987,7 @@ cmyth_rcv_chaninfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 	 * Get proginfo_chansign (string)
 	 */
 	consumed = cmyth_rcv_string(conn, err,
-								tmp_str, sizeof(tmp_str) - 1, count);
+				    tmp_str, sizeof(tmp_str) - 1, count);
 	count -= consumed;
 	total += consumed;
 	if (*err) {
@@ -1991,7 +2000,7 @@ cmyth_rcv_chaninfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 	 * Get proginfo_url (string) (this is the channel icon path)
 	 */
 	consumed = cmyth_rcv_string(conn, err,
-								tmp_str, sizeof(tmp_str) - 1, count);
+				    tmp_str, sizeof(tmp_str) - 1, count);
 	count -= consumed;
 	total += consumed;
 	if (*err) {
@@ -2004,7 +2013,7 @@ cmyth_rcv_chaninfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 	 * Get proginfo_channame (string)
 	 */
 	consumed = cmyth_rcv_string(conn, err,
-								tmp_str, sizeof(tmp_str) - 1, count);
+				    tmp_str, sizeof(tmp_str) - 1, count);
 	count -= consumed;
 	total += consumed;
 	if (*err) {
@@ -2021,6 +2030,65 @@ cmyth_rcv_chaninfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 	total += consumed;
 	if (*err) {
 		failed = "cmyth_rcv_long";
+		goto fail;
+	}
+
+	// get seriesid
+	consumed = cmyth_rcv_string(conn, err,
+				    tmp_str, sizeof(tmp_str) - 1, count);
+	count -= consumed;
+	total += consumed;
+	if (*err) {
+		failed = "cmyth_rcv_string";
+		goto fail;
+	}
+	buf->proginfo_seriesid = strdup(tmp_str);
+
+	// get programid
+	consumed = cmyth_rcv_string(conn, err,
+				    tmp_str, sizeof(tmp_str) - 1, count);
+	count -= consumed;
+	total += consumed;
+	if (*err) {
+		failed = "cmyth_rcv_string";
+		goto fail;
+	}
+	buf->proginfo_programid = strdup(tmp_str);
+
+	// get chanOutputFilters
+	consumed = cmyth_rcv_string(conn, err,
+				    tmp_str, sizeof(tmp_str) - 1, count);
+	count -= consumed;
+	total += consumed;
+	if (*err) {
+		failed = "cmyth_rcv_string";
+		goto fail;
+	}
+	// get repeat
+	consumed = cmyth_rcv_string(conn, err,
+				    tmp_str, sizeof(tmp_str) - 1, count);
+	count -= consumed;
+	total += consumed;
+	if (*err) {
+		failed = "cmyth_rcv_string";
+		goto fail;
+	}
+	// get airdate
+	consumed = cmyth_rcv_string(conn, err,
+				    tmp_str, sizeof(tmp_str) - 1, count);
+	count -= consumed;
+	total += consumed;
+	if (*err) {
+		failed = "cmyth_rcv_string";
+		goto fail;
+	}
+	// get stars
+	consumed = cmyth_rcv_string(conn, err,
+				    tmp_str, sizeof(tmp_str) - 1, count);
+	count -= consumed;
+	total += consumed;
+	if (*err) {
+		failed = "cmyth_rcv_string";
 		goto fail;
 	}
 

@@ -543,7 +543,31 @@ cmyth_recorder_cancel_next_recording(cmyth_conn_t control,
 int
 cmyth_recorder_pause(cmyth_conn_t control, cmyth_recorder_t rec)
 {
-	return -ENOSYS;
+	int ret;
+	char Buffer[255];
+
+	pthread_mutex_lock(&mutex);
+
+	sprintf(Buffer, "QUERY_RECORDER %ld[]:[]PAUSE", (long) rec->rec_id);
+	if ((ret=cmyth_send_message(control, Buffer)) < 0) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_send_message('%s') failed\n",
+			  __FUNCTION__, Buffer);
+		goto err;
+	}
+
+	if ((ret=cmyth_rcv_okay(control, "ok")) < 0) {
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_rcv_okay() failed\n",
+			  __FUNCTION__);
+		goto err;
+	}
+
+	ret = 0;
+
+ err:
+	pthread_mutex_unlock(&mutex);
+
+	return ret;
 }
 
 /*
@@ -916,10 +940,44 @@ cmyth_recorder_check_channel_prefix(cmyth_conn_t control,
  */
 int
 cmyth_recorder_get_program_info(cmyth_conn_t control,
-								cmyth_recorder_t rec,
-								cmyth_proginfo_t proginfo)
+				cmyth_recorder_t rec,
+				cmyth_proginfo_t proginfo)
 {
-	return -ENOSYS;
+	int err, r, count;
+	int ret = -ENOSYS;
+	char msg[256];
+
+	if (!control || !rec) {
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: no recorder connection\n",
+			  __FUNCTION__);
+		return -ENOSYS;
+	}
+
+	pthread_mutex_lock(&mutex);
+
+	snprintf(msg, sizeof(msg), "QUERY_RECORDER %d[]:[]GET_PROGRAM_INFO",
+		 rec->rec_id);
+
+	if ((err=cmyth_send_message(control, msg)) < 0) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_send_message() failed (%d)\n",
+			  __FUNCTION__, err);
+		ret = err;
+		goto out;
+	}
+
+	count = cmyth_rcv_length(control);
+	if (cmyth_rcv_chaninfo(control, &err, proginfo, count) != count) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_rcv_proginfo() < count\n", __FUNCTION__);
+		ret = err;
+		goto out;
+	}
+ 
+ out:
+	pthread_mutex_unlock(&mutex);
+
+	return ret;
 }
 
 /*
