@@ -37,8 +37,8 @@
 
 static demux_handle_t *handle;
 
-static int
-hash(char *s, int len, int old)
+static unsigned int
+hash(char *s, int len, unsigned int old)
 {
 	char *p;
 	unsigned int h = old, g;
@@ -57,7 +57,9 @@ hash(char *s, int len, int old)
 int
 main(int argc, char **argv)
 {
-	int fd, len, n, alen, vlen, tot, atot, vtot, ah, vh;
+	int fd, len, n, alen, vlen, aget, vget, tot, atot, vtot, i;
+	int rget = 0;
+	unsigned int ah, vh;
 	char buf[BSIZE], abuf[BSIZE], vbuf[BSIZE];
 	demux_attr_t *attr;
 
@@ -78,7 +80,8 @@ main(int argc, char **argv)
 	tot = atot = vtot = 0;
 	while (1) {
 		if ((len-n) == 0) {
-			len = read(fd, buf, rand() % sizeof(buf));
+			rget = rand() % sizeof(buf);
+			len = read(fd, buf, rget);
 			n = 0;
 			if (len >= 0)
 				tot += len;
@@ -89,10 +92,13 @@ main(int argc, char **argv)
 		}
 		n += demux_put(handle, buf+n, len-n);
 
-		alen = demux_get_audio(handle, abuf, rand() % sizeof(abuf));
-		vlen = demux_get_video(handle, vbuf, rand() % sizeof(vbuf));
+		aget = rand() % sizeof(abuf);
+		vget = rand() % sizeof(vbuf);
+		alen = demux_get_audio(handle, abuf, aget);
+		vlen = demux_get_video(handle, vbuf, vget);
 
-		if ((len == 0) && (n == 0) && (alen == 0) && (vlen == 0))
+		if (((len == 0) && (n == 0) && (alen == 0) && (vlen == 0)) &&
+		    ((aget > 0) && (vget > 0) && (rget > 0)))
 			break;
 
 		if (alen > 0) {
@@ -115,6 +121,13 @@ main(int argc, char **argv)
 	       attr->audio.stats.frames, attr->audio.stats.bytes);
 	printf("\tvideo: %d frames, %d bytes\n",
 	       attr->video.stats.frames, attr->video.stats.bytes);
+	
+	i = 0;
+	while ((i < 32) && (attr->spu[i].frames)) {
+		printf("\tsubtitle stream %d: %d frames, %d bytes\n",
+		       i, attr->spu[i].frames, attr->spu[i].bytes);
+		i++;
+	}
 
 	return 0;
 }

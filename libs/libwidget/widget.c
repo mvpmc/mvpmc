@@ -580,3 +580,15 @@ mvpw_set_idle(void (*callback)(void))
 {
 	idle = callback;
 }
+
+void
+mvpw_raise(mvp_widget_t *widget)
+{
+	GrRaiseWindow(widget->wid);
+}
+
+void
+mvpw_lower(mvp_widget_t *widget)
+{
+	GrLowerWindow(widget->wid);
+}

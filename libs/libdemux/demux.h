@@ -22,6 +22,8 @@
 #ifndef DEMUX_H
 #define DEMUX_H
 
+#define SPU_MAX		32
+
 typedef struct {
 	unsigned char *buf;
 	volatile unsigned int head;
@@ -30,6 +32,16 @@ typedef struct {
 	stream_attr_t *attr;
 	gop_t *gop;
 } stream_t;
+
+typedef struct {
+	char *buf;
+	int bufsz;
+	int len;
+	int size;
+	int data_size;
+	spu_item_t item[32];
+	int inuse;
+} spu_t;
 
 struct demux_handle_s {
 	demux_attr_t attr;
@@ -44,6 +56,10 @@ struct demux_handle_s {
 	int headernum;
 	int seeking;
 	unsigned int bytes;
+	spu_t spu[SPU_MAX];
+	int spu_current;
+	unsigned char *spu_buf;
+	int spu_len;
 };
 
 #define pack_start_code			0xBA

@@ -33,6 +33,7 @@ typedef enum {
 	MVPW_IMAGE,
 	MVPW_GRAPH,
 	MVPW_CHECKBOX,
+	MVPW_BITMAP,
 } mvpw_id_t;
 
 typedef struct {
@@ -108,6 +109,11 @@ typedef struct {
 	int		 checked;
 } mvpw_checkbox_t;
 
+typedef struct {
+	int		 colors;
+	char		*image;
+} mvpw_bitmap_t;
+
 struct mvp_widget_s {
 	mvpw_id_t	 type;
 	GR_WINDOW_ID	 wid;
@@ -144,6 +150,7 @@ struct mvp_widget_s {
 		mvpw_image_t		image;
 		mvpw_graph_t		graph;
 		mvpw_checkbox_t		checkbox;
+		mvpw_bitmap_t		bitmap;
 	} data;
 };
 

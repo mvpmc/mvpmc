@@ -66,6 +66,7 @@ demux_init(unsigned int size)
 	memset(handle, 0, sizeof(*handle));
 
 	handle->size = size;
+	handle->spu_current = -1;
 
 	return handle;
 }
@@ -104,6 +105,7 @@ demux_put(demux_handle_t *handle, char *buf, int len)
 	case 1 ... 4:
 		/* frame header */
 		ret += add_buffer(handle, buf, len);
+		PRINTF("demux_put(): added %d of %d bytes\n", ret, len);
 		break;
 	case MPEG_program_end_code:
 	case pack_start_code:
@@ -115,6 +117,7 @@ demux_put(demux_handle_t *handle, char *buf, int len)
 	case padding_stream:
 		/* middle of frame */
 		n = parse_frame(handle, buf, len, handle->state);
+		PRINTF("demux_put(): parsed %d of %d bytes\n", n, len);
 		ret += n;
 		buf += n;
 		len -= n;
@@ -354,6 +357,8 @@ demux_flush(demux_handle_t *handle)
 int
 demux_reset(demux_handle_t *handle)
 {
+	int i, j;
+
 	if (handle->video) {
 		handle->attr.video.bufsz = handle->size / 2;
 		handle->video->size = handle->size / 2;
@@ -373,11 +378,24 @@ demux_reset(demux_handle_t *handle)
 		handle->audio->attr->stats.cur_bytes = 0;
 	}
 
+	for (i=0; i<SPU_MAX; i++) {
+		if (handle->spu[i].buf)
+			free(handle->spu[i].buf);
+		for (j=0; j<32; j++) {
+			if (handle->spu[i].item[j].data)
+				free(handle->spu[i].item[j].data);
+			memset(handle->spu[i].item+j, 0,
+			       sizeof(handle->spu[i].item[j]));
+		}
+		memset(handle->spu+i, 0, sizeof(handle->spu[i]));
+	}
+
 	/*
 	 * XXX: reset stats...
 	 */
 
 	handle->seeking = 1;
+	handle->spu_current = -1;
 
 	return 0;
 }
@@ -398,3 +416,202 @@ demux_seek(demux_handle_t *handle)
 	handle->attr.gop_valid = 0;
 }
 
+/*
+ * demux_spu_set_id() - set the current subpicture stream id
+ *
+ * Arguments:
+ *	handle	- pointer to demux context
+ *	id	- stream id (-1 for none)
+ *
+ * Returns:
+ *	0	success
+ *	-1	invalid stream id
+ */
+int
+demux_spu_set_id(demux_handle_t *handle, int id)
+{
+	int old = handle->spu_current;
+	int i,j;
+
+	if ((id < -1) || (id > 31))
+		return -1;
+
+	if (id != old) {
+		if (old != -1) {
+			handle->spu[old].inuse = 0;
+			i = 0;
+			while ((i < 32) && handle->spu[old].item[i].data)
+				i++;
+			if (i) {
+				free(handle->spu[old].item[0].data);
+				for (j=0; j<i; j++) {
+					memcpy(handle->spu[old].item+j,
+					       handle->spu[old].item+j+1,
+					       sizeof(handle->spu[old].item[j]));
+				}
+			}
+		}
+
+		handle->spu_current = id;
+		handle->spu[id].inuse = 1;
+	}
+
+	return 0;
+}
+
+/*
+ * demux_spu_get_next() - get next subpicture for the current stream
+ *
+ * Arguments:
+ *	handle	- pointer to demux context
+ *
+ * Returns:
+ *	an spu item if one is found
+ *	NULL if no spu item is found
+ */
+spu_item_t*
+demux_spu_get_next(demux_handle_t *handle)
+{
+	int i;
+	spu_t *spu;
+	spu_item_t *ret = NULL;
+
+	if (handle->spu_current < 0)
+		return NULL;
+
+	spu = &handle->spu[handle->spu_current];
+
+	if (spu->item[0].data) {
+		if ((ret=malloc(sizeof(*ret))) == NULL)
+			return NULL;
+		memcpy(ret, &spu->item[0], sizeof(*ret));
+		for (i=0; i<31; i++)
+			memcpy(spu->item+i, spu->item+i+1,
+			       sizeof(spu->item[i]));
+		memset(spu->item+31, 0, sizeof(spu->item[31]));
+	}
+
+	return ret;
+}
+
+static unsigned char
+get_nibble(unsigned char *buf, int *i, int *state)
+{
+	unsigned char c;
+	int n = *i;
+
+	if (*state) {
+		c = buf[n] & 0x0f;
+		*i = n + 1;
+		*state = 0;
+	} else {
+		c = buf[n] >> 4;
+		*state = 1;
+	}
+
+	return c;
+}
+
+/*
+ * demux_spu_decompress() - decompress an RLE bitmap
+ *
+ * Arguments:
+ *	handle	- pointer to demux context
+ *	spu	- pointer to spu item
+ *
+ * Returns:
+ *	pointer to decompressed spu image
+ *	NULL if an error occurred
+ */
+char*
+demux_spu_decompress(demux_handle_t *handle, spu_item_t *spu)
+{
+	int got_byte, i, state;
+	int x, y;
+	unsigned int c;
+	char *img;
+
+	if ((img=malloc(spu->w*spu->h)) == NULL)
+		return NULL;
+	memset(img, 0, spu->w*spu->h);
+
+	i = spu->line[0];
+	got_byte = 0;
+	x = y = 0;
+	state = 0;
+	PRINTF("spu: i %d size %d h %d\n", i, spu->size, spu->h);
+	while ((i < spu->size) && (y < spu->h)) {
+		unsigned int j;
+
+		c = get_nibble(spu->data, &i, &state);
+		
+		if (c < 0x4) {
+			c = (c << 4) |
+				get_nibble(spu->data, &i, &state);
+			if (c < 0x10) {
+				c = (c << 4) |
+					get_nibble(spu->data, &i, &state);
+				if (c < 0x40) {
+					c = (c << 4) |
+						get_nibble(spu->data,
+							   &i, &state);
+					if (c <= 0x003) {
+						if (state)
+							i++;
+						state = 0;
+						
+						while (x < spu->w) {
+							img[(y*spu->w)+x] = c;
+							x++;
+						}
+						y += 2;
+						x = 0;
+						if ((y >= spu->h) &&
+						    !(y & 0x1)) {
+							y = 1;
+							i = spu->line[1];
+						}
+						continue;
+					}
+				}
+			}
+		}
+
+		j = c >> 2;
+		c &= 0x3;
+
+		while (j > 0) {
+			img[(y*spu->w)+x] = c;
+			if (++x >= spu->w) {
+				if (state)
+					i++;
+				state = 0;
+				x = 0;
+				y += 2;
+			}
+			j--;
+		}
+
+	}
+
+#if 0
+	{
+		int a, b;
+		int l, k;
+
+		l = (spu->w >= 70) ? 70 : spu->w;
+		k = (spu->h >= 480) ? 480 : spu->h;
+
+		printf("l %d  k %d\n", l, k);
+
+		for (a=0; a<k; a++) {
+			for (b=0; b<l; b++) {
+				printf("%x", img[(a*spu->w)+b]);
+			}
+			printf("\n");
+		}
+	}
+#endif
+
+	return img;
+}

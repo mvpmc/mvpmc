@@ -59,12 +59,32 @@ typedef struct {
 } stream_attr_t;
 
 typedef struct {
+	int bytes;
+	int frames;
+} spu_attr_t;
+
+typedef struct {
 	stream_attr_t audio;
 	stream_attr_t video;
+	spu_attr_t spu[32];
 	int bps;
 	gop_t gop;
 	int gop_valid;
 } demux_attr_t;
+
+typedef struct {
+	char *data;
+	int size;
+	int x;
+	int y;
+	int w;
+	int h;
+	unsigned int start;
+	unsigned int end;
+	unsigned int color;
+	unsigned int alpha;
+	unsigned int line[2];
+} spu_item_t;
 
 typedef struct demux_handle_s demux_handle_t;
 
@@ -87,5 +107,9 @@ extern int demux_empty(demux_handle_t *handle);
 extern int demux_flush(demux_handle_t *handle);
 extern void demux_seek(demux_handle_t *handle);
 extern int demux_reset(demux_handle_t *handle);
+
+extern int demux_spu_set_id(demux_handle_t *handle, int id);
+extern spu_item_t* demux_spu_get_next(demux_handle_t *handle);
+extern char* demux_spu_decompress(demux_handle_t *handle, spu_item_t *spu);
 
 #endif /* MVP_DEMUX_H */

@@ -58,6 +58,8 @@ extern void mvpw_set_timer(mvp_widget_t *widget,
 extern void mvpw_focus(mvp_widget_t *widget);
 extern void mvpw_show(mvp_widget_t *widget);
 extern void mvpw_hide(mvp_widget_t *widget);
+extern void mvpw_raise(mvp_widget_t *widget);
+extern void mvpw_lower(mvp_widget_t *widget);
 extern void mvpw_expose(mvp_widget_t *widget);
 extern int mvpw_font_height(int font);
 extern int mvpw_font_width(int font, char *str);
@@ -173,6 +175,20 @@ extern mvp_widget_t* mvpw_create_checkbox(mvp_widget_t *parent,
 					  int border_size);
 extern void mvpw_set_checkbox_fg(mvp_widget_t *widget, uint32_t fg);
 extern void mvpw_set_checkbox(mvp_widget_t *widget, int checked);
+
+/*
+ * bitmap widget
+ */
+typedef struct {
+	int 		colors;
+	char 		*image;
+} mvpw_bitmap_attr_t;
+
+extern mvp_widget_t* mvpw_create_bitmap(mvp_widget_t *parent,
+					int x, int y, int w, int h,
+					uint32_t bg, uint32_t border_color,
+					int border_size);
+extern int mvpw_set_bitmap(mvp_widget_t *widget, mvpw_bitmap_attr_t *bitmap);
 
 /*
  * common colors

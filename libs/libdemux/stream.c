@@ -501,6 +501,240 @@ parse_video_frame(demux_handle_t *handle, unsigned char *buf, int len)
 }
 
 /*
+ * parse_spu_frame() - Parse a subpicture frame
+ *
+ * Arguments:
+ *	handle	- demux context handle
+ *	buf	- buffer containing an entire private stream frame
+ *	len	- length of buffer
+ *
+ * Returns:
+ *	0	if a subpicture was found and parsed
+ *	-1	if an error occurred, or the frame was not a subpicture
+ */
+static int
+parse_spu_frame(demux_handle_t *handle, unsigned char *buf, int len)
+{
+	unsigned int pts[2], color = 0, alpha = 0;
+	unsigned int x = 0, y = 0, w=0, h=0, line1 = 0, line2 = 0;
+	unsigned int id, start, cmd;
+	unsigned int size, data_size = 0;
+	int i, end, header;
+
+	id = buf[buf[2] + 3] - 32;
+	header = buf[2] + 3 + 1;
+
+	if (id > 31)
+		return -1;
+
+	start = (buf[7] >> 1) | (buf[6] << 7) | ((buf[5] >> 1) << 14) |
+		(buf[4] << 22) | (((buf[3] >> 1) & 0x7) << 29);
+
+	if (handle->spu[id].size == 0) {
+		/* complete subpicture or first frame */
+		buf += header;
+		size = (buf[0] * 256) + buf[1];
+		data_size = (buf[2] * 256) + buf[3];
+		cmd = data_size + 4;
+
+		PRINTF("start 0x%.8x\n", start);
+		if (size <= len) {
+			/* complete subpicture */
+			PRINTF("complete subpicture, stream %d\n", id);
+			handle->spu[id].len = size;
+		} else {
+			/* first frame */
+			PRINTF("first subpicture frame, stream %d\n", id);
+			PRINTF("size %d data_size %d\n", size, data_size);
+			handle->spu[id].size = size;
+			handle->spu[id].data_size = data_size;
+			handle->spu[id].len = len - header;
+			handle->spu[id].buf = malloc(size);
+			PRINTF("malloc 1: 0x%.8x\n", handle->spu[id].buf);
+			memset(handle->spu[id].buf, 0, size);
+			memcpy(handle->spu[id].buf, buf, len-header);
+			PRINTF("memcpy: off %d len %d\n", 0,
+			       len-header);
+
+			return 0;
+		}
+	} else {
+		/* secondary or final frame */
+		if (handle->spu[id].size <
+		    (handle->spu[id].len + len - header)) {
+			PRINTF("too much data!  size %d new %d\n",
+			       handle->spu[id].size,
+			       handle->spu[id].len + len - header);
+			abort();
+		}
+		buf += header;
+		memcpy(handle->spu[id].buf+handle->spu[id].len,
+		       buf, len-header);
+		PRINTF("memcpy: off %d len %d\n", handle->spu[id].len,
+		       len-header);
+		handle->spu[id].len += len - header;
+
+		if (handle->spu[id].len != handle->spu[id].size) {
+			PRINTF("secondary frame, stream %d, [%d %d]\n", id,
+			       handle->spu[id].len, handle->spu[id].size);
+			return 0;
+		}
+
+		PRINTF("final subpicture frame, stream %d\n", id);
+
+		cmd = handle->spu[id].data_size + 4;
+		buf = handle->spu[id].buf;
+		size = handle->spu[id].size;
+		data_size = handle->spu[id].data_size;
+
+		PRINTF("size %d cmd %d\n", size, cmd);
+	}
+
+	handle->attr.spu[id].bytes += handle->spu[id].len;
+	handle->attr.spu[id].frames++;
+	handle->spu[id].len = 0;
+	handle->spu[id].size = 0;
+
+	PRINTF("subtitle stream %d, size %d %d\n", id, size, data_size);
+
+	while (cmd < size) {
+		PRINTF("command %d [%d %d]\n", buf[cmd], cmd, size);
+		switch (buf[cmd]) {
+		case 0x0:
+			/* force display */
+			pts[0] = start;
+			PRINTF("pts 0x%.8x\n", pts[0]);
+			cmd++;
+			break;
+		case 0x1:
+			/* start display */
+			pts[0] = start;
+			PRINTF("start pts 0x%.8x\n", pts[0]);
+			cmd++;
+			break;
+		case 0x2:
+			/* end display */
+			pts[1] = start;
+			PRINTF("end pts 0x%.8x\n", pts[0]);
+			cmd++;
+			break;
+		case 0x3:
+			/* palette */
+			color = (buf[cmd+1] * 256) |
+				buf[cmd+2];
+			cmd += 3;
+			PRINTF("color 0x%.8x\n", color);
+			break;
+		case 0x4:
+			/* alpha channel */
+			alpha = (buf[cmd+1] * 256) |
+				buf[cmd+2];
+			cmd += 3;
+			PRINTF("alpha 0x%.8x\n", alpha);
+			break;
+		case 0x5:
+			/* coordinates */
+			x = (((buf[cmd + 1]) << 4) +
+			     (buf[cmd + 2] >> 4));
+			w = (((buf[cmd + 2] & 0x0f) << 8) +
+			     buf[cmd + 3]) - x + 1;
+			y = (((buf[cmd + 4]) << 4) +
+			     (buf[cmd + 5] >> 4));
+			h = (((buf[cmd + 5] & 0x0f) << 8) +
+			     buf[cmd + 6]) - y + 1;
+			cmd += 7;
+			PRINTF("coord: %d %d  %d %d\n",
+			       x, y, w, h);
+			break;
+		case 0x6:
+			/* RLE offsets */
+			line1 = ((buf[cmd + 1]) << 8) +
+				buf[cmd + 2]; 
+			line2 = ((buf[cmd + 3]) << 8) +
+				buf[cmd + 4];
+			cmd += 5;
+			PRINTF("offsets: %d %d\n",
+			       line1, line2);
+			break;
+		case 0xff:
+			/* end */
+			cmd = size;
+			PRINTF("end command\n");
+			break;
+		default:
+			PRINTF("unknown spu command 0x%x\n", buf[cmd]);
+			goto err;
+			break;
+		}
+	}
+
+	if ((w == 0) || (h == 0)) {
+		PRINTF("error in subpicture\n");
+		goto err;
+	}
+	
+	PRINTF("image size %dx%d, %d\n", w, h, w*h);
+
+	/*
+	 * To avoid wasting too much memory, only maintain the 4 most recent
+	 * subpictures per stream, unless the stream is currently being
+	 * viewed.
+	 */
+	if (handle->spu[id].inuse)
+		end = SPU_MAX-1;
+	else
+		end = 3;
+
+	if (handle->spu[id].item[0].data) {
+		PRINTF("free 2: 0x%.8x\n", handle->spu[id].item[0].data);
+		free(handle->spu[id].item[0].data);
+		handle->spu[id].item[0].data = NULL;
+	}
+
+	for (i=0; i<end && handle->spu[id].item[i+1].data; i++) {
+		memcpy(handle->spu[id].item+i,
+		       handle->spu[id].item+i+1,
+		       sizeof(handle->spu[id].item[i]));
+	}
+	memset(handle->spu[id].item+i, 0, sizeof(handle->spu[id].item[i]));
+
+	PRINTF("sizes: %d %d\n", handle->spu[id].size, data_size);
+	handle->spu[id].item[i].data = malloc(data_size);
+	PRINTF("malloc 2: 0x%.8x\n", handle->spu[id].item[i].data);
+	memcpy(handle->spu[id].item[i].data, buf, data_size);
+
+	handle->spu[id].item[i].size = data_size;
+	handle->spu[id].item[i].x = x;
+	handle->spu[id].item[i].y = y;
+	handle->spu[id].item[i].w = w;
+	handle->spu[id].item[i].h = h;
+	handle->spu[id].item[i].color = color;
+	handle->spu[id].item[i].alpha = alpha;
+	handle->spu[id].item[i].start = pts[0];
+	handle->spu[id].item[i].end = pts[1];
+	handle->spu[id].item[i].line[0] = line1;
+	handle->spu[id].item[i].line[1] = line2;
+
+	PRINTF("spu stream %d item %d\n", id, i);
+
+	if (handle->spu[id].buf) {
+		PRINTF("free 1: 0x%.8x\n", handle->spu[id].buf);
+		free(handle->spu[id].buf);
+		handle->spu[id].buf = NULL;
+	}
+
+	PRINTF("done with subtitle\n");
+
+	return 0;
+
+ err:
+	PRINTF("error in subtitle stream, size %d %d len %d\n",
+	       size, data_size, len);
+
+	return -1;
+}
+
+/*
  * parse_frame() - Parse a single frame in the media stream
  *
  * Arguments:
@@ -521,6 +755,9 @@ parse_frame(demux_handle_t *handle, unsigned char *buf, int len, int type)
 
 	if (len <= 0)
 		return 0;
+
+	PRINTF("parse_frame(): len %d type %d remain %d\n", len, type,
+	       handle->remain);
 
 	if (type == 0) {
 		type = buf[0];
@@ -556,7 +793,27 @@ parse_frame(demux_handle_t *handle, unsigned char *buf, int len, int type)
 			break;
 		case 3:
 			/* mpeg2 pack code */
-			goto mpeg2;
+			PRINTF("mpeg2 frame_state 3, remain %d len %d\n",
+			       handle->remain, len);
+			if (handle->remain < len) {
+				n = handle->remain;
+			} else {
+				n = len;
+			}
+			break;
+		case 4:
+			/* private stream 1 */
+			memcpy(handle->spu_buf+handle->spu_len, buf, n);
+			handle->spu_len += n;
+
+			if (handle->remain == n) {
+				if (parse_spu_frame(handle,
+						    handle->spu_buf,
+						    handle->spu_len) == 0) {
+					PRINTF("found partial sub picture\n");
+				}
+				handle->spu_len = 0;
+			}
 			break;
 		default:
 			/* reset to start of frame */
@@ -608,7 +865,6 @@ parse_frame(demux_handle_t *handle, unsigned char *buf, int len, int type)
 			/* mpeg2 */
 			PRINTF("mpeg2\n");
 			handle->attr.video.type = 2;
-		mpeg2:
 			if ((len-ret) >= 3) {
 				n = buf[2] & 0x7;
 				if ((len-ret) >= (2+n)) {
@@ -621,6 +877,8 @@ parse_frame(demux_handle_t *handle, unsigned char *buf, int len, int type)
 					buf += (len-ret);
 					ret += (len-ret);
 					handle->frame_state = 1;
+					PRINTF("mpeg2 remain %d len %d\n",
+					       handle->remain, len);
 				}
 			} else {
 				n = len - ret;
@@ -630,15 +888,18 @@ parse_frame(demux_handle_t *handle, unsigned char *buf, int len, int type)
 				handle->bufsz = n;
 				handle->frame_state = 3;
 				handle->remain = 3 - n;
+				PRINTF("mpeg2 (2) remain %d len %d\n",
+				       handle->remain, len);
 			}
 		} else {
 			/* reset to start of frame */
 			handle->state = 1;
+			PRINTF("unknown pack code\n");
 		}
 		break;
-	case system_header_start_code:
-	case private_stream_2:
 	case private_stream_1:
+	case private_stream_2:
+	case system_header_start_code:
 	case padding_stream:
 		PRINTF("found other stream, type %d\n", type);
 
@@ -659,12 +920,23 @@ parse_frame(demux_handle_t *handle, unsigned char *buf, int len, int type)
 
 		n = handle->buf[0] * 256 + handle->buf[1];
 		if (n <= (len-ret)) {
+			if (type == private_stream_1) {
+				if (parse_spu_frame(handle, buf, n) == 0) {
+					PRINTF("found sub picture\n");
+				}
+			}
 			buf += n;
 			ret += n;
 			handle->state = 1;
 		} else {
 			handle->remain = n - (len-ret);
-			handle->frame_state = 1;
+			if (type == private_stream_1) {
+				handle->frame_state = 4;
+				memcpy(handle->spu_buf, buf, (len-ret));
+				handle->spu_len = len-ret;
+			} else {
+				handle->frame_state = 0;
+			}
 			buf += (len-ret);
 			ret += (len-ret);
 		}
@@ -826,7 +1098,7 @@ parse_frame(demux_handle_t *handle, unsigned char *buf, int len, int type)
 	default:
 		/* reset to start of frame */
 		handle->state = 1;
-		PRINTF("unknown state 0x%.2x\n", type);
+		PRINTF("unknown mpeg state 0x%.2x\n", type);
 		break;
 	}
 
@@ -854,28 +1126,33 @@ add_buffer(demux_handle_t *handle, char *buf, int len)
 	while ((len-ret) > 0) {
 		switch (handle->state) {
 		case 1:
+			PRINTF("state 1\n");
 			if (buf[0] == 0)
 				handle->state = 2;
 			break;
 		case 2:
+			PRINTF("state 2\n");
 			if (buf[0] == 0)
 				handle->state = 3;
 			else
 				handle->state = 1;
 			break;
 		case 3:
+			PRINTF("state 3\n");
 			if (buf[0] == 1)
 				handle->state = 4;
 			else if (buf[0] != 0)
 				handle->state = 1;
 			break;
 		case 4:
+			PRINTF("state 4\n");
 			PRINTF("calling parse_frame() at offset %d\n", ret);
 			n = parse_frame(handle, buf, len-ret, 0);
 			handle->bytes += n;
 			ret += n - 1;
 			buf += n - 1;
-			PRINTF("parse_frame() returned at offset %d\n", ret);
+			PRINTF("parse_frame() returned %d at offset %d\n",
+			       n, ret);
 			if (handle->state != 1) {
 				PRINTF("breaking out of state 4\n");
 				handle->bytes++;
@@ -886,6 +1163,7 @@ add_buffer(demux_handle_t *handle, char *buf, int len)
 			break;
 		default:
 			/* reset to start of frame */
+			PRINTF("unknown state %d\n", handle->state);
 			handle->state = 1;
 			break;
 		}
@@ -963,6 +1241,10 @@ start_stream(demux_handle_t *handle, char *buf, int len)
 		goto err;
 	if ((handle->audio=stream_init(stream_buf+n, n)) == NULL)
 		goto err;
+
+	if ((handle->spu_buf=malloc(64*1024)) == NULL)
+		goto err;
+	handle->spu_len = 0;
 
 	handle->audio->attr = &handle->attr.audio;
 	handle->video->attr = &handle->attr.video;
