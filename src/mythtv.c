@@ -636,7 +636,7 @@ mythtv_back(mvp_widget_t *widget)
 	return -1;
 }
 
-static void
+static void*
 control_start(void *arg)
 {
 	int len;
@@ -653,6 +653,8 @@ control_start(void *arg)
 			len = cmyth_file_request_block(control, file, BSIZE);
 		} while ((len > 0) && (playing_via_mythtv == 1));
 	}
+
+	return NULL;
 }
 
 int

@@ -90,6 +90,7 @@ extern void video_play(mvp_widget_t*);
 
 extern int mythtv_init(char*, int);
 extern int gui_init(char*, char*);
+extern int mw_init(char *server, char *replaytv);
 
 extern void audio_clear(void);
 extern void video_clear(void);
@@ -102,6 +103,17 @@ extern void video_callback(mvp_widget_t*, char);
 
 extern void mythtv_show_widgets(void);
 extern void mythtv_program(mvp_widget_t *widget);
+
+extern void re_exec(void);
+extern void power_toggle(void);
+
+extern void audio_switch_stream(mvp_widget_t*, int);
+extern void video_switch_stream(mvp_widget_t*, int);
+extern void add_audio_streams(mvp_widget_t*, mvpw_menu_item_attr_t*);
+extern void add_video_streams(mvp_widget_t*, mvpw_menu_item_attr_t*);
+
+extern void add_osd_widget(mvp_widget_t *widget, int type, int visible,
+			   void (*callback)(mvp_widget_t*));
 
 #define MAX_OSD_WIDGETS		8
 

@@ -255,7 +255,7 @@ video_player(int reset)
 						     sizeof(ac3buf));
 			    write(fd, ac3buf, ac3len);
 			    rate = 48000;
-			    printf("PCM rate %d\n", rate);
+			    printf("PCM rate %lu\n", rate);
 			    av_set_pcm_rate(rate);
 			    write(fd_audio, ac3buf, ac3len);
 			    pcm_decoded = 1;
@@ -734,11 +734,8 @@ add_video_streams(mvp_widget_t *widget, mvpw_menu_item_attr_t *item_attr)
 	for (i=0; i<attr->video.existing; i++) {
 		id = attr->video.ids[i].id;
 		type = attr->video.ids[i].type;
-		switch (type) {
-		case STREAM_MPEG:
+		if (type == STREAM_MPEG)
 			str = "MPEG";
-			break;
-		}
 		snprintf(buf, sizeof(buf), "Stream ID 0x%x - %s", id, str);
 		mvpw_add_menu_item(widget, buf, (void*)id, item_attr);
 	}

@@ -1,3 +1,4 @@
+#if 0
 /*
  *  Copyright (C) 2004, Jon Gettler
  *  http://mvpmc.sourceforge.net/
@@ -70,8 +71,6 @@ static mvpw_menu_item_attr_t item_attr = {
 
 extern int fd_audio, fd_video;
 extern demux_handle_t *handle;
-
-int running_replaytv = 0;
 
 static int playing = 0;
 
@@ -242,3 +241,4 @@ replaytv_stop(void)
 		playing = 0;
 	}
 }
+#endif /* 0 */

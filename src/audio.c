@@ -37,21 +37,17 @@
 
 #include "mvpmc.h"
 
-#include "liba52/a52.h"
-#include "liba52/mm_accel.h"
-#include "mvp_ao.h"
+#include "a52dec/a52.h"
+#include "a52dec/mm_accel.h"
 
 static int fd = -1;
 
 #define BSIZE	(1024*32)
 
 a52_state_t *a52_state;
-static int disable_accel=0;
 static int disable_adjust=0;
 static int disable_dynrng=0;
 static float gain = 1;
-static int output;
-static ao_sample_format format;
 static char *ac3_buf, *ac3_start, *ac3_end;
 static int ac3_size;
 
@@ -76,6 +72,27 @@ static float wav_file_to_input_frequency_ratio = 1;
 static int chunk_size = 0;
 
 #define min(X, Y)  ((X) < (Y) ? (X) : (Y))
+
+static inline uint16_t convert (int32_t j)
+{ int sample;
+
+  j >>= 15;
+  sample=((j > 32767) ? 32767 : ((j < -32768) ? -32768 : j));
+
+  if(sample >= (1 << 15)) sample -= (1 << 16);
+  sample += (1<<15);
+  return(sample);
+}
+
+void ao_convert(sample_t* samples, uint16_t *out, int flags)
+{
+    int i;
+    
+    for (i=0;i<256;i++) {
+        out[2*i] = convert (samples[i]);
+        out[2*i+1] = convert (samples[i+256]);
+    }
+}
 
 static int
 find_chunk(int fd,char searchid[5])

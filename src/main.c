@@ -28,11 +28,12 @@
 #include <mvp_widget.h>
 #include <mvp_av.h>
 #include <mvp_demux.h>
+#include <mvp_osd.h>
 
 #include "mvpmc.h"
 
-#include "liba52/a52.h"
-#include "liba52/mm_accel.h"
+#include "a52dec/a52.h"
+#include "a52dec/mm_accel.h"
 
 char *mythtv_server = NULL;
 char *replaytv_server = NULL;
@@ -84,7 +85,6 @@ main(int argc, char **argv)
 {
 	int c, i;
 	char *font = NULL;
-	char *ptr;
 	int mode = -1, output = -1, aspect = -1;
 	int width, height;
 	uint32_t accel = MM_ACCEL_DJBFFT;
@@ -240,7 +240,7 @@ main(int argc, char **argv)
 #define PAGE_SIZE 4096
 		int i, n = 0;
 		char *ptr[HOLE_SIZE/PAGE_SIZE];
-		char *last, *guard;
+		char *last = NULL, *guard;
 		char stack[1024*512];
 
 		for (i=0; i<HOLE_SIZE/PAGE_SIZE; i++) {

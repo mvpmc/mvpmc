@@ -26,8 +26,11 @@
 
 #include <mvp_widget.h>
 #include <mvp_av.h>
+#include <mvp_osd.h>
 
 #include "mvpmc.h"
+
+int running_replaytv = 0;
 
 static mvpw_menu_attr_t fb_attr = {
 	.font = 0,
@@ -463,7 +466,9 @@ replaytv_key_callback(mvp_widget_t *widget, char key)
 		power_toggle();
 
 	if (key == 'E') {
+#ifdef REPLAYTV
 		replaytv_stop();
+#endif
 
 		mvpw_hide(replaytv_browser);
 
@@ -590,7 +595,7 @@ osd_select_callback(mvp_widget_t *widget, char *item, void *key)
 
 	on = osd_widget_toggle(type);
 
-	mvpw_check_menu_item(osd_menu, (int)key, on);
+	mvpw_check_menu_item(osd_menu, (void*)key, on);
 	mvpw_expose(osd_menu);
 }
 
@@ -685,7 +690,8 @@ settings_hilite_callback(mvp_widget_t *widget, char *item, void *key,
 			mvpw_add_menu_item(sub_settings, "NTSC",
 					   (void*)AV_MODE_NTSC,
 					   &sub_settings_item_attr);
-			mvpw_menu_hilite_item(sub_settings, av_get_mode());
+			mvpw_menu_hilite_item(sub_settings,
+					      (void*)av_get_mode());
 			break;
 		case SETTINGS_OUTPUT:
 			mvpw_add_menu_item(sub_settings, "Composite",
@@ -694,7 +700,8 @@ settings_hilite_callback(mvp_widget_t *widget, char *item, void *key,
 			mvpw_add_menu_item(sub_settings, "S-Video",
 					   (void*)AV_OUTPUT_SVIDEO,
 					   &sub_settings_item_attr);
-			mvpw_menu_hilite_item(sub_settings, av_get_output());
+			mvpw_menu_hilite_item(sub_settings,
+					      (void*)av_get_output());
 			break;
 		case SETTINGS_FLICKER:
 			break;
@@ -705,7 +712,8 @@ settings_hilite_callback(mvp_widget_t *widget, char *item, void *key,
 			mvpw_add_menu_item(sub_settings, "16:9",
 					   (void*)AV_ASPECT_16x9,
 					   &sub_settings_item_attr);
-			mvpw_menu_hilite_item(sub_settings, av_get_aspect());
+			mvpw_menu_hilite_item(sub_settings,
+					      (void*)av_get_aspect());
 			break;
 		}
 	} else {
@@ -902,7 +910,9 @@ main_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mvpw_hide(mvpmc_logo);
 		mvpw_hide(mythtv_image);
 
+#ifdef REPLAYTV
 		replaytv_update(replaytv_browser);
+#endif
 
 		mvpw_show(replaytv_browser);
 		break;
@@ -1338,12 +1348,12 @@ popup_init(void)
 	mvpw_add_menu_item(osd_menu, "Timecode", (void*)OSD_TIMECODE,
 			   &popup_item_attr);
 
-	mvpw_check_menu_item(osd_menu, OSD_BITRATE, 1);
-	mvpw_check_menu_item(osd_menu, OSD_CLOCK, 0);
-	mvpw_check_menu_item(osd_menu, OSD_DEMUX, 0);
-	mvpw_check_menu_item(osd_menu, OSD_PROGRESS, 1);
-	mvpw_check_menu_item(osd_menu, OSD_PROGRAM, 1);
-	mvpw_check_menu_item(osd_menu, OSD_TIMECODE, 1);
+	mvpw_check_menu_item(osd_menu, (void*)OSD_BITRATE, 1);
+	mvpw_check_menu_item(osd_menu, (void*)OSD_CLOCK, 0);
+	mvpw_check_menu_item(osd_menu, (void*)OSD_DEMUX, 0);
+	mvpw_check_menu_item(osd_menu, (void*)OSD_PROGRESS, 1);
+	mvpw_check_menu_item(osd_menu, (void*)OSD_PROGRAM, 1);
+	mvpw_check_menu_item(osd_menu, (void*)OSD_TIMECODE, 1);
 
 	return 0;
 }
