@@ -1,4 +1,3 @@
-#if 0
 /*
  *  Copyright (C) 2004, Jon Gettler
  *  http://mvpmc.sourceforge.net/
@@ -42,12 +41,14 @@
 #include <string.h>
 #include <pthread.h>
 #include <time.h>
+#include <sys/types.h>
 
 #include <mvp_widget.h>
 #include <mvp_av.h>
 #include <mvp_demux.h>
 #include <cmyth.h>
 
+#include "rtvlib.h"
 #include "mvpmc.h"
 
 #if 0
@@ -55,6 +56,8 @@
 #else
 #define PRINTF(x...)
 #endif
+
+#define MAX_RTVS 10
 
 static pthread_t read_thread;
 static pthread_t write_thread;
@@ -73,6 +76,35 @@ extern int fd_audio, fd_video;
 extern demux_handle_t *handle;
 
 static int playing = 0;
+
+
+// Top level replayTV structure
+static rtv_device_t rtv_top[10];
+
+static void rtv_init(void) 
+{
+   static int rtv_initialized = 0;
+   if ( rtv_initialized == 0 ) {
+      memset(rtv_top, 0, sizeof(rtv_top));
+      rtv_initialized = 1;
+   }
+}
+
+static rtv_device_t *get_rtv_device_struct(char* ipaddr, int *new) {
+   int x;
+
+   *new = 0;
+   for ( x=0; x < MAX_RTVS; x++ ) {
+      if ( rtv_top[x].device.ipaddr == NULL ) {
+         *new = 1;
+         return(&(rtv_top[x])); //New entry
+      }
+      if ( strcmp(rtv_top[x].device.ipaddr, ipaddr) == 0 ) {
+         return(&(rtv_top[x])); //Existing entry
+      }
+   }
+   return(NULL);
+}
 
 static void
 write_start(void *arg)
@@ -119,8 +151,9 @@ static void GetMpgCallback(unsigned char * buf, size_t len, void * vd)
 
 void GetMpgFile(char *IPAddress, char *FileName, int ToStdOut) 
 {
+    rtv_device_t *rtv;  
     char pathname[256];
-    int i;
+    int i, new_entry;
 
     if (strlen(FileName) + strlen("/Video/") + 1 > sizeof pathname) {
         fprintf(stderr, "Filename too long\n");
@@ -132,8 +165,10 @@ void GetMpgFile(char *IPAddress, char *FileName, int ToStdOut)
     //Tell the user we're up to something
     fprintf(stderr, "Retrieving /Video/%s...\n", FileName); 
 
+    rtv = get_rtv_device_struct(replaytv_server, &new_entry);
+
     //Send the request for the file
-    i = hfs_do_chunked(GetMpgCallback, NULL, IPAddress, 75,
+    i = hfs_do_chunked(GetMpgCallback, NULL, &(rtv->device), 75,
                        "readfile",
                        "pos", "0",
                        "name", pathname,
@@ -154,7 +189,7 @@ read_start(void *arg)
 }
 
 static void
-select_callback(mvp_widget_t *widget, char *item, void *key)
+old_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
 	int i;
 
@@ -173,15 +208,41 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 	playing = 1;
 }
 
+static void
+select_callback(mvp_widget_t *widget, char *item, void *key)
+{
+	int i;
+   rtv_show_export_t  *show = (rtv_show_export_t*)key;
+
+	mvpw_hide(widget);
+	av_move(0, 0, 0);
+	mvpw_show(root);
+	mvpw_expose(root);
+	mvpw_focus(root);
+
+   printf("Playing file: %s\n", show->file_name);
+ 	
+	av_play();
+	demux_reset(handle);
+
+	pthread_create(&read_thread, NULL, read_start, (void*)show->file_name);
+	pthread_create(&write_thread, NULL, write_start, NULL);
+
+	playing = 1;
+}
+
 void GetDir(mvp_widget_t *widget, char *IPAddress)
 {
-    int     i;
+    rtv_device_t *rtv;  
+    int     i, new_entry;
     time_t  TimeStamp=0;            //A Unix Timestamp
     char * data, * cur, * e;
 
+    rtv = get_rtv_device_struct(replaytv_server, &new_entry);
+
     fprintf(stderr, "[Directory Listing of /Video...]\n"); 
 
-    i = hfs_do_simple(&data, IPAddress,
+    i = hfs_do_simple(&data, &(rtv->device),
                       "ls",
                       "name", "\"/Video\"",
                       NULL);
@@ -190,7 +251,7 @@ void GetDir(mvp_widget_t *widget, char *IPAddress)
         exit(-1);
     }
 
-	item_attr.select = select_callback;
+	item_attr.select = old_select_callback;
     
     cur = data;
     while (cur && *cur) {
@@ -214,18 +275,76 @@ void GetDir(mvp_widget_t *widget, char *IPAddress)
     free(data);
 }
 
+void GetGuide(mvp_widget_t *widget, char *IPAddress)
+{
+    rtv_device_t       *rtv;  
+    rtv_guide_export_t *guide;
+    int                 x, new_entry, rc;
+
+    rtv = get_rtv_device_struct(replaytv_server, &new_entry);
+    if ( new_entry == 1 ) {
+       fprintf(stderr, "**ERROR: Failed to get existing RTV device info for %s\n", replaytv_server);
+       return;
+    }
+    guide = &(rtv->guide);
+    if ( (rc = rtv_get_guide_snapshot( &(rtv->device), NULL, guide)) != 0 ) {
+       fprintf(stderr, "**ERROR: Failed to get Show Guilde for %s\n", replaytv_server);
+       return;
+    }
+    rtv_print_guide(guide);
+    item_attr.select = select_callback;
+ 
+    for ( x=0; x < guide->num_rec_shows; x++ ) {
+       char title_episode[255];
+       snprintf(title_episode, 254, "%s: %s", guide->rec_show_list[x].title, guide->rec_show_list[x].episode);
+       printf("%d:  %s\n", x, title_episode);
+       mvpw_add_menu_item(widget, title_episode, &(guide->rec_show_list[x]), &item_attr);
+    }
+
+    //all done, cleanup as we leave 
+    fprintf(stderr, "\n[End of Show:Episode Listing.]\n");
+}
+
 int
 replaytv_update(mvp_widget_t *widget)
 {
+   rtv_device_t      *rtv;  
+   rtv_device_info_t *devinfo;
+   int                rc, new_entry;
+
 	running_replaytv = 1;
+   rtv_init();
+
+   printf( "\nGetting replaytv (%s) device info...\n", replaytv_server);
+   rtv = get_rtv_device_struct(replaytv_server, &new_entry);
+   if ( new_entry ) {
+      printf("Got New RTV Device Struct Entry\n");
+   }
+   else {
+      printf("Found Existing RTV Device Struct Entry\n");
+   }
+   devinfo = &(rtv->device);
+
+   if ( (rc = rtv_get_device_info(replaytv_server, devinfo)) != 0 ) {
+      printf("**ERROR: Failed to get RTV Device Info.\n");
+      return 0;
+   } 
+   rtv_print_device_info(devinfo);
+
+
 
 	mvpw_show(root);
 	mvpw_expose(root);
 
 	mvpw_clear_menu(widget);
 
-	GetDir(widget, replaytv_server);
-
+   if ( atoi(rtv->device.modelNumber) == 4999 ) {
+      //DVArchive hack since guide doesn't work yet
+      GetDir(widget, replaytv_server);
+   }
+   else {
+      GetGuide(widget, replaytv_server);
+   }
 	return 0;
 }
 
@@ -241,4 +360,3 @@ replaytv_stop(void)
 		playing = 0;
 	}
 }
-#endif /* 0 */
