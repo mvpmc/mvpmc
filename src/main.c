@@ -166,6 +166,11 @@ main(int argc, char **argv)
 	}
 	osd_set_surface_size(width, height);
 
+	if (mw_init(mythtv_server) < 0) {
+		fprintf(stderr, "failed to initialize microwindows!\n");
+		exit(1);
+	}
+
 	fd_audio = av_audio_fd();
 	fd_video = av_video_fd();
 	av_attach_fb();
@@ -183,9 +188,10 @@ main(int argc, char **argv)
 	}
 	demux_set_display_size(handle, width, height);
 
-	mythtv_init(mythtv_server, -1);
+	if (mythtv_server)
+		mythtv_init(mythtv_server, -1);
 
-	if (gui_init() < 0) {
+	if (gui_init(mythtv_server) < 0) {
 		fprintf(stderr, "failed to initialize gui!\n");
 		exit(1);
 	}

@@ -51,6 +51,8 @@ static char *pathname = NULL;
 
 static int level = 0;
 
+static int show_count, episode_count;
+
 int running_mythtv = 0;
 int mythtv_debug = 0;
 
@@ -79,6 +81,9 @@ static void
 hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 {
 	const char *description, *channame;
+
+	mvpw_hide(shows_widget);
+	mvpw_hide(episodes_widget);
 
 	if (hilite) {
 		cmyth_timestamp_t ts;
@@ -145,6 +150,8 @@ show_select_callback(mvp_widget_t *widget, char *item, void *key)
 	mvpw_hide(mythtv_channel);
 	mvpw_hide(mythtv_date);
 	mvpw_hide(mythtv_description);
+	mvpw_hide(shows_widget);
+	mvpw_hide(episodes_widget);
 
 	mvpw_hide(widget);
 	av_move(0, 0, 0);
@@ -159,14 +166,14 @@ static void
 select_callback(mvp_widget_t *widget, char *item, void *key)
 {
 	const char *title, *subtitle;
-	int err, count, i, n = 0;
+	int err, count, i, n = 0, episodes = 0;
+	char buf[256];
 
 	level = 1;
 
 	item_attr.select = show_select_callback;
 	item_attr.hilite = hilite_callback;
 
-	mvpw_set_menu_title(widget, item);
 	mvpw_clear_menu(widget);
 
 	if ((episode_plist=cmyth_proglist_create()) == NULL) {
@@ -198,19 +205,25 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 				subtitle = "<no subtitle>";
 			mvpw_add_menu_item(widget, subtitle, (void*)n,
 					   &item_attr);
+			episodes++;
 		} else if (strcmp(item, "All - Oldest first") == 0) {
 			snprintf(full, sizeof(full), "%s - %s",
 				 title, subtitle);
 			mvpw_add_menu_item(widget, full, (void*)n,
 					   &item_attr);
+			episodes++;
 		} else if (strcmp(item, "All - Newest first") == 0) {
 			snprintf(full, sizeof(full), "%s - %s",
 				 title, subtitle);
 			mvpw_add_menu_item(widget, full, (void*)count-n-1,
 					   &item_attr);
+			episodes++;
 		}
 		n++;
 	}
+
+	snprintf(buf, sizeof(buf), "%s - %d episodes", item, episodes);
+	mvpw_set_menu_title(widget, buf);
 }
 
 static void
@@ -248,6 +261,9 @@ add_shows(mvp_widget_t *widget)
 		}
 	}
 
+	episode_count = count;
+	show_count = n;
+
 	qsort(titles, n, sizeof(char*), string_compare);
 
 	mvpw_add_menu_item(widget, "All - Newest first", (void*)0, &item_attr);
@@ -262,6 +278,8 @@ add_shows(mvp_widget_t *widget)
 int
 mythtv_update(mvp_widget_t *widget)
 {
+	char buf[64];
+
 	running_mythtv = 1;
 
 	mvpw_show(root);
@@ -278,9 +296,17 @@ mythtv_update(mvp_widget_t *widget)
 	mvpw_clear_menu(widget);
 	add_shows(widget);
 
+	snprintf(buf, sizeof(buf), "Total shows: %d", show_count);
+	mvpw_set_text_str(shows_widget, buf);
+	snprintf(buf, sizeof(buf), "Total episodes: %d", episode_count);
+	mvpw_set_text_str(episodes_widget, buf);
+
 	mvpw_show(mythtv_channel);
 	mvpw_show(mythtv_date);
 	mvpw_show(mythtv_description);
+
+	mvpw_show(shows_widget);
+	mvpw_show(episodes_widget);
 
 	return 0;
 }
@@ -295,6 +321,9 @@ mythtv_back(mvp_widget_t *widget)
 	mvpw_expose(mythtv_channel);
 	mvpw_expose(mythtv_date);
 	mvpw_expose(mythtv_description);
+
+	mvpw_show(shows_widget);
+	mvpw_show(episodes_widget);
 
 	if (level == 0) {
 		running_mythtv = 0;

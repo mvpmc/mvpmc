@@ -109,15 +109,26 @@ static mvpw_text_attr_t display_attr = {
 	.fg = MVPW_WHITE,
 };
 
+static mvpw_text_attr_t splash_attr = {
+	.wrap = 1,
+	.justify = MVPW_TEXT_LEFT,
+	.margin = 6,
+	.font = 0,
+	.fg = MVPW_GREEN,
+};
+
 mvpw_graph_attr_t offset_graph_attr = {
 	.min = 0,
 	.max = 100,
 	.fg = 0x800000ff,
 };
 
+static int init_done = 0;
+
 mvp_widget_t *root;
 mvp_widget_t *iw;
 
+static mvp_widget_t *splash;
 static mvp_widget_t *main_menu;
 static mvp_widget_t *mvpmc_logo;
 static mvp_widget_t *settings;
@@ -143,6 +154,9 @@ mvp_widget_t *osd_widget;
 mvp_widget_t *offset_widget;
 mvp_widget_t *offset_bar;
 mvp_widget_t *bps_widget;
+
+mvp_widget_t *shows_widget;
+mvp_widget_t *episodes_widget;
 
 mvpw_screen_info_t si;
 
@@ -202,6 +216,19 @@ power_toggle(void)
 }
 
 static void
+splash_update(void)
+{
+	char buf[128], *ptr;
+
+	ptr = mvpw_get_text_str(splash);
+	snprintf(buf, sizeof(buf), "%s.", ptr);
+
+	mvpw_set_text_str(splash, buf);
+	mvpw_expose(splash);
+	mvpw_event_flush();
+}
+
+static void
 hide_widgets(void)
 {
 	mvpw_hide(main_menu);
@@ -224,6 +251,8 @@ hide_widgets(void)
 	mvpw_hide(about_image);
 	mvpw_hide(exit_image);
 	mvpw_hide(fb_image);
+	mvpw_hide(shows_widget);
+	mvpw_hide(episodes_widget);
 }
 
 static void
@@ -353,6 +382,8 @@ mythtv_key_callback(mvp_widget_t *widget, char key)
 			mvpw_hide(mythtv_channel);
 			mvpw_hide(mythtv_date);
 			mvpw_hide(mythtv_description);
+			mvpw_hide(shows_widget);
+			mvpw_hide(episodes_widget);
 
 			mvpw_show(mythtv_image);
 			mvpw_show(main_menu);
@@ -375,6 +406,8 @@ file_browser_init(void)
 	mvpw_set_bg(file_browser, MVPW_LIGHTGREY);
 
 	mvpw_set_key(file_browser, fb_key_callback);
+
+	splash_update();
 
 	return 0;
 }
@@ -516,6 +549,8 @@ settings_init(void)
 	sub_settings_item_attr.hilite = sub_settings_hilite_callback;
 	sub_settings_item_attr.select = sub_settings_select_callback;
 
+	splash_update();
+
 	return 0;
 }
 
@@ -523,7 +558,7 @@ static int
 myth_browser_init(void)
 {
 	mvpw_image_info_t iid;
-	mvpw_widget_info_t wid, wid2;
+	mvpw_widget_info_t wid, wid2, info;
 	int h;
 	char path[] = "/usr/share/mvpmc";
 	char file[128];
@@ -568,7 +603,22 @@ myth_browser_init(void)
 	mvpw_get_widget_info(mythtv_date, &wid2);
 	mvpw_moveto(mythtv_description, wid.x, wid2.y+wid2.h);
 
+	/*
+	 * MythTV menu info
+	 */
+	mvpw_get_widget_info(mythtv_channel, &info);
+	shows_widget = mvpw_create_text(NULL, info.x, info.y,
+					300, h, 0x80000000, 0, 0);
+	episodes_widget = mvpw_create_text(NULL, 50, 80,
+					   300, h, 0x80000000, 0, 0);
+	mvpw_set_text_attr(shows_widget, &description_attr);
+	mvpw_set_text_attr(episodes_widget, &description_attr);
+
+	mvpw_attach(shows_widget, episodes_widget, MVPW_DIR_DOWN);
+
 	mvpw_raise(mythtv_browser);
+
+	splash_update();
 
 	return 0;
 }
@@ -628,6 +678,9 @@ main_hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 {
 	int k = (int)key;
 
+	if (!init_done)
+		return;
+
 	if (hilite) {
 		switch (k) {
 		case MM_SETTINGS:
@@ -668,7 +721,7 @@ main_hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 }
 
 int
-main_menu_init(void)
+main_menu_init(char *server)
 {
 	mvpw_image_info_t iid;
 	mvpw_widget_info_t wid;
@@ -680,36 +733,42 @@ main_menu_init(void)
 	setup_image = mvpw_create_image(NULL, 50, 25,
 					iid.width, iid.height, 0, 0, 0);
 	mvpw_set_image(setup_image, file);
+	splash_update();
 
 	snprintf(file, sizeof(file), "%s/video_folder.png", path);
 	mvpw_get_image_info(file, &iid);
 	fb_image = mvpw_create_image(NULL, 50, 25,
 				     iid.width, iid.height, 0, 0, 0);
 	mvpw_set_image(fb_image, file);
+	splash_update();
 
 	snprintf(file, sizeof(file), "%s/tv2.png", path);
 	mvpw_get_image_info(file, &iid);
 	mythtv_image = mvpw_create_image(NULL, 50, 25,
 					 iid.width, iid.height, 0, 0, 0);
 	mvpw_set_image(mythtv_image, file);
+	splash_update();
 
 	snprintf(file, sizeof(file), "%s/unknown.png", path);
 	mvpw_get_image_info(file, &iid);
 	about_image = mvpw_create_image(NULL, 50, 25,
 					iid.width, iid.height, 0, 0, 0);
 	mvpw_set_image(about_image, file);
+	splash_update();
 
 	snprintf(file, sizeof(file), "%s/stop.png", path);
 	mvpw_get_image_info(file, &iid);
 	exit_image = mvpw_create_image(NULL, 50, 25,
 				       iid.width, iid.height, 0, 0, 0);
 	mvpw_set_image(exit_image, file);
+	splash_update();
 
 	snprintf(file, sizeof(file), "%s/mvpmc_logo.png", path);
 	mvpw_get_image_info(file, &iid);
 	mvpmc_logo = mvpw_create_image(NULL, 50, 25, iid.width, iid.height,
 				       0, 0, 0);
 	mvpw_set_image(mvpmc_logo, file);
+	splash_update();
 
 	main_menu = mvpw_create_menu(NULL, 50, 50, iid.width, si.rows-150,
 				     0, 0, 0);
@@ -729,8 +788,9 @@ main_menu_init(void)
 	item_attr.select = main_select_callback;
 	item_attr.hilite = main_hilite_callback;
 
-	mvpw_add_menu_item(main_menu, "MythTV",
-			   (void*)MM_MYTHTV, &item_attr);
+	if (server)
+		mvpw_add_menu_item(main_menu, "MythTV",
+				   (void*)MM_MYTHTV, &item_attr);
 	mvpw_add_menu_item(main_menu, "Filesystem",
 			   (void*)MM_FILESYSTEM, &item_attr);
 	mvpw_add_menu_item(main_menu, "Settings",
@@ -741,6 +801,8 @@ main_menu_init(void)
 			   (void*)MM_EXIT, &item_attr);
 
 	mvpw_set_key(main_menu, main_menu_callback);
+
+	splash_update();
 
 	return 0;
 }
@@ -764,6 +826,8 @@ about_init(void)
 	about_attr.font = fontid;
 	mvpw_set_text_attr(about, &about_attr);
 
+	splash_update();
+
 	return 0;
 }
 
@@ -772,6 +836,8 @@ image_init(void)
 {
 	iw = mvpw_create_image(NULL, 0, 0, si.cols, si.rows, 0, 0, 0);
 	mvpw_set_key(iw, iw_key_callback);
+
+	splash_update();
 
 	return 0;
 }
@@ -835,12 +901,17 @@ osd_init(void)
 
 	mvpw_attach(mute_widget, osd_widget, MVPW_DIR_DOWN);
 
+	splash_update();
+
 	return 0;
 }
 
 int
-gui_init(void)
+mw_init(char *server)
 {
+	int h, w, x, y;
+	char buf[128];
+
 	mvpw_init();
 	root = mvpw_get_root();
 	mvpw_set_key(root, root_callback);
@@ -849,7 +920,44 @@ gui_init(void)
 
 	printf("screen is %d x %d\n", si.cols, si.rows);
 
-	main_menu_init();
+	snprintf(buf, sizeof(buf), "Connecting to mythtv server %s", server);
+
+	splash_attr.font = fontid;
+	h = (mvpw_font_height(splash_attr.font) +
+	     (2 * splash_attr.margin)) * 2;
+	w = mvpw_font_width(fontid, buf) + 8;
+
+	x = (si.cols - w) / 2;
+	y = (si.rows - h) / 2;
+
+	splash = mvpw_create_text(NULL, x, y, w, h, 0x80000000, 0, 0);
+	mvpw_set_text_attr(splash, &splash_attr);
+
+	if (server)
+		mvpw_set_text_str(splash, buf);
+
+	mvpw_show(splash);
+	mvpw_event_flush();
+
+	return 0;
+}
+
+int
+gui_init(char *server)
+{
+	char buf[128], *ptr;
+
+	ptr = mvpw_get_text_str(splash);
+	if (ptr)
+		snprintf(buf, sizeof(buf), "%s\nInitializing GUI", ptr);
+	else
+		snprintf(buf, sizeof(buf), "Initializing GUI", ptr);
+
+	mvpw_set_text_str(splash, buf);
+	mvpw_expose(splash);
+	mvpw_event_flush();
+
+	main_menu_init(server);
 	myth_browser_init();
 	file_browser_init();
 	settings_init();
@@ -857,6 +965,14 @@ gui_init(void)
 	image_init();
 	osd_init();
 
+	mvpw_destroy(splash);
+
+	init_done = 1;
+
+	if (server)
+		mvpw_show(mythtv_image);
+	else
+		mvpw_show(fb_image);
 	mvpw_show(mvpmc_logo);
 	mvpw_show(main_menu);
 

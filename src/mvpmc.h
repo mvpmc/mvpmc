@@ -42,6 +42,9 @@ extern mvp_widget_t *offset_widget;
 extern mvp_widget_t *offset_bar;
 extern mvp_widget_t *bps_widget;
 
+extern mvp_widget_t *episodes_widget;
+extern mvp_widget_t *shows_widget;
+
 extern char *current;
 extern char *mythtv_recdir;
 
@@ -54,7 +57,7 @@ extern void audio_play(mvp_widget_t*);
 extern void video_play(mvp_widget_t*);
 
 extern int mythtv_init(char*, int);
-extern int gui_init(void);
+extern int gui_init(char*);
 
 extern void audio_clear(void);
 extern void video_clear(void);
