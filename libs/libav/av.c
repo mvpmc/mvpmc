@@ -451,11 +451,6 @@ av_stop(void)
 	if (ioctl(fd_video, AV_SET_VID_STOP, 0) < 0)
 		return -1;
 
-	if (ioctl(fd_audio, AV_SET_AUD_RESET, 0x11) < 0)
-		return -1;
-	if (ioctl(fd_video, AV_SET_VID_RESET, 0x11) < 0)
-		return -1;
-
 	return 0;
 }
 
