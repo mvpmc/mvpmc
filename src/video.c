@@ -234,6 +234,7 @@ video_clear(void)
 		pthread_cond_broadcast(&video_cond);
 	}
 	av_stop();
+	av_video_blank();
 	av_reset();
 	av_reset_stc();
 	pthread_cond_broadcast(&video_cond);
