@@ -366,54 +366,54 @@ root_callback(mvp_widget_t *widget, char key)
    //printf("rootcallback: %c\n", key);
 
    switch ( key) {
-   case '<':
+   case MVPW_KEY_LEFT:
       incr_val = 1;
       cur_list = &clist_bg;
       cur_dir  = -1;
       break;
-   case '>':
+   case MVPW_KEY_RIGHT:
       incr_val = 1;
       cur_list = &clist_bg;
       cur_dir  = 1;
       break;
-   case 'V':
+   case MVPW_KEY_DOWN:
       incr_val = 1;
       cur_list = &clist_fg;
       cur_dir  = -1;
       break;
-   case '^':
+   case MVPW_KEY_UP:
       incr_val = 1;
       cur_list = &clist_fg;
       cur_dir  = 1;
       break;
-   case '1':
+   case MVPW_KEY_ONE:
       incr_val = 1;      
       break;
-   case '2':
+   case MVPW_KEY_TWO:
       incr_val = 2;      
       break;
-   case '3':
+   case MVPW_KEY_THREE:
       incr_val = 3;      
       break;
-   case '4':
+   case MVPW_KEY_FOUR:
       incr_val = 4;      
       break;
-   case '5':
+   case MVPW_KEY_FIVE:
       incr_val = 5;      
       break;
-   case '6':
+   case MVPW_KEY_SIX:
       incr_val = 6;      
       break;
-   case '7':
+   case MVPW_KEY_SEVEN:
       incr_val = 7;      
       break;
-   case '8':
+   case MVPW_KEY_EIGHT:
       incr_val = 8;      
       break;
-   case '9':
+   case MVPW_KEY_NINE:
       incr_val = 9;      
       break;
-   case '0':
+   case MVPW_KEY_ZERO:
       incr_val = 10;      
       break;
    default:
