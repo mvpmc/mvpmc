@@ -1,0 +1,164 @@
+#!/usr/bin/perl
+
+#  Copyright (C) 2004, John Honeycutt
+#  http://mvpmc.sourceforge.net/
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+
+
+
+# ###############################################
+# Sort color list using HSV values.
+# hsv_sort_func1 just sorts by hue(h)
+# hsv_sort_func2 sorts as follows:
+#  1. saturation levels below 0.22 go first (these look white)
+#  2. hue group defined by hue_break_pts
+#  3. then saturation level
+#  4. then hue value
+#  5. then brightness value
+#################################################
+
+@hue_break_pts = (0, 41, 65, 158, 244, 310, 358);
+@color_list = ();
+@sorted_color_list = ();
+
+sub get_hue_grp 
+{
+    my($val) = @_;
+    my($rc) = -1;
+    foreach $grp (@hue_break_pts) {
+        if ( $grp > $val ) {
+            last;
+        }
+        $rc = $grp;
+    }
+    return($rc);
+}
+
+sub hsv_sort_func1
+{
+    $a =~ / h=(\S*) s=(\S*) v=(\S*)/;
+    $ha = $1; $sa = $2; $va = $3;
+    $b =~ / h=(\S*) s=(\S*) v=(\S*)/;
+    $hb = $1; $sb = $2; $vb = $3;
+    #print "h=$ha s=$sa v=$va <===> h=$hb s=$sb v=$vb\n";
+
+    if ( $ha eq "nan")  { $ha = 400; }
+    if ( $hb eq "nan")  { $hb = 400; }
+    if ( $ha < $hb ) {
+        return(-1);
+    }
+    elsif ( $ha == $hb ) {
+        return(0);
+    }
+    else {
+        return(1);
+    }
+}
+
+
+sub hsv_sort_func2
+{
+    my($rc);
+    my($hue_grp_a, $hue_grp_b);
+
+    $a =~ / h=(\S*) s=(\S*) v=(\S*)/;
+    $ha = $1; $sa = $2; $va = $3;
+    $b =~ / h=(\S*) s=(\S*) v=(\S*)/;
+    $hb = $1; $sb = $2; $vb = $3;
+
+    if ( $ha eq "nan")  { $ha = 400; }
+    if ( $hb eq "nan")  { $hb = 400; }
+
+    $hue_grp_a = get_hue_grp($ha);
+    $hue_grp_b = get_hue_grp($hb);
+
+    #print "grpa=$hue_grp_a h=$ha s=$sa v=$va <===> grpb=$hue_grp_b h=$hb s=$sb v=$vb\n";
+
+    if ( ($sa <= 0.22) && ($sb > 0.22) ) {
+        $rc = -1;
+    }
+    elsif ( ($sa > 0.22) && ($sb <= 0.22) ) {
+        $rc = 1;
+    }
+    else {
+        $rc = 0;
+    }
+
+    if ( $rc == 0 ) {
+        if ( $hue_grp_a == $hue_grp_b ) {
+            $rc = 0;
+        }
+        elsif ( $hue_grp_a < $hue_grp_b ) {
+            $rc = -1;
+        }
+        else {
+            $rc = 1;
+        }
+    }
+
+    if ( $rc == 0 ) {
+        if ( (($sa + 0.05) > $sb) &&  (($sa - 0.05) < $sb) ) {
+            $rc = 0;
+        }
+        elsif ( $sa < $sb ) {
+            $rc = -1;
+        }
+        else {
+            $rc = 1;
+        }
+    }
+
+    if ( $rc == 0 ) {
+        if ( (($ha + 4) > $hb) &&  (($ha - 4) < $hb) ) {
+            $rc = 0
+            }
+        elsif ( $ha < $hb ) {
+            $rc = -1;
+        }
+        else {
+            $rc = 1;
+        }        
+    }
+    
+    if ( $rc == 0 ) {
+        if ( $va < $vb ) {
+            $rc = -1;;
+        }
+        elsif ( $va == $vb ) {
+            $rc = 0;;
+        }
+        else {
+            $rc = 1;
+        }
+    }
+
+    return($rc);
+}
+
+while ( <STDIN> ) {
+    chomp($_);
+    if ( /{ \"/ ) {
+        push @color_list, $_;
+    }
+}
+
+#printf("c_list_sz %d\n", scalar @color_list);
+@sorted_color_list = sort hsv_sort_func2 @color_list;
+#printf("sc_list_sz %d\n", scalar @sorted_color_list);
+
+while ( $x = shift @sorted_color_list ) {
+    print "$x\n";
+}

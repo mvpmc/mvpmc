@@ -1,0 +1,61 @@
+#!/usr/local/bin/perl
+
+#  Copyright (C) 2004, John Honeycutt
+#  http://mvpmc.sourceforge.net/
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+
+#####################################################################################
+#
+# Take microwindows nxcolors.h file and compute hsv value for each color.
+# Make a C structure header with color name & RGB value with HSV value as a comment.
+#
+# eg:
+#     #define GR_COLOR_LAVENDER MWRGB(230,230,250)
+# becomes
+#    { "LAVENDER"          , MK_RGB(230,230,250)   }, /* h=240.000000 s=0.080000 v=0.980392 */ 
+#
+# This script requires rgbtohsv.c to convert RBG values to HSV values.
+#
+#####################################################################################
+
+print STDOUT 
+"#define MWRGB(r,g,b)    ( (255<<24) | ((b)<<16) | ((g)<<8) | (r) )
+";
+print STDOUT 
+"typedef struct color_info 
+{
+   char*        name;
+   unsigned int val;
+} color_info;
+
+";
+print STDOUT "const color_info color_list[] = {\n";
+
+while ( <STDIN> ) {
+    chomp($_);
+    if ( /#define GR_COLOR_(.*) (.*)/ ) {
+       $colorstr = "\"" . $1 . "\"";
+       $rgb      = $2;
+       $rgb =~ /^MWRGB\((\d*),(\d*),(\d*)/;
+       $r=$1; $g=$2; $b=$3;
+       $hsv = `rgb2hsv $r $g $b`;
+#       print STDOUT "r=$1 g=$2 b=$3\n";
+#       print STDOUT "   { \"$colorstr\",    $rgb }, /* $hsv */ \n";
+       printf STDOUT ("   { %-20s, %-20s }, /* %s */ \n", $colorstr, $rgb, $hsv);
+    }
+}
+
+print STDOUT "};\n";
