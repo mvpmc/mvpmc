@@ -127,8 +127,10 @@ extern int demux_empty(demux_handle_t *handle);
 extern int demux_flush(demux_handle_t *handle);
 extern void demux_seek(demux_handle_t *handle);
 extern int demux_reset(demux_handle_t *handle);
+extern int demux_attr_reset(demux_handle_t *handle);
 
 extern int demux_spu_set_id(demux_handle_t *handle, int id);
+extern int demux_spu_get_id(demux_handle_t *handle);
 extern spu_item_t* demux_spu_get_next(demux_handle_t *handle);
 extern char* demux_spu_decompress(demux_handle_t *handle, spu_item_t *spu);
 
