@@ -217,7 +217,7 @@ static mvpw_menu_attr_t  rtv_default_menu_attr = {
 	.hilite_fg = MVPW_WHITE,
 	.hilite_bg = MVPW_DARKGREY2,
 	.title_fg = MVPW_WHITE,
-	.title_bg = MVPW_BLUE,
+	.title_bg = 0xff701919, //MIDNIGHTBLUE,
 };
 
 // show browser popup window menu attributes
@@ -231,7 +231,7 @@ static mvpw_menu_attr_t rtv_popup_attr = {
 	.title_fg = MVPW_WHITE,
 	//.title_bg = MVPW_LIGHTGREY,
 	//.title_bg = 0xff08658b,    //DARKGOLDENROD4
-	.title_bg = MVPW_BLUE,
+	.title_bg = 0xff701919, //MIDNIGHTBLUE,
 };
 
 // show browser popup window list item attributes
@@ -257,8 +257,24 @@ static mvpw_menu_item_attr_t device_menu_item_attr = {
    .checkbox_fg = MVPW_GREEN,
 };
 
-// show description window text attributes
-static mvpw_text_attr_t rtv_description_attr = {
+// device description window text attributes
+static mvpw_text_attr_t rtv_device_descr_attr = {
+   .wrap = 1,
+   .justify = MVPW_TEXT_LEFT,
+   .margin = 0,
+   .font = 0,
+   .fg = 0xff8b8b7a,    //LIGHTCYAN4,
+};
+
+static mvpw_graph_attr_t discspace_graph_attr = {
+	.min = 0,
+	.max = 100,
+   .fg = 0xff2626cd, //FIREBRICK3
+//	.fg = 0xff701919, //MIDNIGHTBLUE
+};
+
+// show episode description window text attributes
+static mvpw_text_attr_t rtv_episode_descr_attr = {
    .wrap = 1,
    .justify = MVPW_TEXT_LEFT,
    .margin = 0,
@@ -323,7 +339,18 @@ static mvp_widget_t *rtv_osd_show_descr_widget;           //contained by rtv_osd
 static mvp_widget_t *rtv_popup;                           //show browser popup window
 static mvp_widget_t *rtv_jump_to_time_widget;             //alligned to right of gui.c clock_widget
 static mvp_widget_t *splash;
-//static mvp_widget_t *rtv_message_window;
+
+static struct rtv_device_descr {
+   mvp_widget_t *container;
+   mvp_widget_t *name;
+   mvp_widget_t *model;
+   mvp_widget_t *ipaddr;
+   mvp_widget_t *capacity;
+   mvp_widget_t *inuse;
+   mvp_widget_t *free;
+   mvp_widget_t *percentage;
+   mvp_widget_t *graph;
+} rtv_device_descr;
 
 
 static void free_ndx_chunk(rtv_ndx_info_t *ndx_info);
@@ -581,7 +608,7 @@ static void rtv_video_queue_flush(void)
 }
 
 //+*************************************
-//   Callback functions
+//   Video Callback functions
 //+*************************************
 
 // open callback
@@ -1174,9 +1201,9 @@ static mvp_widget_t* show_message_window(void (*callback)(mvp_widget_t *widget, 
    return(wp);
 }
 
-// guide_hilite_callback()
+// rtv_guide_hilite_callback()
 //
-static void guide_hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
+static void rtv_guide_hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 {
    rtv_show_export_t   *show;
    mvpw_widget_info_t   winfo;
@@ -1240,7 +1267,7 @@ static void guide_hilite_callback(mvp_widget_t *widget, char *item, void *key, i
      
       // display it
       //
-      breakup_string(strp, line_ary, NUM_EPISODE_LINES-2, rtv_description_attr.font, winfo.w);
+      breakup_string(strp, line_ary, NUM_EPISODE_LINES-2, rtv_episode_descr_attr.font, winfo.w);
       for ( x=0; x < NUM_EPISODE_LINES-2; x++ ) {
          mvpw_set_text_str(rtv_episode_line[x+2], line_ary[x]);
       }
@@ -1250,9 +1277,9 @@ static void guide_hilite_callback(mvp_widget_t *widget, char *item, void *key, i
 	}
 }
 
-// guide_select_callback()
+// rtv_guide_select_callback()
 //
-static void guide_select_callback(mvp_widget_t *widget, char *item, void *key)
+static void rtv_guide_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
    // do nothing
    // handled by rtv_browser_key_callback() 
@@ -1281,6 +1308,7 @@ static int rtv_get_guide(mvp_widget_t *widget, rtv_device_t *rtv)
       mvpw_event_flush();
       return(-1);
    }
+   rtv_free_volinfo(&volinfo);
    
    guide = &(rtv->guide);
    if ( (rc = rtv_get_guide_snapshot( &(rtv->device), NULL, guide)) != 0 ) {
@@ -1300,8 +1328,8 @@ static int rtv_get_guide(mvp_widget_t *widget, rtv_device_t *rtv)
    }
    qsort(sorted_show_ptr_list, guide->num_rec_shows, sizeof(sorted_show_ptr_list), sort_shows);
 
-   rtv_default_item_attr.select = guide_select_callback;
-   rtv_default_item_attr.hilite = guide_hilite_callback;
+   rtv_default_item_attr.select = rtv_guide_select_callback;
+   rtv_default_item_attr.hilite = rtv_guide_hilite_callback;
 
    for ( x=0; x < guide->num_rec_shows; x++ ) {
       char title_episode[255];
@@ -1343,6 +1371,78 @@ static void rtv_update_show_browser(rtv_device_t *rtv)
    return;
 }
 
+// rtv_device_hilite_callback()
+//
+static void rtv_device_hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
+{
+   rtv_device_t    *rtv = (rtv_device_t*)key;  
+   char             strp[128];
+   rtv_fs_volume_t  *volinfo;
+   int              percentage;
+   int              rc;
+   double           size_gig, used_gig, free_gig;
+
+
+
+	if (hilite) {
+
+      // Pull volume info for the Video directory. If we get an error the RTV's time is probably off by more
+      // than 40 seconds from ours.
+      //
+      rc = rtv_get_volinfo( &(rtv->device), "/Video", &volinfo );
+      if ( rc != 0 ) {
+         fprintf(stderr, "**ERROR: Failed to access /Video directory for RTV %s\n", rtv->device.name);
+         fprintf(stderr, "         The RTV's clock and this clock must be within 40 seconds of each other\n");
+         show_message_window(msg_win_destroy_any_key_callback, 
+                             "ERROR: ReplayTV /Video dir access failed.\n"
+                             "MVP & ReplayTV clocks must not differ by\n"
+                             "more than 40 seconds.\n"
+                             "Press any key to continue");
+         mvpw_event_flush();
+         volinfo = malloc(sizeof(rtv_fs_volume_t));
+         memset(volinfo, 0,sizeof(rtv_fs_volume_t)); 
+         volinfo->size = 1000000000; 
+         volinfo->used = 1000000000;
+      }
+
+      size_gig   = (double)volinfo->size / (double)(1000 * 1000 * 1000);
+      used_gig   = (double)volinfo->used / (double)(1000 * 1000 * 1000);
+      free_gig   = size_gig - used_gig;
+      percentage = (int)((double)(volinfo->used_k) / (double)(volinfo->size_k) * 100.0);
+      rtv_free_volinfo(&volinfo);
+
+      sprintf(strp, "Name:  %s", rtv->device.name);
+      mvpw_set_text_str(rtv_device_descr.name, strp);
+
+      if ( atoi(rtv->device.modelNumber) == 4999 ) {
+         sprintf(strp, "Model: DVArchive");
+      }
+      else {
+         sprintf(strp, "Model: %s", rtv->device.modelNumber);
+      }
+      mvpw_set_text_str(rtv_device_descr.model, strp);
+
+      sprintf(strp, "IPAddress: %s", rtv->device.ipaddr);
+      mvpw_set_text_str(rtv_device_descr.ipaddr, strp);
+      
+      sprintf(strp, "Capacity: %3.1f GB", size_gig);
+      mvpw_set_text_str(rtv_device_descr.capacity, strp);
+      sprintf(strp, "Used: %3.1f GB", used_gig);
+      mvpw_set_text_str(rtv_device_descr.inuse, strp);
+      sprintf(strp, "Free: %3.1f GB", free_gig);
+      mvpw_set_text_str(rtv_device_descr.free, strp);
+      sprintf(strp, "%d%%", percentage);
+      mvpw_set_text_str(rtv_device_descr.percentage, strp);
+      mvpw_set_graph_current(rtv_device_descr.graph, percentage);
+
+      // display it
+      //
+      mvpw_hide(rtv_device_descr.container);
+      mvpw_show(rtv_device_descr.container);
+	} else {
+	}
+}
+
 //  rtv_device_select_callback()
 //
 static void rtv_device_select_callback(mvp_widget_t *widget, char *item, void *key)
@@ -1359,7 +1459,8 @@ static void rtv_device_select_callback(mvp_widget_t *widget, char *item, void *k
       return;
    }
    
-   mvpw_hide(widget);
+   mvpw_hide(rtv_device_menu);
+   mvpw_hide(rtv_device_descr.container);
    rtv_update_show_browser(rtv);
    return;
 }
@@ -1409,6 +1510,7 @@ static int rtv_back_to_device_menu(mvp_widget_t *widget)
    mvpw_hide(rtv_browser);
    mvpw_hide(rtv_episode_description);
    mvpw_show(rtv_device_menu);
+   mvpw_show(rtv_device_descr.container);
    mvpw_focus(rtv_device_menu);
    rtv_level = RTV_DEVICE_MENU;
    return(0);
@@ -1748,7 +1850,7 @@ int replaytv_device_update(void)
    // Add discovered devices to the list
    //
    device_menu_item_attr.select = rtv_device_select_callback;
-
+   device_menu_item_attr.hilite = rtv_device_hilite_callback;
    for ( idx=0; idx < rtv_devices.num_rtvs; idx++ ) {
       if ( sorted_device_ptr_list[idx]->device.name != NULL ) {
          if ( (atoi(sorted_device_ptr_list[idx]->device.modelNumber) == 4999) && (rtvs_discovered == 0) ) {
@@ -1785,6 +1887,7 @@ int replaytv_hide_device_menu(void)
 {
    mvpw_hide(replaytv_logo);
    mvpw_hide(rtv_device_menu);
+   mvpw_hide(rtv_device_descr.container);
    return(0);
 }
 
@@ -1871,22 +1974,21 @@ int replay_gui_init(void)
    mvpw_set_menu_attr(rtv_browser, &rtv_default_menu_attr);
    mvpw_set_key(rtv_browser, rtv_browser_key_callback);
    
-   // init show info window
+   // init show-browser-episode-info window
    //
    mvpw_get_widget_info(replaytv_logo, &wid);
    mvpw_get_widget_info(rtv_browser, &wid2);
    //printf("logo: x=%d y=%d w=%d h=%d\n", wid.x, wid.y, wid.w, wid.h);
    //printf("brow: x=%d y=%d w=%d h=%d\n", wid2.x, wid2.y, wid2.w, wid2.h);
 
-   rtv_description_attr.font = fontid;
+   rtv_episode_descr_attr.font = fontid;
 
    x = wid.x + 20; // logo x
    y = ((wid.y + wid.h) > (wid2.y + wid2.h)) ?  (wid.y + wid.h) : (wid2.y + wid2.h); // whoever goes farthest down
    y += 10;
    container_y = y;
    w = scr_info.cols - x - 50; // width between logo x:start and right side of screen
-
-   h = mvpw_font_height(rtv_description_attr.font);
+   h = mvpw_font_height(rtv_episode_descr_attr.font);
    //printf("si: x=%d y=%d w=%d h=%d\n", x, y, w, h);
 
    // Set up NUM_EPISODE_LINES for episode description and place in a container widget 
@@ -1894,11 +1996,68 @@ int replay_gui_init(void)
 	rtv_episode_description = mvpw_create_container(NULL, x, container_y, w, h*NUM_EPISODE_LINES, 0x80000000, 0, 0);
    for ( i=0; i < NUM_EPISODE_LINES; i++ ) {
       rtv_episode_line[i] = mvpw_create_text(rtv_episode_description, 0, h*i, w, h, 0, 0, 0);	
-      mvpw_set_text_attr(rtv_episode_line[i], &rtv_description_attr);
+      mvpw_set_text_attr(rtv_episode_line[i], &rtv_episode_descr_attr);
       mvpw_set_text_str(rtv_episode_line[i], "");
       mvpw_show(rtv_episode_line[i]);
       y+=h;
    }
+
+   // init device-browser-info window
+   //
+   mvpw_get_widget_info(replaytv_logo, &wid);
+   mvpw_get_widget_info(rtv_device_menu, &wid2);
+   
+   rtv_device_descr_attr.font = fontid;
+
+   x = wid.x + 20; // logo x
+   y = ((wid.y + wid.h) > (wid2.y + wid2.h)) ?  (wid.y + wid.h) : (wid2.y + wid2.h); // whoever goes farthest down
+   y += 10;
+   container_y = y;
+   w = scr_info.cols - x - 50; // width between logo x:start and right side of screen
+   h = mvpw_font_height(rtv_device_descr_attr.font);
+
+	rtv_device_descr.container = mvpw_create_container(NULL, x, container_y + h, w, h*3, 0x00000000, 0, 0);
+
+   rtv_device_descr.name = mvpw_create_text(rtv_device_descr.container, 0, h*0, w/2, h, 0, 0, 0);	
+   mvpw_set_text_attr(rtv_device_descr.name, &rtv_device_descr_attr);
+   mvpw_set_text_str(rtv_device_descr.name, "");
+   mvpw_show(rtv_device_descr.name);
+
+   rtv_device_descr.model = mvpw_create_text(rtv_device_descr.container, 0, h*1, w/2, h, 0, 0, 0);	
+   mvpw_set_text_attr(rtv_device_descr.model, &rtv_device_descr_attr);
+   mvpw_set_text_str(rtv_device_descr.model, "");
+   mvpw_show(rtv_device_descr.model);
+
+   rtv_device_descr.ipaddr = mvpw_create_text(rtv_device_descr.container, 0, h*2, w/2, h, 0, 0, 0);	
+   mvpw_set_text_attr(rtv_device_descr.ipaddr, &rtv_device_descr_attr);
+   mvpw_set_text_str(rtv_device_descr.ipaddr, "");
+   mvpw_show(rtv_device_descr.ipaddr);
+
+   rtv_device_descr.capacity = mvpw_create_text(rtv_device_descr.container, w/2, h*0, w/2, h, 0, 0, 0);	
+   mvpw_set_text_attr(rtv_device_descr.capacity, &rtv_device_descr_attr);
+   mvpw_set_text_str(rtv_device_descr.capacity, "");
+   mvpw_show(rtv_device_descr.capacity);
+
+   i = mvpw_font_width(rtv_device_descr_attr.font, "XXX%");
+   rtv_device_descr.percentage = mvpw_create_text(rtv_device_descr.container, w-20-i, h*0, i, h, 0, 0, 0);	
+   mvpw_set_text_attr(rtv_device_descr.percentage, &rtv_device_descr_attr);
+   mvpw_set_text_str(rtv_device_descr.percentage, "");
+   mvpw_show(rtv_device_descr.percentage);
+   
+   rtv_device_descr.graph = mvpw_create_graph(rtv_device_descr.container, w/2, h*1, (w/2)-20, h, MVPW_LIGHTGREY, 0, 0);
+	mvpw_set_graph_attr(rtv_device_descr.graph, &discspace_graph_attr);
+   mvpw_show(rtv_device_descr.graph);
+
+   rtv_device_descr.inuse = mvpw_create_text(rtv_device_descr.container, w/2, h*2, w/4, h, 0, 0, 0);	
+   mvpw_set_text_attr(rtv_device_descr.inuse, &rtv_device_descr_attr);
+   mvpw_set_text_str(rtv_device_descr.inuse, "");
+   mvpw_show(rtv_device_descr.inuse);
+   
+   rtv_device_descr.free = mvpw_create_text(rtv_device_descr.container, w-(w/4), h*2, w/4, h, 0, 0, 0);	
+   mvpw_set_text_attr(rtv_device_descr.free, &rtv_device_descr_attr);
+   mvpw_set_text_str(rtv_device_descr.free, "");
+   mvpw_show(rtv_device_descr.free);
+   
 
    // init OSD program(show) info window
    //
