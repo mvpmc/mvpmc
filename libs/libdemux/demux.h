@@ -28,6 +28,7 @@ typedef struct {
 	volatile unsigned int tail;
 	unsigned int size;
 	stream_attr_t *attr;
+	gop_t *gop;
 } stream_t;
 
 struct demux_handle_s {
@@ -42,6 +43,7 @@ struct demux_handle_s {
 	int bufsz;
 	int headernum;
 	int seeking;
+	unsigned int bytes;
 };
 
 #define pack_start_code			0xBA

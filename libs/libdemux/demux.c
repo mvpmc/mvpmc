@@ -246,32 +246,34 @@ demux_get_attr(demux_handle_t *handle)
 int
 demux_buffer_resize(demux_handle_t *handle)
 {
-	int buf_ratio, byte_ratio;
+	float buf_ratio, byte_ratio;
 
 	if ((handle->audio->size == 0) ||
 	    (handle->audio->attr->stats.bytes == 0))
 		return 0;
 
-	buf_ratio = handle->video->size / handle->audio->size;
-	byte_ratio = handle->video->attr->stats.bytes /
+	buf_ratio = (float)handle->video->size / handle->audio->size;
+	byte_ratio = (float)handle->video->attr->stats.bytes /
 		handle->audio->attr->stats.bytes;
 
 	if (byte_ratio > buf_ratio) {
-		int target = (byte_ratio - buf_ratio) / 2;
+		float target = byte_ratio * 0.60;
 
 		if (target != buf_ratio) {
-			int size, asize, vsize;
+			float size;
+			int asize, vsize;
 
 			size = handle->video->size + handle->audio->size;
-			asize = size / (target + 1);
+			asize = size / (target + 0);
 			vsize = size - asize;
 
 			PRINTF("bytes audio %d video %d\n",
 			       handle->audio->attr->stats.bytes,
 			       handle->video->attr->stats.bytes);
-			PRINTF("ratio buf %d byte %d target %d\n",
+			PRINTF("ratio buf %5.2f byte %5.2f target %5.2f\n",
 			       buf_ratio, byte_ratio, target);
-			PRINTF("resize to audio %d video %d\n", asize, vsize);
+			PRINTF("size %5.2f resize to audio %d video %d\n",
+			       size, asize, vsize);
 
 			if (stream_resize(handle->audio,
 					  handle->audio->buf +
@@ -329,15 +331,51 @@ demux_empty(demux_handle_t *handle)
 int
 demux_flush(demux_handle_t *handle)
 {
-	if (handle->audio) {
-		handle->audio->head = 0;
-		handle->audio->tail = handle->audio->size - 1;
-	}
+	PRINTF("%s()\n", __FUNCTION__);
 
 	if (handle->video) {
 		handle->video->head = 0;
 		handle->video->tail = handle->video->size - 1;
+		handle->video->attr->stats.cur_bytes = 0;
 	}
+
+	if (handle->audio) {
+		handle->audio->buf = handle->video->buf + handle->video->size;
+		handle->audio->head = 0;
+		handle->audio->tail = handle->audio->size - 1;
+		handle->audio->attr->stats.cur_bytes = 0;
+	}
+
+	handle->seeking = 1;
+
+	return 0;
+}
+
+int
+demux_reset(demux_handle_t *handle)
+{
+	if (handle->video) {
+		handle->attr.video.bufsz = handle->size / 2;
+		handle->video->size = handle->size / 2;
+
+		handle->video->head = 0;
+		handle->video->tail = handle->video->size - 1;
+		handle->video->attr->stats.cur_bytes = 0;
+	}
+
+	if (handle->audio) {
+		handle->attr.audio.bufsz = handle->size / 2;
+		handle->audio->size = handle->size / 2;
+
+		handle->audio->buf = handle->video->buf + handle->video->size;
+		handle->audio->head = 0;
+		handle->audio->tail = handle->audio->size - 1;
+		handle->audio->attr->stats.cur_bytes = 0;
+	}
+
+	/*
+	 * XXX: reset stats...
+	 */
 
 	handle->seeking = 1;
 

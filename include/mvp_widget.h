@@ -114,12 +114,14 @@ typedef struct {
 	uint32_t 	title_fg;
 	uint32_t 	title_bg;
 	int	 	title_justify;
+	int	 	checkboxes;
 } mvpw_menu_attr_t;
 
 typedef struct {
 	int	 	  selectable;
 	uint32_t 	  fg;
 	uint32_t 	  bg;
+	uint32_t 	  checkbox_fg;
 	void 		(*destroy)(mvp_widget_t*, char*, void*);
 	void 		(*select)(mvp_widget_t*, char*, void*);
 	void 		(*hilite)(mvp_widget_t*, char*, void*, int);
@@ -135,6 +137,7 @@ extern int mvpw_add_menu_item(mvp_widget_t *widget, char *label, void *key,
 			      mvpw_menu_item_attr_t *item_attr);
 extern void mvpw_clear_menu(mvp_widget_t *widget);
 extern int mvpw_delete_menu_item(mvp_widget_t *widget, void *key);
+extern void mvpw_check_menu_item(mvp_widget_t *widget, void *key, int checked);
 
 /*
  * image widget
@@ -144,6 +147,32 @@ extern mvp_widget_t* mvpw_create_image(mvp_widget_t *parent,
 				       uint32_t bg, uint32_t border_color,
 				       int border_size);
 extern int mvpw_set_image(mvp_widget_t *widget, char *file);
+
+/*
+ * graph widget
+ */
+typedef struct {
+	int 		min;
+	int 		max;
+	uint32_t 	fg;
+} mvpw_graph_attr_t;
+
+extern mvp_widget_t* mvpw_create_graph(mvp_widget_t *parent,
+				       int x, int y, int w, int h,
+				       uint32_t bg, uint32_t border_color,
+				       int border_size);
+extern void mvpw_set_graph_attr(mvp_widget_t *widget, mvpw_graph_attr_t *attr);
+extern void mvpw_set_graph_current(mvp_widget_t *widget, int value);
+
+/*
+ * checkbox widget
+ */
+extern mvp_widget_t* mvpw_create_checkbox(mvp_widget_t *parent,
+					  int x, int y, int w, int h,
+					  uint32_t bg, uint32_t border_color,
+					  int border_size);
+extern void mvpw_set_checkbox_fg(mvp_widget_t *widget, uint32_t fg);
+extern void mvpw_set_checkbox(mvp_widget_t *widget, int checked);
 
 /*
  * common colors

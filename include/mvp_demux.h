@@ -23,6 +23,14 @@
 #define MVP_DEMUX_H
 
 typedef struct {
+	unsigned char hour;
+	unsigned char minute;
+	unsigned char second;
+	unsigned char frame;
+	unsigned int offset;
+} gop_t;
+
+typedef struct {
 	int width;
 	int height;
 	int aspect;
@@ -32,6 +40,7 @@ typedef struct {
 typedef struct {
 	unsigned int frames;
 	unsigned int bytes;
+	unsigned int cur_bytes;
 	unsigned int full_count;
 	unsigned int empty_count;
 	unsigned int drain_count;
@@ -52,6 +61,8 @@ typedef struct {
 typedef struct {
 	stream_attr_t audio;
 	stream_attr_t video;
+	int bps;
+	gop_t gop;
 } demux_attr_t;
 
 typedef struct demux_handle_s demux_handle_t;
@@ -74,5 +85,6 @@ extern int demux_buffer_resize(demux_handle_t *handle);
 extern int demux_empty(demux_handle_t *handle);
 extern int demux_flush(demux_handle_t *handle);
 extern void demux_seek(demux_handle_t *handle);
+extern int demux_reset(demux_handle_t *handle);
 
 #endif /* MVP_DEMUX_H */

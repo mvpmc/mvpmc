@@ -31,6 +31,8 @@ typedef enum {
 	MVPW_MENU,
 	MVPW_CONTAINER,
 	MVPW_IMAGE,
+	MVPW_GRAPH,
+	MVPW_CHECKBOX,
 } mvpw_id_t;
 
 typedef struct {
@@ -65,6 +67,7 @@ typedef struct {
 	int		 title_justify;
 	int		 columns;
 	int		 rows;
+	int		 checkboxes;
 
 	mvp_widget_t	*title_widget;
 	mvp_widget_t	*container_widget;
@@ -76,9 +79,12 @@ typedef struct {
 		void		(*hilite)(mvp_widget_t*, char*, void*, int);
 		void		(*destroy)(mvp_widget_t*, char*, void*);
 		mvp_widget_t	 *widget;
+		mvp_widget_t	 *checkbox;
 		int		  selectable;
+		int		  checked;
 		GR_COLOR	  fg;
 		GR_COLOR	  bg;
+		GR_COLOR	  checkbox_fg;
 	} *items;
 } mvpw_menu_t;
 
@@ -89,6 +95,18 @@ typedef struct {
 	int		  stretch;
 	char		 *file;
 } mvpw_image_t;
+
+typedef struct {
+	GR_COLOR	 fg;
+	int		 min;
+	int		 max;
+	int		 current;
+} mvpw_graph_t;
+
+typedef struct {
+	GR_COLOR	 fg;
+	int		 checked;
+} mvpw_checkbox_t;
 
 struct mvp_widget_s {
 	mvpw_id_t	 type;
@@ -124,6 +142,8 @@ struct mvp_widget_s {
 		mvpw_menu_t		menu;
 		mvpw_container_t	container;
 		mvpw_image_t		image;
+		mvpw_graph_t		graph;
+		mvpw_checkbox_t		checkbox;
 	} data;
 };
 

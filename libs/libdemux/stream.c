@@ -101,8 +101,8 @@ stream_resize(stream_t *stream, char *start, int size)
 
 	if (stream->head >= stream->tail) {
 		memmove(start, stream->buf+stream->tail, size);
+		stream->head -= stream->tail;
 		stream->tail = size;
-		stream->head -= (stream->size - size);
 		stream->size = size;
 		stream->buf = start;
 		PRINTF("stream buf 0x%p head %d tail %d size %d\n",
@@ -215,6 +215,7 @@ stream_add(demux_handle_t *handle, stream_t *stream, char *buf, int len)
 	PRINTF("stream size %d head %d tail %d\n", stream->size,
 	       stream->head, stream->tail);
 
+	stream->attr->stats.cur_bytes += (size1 + size2);
 	stream->attr->stats.bytes += (size1 + size2);
 	stream->attr->stats.fill_count++;
 
@@ -284,6 +285,8 @@ stream_drain(stream_t *stream, char *buf, int max)
 	if ((size1 + size2) == 0)
 		stream->attr->stats.empty_count++;
 
+	stream->attr->stats.cur_bytes -= (size1 + size2);
+
 	return size1 + size2;
 }
 
@@ -316,7 +319,7 @@ stream_drain_fd(stream_t *stream, int fd)
 		size2 = stream->head;
 	}
 
-	PRINTF("size1 %d size2 %d\n", size1, size2);
+	PRINTF("%s(): size1 %d size2 %d\n", __FUNCTION__, size1, size2);
 
 	ret = 0;
 	if (size1) {
@@ -346,6 +349,8 @@ stream_drain_fd(stream_t *stream, int fd)
 	else
 		stream->attr->stats.drain_count++;
 
+	stream->attr->stats.cur_bytes -= (size1 + size2);
+
 	return (size1 + size2);
 }
 
@@ -371,6 +376,26 @@ parse_video_frame(demux_handle_t *handle, unsigned char *buf, int len)
 	int hour, minute, second, frame;
 	int ret = -1;
 	video_info_t *vi;
+	int dts, pts;
+	int delta;
+
+	dts = (buf[1] >> 6) & 0x1;
+	pts = (buf[1] >> 7);
+
+	if (dts && pts) {
+		pts = (buf[13] >> 1) |
+			(buf[12] << 7) |
+			((buf[11] >> 1) << 14) |
+			(buf[10] << 22) |
+			(((buf[9] >> 1) & 0x7) << 29);
+		PRINTF("pts 0x%.8x\n", pts);
+		dts = (buf[18] >> 1) |
+			(buf[17] << 7) |
+			((buf[16] >> 1) << 14) |
+			(buf[15] << 22) |
+			(((buf[14] >> 1) & 0x7) << 29);
+		PRINTF("dts 0x%.8x\n", dts);
+	}
 
 	for (i=0; i<(len-4); i++)
 		if ((buf[i] == 0) && (buf[i+1] == 0) &&
@@ -397,6 +422,7 @@ parse_video_frame(demux_handle_t *handle, unsigned char *buf, int len)
 				}
 				if (type == 1)
 					ret = 0;
+				goto out;
 				break;
 			case 0xb3:
 				w = (buf[i+5] >> 4) |
@@ -418,17 +444,44 @@ parse_video_frame(demux_handle_t *handle, unsigned char *buf, int len)
 				hour = (buf[i+4] >> 2) & 0x1f;
 				minute = (buf[i+5] >> 4) |
 					((buf[i+4] & 0x3) << 4);
-				second = ((buf[i+5] & 0x3) << 3) |
+				second = ((buf[i+5] & 0x7) << 3) |
 					(buf[i+6] >> 5);
 				frame = ((buf[i+6] & 0x1f) << 1) |
 					(buf[i+7] >> 7);
 				PRINTF("GOP: %.2d:%.2d:%.2d %d\n",
 				       hour, minute, second, frame);
+				delta = (hour - handle->attr.gop.hour) * 3600 +
+					(minute - handle->attr.gop.minute) * 60 +
+					(second - handle->attr.gop.second);
+				if (handle->seeking == 0) {
+					if (delta > 0) {
+						handle->attr.bps =
+							(handle->bytes -
+							 handle->attr.gop.offset) /
+							delta;
+						PRINTF("BPS: %d\n",
+						       handle->attr.bps);
+						handle->attr.gop.offset = handle->bytes;
+						handle->attr.gop.hour = hour;
+						handle->attr.gop.minute = minute;
+						handle->attr.gop.second = second;
+						handle->attr.gop.frame = frame;
+					}
+					goto out;
+				} else {
+					handle->attr.bps = 0;
+					handle->attr.gop.offset = handle->bytes;
+					handle->attr.gop.hour = hour;
+					handle->attr.gop.minute = minute;
+					handle->attr.gop.second = second;
+					handle->attr.gop.frame = frame;
+				}
 				ret = 0;
 				break;
 			}
 		}
 
+ out:
 	return ret;
 }
 
@@ -602,7 +655,7 @@ parse_frame(demux_handle_t *handle, unsigned char *buf, int len, int type)
 		}
 		break;
 	case video_stream:
-		PRINTF("found video stream\n");
+		PRINTF("found video stream, stream %p\n", handle->video);
 
 		if (((len-ret) + handle->bufsz) >= 2) {
 			n = 2 - handle->bufsz;
@@ -645,8 +698,8 @@ parse_frame(demux_handle_t *handle, unsigned char *buf, int len, int type)
 		handle->attr.video.stats.frames++;
 
 		if (n <= (len-ret)) {
-			if (handle->seeking &&
-			    parse_video_frame(handle, buf, n) == 0) {
+			if ((parse_video_frame(handle, buf, n) == 0) &&
+			    (handle->seeking == 1)) {
 				handle->seeking = 0;
 				header[0] = 0;
 				header[1] = 0;
@@ -804,11 +857,13 @@ add_buffer(demux_handle_t *handle, char *buf, int len)
 		case 4:
 			PRINTF("calling parse_frame() at offset %d\n", ret);
 			n = parse_frame(handle, buf, len-ret, 0);
+			handle->bytes += n;
 			ret += n - 1;
 			buf += n - 1;
 			PRINTF("parse_frame() returned at offset %d\n", ret);
 			if (handle->state != 1) {
 				PRINTF("breaking out of state 4\n");
+				handle->bytes++;
 				ret++;
 				buf++;
 				goto out;
@@ -819,6 +874,7 @@ add_buffer(demux_handle_t *handle, char *buf, int len)
 			handle->state = 1;
 			break;
 		}
+		handle->bytes++;
 		ret++;
 		buf++;
 	}
@@ -895,6 +951,9 @@ start_stream(demux_handle_t *handle, char *buf, int len)
 
 	handle->audio->attr = &handle->attr.audio;
 	handle->video->attr = &handle->attr.video;
+
+	handle->attr.audio.bufsz = n;
+	handle->attr.video.bufsz = n;
 
 	handle->state = 1;
 

@@ -220,7 +220,7 @@ av_pause(void)
 		paused = 1;
 	}
 
-	return 0;
+	return paused;
 }
 
 int
@@ -250,6 +250,12 @@ av_ffwd(void)
 	if (ioctl(fd_video, AV_SET_VID_FFWD, ffwd) < 0)
 		return -1;
 
+	if (ffwd == 0) {
+		if (ioctl(fd_video, AV_SET_VID_PLAY, 0) != 0)
+			return -1;
+		av_sync();
+	}
+
 	return ffwd;
 }
 
@@ -260,6 +266,29 @@ av_stop(void)
 		return -1;
 	if (ioctl(fd_video, AV_SET_VID_RESET, 0x11) < 0)
 		return -1;
+
+	return 0;
+}
+
+int
+av_reset(void)
+{
+	if (ioctl(fd_audio, AV_SET_AUD_RESET, 0x11) < 0)
+		return -1;
+	if (ioctl(fd_video, AV_SET_VID_RESET, 0x11) < 0)
+		return -1;
+
+	if (muted)
+		if (ioctl(fd_audio, AV_SET_AUD_MUTE, 0) < 0)
+			return -1;
+
+	if (ioctl(fd_audio, AV_SET_AUD_PLAY, 0) != 0)
+		return -1;
+	av_sync();
+
+	paused = 0;
+	muted = 0;
+	ffwd = 0;
 
 	return 0;
 }

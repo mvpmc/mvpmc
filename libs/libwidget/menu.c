@@ -60,13 +60,20 @@ static void
 change_items(mvp_widget_t *widget, int first)
 {
 	int i;
-	mvp_widget_t *cw;
+	mvp_widget_t *cw, *cbw;
 
 	if (first < 0)
 		first = 0;
 
-	for (i=0; i<widget->data.menu.nitems; i++)
+	for (i=0; i<widget->data.menu.nitems; i++) {
+		cbw = widget->data.menu.items[i].checkbox;
+		if (cbw) {
+			mvpw_set_checkbox(cbw, 0);
+			mvpw_expose(cbw);
+		}
 		widget->data.menu.items[i].widget = NULL;
+		widget->data.menu.items[i].checkbox = NULL;
+	}
 
 	cw = widget->data.menu.container_widget;
 	for (i=0; i<widget->data.menu.rows; i++) {
@@ -74,6 +81,8 @@ change_items(mvp_widget_t *widget, int first)
 			break;
 		widget->data.menu.items[first].widget =
 			cw->data.container.widgets[i];
+		widget->data.menu.items[first].checkbox =
+			cw->data.container.widgets[i]->attach[MVPW_DIR_LEFT];
 		mvpw_set_bg(widget->data.menu.items[first].widget,
 			    widget->data.menu.items[first].bg);
 		mvpw_set_text_fg(widget->data.menu.items[first].widget,
@@ -83,6 +92,14 @@ change_items(mvp_widget_t *widget, int first)
 		else
 			mvpw_set_text_str(cw->data.container.widgets[i],
 					  widget->data.menu.items[first++].label);
+		if (widget->data.menu.items[i].checkbox) {
+			cbw = widget->data.menu.items[i].checkbox;
+			mvpw_set_checkbox(cbw,
+					  widget->data.menu.items[i].checked);
+			mvpw_set_checkbox_fg(cbw,
+					     widget->data.menu.items[i].checkbox_fg);
+			mvpw_expose(cbw);
+		}
 		mvpw_expose(cw->data.container.widgets[i]);
 	}
 }
@@ -246,7 +263,7 @@ mvpw_add_menu_item(mvp_widget_t *widget, char *label, void *key,
 	GR_COORD w, h;
 	GR_COLOR bg, border_color;
 	GR_FONT_INFO finfo;
-	mvp_widget_t *cw, *tw = NULL;
+	mvp_widget_t *cw, *tw = NULL, *cbw = NULL;
 	mvpw_text_attr_t attr = {
 		.wrap = 0,
 		.justify = MVPW_TEXT_LEFT,
@@ -313,7 +330,17 @@ mvpw_add_menu_item(mvp_widget_t *widget, char *label, void *key,
 	border_size = 0;
 	bg = widget->bg;
 	border_color = widget->border_color;
-	tw = mvpw_create_text(cw, 0, 0, w, h, bg, border_color, border_size);
+
+	if (widget->data.menu.checkboxes) {
+		cbw = mvpw_create_checkbox(cw, 0, 0, h, h, bg,
+					   border_color, border_size);
+		tw = mvpw_create_text(cw, h, 0, w-h, h, bg,
+				      border_color, border_size);
+		mvpw_attach(cbw, tw, MVPW_DIR_RIGHT);
+	} else {
+		tw = mvpw_create_text(cw, 0, 0, w, h, bg,
+				      border_color, border_size);
+	}
 
 	if (i == widget->data.menu.current) {
 		attr.fg = widget->data.menu.hilite_fg;
@@ -336,11 +363,14 @@ mvpw_add_menu_item(mvp_widget_t *widget, char *label, void *key,
 	cw->add_child(cw, tw);
 
 	mvpw_show(tw);
+	if (cbw)
+		mvpw_show(cbw);
 
  out:
 	widget->data.menu.items[i].label = strdup(label);
 	widget->data.menu.items[i].key = key;
 	widget->data.menu.items[i].widget = tw;
+	widget->data.menu.items[i].checkbox = cbw;
 
 	if (item_attr) {
 		widget->data.menu.items[i].select = item_attr->select;
@@ -349,6 +379,8 @@ mvpw_add_menu_item(mvp_widget_t *widget, char *label, void *key,
 		widget->data.menu.items[i].selectable = item_attr->selectable;
 		widget->data.menu.items[i].fg = item_attr->fg;
 		widget->data.menu.items[i].bg = item_attr->bg;
+		widget->data.menu.items[i].checkbox_fg =
+			item_attr->checkbox_fg;
 	}
 
 	widget->data.menu.nitems++;
@@ -365,7 +397,7 @@ mvpw_delete_menu_item(mvp_widget_t *widget, void *key)
 	char *str;
 	void *k;
 	int count = 0, i, j;
-	mvp_widget_t *w;
+	mvp_widget_t *w, *cbw;
 	struct menu_item_s *item;
 
 	for (i=0; i<widget->data.menu.nitems; i++) {
@@ -383,12 +415,20 @@ mvpw_delete_menu_item(mvp_widget_t *widget, void *key)
 				item->widget =
 					widget->data.menu.items[j-1].widget;
 				w = item->widget;
+				cbw = widget->data.menu.items[j-1].checkbox;
 				str = item->label;
 				if (w) {
 					mvpw_set_text_str(w, str);
 					mvpw_set_bg(w, item->bg);
 					mvpw_set_text_fg(w, item->fg);
 					mvpw_expose(w);
+				}
+				if (cbw) {
+					mvpw_set_checkbox(cbw,
+							  item->checked);
+					mvpw_set_checkbox_fg(cbw,
+							     item->checkbox_fg);
+					mvpw_expose(cbw);
 				}
 			}
 			widget->data.menu.nitems--;
@@ -466,9 +506,8 @@ mvpw_set_menu_attr(mvp_widget_t *widget, mvpw_menu_attr_t *attr)
 	widget->data.menu.title_fg = attr->title_fg;
 	widget->data.menu.title_bg = attr->title_bg;
 	widget->data.menu.title_justify = attr->title_justify;
+	widget->data.menu.checkboxes = attr->checkboxes;
 }
-
-
 
 void
 mvpw_clear_menu(mvp_widget_t *widget)
@@ -495,4 +534,26 @@ mvpw_clear_menu(mvp_widget_t *widget)
 	free(widget->data.menu.items);
 	widget->data.menu.nitems = 0;
 	widget->data.menu.current = 0;
+}
+
+void
+mvpw_check_menu_item(mvp_widget_t *widget, void *key, int checked)
+{
+	struct menu_item_s *item;
+	void *k;
+	int i;
+
+	for (i=0; i<widget->data.menu.nitems; i++) {
+		item = widget->data.menu.items + i;
+		k = item->key;
+		if (k == key) {
+			item->checked = checked;
+			if (item->checkbox) {
+				mvpw_set_checkbox_fg(item->checkbox,
+						     item->checkbox_fg);
+				mvpw_set_checkbox(item->checkbox, checked);
+				mvpw_expose(item->checkbox);
+			}
+		}
+	}
 }
