@@ -245,6 +245,8 @@ static int build_playlist_from_file(const char *filename)
 		  pl_item->next = NULL;
 		  pl_item->prev = NULL;
 		  item_attr.select = select_callback;
+		  if (ptr[strlen(ptr)-1] == '\r')
+			  ptr[strlen(ptr)-1] = '\0';
 		  mvpw_add_menu_item(playlist_widget, ptr,
 				     pl_item->key, &item_attr);
 		  if(pl_dest==NULL){
