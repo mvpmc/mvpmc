@@ -45,7 +45,7 @@
 
 #define BSIZE	(512*1024)
 
-static cmyth_file_t file;
+static volatile cmyth_file_t file;
 extern demux_handle_t *handle;
 extern int fd_audio, fd_video;
 
@@ -76,6 +76,7 @@ int running_mythtv = 0;
 int mythtv_debug = 0;
 
 static volatile int playing_via_mythtv = 0, reset_mythtv = 1;
+static volatile int close_mythtv = 0;
 
 static pthread_t control_thread;
 
@@ -106,9 +107,12 @@ static void
 mythtv_close_file(void)
 {
 	if (playing_via_mythtv) {
-		cmyth_file_release(file);
+		cmyth_file_release(control, file);
+		file = NULL;
 		reset_mythtv = 1;
 	}
+
+	close_mythtv = 0;
 }
 
 static void
@@ -304,6 +308,12 @@ mythtv_idle(void)
 	static int len, nput = 0, n;
 	static int tot = 0, recent = 0;
 
+	if (close_mythtv) {
+		nput = 0;
+		cmyth_file_get_block(file, buf, BSIZE);
+		return;
+	}
+
 	if (reset_mythtv) {
 		nput = 0;
 		reset_mythtv = 0;
@@ -444,7 +454,13 @@ hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 		video_clear();
 		mvpw_set_idle(NULL);
 		mvpw_set_timer(root, NULL, 0);
-		mythtv_close_file();
+
+		if (file) {
+			close_mythtv = 1;
+			printf("closing myth file, line %d\n", __LINE__);
+			while (close_mythtv)
+				usleep(1000);
+		}
 	}
 }
 
@@ -652,13 +668,17 @@ mythtv_back(mvp_widget_t *widget)
 	mvpw_show(episodes_widget);
 	mvpw_show(freespace_widget);
 
+	if (file) {
+		close_mythtv = 1;
+		printf("closing myth file, line %d\n", __LINE__);
+		while (close_mythtv)
+			usleep(1000);
+	}
+
 	if (mythtv_level == 0) {
 		running_mythtv = 0;
 		return 0;
 	}
-
-	if (playing_via_mythtv)
-		mythtv_close_file();
 
 	mythtv_level = 0;
 	mythtv_update(widget);
@@ -865,7 +885,9 @@ control_start(void *arg)
 
 		do {
 			len = cmyth_file_request_block(control, file, BSIZE);
-		} while ((len > 0) && (playing_via_mythtv == 1));
+		} while ((len > 0) && (playing_via_mythtv == 1) && (!close_mythtv));
+
+		mythtv_close_file();
 	}
 
 	return NULL;
