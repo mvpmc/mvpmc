@@ -39,6 +39,7 @@ static volatile int widget_count = 0;
 static mvp_widget_t *root;
 
 static void (*idle)(void);
+static void (*keystroke_callback)(void);
 
 static mvp_widget_t*
 find_widget(GR_WINDOW_ID wid)
@@ -441,6 +442,9 @@ keystroke(GR_EVENT_KEYSTROKE *key)
 {
 	mvp_widget_t *widget;
 
+	if (keystroke_callback)
+		keystroke_callback();
+
 	if ((widget=find_widget(key->wid)) == NULL)
 		return;
 
@@ -625,13 +629,15 @@ mvpw_set_idle(void (*callback)(void))
 void
 mvpw_raise(const mvp_widget_t *widget)
 {
-	GrRaiseWindow(widget->wid);
+	if (widget)
+		GrRaiseWindow(widget->wid);
 }
 
 void
 mvpw_lower(const mvp_widget_t *widget)
 {
-	GrLowerWindow(widget->wid);
+	if (widget)
+		GrLowerWindow(widget->wid);
 }
 
 int
@@ -645,4 +651,22 @@ mvpw_visible(const mvp_widget_t *widget)
 		return 1;
 	else
 		return 0;
+}
+
+int
+mvpw_keystroke_callback(void (*callback)(void))
+{
+	keystroke_callback = callback;
+
+	return 0;
+}
+
+mvp_widget_t*
+mvpw_get_focus(void)
+{
+	int wid;
+
+	wid = GrGetFocus();
+
+	return find_widget(wid);
 }

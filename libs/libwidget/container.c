@@ -32,6 +32,8 @@ expose(mvp_widget_t *widget)
 {
 	int i;
 
+	GrClearArea(widget->wid, 0, 0, 0, 0, 1);
+
 	for (i=0; i<widget->data.container.nitems; i++)
 		mvpw_expose(widget->data.container.widgets[i]);
 }
@@ -48,7 +50,7 @@ destroy(mvp_widget_t *widget)
 static void
 key(mvp_widget_t *widget, char c)
 {
-	if (widget->parent->key)
+	if (widget->parent && widget->parent->key)
 		widget->parent->key(widget->parent, c);
 }
 
@@ -80,6 +82,9 @@ mvpw_create_container(mvp_widget_t *parent,
 
 	widget = mvpw_create(parent, x, y, w, h, bg,
 			     border_color, border_size);
+
+	widget->event_mask &= ~GR_EVENT_MASK_EXPOSURE;
+	GrSelectEvents(widget->wid, widget->event_mask);
 
 	list = malloc(sizeof(*list)*32);
 	memset(list, 0, sizeof(*list)*32);

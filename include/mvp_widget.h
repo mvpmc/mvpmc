@@ -57,6 +57,7 @@ extern uint32_t mvpw_get_bg(const mvp_widget_t *widget);
 extern void mvpw_set_timer(mvp_widget_t *widget,
 			   void (*callback)(mvp_widget_t*), uint32_t timeout);
 extern void mvpw_focus(const mvp_widget_t *widget);
+extern mvp_widget_t *mvpw_get_focus(void);
 extern void mvpw_show(const mvp_widget_t *widget);
 extern void mvpw_hide(const mvp_widget_t *widget);
 extern void mvpw_raise(const mvp_widget_t *widget);
@@ -74,6 +75,7 @@ extern void mvpw_set_key(mvp_widget_t *widget,
 			 void (*callback)(mvp_widget_t*, char));
 extern void mvpw_destroy(mvp_widget_t *widget);
 extern int mvpw_visible(const mvp_widget_t *widget);
+extern int mvpw_keystroke_callback(void (*callback)(void));
 
 /*
  * container widget
