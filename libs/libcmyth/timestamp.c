@@ -433,6 +433,7 @@ cmyth_datetime_to_string(char *str, cmyth_timestamp_t ts)
 {
 	struct tm tm_datetime;
 	time_t t_datetime;
+
 	if (!str) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: NULL output string provided\n",
 				  __FUNCTION__);
@@ -443,7 +444,8 @@ cmyth_datetime_to_string(char *str, cmyth_timestamp_t ts)
 				  __FUNCTION__);
 		return -EINVAL;
 	}
-		
+
+	memset(&tm_datetime, 0, sizeof(tm_datetime));
 	tm_datetime.tm_year = ts->timestamp_year - 1900;
 	tm_datetime.tm_mon = ts->timestamp_month - 1;
 	tm_datetime.tm_mday = ts->timestamp_day;
