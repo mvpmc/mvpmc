@@ -284,6 +284,9 @@ cmyth_file_length(cmyth_file_t file)
 int
 cmyth_file_get_block(cmyth_file_t file, char *buf, unsigned long len)
 {
+	if (file == NULL)
+		return -EINVAL;
+
 	return read(file->file_data->conn_fd, buf, len);
 }
 
@@ -291,7 +294,12 @@ int
 cmyth_file_select(cmyth_file_t file, struct timeval *timeout)
 {
 	fd_set fds;
-	int fd = file->file_data->conn_fd;
+	int fd;
+
+	if (file == NULL)
+		return -EINVAL;
+
+	fd = file->file_data->conn_fd;
 
 	FD_ZERO(&fds);
 	FD_SET(fd, &fds);
@@ -387,6 +395,9 @@ cmyth_file_seek(cmyth_conn_t control, cmyth_file_t file, long long offset,
 	long long c;
 	long r;
 	long hi, lo;
+
+	if ((control == NULL) || (file == NULL))
+		return -EINVAL;
 
 	if ((offset == 0) && (whence == SEEK_CUR))
 		return file->file_pos;
