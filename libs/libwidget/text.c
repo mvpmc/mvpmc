@@ -39,6 +39,9 @@ expose(mvp_widget_t *widget)
 	if (widget->data.text.str == NULL)
 		return;
 
+	if (!mvpw_visible(widget))
+		return;
+
 	GrGetFontInfo(widget->data.text.font, &finfo);
 	h       = finfo.height;
 	descent = h - finfo.baseline;
@@ -200,10 +203,14 @@ mvpw_set_text_str(mvp_widget_t *widget, char *str)
 	if (widget->data.text.str && (strcmp(str, widget->data.text.str) == 0))
 		return;
 
-	if (widget->data.text.str)
-		free(widget->data.text.str);
-
-	widget->data.text.str = strdup(str);
+	if (widget->data.text.buflen < (strlen(str)+1)) {
+		if (widget->data.text.str)
+			free(widget->data.text.str);
+		widget->data.text.str = strdup(str);
+		widget->data.text.buflen = strlen(str) + 1;
+	} else {
+		strcpy(widget->data.text.str, str);
+	}
 
 	expose(widget);
 }

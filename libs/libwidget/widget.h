@@ -52,6 +52,7 @@ typedef struct {
 	GR_COLOR	 fg;
 	GR_COLOR	 text_bg;
 	int		 rounded;
+	int		 buflen;
 
 	void (*callback_key)(char*, char);
 } mvpw_text_t;
