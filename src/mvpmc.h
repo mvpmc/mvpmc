@@ -117,7 +117,7 @@ extern playlist_t *playlist;
 
 extern char *imagedir;
 
-extern int fontid;
+extern int fontid, big_font;
 extern mvpw_screen_info_t si;
 
 extern int running_mythtv;

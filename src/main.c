@@ -45,7 +45,7 @@
 char *mythtv_server = NULL;
 char *replaytv_server = NULL;
 
-int fontid;
+int fontid, big_font;
 extern demux_handle_t *handle;
 
 char *mythtv_recdir = NULL;
@@ -302,6 +302,8 @@ main(int argc, char **argv)
 
 	if (font)
 		fontid = mvpw_load_font(font);
+	if ((big_font=mvpw_load_font("/etc/helvB18.pcf")) <= 0)
+		big_font = fontid;
 
 	if (av_init() < 0) {
 		fprintf(stderr, "failed to initialize av hardware!\n");

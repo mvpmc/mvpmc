@@ -73,6 +73,7 @@ static mvpw_menu_attr_t attr = {
 	.hilite_bg = MVPW_WHITE,
 	.title_fg = MVPW_WHITE,
 	.title_bg = MVPW_BLUE,
+	.rounded = 1,
 };
 
 static mvpw_menu_item_attr_t popup_item_attr = {
@@ -1450,7 +1451,8 @@ static int
 about_init(void)
 {
 	int h, w, x, y;
-	char buf[] = "MediaMVP Media Center\n"
+	char text[256];
+	char buf[] = 
 		"http://mvpmc.sourceforge.net/\n\n"
 		"Audio: mp3, ogg, wav, ac3\n"
 		"Video: mpeg1, mpeg2\n"
@@ -1461,11 +1463,20 @@ about_init(void)
 
 	about_attr.font = fontid;
 	h = (mvpw_font_height(about_attr.font) +
-	     (2 * 2)) * 8;
+	     (2 * 2)) * 9;
 	w = 500;
 
 	x = (si.cols - w) / 2;
 	y = (si.rows - h) / 2;
+
+	if (version[0] == '\0') {
+		snprintf(text, sizeof(text),
+			 "MediaMVP Media Center\n%s", buf);
+	} else {
+		snprintf(text, sizeof(text),
+			 "MediaMVP Media Center\nVersion %s\n%s",
+			 version, buf);
+	}
 
 	about = mvpw_create_dialog(NULL, x, y, w, h, MVPW_LIGHTGREY,
 				   MVPW_BLUE, 2);
@@ -1473,7 +1484,7 @@ about_init(void)
 	mvpw_set_dialog_attr(about, &about_attr);
 
 	mvpw_set_dialog_title(about, "About");
-	mvpw_set_dialog_text(about, buf);
+	mvpw_set_dialog_text(about, text);
 
 	mvpw_set_key(about, warn_key_callback);
 
@@ -1637,7 +1648,7 @@ mw_init(char *server, char *replaytv)
 		snprintf(buf, sizeof(buf), "MediaMVP Media Center\n%s",
 			 compile_time);
 
-	splash_attr.font = fontid;
+	splash_attr.font = big_font;
 	h = (mvpw_font_height(splash_attr.font) +
 	     (2 * splash_attr.margin)) * 3;
 	w = mvpw_font_width(fontid, buf) + 8;
