@@ -417,8 +417,10 @@ mythtv_update(mvp_widget_t *widget)
 	mvpw_set_text_str(episodes_widget, buf);
 
 	if (cmyth_conn_get_freespace(control, &total, &used) == 0) {
-		snprintf(buf, sizeof(buf), "Diskspace: %d/%d  %5.2f%%",
-			 used, total, ((float)used/total)*100.0);
+		snprintf(buf, sizeof(buf),
+			 "Diskspace: %5.2f GB (%5.2f%%) free",
+			 (total-used)/1024.0,
+			 100.0-((float)used/total)*100.0);
 		mvpw_set_text_str(freespace_widget, buf);
 	}
 
