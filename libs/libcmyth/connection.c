@@ -517,17 +517,21 @@ cmyth_conn_connect_file(cmyth_proginfo_t prog, unsigned buflen)
  * Failure: NULL cmyth_conn_t
  */
 cmyth_conn_t
-cmyth_conn_connect_ring(char *server, unsigned short port, unsigned buflen,
-						cmyth_recorder_t rec)
+cmyth_conn_connect_ring(cmyth_recorder_t rec, unsigned buflen)
 {
 	cmyth_conn_t conn;
 	char *announcement;
 	int ann_size = sizeof("ANN RingBuffer  ");
+	char *server;
+	unsigned short port;
 
 	if (!rec) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: rec is NULL\n", __FUNCTION__);
 		return NULL;
 	}
+
+	server = rec->rec_server;
+	port = rec->rec_port;
 
 	conn = cmyth_connect(server, port, buflen);
 	if (!conn) {
@@ -675,8 +679,70 @@ cmyth_conn_get_recorder_from_num(cmyth_conn_t conn,
  * Failure: -(errno)
  */
 cmyth_recorder_t
-cmyth_conn_get_free_recorder(cmyth_conn_t conn, cmyth_recorder_t rec)
+cmyth_conn_get_free_recorder(cmyth_conn_t conn)
 {
+	int err, count;
+	int r;
+	long port, id;
+	long c;
+	char msg[256];
+	char reply[256];
+	cmyth_recorder_t rec = NULL;
+
+	if (!conn) {
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: no connection\n",
+			  __FUNCTION__);
+		return NULL;
+	}
+
+	pthread_mutex_lock(&mutex);
+
+	if ((rec=cmyth_recorder_create()) == NULL)
+		goto fail;
+
+	snprintf(msg, sizeof(msg), "GET_FREE_RECORDER");
+
+	if ((err = cmyth_send_message(conn, msg)) < 0) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_send_message() failed (%d)\n",
+			  __FUNCTION__, err);
+		goto fail;
+	}
+
+	count = cmyth_rcv_length(conn);
+	if ((r=cmyth_rcv_long(conn, &err, &id, count)) < 0) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_rcv_long() failed (%d)\n",
+			  __FUNCTION__, r);
+		goto fail;
+	}
+	count -= r;
+	r = cmyth_rcv_string(conn, &err, reply, sizeof(reply)-1, count); 
+	count -= r;
+	if ((r=cmyth_rcv_long(conn, &err, &port, count)) < 0) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_rcv_long() failed (%d)\n",
+			  __FUNCTION__, r);
+		goto fail;
+	}
+
+	if (port == -1)
+		goto fail;
+
+	rec->rec_id = id;
+	rec->rec_server = strdup(reply);
+	rec->rec_port = port;
+
+	pthread_mutex_unlock(&mutex);
+
+	return rec;
+
+ fail:
+	if (rec)
+		cmyth_recorder_release(rec);
+
+	pthread_mutex_unlock(&mutex);
+
 	return NULL;
 }
 

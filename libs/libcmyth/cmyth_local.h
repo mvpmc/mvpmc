@@ -168,10 +168,8 @@ struct cmyth_recorder {
 
 struct cmyth_ringbuf {
 	char *ringbuf_url;
-	unsigned ringbuf_id;
 	unsigned long long ringbuf_size;
-	unsigned long long ringbuf_start;
-	unsigned long long ringbuf_end;
+	unsigned long long ringbuf_fill;
 	cmyth_atomic_t refcount;
 };
 

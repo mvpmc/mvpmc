@@ -29,6 +29,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <errno.h>
 #include <cmyth.h>
 #include <cmyth_local.h>
 
@@ -57,10 +58,8 @@ cmyth_ringbuf_create(void)
 	}
 
 	ret->ringbuf_url = NULL;
-	ret->ringbuf_id = 0;
 	ret->ringbuf_size = 0;
-	ret->ringbuf_start = 0;
-	ret->ringbuf_end = 0;
+	ret->ringbuf_fill = 0;
 	cmyth_atomic_set(&ret->refcount, 1);
 	return ret;
 }
@@ -157,3 +156,67 @@ cmyth_ringbuf_release(cmyth_ringbuf_t p)
 	}
 }
 
+int
+cmyth_ringbuf_setup(cmyth_conn_t control, cmyth_recorder_t rec,
+		    cmyth_ringbuf_t ring)
+{
+	int err, count;
+	int r;
+	long c, ret;
+	long long size, fill;
+	char msg[256];
+	char url[1024];
+
+	if (!control || !rec || !ring) {
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: no recorder connection\n",
+			  __FUNCTION__);
+		return -EINVAL;
+	}
+
+	pthread_mutex_lock(&mutex);
+
+	snprintf(msg, sizeof(msg),
+		 "QUERY_RECORDER %ld[]:[]SETUP_RING_BUFFER[]:[]0",
+		 rec->rec_id);
+
+	if ((err=cmyth_send_message(control, msg)) < 0) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_send_message() failed (%d)\n",
+			  __FUNCTION__, err);
+		ret = err;
+		goto out;
+	}
+
+	count = cmyth_rcv_length(control);
+
+	r = cmyth_rcv_string(control, &err, url, sizeof(url)-1, count); 
+	count -= r;
+
+	if ((r=cmyth_rcv_long_long(control, &err, &size, count)) < 0) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_rcv_length() failed (%d)\n",
+			  __FUNCTION__, r);
+		ret = err;
+		goto out;
+	}
+	count -= r;
+
+	if ((r=cmyth_rcv_long_long(control, &err, &fill, count)) < 0) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_rcv_length() failed (%d)\n",
+			  __FUNCTION__, r);
+		ret = err;
+		goto out;
+	}
+
+	ring->ringbuf_url = strdup(url);
+	ring->ringbuf_size = size;
+	ring->ringbuf_fill = fill;
+
+	ret = 0;
+
+ out:
+	pthread_mutex_unlock(&mutex);
+
+	return ret;
+}
