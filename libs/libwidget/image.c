@@ -66,6 +66,13 @@ mvpw_set_image(mvp_widget_t *widget, char *file)
 	GR_WINDOW_ID wid;
 	GR_WM_PROPERTIES props;
 
+	if (widget->data.image.pid)
+		GrDestroyWindow(widget->data.image.pid);
+	if (widget->data.image.wid)
+		GrDestroyWindow(widget->data.image.wid);
+	widget->data.image.wid = 0;
+	widget->data.image.pid = 0;
+
 	if ((iid=GrLoadImageFromFile(file, 0)) == 0)
 		return -1;
 
@@ -86,6 +93,9 @@ mvpw_set_image(mvp_widget_t *widget, char *file)
         GrSetWMProperties(wid, &props);
 
 	GrMapWindow(wid);
+
+	widget->data.image.wid = wid;
+	widget->data.image.pid = pid;
 
 	return 0;
 }

@@ -107,6 +107,8 @@ typedef struct {
 	uint32_t 	fg;
 	uint32_t 	hilite_fg;
 	uint32_t 	hilite_bg;
+	uint32_t 	title_fg;
+	uint32_t 	title_bg;
 } mvpw_menu_attr_t;
 
 extern mvp_widget_t *mvpw_create_menu(mvp_widget_t *parent,
@@ -128,5 +130,27 @@ extern mvp_widget_t* mvpw_create_image(mvp_widget_t *parent,
 				       uint32_t bg, uint32_t border_color,
 				       int border_size);
 extern int mvpw_set_image(mvp_widget_t *widget, char *file);
+
+/*
+ * common colors
+ */
+#define MVPW_TRANSPARENT	MVPW_RGBA(0,0,0,0)
+#define MVPW_RED		MVPW_RGBA(255,0,0,255)
+#define MVPW_GREEN		MVPW_RGBA(0,255,0,255)
+#define MVPW_BLUE		MVPW_RGBA(0,0,255,255)
+#define MVPW_WHITE		MVPW_RGBA(255,255,255,255)
+#define MVPW_BLACK		MVPW_RGBA(0,0,0,255)
+#define MVPW_ORANGE		MVPW_RGBA(255,110,0,255)
+#define MVPW_LIGHTGREY		MVPW_RGBA(128,128,128,255)
+#define MVPW_DARKGREY		MVPW_RGBA(96,96,96,255)
+#define MVPW_DARKGREY2		MVPW_RGBA(64,64,64,255)
+
+#define MVPW_RGBA(r,g,b,a)	((a<<24) | (b<<16) | (g<<8) | r)
+
+static inline unsigned long
+mvpw_rgba(unsigned char r, unsigned char g, unsigned char b, unsigned char a)
+{
+	return (a<<24) | (b<<16) | (g<<8) | r;
+}
 
 #endif /* MVP_WIDGET_H */

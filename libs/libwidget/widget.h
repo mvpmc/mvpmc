@@ -60,6 +60,8 @@ typedef struct {
 	GR_COLOR	 fg;
 	GR_COLOR	 hilite_fg;
 	GR_COLOR	 hilite_bg;
+	GR_COLOR	 title_fg;
+	GR_COLOR	 title_bg;
 	int		 columns;
 	int		 rows;
 
@@ -77,6 +79,8 @@ typedef struct {
 
 typedef struct {
 	GR_IMAGE_ID	  iid;
+	GR_WINDOW_ID	  wid;
+	GR_WINDOW_ID	  pid;
 	int		  stretch;
 	char		 *file;
 } mvpw_image_t;
@@ -84,6 +88,7 @@ typedef struct {
 struct mvp_widget_s {
 	mvpw_id_t	 type;
 	GR_WINDOW_ID	 wid;
+	GR_TIMER_ID	 tid;
 	mvp_widget_t	*parent;
 	GR_COORD	 x;
 	GR_COORD	 y;
@@ -113,6 +118,7 @@ struct mvp_widget_s {
 		mvpw_text_t		text;
 		mvpw_menu_t		menu;
 		mvpw_container_t	container;
+		mvpw_image_t		image;
 	} data;
 };
 

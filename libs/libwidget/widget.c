@@ -284,11 +284,11 @@ mvpw_attach(mvp_widget_t *w1, mvp_widget_t *w2, int direction)
 		break;
 	case MVPW_DIR_LEFT:
 		x = w1->x - w1->width;
-		y = w2->y;
+		y = w1->y;
 		break;
 	case MVPW_DIR_RIGHT:
 		x = w1->x + w1->width;
-		y = w2->y;
+		y = w1->y;
 		break;
 	}
 
@@ -452,10 +452,16 @@ mvpw_set_timer(mvp_widget_t *widget, void (*callback)(mvp_widget_t*),
 {
 	widget->callback_timer = callback;
 
-	widget->event_mask |= GR_EVENT_MASK_TIMER;
-	GrSelectEvents(widget->wid, widget->event_mask);
+	if (callback == NULL) {
+		widget->event_mask &= ~GR_EVENT_MASK_TIMER;
+		GrSelectEvents(widget->wid, widget->event_mask);
+		GrDestroyTimer(widget->tid);
+	} else {
+		widget->event_mask |= GR_EVENT_MASK_TIMER;
+		GrSelectEvents(widget->wid, widget->event_mask);
+		widget->tid = GrCreateTimer(widget->wid, timeout);
+	}
 
-	GrCreateTimer(widget->wid, timeout);
 }
 
 int
@@ -505,7 +511,9 @@ mvpw_init(void)
 	add_widget(root);
 
 	GrSetWindowBackgroundColor(GR_ROOT_WINDOW_ID, 0);
-	GrSelectEvents(GR_ROOT_WINDOW_ID, GR_EVENT_MASK_KEY_DOWN);
+
+	root->event_mask = GR_EVENT_MASK_KEY_DOWN | GR_EVENT_MASK_TIMER;
+	GrSelectEvents(GR_ROOT_WINDOW_ID, root->event_mask);
 
 	return 0;
 }

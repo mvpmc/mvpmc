@@ -33,6 +33,8 @@ static int fd_video = -1;
 static int fd_audio = -1;
 static int pal_mode, aspect;
 static int paused = 0;
+static int muted = 0;
+static int ffwd = 0;
 
 static int
 init_mtd1(void)
@@ -177,6 +179,8 @@ av_play(void)
 		return -1;
 
 	paused = 0;
+	muted = 0;
+	ffwd = 0;
 
 	return 0;
 }
@@ -205,6 +209,7 @@ av_pause(void)
 		av_play();
 		av_sync();
 		paused = 0;
+		muted = 0;
 	} else {
 		if (ioctl(fd_audio, AV_SET_AUD_MUTE, 1) < 0)
 			return -1;
@@ -216,6 +221,36 @@ av_pause(void)
 	}
 
 	return 0;
+}
+
+int
+av_mute(void)
+{
+	if (muted) {
+		if (ioctl(fd_audio, AV_SET_AUD_MUTE, 0) < 0)
+			return -1;
+		muted = 0;
+	} else {
+		if (ioctl(fd_audio, AV_SET_AUD_MUTE, 1) < 0)
+			return -1;
+		muted = 1;
+	}
+
+	return muted;
+}
+
+int
+av_ffwd(void)
+{
+	if (ffwd == 0)
+		ffwd = 1;
+	else
+		ffwd = 0;
+
+	if (ioctl(fd_video, AV_SET_VID_FFWD, ffwd) < 0)
+		return -1;
+
+	return ffwd;
 }
 
 int

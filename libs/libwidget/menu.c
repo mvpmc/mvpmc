@@ -325,7 +325,7 @@ mvpw_set_menu_title(mvp_widget_t *widget, char *title)
 		.justify = MVPW_TEXT_LEFT,
 		.margin = 4,
 		.font = widget->data.menu.font,
-		.fg = 0xff000000,
+		.fg = widget->data.menu.title_fg,
 	};
 
 	widget->data.menu.title = strdup(title);
@@ -337,7 +337,7 @@ mvpw_set_menu_title(mvp_widget_t *widget, char *title)
 	w = widget->width;
 	h = finfo.height + (attr.margin * 2);
 
-	bg = widget->bg;
+	bg = widget->data.menu.title_bg;
 	border_color = widget->border_color;
 	border_size = widget->border_size;
 
@@ -360,6 +360,8 @@ mvpw_set_menu_attr(mvp_widget_t *widget, mvpw_menu_attr_t *attr)
 	widget->data.menu.fg = attr->fg;
 	widget->data.menu.hilite_fg = attr->hilite_fg;
 	widget->data.menu.hilite_bg = attr->hilite_bg;
+	widget->data.menu.title_fg = attr->title_fg;
+	widget->data.menu.title_bg = attr->title_bg;
 }
 
 void
@@ -371,7 +373,6 @@ mvpw_clear_menu(mvp_widget_t *widget)
 		if (widget->data.menu.items[i].widget) {
 			mvpw_set_text_str(widget->data.menu.items[i].widget,
 					  "");
-			hilite_item(widget, i, 0);
 			mvpw_expose(widget->data.menu.items[i].widget);
 		}
 	}
