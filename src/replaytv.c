@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2004, Jon Gettler
+ *  Copyright (C) 2004, Jon Gettler, John Honeycutt
  *  http://mvpmc.sourceforge.net/
  *
  *  Code based on ReplayPC:
@@ -18,14 +18,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
- */
-
-/*
- * WARNING: This is simply a proof-of-concept hack!
- *
- * This code seems to work with DVArchive 3.1.  I've been told that it does
- * not work with series 5000 ReplayTVs.  I assume the replaypc library needs
- * to be fixed.
  */
 
 #ident "$Id$"
@@ -75,8 +67,8 @@ static mvpw_menu_item_attr_t item_attr = {
 extern int fd_audio, fd_video;
 extern demux_handle_t *handle;
 
-static int playing = 0;
-
+static int playing    = 0;
+static int abort_read = 0;
 
 // Top level replayTV structure
 static rtv_device_t rtv_top[10];
@@ -134,7 +126,7 @@ write_start(void *arg)
 }
 #endif
 
-static void GetMpgCallback(unsigned char * buf, size_t len, void * vd)
+static int GetMpgCallback(unsigned char * buf, size_t len, void * vd)
 {
         int nput = 0, n;
 
@@ -146,13 +138,11 @@ static void GetMpgCallback(unsigned char * buf, size_t len, void * vd)
                         nput += n;
                 else
                         usleep(1000);
-
-                pthread_testcancel();
+                if ( abort_read == 1 ) {
+                   return(1);
+                }
         }
-        //JBH: Fixme
-        //We should call free here but somehow it doesn't matter
-        //If we do call free here then mvpmc cores when the OSD button is pressed.
-        //free(buf);
+        return(0);
 }
 
 void GetMpgFile(char *IPAddress, char *FileName, int ToStdOut) 
@@ -189,7 +179,7 @@ read_start(void *arg)
 	pthread_mutex_lock(&mutex);
 
 	GetMpgFile(replaytv_server, (char*)arg, 0);
-
+   pthread_exit(NULL);
 	return NULL;
 }
 
@@ -205,8 +195,8 @@ old_select_callback(mvp_widget_t *widget, char *item, void *key)
 	av_play();
 	demux_reset(handle);
 
+   abort_read = 0;
 	pthread_create(&read_thread, NULL, read_start, (void*)item);
-
 	playing = 1;
 }
 
@@ -226,8 +216,8 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 	av_play();
 	demux_reset(handle);
 
+   abort_read = 0;
 	pthread_create(&read_thread, NULL, read_start, (void*)show->file_name);
-
 	playing = 1;
 }
 
@@ -339,11 +329,13 @@ replaytv_update(mvp_widget_t *widget)
 void
 replaytv_stop(void)
 {
+   printf("In replaytv_stop\n");
 	running_replaytv = 0;
+   abort_read       = 1;
 
-	if (playing) {
-		pthread_cancel(read_thread);
-
-		playing = 0;
-	}
+   if (playing) {
+      pthread_join(read_thread, NULL);
+      playing    = 0;
+      abort_read = 0;
+   }
 }
