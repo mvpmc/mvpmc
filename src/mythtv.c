@@ -420,7 +420,8 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 		subtitle = cmyth_proginfo_subtitle(episode_prog);
 
 		if (strcmp(title, item) == 0) {
-			if (strcmp(subtitle, " ") == 0)
+			if ((strcmp(subtitle, " ") == 0) ||
+			    (subtitle[0] == '\0'))
 				subtitle = "<no subtitle>";
 			mvpw_add_menu_item(widget, subtitle, (void*)n,
 					   &item_attr);
