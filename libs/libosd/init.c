@@ -1,0 +1,178 @@
+/*
+ *  Copyright (C) 2004, Jon Gettler
+ *  http://mvpmc.sourceforge.net/
+ *
+ *  This library is free software; you can redistribute it and/or
+ *  modify it under the terms of the GNU Lesser General Public
+ *  License as published by the Free Software Foundation; either
+ *  version 2.1 of the License, or (at your option) any later version.
+ *
+ *  This library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ *  Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public
+ *  License along with this library; if not, write to the Free Software
+ *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
+
+#ident "$Id$"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <sys/ioctl.h>
+
+#include "mvp_osd.h"
+
+#include "surface.h"
+#include "osd.h"
+
+#if 0
+#define PRINTF(x...) printf(x)
+#else
+#define PRINTF(x...)
+#endif
+
+int stbgfx = -1;
+
+/*
+ * RGB to YUV conversion tables
+ */
+static int conv_YB[256];
+static int conv_YG[256];
+static int conv_YR[256];
+static int conv_UB[256];
+static int conv_UG[256];
+static int conv_UR[256];
+static int conv_VB[256];
+static int conv_VG[256];
+static int conv_VR[256];
+
+static int conv_BY[256];
+static int conv_GY[256];
+static int conv_RY[256];
+static int conv_BU[256];
+static int conv_GU[256];
+static int conv_RU[256];
+static int conv_BV[256];
+static int conv_GV[256];
+static int conv_RV[256];
+
+/*
+ * gfx_init() - initialize the RGB to YUV conversion tables
+ */
+void
+gfx_init(void)
+{
+	int i;
+
+	PRINTF("gfx_init(): initialize\n");
+
+	for (i=0; i<256; i++) {
+		conv_YB[i] = 0.299 * (double)i;
+		conv_BY[i] = i;
+	}
+	for (i=0; i<256; i++) {
+		conv_YG[i] = 0.587 * (double)i;
+		conv_GY[i] = i;
+	}
+	for (i=0; i<256; i++) {
+		conv_YR[i] = 0.114 * (double)i;
+		conv_RY[i] = i;
+	}
+
+	for (i=0; i<256; i++) {
+		conv_UB[i] = 0.62 * (double)i;
+		conv_BU[i] = 1.732 * (i - 128);
+	}
+	for (i=0; i<256; i++) {
+		conv_UG[i] = -0.52 * (double)i;
+		conv_GU[i] = -0.338 * (i - 128);
+	}
+	for (i=0; i<256; i++) {
+		conv_UR[i] = 0.10 * (double)i;
+		conv_RU[i] = 0;
+	}
+
+	for (i=0; i<256; i++) {
+		conv_VB[i] = -0.15 * (double)i;
+		conv_BV[i] = 0;
+	}
+	for (i=0; i<256; i++) {
+		conv_VG[i] = -0.29 * (double)i;
+		conv_GV[i] = -0.698 * (i - 128);
+	}
+	for (i=0; i<256; i++) {
+		conv_VR[i] = 0.44 * (double)i;
+		conv_RV[i] = 1.370 * ((double)i - 128);
+	}
+}
+
+/*
+ * rgb2yuv() - convert an RGB pixel to YUV
+ */
+void
+rgb2yuv(unsigned char r, unsigned char g, unsigned char b,
+	unsigned char *y, unsigned char *u, unsigned char *v)
+{
+	int Y, U, V;
+
+	Y = conv_YB[b] + conv_YG[g] + conv_YR[r];
+	U = conv_UB[b] + conv_UG[g] + conv_UR[r] + 128;
+	V = conv_VB[b] + conv_VG[g] + conv_VR[r] + 128;
+
+	if (Y > 255)
+		Y = 255;
+	else if (Y < 0)
+		Y = 0;
+	if (U > 255)
+		U = 255;
+	else if (U < 0)
+		U = 0;
+	if (V > 255)
+		V = 255;
+	else if (V < 0)
+		V = 0;
+
+	*y = Y;
+	*u = U;
+	*v = V;
+}
+
+/*
+ * yuv2rgb() - convert a YUV pixel to RGB
+ *
+ * XXX: This does not work yet.  None of the YUV to RGB conversion functions
+ *      that I have found seem to work.
+ */
+void
+yuv2rgb(unsigned char y, unsigned char u, unsigned char v,
+	unsigned char *r, unsigned char *g, unsigned char *b)
+{
+	int R, G, B;
+
+	R = conv_RY[y] + conv_RU[u] + conv_RV[v];
+	G = conv_GY[y] + conv_GU[u] + conv_GV[v];
+	B = conv_BY[y] + conv_BU[u] + conv_BV[v];
+
+	if (R > 255)
+		R = 255;
+	else if (R < 0)
+		R = 0;
+	if (G > 255)
+		G = 255;
+	else if (G < 0)
+		G = 0;
+	if (B > 255)
+		B = 255;
+	else if (B < 0)
+		B = 0;
+
+	*r = R;
+	*g = G;
+	*b = B;
+}
