@@ -410,6 +410,8 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 	int err, count, i, n = 0, episodes = 0;
 	char buf[256];
 
+	busy_start();
+
 	pthread_mutex_lock(&myth_mutex);
 
 	mythtv_state = MYTHTV_STATE_EPISODES;
@@ -477,12 +479,16 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 
 	pthread_mutex_unlock(&myth_mutex);
 
+	busy_end();
+
 	return;
 
  err:
 	pthread_mutex_unlock(&myth_mutex);
 
 	mythtv_shutdown();
+
+	busy_end();
 }
 
 static void
@@ -571,7 +577,9 @@ mythtv_update(mvp_widget_t *widget)
 
 	mvpw_set_menu_title(widget, "MythTV");
 	mvpw_clear_menu(widget);
+	busy_start();
 	add_shows(widget);
+	busy_end();
 
 	snprintf(buf, sizeof(buf), "Total shows: %d", show_count);
 	mvpw_set_text_str(shows_widget, buf);
@@ -616,7 +624,6 @@ mythtv_back(mvp_widget_t *widget)
 	mvpw_show(episodes_widget);
 	mvpw_show(freespace_widget);
 
-	printf("%s(): state %d\n", __FUNCTION__, mythtv_state);
 	if ((mythtv_state == MYTHTV_STATE_PROGRAMS) ||
 	    (mythtv_state == MYTHTV_STATE_PENDING)) {
 		return 0;

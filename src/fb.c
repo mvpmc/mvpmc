@@ -145,8 +145,10 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 		mvpw_clear_menu(widget);
 		mvpw_set_menu_title(widget, cwd);
 
+		busy_start();
 		add_dirs(widget);
 		add_files(widget);
+		busy_end();
 
 		mvpw_expose(widget);
 	} else {
@@ -297,8 +299,10 @@ fb_update(mvp_widget_t *fb)
 	mvpw_clear_menu(fb);
 	mvpw_set_menu_title(fb, cwd);
 
+	busy_start();
 	add_dirs(fb);
 	add_files(fb);
+	busy_end();
 
 	return 0;
 }

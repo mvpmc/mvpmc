@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <pthread.h>
 
 #ifndef MVPMC_HOST
 #include <sys/reboot.h>
@@ -206,6 +207,22 @@ static mvpw_graph_attr_t offset_graph_attr = {
 	.fg = mvpw_color_alpha(MVPW_RED, 0x80),
 };
 
+static mvpw_graph_attr_t busy_graph_attr = {
+	.min = 0,
+	.max = 10,
+	.gradient = 1,
+	.left = MVPW_BLACK,
+	.right = MVPW_RED,
+};
+
+static mvpw_text_attr_t busy_text_attr = {
+	.wrap = 0,
+	.justify = MVPW_TEXT_CENTER,
+	.margin = 6,
+	.font = 0,
+	.fg = MVPW_WHITE,
+};
+
 static mvpw_graph_attr_t splash_graph_attr = {
 	.min = 0,
 	.max = 17,
@@ -242,6 +259,8 @@ static mvp_widget_t *replaytv_image;
 static mvp_widget_t *about_image;
 static mvp_widget_t *exit_image;
 static mvp_widget_t *warn_widget;
+static mvp_widget_t *busy_widget;
+static mvp_widget_t *busy_graph;
 
 mvp_widget_t *file_browser;
 mvp_widget_t *mythtv_browser;
@@ -292,6 +311,11 @@ mvp_widget_t *playlist_widget;
 static int screensaver_enabled = 0;
 volatile int screensaver_timeout = 60;
 volatile int screensaver_default = -1;
+
+static pthread_t busy_thread;
+static pthread_cond_t busy_cond = PTHREAD_COND_INITIALIZER;
+
+static volatile int busy = 0;
 
 static void screensaver_event(mvp_widget_t *widget, int activate);
 
@@ -1068,6 +1092,7 @@ myth_menu_select_callback(mvp_widget_t *widget, char *item, void *key)
 
 	switch (which) {
 	case 0:
+		busy_start();
 		if (mythtv_update(mythtv_browser) == 0) {
 			mvpw_show(mythtv_browser);
 
@@ -1077,8 +1102,10 @@ myth_menu_select_callback(mvp_widget_t *widget, char *item, void *key)
 			mythtv_main_menu = 0;
 			mythtv_state = MYTHTV_STATE_PROGRAMS;
 		}
+		busy_end();
 		break;
 	case 1:
+		busy_start();
 		if (mythtv_pending(mythtv_browser) == 0) {
 			mvpw_show(mythtv_browser);
 
@@ -1088,8 +1115,10 @@ myth_menu_select_callback(mvp_widget_t *widget, char *item, void *key)
 			mythtv_main_menu = 0;
 			mythtv_state = MYTHTV_STATE_PENDING;
 		}
+		busy_end();
 		break;
 	case 2:
+		busy_start();
 		if (mythtv_livetv_start() == 0) {
 			mythtv_livetv = 1;
 			running_mythtv = 1;
@@ -1099,6 +1128,7 @@ myth_menu_select_callback(mvp_widget_t *widget, char *item, void *key)
 
 			mythtv_main_menu = 0;
 		}
+		busy_end();
 		break;
 	}
 }
@@ -1968,6 +1998,89 @@ warn_init(void)
 	mvpw_set_key(warn_widget, warn_key_callback);
 }
 
+static void*
+busy_loop(void *arg)
+{
+	int off = 0;
+	int delta = 1;
+	int count = 0;
+	pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+
+	pthread_mutex_lock(&mutex);
+
+	while (1) {
+		pthread_cond_wait(&busy_cond, &mutex);
+		count = 0;
+		off = 0;
+		delta = 1;
+		while (busy) {
+			/*
+			 * Do not show the widget for the first 1/4 second
+			 */
+			if (++count > 1) {
+				off += delta;
+				if ((off >= busy_graph_attr.max) ||
+				    (off <= 0))
+					delta *= -1;
+				mvpw_set_graph_current(busy_graph, off);
+				mvpw_show(busy_widget);
+				mvpw_event_flush();
+			}
+			usleep(1000*250);  /* 0.25 seconds */
+		}
+	}
+}
+
+int
+busy_start(void)
+{
+	busy = 1;
+	pthread_cond_signal(&busy_cond);
+}
+
+int
+busy_end(void)
+{
+	busy = 0;
+	mvpw_hide(busy_widget);
+}
+
+void
+busy_init(void)
+{
+	int h, w, x, y;
+	mvp_widget_t *text, *graph;
+
+	busy_text_attr.font = fontid;
+	h = (mvpw_font_height(busy_text_attr.font) +
+	     (2 * 2)) * 2;
+	w = 200;
+
+	x = (si.cols - w) / 2;
+	y = (si.rows - h) / 2;
+
+	busy_widget = mvpw_create_container(NULL, x, y, w, h,
+					    MVPW_BLACK, MVPW_DARKGREY, 2);
+
+	text = mvpw_create_text(busy_widget, 0, 0, w, h/2,
+				MVPW_BLACK, 0, 0);
+	graph = mvpw_create_graph(busy_widget, 0, 0, w, h/2,
+				 MVPW_BLACK, 0, 0);
+
+	mvpw_set_graph_attr(graph, &busy_graph_attr);
+	mvpw_set_text_attr(text, &busy_text_attr);
+	mvpw_set_text_str(text, "Please wait...");
+
+	mvpw_attach(text, graph, MVPW_DIR_DOWN);
+
+	mvpw_show(text);
+	mvpw_show(graph);
+
+	busy_graph = graph;
+
+	pthread_create(&busy_thread, &thread_attr, busy_loop, NULL);
+}
+
 int
 gui_init(char *server, char *replaytv)
 {
@@ -1990,6 +2103,7 @@ gui_init(char *server, char *replaytv)
 	replaytv_browser_init(); // must come after osd_init
 	popup_init();
 	playlist_init();
+	busy_init();
 	warn_init();
 	screensaver_init();
 
