@@ -66,13 +66,14 @@ static void print_status_bar(FILE * fp, __u64 done, __u64 total)
 }
 
 // http fs read file callback
-static void hfs_rf_callback(unsigned char * buf, size_t len, void * vd)
+static int hfs_rf_callback(unsigned char *buf, size_t len, void *vd)
 {
    get_file_read_data_t *rd = vd;
    
    bfwrite(buf, len, 1, rd->dstfile);
    rd->bytes += len;
    print_status_bar(stderr, rd->bytes, rd->fullsize);
+   return(0);
 }
 
 static rtv_device_t *get_rtv_device_struct(const char *ipaddr, int *new) {

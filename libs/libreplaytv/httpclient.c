@@ -236,7 +236,7 @@ int hc_send_request(struct hc * hc, const char *append)
     return 0;
 }
 
-int hc_post_request(struct hc * hc,
+int hc_post_request(struct hc *hc,
                     int (*callback)(unsigned char *, size_t, void *),
                     void * v)
 {
@@ -289,12 +289,12 @@ int hc_post_request(struct hc * hc,
     return 0;
 }
 
-int hc_get_status(struct hc * hc)
+int hc_get_status(struct hc *hc)
 {
     return strtoul(hc->status + 9, NULL, 10);
 }
 
-char * hc_lookup_rsp_header(struct hc * hc, const char * tag)
+char *hc_lookup_rsp_header(struct hc *hc, const char *tag)
 {
     struct hc_headers * h;
     
@@ -304,14 +304,15 @@ char * hc_lookup_rsp_header(struct hc * hc, const char * tag)
     return NULL;
 }
 
-extern int hc_read_pieces(struct hc *hc,
-                          void (*callback)(unsigned char *, size_t, void *),
-                          void  *v,
-                          rtv_mergechunks_t mergechunks)
+extern int hc_read_pieces(struct hc             *hc,
+                          rtv_read_chunked_cb_t  callback,
+                          void                  *v,
+                          rtv_mergechunks_t      mergechunks)
 {
     int          chunked     = 0;
     int          done        = 0;
     int          x           = 1;
+    int          rc          = 0;
     unsigned int multichunk  = 0;
     size_t       len_total   = 0;
     char        *buf         = NULL; 
@@ -364,7 +365,10 @@ extern int hc_read_pieces(struct hc *hc,
             if  ( mergechunks == 0 ) {
                buf[len_read] = '\0';
                RTV_DBGLOG(RTVLOG_HTTP_VERB, "%s: line: %d: len=%d len_rd=%d\n %s\n", __FUNCTION__, x++, len, len_read, buf); 
-               callback(buf, len_read, v);
+               if ( (rc = callback(buf, len_read, v)) != 0 ) {
+                  RTV_DBGLOG(RTVLOG_HTTP, "%s: callback rc=%d: abort transfer\n", __FUNCTION__, rc); 
+                  break;
+               }
             }
             else {
                len_total += len_read;
@@ -376,7 +380,10 @@ extern int hc_read_pieces(struct hc *hc,
                }
                else {
                   RTV_DBGLOG(RTVLOG_HTTP, "%s: multichunk callback: bstart=%p sz_tot=%d \n", __FUNCTION__, bufstart, len_total); 
-                  callback(bufstart, len_total, v);
+                  if ( (rc = callback(bufstart, len_total, v)) != 0 ) {
+                     RTV_DBGLOG(RTVLOG_HTTP, "%s: callback rc=%d: abort transfer\n", __FUNCTION__, rc); 
+                     break;
+                  }
                   multichunk = mergechunks;
                }
             }
@@ -385,7 +392,10 @@ extern int hc_read_pieces(struct hc *hc,
         } else {
             if ( (mergechunks) && (multichunk != mergechunks) ) {
                RTV_DBGLOG(RTVLOG_HTTP, "%s: multichunk DONE callback: bstart=%p sz_tot=%d \n", __FUNCTION__, bufstart, len_total); 
-                callback(bufstart, len_total, v);
+ 
+               //don't worry about the rc as we are done anyway.
+               rc = callback(bufstart, len_total, v);
+                
             }
             RTV_DBGLOG(RTVLOG_HTTP, "%s: LEN=0\n", __FUNCTION__); 
             done = 1;
@@ -403,28 +413,28 @@ extern int hc_read_pieces(struct hc *hc,
                RTV_DBGLOG(RTVLOG_HTTP, "%s: trailer: %s\n", __FUNCTION__, linebuf); 
             }
         }
-    }
+    } //while
     return 0;
 }
 
 struct chunk
 {
-    char * buf;
-    size_t len;
-    struct chunk * next;
+    char         *buf;
+    size_t        len;
+    struct chunk *next;
 };
 
 struct read_all_data 
 {
-    struct chunk * start;
-    struct chunk * end;
+    struct chunk *start;
+    struct chunk *end;
     size_t total;
 };
 
-static void read_all_callback(unsigned char * buf, size_t len, void * vd)
+static int read_all_callback(unsigned char * buf, size_t len, void * vd)
 {
-    struct read_all_data * data = vd;
-    struct chunk * chunk;
+    struct read_all_data *data   = vd;
+    struct chunk         *chunk;
 
     chunk = malloc(sizeof *chunk);
     chunk->buf = buf;
@@ -439,14 +449,15 @@ static void read_all_callback(unsigned char * buf, size_t len, void * vd)
     }
 
     data->total += len;
+    return(0);
 }
 
-unsigned char * hc_read_all(struct hc * hc)
+unsigned char *hc_read_all(struct hc *hc)
 {
-    struct read_all_data data;
-    struct chunk * chunk, * next;
-    size_t cur;
-    unsigned char * r;
+    struct read_all_data  data;
+    struct chunk         *chunk, *next;
+    size_t                cur;
+    unsigned char        *r;
     
     data.start = data.end = NULL;
     data.total = 0;

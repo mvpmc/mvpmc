@@ -87,7 +87,7 @@ extern int             hc_get_status(struct hc * hc);
 extern char           *hc_lookup_rsp_header(struct hc *hc, const char *tag);
 extern unsigned char  *hc_read_all(struct hc * hc);
 extern int             hc_read_pieces(struct hc * hc,
-                                      void (*)(unsigned char *, size_t, void *),
+                                      rtv_read_chunked_cb_t,
                                       void *,
                                       rtv_mergechunks_t);
 extern void            hc_free(struct hc *hc);

@@ -35,7 +35,7 @@ struct snapshot_data
     u32   status;
 };
 
-static void get_rtv5k_snapshot_callback(unsigned char * buf, size_t len, void * vd)
+static int get_rtv5k_snapshot_callback(unsigned char * buf, size_t len, void * vd)
 {
     struct snapshot_data * data = vd;
     unsigned char * buf_data_start;
@@ -55,7 +55,7 @@ static void get_rtv5k_snapshot_callback(unsigned char * buf, size_t len, void * 
         RTV_DBGLOG(RTVLOG_GUIDE, "%s: status=%lu\n", __FUNCTION__, data->status);
         if (!end) {
            RTV_ERRLOG("%s: malformed buffer\n", __FUNCTION__);
-           return;
+           return(0);
         }
         do {
             cur = end + 1;
@@ -69,13 +69,13 @@ static void get_rtv5k_snapshot_callback(unsigned char * buf, size_t len, void * 
             end = strchr(cur, '\n');
             if (!end) {
                 RTV_DBGLOG(RTVLOG_GUIDE, "%s: \\n not found: cur=%p: returning\n", __FUNCTION__, cur);
-                return;
+                return(0);
             }
             *end = '\0';
             equal = strchr(cur, '=');
             if (!equal) { 
                 RTV_DBGLOG(RTVLOG_GUIDE, "%s: = not found: cur=%p: returning\n", __FUNCTION__, cur);
-                return; 
+                return(0); 
             }
             if (strncmp(cur, "guide_file_name=", equal-cur+1) == 0) {
                 data->timestamp = malloc(strlen(equal+1)+1);
@@ -101,7 +101,7 @@ static void get_rtv5k_snapshot_callback(unsigned char * buf, size_t len, void * 
        RTV_PRT   ("    firsttime=%d   filesize=%d\n", data->firsttime, data->filesize);
        RTV_PRT   ("    bytesread=%d   status=  %lu  timestamp=%s\n", data->bytes_read, data->status, data->timestamp);
     } 
-    return;
+    return(0);
 }
 
 //+***********************************************************************************

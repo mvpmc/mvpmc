@@ -173,6 +173,17 @@ typedef enum rtv_mergechunks_t
    RTV_MERGECHUNKS_4 = 4
 } rtv_mergechunks_t;
 
+//+************************************************************
+// rtv_read_file callback fxn prototype
+// parms:
+//         buf: Read data from the replay device
+//         len: buf size
+//         vd: callback_data pointer passed into rtv_read_file 
+// returncode:
+//         Return 0 to keep receiving data.
+//         Return 1 to to abort the transfer.
+//+************************************************************
+typedef int (*rtv_read_chunked_cb_t)(unsigned char *buf, size_t len, void *vd);
 
 //+************************************************************************
 //+**************************   RTV API's *********************************
@@ -215,7 +226,7 @@ extern __u32  rtv_read_file( const rtv_device_info_t *device,
                              __u64                    pos,        //fileposition
                              __u64                    size,       //amount of file to read ( 0 reads all of file )
                              unsigned int             ms_delay,   //mS delay between reads
-                             void                     (*callback_fxn)(unsigned char *, size_t, void *),
+                             rtv_read_chunked_cb_t    callback_fxn,
                              void                    *callback_data                                     ); 
 
 #ifdef __cplusplus

@@ -147,7 +147,7 @@ devinfo_default_handler(void *userData, const XML_Char *s, int len)
 }
 
 
-static void get_deviceinfo_callback(unsigned char *buf, size_t len,  void *info)
+static int get_deviceinfo_callback(unsigned char *buf, size_t len,  void *info)
 {
    int done =1;
    
@@ -157,10 +157,10 @@ static void get_deviceinfo_callback(unsigned char *buf, size_t len,  void *info)
       RTV_ERRLOG("%s at line %d\n",
                  XML_ErrorString(XML_GetErrorCode(parser)),
                  XML_GetCurrentLineNumber(parser));
-      return;
+      return(0);
    }
    XML_ParserFree(parser);
-   return;
+   return(0);
 }
 
 static int parse_version_info( rtv_device_info_t *devinfo )

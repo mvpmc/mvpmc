@@ -176,20 +176,21 @@ static unsigned long hfs_do_simple(char **presult, const rtv_device_info_t *devi
 
 struct hfs_data
 {
-    void (*fn)(unsigned char *, size_t, void *);
-    void * v;
-    unsigned long status;
-    u16 msec_delay;
-    u8 firsttime;
+    rtv_read_chunked_cb_t  fn;
+    void                  *v;
+    unsigned long          status;
+    u16                    msec_delay;
+    u8                     firsttime;
 };
 
 /* XXX should this free the buf, or make a new one on the first block
  * and let our caller free them if it wants? */
-static void hfs_callback(unsigned char * buf, size_t len, void * vd)
+static int hfs_callback(unsigned char * buf, size_t len, void * vd)
 {
-    struct hfs_data * data = vd;
-    unsigned char * buf_data_start;
-    
+    struct hfs_data *data = vd;
+    unsigned char   *buf_data_start;
+    int              rc;
+
     if (data->firsttime) {
         unsigned char * e;
 
@@ -208,20 +209,22 @@ static void hfs_callback(unsigned char * buf, size_t len, void * vd)
         buf_data_start = buf;
     }
 
-    data->fn(buf_data_start, len, data->v);
+    rc = data->fn(buf_data_start, len, data->v);
     free(buf);
 
-    if (data->msec_delay)
+    if (data->msec_delay) {
         rtv_sleep(data->msec_delay);
+    }
+    return(rc);
 }
 
-static unsigned long hfs_do_chunked(void (*fn)(unsigned char *, size_t, void *),
+static unsigned long hfs_do_chunked(rtv_read_chunked_cb_t    fn,
                                     void                    *v,
                                     const rtv_device_info_t *device,
-                                   __u16                    msec_delay,
-                                   rtv_mergechunks_t        mergechunks,
-                                   const char              *command,
-                                   ...)
+                                    __u16                    msec_delay,
+                                    rtv_mergechunks_t        mergechunks,
+                                    const char              *command,
+                                    ...)
 {
     struct hfs_data data;
     struct hc *   hc;
@@ -615,7 +618,7 @@ __u32  rtv_read_file( const rtv_device_info_t *device,
                       __u64                    pos,        //fileposition
                       __u64                    size,       //amount of file to read ( 0 reads all of file )
                       unsigned int             ms_delay,   //mS delay between reads
-                      void                     (*callback_fxn)(unsigned char *, size_t, void *),
+                      rtv_read_chunked_cb_t    callback_fxn,
                       void                    *callback_data                                     )
 {
    __u32 status;
