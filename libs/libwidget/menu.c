@@ -173,7 +173,10 @@ key(mvp_widget_t *widget, char c)
 	char *str;
 
 	switch (c) {
+#ifdef MVPW_KEY_RED
 	case MVPW_KEY_RED:
+#endif
+	case MVPW_KEY_CHAN_UP:
 		if (widget->data.menu.current > 0) {
 			i = widget->data.menu.current;
 			hilite_item(widget, i, 0);
@@ -188,7 +191,10 @@ key(mvp_widget_t *widget, char c)
 			hilite_item(widget, i, 1);
 		}
 		break;
+#ifdef MVPW_KEY_YELLOW
 	case MVPW_KEY_YELLOW:
+#endif
+	case MVPW_KEY_CHAN_DOWN:
 		if (widget->data.menu.current < (widget->data.menu.nitems-1)) {
 			i = widget->data.menu.current;
 			hilite_item(widget, i, 0);
