@@ -164,10 +164,15 @@ mvpw_create_text(mvp_widget_t *parent,
 void
 mvpw_set_text_str(mvp_widget_t *widget, char *str)
 {
+	if (widget->data.text.str && (strcmp(str, widget->data.text.str) == 0))
+		return;
+
 	if (widget->data.text.str)
 		free(widget->data.text.str);
 
 	widget->data.text.str = strdup(str);
+
+	expose(widget);
 }
 
 char*

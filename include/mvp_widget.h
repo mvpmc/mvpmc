@@ -171,6 +171,9 @@ typedef struct {
 	int 		min;
 	int 		max;
 	uint32_t 	fg;
+	int 		gradient;
+	uint32_t 	left;
+	uint32_t 	right;
 } mvpw_graph_attr_t;
 
 extern mvp_widget_t* mvpw_create_graph(mvp_widget_t *parent,
@@ -179,6 +182,7 @@ extern mvp_widget_t* mvpw_create_graph(mvp_widget_t *parent,
 				       int border_size);
 extern void mvpw_set_graph_attr(mvp_widget_t *widget, mvpw_graph_attr_t *attr);
 extern void mvpw_set_graph_current(mvp_widget_t *widget, int value);
+extern void mvpw_graph_incr(mvp_widget_t *widget, int value);
 
 /*
  * checkbox widget
@@ -249,6 +253,16 @@ static inline unsigned long
 mvpw_rgba(unsigned char r, unsigned char g, unsigned char b, unsigned char a)
 {
 	return (a<<24) | (b<<16) | (g<<8) | r;
+}
+
+static inline void
+mvpw_get_rgba(unsigned long c, unsigned char *r, unsigned char *g,
+	      unsigned char *b, unsigned char *a)
+{
+	*a = (c >> 24) & 0xff;
+	*b = (c >> 16) & 0xff;
+	*g = (c >> 8) & 0xff;
+	*r = (c >> 0) & 0xff;
 }
 
 #define mvpw_color_alpha(c,a)	((a << 24) | (c & 0x00ffffff))

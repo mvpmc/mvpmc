@@ -103,6 +103,9 @@ typedef struct {
 	int		 min;
 	int		 max;
 	int		 current;
+	int		 gradient;
+	GR_COLOR	 left;
+	GR_COLOR	 right;
 } mvpw_graph_t;
 
 typedef struct {
