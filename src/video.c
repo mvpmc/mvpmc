@@ -68,6 +68,7 @@ static volatile off_t seek_start_pos;
 static volatile int seek_start_seconds;
 static volatile int audio_type = 0;
 static volatile int pcm_decoded = 0;
+volatile int paused = 0;
 static int zoomed = 0;
 static int display_on = 0;
 
@@ -440,9 +441,11 @@ video_callback(mvp_widget_t *widget, char key)
 	case ',':
 		if (av_pause()) {
 			mvpw_show(pause_widget);
+			paused = 1;
 		} else {
 			mvpw_hide(pause_widget);
 			mvpw_hide(mute_widget);
+			paused = 0;
 		}
 		break;
 	case '(':
@@ -714,61 +717,57 @@ do_seek(void)
 	if ((seek_attempts <= 0) && seeking) {
 		seeking = 0;
 		printf("SEEK ABORTED\n");
+
+		return 0;
 	}
 
-	if (seeking ) {
-		if (!attr->gop_valid) {
-			if ( --seek_attempts > 0 ) {
-				printf("GOP retry\n");
-				return -1;
-			}
-			printf("SEEK RETRY due to lack of GOP\n");
-			demux_flush(handle);
-			demux_seek(handle);
+	if (!attr->gop_valid) {
+		if ( --seek_attempts > 0 ) {
+			printf("GOP retry\n");
 			return -1;
 		}
-		if (pts_seek_attempts > 0) {
-			seconds = attr->gop.pts/PTS_HZ;
-		} else if (gop_seek_attempts > 0) {
-			seconds = (attr->gop.hour * 3600) +
-				(attr->gop.minute * 60) + attr->gop.second;
-
-		}
+		printf("SEEK RETRY due to lack of GOP\n");
+		demux_flush(handle);
+		demux_seek(handle);
+		return -1;
 	}
 
-	if (seeking) {
-		/*
-		 * Recompute bps from actual time and position differences
-		 * provided the time difference is big enough
-		 */
-		if ( abs(seconds - seek_start_seconds) > SEEK_FUDGE ) {
-			offset = video_functions->seek(0, SEEK_CUR);
-			new_seek_bps =
-				(offset - seek_start_pos) /
-				(seconds - seek_start_seconds);
-			if ( new_seek_bps > 10000 ) /* Sanity check */
-				seek_bps = new_seek_bps;
-		}
+	if (pts_seek_attempts > 0) {
+		seconds = attr->gop.pts/PTS_HZ;
+	} else if (gop_seek_attempts > 0) {
+		seconds = (attr->gop.hour * 3600) +
+			(attr->gop.minute * 60) + attr->gop.second;
+		
+	}
 
-		printf("New BPS %d\n", seek_bps);
+	/*
+	 * Recompute bps from actual time and position differences
+	 * provided the time difference is big enough
+	 */
+	if ( abs(seconds - seek_start_seconds) > SEEK_FUDGE ) {
+		offset = video_functions->seek(0, SEEK_CUR);
+		new_seek_bps = (offset - seek_start_pos) /
+			(seconds - seek_start_seconds);
+		if ( new_seek_bps > 10000 ) /* Sanity check */
+			seek_bps = new_seek_bps;
+	}
 
-		if ( abs(seconds - seek_seconds) <= SEEK_FUDGE ) {
-			seeking = 0;
-			printf("SEEK DONE: to %d at %d\n",
-			       seek_seconds, seconds);
-		} else {
-			offset = video_functions->seek(0, SEEK_CUR);
-			printf("RESEEK: From %lld + %d\n",
-			       offset,
-			       seek_bps * (seek_seconds-seconds));
-			offset = video_functions->seek(seek_bps * (seek_seconds-seconds), SEEK_CUR);
-			demux_flush(handle);
-			demux_seek(handle);
-			seek_attempts--;
-			printf("SEEKING 1: %d/%d %lld\n",
-			       seconds, seek_seconds, offset);
-			return -1;
-		}
+	printf("New BPS %d\n", seek_bps);
+	
+	if ( abs(seconds - seek_seconds) <= SEEK_FUDGE ) {
+		seeking = 0;
+		printf("SEEK DONE: to %d at %d\n", seek_seconds, seconds);
+	} else {
+		offset = video_functions->seek(0, SEEK_CUR);
+		printf("RESEEK: From %lld + %d\n", offset,
+		       seek_bps * (seek_seconds-seconds));
+		offset = video_functions->seek(seek_bps * (seek_seconds-seconds), SEEK_CUR);
+		demux_flush(handle);
+		demux_seek(handle);
+		seek_attempts--;
+		printf("SEEKING 1: %d/%d %lld\n",
+		       seconds, seek_seconds, offset);
+		return -1;
 	}
 
 	return 0;

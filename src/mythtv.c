@@ -29,6 +29,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <pthread.h>
+#include <errno.h>
 
 #include <mvp_widget.h>
 #include <mvp_av.h>
@@ -43,7 +44,7 @@
 #define PRINTF(x...)
 #endif
 
-#define BSIZE	(512*1024)
+#define BSIZE	(96*1024)
 
 static volatile cmyth_file_t file;
 extern demux_handle_t *handle;
@@ -125,7 +126,7 @@ static void
 mythtv_close_file(void)
 {
 	printf("%s(): closing file\n", __FUNCTION__);
-	if (playing_via_mythtv) {
+	if (playing_via_mythtv && file) {
 		printf("%s(): releasing file\n", __FUNCTION__);
 		cmyth_file_release(control, file);
 		file = NULL;
@@ -657,15 +658,19 @@ control_start(void *arg)
 	while (1) {
 		pthread_mutex_lock(&mutex);
 		printf("mythtv control thread sleeping...\n");
-		pthread_cond_wait(&cond, &mutex);
+		while (file == NULL)
+			pthread_cond_wait(&cond, &mutex);
 		pthread_mutex_unlock(&mutex);
 
 		printf("mythtv control thread starting...\n");
 
 		do {
 			if (seeking || jumping) {
-				while (myth_seeking == 0)
+				while ((myth_seeking == 0) &&
+				       (seeking || jumping))
 					usleep(1000);
+				if (!seeking && !jumping)
+					continue;
 				printf("%s(): seeking...\n", __FUNCTION__);
 				seek_pos = cmyth_file_seek(control, file,
 							   seek_offset,
@@ -673,7 +678,16 @@ control_start(void *arg)
 				printf("%s(): done\n", __FUNCTION__);
 				myth_seeking = 0;
 			}
+
 			len = cmyth_file_request_block(control, file, BSIZE);
+
+			if ((len < 0) && paused) {
+				printf("%s(): waiting to unpause...\n",
+				       __FUNCTION__);
+				while (paused)
+					usleep(1000);
+				len = 1;
+			}
 		} while ((len > 0) && (playing_via_mythtv == 1) && (!close_mythtv));
 
 		mythtv_close_file();
@@ -887,6 +901,9 @@ mythtv_read(char *buf, int len)
 	int ret;
 	int tot = 0;
 
+	if (file == NULL)
+		return -EINVAL;
+
 	while (myth_seeking)
 		usleep(1000);
 
@@ -896,7 +913,7 @@ mythtv_read(char *buf, int len)
 
 	PRINTF("cmyth getting block of size %d\n", len);
 
-	while ((tot < len) && !myth_seeking) {
+	while (file && (tot < len) && !myth_seeking) {
 		struct timeval to;
 
 		to.tv_sec = 0;
@@ -908,7 +925,6 @@ mythtv_read(char *buf, int len)
 			break;
 		tot += ret;
 	}
-
 	PRINTF("cmyth got block of size %d (out of %d)\n", tot, len);
 
 	pthread_mutex_unlock(&seek_mutex);

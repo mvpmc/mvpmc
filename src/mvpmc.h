@@ -99,6 +99,7 @@ extern int fd_audio, fd_video;
 
 extern volatile int seeking;
 extern volatile int jumping;
+extern volatile int paused;
 
 extern void audio_play(mvp_widget_t*);
 extern void video_play(mvp_widget_t*);
