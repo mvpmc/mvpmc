@@ -220,15 +220,13 @@ static unsigned long hfs_do_simple(char **presult, const rtv_device_info_t *devi
 
 struct hfs_data
 {
-    rtv_read_chunked_cb_t  fn;
-    void                  *v;
-    unsigned long          status;
-    u16                    msec_delay;
-    u8                     firsttime;
+    rtv_read_file_chunked_cb_t  fn;
+    void                       *v;
+    unsigned long               status;
+    u16                         msec_delay;
+    u8                          firsttime;
 };
 
-/* XXX should this free the buf, or make a new one on the first block
- * and let our caller free them if it wants? */
 static int hfs_callback(unsigned char * buf, size_t len, void * vd)
 {
     struct hfs_data *data = vd;
@@ -242,8 +240,9 @@ static int hfs_callback(unsigned char * buf, size_t len, void * vd)
 
         /* First line: error code */
         e = strchr(buf, '\n');
-        if (e)
+        if (e) {
             *e = '\0';
+        }
         data->status = strtoul(buf, NULL, 16);
         RTV_DBGLOG(RTVLOG_CMD, "%s: status: %s (%u)\n", __FUNCTION__, buf, data->status);
         if ( (rc = map_httpfs_status_to_rc(data->status)) != 0 ) {
@@ -258,11 +257,12 @@ static int hfs_callback(unsigned char * buf, size_t len, void * vd)
         buf_data_start = buf;
     }
 
-    rc = data->fn(buf_data_start, len, data->v);
+    // Callers callback 'fn' is responsible for freeing the buffer
+    //
+    rc = data->fn(buf, len, (buf_data_start - buf), data->v);
     if ( rc == 1 ) {
        RTV_DBGLOG(RTVLOG_CMD, "%s: got abort_read rc from app callback\n", __FUNCTION__);    
     }
-    free(buf);
 
     if (data->msec_delay) {
         rtv_sleep(data->msec_delay);
@@ -270,12 +270,12 @@ static int hfs_callback(unsigned char * buf, size_t len, void * vd)
     return(rc);
 }
 
-static int hfs_do_chunked(rtv_read_chunked_cb_t    fn,
-                          void                    *v,
-                          const rtv_device_info_t *device,
-                          __u16                    msec_delay,
-                          int                      mergechunks,
-                          const char              *command,
+static int hfs_do_chunked(rtv_read_file_chunked_cb_t  fn,
+                          void                       *v,
+                          const rtv_device_info_t    *device,
+                          __u16                       msec_delay,
+                          int                         mergechunks,
+                          const char                 *command,
                           ...)
 {
     struct hfs_data data;
@@ -301,7 +301,9 @@ static int hfs_do_chunked(rtv_read_chunked_cb_t    fn,
     rc = hc_read_pieces(hc, hfs_callback, &data, mergechunks);
     hc_free(hc);
     if ( rc != 0 ) {
-       RTV_ERRLOG("%s: hc_read_pieces call failed: rc=%d\n", __FUNCTION__, rc);
+       if ( rc != -ECONNABORTED ) {
+          RTV_ERRLOG("%s: hc_read_pieces call failed: rc=%d\n", __FUNCTION__, rc);
+       }
        return(rc);
     }
     return(map_httpfs_status_to_rc(data.status));
@@ -679,13 +681,13 @@ void rtv_print_file_list(const rtv_fs_filelist_t *filelist, int detailed)
 // Callback data returned in 128KB chunks
 // Returns 0 for success
 //
-__u32  rtv_read_file( const rtv_device_info_t *device, 
-                      const char              *filename, 
-                      __u64                    pos,        //fileposition
-                      __u64                    size,       //amount of file to read ( 0 reads all of file )
-                      unsigned int             ms_delay,   //mS delay between reads
-                      rtv_read_chunked_cb_t    callback_fxn,
-                      void                    *callback_data                                     )
+__u32  rtv_read_file( const rtv_device_info_t    *device, 
+                      const char                 *filename, 
+                      __u64                       pos,        //fileposition
+                      __u64                       size,       //amount of file to read ( 0 reads all of file )
+                      unsigned int                ms_delay,   //mS delay between reads
+                      rtv_read_file_chunked_cb_t  callback_fxn,
+                      void                       *callback_data  )
 {
    __u32 status;
    char  pos_str[256];

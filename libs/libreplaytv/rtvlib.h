@@ -215,14 +215,18 @@ typedef struct rtv_device_list_t
 //+************************************************************
 // rtv_read_file callback fxn prototype
 // parms:
-//         buf: Read data from the replay device
-//         len: buf size
-//         vd: callback_data pointer passed into rtv_read_file 
+//         buf:    Read data from the replay device
+//         len:    length of data
+//         offset: offset into buff for start of data
+//         vd:     callback_data pointer passed into rtv_read_file 
 // returncode:
 //         Return 0 to keep receiving data.
 //         Return 1 to to abort the transfer.
+//
+// NOTE: buf is malloc'd. users callback function must free(buf)
+//
 //+************************************************************
-typedef int (*rtv_read_chunked_cb_t)(unsigned char *buf, size_t len, void *vd);
+typedef int (*rtv_read_file_chunked_cb_t)(unsigned char *buf, size_t len, size_t offset, void *vd);
 
 
 //+************************************************************************
@@ -280,13 +284,13 @@ extern int  rtv_get_filelist( const rtv_device_info_t  *device, const char *name
 extern void rtv_free_file_list( rtv_fs_filelist_t **filelist ); 
 extern void rtv_print_file_list(const rtv_fs_filelist_t *filelist, int detailed);
 
-extern __u32  rtv_read_file( const rtv_device_info_t *device, 
-                             const char              *filename, 
-                             __u64                    pos,        //fileposition
-                             __u64                    size,       //amount of file to read ( 0 reads all of file )
-                             unsigned int             ms_delay,   //mS delay between reads
-                             rtv_read_chunked_cb_t    callback_fxn,
-                             void                    *callback_data                                     ); 
+extern __u32  rtv_read_file( const rtv_device_info_t    *device, 
+                             const char                 *filename, 
+                             __u64                       pos,        //fileposition
+                             __u64                       size,       //amount of file to read ( 0 reads all of file )
+                             unsigned int                ms_delay,   //mS delay between reads
+                             rtv_read_file_chunked_cb_t  callback_fxn,
+                             void                       *callback_data ); 
 
 #ifdef __cplusplus
 }

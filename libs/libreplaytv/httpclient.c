@@ -305,7 +305,7 @@ char *hc_lookup_rsp_header(const struct hc *hc, const char *tag)
 }
 
 extern int hc_read_pieces(const struct hc       *hc,
-                          rtv_read_chunked_cb_t  callback,
+                          http_read_chunked_cb_t callback,
                           void                  *v,
                           int                    mergechunks)
 {
@@ -372,7 +372,8 @@ extern int hc_read_pieces(const struct hc       *hc,
                buf[len_read] = '\0';
                RTV_DBGLOG(RTVLOG_HTTP_VERB, "%s: line: %d: len=%d len_rd=%d\n %s\n", __FUNCTION__, x++, len, len_read, buf); 
                if ( (rc = callback(buf, len_read, v)) != 0 ) {
-                  RTV_DBGLOG(RTVLOG_HTTP, "%s: callback rc=%d: abort transfer\n", __FUNCTION__, rc); 
+                  RTV_DBGLOG(RTVLOG_HTTP, "%s: callback rc=%d: abort transfer\n", __FUNCTION__, rc);
+                  rc = -ECONNABORTED;
                   break;
                }
             }
@@ -388,6 +389,7 @@ extern int hc_read_pieces(const struct hc       *hc,
                   RTV_DBGLOG(RTVLOG_HTTP, "%s: multichunk callback: bstart=%p sz_tot=%d \n", __FUNCTION__, bufstart, len_total); 
                   if ( (rc = callback(bufstart, len_total, v)) != 0 ) {
                      RTV_DBGLOG(RTVLOG_HTTP, "%s: callback rc=%d: abort transfer\n", __FUNCTION__, rc); 
+                     rc = -ECONNABORTED;
                      break;
                   }
                   multichunk = mergechunks;
@@ -420,7 +422,7 @@ extern int hc_read_pieces(const struct hc       *hc,
             }
         }
     } //while
-    return(rc);;
+    return(rc);
 }
 
 struct chunk

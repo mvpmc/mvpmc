@@ -59,12 +59,13 @@ static void print_status_bar(FILE * fp, __u64 done, __u64 total)
 }
 
 // http fs read file callback
-static int hfs_rf_callback(unsigned char *buf, size_t len, void *vd)
+static int hfs_rf_callback(unsigned char *buf, size_t len, size_t offset, void *vd)
 {
    get_file_read_data_t *rd = vd;
    
-   bfwrite(buf, len, 1, rd->dstfile);
+   bfwrite(buf + offset, len, 1, rd->dstfile);
    rd->bytes += len;
+   free(buf);
    print_status_bar(stderr, rd->bytes, rd->fullsize);
    return(0);
 }

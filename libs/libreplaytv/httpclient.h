@@ -76,6 +76,18 @@
 
 #define RTV_CHUNK_SZ (32 *1024)
 
+//+************************************************************
+// http read callback fxn prototype
+// parms:
+//         buf:    Read data from the replay device
+//         len:    length of data
+//         vd:     callback_data pointer 
+// returncode:
+//         Return 0 to keep receiving data.
+//         Return 1 to to abort the transfer.
+//+************************************************************
+typedef int (*http_read_chunked_cb_t)(unsigned char *buf, size_t len, void *vd);
+
 struct hc;
 
 extern struct hc*      hc_start_request(char *url);
@@ -87,7 +99,7 @@ extern int             hc_get_status(const struct hc * hc);
 extern char*           hc_lookup_rsp_header(const struct hc *hc, const char *tag);
 extern int             hc_read_all(struct hc *hc, char **data_p);
 extern int             hc_read_pieces(const struct hc *,
-                                      rtv_read_chunked_cb_t,
+                                      http_read_chunked_cb_t,
                                       void *,
                                       int);
 extern void            hc_free(struct hc *hc);
