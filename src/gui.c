@@ -24,6 +24,11 @@
 #include <unistd.h>
 #include <string.h>
 
+#ifndef MVPMC_HOST
+#include <sys/reboot.h>
+#include <linux/reboot.h>
+#endif
+
 #include <mvp_widget.h>
 #include <mvp_av.h>
 #include <mvp_osd.h>
@@ -1026,7 +1031,12 @@ main_select_callback(mvp_widget_t *widget, char *item, void *key)
 	switch (k) {
 	case MM_EXIT:
 #ifndef MVPMC_HOST
+		/*
+		 * Do an orderly shutdown, if possible.
+		 */
 		system("/sbin/reboot");
+		sleep(1);
+		reboot(LINUX_REBOOT_CMD_RESTART);
 #endif
 		exit(0);
 		break;
