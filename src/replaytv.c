@@ -50,8 +50,6 @@
 #define PRINTF(x...)
 #endif
 
-#define MAX_RTVS 10
-
 extern pthread_t video_write_thread;
 extern pthread_t audio_write_thread;
 
@@ -93,12 +91,12 @@ static int playing    = 0;
 static int abort_read = 0;
 
 // Top level replayTV structure
-static int           num_rtv = 0;
-static rtv_device_t  rtv_top[MAX_RTVS];
+static int           num_rtv_ipaddrs    = 0;
 static rtv_device_t *current_rtv_device = NULL;
 
 //hack
 #define MAX_IP_SZ (50)
+#define MAX_RTVS (10)
 static char rtv_ip_addrs[MAX_RTVS][MAX_IP_SZ + 1];
 
 static char* strip_spaces(char *str)
@@ -125,9 +123,9 @@ static int parse_ip_init_str(char *str)
          next[0] = '\0';
          next++;
       }
-      strncpy(rtv_ip_addrs[num_rtv], cur, MAX_IP_SZ );
-      printf("RTV IP [%d]: %s\n", num_rtv, rtv_ip_addrs[num_rtv]);
-      num_rtv++;
+      strncpy(rtv_ip_addrs[num_rtv_ipaddrs], cur, MAX_IP_SZ );
+      printf("RTV IP [%d]: %s\n", num_rtv_ipaddrs, rtv_ip_addrs[num_rtv_ipaddrs]);
+      num_rtv_ipaddrs++;
       cur = next;
    }
    return(0);
@@ -142,7 +140,6 @@ int rtv_init(char *init_str)
       return(0);
    }
 
-   memset(rtv_top, 0, sizeof(rtv_top));
    memset(rtv_ip_addrs, 0, sizeof(rtv_ip_addrs));
    rtv_init_lib();
    
@@ -150,7 +147,7 @@ int rtv_init(char *init_str)
    if ( strchr(cur, '=') == NULL ) {
       // Assume just a single parm that is an ip address
       strncpy(rtv_ip_addrs[0], cur, MAX_IP_SZ );
-      num_rtv = 1;
+      num_rtv_ipaddrs = 1;
    }
    else {
       int done = 0;
@@ -194,22 +191,6 @@ int rtv_init(char *init_str)
 
    rtv_initialized = 1;
    return(0);
-}
-
-static rtv_device_t *get_rtv_device_struct(char* ipaddr, int *new) {
-   int x;
-
-   *new = 0;
-   for ( x=0; x < MAX_RTVS; x++ ) {
-      if ( rtv_top[x].device.ipaddr == NULL ) {
-         *new = 1;
-         return(&(rtv_top[x])); //New entry
-      }
-      if ( strcmp(rtv_top[x].device.ipaddr, ipaddr) == 0 ) {
-         return(&(rtv_top[x])); //Existing entry
-      }
-   }
-   return(NULL);
 }
 
 static int GetMpgCallback(unsigned char * buf, size_t len, void * vd)
@@ -406,30 +387,21 @@ rtv_device_select_callback(mvp_widget_t *widget, char *item, void *key)
 static int bogus_discover(void) 
 {
    rtv_device_t      *rtv;  
-   rtv_device_info_t *devinfo;
-   int                rc, new_entry, x;
+   int                rc, x;
 
-   for ( x=0; x < num_rtv; x++ ) {
+   for ( x=0; x < num_rtv_ipaddrs; x++ ) {
       printf( "\nGetting replaytv (%s) device info...\n", rtv_ip_addrs[x]);
-      rtv = get_rtv_device_struct(rtv_ip_addrs[x], &new_entry);
-      if ( new_entry ) {
-         printf("Got New RTV Device Struct Entry\n");
-      }
-      else {
-         printf("Found Existing RTV Device Struct Entry\n");
-      }
-      devinfo = &(rtv->device);
       
-      if ( (rc = rtv_get_device_info(rtv_ip_addrs[x], devinfo)) != 0 ) {
+      if ( (rc = rtv_get_device_info(rtv_ip_addrs[x], NULL, &rtv)) != 0 ) {
          printf("Failed to get RTV Device Info. Retrying...\n");
          
          // JBH: Fixme: Hack for dvarchive failing on first attempt. Need to get discovery working  
-         if ( (rc = rtv_get_device_info(rtv_ip_addrs[x], devinfo)) != 0 ) {
+         if ( (rc = rtv_get_device_info(rtv_ip_addrs[x], NULL, &rtv)) != 0 ) {
             printf("**ERROR: Unable to get RTV Device Info for: %s. Giving up\n", rtv_ip_addrs[x]);
             return 0;
          } 
       } 
-      rtv_print_device_info(devinfo);
+      rtv_print_device_info(&(rtv->device));
    }
    return(0);
 }
@@ -470,9 +442,9 @@ int replaytv_update(mvp_widget_t *widget)
    bogus_discover();
 
    device_menu_item_attr.select = rtv_device_select_callback;
-   for ( idx=0; idx < num_rtv; idx++ ) {
-      if ( rtv_top[idx].device.name != NULL ) {
-         mvpw_add_menu_item(widget, rtv_top[idx].device.name, &(rtv_top[idx]), &device_menu_item_attr);
+   for ( idx=0; idx < rtv_devices.num_rtvs; idx++ ) {
+      if ( rtv_devices.rtv[idx].device.name != NULL ) {
+         mvpw_add_menu_item(widget, rtv_devices.rtv[idx].device.name, &(rtv_devices.rtv[idx]), &device_menu_item_attr);
       }
    }
 

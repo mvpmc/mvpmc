@@ -22,6 +22,57 @@
 #include "rtv.h"
 #include "rtvlib.h"
 
+#define MAX_RTVS 10
+
+// ReplayTV device list
+rtv_device_list_t rtv_devices;
+
+rtv_device_t *rtv_get_device_struct(const char *ipaddr, int *new) 
+{
+   int x;
+   
+   *new = 0;
+   for ( x=0; x < MAX_RTVS; x++ ) {
+      if ( rtv_devices.rtv[x].device.ipaddr == NULL ) {
+         *new = 1;
+         return(&(rtv_devices.rtv[x])); //New entry
+      }
+      if ( strcmp(rtv_devices.rtv[x].device.ipaddr, ipaddr) == 0 ) {
+         return(&(rtv_devices.rtv[x])); //Existing entry
+      }
+   }
+   return(NULL);
+}
+
+int rtv_free_devices(void)
+{
+   int x;
+   for ( x=0; x < rtv_devices.num_rtvs; x++ ) {
+      if ( rtv_devices.rtv[x].device.ipaddr != NULL ) {
+         rtv_free_device_info(&(rtv_devices.rtv[x].device));
+         rtv_free_guide(&(rtv_devices.rtv[x].guide));
+      }
+   }
+   rtv_devices.num_rtvs = 0;
+   return(0);
+}
+
+void rtv_print_device_list( void ) 
+{
+   int x;
+   printf("ReplayTV device list:\n");
+   for ( x=0; x < rtv_devices.num_rtvs; x++ ) {
+      printf("  idx=%2d  ", x);
+      if ( rtv_devices.rtv[x].device.ipaddr != NULL ) {
+         printf("ip=%s  model=%s  name=%s\n", 
+                rtv_devices.rtv[x].device.ipaddr,rtv_devices.rtv[x].device.modelNumber, rtv_devices.rtv[x].device.name);
+      }
+      else {
+         printf("ip=NULL\n");
+      }
+   }
+}
+
 void rtv_set_dbgmask(__u32 mask)
 {
    rtv_debug = mask;
@@ -50,6 +101,9 @@ char *rtv_format_time(__u64 ttk)
 
 int rtv_init_lib(void) 
 {
-   log_fd    = stdout;
+   log_fd = stdout;
+   rtv_devices.num_rtvs = 0;
+   rtv_devices.rtv      = malloc(sizeof(rtv_device_t) * MAX_RTVS);
+   memset(rtv_devices.rtv, 0, sizeof(rtv_device_t) * MAX_RTVS); 
    return(0);
 }

@@ -27,8 +27,6 @@
 #define STRTOHEX(x) strtoul((x), NULL, 16)
 #define STRTODEC(x) strtol((x), NULL, 10)
 
-#define MAX_RTVS 10
-
 
 // for http fs read file callback
 typedef struct get_file_read_data_t
@@ -37,11 +35,6 @@ typedef struct get_file_read_data_t
    __u64    bytes;
    __u64    fullsize;
 } get_file_read_data_t;
-
-
-
-// Top level replayTV structure
-rtv_device_t rtv_top[MAX_RTVS];
 
 
 static void print_status_bar(FILE * fp, __u64 done, __u64 total) 
@@ -76,28 +69,10 @@ static int hfs_rf_callback(unsigned char *buf, size_t len, void *vd)
    return(0);
 }
 
-static rtv_device_t *get_rtv_device_struct(const char *ipaddr, int *new) {
-   int x;
-
-   *new = 0;
-   for ( x=0; x < MAX_RTVS; x++ ) {
-      if ( rtv_top[x].device.ipaddr == NULL ) {
-         *new = 1;
-         return(&(rtv_top[x])); //New entry
-      }
-      if ( strcmp(rtv_top[x].device.ipaddr, ipaddr) == 0 ) {
-         return(&(rtv_top[x])); //Existing entry
-      }
-   }
-   return(NULL);
-}
-
-
 static void rtvShellInit(void) 
 {
    static int shell_initialized = 0;
    if ( shell_initialized == 0 ) {
-      memset(rtv_top, 0, sizeof(rtv_top));
       shell_initialized = 1;
    }
 }
@@ -175,8 +150,7 @@ static int ciRouteLogs(int argc, char **argv)
 static int ciGetDeviceInfo(int argc, char **argv)
 {
    rtv_device_t      *rtv;  
-   rtv_device_info_t *devinfo;
-   int                rc, new_entry;
+   int                rc;
 
    USAGE("<ip address>\n");
    if ( argc !=2 ) {
@@ -184,19 +158,10 @@ static int ciGetDeviceInfo(int argc, char **argv)
       return(0); 
    }
 
-   rtv = get_rtv_device_struct(argv[1], &new_entry);
-   if ( new_entry ) {
-      printf("Got New RTV Device Struct Entry\n");
-   }
-   else {
-      printf("Found Existing RTV Device Struct Entry\n");
-   }
-   devinfo = &(rtv->device);
-
-   if ( (rc = rtv_get_device_info(argv[1], devinfo)) != 0 ) {
+   if ( (rc = rtv_get_device_info(argv[1], NULL, &rtv)) != 0 ) {
       return(rc);
    } 
-   rtv_print_device_info(devinfo);
+   rtv_print_device_info(&(rtv->device));
    return(0);
 }
 
@@ -212,13 +177,13 @@ static int ciGetGuide(int argc, char **argv)
       return(0); 
    }
 
-   rtv = get_rtv_device_struct(argv[1], &new_entry);
+   rtv = rtv_get_device_struct(argv[1], &new_entry);
    if ( new_entry ) {
       printf("\nNeed to get device info first.\n");
       if ( (rc = ciGetDeviceInfo(argc, argv)) != 0 ) {
          return(rc);
       }
-      rtv = get_rtv_device_struct(argv[1], &new_entry);
+      rtv = rtv_get_device_struct(argv[1], &new_entry);
       if ( new_entry ) {
          printf("\n\n\nWhat the f&^$. Something is broke bad.\n\n\n");
          return(0);
@@ -235,17 +200,17 @@ static int ciGetGuide(int argc, char **argv)
    return(0);
 }
 
+static int ciDeviceList(int argc, char **argv)
+{
+   argc=argc; argv=argv;
+   rtv_print_device_list();
+   return(0);
+}
+
 static int ciFree(int argc, char **argv)
 {
-   int x;
    argc=argc; argv=argv;
-
-   for ( x=0; x < MAX_RTVS; x++ ) {
-      if ( rtv_top[x].device.ipaddr != NULL ) {
-         rtv_free_device_info(&(rtv_top[x].device));
-         rtv_free_guide(&(rtv_top[x].guide));
-      }
-   }
+   rtv_free_devices();
    return(0);
 }
 
@@ -269,7 +234,7 @@ static int ciHttpFsVolinfo(int argc, char **argv)
       return(0); 
    }
 
-   rtv = get_rtv_device_struct(argv[1], &new_entry);
+   rtv = rtv_get_device_struct(argv[1], &new_entry);
    if ( new_entry ) {
       printf("\nYou need to get device info first.\n");
       return(0);
@@ -296,7 +261,7 @@ static int ciHttpFsStatus(int argc, char **argv)
       return(0); 
    }
 
-   rtv = get_rtv_device_struct(argv[1], &new_entry);
+   rtv = rtv_get_device_struct(argv[1], &new_entry);
    if ( new_entry ) {
       printf("\nYou need to get device info first.\n");
       return(0);
@@ -342,7 +307,7 @@ static int ciHttpFsListFiles(int argc, char **argv)
    ipaddr = argv[optind++];
    path   = argv[optind];
 
-   rtv = get_rtv_device_struct(ipaddr, &new_entry);
+   rtv = rtv_get_device_struct(ipaddr, &new_entry);
    if ( new_entry ) {
       printf("\nYou need to get device info first.\n");
       return(0);
@@ -412,7 +377,7 @@ static int ciHttpFsGetFile(int argc, char ** argv)
    f_from = argv[optind++];
    f_to   = argv[optind];
    
-   rtv = get_rtv_device_struct(ipaddr, &new_entry);
+   rtv = rtv_get_device_struct(ipaddr, &new_entry);
    if ( new_entry ) {
       printf("\nYou need to get device info first.\n");
       return(0);
@@ -455,6 +420,7 @@ cmdb_t cmd_list[] = {
    {"sendlogs",   ciRouteLogs,       0, MAX_PARMS, "send logs to a file"              },
    {"sdm",        ciSetDbgLevel,     0, MAX_PARMS, "set the debug trace mask"         },
    {"di",         ciGetDeviceInfo,   0, MAX_PARMS, "get RTV device information"       },
+   {"devlist",    ciDeviceList,      0, MAX_PARMS, "print device list summary"        },
    {"guide",      ciGetGuide,        0, MAX_PARMS, "get RTV guide"                    },
    {"free",       ciFree,            0, MAX_PARMS, "free rtv data struct"             },
    {"fsvi",       ciHttpFsVolinfo,   0, MAX_PARMS, "http filesystem: get volume info" },

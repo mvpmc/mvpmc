@@ -116,13 +116,22 @@ typedef struct rtv_guide_export_t
 } rtv_guide_export_t;
 
 //+****************************************
-// Top level RTV structure
+// Top level RTV device structure
 //+****************************************
 typedef struct rtv_device_t
 {
    rtv_device_info_t  device;
    rtv_guide_export_t guide;
 } rtv_device_t;
+
+//+****************************************
+// List of RTV devices
+//+****************************************
+typedef struct rtv_device_list_t
+{
+   int           num_rtvs; // Number of rtv's in list
+   rtv_device_t *rtv;      // List of rtv_device_t
+} rtv_device_list_t;
 
 
 //+****************************************
@@ -185,19 +194,27 @@ typedef enum rtv_mergechunks_t
 //+************************************************************
 typedef int (*rtv_read_chunked_cb_t)(unsigned char *buf, size_t len, void *vd);
 
+
+
+//+************************************************************************
+//+********************Exported RTV Device List ***************************
+//+************************************************************************
+extern rtv_device_list_t rtv_devices;
+
 //+************************************************************************
 //+**************************   RTV API's *********************************
 //+************************************************************************
-extern int   rtv_init_lib(void);
-extern int   rtv_route_logs(char *filename);
-extern char *rtv_format_time(__u64 ttk); 
+extern int           rtv_init_lib(void);
+extern rtv_device_t *rtv_get_device_struct(const char *ipaddr, int *new);
+extern int           rtv_free_devices(void);
+extern void          rtv_print_device_list(void); 
+extern int           rtv_route_logs(char *filename);
+extern char         *rtv_format_time(__u64 ttk); 
+extern void          rtv_set_dbgmask(__u32 mask);
+extern __u32         rtv_get_dbgmask(void);
+extern int           rtv_crypt_test(void);
 
-extern void   rtv_set_dbgmask(__u32 mask);
-extern __u32  rtv_get_dbgmask(void);
-extern int    rtv_crypt_test(void);
-extern int    rtv_httpfs_cli_cmd(const rtv_device_info_t *devinfo, int argc, char **argv);
-
-extern int  rtv_get_device_info(const char *address, rtv_device_info_t *devinfo);
+extern int  rtv_get_device_info(const char *address,  char *queryStr, rtv_device_t **device_p);
 extern void rtv_free_device_info(rtv_device_info_t  *devinfo_p); 
 extern void rtv_print_device_info(const rtv_device_info_t *devinfo); 
 

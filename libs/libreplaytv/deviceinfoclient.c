@@ -203,15 +203,24 @@ static int parse_version_info( rtv_device_info_t *devinfo )
 //                         PUBLIC FUNCTIONS
 //+***********************************************************************************
 
-int rtv_get_device_info(const char *address, rtv_device_info_t *devinfo )
+//
+// rtv_get_device_info
+// returns pointer to replaytv device.
+//
+int rtv_get_device_info(const char *address, char *queryStr, rtv_device_t **device_p)
 {
-   char           url[512];
-   struct hc     *hc;
-   int            rc;
+   char               url[512];
+   struct hc         *hc;
+   int                rc, new_entry;
+   rtv_device_t      *rtv;
+   rtv_device_info_t *devinfo;
+
+   *device_p  = NULL;
+   rtv     = rtv_get_device_struct(address, &new_entry);
+   devinfo = &(rtv->device);
 
    rtv_free_device_info(devinfo);
    devinfo->ipaddr = malloc(strlen(address) + 1);
-
    strcpy(devinfo->ipaddr, address);
 
    parser = XML_ParserCreate("US-ASCII");
@@ -220,8 +229,12 @@ int rtv_get_device_info(const char *address, rtv_device_info_t *devinfo )
    XML_SetDefaultHandler(parser, devinfo_default_handler);
    XML_SetUserData(parser, devinfo);
    
-   sprintf(url, "http://%s/Device_Descr.xml",
-           address);
+   if ( queryStr == NULL ) {
+      sprintf(url, "http://%s/Device_Descr.xml", address);
+   }
+   else {
+      strncpy(url, queryStr, 511);
+   }
    
    RTV_DBGLOG(RTVLOG_GUIDE, "%s: url=%s\n", __FUNCTION__, url); 
    hc = hc_start_request(url);
@@ -248,6 +261,10 @@ int rtv_get_device_info(const char *address, rtv_device_info_t *devinfo )
 
    if ( (rc = parse_version_info(devinfo)) != 0 ) {
       
+   }
+   *device_p = rtv;
+   if ( new_entry) {
+      rtv_devices.num_rtvs++;
    }
    return (rc);
 }
