@@ -612,6 +612,7 @@ av_set_audio_output(av_audio_output_t type)
 				return -1;
 			if (ioctl(fd_audio, AV_SET_AUD_CHANNEL, 0) < 0)
 				return -1;
+			ioctl(fd_audio, AV_SET_AUD_BYPASS, 1);
 
 			av_sync();
 
@@ -630,11 +631,37 @@ av_set_audio_output(av_audio_output_t type)
 				return -1;
 			if (ioctl(fd_audio, AV_SET_AUD_FORMAT, &mix) < 0)
 				return -1;
+			ioctl(fd_audio, AV_SET_AUD_BYPASS, 1);
 
 			av_sync();
 
 			if (ioctl(fd_audio, AV_SET_AUD_PLAY, 0) < 0)
 				return -1;
+
+			break;
+		case AV_AUDIO_AC3:
+			if ((fd_audio=open("/dev/adec_ac3",
+				     O_RDWR|O_NONBLOCK)) < 0)
+				return -1;
+			printf("opened /dev/adec_ac3\n");
+			if (ioctl(fd_audio, AV_SET_AUD_SRC, 1) < 0)
+				return -1;
+			if (ioctl(fd_audio, AV_SET_AUD_STREAMTYPE, 0) < 0)
+				return -1;
+			if (ioctl(fd_audio, AV_SET_AUD_CHANNEL, 0) < 0)
+				return -1;
+			if (ioctl(fd_audio, AV_SET_AUD_SYNC, 2) < 0)
+				return -1;
+			if (ioctl(fd_audio, AV_SET_AUD_BYPASS, 0) < 0) {
+				fprintf(stderr, "audio passthrough failed!\n");
+				audio_output = -1;
+				return -1;
+			}
+
+			av_sync();
+
+			if (ioctl(fd_audio, AV_SET_AUD_PLAY, 0) < 0)
+			  return -1;
 
 			break;
 		default:

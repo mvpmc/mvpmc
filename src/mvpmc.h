@@ -265,4 +265,6 @@ extern void playlist_stop(void);
 extern void subtitle_switch_stream(mvp_widget_t*, int);
 extern void add_subtitle_streams(mvp_widget_t*, mvpw_menu_item_attr_t*);
 
+extern int audio_output_mode;
+
 #endif /* MVPMC_H */

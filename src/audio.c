@@ -95,6 +95,8 @@ static int ac3_freespace(void);
 
 #define min(X, Y)  ((X) < (Y) ? (X) : (Y))
 
+int audio_output_mode = AUD_OUTPUT_STEREO;
+
 static inline uint16_t
 convert(int32_t j)
 {
@@ -266,6 +268,11 @@ ogg_play(int afd)
 		playlist_next();
 }
 
+/******************************************
+ * Function to play AC3 by mixing down from
+ * 5.1 to 2 channels.
+ ******************************************
+ */
 static void
 ac3_play(int afd)
 {
@@ -305,6 +312,49 @@ ac3_play(int afd)
 			playlist_next();
 		}
 	}
+}
+
+/******************************************
+ * Function to play AC3 by passing data 
+ * through spdif output.
+ ******************************************
+ */
+static void
+ac3_spdif_play(int afd)
+{
+        static char buf[BSIZE];
+        static int n = 0, nput = 0;
+        int tot, len;
+
+
+        if (afd < 0) {
+                n = 0;
+                nput = 0;
+                return;
+        }
+
+        len = read(fd, buf+n, BSIZE-n);
+        n += len;
+        if(n==0 && nput==0){
+                /* fprintf(stderr,"ac3 file finished\n"); */
+                mvpw_set_idle(NULL);
+                audio_clear();
+                if(playlist){
+                        playlist_next();
+                }
+                return;
+        }
+        if ((tot=write(afd, buf+nput, n-nput)) == 0) {
+                mvpw_set_idle(NULL);
+                mvpw_set_timer(root, audio_play, 100);
+                return;
+        }
+        nput += tot;
+
+        if (nput == n) {
+                n = 0;
+                nput = 0;
+        }
 }
 
 static void
@@ -361,7 +411,17 @@ audio_player(int reset)
 			next_input_sample = 0;
 			break;
 		case AUDIO_FILE_AC3:
-			ac3_play(-1);
+			if (audio_output_mode == AUD_OUTPUT_STEREO) {
+				/*
+				 * downmixing from 5.1 to 2 channels
+				 */
+				ac3_play(-1);
+			} else {
+				/*
+				 * AC3 pass through out the SPDIF / TOSLINK
+				 */
+				ac3_spdif_play(-1);
+			}
 			break;
 		case AUDIO_FILE_OGG:
 			ogg_play(-1);
@@ -378,7 +438,17 @@ audio_player(int reset)
 
 	switch (audio_type) {
 	case AUDIO_FILE_AC3:
-		ac3_play(afd);
+		if (audio_output_mode == AUD_OUTPUT_STEREO) {
+			/*
+			 * downmixing from 5.1 to 2 channels
+			 */
+			ac3_play(afd);
+		} else {
+			/*
+			 * AC3 pass through out the SPDIF / TOSLINK
+			 */
+			ac3_spdif_play(afd);
+		}
 		break;
 	case AUDIO_FILE_WAV:
 		wav_play(fd, afd, align, channels, bps);
@@ -502,7 +572,21 @@ audio_idle(void)
 				goto fail;
 			break;
 		case AUDIO_FILE_AC3:
-			av_set_audio_output(AV_AUDIO_PCM);
+			if (audio_output_mode == AUD_OUTPUT_STEREO) {
+				/*
+				 * downmixing from 5.1 to 2 channels
+				 */
+				av_set_audio_output(AV_AUDIO_PCM);
+			} else {
+				/*
+				 * AC3 pass through out the SPDIF / TOSLINK
+				 */
+				if (av_set_audio_output(AV_AUDIO_AC3) < 0) {
+					/* revert to downmixing */
+					av_set_audio_output(AV_AUDIO_PCM);
+					audio_output_mode = AUD_OUTPUT_STEREO;
+				}
+			}
 			break;
 		case AUDIO_FILE_WAV:
 			if (wav_setup() < 0)

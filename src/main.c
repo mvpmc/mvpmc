@@ -130,7 +130,7 @@ print_help(char *prog)
 	printf("\t-i dir    \tmvpmc image directory\n");
 	printf("\t-m mode   \toutput mode (ntsc or pal)\n");
 	printf("\t-M        \tMythTV protocol debugging output\n");
-	printf("\t-o output \toutput device (composite or svideo)\n");
+	printf("\t-o output \toutput device for video (composite or svideo) and / or for audio (stereo or passthru)\n");
 	printf("\t-s server \tmythtv server IP address\n");
 	printf("\t-S seconds\tscreensaver timeout in seconds (0 - disable)\n");
 	printf("\t-r path   \tpath to NFS mounted mythtv recordings\n");
@@ -319,6 +319,10 @@ main(int argc, char **argv)
 				output = AV_OUTPUT_SVIDEO;
 			} else if (strcasecmp(optarg, "composite") == 0) {
 				output = AV_OUTPUT_COMPOSITE;
+			} else if (strcasecmp(optarg, "stereo") == 0) {
+				audio_output_mode = AUD_OUTPUT_STEREO;
+			} else if (strcasecmp(optarg, "passthru") == 0) {
+				audio_output_mode = AUD_OUTPUT_PASSTHRU;
 			} else {
 				fprintf(stderr, "unknown output '%s'\n",
 					optarg);

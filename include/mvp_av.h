@@ -42,6 +42,11 @@ enum {
 	AV_OUTPUT_SVIDEO = 2,
 };
 
+enum {
+	AUD_OUTPUT_PASSTHRU = 0,
+	AUD_OUTPUT_STEREO = 1,
+};
+
 typedef enum {
 	AV_ASPECT_4x3 = 0,
 	AV_ASPECT_16x9 = 1,
@@ -57,7 +62,8 @@ typedef enum {
 
 typedef enum {
 	AV_AUDIO_MPEG,
-	AV_AUDIO_PCM
+	AV_AUDIO_PCM,
+	AV_AUDIO_AC3
 } av_audio_output_t;
 
 typedef struct {
