@@ -302,8 +302,12 @@ main(int argc, char **argv)
 
 	if (font)
 		fontid = mvpw_load_font(font);
+#ifdef MVPMC_HOST
+	big_font = fontid;
+#else
 	if ((big_font=mvpw_load_font("/etc/helvB18.pcf")) <= 0)
 		big_font = fontid;
+#endif
 
 	if (av_init() < 0) {
 		fprintf(stderr, "failed to initialize av hardware!\n");
