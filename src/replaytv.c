@@ -1964,7 +1964,6 @@ int replaytv_hide_device_menu(void)
 //
 void replaytv_back_from_video(void)
 {
-   av_video_blank(); //Need to call this first or may get artifacts
    video_stop_play();
    rtv_abort_read();
    video_clear();               //kick video.c
