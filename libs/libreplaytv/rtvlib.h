@@ -61,6 +61,7 @@ typedef struct rtv_device_info_t
    char                 *serialNum; 
    char                 *udn;    
    rtv_device_version_t  version;      //Software version info. (built from versionStr)
+   int                   autodiscovered;
    __u32                 status;
 } rtv_device_info_t;
 

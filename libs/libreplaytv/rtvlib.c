@@ -34,17 +34,23 @@ rtv_device_list_t rtv_devices;
 
 rtv_device_t *rtv_get_device_struct(const char *ipaddr, int *new) 
 {
+   int first_null_idx = -1;
    int x;
    
    *new = 0;
    for ( x=0; x < MAX_RTVS; x++ ) {
       if ( rtv_devices.rtv[x].device.ipaddr == NULL ) {
-         *new = 1;
-         return(&(rtv_devices.rtv[x])); //New entry
+         if ( first_null_idx == -1 ) {
+            first_null_idx = x;
+         }
       }
-      if ( strcmp(rtv_devices.rtv[x].device.ipaddr, ipaddr) == 0 ) {
+      else if ( strcmp(rtv_devices.rtv[x].device.ipaddr, ipaddr) == 0 ) {
          return(&(rtv_devices.rtv[x])); //Existing entry
       }
+   }
+   if ( first_null_idx != -1 ) {
+      *new = 1;
+      return(&(rtv_devices.rtv[first_null_idx]));
    }
    return(NULL);
 }
@@ -52,7 +58,7 @@ rtv_device_t *rtv_get_device_struct(const char *ipaddr, int *new)
 int rtv_free_devices(void)
 {
    int x;
-   for ( x=0; x < rtv_devices.num_rtvs; x++ ) {
+   for ( x=0; x < MAX_RTVS; x++ ) {
       if ( rtv_devices.rtv[x].device.ipaddr != NULL ) {
          rtv_free_device_info(&(rtv_devices.rtv[x].device));
          rtv_free_guide(&(rtv_devices.rtv[x].guide));
@@ -65,15 +71,11 @@ int rtv_free_devices(void)
 void rtv_print_device_list( void ) 
 {
    int x;
-   printf("ReplayTV device list:\n");
-   for ( x=0; x < rtv_devices.num_rtvs; x++ ) {
-      printf("  idx=%2d  ", x);
+   printf("ReplayTV device list: num_devices=%d\n", rtv_devices.num_rtvs);
+   for ( x=0; x < MAX_RTVS; x++ ) {
       if ( rtv_devices.rtv[x].device.ipaddr != NULL ) {
-         printf("ip=%-16s  model=%s  name=%s\n", 
-                rtv_devices.rtv[x].device.ipaddr,rtv_devices.rtv[x].device.modelNumber, rtv_devices.rtv[x].device.name);
-      }
-      else {
-         printf("ip=NULL\n");
+         printf("  idx=%2d  ip=%-16s  model=%s  name=%s\n", 
+                x, rtv_devices.rtv[x].device.ipaddr,rtv_devices.rtv[x].device.modelNumber, rtv_devices.rtv[x].device.name);
       }
    }
 }

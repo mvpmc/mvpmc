@@ -420,7 +420,7 @@ extern int hc_read_pieces(const struct hc       *hc,
             }
         }
     } //while
-    return 0;
+    return(rc);;
 }
 
 struct chunk

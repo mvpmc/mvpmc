@@ -17,6 +17,6 @@
 #define __RTV_SERVER_H__
 
 extern int server_open_port(char *host, int port);
-extern int server_handle_connection(int listen_fd);
+extern int server_process_connection(int fd);
 
 #endif

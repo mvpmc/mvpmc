@@ -219,6 +219,10 @@ int rtv_get_device_info(const char *address, char *queryStr, rtv_device_t **devi
    rtv     = rtv_get_device_struct(address, &new_entry);
    devinfo = &(rtv->device);
 
+   if ( !(new_entry) ) {
+      rtv_devices.num_rtvs--;
+   } 
+
    rtv_free_device_info(devinfo);
    devinfo->ipaddr = malloc(strlen(address) + 1);
    strcpy(devinfo->ipaddr, address);
@@ -263,9 +267,7 @@ int rtv_get_device_info(const char *address, char *queryStr, rtv_device_t **devi
       
    }
    *device_p = rtv;
-   if ( new_entry) {
-      rtv_devices.num_rtvs++;
-   }
+   rtv_devices.num_rtvs++;
    return (rc);
 }
 

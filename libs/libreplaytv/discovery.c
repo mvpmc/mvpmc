@@ -14,10 +14,12 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
 #include <time.h>
+#include <sys/wait.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -57,16 +59,20 @@ static int process_ssdp_response( const char *ip_addr, char *resp )
    
    // Query the device
    //
-   rc = rtv_get_device_info(ip_addr, query_str, &rtv);
+   if ( (rc = rtv_get_device_info(ip_addr, query_str, &rtv)) == 0 ) {
+      rtv->device.autodiscovered = 1;
+   }
    return(rc);
 }
 
 #define SSDP_QUERY_STR "M-SEARCH * HTTP/1.1\r\nHOST: 239.255.255.250:1900\r\nMAN:\"ssdp:discover\"\r\n"\
                        "ST: urn:replaytv-com:device:ReplayDevice:1\r\nMX: 3\r\n\r\n"
 
+//  SSDP_NOTIFY_HEAD_STR takes either "alive" or "byebye" parm
+//
 #define SSDP_NOTIFY_HEAD_STR "NOTIFY * HTTP/1.1\r\nDate: Mon, 05 Jan 1970 23:11:55 GMT\r\n"\
                              "Server: Unknown/0.0 UPnP/1.0 Virata-EmWeb/R6_0_1\r\n"\
-                             "HOST: 239.255.255.250:1900\r\nNTS: ssdp:alive\r\n"\
+                             "HOST: 239.255.255.250:1900\r\nNTS: ssdp:%s\r\n"\
                              "CACHE-CONTROL: max-age = 1830\r\n"\
                              "LOCATION: http://%s/Device_Descr.xml\r\n"
 #define SSDP_NOTIFY_TAIL1_STR "NT: upnp:rootdevice\r\nUSN: uuid:%s::upnp:rootdevice\r\n\r\n"
@@ -83,9 +89,12 @@ int rtv_discover(unsigned int timeout_ms, rtv_device_list_t **device_list)
    const u_char ttl              = 1;
    const int    on               = 1;
 
-	int                ssdp_sendfd, resp_recvfd, recv_mcastfd, http_fd;
-   int                tmp, rc, len, done, errno_sav, pid;
-	struct sockaddr_in ssdp_addr, resp_addr, local_addr, recv_addr;
+   int child_count = 0;
+
+	int                ssdp_sendfd, resp_recvfd, recv_mcastfd, http_listen_fd, cli_fd;
+   int                tmp, rc, len, done, errno_sav, pid, new_entry;
+   socklen_t          addrlen;
+	struct sockaddr_in ssdp_addr, resp_addr, local_addr, recv_addr, cliaddr;
    struct ip_mreq     mreq;
    int                maxFDp1;
    fd_set             fds_setup, rfds;
@@ -94,8 +103,10 @@ int rtv_discover(unsigned int timeout_ms, rtv_device_list_t **device_list)
    char               tm_buf[255];
    char               ip_addr[INET_ADDRSTRLEN+1];
    time_t             tim;
+   rtv_device_t      *rtv;
 
-   ssdp_sendfd = resp_recvfd = recv_mcastfd = http_fd = -1;
+
+   ssdp_sendfd = resp_recvfd = recv_mcastfd = http_listen_fd = -1;
    errno_sav = 0;
 
    // Setup ssdp multicast send socket
@@ -117,7 +128,7 @@ int rtv_discover(unsigned int timeout_ms, rtv_device_list_t **device_list)
    //
    len = sizeof(local_addr);
    getsockname(ssdp_sendfd, (struct sockaddr*)&local_addr, &len);
-   RTV_DBGLOG(RTVLOG_DSCVR, "%s: --------------->>>>>>>>>local addr : %s \n", __FUNCTION__, inet_ntoa(local_addr.sin_addr));
+   RTV_DBGLOG(RTVLOG_DSCVR, "%s: local addr : %s \n", __FUNCTION__, inet_ntoa(local_addr.sin_addr));
 
    bzero(&resp_addr, sizeof(resp_addr));
    resp_addr.sin_family      = AF_INET;
@@ -152,18 +163,11 @@ int rtv_discover(unsigned int timeout_ms, rtv_device_list_t **device_list)
 
    // Setup to receive port 80 http connections
    //
-   if ( (http_fd = server_open_port(NULL, 80)) < 0 ) {
+   if ( (http_listen_fd = server_open_port(NULL, 80)) < 0 ) {
+      errno_sav = http_listen_fd;
       RTV_ERRLOG("%s: failed to open http server port\n", __FUNCTION__);
+      goto error;
    }
-
-   snprintf(buff, SSDP_BUF_SZ, SSDP_NOTIFY_HEAD_STR SSDP_NOTIFY_TAIL1_STR, inet_ntoa(local_addr.sin_addr), rtv_idns.uuid_5k);
-   rc = send(ssdp_sendfd, buff, strlen(buff), 0);
-   snprintf(buff, SSDP_BUF_SZ, SSDP_NOTIFY_HEAD_STR SSDP_NOTIFY_TAIL2_STR, inet_ntoa(local_addr.sin_addr), rtv_idns.uuid_5k, rtv_idns.uuid_5k);
-   rc = send(ssdp_sendfd, buff, strlen(buff), 0);
-   snprintf(buff, SSDP_BUF_SZ, SSDP_NOTIFY_HEAD_STR SSDP_NOTIFY_TAIL3_STR, inet_ntoa(local_addr.sin_addr), rtv_idns.uuid_5k);
-   rc = send(ssdp_sendfd, buff, strlen(buff), 0);
-#if 0
-#endif
 
    // Send SSDP query
    //
@@ -174,15 +178,33 @@ int rtv_discover(unsigned int timeout_ms, rtv_device_list_t **device_list)
       RTV_ERRLOG("%s: SSDP send failed: %s\n", __FUNCTION__, strerror(errno_sav));
       goto error;
    }
+
+   snprintf(buff, SSDP_BUF_SZ, SSDP_NOTIFY_HEAD_STR SSDP_NOTIFY_TAIL1_STR, "byebye", inet_ntoa(local_addr.sin_addr), rtv_idns.uuid_5k);
+   rc = send(ssdp_sendfd, buff, strlen(buff), 0);
+   snprintf(buff, SSDP_BUF_SZ, SSDP_NOTIFY_HEAD_STR SSDP_NOTIFY_TAIL2_STR, "byebye", inet_ntoa(local_addr.sin_addr), rtv_idns.uuid_5k, rtv_idns.uuid_5k);
+   rc = send(ssdp_sendfd, buff, strlen(buff), 0);
+   snprintf(buff, SSDP_BUF_SZ, SSDP_NOTIFY_HEAD_STR SSDP_NOTIFY_TAIL3_STR, "byebye", inet_ntoa(local_addr.sin_addr), rtv_idns.uuid_5k);
+   rc = send(ssdp_sendfd, buff, strlen(buff), 0);
+
+   sleep(1);
+
+   snprintf(buff, SSDP_BUF_SZ, SSDP_NOTIFY_HEAD_STR SSDP_NOTIFY_TAIL1_STR, "alive", inet_ntoa(local_addr.sin_addr), rtv_idns.uuid_5k);
+   rc = send(ssdp_sendfd, buff, strlen(buff), 0);
+   snprintf(buff, SSDP_BUF_SZ, SSDP_NOTIFY_HEAD_STR SSDP_NOTIFY_TAIL2_STR, "alive", inet_ntoa(local_addr.sin_addr), rtv_idns.uuid_5k, rtv_idns.uuid_5k);
+   rc = send(ssdp_sendfd, buff, strlen(buff), 0);
+   snprintf(buff, SSDP_BUF_SZ, SSDP_NOTIFY_HEAD_STR SSDP_NOTIFY_TAIL3_STR, "alive", inet_ntoa(local_addr.sin_addr), rtv_idns.uuid_5k);
+   rc = send(ssdp_sendfd, buff, strlen(buff), 0);
+#if 0
+#endif
    
    // Get responses
    //
    FD_ZERO(&fds_setup);
    FD_SET(recv_mcastfd, &fds_setup);
    FD_SET(resp_recvfd, &fds_setup);
-   FD_SET(http_fd, &fds_setup);
+   FD_SET(http_listen_fd, &fds_setup);
    tmp     = (recv_mcastfd > resp_recvfd) ? (recv_mcastfd) : (resp_recvfd);
-   maxFDp1 = (tmp > http_fd) ? (tmp +1) : (http_fd + 1);
+   maxFDp1 = (tmp > http_listen_fd) ? (tmp +1) : (http_listen_fd + 1);
    tv.tv_sec  = timeout_ms / 1000;
    tv.tv_usec = (timeout_ms % 1000) * 1000;
    done = 0;
@@ -237,18 +259,67 @@ int rtv_discover(unsigned int timeout_ms, rtv_device_list_t **device_list)
                 RTV_DBGLOG(RTVLOG_DSCVR, "%s", buff);
              }
           }
-          else if ( FD_ISSET(http_fd, &rfds) ) {
-             RTV_DBGLOG(RTVLOG_DSCVR, "FSSET: http_fd: %s\n", tm_buf);
-             if ( (pid = fork()) < 0) {
+          else if ( FD_ISSET(http_listen_fd, &rfds) ) {
+             RTV_DBGLOG(RTVLOG_DSCVR, "FSSET: http_listen_fd: %s\n", tm_buf);
+
+             // Accept the connection
+             //
+             addrlen = sizeof(cliaddr);
+             memset(&cliaddr, 0, addrlen);
+             if ( (cli_fd = accept(http_listen_fd, (struct sockaddr *)&cliaddr, &addrlen)) < 0) {
                 errno_sav = errno;
-                RTV_ERRLOG("%s: fork error: %d=>%s\n", __FUNCTION__, errno_sav, strerror(errno_sav));
+                RTV_ERRLOG("%s: accept failed: %d=>%s\n", __FUNCTION__, errno_sav, strerror(errno_sav) );
                 goto error;
              }
-             if (pid ==  0) {
-                // child
-                server_handle_connection(http_fd);
-                // child never returns
+             inet_ntop(AF_INET, &(cliaddr.sin_addr), ip_addr, INET_ADDRSTRLEN);
+             RTV_DBGLOG(RTVLOG_DSCVR, "%s: ----- http connection from IP: %s ------\n\n", __FUNCTION__, ip_addr);
+
+             // If we don't have a device entry for this address then attempt to get the info.
+             // Only process the connection if it is dvarchive. We need to do this to get dvarchive
+             // into either RTV 4K or 5K mode. We don't want to respond to a real RTV because it will 
+             // make us show up as a networked RTV.
+             //
+             rtv = rtv_get_device_struct(ip_addr, &new_entry);
+             if ( new_entry ) {
+                if ( (rc = rtv_get_device_info(ip_addr, NULL, &rtv)) != 0 ) {
+                   // Just close the fd and don't worry about it.
+                   //
+                   close(cli_fd);
+                }
+                else {
+                   // Should have passed with new_entry=0
+                   //
+                   rtv->device.autodiscovered = 1;
+                   rtv = rtv_get_device_struct(ip_addr, &new_entry);
+                }
              }
+             
+             if ( !(new_entry) ) {
+                if ( atoi(rtv->device.modelNumber) == 4999 ) {
+                   // Is dvarchive: Fork child process to handle the connection
+                   //
+                   if ( (pid = fork()) < 0) {
+                      errno_sav = errno;
+                      RTV_ERRLOG("%s: fork error: %d=>%s\n", __FUNCTION__, errno_sav, strerror(errno_sav));
+                      goto error;
+                   }
+                   if (pid ==  0) {
+                      // child
+                      server_process_connection(cli_fd);
+                      // child never returns
+                   }
+                   else {
+                      // parent
+                      close(cli_fd);
+                      child_count++;
+                   }
+                } 
+                else {
+                   // Not dvarchive
+                   //
+                   close(cli_fd);
+                }
+             } //new_entry
           }
           else {
              RTV_ERRLOG("discover select: invalid FD\n");
@@ -258,15 +329,23 @@ int rtv_discover(unsigned int timeout_ms, rtv_device_list_t **device_list)
        } //switch
    } //while
 
-   close(ssdp_sendfd); close(resp_recvfd); close(recv_mcastfd), close(http_fd);
+   close(ssdp_sendfd); close(resp_recvfd); close(recv_mcastfd), close(http_listen_fd);
+   while( child_count ) {
+      wait(&rc);
+      child_count--;
+   }
    *device_list = &rtv_devices;
    return(0);
    
 error:
-   if ( ssdp_sendfd  != -1 ) close (ssdp_sendfd);
-   if ( resp_recvfd  != -1 ) close (resp_recvfd);
-   if ( recv_mcastfd != -1 ) close (recv_mcastfd);
-   if ( http_fd      != -1 ) close (http_fd);
+   if ( ssdp_sendfd    != -1 ) close (ssdp_sendfd);
+   if ( resp_recvfd    != -1 ) close (resp_recvfd);
+   if ( recv_mcastfd   != -1 ) close (recv_mcastfd);
+   if ( http_listen_fd != -1 ) close (http_listen_fd);
+   while( child_count ) {
+      wait(&rc);
+      child_count--;
+   }
    *device_list = NULL;
    return(-errno_sav);
 }

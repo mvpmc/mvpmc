@@ -79,6 +79,11 @@ Status
 -Added ability to redirect RTV_PRT statements to a file
 -Added initial mvpmc gui support for multiple RTV's
 -Added mvpmc command line options for setting rtv debug mask & sending logs to a file.
+11/04/04:
+-Added discovery (SSDP). i.e. Autodiscover replaytv devices instead of passing 
+ ipaddr at application command line.
+-Got DVArchive to send a 5K guide instead of an XML formatted guide.
+ (Needed to implement ssdp and a bogus RTV server to make DVArchive think it is talking to another DVArchive)
 
 Library TODO
 ------------
@@ -86,11 +91,7 @@ Library TODO
 -Cleanup internal header files
 -Finish 5K Guide parsing and string formatting routines.
 -Add 4K Guide parsing
--Get DVArchive to send a 5K guide instead of an XML formatted guide.
- (Need to implement ssdp. DVArchive thinks it is talking to another DVArchive)
 -Remove the expat lib dependency. It's only used for rtv_get_device_info() response parsing.
--Add replay unit discovery (SSDP). i.e. Autodiscover replaytv devices instead of passing 
- ipaddr at application command line.
 -Add support for deleting a show.
 -Add support for the replay show ".ndx" files to allow jumping
  around the show by timestamp.

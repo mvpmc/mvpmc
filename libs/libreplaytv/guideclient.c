@@ -35,11 +35,11 @@ struct snapshot_data
     u32   status;
 };
 
-static int get_rtv5k_snapshot_callback(unsigned char * buf, size_t len, void * vd)
+static int get_rtv5k_snapshot_callback(unsigned char *buf, size_t len, void *vd)
 {
-    struct snapshot_data * data = vd;
-    unsigned char * buf_data_start;
-    unsigned long bytes_to_read;
+    struct snapshot_data *data = vd;
+    unsigned char        *buf_data_start;
+    unsigned long         bytes_to_read;
     
     RTV_DBGLOG(RTVLOG_GUIDE, "%s: data->firsttime=%d buf=%p vd=%p len=%d\n", __FUNCTION__, data->firsttime, buf, vd, len); 
     if (data->firsttime) {
@@ -55,7 +55,7 @@ static int get_rtv5k_snapshot_callback(unsigned char * buf, size_t len, void * v
         RTV_DBGLOG(RTVLOG_GUIDE, "%s: status=%lu\n", __FUNCTION__, data->status);
         if (!end) {
            RTV_ERRLOG("%s: malformed buffer\n", __FUNCTION__);
-           return(0);
+           return(-EBADMSG);
         }
         do {
             cur = end + 1;
@@ -68,14 +68,14 @@ static int get_rtv5k_snapshot_callback(unsigned char * buf, size_t len, void * v
             }
             end = strchr(cur, '\n');
             if (!end) {
-                RTV_DBGLOG(RTVLOG_GUIDE, "%s: \\n not found: cur=%p: returning\n", __FUNCTION__, cur);
-                return(0);
+                RTV_ERRLOG("%s: \\n not found: cur=%p: returning\n", __FUNCTION__, cur);
+                return(-EBADMSG);
             }
             *end = '\0';
             equal = strchr(cur, '=');
             if (!equal) { 
-                RTV_DBGLOG(RTVLOG_GUIDE, "%s: = not found: cur=%p: returning\n", __FUNCTION__, cur);
-                return(0); 
+                RTV_ERRLOG("%s: = not found: cur=%p: returning\n", __FUNCTION__, cur);
+                return(-EBADMSG); 
             }
             if (strncmp(cur, "guide_file_name=", equal-cur+1) == 0) {
                 data->timestamp = malloc(strlen(equal+1)+1);
@@ -101,6 +101,7 @@ static int get_rtv5k_snapshot_callback(unsigned char * buf, size_t len, void * v
        RTV_PRT   ("    firsttime=%d   filesize=%d\n", data->firsttime, data->filesize);
        RTV_PRT   ("    bytesread=%d   status=  %lu  timestamp=%s\n", data->bytes_read, data->status, data->timestamp);
     } 
+    fflush(NULL);
     return(0);
 }
 
@@ -127,10 +128,10 @@ int rtv_get_guide_snapshot( const rtv_device_info_t  *device,
        send_timestamp = cur_timestamp;
     }
 
-    //if ( atoi(device->modelNumber) == 4999 ) {
-    //   RTV_PRT("Sorry DVArchive not supported yet\n");
-    //   return(-ENOTSUP);
-    //}
+    if ( (atoi(device->modelNumber) == 4999) && (device->autodiscovered != 1) ) {
+       RTV_ERRLOG("%s: DVArchive must be auto-discovered before guide snapshot can be retrieved\n", __FUNCTION__);
+       return(-ENOTSUP);
+    }
     if ( device->version.vintage == RTV_DEVICE_4K ) {
        sprintf(url, "http://%s/http_replay_guide-get_snapshot?"
                "guide_file_name=%s&serial_no=%s",
@@ -144,7 +145,6 @@ int rtv_get_guide_snapshot( const rtv_device_info_t  *device,
                device->ipaddr,
                send_timestamp,
                rtv_idns.sn_5k);
-//               "guide_file_name=%s&serial_no=RTV5040K0000000000",
     }
     else {
        RTV_ERRLOG("%s: Invalid device vintage: %d\n", __FUNCTION__, device->version.vintage);

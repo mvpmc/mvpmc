@@ -165,30 +165,18 @@ int server_open_port(char *host, int port)
 }
 
 
-int server_handle_connection(int listen_fd)
+int server_process_connection(int fd)
 {
-   int                fd, errno_sav, len;
-   struct sockaddr_in cliaddr;
-   socklen_t          addrlen;
+   int                errno_sav, len;
    char               rxbuff[TCP_BUF_SZ+1], txbuff[TCP_BUF_SZ+1];
 
    RTV_DBGLOG(RTVLOG_DSCVR, "%s: Enter...\n", __FUNCTION__);
-   addrlen = sizeof(cliaddr);
-   memset(&cliaddr, 0, addrlen);
-   if ( (fd = accept(listen_fd, (struct sockaddr *)&cliaddr, &addrlen)) < 0) {
-      errno_sav = errno;
-      RTV_ERRLOG("%s: accept failed: %d=>%s\n", __FUNCTION__, errno_sav, strerror(errno_sav) );
-      exit(-errno_sav);
-   }
-   close(listen_fd);
-
    if ( (len = read(fd, rxbuff, TCP_BUF_SZ)) < 0 ) {
       errno_sav = errno;
       RTV_ERRLOG("%s: read failed: %d=>%s\n", __FUNCTION__, errno_sav, strerror(errno_sav) );
       exit(-errno_sav);
    }
 
-   RTV_DBGLOG(RTVLOG_DSCVR, "%s: ----->>>>>>recvfrom IP: %s <<<<<<<<------\n\n", __FUNCTION__, inet_ntoa(cliaddr.sin_addr));
    rxbuff[len] = '\0';
    RTV_DBGLOG(RTVLOG_DSCVR, "%s\n", rxbuff);
    if ( strstr(rxbuff, "Device_Descr.xml") != NULL ) {
