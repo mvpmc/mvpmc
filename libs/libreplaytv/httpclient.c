@@ -289,7 +289,7 @@ int hc_post_request(struct hc *hc,
     return 0;
 }
 
-int hc_get_status(struct hc *hc)
+int hc_get_status(const struct hc *hc)
 {
     return strtoul(hc->status + 9, NULL, 10);
 }

@@ -83,7 +83,7 @@ extern int             hc_add_req_header(struct hc *hc, const char *tag, const c
 extern int             hc_send_request(struct hc *hc, const char *append);
 extern int             hc_post_request(struct hc *hc,
                                        int (*callback)(unsigned char *, size_t, void *), void *v);
-extern int             hc_get_status(struct hc * hc);
+extern int             hc_get_status(const struct hc * hc);
 extern char*           hc_lookup_rsp_header(const struct hc *hc, const char *tag);
 extern int             hc_read_all(struct hc *hc, char **data_p);
 extern int             hc_read_pieces(const struct hc *,

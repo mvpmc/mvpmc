@@ -214,6 +214,7 @@ extern void          rtv_set_dbgmask(__u32 mask);
 extern __u32         rtv_get_dbgmask(void);
 extern int           rtv_crypt_test(void);
 
+extern int rtv_discover(unsigned int timeout_ms, rtv_device_list_t **device_list);
 extern int  rtv_get_device_info(const char *address,  char *queryStr, rtv_device_t **device_p);
 extern void rtv_free_device_info(rtv_device_info_t  *devinfo_p); 
 extern void rtv_print_device_info(const rtv_device_info_t *devinfo); 

@@ -147,6 +147,24 @@ static int ciRouteLogs(int argc, char **argv)
    return(rc);
 }
 
+static int ciDiscoverDevices(int argc, char **argv)
+{
+   rtv_device_list_t *dev_list; 
+   int                rc;
+   unsigned long      tmo_ms;
+
+   USAGE("<timeout-milliseconds>\n");
+   if ( argc !=2 ) {
+      printf("Parm Error: single <timeout-milliseconds> parameter required\n");
+      return(0); 
+   }
+   tmo_ms = STRTODEC(argv[1]);
+   if ( (rc = rtv_discover(tmo_ms, &dev_list)) != 0 ) {
+      return(rc);
+   } 
+   return(0);
+}
+
 static int ciGetDeviceInfo(int argc, char **argv)
 {
    rtv_device_t      *rtv;  
@@ -419,6 +437,7 @@ static int ciHttpFsGetFile(int argc, char ** argv)
 cmdb_t cmd_list[] = {
    {"sendlogs",   ciRouteLogs,       0, MAX_PARMS, "send logs to a file"              },
    {"sdm",        ciSetDbgLevel,     0, MAX_PARMS, "set the debug trace mask"         },
+   {"discover",   ciDiscoverDevices, 0, MAX_PARMS, "discover RTV devices"             },
    {"di",         ciGetDeviceInfo,   0, MAX_PARMS, "get RTV device information"       },
    {"devlist",    ciDeviceList,      0, MAX_PARMS, "print device list summary"        },
    {"guide",      ciGetGuide,        0, MAX_PARMS, "get RTV guide"                    },
