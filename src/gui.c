@@ -370,7 +370,6 @@ hide_widgets(void)
 	mvpw_hide(shows_widget);
 	mvpw_hide(episodes_widget);
 	mvpw_hide(freespace_widget);
-	replaytv_hide_widgets();
 
 	if (spu_widget) {
 		mvpw_hide(spu_widget);
