@@ -256,6 +256,17 @@ void rtv_convert_30_ndx_rec(rtv_ndx_30_record_t *rec)
    return;
 }
 
+// rtv_convert_evt_rec()
+//
+void rtv_convert_evt_rec(rtv_evt_record_t *rec)
+{
+   rec->timestamp   = ntohll(rec->timestamp);
+   rec->data_type   = ntohl(rec->data_type);
+   rec->audiopower  = ntohl(rec->audiopower);
+   rec->blacklevel  = ntohl(rec->blacklevel);
+   return;
+}
+
 
 // rtv_hex_dump()
 //

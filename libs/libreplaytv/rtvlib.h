@@ -260,6 +260,17 @@ typedef struct rtv_ndx_30_record_t
    __u32 empty;                // Always Zero, possibly for alignment
 } rtv_ndx_30_record_t; 
 
+// RTV 5K evt record: size=24 bytes
+//
+typedef struct rtv_evt_record_t 
+{
+   __u64 timestamp;            // 8 byte timestamp, in nanoseconds
+   __u32 unknown1;
+   __u32 data_type;            // 1=audio 2=video
+   __u32 audiopower;
+   __u32 blacklevel;
+} rtv_evt_record_t; 
+
 
 
 //+************************************************************
@@ -308,6 +319,7 @@ extern char         *rtv_sec_to_hr_mn_str(unsigned int seconds); // Returned str
 extern int           rtv_crypt_test(void);
 extern void          rtv_convert_22_ndx_rec(rtv_ndx_22_record_t *rec);
 extern void          rtv_convert_30_ndx_rec(rtv_ndx_30_record_t *rec);
+extern void          rtv_convert_evt_rec(rtv_evt_record_t *rec);
 extern void          rtv_hex_dump(char * tag, unsigned char * buf, unsigned int sz);
 
 extern int  rtv_discover(unsigned int timeout_ms, rtv_device_list_t **device_list);
