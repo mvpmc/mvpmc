@@ -102,6 +102,9 @@ demux_put(demux_handle_t *handle, char *buf, int len)
 	if (buf == NULL)
 		return -1;
 
+	if (len < 0)
+		return -1;
+
  loop:
 	if (len == 0)
 		return 0;
