@@ -25,6 +25,12 @@
 #include <stdint.h>
 
 typedef enum {
+	AV_DEMUX_ERROR = -1,
+	AV_DEMUX_ON,
+	AV_DEMUX_OFF,
+} av_demux_mode_t;
+
+typedef enum {
 	AV_MODE_NTSC,
 	AV_MODE_PAL,
 	AV_MODE_UNKNOWN,

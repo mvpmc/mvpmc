@@ -80,7 +80,7 @@ av_init(void)
 	if (ioctl(fd_audio, AV_SET_AUD_PLAY, 0) != 0)
 		return -1;
 
-	return 0;
+	return AV_DEMUX_ON;
 }
 
 /*

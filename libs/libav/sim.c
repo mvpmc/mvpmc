@@ -56,7 +56,7 @@ av_init(void)
 		return -1;
 #endif
 
-	return 0;
+	return AV_DEMUX_OFF;
 }
 
 int
