@@ -134,14 +134,6 @@ static mvpw_menu_attr_t mythtv_popup_attr = {
 	.title_bg = MVPW_LIGHTGREY,
 };
 
-static mvpw_text_attr_t about_attr = {
-	.wrap = 1,
-	.justify = MVPW_TEXT_LEFT,
-	.margin = 4,
-	.font = 0,
-	.fg = MVPW_BLACK,
-};
-
 static mvpw_text_attr_t mythtv_info_attr = {
 	.wrap = 1,
 	.justify = MVPW_TEXT_LEFT,
@@ -198,6 +190,22 @@ static mvpw_text_attr_t error_attr = {
 	.fg = MVPW_WHITE,
 };
 
+static mvpw_dialog_attr_t warn_attr = {
+	.font = 0,
+	.fg = MVPW_WHITE,
+	.title_fg = MVPW_BLACK,
+	.title_bg = MVPW_WHITE,
+	.modal = 1,
+};
+
+static mvpw_dialog_attr_t about_attr = {
+	.font = 0,
+	.fg = MVPW_WHITE,
+	.title_fg = MVPW_BLACK,
+	.title_bg = MVPW_WHITE,
+	.modal = 1,
+};
+
 static mvpw_graph_attr_t offset_graph_attr = {
 	.min = 0,
 	.max = 100,
@@ -227,7 +235,7 @@ static mvp_widget_t *mythtv_image;
 static mvp_widget_t *replaytv_image;
 static mvp_widget_t *about_image;
 static mvp_widget_t *exit_image;
-static mvp_widget_t *error_widget;
+static mvp_widget_t *warn_widget;
 
 mvp_widget_t *file_browser;
 mvp_widget_t *mythtv_browser;
@@ -274,8 +282,12 @@ mvp_widget_t *screensaver_image;
 mvp_widget_t *playlist_widget;
 
 static int screensaver_enabled = 0;
+volatile int screensaver_timeout = 60;
+volatile int screensaver_default = -1;
 
-mvp_widget_t *focus_widget, *focus2_widget;
+static void screensaver_event(mvp_widget_t *widget, int activate);
+
+mvp_widget_t *focus_widget;
 
 mvpw_screen_info_t si;
 
@@ -293,6 +305,7 @@ enum {
 	SETTINGS_OUTPUT,
 	SETTINGS_FLICKER,
 	SETTINGS_ASPECT,
+	SETTINGS_SCREENSAVER,
 };
 
 enum {
@@ -444,23 +457,9 @@ iw_key_callback(mvp_widget_t *widget, char key)
 }
 
 static void
-about_key_callback(mvp_widget_t *widget, char key)
+warn_key_callback(mvp_widget_t *widget, char key)
 {
-	mvpw_hide(about);
-	mvpw_show(root);
-	mvpw_expose(root);
-	mvpw_show(main_menu);
-	mvpw_expose(main_menu);
-	mvpw_focus(main_menu);
-}
-
-static void
-error_key_callback(mvp_widget_t *widget, char key)
-{
-	mvpw_hide(error_widget);
-	mvpw_focus(focus2_widget);
-
-	focus2_widget = NULL;
+	mvpw_hide(widget);
 }
 
 static void
@@ -845,6 +844,16 @@ sub_settings_select_callback(mvp_widget_t *widget, char *item, void *key)
 		else
 			printf("set aspect to %s\n", item);
 	}
+
+	if ((strcmp(item, "off") == 0) ||
+	    (strstr(item, "minute") == 0) ||
+	    (strstr(item, "second") == 0)) {
+		screensaver_timeout = (int)key;
+		printf("screensaver timeout changed to %d\n",
+		       screensaver_timeout);
+		mvpw_set_screensaver(screensaver, screensaver_timeout,
+				     screensaver_event);
+	}
 }
 
 static void
@@ -872,6 +881,8 @@ static void
 settings_hilite_callback(mvp_widget_t *widget, char *item, void *key,
 			 int hilite)
 {
+	char buf[256];
+
 	if (hilite) {
 		mvpw_clear_menu(sub_settings);
 		sub_settings_item_attr.hilite = sub_settings_hilite_callback;
@@ -908,6 +919,38 @@ settings_hilite_callback(mvp_widget_t *widget, char *item, void *key,
 					   &sub_settings_item_attr);
 			mvpw_menu_hilite_item(sub_settings,
 					      (void*)av_get_aspect());
+			break;
+		case SETTINGS_SCREENSAVER:
+			snprintf(buf, sizeof(buf), "%d seconds",
+				 screensaver_default);
+			mvpw_add_menu_item(sub_settings, "off",
+					   (void*)0,
+					   &sub_settings_item_attr);
+			if ((screensaver_default > 0) &&
+			    (screensaver_default < 60)) {
+				mvpw_add_menu_item(sub_settings, buf,
+						   (void*)screensaver_default,
+						   &sub_settings_item_attr);
+			}
+			mvpw_add_menu_item(sub_settings, "1 minute",
+					   (void*)60,
+					   &sub_settings_item_attr);
+			if ((screensaver_default > 60) &&
+			    (screensaver_default < 300)) {
+				mvpw_add_menu_item(sub_settings, buf,
+						   (void*)screensaver_default,
+						   &sub_settings_item_attr);
+			}
+			mvpw_add_menu_item(sub_settings, "5 minutes",
+					   (void*)300,
+					   &sub_settings_item_attr);
+			if ((screensaver_default > 300)) {
+				mvpw_add_menu_item(sub_settings, buf,
+						   (void*)screensaver_default,
+						   &sub_settings_item_attr);
+			}
+			mvpw_menu_hilite_item(sub_settings,
+					      (void*)screensaver_timeout);
 			break;
 		}
 	} else {
@@ -958,6 +1001,8 @@ settings_init(void)
 #endif
 	mvpw_add_menu_item(settings, "Aspect Ratio",
 			   (void*)SETTINGS_ASPECT, &settings_item_attr);
+	mvpw_add_menu_item(settings, "Screensaver Timeout",
+			   (void*)SETTINGS_SCREENSAVER, &settings_item_attr);
 
 	sub_settings_item_attr.hilite = sub_settings_hilite_callback;
 	sub_settings_item_attr.select = sub_settings_select_callback;
@@ -1379,27 +1424,31 @@ main_menu_init(char *server, char *replaytv)
 static int
 about_init(void)
 {
-	int x, y, w, h;
-
-	x = 150;
-	y = 150;
-	w = si.cols - (x * 2);
-	h = si.rows - (y * 2);
-
-	about = mvpw_create_text(NULL, x, y, w, h,
-				 MVPW_LIGHTGREY, MVPW_DARKGREY, 2);
-
-	mvpw_set_text_str(about,
-			  "MediaMVP Media Center\n"
-			  "http://mvpmc.sourceforge.net/\n\n"
-			  "Audio: mp3, ogg, wav, ac3\n"
-			  "Video: mpeg1, mpeg2\n"
-			  "Images: bmp, gif, png, jpeg\n"
-			  "Servers: MythTV, ReplayTV, NFS\n");
-	mvpw_set_key(about, about_key_callback);
+	int h, w, x, y;
+	char buf[] = "MediaMVP Media Center\n"
+		"http://mvpmc.sourceforge.net/\n\n"
+		"Audio: mp3, ogg, wav, ac3\n"
+		"Video: mpeg1, mpeg2\n"
+		"Images: bmp, gif, png, jpeg\n"
+		"Servers: MythTV, ReplayTV, NFS\n";
 
 	about_attr.font = fontid;
-	mvpw_set_text_attr(about, &about_attr);
+	h = (mvpw_font_height(about_attr.font) +
+	     (2 * 2)) * 8;
+	w = 500;
+
+	x = (si.cols - w) / 2;
+	y = (si.rows - h) / 2;
+
+	about = mvpw_create_dialog(NULL, x, y, w, h, MVPW_LIGHTGREY,
+				   MVPW_BLUE, 2);
+
+	mvpw_set_dialog_attr(about, &about_attr);
+
+	mvpw_set_dialog_title(about, "About");
+	mvpw_set_dialog_text(about, buf);
+
+	mvpw_set_key(about, warn_key_callback);
 
 	splash_update();
 
@@ -1694,48 +1743,40 @@ screensaver_timer(mvp_widget_t *widget)
 	y = rand() % (si.rows - info.h);
 
 	mvpw_moveto(screensaver_image, x, y);
+}
 
-	if (focus_widget == NULL) {
-		focus_widget = mvpw_get_focus();
+static void
+screensaver_event(mvp_widget_t *widget, int activate)
+{
+	if (activate) {
 		mvpw_show(screensaver);
-		mvpw_raise(screensaver);
 		mvpw_focus(screensaver);
+		screensaver_timer(widget);
+	} else {
+		mvpw_set_timer(screensaver, NULL, 0);
+		mvpw_hide(screensaver);
 	}
 }
 
 void
 screensaver_enable(void)
 {
+	printf("screensaver enable\n");
+
 	screensaver_enabled = 1;
-	mvpw_set_timer(screensaver, screensaver_timer, 60*1000);
+
+	mvpw_set_screensaver(screensaver, screensaver_timeout,
+			     screensaver_event);
 }
 
 void
 screensaver_disable(void)
 {
+	printf("screensaver disable\n");
+
 	screensaver_enabled = 0;
-	mvpw_set_timer(screensaver, NULL, 0);
-}
 
-static void
-screensaver_callback(void)
-{
-	if (screensaver_enabled) {
-		screensaver_enable();
-
-		mvpw_hide(screensaver);
-
-		mvpw_focus(focus_widget);
-		focus_widget = NULL;
-	} else {
-		screensaver_disable();
-	}
-}
-
-static void
-screensaver_cb(mvp_widget_t *widget, char key)
-{
-	screensaver_callback();
+	mvpw_set_screensaver(NULL, 0, NULL);
 }
 
 static int
@@ -1756,9 +1797,6 @@ screensaver_init(void)
 					      MVPW_BLACK, 0, 0);
 	mvpw_set_image(screensaver_image, file);
 
-	mvpw_keystroke_callback(screensaver_callback);
-	mvpw_set_key(screensaver, screensaver_cb);
-
 	mvpw_show(screensaver_image);
 
 	screensaver_enable();
@@ -1774,38 +1812,51 @@ gui_error(char *msg)
 	char *key = "\n\nPress any key to continue.";
 	char *buf;
 
+	fprintf(stderr, "%s\n", msg);
+
 	if ((buf=alloca(strlen(msg) + strlen(key) + 1)) == NULL)
 		buf = msg;
 	else
 		sprintf(buf, "%s%s", msg, key);
 
-	focus2_widget = mvpw_get_focus();
-
-	mvpw_set_text_str(error_widget, buf);
-
-	mvpw_show(error_widget);
-	mvpw_focus(error_widget);
+	mvpw_set_dialog_text(warn_widget, buf);
+	mvpw_show(warn_widget);
 
 	mvpw_event_flush();
 }
 
 void
-error_init(void)
+gui_error_clear(void)
+{
+	mvpw_hide(warn_widget);
+}
+
+void
+warn_init(void)
 {
 	int h, w, x, y;
+	char file[256];
 
-	error_attr.font = fontid;
-	h = (mvpw_font_height(error_attr.font) +
-	     (2 * error_attr.margin)) * 6;
+	snprintf(file, sizeof(file), "%s/warning.png", imagedir);
+
+	warn_attr.font = fontid;
+	h = (mvpw_font_height(warn_attr.font) +
+	     (2 * 2)) * 6;
 	w = 400;
 
 	x = (si.cols - w) / 2;
 	y = (si.rows - h) / 2;
 
-	error_widget = mvpw_create_text(NULL, x, y, w, h,
-					MVPW_DARKGREY, MVPW_RED, 4);
-	mvpw_set_text_attr(error_widget, &error_attr);
-	mvpw_set_key(error_widget, error_key_callback);
+	warn_widget = mvpw_create_dialog(NULL, x, y, w, h,
+					 MVPW_DARKGREY, MVPW_RED, 4);
+
+	warn_attr.image = file;
+
+	mvpw_set_dialog_attr(warn_widget, &warn_attr);
+
+	mvpw_set_dialog_title(warn_widget, "Warning");
+
+	mvpw_set_key(warn_widget, warn_key_callback);
 }
 
 int
@@ -1835,7 +1886,7 @@ gui_init(char *server, char *replaytv)
 	replaytv_browser_init(); // must come after osd_init
 	popup_init();
 	playlist_init();
-	error_init();
+	warn_init();
 	screensaver_init();
 
 	mvpw_destroy(splash);
@@ -1850,6 +1901,7 @@ gui_init(char *server, char *replaytv)
 		mvpw_show(fb_image);
 	mvpw_show(mvpmc_logo);
 	mvpw_show(main_menu);
+	mvpw_lower(root);
 
 	mvpw_focus(main_menu);
 

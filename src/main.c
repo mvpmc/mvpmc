@@ -87,6 +87,7 @@ print_help(char *prog)
 	printf("\t-M        \tMythTV protocol debugging output\n");
 	printf("\t-o output \toutput device (composite or svideo)\n");
 	printf("\t-s server \tmythtv server IP address\n");
+	printf("\t-S seconds\tscreensaver timeout in seconds (0 - disable)\n");
 	printf("\t-r path   \tpath to NFS mounted mythtv recordings\n");
 	printf("\t-R server \treplaytv server IP address\n");
 }
@@ -212,7 +213,7 @@ main(int argc, char **argv)
 
 	tzset();
 
-	while ((c=getopt(argc, argv, "a:b:f:hi:m:Mo:r:R:s:")) != -1) {
+	while ((c=getopt(argc, argv, "a:b:f:hi:m:Mo:r:R:s:S:")) != -1) {
 		switch (c) {
 		case 'a':
 			if (strcmp(optarg, "4:3") == 0) {
@@ -275,6 +276,17 @@ main(int argc, char **argv)
 		case 's':
 			mythtv_server = strdup(optarg);
 			break;
+		case 'S':
+			i = atoi(optarg);
+			if ((i < 0) || (i > 3600)) {
+				fprintf(stderr,
+					"Invalid screeensaver timeout!\n");
+				print_help(argv[0]);
+				exit(1);
+			}
+			screensaver_default = i;
+			screensaver_timeout = i;
+			break;
 		default:
 			print_help(argv[0]);
 			exit(1);
@@ -285,6 +297,8 @@ main(int argc, char **argv)
 #ifndef MVPMC_HOST
 	spawn_child();
 #endif
+
+	signal(SIGPIPE, SIG_IGN);
 
 	if (font)
 		fontid = mvpw_load_font(font);

@@ -246,7 +246,17 @@ video_progress(mvp_widget_t *widget)
 	int off;
 	char buf[32];
 
-	size = video_functions->size();
+	if ((size=video_functions->size()) < 0) {
+		disable_osd();
+		mvpw_hide(osd_widget);
+		mvpw_hide(mute_widget);
+		mvpw_hide(pause_widget);
+		mvpw_hide(ffwd_widget);
+		mvpw_hide(zoom_widget);
+		display_on = 0;
+		zoomed = 0;
+		return;
+	}
 	offset = video_functions->seek(0, SEEK_CUR);
 	off = (int)((double)(offset/1000) /
 		    (double)(size/1000) * 100.0);

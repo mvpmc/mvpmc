@@ -63,8 +63,8 @@ static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t seek_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t myth_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-static cmyth_conn_t control;
-static cmyth_proginfo_t current_prog;	/* program currently being played */
+static volatile cmyth_conn_t control;
+static volatile cmyth_proginfo_t current_prog;	/* program currently being played */
 static cmyth_proginfo_t hilite_prog;	/* program currently hilighted */
 static cmyth_proglist_t episode_plist;
 static cmyth_proglist_t pending_plist;
@@ -85,7 +85,7 @@ int mythtv_debug = 0;
 static volatile int playing_via_mythtv = 0, reset_mythtv = 1;
 static volatile int close_mythtv = 0;
 
-static pthread_t control_thread;
+static pthread_t control_thread, wd_thread;
 
 static int mythtv_open(void);
 static int mythtv_read(char*, int);
@@ -143,6 +143,64 @@ mythtv_verify(void)
 	}
 
 	return 0;
+}
+
+static void
+mythtv_shutdown(void)
+{
+	printf("%s(): closing mythtv connection\n", __FUNCTION__);
+
+	if (control && file) {
+		cmyth_file_release(control, file);
+		file = NULL;
+	}
+	if (pending_prog) {
+		cmyth_proginfo_release(pending_prog);
+		pending_prog = NULL;
+	}
+	if (current_prog) {
+		cmyth_proginfo_release(current_prog);
+		current_prog = NULL;
+	}
+	if (hilite_prog) {
+		cmyth_proginfo_release(hilite_prog);
+		hilite_prog = NULL;
+	}
+	if (episode_prog) {
+		cmyth_proginfo_release(episode_prog);
+		episode_prog = NULL;
+	}
+	if (episode_plist) {
+		cmyth_proglist_release(episode_plist);
+		episode_plist = NULL;
+	}
+	if (pending_plist) {
+		cmyth_proglist_release(pending_plist);
+		pending_plist = NULL;
+	}
+	if (control) {
+		cmyth_conn_release(control);
+		control = NULL;
+	}
+
+	mvpw_hide(mythtv_browser);
+	mvpw_hide(mythtv_channel);
+	mvpw_hide(mythtv_date);
+	mvpw_hide(mythtv_description);
+	mvpw_hide(mythtv_record);
+	mvpw_hide(shows_widget);
+	mvpw_hide(episodes_widget);
+	mvpw_hide(freespace_widget);
+
+	mvpw_show(mythtv_logo);
+	mvpw_show(mythtv_menu);
+	mvpw_focus(mythtv_menu);
+
+	mythtv_main_menu = 1;
+	reset_mythtv = 1;
+	close_mythtv = 0;
+
+	gui_error("MythTV connection lost!");
 }
 
 static void
@@ -336,12 +394,12 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 
 	if ((episode_plist=cmyth_proglist_create()) == NULL) {
 		fprintf(stderr, "cannot get program list\n");
-		goto out;
+		goto err;
 	}
 
 	if ((err=cmyth_proglist_get_all_recorded(control, episode_plist)) < 0) {
 		fprintf(stderr, "get recorded failed, err %d\n", err);
-		goto out;
+		goto err;
 	}
 
 	count = cmyth_proglist_get_count(episode_plist);
@@ -388,6 +446,13 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 
  out:
 	pthread_mutex_unlock(&myth_mutex);
+
+	return;
+
+ err:
+	pthread_mutex_unlock(&myth_mutex);
+
+	mythtv_shutdown();
 }
 
 static void
@@ -403,16 +468,16 @@ add_shows(mvp_widget_t *widget)
 	item_attr.select = select_callback;
 	item_attr.hilite = NULL;
 
+	pthread_mutex_lock(&myth_mutex);
+
 	if ((plist=cmyth_proglist_create()) == NULL) {
 		fprintf(stderr, "cannot get program list\n");
-		return;
+		goto err;
 	}
-
-	pthread_mutex_lock(&myth_mutex);
 
 	if ((err=cmyth_proglist_get_all_recorded(control, plist)) < 0) {
 		fprintf(stderr, "get recorded failed, err %d\n", err);
-		goto out;
+		goto err;
 	}
 
 	count = cmyth_proglist_get_count(plist);
@@ -443,6 +508,13 @@ add_shows(mvp_widget_t *widget)
  out:
 	cmyth_proglist_release(plist);
 	pthread_mutex_unlock(&myth_mutex);
+
+	return;
+
+ err:
+	pthread_mutex_unlock(&myth_mutex);
+
+	mythtv_shutdown();
 }
 
 int
@@ -777,6 +849,31 @@ mythtv_pending(mvp_widget_t *widget)
 }
 
 static void*
+wd_start(void *arg)
+{
+	int state = 0, old = 0;
+	char err[] = "MythTV backend connection is not responding.";
+	char ok[] = "MythTV backend connection has been restored.";
+
+	while (1) {
+		if ((state=cmyth_conn_hung(control)) == 1) {
+			if (old == 0) {
+				gui_error(err);
+			}
+		} else {
+			if (old == 1) {
+				fprintf(stderr, "%s\n", ok);
+				gui_error_clear();
+			}
+		}
+		old = state;
+		sleep(1);
+	}
+
+	return NULL;
+}
+
+static void*
 control_start(void *arg)
 {
 	int len;
@@ -813,15 +910,23 @@ control_start(void *arg)
 				while (paused && file)
 					usleep(1000);
 				len = 1;
+				continue;
+			}
+
+			if ((len < 0) && cmyth_conn_hung(control)) {
+				len = 1;
+				continue;
 			}
 
 			/*
 			 * Require cmyth_file_request_block() fail twice
 			 */
-			if ((len < 0) && (count++ == 0))
+			if ((len < 0) && (count++ == 0)) {
 				len = 1;
-			else
+				continue;
+			} else {
 				count = 0;
+			}
 		} while (file && (len > 0) &&
 			 (playing_via_mythtv == 1) && (!close_mythtv));
 
@@ -839,6 +944,7 @@ mythtv_init(char *server_name, int portnum)
 {
 	char *server = "127.0.0.1";
 	int port = 6543;
+	static int thread = 0;
 
 	if (mythtv_debug)
 		cmyth_dbg_all();
@@ -854,7 +960,11 @@ mythtv_init(char *server_name, int portnum)
 		return -1;
 	}
 
-	pthread_create(&control_thread, NULL, control_start, NULL);
+	if (!thread) {
+		thread = 1;
+		pthread_create(&control_thread, NULL, control_start, NULL);
+		pthread_create(&wd_thread, NULL, wd_start, NULL);
+	}
 
 	return 0;
 }
@@ -981,7 +1091,6 @@ mythtv_cleanup(void)
 {
 	if (file) {
 		close_mythtv = 1;
-		printf("closing myth file, line %d\n", __LINE__);
 		while (close_mythtv)
 			usleep(1000);
 	}
@@ -1013,7 +1122,10 @@ mythtv_open(void)
 
 	if ((file=cmyth_conn_connect_file(current_prog,
 					  BSIZE)) == NULL) {
-		fprintf(stderr, "cannot connect to file\n");
+		video_clear();
+		mvpw_set_idle(NULL);
+		mvpw_set_timer(root, NULL, 0);
+		gui_error("Cannot connect to file!");
 		return -1;
 	}
 
@@ -1147,6 +1259,10 @@ mythtv_size(void)
 	pthread_mutex_unlock(&myth_mutex);
 
  out:
+	if (ret < 0) {
+		mythtv_shutdown();
+	}
+
 	return ret;
 }
 
@@ -1216,7 +1332,6 @@ mythtv_livetv_start(void)
 	return 0;
 
  err:
-	fprintf(stderr, msg);
 	gui_error(msg);
 
 	return -1;

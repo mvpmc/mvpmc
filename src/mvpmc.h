@@ -217,6 +217,8 @@ extern int a52_decode_data (uint8_t * start, uint8_t * end, int reset);
 
 extern void screensaver_enable(void);
 extern void screensaver_disable(void);
+extern volatile int screensaver_timeout;
+extern volatile int screensaver_default;
 
 extern int mythtv_livetv;
 
