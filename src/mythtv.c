@@ -45,6 +45,8 @@
 #define PRINTF(x...)
 #endif
 
+extern mvpw_menu_attr_t mythtv_attr;
+
 #define BSIZE	(256*1024)
 
 static volatile cmyth_file_t file;
@@ -53,8 +55,8 @@ extern int fd_audio, fd_video;
 
 static mvpw_menu_item_attr_t item_attr = {
 	.selectable = 1,
-	.fg = MVPW_BLACK,
-	.bg = MVPW_LIGHTGREY,
+	.fg = MVPW_WHITE,
+	.bg = MVPW_BLACK,
 	.checkbox_fg = MVPW_GREEN,
 };
 
@@ -438,6 +440,8 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 
 	item_attr.select = show_select_callback;
 	item_attr.hilite = hilite_callback;
+	item_attr.fg = mythtv_attr.fg;
+	item_attr.bg = mythtv_attr.bg;
 
 	mvpw_clear_menu(widget);
 
@@ -525,6 +529,8 @@ add_shows(mvp_widget_t *widget)
 
 	item_attr.select = select_callback;
 	item_attr.hilite = NULL;
+	item_attr.fg = mythtv_attr.fg;
+	item_attr.bg = mythtv_attr.bg;
 
 	pthread_mutex_lock(&myth_mutex);
 
@@ -781,8 +787,8 @@ mythtv_pending(mvp_widget_t *widget)
 
 	item_attr.select = NULL;
 	item_attr.hilite = pending_hilite_callback;
-
-	item_attr.bg = MVPW_BLACK;
+	item_attr.fg = mythtv_attr.fg;
+	item_attr.bg = mythtv_attr.bg;
 
 	count = cmyth_proglist_get_count(pending_plist);
 	printf("found %d pending recordings\n", count);
@@ -884,6 +890,12 @@ mythtv_pending(mvp_widget_t *widget)
 			type = '?';
 			break;
 		}
+
+		/*
+		 * XXX: fix this
+		 */
+		if (item_attr.fg == item_attr.bg)
+			item_attr.bg = MVPW_BLACK;
 
 		ptr = strchr(start, '-');
 		month = atoi(++ptr);

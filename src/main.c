@@ -135,6 +135,7 @@ print_help(char *prog)
 	printf("\t-S seconds\tscreensaver timeout in seconds (0 - disable)\n");
 	printf("\t-r path   \tpath to NFS mounted mythtv recordings\n");
 	printf("\t-R server \treplaytv server IP address\n");
+	printf("\t-t file   \tXML theme file\n");
 }
 
 /*
@@ -262,6 +263,7 @@ main(int argc, char **argv)
 	int mode = -1, output = -1, aspect = -1;
 	int width, height;
 	uint32_t accel = MM_ACCEL_DJBFFT;
+	char *theme_file = NULL;
 
 	if (argc > 32) {
 		fprintf(stderr, "too many arguments\n");
@@ -273,7 +275,7 @@ main(int argc, char **argv)
 
 	tzset();
 
-	while ((c=getopt(argc, argv, "a:b:f:hi:m:Mo:r:R:s:S:")) != -1) {
+	while ((c=getopt(argc, argv, "a:b:f:hi:m:Mo:r:R:s:S:t:")) != -1) {
 		switch (c) {
 		case 'a':
 			if (strcmp(optarg, "4:3") == 0) {
@@ -351,12 +353,18 @@ main(int argc, char **argv)
 			screensaver_default = i;
 			screensaver_timeout = i;
 			break;
+		case 't':
+			theme_file = strdup(optarg);
+			break;
 		default:
 			print_help(argv[0]);
 			exit(1);
 			break;
 		}
 	}
+
+	if (theme_file)
+		theme_parse(theme_file);
 
 #ifndef MVPMC_HOST
 	spawn_child();
@@ -372,6 +380,8 @@ main(int argc, char **argv)
 	if ((big_font=mvpw_load_font("/etc/helvB18.pcf")) <= 0)
 		big_font = fontid;
 #endif
+
+	printf("fonts: %d %d\n", fontid, big_font);
 
 	if ((demux_mode=av_init()) == AV_DEMUX_ERROR) {
 		fprintf(stderr, "failed to initialize av hardware!\n");

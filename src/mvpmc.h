@@ -280,4 +280,20 @@ extern void busy_end(void);
 
 extern void fb_start_thumbnail(void);
 
+typedef enum {
+	WIDGET_MENU,
+	WIDGET_TEXT,
+} widget_t;
+
+typedef struct {
+	char *name;
+	widget_t type;
+	union {
+		mvpw_menu_attr_t *menu;
+		mvpw_text_attr_t *text;
+	} attr;
+} theme_attr_t;
+
+extern theme_attr_t theme_attr[];
+
 #endif /* MVPMC_H */

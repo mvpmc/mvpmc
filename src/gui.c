@@ -41,8 +41,16 @@
 volatile int running_replaytv = 0;
 volatile int mythtv_livetv = 0;
 
+#ifdef MVPMC_HOST
+#define FONT_STANDARD	0
+#define FONT_LARGE	0
+#else
+#define FONT_STANDARD	1000
+#define FONT_LARGE	1001
+#endif
+
 static mvpw_menu_attr_t fb_attr = {
-	.font = 0,
+	.font = FONT_STANDARD,
 	.fg = MVPW_BLACK,
 	.hilite_fg = MVPW_WHITE,
 	.hilite_bg = MVPW_DARKGREY2,
@@ -51,7 +59,7 @@ static mvpw_menu_attr_t fb_attr = {
 };
 
 static mvpw_menu_attr_t settings_attr = {
-	.font = 0,
+	.font = FONT_STANDARD,
 	.fg = MVPW_BLACK,
 	.hilite_fg = MVPW_WHITE,
 	.hilite_bg = MVPW_DARKGREY2,
@@ -59,9 +67,10 @@ static mvpw_menu_attr_t settings_attr = {
 	.title_bg = MVPW_BLUE,
 };
 
-static mvpw_menu_attr_t mythtv_attr = {
-	.font = 0,
+mvpw_menu_attr_t mythtv_attr = {
+	.font = FONT_STANDARD,
 	.fg = MVPW_BLACK,
+	.bg = MVPW_LIGHTGREY,
 	.hilite_fg = MVPW_WHITE,
 	.hilite_bg = MVPW_DARKGREY2,
 	.title_fg = MVPW_WHITE,
@@ -69,8 +78,20 @@ static mvpw_menu_attr_t mythtv_attr = {
 };
 
 static mvpw_menu_attr_t attr = {
-	.font = 0,
-	.fg = MVPW_BLACK,
+	.font = FONT_STANDARD,
+	.fg = MVPW_WHITE,
+	.bg = MVPW_BLACK,
+	.hilite_fg = MVPW_BLACK,
+	.hilite_bg = MVPW_WHITE,
+	.title_fg = MVPW_WHITE,
+	.title_bg = MVPW_BLUE,
+	.rounded = 1,
+};
+
+static mvpw_menu_attr_t myth_main_attr = {
+	.font = FONT_STANDARD,
+	.fg = MVPW_WHITE,
+	.bg = MVPW_BLACK,
 	.hilite_fg = MVPW_BLACK,
 	.hilite_bg = MVPW_WHITE,
 	.title_fg = MVPW_WHITE,
@@ -120,7 +141,7 @@ static mvpw_menu_item_attr_t sub_settings_item_attr = {
 };
 
 static mvpw_menu_attr_t popup_attr = {
-	.font = 0,
+	.font = FONT_STANDARD,
 	.fg = mvpw_color_alpha(MVPW_BLACK, 0x80),
 	.hilite_fg = mvpw_color_alpha(MVPW_BLACK, 0x80),
 	.hilite_bg = mvpw_color_alpha(MVPW_WHITE, 0x80),
@@ -129,7 +150,7 @@ static mvpw_menu_attr_t popup_attr = {
 };
 
 static mvpw_menu_attr_t mythtv_popup_attr = {
-	.font = 0,
+	.font = FONT_STANDARD,
 	.fg = MVPW_BLACK,
 	.hilite_fg = MVPW_BLACK,
 	.hilite_bg = MVPW_WHITE,
@@ -141,7 +162,7 @@ static mvpw_text_attr_t mythtv_info_attr = {
 	.wrap = 1,
 	.justify = MVPW_TEXT_LEFT,
 	.margin = 4,
-	.font = 0,
+	.font = FONT_STANDARD,
 	.fg = MVPW_WHITE,
 };
 
@@ -149,44 +170,49 @@ static mvpw_text_attr_t description_attr = {
 	.wrap = 1,
 	.justify = MVPW_TEXT_LEFT,
 	.margin = 4,
-	.font = 0,
+	.font = FONT_STANDARD,
 	.fg = MVPW_WHITE,
+	.bg = MVPW_BLACK,
 };
 
 static mvpw_text_attr_t display_attr = {
 	.wrap = 0,
 	.justify = MVPW_TEXT_LEFT,
 	.margin = 6,
-	.font = 0,
+	.font = FONT_STANDARD,
 	.fg = MVPW_WHITE,
+	.bg = mvpw_color_alpha(MVPW_BLACK, 0x80),
 };
 
 static mvpw_text_attr_t mythtv_program_attr = {
 	.wrap = 0,
 	.justify = MVPW_TEXT_LEFT,
 	.margin = 6,
-	.font = 0,
+	.font = FONT_STANDARD,
 	.fg = MVPW_CYAN,
+	.bg = mvpw_color_alpha(MVPW_BLACK, 0x80),
 };
 
 static mvpw_text_attr_t mythtv_description_attr = {
 	.wrap = 1,
 	.justify = MVPW_TEXT_LEFT,
 	.margin = 6,
-	.font = 0,
+	.font = FONT_STANDARD,
 	.fg = MVPW_WHITE,
+	.bg = mvpw_color_alpha(MVPW_BLACK, 0x80),
 };
 
 static mvpw_text_attr_t splash_attr = {
 	.wrap = 1,
 	.justify = MVPW_TEXT_CENTER,
 	.margin = 6,
-	.font = 0,
+	.font = FONT_LARGE,
 	.fg = MVPW_GREEN,
+	.bg = MVPW_BLACK,
 };
 
 static mvpw_dialog_attr_t warn_attr = {
-	.font = 0,
+	.font = FONT_STANDARD,
 	.fg = MVPW_WHITE,
 	.title_fg = MVPW_BLACK,
 	.title_bg = MVPW_WHITE,
@@ -194,7 +220,7 @@ static mvpw_dialog_attr_t warn_attr = {
 };
 
 static mvpw_dialog_attr_t about_attr = {
-	.font = 0,
+	.font = FONT_STANDARD,
 	.fg = MVPW_WHITE,
 	.title_fg = MVPW_BLACK,
 	.title_bg = MVPW_WHITE,
@@ -219,7 +245,7 @@ static mvpw_text_attr_t busy_text_attr = {
 	.wrap = 0,
 	.justify = MVPW_TEXT_CENTER,
 	.margin = 6,
-	.font = 0,
+	.font = FONT_STANDARD,
 	.fg = MVPW_WHITE,
 };
 
@@ -236,6 +262,51 @@ static mvpw_graph_attr_t demux_graph_attr = {
 	.min = 0,
 	.max = 1024*1024*2,
 	.fg = mvpw_color_alpha(MVPW_BLUE, 0x80),
+};
+
+/*
+ * Only the attribute structures in the following list will be changeable
+ * via a theme XML file.
+ */
+theme_attr_t theme_attr[] = {
+	{ .name = "description",
+	  .type = WIDGET_TEXT,
+	  .attr.menu = &description_attr },
+	{ .name = "display",
+	  .type = WIDGET_TEXT,
+	  .attr.menu = &display_attr },
+	{ .name = "file_browser",
+	  .type = WIDGET_MENU,
+	  .attr.menu = &fb_attr },
+	{ .name = "main_menu",
+	  .type = WIDGET_MENU,
+	  .attr.menu = &attr },
+	{ .name = "myth_browser",
+	  .type = WIDGET_MENU,
+	  .attr.menu = &mythtv_attr },
+	{ .name = "myth_delete",
+	  .type = WIDGET_MENU,
+	  .attr.menu = &mythtv_popup_attr },
+	{ .name = "myth_description",
+	  .type = WIDGET_TEXT,
+	  .attr.menu = &mythtv_description_attr },
+	{ .name = "myth_info",
+	  .type = WIDGET_TEXT,
+	  .attr.menu = &mythtv_info_attr },
+	{ .name = "myth_menu",
+	  .type = WIDGET_MENU,
+	  .attr.menu = &myth_main_attr },
+	{ .name = "myth_program",
+	  .type = WIDGET_TEXT,
+	  .attr.menu = &mythtv_program_attr },
+	{ .name = "popup",
+	  .type = WIDGET_MENU,
+	  .attr.menu = &popup_attr },
+	{ .name = "splash",
+	  .type = WIDGET_TEXT,
+	  .attr.text = &splash_attr },
+	/* must be NULL-terminated */
+	{ .name = NULL }
 };
 
 static int init_done = 0;
@@ -715,6 +786,8 @@ mythtv_key_callback(mvp_widget_t *widget, char key)
 		printf("mythtv popup menu\n");
 		mvpw_clear_menu(mythtv_popup);
 		mythtv_popup_item_attr.select = mythtv_popup_select_callback;
+		mythtv_popup_item_attr.fg = mythtv_popup_attr.fg;
+		mythtv_popup_item_attr.bg = mythtv_popup_attr.bg;
 		mvpw_add_menu_item(mythtv_popup,
 				   "Delete, but allow future recordings",
 				   (void*)0, &mythtv_popup_item_attr);
@@ -823,9 +896,8 @@ file_browser_init(void)
 	splash_update("Creating file browser");
 
 	file_browser = mvpw_create_menu(NULL, 50, 30, si.cols-120, si.rows-190,
-					0xff808080, 0xff606060, 2);
+					fb_attr.bg, 0xff606060, 2);
 
-	fb_attr.font = fontid;
 	mvpw_set_menu_attr(file_browser, &fb_attr);
 
 	mvpw_set_menu_title(file_browser, "/");
@@ -833,27 +905,28 @@ file_browser_init(void)
 
 	mvpw_set_key(file_browser, fb_key_callback);
 
-	display_attr.font = fontid;
 	h = mvpw_font_height(display_attr.font) + (2 * display_attr.margin);
 	w = 300;
 
 	contain = mvpw_create_container(NULL, 50, 80,
-					w, h*3, 0x80000000, 0, 0);
+					w, h*3, display_attr.bg, 0, 0);
 	fb_progress = contain;
 
-	widget = mvpw_create_text(contain, 0, 0, w, h, 0x80000000, 0, 0);
+	widget = mvpw_create_text(contain, 0, 0, w, h, display_attr.bg, 0, 0);
 	mvpw_set_text_attr(widget, &display_attr);
 	mvpw_set_text_str(widget, "");
 	mvpw_show(widget);
 	fb_name = widget;
 
-	widget = mvpw_create_text(contain, 0, 0, w/2, h, 0x80000000, 0, 0);
+	widget = mvpw_create_text(contain, 0, 0, w/2, h,
+				  display_attr.bg, 0, 0);
 	mvpw_set_text_attr(widget, &display_attr);
 	mvpw_set_text_str(widget, "");
 	mvpw_show(widget);
 	fb_time = widget;
 
-	widget = mvpw_create_text(contain, 0, 0, w/2, h, 0x80000000, 0, 0);
+	widget = mvpw_create_text(contain, 0, 0, w/2, h,
+				  display_attr.bg, 0, 0);
 	display_attr.justify = MVPW_TEXT_RIGHT;
 	mvpw_set_text_attr(widget, &display_attr);
 	display_attr.justify = MVPW_TEXT_LEFT;
@@ -862,7 +935,8 @@ file_browser_init(void)
 	fb_size = widget;
 
 	w2 = mvpw_font_width(fontid, "1000%");
-	widget = mvpw_create_text(contain, 0, 0, w2, h, 0x80000000, 0, 0);
+	widget = mvpw_create_text(contain, 0, 0, w2, h,
+				  display_attr.bg, 0, 0);
 	mvpw_set_text_attr(widget, &display_attr);
 	mvpw_set_text_str(widget, "0%");
 	mvpw_show(widget);
@@ -1228,11 +1302,12 @@ myth_browser_init(void)
 
 	mythtv_menu = mvpw_create_menu(NULL, 50+iid.width, 25,
 				       si.cols-130-iid.width, si.rows-190,
-				       MVPW_BLACK, 0, 0);
-	attr.font = fontid;
-	mvpw_set_menu_attr(mythtv_menu, &attr);
+				       myth_main_attr.bg, 0, 0);
+	mvpw_set_menu_attr(mythtv_menu, &myth_main_attr);
 
 	myth_menu_item_attr.select = myth_menu_select_callback;
+	myth_menu_item_attr.fg = myth_main_attr.fg;
+	myth_menu_item_attr.bg = myth_main_attr.bg;
 
 	mvpw_add_menu_item(mythtv_menu, "Watch Recordings",
 			   (void*)0, &myth_menu_item_attr);
@@ -1246,27 +1321,25 @@ myth_browser_init(void)
 
 	mythtv_browser = mvpw_create_menu(NULL, 50, 30,
 					  si.cols-130-iid.width, si.rows-190,
-					  0xff808080, 0xff606060, 2);
+					  mythtv_attr.bg, 0xff606060, 2);
 
 	mvpw_attach(mythtv_logo, mythtv_browser, MVPW_DIR_RIGHT);
 
 	mvpw_set_key(mythtv_browser, mythtv_key_callback);
 
-	mythtv_attr.font = fontid;
 	mvpw_set_menu_attr(mythtv_browser, &mythtv_attr);
 
-	description_attr.font = fontid;
 	h = mvpw_font_height(description_attr.font) +
 		(2 * description_attr.margin);
 
 	mythtv_channel = mvpw_create_text(NULL, 0, 0, 350, h,
-					  MVPW_BLACK, 0, 0);
+					  description_attr.bg, 0, 0);
 	mythtv_date = mvpw_create_text(NULL, 0, 0, 350, h,
-				       MVPW_BLACK, 0, 0);
+				       description_attr.bg, 0, 0);
 	mythtv_description = mvpw_create_text(NULL, 0, 0, 350, h*3,
-					      MVPW_BLACK, 0, 0);
+					      description_attr.bg, 0, 0);
 	mythtv_record = mvpw_create_text(NULL, 0, 0, 350, h,
-					 MVPW_BLACK, 0, 0);
+					 description_attr.bg, 0, 0);
 
 	mvpw_set_text_attr(mythtv_channel, &description_attr);
 	mvpw_set_text_attr(mythtv_date, &description_attr);
@@ -1288,11 +1361,11 @@ myth_browser_init(void)
 	 */
 	mvpw_get_widget_info(mythtv_channel, &info);
 	shows_widget = mvpw_create_text(NULL, info.x, info.y,
-					300, h, MVPW_BLACK, 0, 0);
+					300, h, description_attr.bg, 0, 0);
 	episodes_widget = mvpw_create_text(NULL, 50, 80,
-					   300, h, MVPW_BLACK, 0, 0);
+					   300, h, description_attr.bg, 0, 0);
 	freespace_widget = mvpw_create_text(NULL, 50, 80,
-					    300, h, MVPW_BLACK, 0, 0);
+					    300, h, description_attr.bg, 0, 0);
 	mvpw_set_text_attr(shows_widget, &description_attr);
 	mvpw_set_text_attr(episodes_widget, &description_attr);
 	mvpw_set_text_attr(freespace_widget, &description_attr);
@@ -1309,13 +1382,11 @@ myth_browser_init(void)
 	y = (si.rows - h) / 2;
 
 	mythtv_popup = mvpw_create_menu(NULL, x, y, w, h,
-					MVPW_BLACK, MVPW_GREEN, 2);
+					mythtv_popup_attr.bg, MVPW_GREEN, 2);
 
-	mythtv_popup_attr.font = fontid;
 	mvpw_set_menu_attr(mythtv_popup, &mythtv_popup_attr);
 
 	mvpw_set_menu_title(mythtv_popup, "Recording Menu");
-	mvpw_set_bg(mythtv_popup, MVPW_BLACK);
 
 	mvpw_set_key(mythtv_popup, mythtv_popup_key_callback);
 
@@ -1326,10 +1397,10 @@ myth_browser_init(void)
 	h = si.rows - 40;
 	x = (si.cols - w) / 2;
 	y = (si.rows - h) / 2;
-	mythtv_info = mvpw_create_text(NULL, x, y, w, h, 0, 0, 0);
+	mythtv_info = mvpw_create_text(NULL, x, y, w, h,
+				       mythtv_info_attr.bg, 0, 0);
 	mvpw_set_key(mythtv_info, mythtv_info_key_callback);
 
-	mythtv_info_attr.font = fontid;
 	mvpw_set_text_attr(mythtv_info, &mythtv_info_attr);
 
 	mvpw_raise(mythtv_browser);
@@ -1547,7 +1618,7 @@ main_menu_init(char *server, char *replaytv)
 
 	w = (iid.width < 300) ? 300 : iid.width;
 	main_menu = mvpw_create_menu(NULL, 50, 50, w, si.rows-150,
-				     MVPW_BLACK, 0, 0);
+				     attr.bg, 0, 0);
 
 	mvpw_attach(mvpmc_logo, main_menu, MVPW_DIR_DOWN);
 	mvpw_attach(main_menu, setup_image, MVPW_DIR_RIGHT);
@@ -1559,11 +1630,13 @@ main_menu_init(char *server, char *replaytv)
 	mvpw_moveto(about_image, wid.x, wid.y);
 	mvpw_moveto(exit_image, wid.x, wid.y);
 
-	attr.font = fontid;
 	mvpw_set_menu_attr(main_menu, &attr);
 
 	item_attr.select = main_select_callback;
 	item_attr.hilite = main_hilite_callback;
+
+	item_attr.fg = attr.fg;
+	item_attr.bg = attr.bg;
 
 	if (server)
 		mvpw_add_menu_item(main_menu, "MythTV",
@@ -1653,7 +1726,6 @@ osd_init(void)
 
 	splash_update("Creating OSD");
 
-	display_attr.font = fontid;
 	h = mvpw_font_height(display_attr.font) +
 		(2 * display_attr.margin);
 	w = mvpw_font_width(display_attr.font, " 000% ");
@@ -1661,23 +1733,28 @@ osd_init(void)
 	/*
 	 * State widgets for pause, mute, fast forward, zoom
 	 */
-	mute_widget = mvpw_create_text(NULL, 50, 25, 75, h, 0x80000000, 0, 0);
+	mute_widget = mvpw_create_text(NULL, 50, 25, 75, h,
+				       display_attr.bg, 0, 0);
 	mvpw_set_text_attr(mute_widget, &display_attr);
 	mvpw_set_text_str(mute_widget, "MUTE");
 
-	pause_widget = mvpw_create_text(NULL, 50, 25, 75, h, 0x80000000, 0, 0);
+	pause_widget = mvpw_create_text(NULL, 50, 25, 75, h,
+					display_attr.bg, 0, 0);
 	mvpw_set_text_attr(pause_widget, &display_attr);
 	mvpw_set_text_str(pause_widget, "PAUSE");
 
-	ffwd_widget = mvpw_create_text(NULL, 50, 25, 75, h, 0x80000000, 0, 0);
+	ffwd_widget = mvpw_create_text(NULL, 50, 25, 75, h,
+				       display_attr.bg, 0, 0);
 	mvpw_set_text_attr(ffwd_widget, &display_attr);
 	mvpw_set_text_str(ffwd_widget, "FFWD");
 
-	zoom_widget = mvpw_create_text(NULL, 50, 25, 75, h, 0x80000000, 0, 0);
+	zoom_widget = mvpw_create_text(NULL, 50, 25, 75, h,
+				       display_attr.bg, 0, 0);
 	mvpw_set_text_attr(zoom_widget, &display_attr);
 	mvpw_set_text_str(zoom_widget, "ZOOM");
 
-	clock_widget = mvpw_create_text(NULL, 50, 25, 150, h, 0x80000000, 0, 0);
+	clock_widget = mvpw_create_text(NULL, 50, 25, 150, h,
+					display_attr.bg, 0, 0);
 	mvpw_set_text_attr(clock_widget, &display_attr);
 	mvpw_set_text_str(clock_widget, "");
 
@@ -1690,9 +1767,9 @@ osd_init(void)
 	 * OSD widgets
 	 */
 	contain = mvpw_create_container(NULL, 50, 80,
-					300, h, 0x80000000, 0, 0);
+					300, h, display_attr.bg, 0, 0);
 	progress = contain;
-	widget = mvpw_create_text(contain, 0, 0, w, h, 0x80000000, 0, 0);
+	widget = mvpw_create_text(contain, 0, 0, w, h, display_attr.bg, 0, 0);
 	mvpw_set_text_attr(widget, &display_attr);
 	mvpw_set_text_str(widget, "0%");
 	mvpw_show(widget);
@@ -1708,13 +1785,15 @@ osd_init(void)
 	mvpw_set_text_attr(mute_widget, &display_attr);
 	mvpw_show(widget);
 
-	time_widget = mvpw_create_text(NULL, 0, 0, 150, h, 0x80000000, 0, 0);
+	time_widget = mvpw_create_text(NULL, 0, 0, 150, h,
+				       display_attr.bg, 0, 0);
 	mvpw_set_text_attr(time_widget, &display_attr);
 	mvpw_set_text_str(time_widget, "");
 	mvpw_attach(contain, time_widget, MVPW_DIR_DOWN);
 	add_osd_widget(time_widget, OSD_TIMECODE, 1, NULL);
 
-	bps_widget = mvpw_create_text(NULL, 0, 0, 150, h, 0x80000000, 0, 0);
+	bps_widget = mvpw_create_text(NULL, 0, 0, 150, h,
+				      display_attr.bg, 0, 0);
 	mvpw_set_text_attr(bps_widget, &display_attr);
 	mvpw_set_text_str(bps_widget, "");
 	mvpw_attach(time_widget, bps_widget, MVPW_DIR_RIGHT);
@@ -1723,19 +1802,26 @@ osd_init(void)
 	/*
 	 * myth OSD
 	 */
-	mythtv_program_attr.font = fontid;
-	mythtv_description_attr.font = fontid;
 	x = si.cols - 475;
 	y = si.rows - 125;
+	h = mvpw_font_height(mythtv_program_attr.font) +
+		(mvpw_font_height(mythtv_description_attr.font) * 3) +
+		(2 * display_attr.margin);
 	contain = mvpw_create_container(NULL, x, y,
-					400, h*3, 0x80000000, 0, 0);
+					400, h, 0x80000000, 0, 0);
 	mythtv_program_widget = contain;
-	widget = mvpw_create_text(contain, 0, 0, 400, h, 0x80000000, 0, 0);
+	h = mvpw_font_height(mythtv_program_attr.font) +
+		(2 * display_attr.margin);
+	widget = mvpw_create_text(contain, 0, 0, 400, h,
+				  mythtv_program_attr.bg, 0, 0);
 	mvpw_set_text_attr(widget, &mythtv_program_attr);
 	mvpw_set_text_str(widget, "");
 	mvpw_show(widget);
 	mythtv_osd_program = widget;
-	widget = mvpw_create_text(contain, 0, 0, 400, h*2, 0x80000000, 0, 0);
+	h = (mvpw_font_height(mythtv_description_attr.font) * 3) +
+		(2 * display_attr.margin);
+	widget = mvpw_create_text(contain, 0, 0, 400, h,
+				  mythtv_description_attr.bg, 0, 0);
 	mvpw_set_text_attr(widget, &mythtv_description_attr);
 	mvpw_set_text_str(widget, "");
 	mvpw_show(widget);
@@ -1745,14 +1831,16 @@ osd_init(void)
 	/*
 	 * file browser OSD
 	 */
-	fb_program_widget = mvpw_create_text(NULL, x, y,
-					     400, h*3, 0x80000000, 0, 0);
+	h = mvpw_font_height(description_attr.font) +
+		(2 * display_attr.margin);
+	fb_program_widget = mvpw_create_text(NULL, x, y, 400, h*3,
+					     description_attr.bg, 0, 0);
 	mvpw_set_text_attr(fb_program_widget, &mythtv_description_attr);
 	mvpw_set_text_str(fb_program_widget, "");
 
 	/*
 	 * ReplayTV OSD
-    * Comon stuff: progress meter, demux, clock
+	 * Comon stuff: progress meter, demux, clock
 	 */
 	x = si.cols - 475;
 	y = si.rows - 125;
@@ -1799,10 +1887,9 @@ mw_init(char *server, char *replaytv)
 		snprintf(buf, sizeof(buf), "MediaMVP Media Center\n%s",
 			 compile_time);
 
-	splash_attr.font = big_font;
 	h = (mvpw_font_height(splash_attr.font) +
 	     (2 * splash_attr.margin)) * 3;
-	w = mvpw_font_width(fontid, buf) + 8;
+	w = mvpw_font_width(splash_attr.font, buf) + 8;
 	w = 400;
 
 	x = (si.cols - w) / 2;
@@ -1811,12 +1898,13 @@ mw_init(char *server, char *replaytv)
 	black_bg = mvpw_create_container(NULL, 0, 0, si.cols, si.rows,
 					 MVPW_BLACK, 0, 0);
 
-	splash_title = mvpw_create_text(black_bg, x, y, w, h, MVPW_BLACK, 0, 0);
+	splash_title = mvpw_create_text(black_bg, x, y, w, h,
+					splash_attr.bg, 0, 0);
 	mvpw_set_text_attr(splash_title, &splash_attr);
 	y += h;
 	h *= 2;
 	h = (mvpw_font_height(splash_attr.font) + (2 * splash_attr.margin));
-	splash = mvpw_create_text(black_bg, x, y, w, h, MVPW_BLACK, 0, 0);
+	splash = mvpw_create_text(black_bg, x, y, w, h, splash_attr.bg, 0, 0);
 	mvpw_set_text_attr(splash, &splash_attr);
 
 	w = si.cols - 300;
@@ -1855,9 +1943,8 @@ popup_init(void)
 	bg = mvpw_color_alpha(MVPW_DARK_ORANGE, 0x80);
 	popup_menu = mvpw_create_menu(NULL, x, y, w, h,
 				      bg,
-				      mvpw_color_alpha(MVPW_BLACK, 0x80), 2);
+				      popup_attr.bg, 2);
 
-	popup_attr.font = fontid;
 	mvpw_set_menu_attr(popup_menu, &popup_attr);
 
 	mvpw_set_menu_title(popup_menu, "Settings");
