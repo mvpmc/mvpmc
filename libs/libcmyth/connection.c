@@ -495,7 +495,7 @@ cmyth_conn_connect_file(cmyth_proginfo_t prog, unsigned buflen)
 		free(announcement);
 	}
 	if (ret) {
-		cmyth_file_release(ret);
+		cmyth_file_release(conn, ret);
 	}
 	if (conn) {
 		cmyth_conn_release(conn);
