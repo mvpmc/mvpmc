@@ -28,6 +28,38 @@
 #include "widget.h"
 
 static void
+draw_points(mvp_widget_t *widget, GR_GC_ID *gc, int color, char *image)
+{
+	int count;
+	int x, y, n = 0;
+	GR_POINT *points;
+
+	for (y=0; y<widget->height; y++)
+		for (x=0; x<widget->width; x++)
+			if (image[(y*widget->width)+x] == color)
+				n++;
+
+	if (n == 0)
+		return;
+
+	if ((points=alloca(n*sizeof(*points))) == NULL)
+		return;
+
+	count = 0;
+	for (y=0; y<widget->height; y++) {
+		for (x=0; x<widget->width; x++) {
+			if (image[(y*widget->width)+x] == color) {
+				points[count].x = x;
+				points[count].y = y;
+				count++;
+			}
+		}
+	}
+
+	GrPoints(widget->wid, gc[0], count, points);
+}
+
+static void
 expose(mvp_widget_t *widget)
 {
 	int x, y, i;
@@ -63,14 +95,9 @@ expose(mvp_widget_t *widget)
 	GrSetGCForeground(gc[2], 0xff808080);
 	GrSetGCForeground(gc[3], 0xff008080);
 
-	for (y=0; y<widget->height; y++) {
-		for (x=0; x<widget->width; x++) {
-			if (alpha != image[(y*widget->width)+x])
-				GrPoint(widget->wid,
-					gc[(int)image[(y*widget->width)+x]],
-					x, y);
-		}
-	}
+	for (i=0; i<4; i++)
+		if (i != alpha)
+			draw_points(widget, gc+i, i, image);
 
 	for (i=0; i<4; i++)
 		GrDestroyGC(gc[i]);
