@@ -46,6 +46,9 @@ expose(mvp_widget_t *widget)
 	gc = GrNewGC();
 	gcr = GrNewGC();
 
+	GrSetGCForeground(gc, widget->bg);
+	GrFillRect(widget->wid, gc, 0, 0, widget->width, widget->height);
+
 	if (widget->data.text.rounded) {
 		GrSetGCBackground(gc, widget->data.text.text_bg);
 	} else {
@@ -105,7 +108,7 @@ expose(mvp_widget_t *widget)
 		}
 	}
 
-	if (widget->data.text.wrap && ((w > widget->width) || nl)) {
+	if (widget->data.text.wrap && ((w > widget->width - x) || nl)) {
 		char buf[256];
 
 		i = 0;
@@ -118,7 +121,7 @@ expose(mvp_widget_t *widget)
 			memset(buf, 0, sizeof(buf));
 
 			w = 0;
-			while (((w < widget->width) &&
+			while (((w < widget->width - x) &&
 				((j+i) < strlen(str))) &&
 			       (str[i+j] != '\n')) {
 				strncpy(buf, str+i, j+1);
