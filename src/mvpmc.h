@@ -222,4 +222,6 @@ extern volatile int screensaver_default;
 
 extern int mythtv_livetv;
 
+extern char compile_time[], version[];
+
 #endif /* MVPMC_H */

@@ -907,7 +907,7 @@ control_start(void *arg)
 			if ((len < 0) && paused) {
 				printf("%s(): waiting to unpause...\n",
 				       __FUNCTION__);
-				while (paused && file)
+				while (paused && file && !close_mythtv)
 					usleep(1000);
 				len = 1;
 				continue;
@@ -985,10 +985,7 @@ mythtv_program(mvp_widget_t *widget)
 		description = cmyth_proginfo_description(current_prog);
 
 		mvpw_set_text_str(mythtv_osd_description, description);
-		mvpw_expose(mythtv_osd_description);
-
 		mvpw_set_text_str(mythtv_osd_program, program);
-		mvpw_expose(mythtv_osd_program);
 	}
 }
 

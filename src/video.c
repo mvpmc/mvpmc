@@ -266,7 +266,6 @@ video_progress(mvp_widget_t *widget)
 	mvpw_set_graph_current(offset_bar, off);
 
 	mvpw_expose(offset_widget);
-	mvpw_expose(offset_bar);
 }
 
 void
@@ -281,8 +280,6 @@ video_timecode(mvp_widget_t *widget)
 	snprintf(buf, sizeof(buf), "%.2d:%.2d:%.2d",
 		 stc.hour, stc.minute, stc.second);
 	mvpw_set_text_str(time_widget, buf);
-
-	mvpw_expose(time_widget);
 }
 
 void
@@ -299,8 +296,6 @@ video_bitrate(mvp_widget_t *widget)
 	snprintf(buf, sizeof(buf), "%d.%.2d mbps",
 		 mb, (attr->bps * 8) / (1024 * 1024 / 100) - (mb * 100));
 	mvpw_set_text_str(bps_widget, buf);
-
-	mvpw_expose(bps_widget);
 }
 
 void
@@ -316,7 +311,6 @@ video_clock(mvp_widget_t *widget)
 	sprintf(buf, "%.2d:%.2d:%.2d", tm->tm_hour, tm->tm_min, tm->tm_sec);
 
 	mvpw_set_text_str(widget, buf);
-	mvpw_expose(widget);
 }
 
 void
@@ -358,11 +352,6 @@ osd_callback(mvp_widget_t *widget)
 		 mb, (attr->bps * 8) / (1024 * 1024 / 100) - (mb * 100),
 		 stc.hour, stc.minute, stc.second);
 	mvpw_set_text_str(bps_widget, buf);
-
-	mvpw_expose(bps_widget);
-	mvpw_expose(widget);
-	mvpw_expose(offset_widget);
-	mvpw_expose(offset_bar);
 }
 
 static void

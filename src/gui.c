@@ -91,14 +91,14 @@ static mvpw_menu_item_attr_t mythtv_popup_item_attr = {
 static mvpw_menu_item_attr_t item_attr = {
 	.selectable = 1,
 	.fg = MVPW_WHITE,
-	.bg = 0,
+	.bg = MVPW_BLACK,
 	.checkbox_fg = MVPW_GREEN,
 };
 
 static mvpw_menu_item_attr_t myth_menu_item_attr = {
 	.selectable = 1,
 	.fg = MVPW_WHITE,
-	.bg = 0,
+	.bg = MVPW_BLACK,
 	.checkbox_fg = MVPW_GREEN,
 };
 
@@ -176,7 +176,7 @@ static mvpw_text_attr_t mythtv_description_attr = {
 
 static mvpw_text_attr_t splash_attr = {
 	.wrap = 1,
-	.justify = MVPW_TEXT_LEFT,
+	.justify = MVPW_TEXT_CENTER,
 	.margin = 6,
 	.font = 0,
 	.fg = MVPW_GREEN,
@@ -212,6 +212,15 @@ static mvpw_graph_attr_t offset_graph_attr = {
 	.fg = mvpw_color_alpha(MVPW_RED, 0x80),
 };
 
+static mvpw_graph_attr_t splash_graph_attr = {
+	.min = 0,
+	.max = 17,
+	.fg = mvpw_color_alpha(MVPW_RED, 0x80),
+	.gradient = 1,
+	.left = MVPW_BLACK,
+	.right = MVPW_RED,
+};
+
 static mvpw_graph_attr_t demux_graph_attr = {
 	.min = 0,
 	.max = 1024*1024*2,
@@ -224,6 +233,9 @@ mvp_widget_t *root;
 mvp_widget_t *iw;
 
 static mvp_widget_t *splash;
+static mvp_widget_t *splash_title;
+static mvp_widget_t *splash_graph;
+static mvp_widget_t *black_bg;
 static mvp_widget_t *main_menu;
 static mvp_widget_t *mvpmc_logo;
 static mvp_widget_t *settings;
@@ -367,15 +379,11 @@ static void settings_select_callback(mvp_widget_t*, char*, void*);
 static void sub_settings_select_callback(mvp_widget_t*, char*, void*);
 
 static void
-splash_update(void)
+splash_update(char *str)
 {
-	char buf[128], *ptr;
-
-	ptr = mvpw_get_text_str(splash);
-	snprintf(buf, sizeof(buf), "%s.", ptr);
-
-	mvpw_set_text_str(splash, buf);
+	mvpw_set_text_str(splash, str);
 	mvpw_expose(splash);
+	mvpw_graph_incr(splash_graph, 1);
 	mvpw_event_flush();
 }
 
@@ -410,6 +418,7 @@ mythtv_menu_callback(mvp_widget_t *widget, char key)
 		mvpw_show(mythtv_image);
 		mvpw_show(main_menu);
 		mvpw_show(mvpmc_logo);
+		mvpw_show(black_bg);
 		mvpw_focus(main_menu);
 	}
 
@@ -446,6 +455,7 @@ replaytv_back_to_mvp_main_menu(void) {
 	mvpw_show(replaytv_image);
 	mvpw_show(main_menu);
 	mvpw_show(mvpmc_logo);
+	mvpw_show(black_bg);
 	mvpw_focus(main_menu);
 }
 
@@ -478,6 +488,7 @@ sub_settings_key_callback(mvp_widget_t *widget, char key)
 		mvpw_show(main_menu);
 		mvpw_show(mvpmc_logo);
 		mvpw_show(setup_image);
+		mvpw_show(black_bg);
 
 		mvpw_focus(main_menu);
 	}
@@ -505,6 +516,7 @@ settings_key_callback(mvp_widget_t *widget, char key)
 		mvpw_show(main_menu);
 		mvpw_show(mvpmc_logo);
 		mvpw_show(setup_image);
+		mvpw_show(black_bg);
 
 		mvpw_focus(main_menu);
 	}
@@ -525,6 +537,7 @@ fb_key_callback(mvp_widget_t *widget, char key)
 		mvpw_show(mvpmc_logo);
 		mvpw_show(fb_image);
 		mvpw_focus(main_menu);
+		mvpw_show(black_bg);
 
 		mvpw_set_idle(NULL);
 		mvpw_set_timer(root, NULL, 0);
@@ -720,6 +733,8 @@ popup_key_callback(mvp_widget_t *widget, char key)
 static int
 file_browser_init(void)
 {
+	splash_update("Creating file browser");
+
 	file_browser = mvpw_create_menu(NULL, 50, 30, si.cols-120, si.rows-190,
 					0xff808080, 0xff606060, 2);
 
@@ -731,14 +746,14 @@ file_browser_init(void)
 
 	mvpw_set_key(file_browser, fb_key_callback);
 
-	splash_update();
-
 	return 0;
 }
 
 static int
 playlist_init(void)
 {
+	splash_update("Creating playlist");
+
 	playlist_widget = mvpw_create_menu(NULL, 50, 30,
 					   si.cols-120, si.rows-190,
 					   0xff808080, 0xff606060, 2);
@@ -750,8 +765,6 @@ playlist_init(void)
 	mvpw_set_bg(playlist_widget, MVPW_LIGHTGREY);
 
 	mvpw_set_key(playlist_widget, playlist_key_callback);
-
-	splash_update();
 
 	return 0;
 }
@@ -962,6 +975,8 @@ settings_init(void)
 {
 	int x, y, w, h;
 
+	splash_update("Creating settings");
+
 	settings_attr.font = fontid;
 	h = mvpw_font_height(description_attr.font) +
 		(2 * description_attr.margin);
@@ -1006,8 +1021,6 @@ settings_init(void)
 
 	sub_settings_item_attr.hilite = sub_settings_hilite_callback;
 	sub_settings_item_attr.select = sub_settings_select_callback;
-
-	splash_update();
 
 	return 0;
 }
@@ -1059,6 +1072,8 @@ myth_browser_init(void)
 	mvpw_widget_info_t wid, wid2, info;
 	char file[128];
 	int x, y, w, h;
+
+	splash_update("Creating MythTV browser");
 
 	snprintf(file, sizeof(file), "%s/mythtv_logo_rotate.png", imagedir);
 	if (mvpw_get_image_info(file, &iid) < 0)
@@ -1129,11 +1144,11 @@ myth_browser_init(void)
 	 */
 	mvpw_get_widget_info(mythtv_channel, &info);
 	shows_widget = mvpw_create_text(NULL, info.x, info.y,
-					300, h, 0x80000000, 0, 0);
+					300, h, MVPW_BLACK, 0, 0);
 	episodes_widget = mvpw_create_text(NULL, 50, 80,
-					   300, h, 0x80000000, 0, 0);
+					   300, h, MVPW_BLACK, 0, 0);
 	freespace_widget = mvpw_create_text(NULL, 50, 80,
-					    300, h, 0x80000000, 0, 0);
+					    300, h, MVPW_BLACK, 0, 0);
 	mvpw_set_text_attr(shows_widget, &description_attr);
 	mvpw_set_text_attr(episodes_widget, &description_attr);
 	mvpw_set_text_attr(freespace_widget, &description_attr);
@@ -1178,16 +1193,14 @@ myth_browser_init(void)
 	mvpw_raise(mythtv_popup);
 	mvpw_raise(mythtv_info);
 
-	splash_update();
-
 	return 0;
 }
 
 static int
 replaytv_browser_init(void)
 {
+	splash_update("Creating ReplayTV browser");
 	replay_gui_init();
-	splash_update();
 	return 0;
 }
 
@@ -1212,6 +1225,7 @@ main_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mvpw_hide(main_menu);
 		mvpw_hide(mvpmc_logo);
 		mvpw_hide(fb_image);
+		mvpw_hide(black_bg);
 
 		fb_update(file_browser);
 
@@ -1236,6 +1250,7 @@ main_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mvpw_hide(main_menu);
 		mvpw_hide(mvpmc_logo);
 		mvpw_hide(mythtv_image);
+		mvpw_hide(black_bg);
 
 		mvpw_show(mythtv_logo);
 		mvpw_show(mythtv_menu);
@@ -1248,6 +1263,7 @@ main_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mvpw_hide(mvpmc_logo);
 		mvpw_hide(replaytv_image);
 		mvpw_hide(fb_image);
+		mvpw_hide(black_bg);
 
 		replaytv_device_update();
 		replaytv_show_device_menu();
@@ -1319,61 +1335,70 @@ main_menu_init(char *server, char *replaytv)
 	mvpw_widget_info_t wid;
 	char file[128];
 
+	splash_update("Creating setup image");
+
 	snprintf(file, sizeof(file), "%s/wrench.png", imagedir);
 	if (mvpw_get_image_info(file, &iid) < 0)
 		return -1;
-	setup_image = mvpw_create_image(NULL, 50, 25,
-					iid.width, iid.height, 0, 0, 0);
+	setup_image = mvpw_create_image(NULL, 50, 25, iid.width, iid.height,
+					MVPW_BLACK, 0, 0);
 	mvpw_set_image(setup_image, file);
-	splash_update();
+
+	splash_update("Creating file browser image");
 
 	snprintf(file, sizeof(file), "%s/video_folder.png", imagedir);
 	if (mvpw_get_image_info(file, &iid) < 0)
 		return -1;
 	fb_image = mvpw_create_image(NULL, 50, 25,
-				     iid.width, iid.height, 0, 0, 0);
+				     iid.width, iid.height, MVPW_BLACK, 0, 0);
 	mvpw_set_image(fb_image, file);
-	splash_update();
+
+	splash_update("Creating MythTV image");
 
 	snprintf(file, sizeof(file), "%s/tv2.png", imagedir);
 	if (mvpw_get_image_info(file, &iid) < 0)
 		return -1;
-	mythtv_image = mvpw_create_image(NULL, 50, 25,
-					 iid.width, iid.height, 0, 0, 0);
+	mythtv_image = mvpw_create_image(NULL, 50, 25, iid.width, iid.height,
+					 MVPW_BLACK, 0, 0);
 	mvpw_set_image(mythtv_image, file);
-	splash_update();
+
+	splash_update("Creating ReplayTV image");
 
 	snprintf(file, sizeof(file), "%s/replaytv1.png", imagedir);
 	if (mvpw_get_image_info(file, &iid) < 0)
 		return -1;
-	replaytv_image = mvpw_create_image(NULL, 50, 25,
-					iid.width, iid.height, 0, 0, 0);
+	replaytv_image = mvpw_create_image(NULL, 50, 25, iid.width, iid.height,
+					   MVPW_BLACK, 0, 0);
 	mvpw_set_image(replaytv_image, file);
-	splash_update();
+
+	splash_update("Creating about image");
 
 	snprintf(file, sizeof(file), "%s/unknown.png", imagedir);
 	if (mvpw_get_image_info(file, &iid) < 0)
 		return -1;
-	about_image = mvpw_create_image(NULL, 50, 25,
-					iid.width, iid.height, 0, 0, 0);
+	about_image = mvpw_create_image(NULL, 50, 25, iid.width, iid.height,
+					MVPW_BLACK, 0, 0);
 	mvpw_set_image(about_image, file);
-	splash_update();
+
+	splash_update("Creating exit image");
 
 	snprintf(file, sizeof(file), "%s/stop.png", imagedir);
 	if (mvpw_get_image_info(file, &iid) < 0)
 		return -1;
-	exit_image = mvpw_create_image(NULL, 50, 25,
-				       iid.width, iid.height, 0, 0, 0);
+	exit_image = mvpw_create_image(NULL, 50, 25, iid.width, iid.height,
+				       MVPW_BLACK, 0, 0);
 	mvpw_set_image(exit_image, file);
-	splash_update();
+
+	splash_update("Creating mvpmc logo");
 
 	snprintf(file, sizeof(file), "%s/mvpmc_logo.png", imagedir);
 	if (mvpw_get_image_info(file, &iid) < 0)
 		return -1;
 	mvpmc_logo = mvpw_create_image(NULL, 50, 25, iid.width, iid.height,
-				       0, 0, 0);
+				       MVPW_BLACK, 0, 0);
 	mvpw_set_image(mvpmc_logo, file);
-	splash_update();
+
+	splash_update("Creating main menu");
 
 	main_menu = mvpw_create_menu(NULL, 50, 50, iid.width, si.rows-150,
 				     0, 0, 0);
@@ -1416,8 +1441,6 @@ main_menu_init(char *server, char *replaytv)
 
 	mvpw_set_key(main_menu, main_menu_callback);
 
-	splash_update();
-
 	return 0;
 }
 
@@ -1431,6 +1454,8 @@ about_init(void)
 		"Video: mpeg1, mpeg2\n"
 		"Images: bmp, gif, png, jpeg\n"
 		"Servers: MythTV, ReplayTV, NFS\n";
+
+	splash_update("Creating about dialog");
 
 	about_attr.font = fontid;
 	h = (mvpw_font_height(about_attr.font) +
@@ -1450,18 +1475,16 @@ about_init(void)
 
 	mvpw_set_key(about, warn_key_callback);
 
-	splash_update();
-
 	return 0;
 }
 
 static int
 image_init(void)
 {
+	splash_update("Creating image viewer");
+
 	iw = mvpw_create_image(NULL, 0, 0, si.cols, si.rows, 0, 0, 0);
 	mvpw_set_key(iw, iw_key_callback);
-
-	splash_update();
 
 	return 0;
 }
@@ -1471,6 +1494,8 @@ osd_init(void)
 {
 	mvp_widget_t *widget, *contain, *progress;
 	int h, w, x, y;
+
+	splash_update("Creating OSD");
 
 	display_attr.font = fontid;
 	h = mvpw_font_height(display_attr.font) +
@@ -1585,8 +1610,6 @@ osd_init(void)
 
 	add_osd_widget(clock_widget, OSD_CLOCK, 0, NULL);
 
-	splash_update();
-
 	return 0;
 }
 
@@ -1604,23 +1627,51 @@ mw_init(char *server, char *replaytv)
 
 	printf("screen is %d x %d\n", si.cols, si.rows);
 
-	snprintf(buf, sizeof(buf), "Connecting to mythtv server %s", server);
+	if (version[0] != '\0')
+		snprintf(buf, sizeof(buf),
+			 "MediaMVP Media Center\nVersion %s\n%s",
+			 version, compile_time);
+	else
+		snprintf(buf, sizeof(buf), "MediaMVP Media Center\n%s",
+			 compile_time);
 
 	splash_attr.font = fontid;
 	h = (mvpw_font_height(splash_attr.font) +
-	     (2 * splash_attr.margin)) * 2;
+	     (2 * splash_attr.margin)) * 3;
 	w = mvpw_font_width(fontid, buf) + 8;
+	w = 400;
 
 	x = (si.cols - w) / 2;
 	y = (si.rows - h) / 2;
 
-	splash = mvpw_create_text(NULL, x, y, w, h, 0x80000000, 0, 0);
+	black_bg = mvpw_create_container(NULL, 0, 0, si.cols, si.rows,
+					 MVPW_BLACK, 0, 0);
+
+	splash_title = mvpw_create_text(black_bg, x, y, w, h, MVPW_BLACK, 0, 0);
+	mvpw_set_text_attr(splash_title, &splash_attr);
+	y += h;
+	h *= 2;
+	h = (mvpw_font_height(splash_attr.font) + (2 * splash_attr.margin));
+	splash = mvpw_create_text(black_bg, x, y, w, h, MVPW_BLACK, 0, 0);
 	mvpw_set_text_attr(splash, &splash_attr);
 
-	if (server)
-		mvpw_set_text_str(splash, buf);
+	w = si.cols - 300;
+	x = (si.cols - w) / 2;
+	y += (h*2);
+
+	splash_graph = mvpw_create_graph(black_bg, x, y, w, h,
+					 MVPW_BLACK, MVPW_LIGHTGREY, 2);
+	mvpw_set_graph_attr(splash_graph, &splash_graph_attr);
+
+	mvpw_set_graph_current(splash_graph, 0);
+
+	mvpw_set_text_str(splash_title, buf);
 
 	mvpw_show(splash);
+	mvpw_show(splash_graph);
+	mvpw_show(splash_title);
+	mvpw_expose(splash_graph);
+	mvpw_show(black_bg);
 	mvpw_event_flush();
 
 	return 0;
@@ -1785,6 +1836,8 @@ screensaver_init(void)
 	mvpw_image_info_t iid;
 	char file[128];
 
+	splash_update("Creating screensaver");
+
 	screensaver = mvpw_create_container(NULL, 0, 0,
 					    si.cols, si.rows,
 					    MVPW_BLACK, 0, 0);
@@ -1800,8 +1853,6 @@ screensaver_init(void)
 	mvpw_show(screensaver_image);
 
 	screensaver_enable();
-
-	splash_update();
 
 	return 0;
 }
@@ -1862,14 +1913,9 @@ warn_init(void)
 int
 gui_init(char *server, char *replaytv)
 {
-	char buf[128], *ptr;
+	char buf[128];
 
-	ptr = mvpw_get_text_str(splash);
-	if (ptr)
-		snprintf(buf, sizeof(buf), "%s\nInitializing GUI", ptr);
-	else
-		snprintf(buf, sizeof(buf), "Initializing GUI");
-
+	snprintf(buf, sizeof(buf), "Initializing GUI");
 	mvpw_set_text_str(splash, buf);
 	mvpw_expose(splash);
 	mvpw_event_flush();
@@ -1890,6 +1936,8 @@ gui_init(char *server, char *replaytv)
 	screensaver_init();
 
 	mvpw_destroy(splash);
+	mvpw_destroy(splash_graph);
+	mvpw_destroy(splash_title);
 
 	init_done = 1;
 

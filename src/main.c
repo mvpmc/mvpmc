@@ -350,9 +350,6 @@ main(int argc, char **argv)
 	}
 	demux_set_display_size(handle, width, height);
 
-	if (mythtv_server)
-		mythtv_init(mythtv_server, -1);
-
 	video_init();
 	pthread_create(&video_read_thread, NULL, video_read_start, NULL);
 	pthread_create(&video_write_thread, NULL, video_write_start, NULL);
