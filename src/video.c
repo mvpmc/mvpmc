@@ -547,7 +547,7 @@ video_callback(mvp_widget_t *widget, char key)
 		jumping = 1;
 		pthread_kill(video_write_thread, SIGURG);
 		pthread_kill(audio_write_thread, SIGURG);
-		jump = key - '0';
+		jump = key;
 		size = video_functions->size();
 		jump_target = size * (jump / 10.0);
 		pthread_cond_broadcast(&video_cond);
@@ -586,16 +586,18 @@ video_callback(mvp_widget_t *widget, char key)
 		video_thumbnail(0);
 		pthread_cond_broadcast(&video_cond);
 		break;
+	case MVPW_KEY_CHAN_UP:
 	case MVPW_KEY_UP:
 		if (mythtv_livetv)
 			mythtv_channel_up();
 		break;
+	case MVPW_KEY_CHAN_DOWN:
 	case MVPW_KEY_DOWN:
 		if (mythtv_livetv)
 			mythtv_channel_down();
 		break;
 	default:
-		printf("char '%c'\n", key);
+		printf("button %d\n", key);
 		break;
 	}
 }
