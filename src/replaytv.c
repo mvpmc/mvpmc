@@ -836,6 +836,8 @@ int replaytv_device_update(void)
    rtv_device_list_t *rtv_list;
    
    running_replaytv = 1;
+
+   add_osd_widget(rtv_osd_proginfo_widget, OSD_PROGRAM, 1, NULL);
    
    mvpw_show(root);
    mvpw_expose(root);
@@ -1039,8 +1041,6 @@ int replay_gui_init(void)
    mvpw_set_text_str(rtv_osd_show_descr_widget, "");
    mvpw_show(rtv_osd_show_descr_widget);
    mvpw_attach(rtv_osd_show_title_widget, rtv_osd_show_descr_widget, MVPW_DIR_DOWN);
-
-	add_osd_widget(rtv_osd_proginfo_widget, OSD_PROGRAM, 1, NULL);
 
    mvpw_raise(rtv_browser);
    mvpw_raise(rtv_device_menu);
