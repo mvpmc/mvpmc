@@ -60,6 +60,8 @@ struct demux_handle_s {
 	int spu_current;
 	unsigned char *spu_buf;
 	int spu_len;
+	int width;
+	int height;
 };
 
 #define pack_start_code			0xBA

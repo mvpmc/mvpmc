@@ -615,3 +615,15 @@ demux_spu_decompress(demux_handle_t *handle, spu_item_t *spu)
 
 	return img;
 }
+
+int
+demux_set_display_size(demux_handle_t *handle, int w, int h)
+{
+	if (handle == NULL)
+		return -1;
+
+	handle->width = w;
+	handle->height = h;
+
+	return 0;
+}

@@ -90,6 +90,7 @@ typedef struct demux_handle_s demux_handle_t;
 
 extern demux_handle_t *demux_init(unsigned int);
 extern int demux_destroy(demux_handle_t*);
+extern int demux_set_display_size(demux_handle_t*, int, int);
 
 extern int demux_put(demux_handle_t*, char*, int);
 extern int demux_get_audio(demux_handle_t*, char*, int);

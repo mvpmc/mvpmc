@@ -429,6 +429,16 @@ parse_video_frame(demux_handle_t *handle, unsigned char *buf, int len)
 					(buf[i+4] << 4);
 				h = ((buf[i+5] & 0xf) << 8) |
 					buf[i+6];
+				/*
+				 * allow PAL to display under NTSC by
+				 * changing the video height
+				 */
+				if ((handle->height == 480) &&
+				    (h == 576)) {
+					buf[i+6] = 480 & 0xff;
+					buf[i+5] = ((480 >> 8) & 0xf) |
+						(buf[i+5] & 0xf0);
+				}
 				aspect = buf[i+7] >> 4;
 				frame_rate = buf[i+7] & 0xf;
 				PRINTF("SEQ: %dx%d, aspect %d fr %d\n",
@@ -450,7 +460,7 @@ parse_video_frame(demux_handle_t *handle, unsigned char *buf, int len)
 					(buf[i+6] >> 5);
 				frame = ((buf[i+6] & 0x1f) << 1) |
 					(buf[i+7] >> 7);
-				PRINTF("GOP: %.2d:%.2d:%.2d %d [%d] PTS 0x%x\n",
+				PRINTF("GOP: %.2d:%.2d:%.2d %d [%d] PTS 0x%.8x\n",
 				       hour, minute, second, frame, i, pts);
 				delta = (hour - handle->attr.gop.hour) * 3600 +
 					(minute - handle->attr.gop.minute) * 60 +
