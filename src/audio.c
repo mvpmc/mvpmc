@@ -35,6 +35,7 @@
 
 #include <mvp_widget.h>
 #include <mvp_av.h>
+#include <mvp_demux.h>
 
 #include "mvpmc.h"
 
@@ -89,6 +90,8 @@ static int align;
 static unsigned short channels;
 static unsigned short bps;
 static int pcm_decoded = 0;
+
+static int ac3_freespace(void);
 
 #define min(X, Y)  ((X) < (Y) ? (X) : (Y))
 
@@ -344,7 +347,6 @@ mp3_play(int afd)
 static int
 audio_player(int reset)
 {
-	static char buf[BSIZE];
 	static int n = 0, nput = 0, afd = 0;
 
 	if (reset) {

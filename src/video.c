@@ -32,6 +32,7 @@
 #include <signal.h>
 #include <pthread.h>
 #include <semaphore.h>
+#include <errno.h>
 #include <mvp_demux.h>
 #include <mvp_widget.h>
 #include <mvp_av.h>
@@ -80,6 +81,8 @@ static volatile int ac3len = 0, ac3more = 0;
 
 static volatile int video_reopen = 0;
 static volatile int video_playing = 0;
+
+static void disable_osd(void);
 
 static int file_open(void);
 static int file_read(char*, int);
@@ -241,7 +244,6 @@ video_stop_play(void)
 void
 video_progress(mvp_widget_t *widget)
 {
-	struct stat64 sb;
 	long long offset, size;
 	int off;
 	char buf[32];
@@ -360,7 +362,6 @@ seek_by(int seconds)
 	demux_attr_t *attr = demux_get_attr(handle);
 	int delta;
 	int stc_time, gop_time, pts_time;
-	pts_sync_data_t pts;
 	long long offset;
 
 	pthread_kill(video_write_thread, SIGURG);
@@ -432,7 +433,6 @@ disable_osd(void)
 void
 video_callback(mvp_widget_t *widget, char key)
 {
-	struct stat64 sb;
 	int jump;
 	long long offset, size;
 
@@ -463,11 +463,18 @@ video_callback(mvp_widget_t *widget, char key)
 		mvpw_hide(zoom_widget);
 		display_on = 0;
 		zoomed = 0;
-		if (mythtv_livetv) {
-			mvpw_show(mythtv_logo);
-			mvpw_show(mythtv_menu);
+		if (mythtv_livetv == 1) {
+			if (mythtv_state == MYTHTV_STATE_MAIN) {
+				mvpw_show(mythtv_logo);
+				mvpw_show(mythtv_menu);
+			} else {
+				mythtv_show_widgets();
+			}
+			mythtv_livetv = 2;
+		} else if (mythtv_livetv == 2) {
 			mythtv_livetv_stop();
 			mythtv_livetv = 0;
+			running_mythtv = 0;
 		} else if (mythtv_main_menu) {
 			mvpw_show(mythtv_logo);
 			mvpw_show(mythtv_menu);
@@ -583,6 +590,8 @@ video_callback(mvp_widget_t *widget, char key)
 		break;
 	case MVPW_KEY_FULL:
 		av_set_video_aspect(1-av_get_video_aspect());
+		if (mythtv_livetv == 2)
+			mythtv_livetv = 1;
 		break;
 	case MVPW_KEY_OK:
 		video_thumbnail(0);
@@ -772,7 +781,6 @@ static int
 do_seek(void)
 {
 	demux_attr_t *attr;
-	pts_sync_data_t pts;
 	int seconds, new_seek_bps;
 	long long offset;
 
@@ -871,7 +879,7 @@ file_open(void)
 	pthread_kill(audio_write_thread, SIGURG);
 
 	if ((fd=open(current, O_RDONLY|O_LARGEFILE)) < 0) {
-		printf("failed to open %s\n", current);
+		printf("Open failed errno %d file %s\n", errno, current);
 		video_reopen = 0;
 		return -1;
 	}
@@ -989,7 +997,7 @@ video_read_start(void *arg)
 			continue;
 		}
 
-		ret = demux_put(handle, inbuf+n, len-n);
+		ret = DEMUX_PUT(handle, inbuf+n, len-n);
 
 		if ((ret <= 0) && (!seeking)) {
 			pthread_cond_broadcast(&video_cond);
@@ -1081,7 +1089,7 @@ video_write_start(void *arg)
 
 		while (seeking || jumping)
 			pthread_cond_wait(&video_cond, &mutex);
-		if (video_playing && (len=demux_write_video(handle, fd_video)) > 0)
+		if (video_playing && (len=DEMUX_WRITE_VIDEO(handle, fd_video)) > 0)
 			pthread_cond_broadcast(&video_cond);
 		else
 			pthread_cond_wait(&video_cond, &mutex);

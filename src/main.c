@@ -65,6 +65,50 @@ pthread_attr_t thread_attr;
 
 static pid_t child;
 
+av_demux_mode_t demux_mode;
+
+int (*DEMUX_PUT)(demux_handle_t*, char*, int);
+int (*DEMUX_WRITE_VIDEO)(demux_handle_t*, int);
+
+#define DATA_SIZE (1024*1024)
+static char *data = NULL;
+static int data_len = 0;
+
+static int
+buffer_put(demux_handle_t *handle, char *buf, int len)
+{
+	int n;
+
+	if (data_len)
+		return 0;
+
+	if (len <= 0)
+		return 0;
+
+	n = (len < DATA_SIZE) ? len : DATA_SIZE;
+
+	memcpy(data, buf, n);
+
+	data_len = n;
+
+	return n;
+}
+
+static int 
+buffer_write(demux_handle_t *handle, int fd)
+{
+	int n;
+
+	n = write(fd, data, data_len);
+
+	if (n != data_len)
+		memcpy(data, data+n, data_len-n);
+
+	data_len -= n;
+
+	return n;
+}
+
 /*
  * print_help() - print command line arguments
  *
@@ -96,10 +140,25 @@ print_help(char *prog)
 /*
  * sighandler() - kill the child and exit
  */
-void
+static void
 sighandler(int sig)
 {
+	/*
+	 * Allow the child to do any exit processing before killing it.
+	 */
+	kill(child, sig);
+	usleep(5000);
+
 	kill(child, SIGKILL);
+	exit(sig);
+}
+
+/*
+ * doexit() - exit so any atexit processing can happen
+ */
+static void
+doexit(int sig)
+{
 	exit(sig);
 }
 
@@ -135,8 +194,8 @@ spawn_child(void)
 		if ((child=fork()) == 0) {
 			printf("child pid %d\n", getpid());
 			close(fd);
-			signal(SIGINT, SIG_DFL);
-			signal(SIGTERM, SIG_DFL);
+			signal(SIGINT, doexit);
+			signal(SIGTERM, doexit);
 			return;
 		}
 
@@ -310,7 +369,7 @@ main(int argc, char **argv)
 		big_font = fontid;
 #endif
 
-	if (av_init() < 0) {
+	if ((demux_mode=av_init()) == AV_DEMUX_ERROR) {
 		fprintf(stderr, "failed to initialize av hardware!\n");
 		exit(1);
 	}
@@ -362,12 +421,28 @@ main(int argc, char **argv)
 	pthread_attr_init(&thread_attr);
 	pthread_attr_setstacksize(&thread_attr, 1024*128);
 
+	/*
+	 * If the demuxer is not being used, all mpeg data will go
+	 * through the video device.  This will allow an external
+	 * player to be used (ie, mplayer).
+	 */
+	if (demux_mode == AV_DEMUX_ON) {
+		DEMUX_PUT = demux_put;
+		DEMUX_WRITE_VIDEO = demux_write_video;
+		pthread_create(&audio_write_thread, &thread_attr,
+			       audio_write_start, NULL);
+	} else {
+		DEMUX_PUT = buffer_put;
+		DEMUX_WRITE_VIDEO = buffer_write;
+		if ((data=malloc(DATA_SIZE)) == NULL) {
+			perror("malloc()");
+			exit(1);
+		}
+	}
 	pthread_create(&video_read_thread, &thread_attr,
 		       video_read_start, NULL);
 	pthread_create(&video_write_thread, &thread_attr,
 		       video_write_start, NULL);
-	pthread_create(&audio_write_thread, &thread_attr,
-		       audio_write_start, NULL);
 
 	if (gui_init(mythtv_server, replaytv_server) < 0) {
 		fprintf(stderr, "failed to initialize gui!\n");
@@ -436,6 +511,8 @@ main(int argc, char **argv)
 			printf("Failed to create hole in heap\n");
 	}
 #endif /* __UCLIBC__ */
+
+	atexit(mythtv_atexit);
 
 	mvpw_set_idle(NULL);
 	mvpw_event_loop();

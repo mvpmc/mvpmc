@@ -74,7 +74,7 @@ static char *pathname = NULL;
 static cmyth_recorder_t recorder;
 static cmyth_ringbuf_t ring;
 
-volatile int mythtv_level = 0;
+volatile mythtv_state_t mythtv_state = MYTHTV_STATE_MAIN;
 
 static int show_count, episode_count;
 
@@ -121,11 +121,26 @@ string_compare(const void *a, const void *b)
 void
 mythtv_show_widgets(void)
 {
-	mvpw_show(mythtv_logo);
-	mvpw_show(mythtv_browser);
-	mvpw_show(mythtv_date);
-	mvpw_show(mythtv_description);
-	mvpw_show(mythtv_channel);
+	if (mythtv_state == MYTHTV_STATE_PENDING) {
+		mvpw_show(mythtv_browser);
+		mvpw_show(mythtv_channel);
+		mvpw_show(mythtv_date);
+		mvpw_show(mythtv_description);
+		mvpw_show(mythtv_record);
+		mvpw_show(mythtv_logo);
+	} else if (mythtv_state == MYTHTV_STATE_PROGRAMS) {
+		mvpw_show(mythtv_logo);
+		mvpw_show(mythtv_browser);
+		mvpw_show(shows_widget);
+		mvpw_show(episodes_widget);
+		mvpw_show(freespace_widget);
+	} else {
+		mvpw_show(mythtv_logo);
+		mvpw_show(mythtv_browser);
+		mvpw_show(mythtv_date);
+		mvpw_show(mythtv_description);
+		mvpw_show(mythtv_channel);
+	}
 }
 
 static int
@@ -147,10 +162,8 @@ mythtv_verify(void)
 }
 
 static void
-mythtv_shutdown(void)
+mythtv_close(void)
 {
-	printf("%s(): closing mythtv connection\n", __FUNCTION__);
-
 	if (control && file) {
 		cmyth_file_release(control, file);
 		file = NULL;
@@ -183,6 +196,14 @@ mythtv_shutdown(void)
 		cmyth_conn_release(control);
 		control = NULL;
 	}
+}
+
+static void
+mythtv_shutdown(void)
+{
+	printf("%s(): closing mythtv connection\n", __FUNCTION__);
+
+	mythtv_close();
 
 	mvpw_hide(mythtv_browser);
 	mvpw_hide(mythtv_channel);
@@ -335,6 +356,14 @@ show_select_callback(mvp_widget_t *widget, char *item, void *key)
 		current = malloc(strlen(hilite_path) + 1);
 		strcpy(current, hilite_path);
 
+		if (mythtv_livetv) {
+			mythtv_livetv_stop();
+			if (mythtv_recdir)
+				video_functions = &file_functions;
+			else
+				video_functions = &mythtv_functions;
+		}
+
 		demux_reset(handle);
 		demux_attr_reset(handle);
 		av_move(0, 0, 0);
@@ -383,7 +412,7 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 
 	pthread_mutex_lock(&myth_mutex);
 
-	mythtv_level = 1;
+	mythtv_state = MYTHTV_STATE_EPISODES;
 
 	item_attr.select = show_select_callback;
 	item_attr.hilite = hilite_callback;
@@ -446,7 +475,6 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 	snprintf(buf, sizeof(buf), "%s - %d episodes", item, episodes);
 	mvpw_set_menu_title(widget, buf);
 
- out:
 	pthread_mutex_unlock(&myth_mutex);
 
 	return;
@@ -507,7 +535,6 @@ add_shows(mvp_widget_t *widget)
 	for (i=0; i<n; i++)
 		mvpw_add_menu_item(widget, titles[i], (void*)n+2, &item_attr);
 
- out:
 	cmyth_proglist_release(plist);
 	pthread_mutex_unlock(&myth_mutex);
 
@@ -525,10 +552,12 @@ mythtv_update(mvp_widget_t *widget)
 	char buf[64];
 	int total, used;
 
-	if (mythtv_recdir)
-		video_functions = &file_functions;
-	else
-		video_functions = &mythtv_functions;
+	if (mythtv_livetv == 0) {
+		if (mythtv_recdir)
+			video_functions = &file_functions;
+		else
+			video_functions = &mythtv_functions;
+	}
 
 	running_mythtv = 1;
 
@@ -587,11 +616,13 @@ mythtv_back(mvp_widget_t *widget)
 	mvpw_show(episodes_widget);
 	mvpw_show(freespace_widget);
 
-	if (mythtv_level == 0) {
+	printf("%s(): state %d\n", __FUNCTION__, mythtv_state);
+	if ((mythtv_state == MYTHTV_STATE_PROGRAMS) ||
+	    (mythtv_state == MYTHTV_STATE_PENDING)) {
 		return 0;
 	}
 
-	mythtv_level = 0;
+	mythtv_state = MYTHTV_STATE_PROGRAMS;
 	mythtv_update(widget);
 
 	return -1;
@@ -878,7 +909,7 @@ wd_start(void *arg)
 static void*
 control_start(void *arg)
 {
-	int len;
+	int len = 0;
 	int size = BSIZE;
 	demux_attr_t *attr;
 
@@ -1398,8 +1429,8 @@ mythtv_livetv_stop(void)
 	mvpw_set_idle(NULL);
 	mvpw_set_timer(root, NULL, 0);
 
-	running_mythtv = 0;
 	mythtv_live = 0;
+	mythtv_livetv = 0;
 
 	return 0;
 }
@@ -1450,3 +1481,17 @@ mythtv_channel_down(void)
 	return __change_channel(CHANNEL_DIRECTION_DOWN);
 }
 
+void
+mythtv_atexit(void)
+{
+	printf("%s(): start exit processing...\n", __FUNCTION__);
+
+	if (mythtv_livetv) {
+		mythtv_livetv_stop();
+		mythtv_livetv = 0;
+	}
+
+	mythtv_close();
+
+	printf("%s(): end exit processing...\n", __FUNCTION__);
+}

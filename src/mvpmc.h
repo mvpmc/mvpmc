@@ -25,6 +25,13 @@
 #define VIDEO_BUFF_SIZE	(1024*96)
 
 typedef enum {
+	MYTHTV_STATE_MAIN,
+	MYTHTV_STATE_PENDING,
+	MYTHTV_STATE_PROGRAMS,
+	MYTHTV_STATE_EPISODES,
+} mythtv_state_t;
+
+typedef enum {
 	OSD_BITRATE = 1,
 	OSD_CLOCK,
 	OSD_DEMUX,
@@ -71,7 +78,7 @@ extern video_callback_t file_functions, mythtv_functions;
 
 extern char *mythtv_server;
 extern int mythtv_debug;
-extern volatile int mythtv_level;
+extern volatile mythtv_state_t mythtv_state;
 
 extern mvp_widget_t *file_browser;
 extern mvp_widget_t *mythtv_browser;
@@ -138,6 +145,7 @@ extern void playlist_play(mvp_widget_t*);
 extern void playlist_next();
 
 extern int mythtv_init(char*, int);
+extern void mythtv_atexit(void);
 extern int gui_init(char*, char*);
 extern int mw_init(char *server, char *replaytv);
 
@@ -225,8 +233,36 @@ extern void screensaver_disable(void);
 extern volatile int screensaver_timeout;
 extern volatile int screensaver_default;
 
-extern int mythtv_livetv;
+extern volatile int mythtv_livetv;
 
 extern char compile_time[], version[];
+
+extern av_demux_mode_t demux_mode;
+
+extern int (*DEMUX_PUT)(demux_handle_t*, char*, int);
+extern int (*DEMUX_WRITE_VIDEO)(demux_handle_t*, int);
+
+extern int mythtv_livetv_stop(void);
+extern int mythtv_channel_up(void);
+extern int mythtv_channel_down(void);
+
+extern void empty_ac3(void);
+
+extern void gui_error_clear(void);
+
+extern void mythtv_cleanup(void);
+extern void mythtv_stop(void);
+extern int mythtv_delete(void);
+extern int mythtv_forget(void);
+extern int mythtv_proginfo(char *buf, int size);
+extern void mythtv_start_thumbnail(void);
+extern int mythtv_pending(mvp_widget_t *widget);
+extern int mythtv_livetv_start(void);
+
+extern void playlist_prev(void);
+extern void playlist_stop(void);
+
+extern void subtitle_switch_stream(mvp_widget_t*, int);
+extern void add_subtitle_streams(mvp_widget_t*, mvpw_menu_item_attr_t*);
 
 #endif /* MVPMC_H */

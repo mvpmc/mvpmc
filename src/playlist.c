@@ -28,6 +28,7 @@
 
 #include <mvp_widget.h>
 #include <mvp_av.h>
+#include <mvp_demux.h>
 
 #include "mvpmc.h"
 

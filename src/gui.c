@@ -31,13 +31,14 @@
 
 #include <mvp_widget.h>
 #include <mvp_av.h>
+#include <mvp_demux.h>
 #include <mvp_osd.h>
 
 #include "mvpmc.h"
 #include "replaytv.h"
 
 volatile int running_replaytv = 0;
-int mythtv_livetv = 0;
+volatile int mythtv_livetv = 0;
 
 static mvpw_menu_attr_t fb_attr = {
 	.font = 0,
@@ -181,14 +182,6 @@ static mvpw_text_attr_t splash_attr = {
 	.margin = 6,
 	.font = 0,
 	.fg = MVPW_GREEN,
-};
-
-static mvpw_text_attr_t error_attr = {
-	.wrap = 1,
-	.justify = MVPW_TEXT_CENTER,
-	.margin = 6,
-	.font = 0,
-	.fg = MVPW_WHITE,
 };
 
 static mvpw_dialog_attr_t warn_attr = {
@@ -425,6 +418,7 @@ mythtv_menu_callback(mvp_widget_t *widget, char key)
 		mvpw_focus(main_menu);
 
 		mythtv_main_menu = 0;
+		mythtv_state = MYTHTV_STATE_MAIN;
 	}
 
 	if (key == MVPW_KEY_FULL) {
@@ -433,10 +427,18 @@ mythtv_menu_callback(mvp_widget_t *widget, char key)
 		mvpw_focus(root);
 
 		av_move(0, 0, 0);
+
+		if (mythtv_livetv == 2)
+			mythtv_livetv = 1;
 	}
 
 	if (key == MVPW_KEY_STOP) {
-		mythtv_stop();
+		if (mythtv_livetv) {
+			mythtv_livetv_stop();
+			mythtv_livetv = 0;
+		} else {
+			mythtv_stop();
+		}
 	}
 
 	switch (key) {
@@ -564,6 +566,9 @@ fb_key_callback(mvp_widget_t *widget, char key)
 		mvpw_focus(root);
 
 		av_move(0, 0, 0);
+
+		if (mythtv_livetv == 2)
+			mythtv_livetv = 1;
 		break;
 	}
 }
@@ -609,7 +614,7 @@ mythtv_popup_select_callback(mvp_widget_t *widget, char *item, void *key)
 		printf("trying to forget recording\n");
 		if ((mythtv_delete() == 0) && (mythtv_forget() == 0)) {
 			mvpw_hide(mythtv_popup);
-			mythtv_level = 0;
+			mythtv_state = MYTHTV_STATE_PROGRAMS;
 			mythtv_update(mythtv_browser);
 		}
 		break;
@@ -617,7 +622,7 @@ mythtv_popup_select_callback(mvp_widget_t *widget, char *item, void *key)
 		printf("trying to delete recording\n");
 		if (mythtv_delete() == 0) {
 			mvpw_hide(mythtv_popup);
-			mythtv_level = 0;
+			mythtv_state = MYTHTV_STATE_PROGRAMS;
 			mythtv_update(mythtv_browser);
 		}
 		break;
@@ -653,10 +658,12 @@ mythtv_key_callback(mvp_widget_t *widget, char key)
 			mvpw_focus(mythtv_menu);
 
 			mythtv_main_menu = 1;
+			mythtv_state = MYTHTV_STATE_MAIN;
 		}
 	}
 
-	if ((key == MVPW_KEY_MENU) && (mythtv_level)) {
+	if ((key == MVPW_KEY_MENU) &&
+	    (mythtv_state == MYTHTV_STATE_EPISODES)) {
 		printf("mythtv popup menu\n");
 		mvpw_clear_menu(mythtv_popup);
 		mythtv_popup_item_attr.select = mythtv_popup_select_callback;
@@ -687,6 +694,9 @@ mythtv_key_callback(mvp_widget_t *widget, char key)
 		mvpw_focus(root);
 
 		av_move(0, 0, 0);
+
+		if (mythtv_livetv == 2)
+			mythtv_livetv = 1;
 	}
 
 	if (key == MVPW_KEY_PLAY) {
@@ -694,7 +704,12 @@ mythtv_key_callback(mvp_widget_t *widget, char key)
 	}
 
 	if (key == MVPW_KEY_STOP) {
-		mythtv_stop();
+		if (mythtv_livetv) {
+			mythtv_livetv_stop();
+			mythtv_livetv = 0;
+		} else {
+			mythtv_stop();
+		}
 	}
 
 	switch (key) {
@@ -1060,6 +1075,7 @@ myth_menu_select_callback(mvp_widget_t *widget, char *item, void *key)
 			mvpw_focus(mythtv_browser);
 
 			mythtv_main_menu = 0;
+			mythtv_state = MYTHTV_STATE_PROGRAMS;
 		}
 		break;
 	case 1:
@@ -1070,6 +1086,7 @@ myth_menu_select_callback(mvp_widget_t *widget, char *item, void *key)
 			mvpw_focus(mythtv_browser);
 
 			mythtv_main_menu = 0;
+			mythtv_state = MYTHTV_STATE_PENDING;
 		}
 		break;
 	case 2:
@@ -1355,6 +1372,7 @@ main_menu_init(char *server, char *replaytv)
 	mvpw_image_info_t iid;
 	mvpw_widget_info_t wid;
 	char file[128];
+	int w;
 
 	splash_update("Creating setup image");
 
@@ -1421,7 +1439,8 @@ main_menu_init(char *server, char *replaytv)
 
 	splash_update("Creating main menu");
 
-	main_menu = mvpw_create_menu(NULL, 50, 50, iid.width, si.rows-150,
+	w = (iid.width < 300) ? 300 : iid.width;
+	main_menu = mvpw_create_menu(NULL, 50, 50, w, si.rows-150,
 				     MVPW_BLACK, 0, 0);
 
 	mvpw_attach(mvpmc_logo, main_menu, MVPW_DIR_DOWN);
