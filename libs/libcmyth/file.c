@@ -1,3 +1,23 @@
+/*
+ *  Copyright (C) 2004, Eric Lund
+ *  http://mvpmc.sourceforge.net/
+ *
+ *  This library is free software; you can redistribute it and/or
+ *  modify it under the terms of the GNU Lesser General Public
+ *  License as published by the Free Software Foundation; either
+ *  version 2.1 of the License, or (at your option) any later version.
+ *
+ *  This library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ *  Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public
+ *  License along with this library; if not, write to the Free Software
+ *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
+#ident "$Id$"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -210,7 +230,8 @@ int
 cmyth_file_request_block(cmyth_conn_t control, cmyth_file_t file, char *buf, unsigned long len)
 {
 	int err, count;
-	int r, c;
+	int r;
+	long c;
 	char msg[256];
 	int tot = 0;
 
@@ -238,13 +259,13 @@ cmyth_file_request_block(cmyth_conn_t control, cmyth_file_t file, char *buf, uns
 	}
 
 	count = cmyth_rcv_length(control);
-	if ((r=cmyth_rcv_long(control, err, &c, count)) < 0) {
+	if ((r=cmyth_rcv_long(control, &err, &c, count)) < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_rcv_length() failed (%d)\n",
 			  __FUNCTION__, r);
 	}
 #if 0
-	printf("%s(): c is %d\n", __FUNCTION__, c);
+	printf("%s(): c is %ld\n", __FUNCTION__, c);
 #endif
 
 	file->file_pos += tot;
@@ -277,7 +298,7 @@ cmyth_file_seek(cmyth_conn_t control, cmyth_file_t file, int delta)
 	printf("%s(): line %d\n", __FUNCTION__, __LINE__);
 	count = cmyth_rcv_length(control);
 	printf("%s(): line %d\n", __FUNCTION__, __LINE__);
-	if ((r=cmyth_rcv_long_long(control, err, &c, count)) < 0) {
+	if ((r=cmyth_rcv_long_long(control, &err, &c, count)) < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_rcv_length() failed (%d)\n",
 			  __FUNCTION__, r);

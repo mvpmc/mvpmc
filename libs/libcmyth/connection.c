@@ -1,4 +1,24 @@
 /*
+ *  Copyright (C) 2004, Eric Lund
+ *  http://mvpmc.sourceforge.net/
+ *
+ *  This library is free software; you can redistribute it and/or
+ *  modify it under the terms of the GNU Lesser General Public
+ *  License as published by the Free Software Foundation; either
+ *  version 2.1 of the License, or (at your option) any later version.
+ *
+ *  This library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ *  Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public
+ *  License along with this library; if not, write to the Free Software
+ *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
+#ident "$Id$"
+
+/*
  * connection.c - functions to handle creating connections to a MythTV backend
  *                and interacting with those connections.  
  */
@@ -246,6 +266,7 @@ cmyth_connect(char *server, unsigned short port, unsigned buflen)
 	ret->conn_buf = buf;
 	ret->conn_len = 0;
 	ret->conn_pos = 0;
+	ret->conn_version = 8;
 	return ret;
 
  shut:
@@ -283,6 +304,7 @@ cmyth_conn_connect_ctrl(char *server, unsigned short port, unsigned buflen)
 {
 	cmyth_conn_t conn;
 	char announcement[256];
+	unsigned long tmp_ver;
 
 	conn = cmyth_connect(server, port, buflen);
 	if (!conn) {
@@ -290,6 +312,31 @@ cmyth_conn_connect_ctrl(char *server, unsigned short port, unsigned buflen)
 				  __FUNCTION__, server, port, buflen);
 		return NULL;
 	}
+
+	/*
+	 * Find out what the Myth Protocol Version is for this connection.
+	 * Loop around until we get agreement from the server.
+	 */
+	tmp_ver = conn->conn_version;
+	do {
+		conn->conn_version = tmp_ver;
+		sprintf(announcement, "MYTH_PROTO_VERSION %ld", conn->conn_version);
+		if (cmyth_send_message(conn, announcement) < 0) {
+			cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_send_message('%s') failed\n",
+					  __FUNCTION__, announcement);
+			goto shut;
+		}
+		if (cmyth_rcv_version(conn, &tmp_ver) < 0) {
+			cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_rcv_version() failed\n",
+					  __FUNCTION__);
+			goto shut;
+		}
+	} while (conn->conn_version != tmp_ver);
+	printf("%s: agreed on Version %ld protocol\n",
+		   __FUNCTION__, conn->conn_version);
+	cmyth_dbg(CMYTH_DBG_ERROR, "%s: agreed on Version %ld protocol\n",
+			  __FUNCTION__, conn->conn_version);
+
 	sprintf(announcement, "ANN Playback %s 0", my_hostname);
 	if (cmyth_send_message(conn, announcement) < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_send_message('%s') failed\n",

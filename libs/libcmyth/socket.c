@@ -1,4 +1,24 @@
 /*
+ *  Copyright (C) 2004, Eric Lund
+ *  http://mvpmc.sourceforge.net/
+ *
+ *  This library is free software; you can redistribute it and/or
+ *  modify it under the terms of the GNU Lesser General Public
+ *  License as published by the Free Software Foundation; either
+ *  version 2.1 of the License, or (at your option) any later version.
+ *
+ *  This library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ *  Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public
+ *  License along with this library; if not, write to the Free Software
+ *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
+#ident "$Id$"
+
+/*
  * socket.c - functions to handle low level socket interactions with a
  *            MythTV frontend.  
  */
@@ -547,6 +567,62 @@ cmyth_rcv_okay(cmyth_conn_t conn, char *ok)
 }
 
 /*
+ * cmyth_rcv_version(cmyth_conn_t conn, unsigned long *vers)
+ * 
+ * Scope: PRIVATE (mapped to __cmyth_rcv_version)
+ *
+ * Description
+ *
+ * Receive an ACCEPT <version> or REJECT <version> response on a
+ * connection.  If 'vers' is non-NULL it points to the location where
+ * the received version number should be placed.  If it is NULL, this
+ * routine will still read the version but it will throw it away.
+ *
+ * Return Value:
+ *
+ * Success: 0
+ *
+ * Failure: -(errno)
+ */
+int
+cmyth_rcv_version(cmyth_conn_t conn, unsigned long *vers)
+{
+	int len;
+	int consumed;
+	char buf[8];
+	unsigned long tmp_vers;
+	int err;
+
+	if (!vers) {
+		vers = &tmp_vers;
+	}
+	len = cmyth_rcv_length(conn);
+	if (len < 0) {
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_rcv_length() failed\n",
+				  __FUNCTION__);
+		return len;
+	}
+	consumed = cmyth_rcv_string(conn, &err, buf, sizeof(buf), len);
+	if (err) {
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_rcv_string() failed\n",
+				  __FUNCTION__);
+		return -err;
+	}
+	len -= consumed;
+	/*
+	 * The string we just consumed was either "ACCEPT" or "REJECT".  In
+	 * either case, the number following it is the correct version, and
+	 * we use it as an unsigned long.
+	 */
+	consumed = cmyth_rcv_ulong(conn, &err, vers, len);
+	if (consumed < len) {
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: did not consume everything %d < %d\n",
+				  __FUNCTION__, consumed, len);
+	}
+	return -err;
+}
+
+/*
  * cmyth_rcv_byte(cmyth_conn_t conn, int *err, char *buf, int count)
  * 
  * Scope: PRIVATE (mapped to __cmyth_rcv_byte)
@@ -1068,6 +1144,8 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 
 	tmp_str[sizeof(tmp_str) - 1] = '\0';
 
+	buf->proginfo_version = conn->conn_version;
+	printf("%s: VERSION IS %ld\n", __FUNCTION__, buf->proginfo_version);
 	/*
 	 * Get proginfo_title (string)
 	 */
@@ -1158,7 +1236,8 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 	buf->proginfo_chansign = strdup(tmp_str);
 
 	/*
-	 * Get proginfo_channame (string)
+	 * Get proginfo_channame (string) Verion 1 or proginfo_chanicon
+	 * (string) Version 8.
 	 */
 	consumed = cmyth_rcv_string(conn, err,
 								tmp_str, sizeof(tmp_str) - 1, count);
@@ -1168,7 +1247,13 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 		failed = "cmyth_rcv_string";
 		goto fail;
 	}
-	buf->proginfo_channame = strdup(tmp_str);
+	if (buf->proginfo_version >= 8) {
+		buf->proginfo_chanicon = strdup(tmp_str);
+		buf->proginfo_channame = NULL;
+	} else { /* Assume version 1 */
+		buf->proginfo_channame = strdup(tmp_str);
+		buf->proginfo_chanicon = NULL;
+	}
 
 	/*
 	 * Get proginfo_url (string)
@@ -1228,14 +1313,26 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 	}
 
 	/*
-	 * Get proginfo_conflicting (ulong)
+	 * Get proginfo_conflicting (ulong in Version 1, string in Version 8)
 	 */
-	consumed = cmyth_rcv_ulong(conn, err, &buf->proginfo_conflicting, count);
-	count -= consumed;
-	total += consumed;
-	if (*err) {
-		failed = "cmyth_rcv_ulong";
-		goto fail;
+	if (buf->proginfo_version >= 8) {
+		consumed = cmyth_rcv_string(conn, err,
+									tmp_str, sizeof(tmp_str) - 1, count);
+		count -= consumed;
+		total += consumed;
+		if (*err) {
+			failed = "cmyth_rcv_string";
+			goto fail;
+		}
+		buf->proginfo_unknown_0 = strdup(tmp_str);
+	} else { /* Assume version 1 */
+		consumed = cmyth_rcv_ulong(conn, err, &buf->proginfo_conflicting, count);
+		count -= consumed;
+		total += consumed;
+		if (*err) {
+			failed = "cmyth_rcv_ulong";
+			goto fail;
+		}
 	}
 
 	/*
@@ -1363,6 +1460,18 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 		goto fail;
 	}
 
+	if (buf->proginfo_version >= 8) {
+		/*
+		 * Get proginfo_unknown_1 (long)
+		 */
+		consumed = cmyth_rcv_ulong(conn, err, &buf->proginfo_unknown_1, count);
+		count -= consumed;
+		total += consumed;
+		if (*err) {
+			failed = "cmyth_rcv_ulong";
+			goto fail;
+		}
+	}
 
 	/*
 	 * Get proginfo_rec_start_ts (timestamp)
@@ -1407,6 +1516,81 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 	if (*err) {
 		failed = "cmyth_rcv_long";
 		goto fail;
+	}
+
+	if (buf->proginfo_version >= 8) {
+		/*
+		 * Get proginfo_rec_profile (string)
+		 */
+		consumed = cmyth_rcv_string(conn, err,
+									tmp_str, sizeof(tmp_str) - 1, count);
+		count -= consumed;
+		total += consumed;
+		if (*err) {
+			failed = "cmyth_rcv_string";
+			goto fail;
+		}
+		buf->proginfo_rec_profile = strdup(tmp_str);
+	}
+
+	if (buf->proginfo_version >= 8) {
+		/*
+		 * Get proginfo_unknown_2 (string)
+		 */
+		consumed = cmyth_rcv_string(conn, err,
+									tmp_str, sizeof(tmp_str) - 1, count);
+		count -= consumed;
+		total += consumed;
+		if (*err) {
+			failed = "cmyth_rcv_string";
+			goto fail;
+		}
+		buf->proginfo_unknown_2 = strdup(tmp_str);
+	}
+
+	if (buf->proginfo_version >= 8) {
+		/*
+		 * Get proginfo_unknown_3 (string)
+		 */
+		consumed = cmyth_rcv_string(conn, err,
+									tmp_str, sizeof(tmp_str) - 1, count);
+		count -= consumed;
+		total += consumed;
+		if (*err) {
+			failed = "cmyth_rcv_string";
+			goto fail;
+		}
+		buf->proginfo_unknown_3 = strdup(tmp_str);
+	}
+
+	if (buf->proginfo_version >= 8) {
+		/*
+		 * Get proginfo_unknown_4 (string)
+		 */
+		consumed = cmyth_rcv_string(conn, err,
+									tmp_str, sizeof(tmp_str) - 1, count);
+		count -= consumed;
+		total += consumed;
+		if (*err) {
+			failed = "cmyth_rcv_string";
+			goto fail;
+		}
+		buf->proginfo_unknown_4 = strdup(tmp_str);
+	}
+
+	if (buf->proginfo_version >= 8) {
+		/*
+		 * Get proginfo_unknown_5 (string)
+		 */
+		consumed = cmyth_rcv_string(conn, err,
+									tmp_str, sizeof(tmp_str) - 1, count);
+		count -= consumed;
+		total += consumed;
+		if (*err) {
+			failed = "cmyth_rcv_string";
+			goto fail;
+		}
+		buf->proginfo_unknown_5 = strdup(tmp_str);
 	}
 
 	cmyth_proginfo_parse_url(buf);

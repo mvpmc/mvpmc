@@ -1,3 +1,23 @@
+/*
+ *  Copyright (C) 2004, Eric Lund
+ *  http://mvpmc.sourceforge.net/
+ *
+ *  This library is free software; you can redistribute it and/or
+ *  modify it under the terms of the GNU Lesser General Public
+ *  License as published by the Free Software Foundation; either
+ *  version 2.1 of the License, or (at your option) any later version.
+ *
+ *  This library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ *  Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public
+ *  License along with this library; if not, write to the Free Software
+ *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
+#ident "$Id$"
+
 #ifndef __CMYTH_LOCAL_H
 #define __CMYTH_LOCAL_H
 
@@ -26,11 +46,11 @@ __cmyth_atomic_increment(cmyth_atomic_t *ref)
 {
     cmyth_atomic_t __val;
 #if defined __i486__ || defined __i586__ || defined __i686__
-	asm volatile (".byte 0xf0, 0x0f, 0xc1, 0x02" // lock; xaddl %eax, (%edx)
+	asm volatile (".byte 0xf0, 0x0f, 0xc1, 0x02" /*lock; xaddl %eax, (%edx) */
 	     : "=a" (__val)
 	     : "0" (1), "m" (*ref), "d" (ref)
 	     : "memory");
-	// on the x86 __val is the pre-increment value, so normalize it.
+	/* on the x86 __val is the pre-increment value, so normalize it. */
 	++__val;
 #elif defined __powerpc__
 	asm volatile ("1:	lwarx   %0,0,%1\n"
@@ -42,8 +62,11 @@ __cmyth_atomic_increment(cmyth_atomic_t *ref)
 		: "r" (ref)
 		: "cc", "memory");
 #else
-	// Don't know how to atomic increment for a generic architecture
-	// so punt and just increment the value.
+	/*
+	 * Don't know how to atomic increment for a generic architecture
+	 * so punt and just increment the value.
+	 */
+#warning unknown architecture, atomic increment is not...
     __val = ++(*ref);
 #endif
 	return __val;
@@ -54,15 +77,17 @@ __cmyth_atomic_decrement(cmyth_atomic_t *ref)
 {
     cmyth_atomic_t __val;
 #if defined __i486__ || defined __i586__ || defined __i686__
-	// This opcode exists as a .byte instead of as a mnemonic for the
-	// benefit of SCO OpenServer 5.  The system assembler (which is 
-	// essentially required on this target) can't assemble xaddl in 
-	//COFF mode.
-	asm volatile (".byte 0xf0, 0x0f, 0xc1, 0x02" // lock; xaddl %eax, (%edx)
+	/*
+     * This opcode exists as a .byte instead of as a mnemonic for the
+     * benefit of SCO OpenServer 5.  The system assembler (which is
+     * essentially required on this target) can't assemble xaddl in
+     * COFF mode.
+	 */
+     asm volatile (".byte 0xf0, 0x0f, 0xc1, 0x02" /*lock; xaddl %eax, (%edx) */
 	    : "=a" (__val)
 	    : "0" (-1), "m" (*ref), "d" (ref)
 	    : "memory");
-	// __val is the pre-decrement value, so normalize it
+	/* __val is the pre-decrement value, so normalize it */
 	--__val;
 #elif defined __powerpc__
 	asm volatile ("1:	lwarx   %0,0,%1\n"
@@ -83,11 +108,14 @@ __cmyth_atomic_decrement(cmyth_atomic_t *ref)
 		     : "r" (__oldval), "m" (*ref), "r"((ref)), "0" (__newval));
 	  }
 	while (__newval != __oldval);
-	// The value for __val is in '__oldval'
+	/*  The value for __val is in '__oldval' */
 	__val = __oldval;
 #else
-	// Don't know how to atomic decrement for a generic architecture
-	// so punt and just decrement the value.
+	/*
+	 * Don't know how to atomic decrement for a generic architecture
+	 * so punt and just decrement the value.
+	 */
+#warning unknown architecture, atomic deccrement is not...
     __val = --(*ref);
 #endif
 	return __val;
@@ -117,6 +145,7 @@ struct cmyth_conn {
 	int conn_len;
 	int conn_pos;
 	cmyth_atomic_t refcount;
+    unsigned long conn_version;
 };
 
 struct cmyth_recorder {
@@ -182,31 +211,40 @@ struct cmyth_proginfo {
 	long proginfo_chanId;
 	char *proginfo_chanstr;
 	char *proginfo_chansign;
-	char *proginfo_channame;
+	char *proginfo_channame;  /* Deprecated in V8 */
+	char *proginfo_chanicon;  /* New in V8 */
 	char *proginfo_url;
 	long long proginfo_Start;
 	long long proginfo_Length;
 	cmyth_timestamp_t proginfo_start_ts;
 	cmyth_timestamp_t proginfo_end_ts;
-	unsigned long proginfo_conflicting;
+	unsigned long proginfo_conflicting; /* Deprectated in V8 */
+    unsigned char *proginfo_unknown_0;   /* May be new 'conflicting' in V8 */
 	unsigned long proginfo_recording;
 	unsigned long proginfo_override;
 	char *proginfo_hostname;
-	long proginfo_source_id;
-	long proginfo_card_id;
-	long proginfo_input_id;
-	char *proginfo_rec_priority;
-	unsigned long proginfo_rec_status;
-	unsigned long proginfo_record_id;
-	unsigned long proginfo_rec_type;
-	unsigned long proginfo_rec_dups;
+	long proginfo_source_id; /* ??? in V8 */
+	long proginfo_card_id;   /* ??? in V8 */
+	long proginfo_input_id;  /* ??? in V8 */
+	char *proginfo_rec_priority;  /* ??? in V8 */
+	unsigned long proginfo_rec_status; /* ??? in V8 */
+	unsigned long proginfo_record_id;  /* ??? in V8 */
+	unsigned long proginfo_rec_type;   /* ??? in V8 */
+	unsigned long proginfo_rec_dups;   /* ??? in V8 */
+	unsigned long proginfo_unknown_1;  /* new in V8 */
 	cmyth_timestamp_t proginfo_rec_start_ts;
 	cmyth_timestamp_t proginfo_rec_end_ts;
-	unsigned long proginfo_repeat;
+	unsigned long proginfo_repeat;   /* ??? in V8 */
 	long proginfo_program_flags;
+    char *proginfo_rec_profile;  /* new in V8 */
+	char *proginfo_unknown_2;    /* new in V8 */
+	char *proginfo_unknown_3;    /* new in V8 */
+	char *proginfo_unknown_4;    /* new in V8 */
+	char *proginfo_unknown_5;    /* new in V8 */
 	char *proginfo_pathname;
 	int proginfo_port;
 	char *proginfo_host;
+    unsigned long proginfo_version;
 	cmyth_atomic_t refcount;
 };
 
@@ -248,6 +286,9 @@ extern int cmyth_rcv_string(cmyth_conn_t conn,
 
 #define cmyth_rcv_okay __cmyth_rcv_okay
 extern int cmyth_rcv_okay(cmyth_conn_t conn, char *ok);
+
+#define cmyth_rcv_version __cmyth_rcv_version
+extern int cmyth_rcv_version(cmyth_conn_t conn, unsigned long *vers);
 
 #define cmyth_rcv_byte __cmyth_rcv_byte
 extern int cmyth_rcv_byte(cmyth_conn_t conn, int *err, char *buf, int count);

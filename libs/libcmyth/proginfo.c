@@ -1,4 +1,24 @@
 /*
+ *  Copyright (C) 2004, Eric Lund
+ *  http://mvpmc.sourceforge.net/
+ *
+ *  This library is free software; you can redistribute it and/or
+ *  modify it under the terms of the GNU Lesser General Public
+ *  License as published by the Free Software Foundation; either
+ *  version 2.1 of the License, or (at your option) any later version.
+ *
+ *  This library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ *  Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public
+ *  License along with this library; if not, write to the Free Software
+ *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
+#ident "$Id$"
+
+/*
  * proginfo.c - functions to manage MythTV program info.  This is
  *              information kept by MythTV to describe recordings and
  *              also to describe programs in the program guide.  The
@@ -66,6 +86,7 @@ cmyth_proginfo_create(void)
 	ret->proginfo_chanstr = NULL;
 	ret->proginfo_chansign = NULL;
 	ret->proginfo_channame = NULL;
+	ret->proginfo_chanicon = NULL;
 	ret->proginfo_url = NULL;
 	ret->proginfo_pathname = NULL;
 	ret->proginfo_host = NULL;
@@ -73,6 +94,7 @@ cmyth_proginfo_create(void)
 	ret->proginfo_Start = 0;
 	ret->proginfo_Length = 0;
 	ret->proginfo_conflicting = 0;
+	ret->proginfo_unknown_0 = NULL;
 	ret->proginfo_recording = 0;
 	ret->proginfo_override = 0;
 	ret->proginfo_hostname = NULL;
@@ -84,8 +106,15 @@ cmyth_proginfo_create(void)
 	ret->proginfo_record_id = 0;
 	ret->proginfo_rec_type = 0;
 	ret->proginfo_rec_dups = 0;
+	ret->proginfo_unknown_1 = 0;
 	ret->proginfo_repeat = 0;
 	ret->proginfo_program_flags = 0;
+	ret->proginfo_rec_profile = NULL;
+	ret->proginfo_unknown_2 = NULL;
+	ret->proginfo_unknown_3 = NULL;
+	ret->proginfo_unknown_4 = NULL;
+	ret->proginfo_unknown_5 = NULL;
+	ret->proginfo_version = 8;
 	return ret;
 
  err:
@@ -138,8 +167,35 @@ cmyth_proginfo_destroy(cmyth_proginfo_t p)
 	if (p->proginfo_channame) {
 		free(p->proginfo_channame);
 	}
+	if (p->proginfo_chanicon) {
+		free(p->proginfo_chanicon);
+	}
 	if (p->proginfo_url) {
 		free(p->proginfo_url);
+	}
+	if (p->proginfo_unknown_0) {
+		free(p->proginfo_unknown_0);
+	}
+	if (p->proginfo_hostname) {
+		free(p->proginfo_hostname);
+	}
+	if (p->proginfo_rec_priority) {
+		free(p->proginfo_rec_priority);
+	}
+	if (p->proginfo_rec_profile) {
+		free(p->proginfo_rec_profile);
+	}
+	if (p->proginfo_unknown_2) {
+		free(p->proginfo_unknown_2);
+	}
+	if (p->proginfo_unknown_3) {
+		free(p->proginfo_unknown_3);
+	}
+	if (p->proginfo_unknown_4) {
+		free(p->proginfo_unknown_4);
+	}
+	if (p->proginfo_unknown_5) {
+		free(p->proginfo_unknown_5);
 	}
 	if (p->proginfo_pathname) {
 		free(p->proginfo_pathname);
@@ -422,45 +478,89 @@ cmyth_proginfo_string(cmyth_proginfo_t prog)
 	cmyth_timestamp_to_string(end_ts, prog->proginfo_end_ts);
 	cmyth_timestamp_to_string(rec_start_ts, prog->proginfo_rec_start_ts);
 	cmyth_timestamp_to_string(rec_end_ts, prog->proginfo_rec_end_ts);
-	sprintf(ret,
-			"%s[]:[]%s[]:[]%s[]:[]%s[]:[]%ld[]:[]"
-			"%s[]:[]%s[]:[]%s[]:[]%s[]:[]%lld[]:[]"
-			"%lld[]:[]%s[]:[]%s[]:[]%ld[]:[]%ld[]:[]"
-			"%ld[]:[]%s[]:[]%ld[]:[]%ld[]:[]%ld[]:[]"
-			"%s[]:[]%ld[]:[]%ld[]:[]%ld[]:[]%ld[]:[]"
-			"%s[]:[]%s[]:[]%ld[]:[]%ld",
-			prog->proginfo_title,
-			prog->proginfo_subtitle,
-			prog->proginfo_description,
-			prog->proginfo_category,
-			prog->proginfo_chanId,
-			prog->proginfo_chanstr,
-			prog->proginfo_chansign,
-			prog->proginfo_channame,
-			prog->proginfo_url,
-			prog->proginfo_Start,
-			prog->proginfo_Length,
-			start_ts,
-			end_ts,
-			prog->proginfo_conflicting,
-			prog->proginfo_recording,
-			prog->proginfo_override,
-			prog->proginfo_hostname,
-			prog->proginfo_source_id,
-			prog->proginfo_card_id,
-			prog->proginfo_input_id,
-			prog->proginfo_rec_priority,
-			prog->proginfo_rec_status,
-			prog->proginfo_record_id,
-			prog->proginfo_rec_type,
-			prog->proginfo_rec_dups,
-			rec_start_ts,
-			rec_end_ts,
-			prog->proginfo_repeat,
-			prog->proginfo_program_flags);
+	if (prog->proginfo_version >= 8) {
+		sprintf(ret,
+				"%s[]:[]%s[]:[]%s[]:[]%s[]:[]%ld[]:[]"
+				"%s[]:[]%s[]:[]%s[]:[]%s[]:[]%ld[]:[]"
+				"%lld[]:[]%s[]:[]%s[]:[]%s[]:[]%ld[]:[]"
+				"%ld[]:[]%s[]:[]%ld[]:[]%ld[]:[]%ld[]:[]"
+				"%s[]:[]%ld[]:[]%ld[]:[]%ld[]:[]%ld[]:[]"
+				"%ld[]:[]%s[]:[]%s[]:[]%ld[]:[]%ld[]:[]"
+				"%s[]:[]%s[]:[]%s[]:[]%s[]:[]",
+				prog->proginfo_title,
+				prog->proginfo_subtitle,
+				prog->proginfo_description,
+				prog->proginfo_category,
+				prog->proginfo_chanId,
+				prog->proginfo_chanstr,
+				prog->proginfo_chansign,
+				prog->proginfo_chanicon,
+				prog->proginfo_url,
+				prog->proginfo_Start,
+				prog->proginfo_Length,
+				start_ts,
+				end_ts,
+				prog->proginfo_unknown_0,
+				prog->proginfo_recording,
+				prog->proginfo_override,
+				prog->proginfo_hostname,
+				prog->proginfo_source_id,
+				prog->proginfo_card_id,
+				prog->proginfo_input_id,
+				prog->proginfo_rec_priority,
+				prog->proginfo_rec_status,
+				prog->proginfo_record_id,
+				prog->proginfo_rec_type,
+				prog->proginfo_rec_dups,
+				prog->proginfo_unknown_1,
+				rec_start_ts,
+				rec_end_ts,
+				prog->proginfo_repeat,
+				prog->proginfo_program_flags,
+				prog->proginfo_unknown_2,
+				prog->proginfo_unknown_3,
+				prog->proginfo_unknown_4,
+				prog->proginfo_unknown_5);
+	} else { /* Assume Version 1 */
+		sprintf(ret,
+				"%s[]:[]%s[]:[]%s[]:[]%s[]:[]%ld[]:[]"
+				"%s[]:[]%s[]:[]%s[]:[]%s[]:[]%lld[]:[]"
+				"%lld[]:[]%s[]:[]%s[]:[]%ld[]:[]%ld[]:[]"
+				"%ld[]:[]%s[]:[]%ld[]:[]%ld[]:[]%ld[]:[]"
+				"%s[]:[]%ld[]:[]%ld[]:[]%ld[]:[]%ld[]:[]"
+				"%s[]:[]%s[]:[]%ld[]:[]%ld",
+				prog->proginfo_title,
+				prog->proginfo_subtitle,
+				prog->proginfo_description,
+				prog->proginfo_category,
+				prog->proginfo_chanId,
+				prog->proginfo_chanstr,
+				prog->proginfo_chansign,
+				prog->proginfo_channame,
+				prog->proginfo_url,
+				prog->proginfo_Start,
+				prog->proginfo_Length,
+				start_ts,
+				end_ts,
+				prog->proginfo_conflicting,
+				prog->proginfo_recording,
+				prog->proginfo_override,
+				prog->proginfo_hostname,
+				prog->proginfo_source_id,
+				prog->proginfo_card_id,
+				prog->proginfo_input_id,
+				prog->proginfo_rec_priority,
+				prog->proginfo_rec_status,
+				prog->proginfo_record_id,
+				prog->proginfo_rec_type,
+				prog->proginfo_rec_dups,
+				rec_start_ts,
+				rec_end_ts,
+				prog->proginfo_repeat,
+				prog->proginfo_program_flags);
+	}
 	return ret;
 }
-
 /*
  * cmyth_chaninfo_string(cmyth_proginfo_t prog)
  *
@@ -681,7 +781,8 @@ cmyth_proginfo_chanstr(cmyth_proginfo_t prog)
  *
  * Description
  *
- * Retrieves the 'proginfo_chansign' field of a program info structure.
+ * Retrieves the 'proginfo_chansign' field of a program info
+ * structure.
  *
  * The returned string is a pointer to the string within the program
  * info structure, so it should not be modified by the caller.  The
@@ -712,7 +813,8 @@ cmyth_proginfo_chansign(cmyth_proginfo_t prog)
  *
  * Description
  *
- * Retrieves the 'proginfo_channame' field of a program info structure.
+ * Retrieves the 'proginfo_channame' field of a program info
+ * structure.
  *
  * The returned string is a pointer to the string within the program
  * info structure, so it should not be modified by the caller.  The
@@ -743,7 +845,8 @@ cmyth_proginfo_channame(cmyth_proginfo_t prog)
  *
  * Description
  *
- * Retrieves the 'proginfo_pathname' field of a program info structure.
+ * Retrieves the 'proginfo_pathname' field of a program info
+ * structure.
  *
  * The returned string is a pointer to the string within the program
  * info structure, so it should not be modified by the caller.  The
@@ -775,7 +878,8 @@ cmyth_proginfo_pathname(cmyth_proginfo_t prog)
  * Retrieves the 'rec_start' timestamp from a program info structure.
  * This tells when a recording started.
  *
- * The returned timestamp is returned held.  It should be released when no longer needed using cmyth_timestamp_release().
+ * The returned timestamp is returned held.  It should be released
+ * when no longer needed using cmyth_timestamp_release().
  *
  * Return Value:
  *
