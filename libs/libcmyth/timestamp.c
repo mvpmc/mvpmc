@@ -33,6 +33,7 @@
 #include <string.h>
 #include <cmyth.h>
 #include <cmyth_local.h>
+#include <time.h>
 
 /*
  * cmyth_timestamp_create(void)
@@ -271,6 +272,57 @@ cmyth_timestamp_from_string(cmyth_timestamp_t ts, char *str)
 }
 
 /*
+ * cmyth_datetime_from_string(cmyth_timestamp_t ts, char *str)
+ * 
+ * Scope: PUBLIC
+ *
+ * Description
+ *
+ * Fill out the timestamp structure pointed to by 'ts' using the
+ * string 'str'.  The string must be a timestamp of the forn:
+ *
+ *    yyyy-mm-ddThh:mm:ss
+ *
+ * Return Value:
+ *
+ * Success: 0
+ *
+ * Failure: -(ERRNO)
+ */
+int
+cmyth_datetime_from_string(cmyth_timestamp_t ts, char *str)
+{
+	int i;
+	unsigned int isecs;
+	struct tm *tm_datetime;
+	time_t t_datetime;
+	
+	if (!str) {
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: NULL string\n", __FUNCTION__);
+		return -EINVAL;
+	}
+	if (!ts) {
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: NULL timestamp\n", __FUNCTION__);
+		return -EINVAL;
+	}
+
+	memset(ts, 0, sizeof(*ts));
+
+	isecs=atoi(str);
+	t_datetime = isecs;
+	tm_datetime = localtime(&t_datetime);
+	ts->timestamp_year = tm_datetime->tm_year + 1900;
+	ts->timestamp_month = tm_datetime->tm_mon + 1;
+	ts->timestamp_day = tm_datetime->tm_mday;
+	ts->timestamp_hour = tm_datetime->tm_hour;
+	ts->timestamp_minute = tm_datetime->tm_min;
+	ts->timestamp_second = tm_datetime->tm_sec;
+	return 0;
+}
+
+
+
+/*
  * cmyth_timestamp_from_longlong(cmyth_timestamp_t ts, longlong l)
  * 
  * Scope: PUBLIC
@@ -356,6 +408,65 @@ cmyth_timestamp_to_string(char *str, cmyth_timestamp_t ts)
 			ts->timestamp_second);
 	return 0;
 }
+
+
+/*
+ * cmyth_datetime_to_string(char *str, cmyth_timestamp_t ts)
+ * 
+ * Scope: PUBLIC
+ *
+ * Description
+ *
+ * Create a string from the timestamp structure 'ts' and put it in the
+ * user supplied buffer 'str'.  The size of 'str' must be
+ * CMYTH_DATETIME_LEN + 1 or this will overwrite beyond 'str'.
+ * 
+ *
+ * Return Value:
+ *
+ * Success: 0
+ *
+ * Failure: -(ERRNO)
+ */
+int
+cmyth_datetime_to_string(char *str, cmyth_timestamp_t ts)
+{
+	struct tm tm_datetime;
+	time_t t_datetime;
+	if (!str) {
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: NULL output string provided\n",
+				  __FUNCTION__);
+		return -EINVAL;
+	}
+	if (!ts) {
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: NULL timestamp provided\n",
+				  __FUNCTION__);
+		return -EINVAL;
+	}
+		
+	tm_datetime.tm_year = ts->timestamp_year - 1900;
+	tm_datetime.tm_mon = ts->timestamp_month - 1;
+	tm_datetime.tm_mday = ts->timestamp_day;
+	tm_datetime.tm_hour = ts->timestamp_hour;
+	tm_datetime.tm_min = ts->timestamp_minute;
+	tm_datetime.tm_sec = ts->timestamp_second;
+	t_datetime = mktime(&tm_datetime);
+	sprintf(str,
+			"%4.4ld-%2.2ld-%2.2ldT%2.2ld:%2.2ld:%2.2ld",
+			ts->timestamp_year,
+			ts->timestamp_month,
+			ts->timestamp_day,
+			ts->timestamp_hour,
+			ts->timestamp_minute,
+			ts->timestamp_second);
+	cmyth_dbg(CMYTH_DBG_ERROR, "original timestamp string: %s \n",str);
+	sprintf(str,"%u",t_datetime);
+	cmyth_dbg(CMYTH_DBG_ERROR, "time in seconds: %s \n",str);
+	
+	return 0;
+}
+
+
 
 /*
  * cmyth_timestamp_compare(cmyth_timestamp_t ts1, cmyth_timestamp_t ts2)

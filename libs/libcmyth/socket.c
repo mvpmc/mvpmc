@@ -1042,6 +1042,68 @@ cmyth_rcv_timestamp(cmyth_conn_t conn, int *err, cmyth_timestamp_t buf,
 	return consumed;
 }
 
+
+/*
+ * cmyth_rcv_datetime(cmyth_conn_t conn, int *err, cmyth_timestamp_t buf,
+ *                     int count)
+ * 
+ * Scope: PRIVATE (mapped to __cmyth_rcv_datetime)
+ *
+ * Description
+ *
+ * Receive a datetime as an unsigned integer -- number of seconds
+ * since Jan 1, 1970.
+ *
+ * Tokens in MythTV Protocol messages are separated by the string:
+ * []:[] or terminated by running out of message.  Up to 'count' Bytes
+ * will be consumed from the socket specified by 'conn' (stopping when
+ * a separator is seen or 'count' is exhausted).  The timestamp
+ * structure specified in 'buf' will be filled out.  If an error is
+ * encountered and 'err' is not NULL, an indication of the nature of
+ * the error will be recorded by placing an error code in the location
+ * pointed to by 'err'.  If all goes well, 'err' wil be set to 0.
+ *
+ * Return Value:
+ *
+ * A value >=0 indicating the number of bytes consumed.
+ *
+ * Error Codes:
+ *
+ * In addition to system call error codes, the following errors may be
+ * placed in 'err':
+ *
+ * ERANGE       The token received did not parse into a datetime
+ *
+ * EINVAL       The token received is not numeric or is signed
+ */
+int
+cmyth_rcv_datetime(cmyth_conn_t conn, int *err, cmyth_timestamp_t buf,
+					int count)
+{
+	int consumed;
+	char tbuf[CMYTH_LONG_LEN + 1];
+	int tmp;
+
+	if (!err) {
+		err = &tmp;
+	}
+	*err = 0;
+	tbuf[CMYTH_TIMESTAMP_LEN] = '\0';
+	consumed = cmyth_rcv_string(conn, err, tbuf, CMYTH_LONG_LEN, count);
+	if (*err) {
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_rcv_string() failed (%d)\n",
+				  __FUNCTION__, *err);
+		return consumed;
+	}
+	*err = -1 * cmyth_datetime_from_string(buf, tbuf);
+	if (*err) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+				  "%s: cmyth_datetime_from_string() failed (%d)\n",
+				  __FUNCTION__, *err);
+	}
+	return consumed;
+}
+
 static void
 cmyth_proginfo_parse_url(cmyth_proginfo_t p)
 {
@@ -1303,18 +1365,29 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 	 * Get proginfo_start_ts (timestamp)
 	 */
 	cmyth_dbg(CMYTH_DBG_INFO, "%s: GOT TO START_TS\n", __FUNCTION__);
-	consumed = cmyth_rcv_timestamp(conn, err, buf->proginfo_start_ts, count);
+	if (buf->proginfo_version >= 14) {
+		consumed = cmyth_rcv_datetime(conn, err, buf->proginfo_start_ts, count);
+		}
+	else {
+		consumed = cmyth_rcv_timestamp(conn, err, buf->proginfo_start_ts, count);
+	}	
 	count -= consumed;
 	total += consumed;
 	if (*err) {
-		failed = "cmyth_rcv_timestamp";
+		failed = "proginfo_start_ts cmyth_rcv";
 		goto fail;
 	}
 
 	/*
 	 * Get proginfo_end_ts (timestamp)
 	 */
-	consumed = cmyth_rcv_timestamp(conn, err, buf->proginfo_end_ts, count);
+	cmyth_dbg(CMYTH_DBG_INFO, "%s: GOT TO END_TS\n", __FUNCTION__);
+	if (buf->proginfo_version >= 14) {
+		consumed = cmyth_rcv_datetime(conn, err, buf->proginfo_end_ts, count);
+		}
+	else {
+		consumed = cmyth_rcv_timestamp(conn, err, buf->proginfo_end_ts, count);
+	}	
 	count -= consumed;
 	total += consumed;
 	if (*err) {
@@ -1486,8 +1559,13 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 	/*
 	 * Get proginfo_rec_start_ts (timestamp)
 	 */
-	consumed = cmyth_rcv_timestamp(conn, err, buf->proginfo_rec_start_ts,
-								   count);
+	if (buf->proginfo_version >= 14) {
+		consumed = cmyth_rcv_datetime(conn, err, buf->proginfo_rec_start_ts, count);
+		}
+	else {
+		consumed = cmyth_rcv_timestamp(conn, err, buf->proginfo_rec_start_ts, count);
+	}	
+
 	count -= consumed;
 	total += consumed;
 	if (*err) {
@@ -1498,7 +1576,13 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 	/*
 	 * Get proginfo_rec_end_ts (timestamp)
 	 */
-	consumed = cmyth_rcv_timestamp(conn, err, buf->proginfo_rec_end_ts, count);
+	if (buf->proginfo_version >= 14) {
+		consumed = cmyth_rcv_datetime(conn, err, buf->proginfo_rec_end_ts, count);
+		}
+	else {
+		consumed = cmyth_rcv_timestamp(conn, err, buf->proginfo_rec_end_ts, count);
+	}	
+	
 	count -= consumed;
 	total += consumed;
 	if (*err) {
@@ -1607,7 +1691,12 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 		/*
 		 * Get lastmodified (string)
 		 */
-		consumed = cmyth_rcv_timestamp(conn, err, buf->proginfo_lastmodified, count);
+		if (buf->proginfo_version >= 14) {
+			consumed = cmyth_rcv_datetime(conn, err, buf->proginfo_lastmodified, count);
+			}
+		else {
+			consumed = cmyth_rcv_timestamp(conn, err, buf->proginfo_lastmodified, count);
+		}	
 		count -= consumed;
 		total += consumed;
 		if (*err) {
@@ -1635,7 +1724,12 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 		/*
 		 * Get original_air_date (string)
 		 */
-		consumed = cmyth_rcv_timestamp(conn, err, buf->proginfo_originalairdate, count);
+		if (buf->proginfo_version >= 14) {
+			consumed = cmyth_rcv_datetime(conn, err, buf->proginfo_originalairdate, count);
+			}
+		else {
+			consumed = cmyth_rcv_timestamp(conn, err, buf->proginfo_originalairdate, count);
+		}	
 		count -= consumed;
 		total += consumed;
 		if (*err) {

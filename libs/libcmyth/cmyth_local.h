@@ -24,6 +24,7 @@
 
 #include <unistd.h>
 #include <cmyth.h>
+#include <time.h>
 
 /*
  * Some useful constants
@@ -333,6 +334,10 @@ extern int cmyth_rcv_data(cmyth_conn_t conn, int *err, unsigned char *buf,
 
 #define cmyth_rcv_timestamp __cmyth_rcv_timestamp
 extern int cmyth_rcv_timestamp(cmyth_conn_t conn, int *err,
+							   cmyth_timestamp_t buf,
+							   int count);
+#define cmyth_rcv_datetime __cmyth_rcv_datetime
+extern int cmyth_rcv_datetime(cmyth_conn_t conn, int *err,
 							   cmyth_timestamp_t buf,
 							   int count);
 

@@ -310,6 +310,8 @@ extern long long cmyth_timestamp_to_longlong(cmyth_timestamp_t ts);
 
 extern int cmyth_timestamp_to_string(char *str, cmyth_timestamp_t ts);
 
+extern int cmyth_datetime_to_string(char *str, cmyth_timestamp_t ts);
+
 extern int cmyth_timestamp_compare(cmyth_timestamp_t ts1,
 								   cmyth_timestamp_t ts2);
 /*
