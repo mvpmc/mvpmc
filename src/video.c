@@ -46,6 +46,14 @@
 #define PRINTF(x...)
 #endif
 
+/* #define STREAM_TEST 1 */
+#ifdef STREAM_TEST
+unsigned int stream_test_cnt     = 0;
+int          stream_test_started = 0;
+struct timeval      start_tv;
+struct timeval      done_tv;
+#endif 
+
 #define SEEK_FUDGE	2
 
 static char inbuf_static[VIDEO_BUFF_SIZE];
@@ -959,6 +967,14 @@ video_read_start(void *arg)
 			pthread_cond_wait(&video_cond, &mutex);
 		}
 
+#ifdef STREAM_TEST
+		if ( stream_test_started == 0 ) {
+			stream_test_started = 1;
+			//Get start time
+			gettimeofday(&start_tv, NULL);
+		}
+#endif
+
 		if (video_reopen) {
 			if (video_functions->open() == 0)
 				video_reopen = 0;
@@ -1002,7 +1018,32 @@ video_read_start(void *arg)
 			continue;
 		}
 
+#ifdef STREAM_TEST
+		stream_test_cnt += len;
+		len = 0;
+
+		if ( stream_test_cnt > 1024*1024*20 ) {
+			unsigned int delta_ms;
+
+			gettimeofday(&done_tv, NULL);
+			if ( done_tv.tv_usec < start_tv.tv_usec ) {
+				done_tv.tv_usec += 1000000;
+				done_tv.tv_sec	 -= 1;
+			}
+			delta_ms = (done_tv.tv_sec - start_tv.tv_sec) * 1000;
+			delta_ms += (done_tv.tv_usec - start_tv.tv_usec) / 1000;
+			printf("Test Done\n");
+			printf("Bytes transferred: %u\n", stream_test_cnt);
+			printf("Elapsed time %u mS\n", delta_ms);
+			while ( 1 ) {
+				sleep(10);
+				printf("Test Done....\n");
+			}
+		}
+		continue;
+#else
 		ret = DEMUX_PUT(handle, inbuf+n, len-n);
+#endif
 
 		if ((ret <= 0) && (!seeking)) {
 			pthread_cond_broadcast(&video_cond);
@@ -1094,10 +1135,14 @@ video_write_start(void *arg)
 
 		while (seeking || jumping)
 			pthread_cond_wait(&video_cond, &mutex);
+#ifdef STREAM_TEST
+		sleep(1);
+#else
 		if (video_playing && (len=DEMUX_WRITE_VIDEO(handle, fd_video)) > 0)
 			pthread_cond_broadcast(&video_cond);
 		else
 			pthread_cond_wait(&video_cond, &mutex);
+#endif 
 	}
 
 	return NULL;
