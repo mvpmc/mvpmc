@@ -287,6 +287,18 @@ cmyth_file_get_block(cmyth_file_t file, char *buf, unsigned long len)
 	return read(file->file_data->conn_fd, buf, len);
 }
 
+int
+cmyth_file_select(cmyth_file_t file, struct timeval *timeout)
+{
+	fd_set fds;
+	int fd = file->file_data->conn_fd;
+
+	FD_ZERO(&fds);
+	FD_SET(fd, &fds);
+
+	return select(fd+1, &fds, NULL, NULL, timeout);
+}
+
 /*
  * cmyth_file_request_block(cmyth_file_t control, cmyth_file_t file,
  *                          unsigned long len)
@@ -374,10 +386,19 @@ cmyth_file_seek(cmyth_conn_t control, cmyth_file_t file, long long offset,
 	int count;
 	long long c;
 	long r;
+	long hi, lo;
+
+	if ((offset == 0) && (whence == SEEK_CUR))
+		return file->file_pos;
 
 	snprintf(msg, sizeof(msg),
-		 "QUERY_FILETRANSFER %ld[]:[]SEEK[]:[]%lld[]:[]0[]:[]%d[]:[]%lld[]:[]0",
-		 file->file_id, offset, whence, file->file_pos);
+		 "QUERY_FILETRANSFER %ld[]:[]SEEK[]:[]%ld[]:[]%ld[]:[]%d[]:[]%ld[]:[]%ld",
+		 file->file_id,
+		 (long)(offset >> 32),
+		 (long)(offset & 0xffffffff),
+		 whence,
+		 (long)(file->file_pos >> 32),
+		 (long)(file->file_pos & 0xffffffff));
 
 	if ((err = cmyth_send_message(control, msg)) < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
@@ -387,11 +408,19 @@ cmyth_file_seek(cmyth_conn_t control, cmyth_file_t file, long long offset,
 	}
 
 	count = cmyth_rcv_length(control);
-	if ((r=cmyth_rcv_long_long(control, &err, &c, count)) < 0) {
+	if ((r=cmyth_rcv_long(control, &err, &hi, count)) < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_rcv_length() failed (%d)\n",
 			  __FUNCTION__, r);
 	}
+	count -= r;
+	if ((r=cmyth_rcv_long(control, &err, &lo, count)) < 0) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_rcv_length() failed (%d)\n",
+			  __FUNCTION__, r);
+	}
+
+	c = ((long long)hi << 32) | ((long long)lo);
 
 	if (c >= 0) {
 		switch (whence) {
@@ -405,7 +434,9 @@ cmyth_file_seek(cmyth_conn_t control, cmyth_file_t file, long long offset,
 			file->file_pos = file->file_length - offset;
 			break;
 		}
+
+		return file->file_pos;
 	}
 
-	return 0;
+	return c;
 }
