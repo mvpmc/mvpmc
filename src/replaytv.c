@@ -285,8 +285,8 @@ static mvp_widget_t *rtv_osd_show_descr_widget;           //contained by rtv_osd
 static mvp_widget_t *rtv_jump_to_time_widget;             //allighed to right of gui.c clock_widget
 static mvp_widget_t *splash;
 
-static __u32 ALIGN_32K_MASK = ~(0x7fff);
 
+static void free_ndx_chunk(rtv_ndx_info_t *ndx_info);
 static int get_ndx_chunk(unsigned int start_rec, rtv_ndx_info_t *ndx_info);
 static int rtv_abort_read(void);
 static void* thread_read_start(void *arg);
@@ -606,6 +606,9 @@ static int rtv_video_key(char key)
 	case MVPW_KEY_SKIP:
       av_current_stc(&stc_time);
       cur_secs = (stc_time.hour*60 + stc_time.minute)*60 + stc_time.second;
+      if ( cur_secs > rtv_video_state.show_p->duration_sec ) {
+         cur_secs = rtv_video_state.show_p->duration_sec;
+      }
       printf("-->%s: handle: key='%c'  ct=%d\n", __FUNCTION__, key, cur_secs);
       if      ( key == MVPW_KEY_REPLAY ) { jumpto_secs = cur_secs -  8; }
       else if ( key == MVPW_KEY_REWIND ) { jumpto_secs = cur_secs -  3; }
@@ -824,9 +827,19 @@ static void* thread_read_start(void *arg)
 
    // Stream the file
    //
-   get_mpeg_file(current_rtv_device, (char*)arg, rtv_video_state.pos & ALIGN_32K_MASK, 0);
+   get_mpeg_file(current_rtv_device, (char*)arg, rtv_video_state.pos & ~(0x7FFFull), 0);
    pthread_exit(NULL);
    return NULL;
+}
+
+static void free_ndx_chunk(rtv_ndx_info_t *ndx_info)
+{
+   if ( ndx_info->file_chunk.buf != NULL ) {
+      free(ndx_info->file_chunk.buf);
+      ndx_info->file_chunk.buf        = NULL;
+      ndx_info->file_chunk.data_start = NULL;
+      ndx_info->file_chunk.len        = 0;
+   }
 }
 
 // get_ndx_chunk()
@@ -841,12 +854,7 @@ static int get_ndx_chunk(unsigned int start_rec, rtv_ndx_info_t *ndx_info)
    rtv_ndx_30_record_t  rec;
 
    devinfo = (rtv_device_info_t*)&(current_rtv_device->device); //cast to override volatile warning
-   if ( ndx_info->file_chunk.buf != NULL ) {
-      free(ndx_info->file_chunk.buf);
-      ndx_info->file_chunk.buf        = NULL;
-      ndx_info->file_chunk.data_start = NULL;
-      ndx_info->file_chunk.len        = 0;
-   }
+   free_ndx_chunk(ndx_info);
 
    if ( (ndx_info->ver == RTV_NDX_22) || (ndx_info->ver == RTV_NDX_30) ) {
       rd_pos = (start_rec * ndx_info->rec_sz) + ndx_info->hdr_sz;
@@ -882,34 +890,6 @@ static int get_ndx_chunk(unsigned int start_rec, rtv_ndx_info_t *ndx_info)
 //+*************************************
 //   GUI stuff
 //+*************************************
-
-// dirlist_select_callback
-//
-static void dirlist_select_callback(mvp_widget_t *widget, char *item, void *key)
-{
-   mvpw_hide(widget);
-   mvpw_hide(replaytv_logo);
-   mvpw_hide(rtv_episode_description);
-   av_move(0, 0, 0);
-   screensaver_disable();
-   mvpw_show(root);
-   mvpw_expose(root);
-   mvpw_focus(root);
-   
-   printf("Playing file: %s\n", item);
-   av_play();
-   demux_reset(handle);
-
-   memset(&(rtv_video_state.ndx_info), 0, sizeof(rtv_video_state.ndx_info));
-   memset(&(rtv_video_state.evt_info), 0, sizeof(rtv_video_state.evt_info));
-   
-   rtv_video_state.pos          = 0;
-   rtv_video_state.chunk_offset = 0;
-   pthread_create(&rtv_stream_read_thread, NULL, thread_read_start, (void*)item);
-   rtv_video_state.play_state      = RTV_VID_PLAYING;
-   rtv_video_state.processing_jump_input = 0;
-   video_play(widget); // kick video.c 
-}
 
 // guide_hilite_callback()
 //
@@ -1016,7 +996,7 @@ static void guide_select_callback(mvp_widget_t *widget, char *item, void *key)
 
    // Get .ndx & .evt info
    //
-   memset(ndx_info, 0, sizeof(*ndx_info));
+   free_ndx_chunk(ndx_info);
    memset(&(rtv_video_state.evt_info), 0, sizeof(rtv_video_state.evt_info));
 
    memcpy(show_base_name, show->file_name, len-4);
@@ -1025,12 +1005,13 @@ static void guide_select_callback(mvp_widget_t *widget, char *item, void *key)
    printf("NDX: %s\n", ndx_info->filename);
    rc = rtv_get_file_info(devinfo, ndx_info->filename, &fileinfo );
    if ( rc == 0 ) {
+      rtv_http_resp_data_t file_data;
       //rtv_print_file_info(&fileinfo);
       if ( fileinfo.size > sizeof(rtv_ndx_30_header_t) ) {
-         rc = rtv_read_file(devinfo, ndx_info->filename, 0, sizeof(rtv_ndx_30_header_t), &(ndx_info->file_chunk));
+         rc = rtv_read_file(devinfo, ndx_info->filename, 0, sizeof(rtv_ndx_30_header_t), &file_data);
          if ( rc == 0 ) {
             //rtv_hex_dump("NDX HDR", buf_p, sizeof(rtv_ndx_30_header_t));
-            if ( (ndx_info->file_chunk.data_start[0] == 3) && (ndx_info->file_chunk.data_start[1] == 0) ) {
+            if ( (file_data.data_start[0] == 3) && (file_data.data_start[1] == 0) ) {
                ndx_info->ver    = RTV_NDX_30;
                ndx_info->hdr_sz = sizeof(rtv_ndx_30_header_t);
                ndx_info->rec_sz = sizeof(rtv_ndx_30_record_t);
@@ -1040,7 +1021,7 @@ static void guide_select_callback(mvp_widget_t *widget, char *item, void *key)
                }
                ndx_info->num_rec = (fileinfo.size - sizeof(rtv_ndx_30_header_t)) / sizeof(rtv_ndx_30_record_t);
             }
-            else if ( (ndx_info->file_chunk.data_start[0] == 2) && (ndx_info->file_chunk.data_start[2] == 0) ) {
+            else if ( (file_data.data_start[0] == 2) && (file_data.data_start[2] == 0) ) {
                ndx_info->ver    = RTV_NDX_22;
                ndx_info->hdr_sz = sizeof(rtv_ndx_22_header_t);
                ndx_info->rec_sz = sizeof(rtv_ndx_22_record_t);
@@ -1052,9 +1033,9 @@ static void guide_select_callback(mvp_widget_t *widget, char *item, void *key)
                ndx_info->com_skip_ok = 1;
             }
             else {
-               printf("***ERROR: invalid ndx file version: %d %d\n", ndx_info->file_chunk.data_start[0], ndx_info->file_chunk.data_start[1]);
+               printf("***ERROR: invalid ndx file version: %d %d\n", file_data.data_start[0], file_data.data_start[1]);
             }
-            free(ndx_info->file_chunk.buf);
+            free(file_data.buf);
          }
       }
       ndx_info->file_sz = fileinfo.size;
@@ -1097,32 +1078,6 @@ static void guide_select_callback(mvp_widget_t *widget, char *item, void *key)
    rtv_video_state.play_state            = RTV_VID_PLAYING;
    rtv_video_state.processing_jump_input = 0;
    video_play(widget); // kick video.c 
-}
-
-// rtv_get_video_dir_lis
-//
-static void rtv_get_video_dir_list(mvp_widget_t *widget, rtv_device_t *rtv)
-{
-   rtv_fs_filelist_t  *filelist;
-   int                 i;
-   
-   i = rtv_get_filelist( &(rtv->device), "/Video", 0, &filelist );
-   if ( i == 0 ) {
-      rtv_print_file_list(filelist, 0);
-   }
-   else {
-      fprintf(stderr, "rtv_get_filelist failed: error code %d.\n", i);
-      exit(-1);      
-   }
-   
-   rtv_default_item_attr.select = dirlist_select_callback;
-   
-   for ( i=0; i < filelist->num_files; i++) {
-      if (strstr(filelist->files[i].name, ".mpg") != 0) {
-         mvpw_add_menu_item(widget, filelist->files[i].name, (void*)i, &rtv_default_item_attr);
-      }
-   }
-   rtv_free_file_list(&filelist);
 }
 
 // rtv_get_guide
@@ -1181,22 +1136,23 @@ static void rtv_device_select_callback(mvp_widget_t *widget, char *item, void *k
    rtv_device_t *rtv = (rtv_device_t*)key;  
    char          buf[256];
    
+   // We have to do SSDP (discovery) on DVArchive to put it into RTV 4K/5K mode
+   //
+   if ( (atoi(rtv->device.modelNumber) == 4999) && (rtvs_discovered == 0) ) {
+      printf("\n\n*****\n");
+      printf("DVArchive server IP address can not be statically configured.\n");
+      printf("Use mvpmc \"-R discover\" option\n");
+      printf("*****\n\n");
+      return;
+   }
+   
    mvpw_hide(widget);
    mvpw_clear_menu(rtv_browser);
    snprintf(buf, sizeof(buf), " %s", rtv->device.name);
    mvpw_set_menu_title(rtv_browser, buf);
    
-   current_rtv_device = rtv;
-   
-   // We have to do SSDP (discovery) on DVArchive to put it into RTV 4K/5K mode
-   // If a static address was used instead of discovery then just list the dir
-   //
-   if ( (atoi(rtv->device.modelNumber) == 4999) && (rtvs_discovered == 0) ) {
-      rtv_get_video_dir_list(rtv_browser, rtv);
-   }
-   else {
-      rtv_get_guide(rtv_browser, rtv);
-   }
+   current_rtv_device = rtv;   
+   rtv_get_guide(rtv_browser, rtv);
 
    // Bind in the video callback functions
    //
@@ -1444,7 +1400,16 @@ int replaytv_device_update(void)
 
    for ( idx=0; idx < rtv_devices.num_rtvs; idx++ ) {
       if ( sorted_device_ptr_list[idx]->device.name != NULL ) {
-         mvpw_add_menu_item(widget, sorted_device_ptr_list[idx]->device.name, sorted_device_ptr_list[idx], &device_menu_item_attr);
+         if ( (atoi(sorted_device_ptr_list[idx]->device.modelNumber) == 4999) && (rtvs_discovered == 0) ) {
+            // DVarchive must be discovered to kick it into 5K mode
+            //
+            char name[80];
+            snprintf(name, 80, "%s:(Unavailable)", sorted_device_ptr_list[idx]->device.name);
+            mvpw_add_menu_item(widget, name, sorted_device_ptr_list[idx], &device_menu_item_attr);
+         }
+         else {
+            mvpw_add_menu_item(widget, sorted_device_ptr_list[idx]->device.name, sorted_device_ptr_list[idx], &device_menu_item_attr);
+         }
       }
    }
    
