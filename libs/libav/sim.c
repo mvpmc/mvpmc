@@ -220,3 +220,9 @@ av_get_video_aspect(void)
 {
 	return 0;
 }
+
+int
+av_video_blank(void)
+{
+	return 0;
+}
