@@ -252,6 +252,7 @@ struct cmyth_proginfo {
 	cmyth_timestamp_t proginfo_originalairdate;	/* new in V12 */
 	char *proginfo_pathname;
 	int proginfo_port;
+        unsigned long proginfo_hasairdate;
 	char *proginfo_host;
 	unsigned long proginfo_version;
 	cmyth_atomic_t refcount;

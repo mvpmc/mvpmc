@@ -1843,6 +1843,16 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 		}
 	}
 
+	if (buf->proginfo_version >= 15) {
+		consumed = cmyth_rcv_ulong(conn, err, &buf->proginfo_hasairdate,count);
+		count -= consumed;
+		total += consumed;
+		if (*err) {
+			failed = "cmyth_rcv_ulong";
+			goto fail;
+		}
+	}
+
 	cmyth_dbg(CMYTH_DBG_INFO, "%s: got recording info\n", __FUNCTION__);
 
 	cmyth_proginfo_parse_url(buf);
