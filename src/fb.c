@@ -149,20 +149,35 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 
 		mvpw_expose(widget);
 	} else {
+		if (current)
+			free(current);
+		current = strdup(path);
+
+		audio_clear();
+		video_clear();
+
 		if (is_video(item)) {
 			mvpw_hide(widget);
 			av_move(0, 0, 0);
+			video_play(NULL);
 			mvpw_show(root);
 			mvpw_expose(root);
 			mvpw_focus(root);
+		} else if (is_audio(item)) {
+			audio_play(NULL);
 		} else if (is_image(item)) {
 			mvpw_hide(widget);
+			printf("Displaying image '%s'\n", path);
+			mvpw_set_image(iw, path);
+			mvpw_show(iw);
 			mvpw_focus(iw);
 		} else if (is_playlist(item)) {
 			mvpw_hide(widget);
 			printf("Show playlist menu\n");
 			mvpw_show(playlist_widget);
 			mvpw_focus(playlist_widget);
+			playlist_clear();
+			playlist_play(NULL);
 		}
 	}
 }
@@ -170,42 +185,19 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 static void
 hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 {
-	char path[1024];
+	char path[1024], str[1024], date[64];
 	struct stat64 sb;
 
 	if (hilite) {
 		sprintf(path, "%s/%s", cwd, item);
 
 		stat64(path, &sb);
+		ctime_r(&sb.st_mtime, date);
+		snprintf(str, sizeof(str),
+			 "File: %s\nSize: %lld\nDate: %s",
+			 item, sb.st_size, date);
 
-		mvpw_set_idle(NULL);
-		mvpw_set_timer(root, NULL, 0);
-		if (S_ISDIR(sb.st_mode)) {
-		} else {
-			if (current)
-				free(current);
-			current = strdup(path);
-			playlist_clear();
-			if (is_video(item)) {
-				mvpw_set_timer(root, video_play, 500);
-			} else if (is_audio(item)) {
-				mvpw_set_timer(root, audio_play, 500);
-			} else if (is_playlist(item)) {
-				mvpw_set_timer(root, playlist_play, 500);
-			} else if (is_image(item)) {
-				mvpw_set_image(iw, path);
-				mvpw_lower(iw);
-				mvpw_show(iw);
-			} else {
-			}
-		}
-	} else {
-		mvpw_hide(iw);
-		mvpw_set_idle(NULL);
-		mvpw_set_timer(root, NULL, 0);
-		audio_clear();
-		video_clear();
-		playlist_clear();
+		mvpw_set_text_str(fb_program_widget, str);
 	}
 }
 
@@ -296,6 +288,8 @@ fb_update(mvp_widget_t *fb)
 {
 	video_functions = &file_functions;
 
+	add_osd_widget(fb_program_widget, OSD_PROGRAM, 1, NULL);
+
 	mvpw_show(root);
 	mvpw_expose(root);
 
@@ -306,4 +300,12 @@ fb_update(mvp_widget_t *fb)
 	add_files(fb);
 
 	return 0;
+}
+
+void
+fb_program(mvp_widget_t *widget)
+{
+	/*
+	 * Nothing to do here...
+	 */
 }

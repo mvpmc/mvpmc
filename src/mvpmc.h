@@ -109,6 +109,8 @@ extern mvp_widget_t *demux_audio;
 
 extern mvp_widget_t *playlist_widget;
 
+extern mvp_widget_t *fb_program_widget;
+
 extern char *current;
 extern char *mythtv_recdir;
 extern char *mythtv_ringbuf;
@@ -152,6 +154,8 @@ extern void video_callback(mvp_widget_t*, char);
 
 extern void mythtv_show_widgets(void);
 extern void mythtv_program(mvp_widget_t *widget);
+
+extern void fb_program(mvp_widget_t *widget);
 
 extern void re_exec(void);
 extern void power_toggle(void);

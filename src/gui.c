@@ -285,6 +285,8 @@ mvp_widget_t *mythtv_program_widget;
 mvp_widget_t *mythtv_osd_program;
 mvp_widget_t *mythtv_osd_description;
 
+mvp_widget_t *fb_program_widget;
+
 mvp_widget_t *clock_widget;
 mvp_widget_t *demux_video;
 mvp_widget_t *demux_audio;
@@ -465,6 +467,7 @@ replaytv_back_to_mvp_main_menu(void) {
 static void
 iw_key_callback(mvp_widget_t *widget, char key)
 {
+	mvpw_hide(widget);
 	mvpw_show(file_browser);
 	mvpw_focus(file_browser);
 }
@@ -532,7 +535,8 @@ settings_key_callback(mvp_widget_t *widget, char key)
 static void
 fb_key_callback(mvp_widget_t *widget, char key)
 {
-	if (key == MVPW_KEY_EXIT) {
+	switch (key) {
+	case MVPW_KEY_EXIT:
 		mvpw_hide(widget);
 		mvpw_hide(iw);
 
@@ -547,6 +551,20 @@ fb_key_callback(mvp_widget_t *widget, char key)
 
 		audio_clear();
 		video_clear();
+		break;
+	case MVPW_KEY_STOP:
+		mvpw_set_idle(NULL);
+		mvpw_set_timer(root, NULL, 0);
+
+		audio_clear();
+		video_clear();
+		break;
+	case MVPW_KEY_FULL:
+		mvpw_hide(widget);
+		mvpw_focus(root);
+
+		av_move(0, 0, 0);
+		break;
 	}
 }
 
@@ -1598,6 +1616,14 @@ osd_init(void)
 	mvpw_show(widget);
 	mythtv_osd_description = widget;
 	mvpw_attach(mythtv_osd_program, mythtv_osd_description, MVPW_DIR_DOWN);
+
+	/*
+	 * file browser OSD
+	 */
+	fb_program_widget = mvpw_create_text(NULL, x, y,
+					     400, h*3, 0x80000000, 0, 0);
+	mvpw_set_text_attr(fb_program_widget, &mythtv_description_attr);
+	mvpw_set_text_str(fb_program_widget, "");
 
 	/*
 	 * ReplayTV OSD

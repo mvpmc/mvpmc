@@ -576,6 +576,8 @@ video_callback(mvp_widget_t *widget, char key)
 				set_osd_callback(OSD_PROGRAM, mythtv_program);
 			else if (running_replaytv)
 				set_osd_callback(OSD_PROGRAM, replaytv_osd_proginfo_update);
+			else
+				set_osd_callback(OSD_PROGRAM, fb_program);
 		}
 		display_on = !display_on;
 		break;
