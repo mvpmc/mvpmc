@@ -73,6 +73,7 @@ print_help(char *prog)
 	printf("\t-a aspect \taspect ratio (4:3 or 16:9)\n");
 	printf("\t-f font   \tfont file\n");
 	printf("\t-h        \tprint this help\n");
+	printf("\t-i dir    \tmvpmc image directory\n");
 	printf("\t-m mode   \toutput mode (ntsc or pal)\n");
 	printf("\t-M        \tMythTV protocol debugging output\n");
 	printf("\t-o output \toutput device (composite or svideo)\n");
