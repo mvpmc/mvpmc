@@ -308,58 +308,56 @@ seek_by(int seconds)
 {
 	demux_attr_t *attr = demux_get_attr(handle);
 	int delta;
-	int stc_time, gop_time;
-
-	if ( !attr->gop_valid )
-		return; /* Don't know where to start from */
-
-	seeking = 1;
+	int stc_time, gop_time, pts_time;
+	pts_sync_data_t pts;
 
 	pthread_kill(video_write_thread, SIGURG);
 	pthread_kill(audio_write_thread, SIGURG);
 
 	av_current_stc(&seek_stc);
+	get_video_sync(&pts);
 
-	gop_time = (attr->gop.hour*60 + attr->gop.minute)*60 +
-		attr->gop.second;
+	seek_bps = ((1024*1024) * 4) / 8;  /* default to 4 megabits per second */
+	gop_time = 0;
+	if ( attr->gop_valid ) {
+		gop_time = (attr->gop.hour*60 + attr->gop.minute)*60 +
+			attr->gop.second;
+		if (attr->bps)
+			seek_bps = attr->bps;
+	}
+	pts_time = pts.stc/PTS_HZ;
 	stc_time = (seek_stc.hour*60 + seek_stc.minute)*60 + seek_stc.second;
 
 	/*
 	 * If the STC and GOP timestamps are close, use the STC timestamp as
 	 * the starting point, because it is the timestamp for the frame the
-	 * hardware is currently playing.
+	 * hardware is currently playing. If GOP time not set use STC anyway.
 	 */
-	if (abs(gop_time - stc_time) > 10) {
-		printf("GOP SEEK from: %.2d:%.2d:%.2d\n",
-		       attr->gop.hour, attr->gop.minute, attr->gop.second);
-
-		seek_start_seconds = (attr->gop.hour*60 +
-				      attr->gop.minute)*60 + attr->gop.second;
+	if (abs(gop_time - stc_time) < 10) {
+		printf("STC SEEK from: %d, (%d)\n", stc_time, gop_time);
+		seek_start_seconds = stc_time;
+	} else if (gop_time) {
+		printf("GOP SEEK from: %d, (%d)\n", gop_time, pts_time);
+		seek_start_seconds = gop_time;
 	} else {
-		printf("STC SEEK from: %.2d:%.2d:%.2d\n",
-		       seek_stc.hour, seek_stc.minute, seek_stc.second);
-
-		seek_start_seconds = (seek_stc.hour*60 +
-				      seek_stc.minute)*60 + seek_stc.second;
+		printf("PTS SEEK from: %d, (%d)\n", pts_time, gop_time);
+		seek_start_seconds = pts_time;
 	}
-
-	seek_seconds = seek_start_seconds + seconds;
-	delta = attr->bps * seconds;
 	seek_start_pos = lseek(fd, 0, SEEK_CUR);
 
-	printf("%d bps, currently 0x%llx + 0x%x\n",
-	       attr->bps, seek_start_pos, delta);
+	seek_seconds = seek_start_seconds + seconds;
+	delta = seek_bps * seconds;
+
+	printf("%d bps, currently %lld + %d\n",
+	       seek_bps, seek_start_pos, delta);
 
 	lseek(fd, delta, SEEK_CUR);
 
-	printf("-> 0x%llx\n", lseek(fd, 0, SEEK_CUR));
+	printf("-> %lld\n", lseek(fd, 0, SEEK_CUR));
 
-	if (attr->bps == 0)
-		seek_bps = ((1024*1024) * 4) / 8;  /* 4 megabits per second */
-	else
-		seek_bps = attr->bps;
 	seek_attempts = 8;
 	gop_seek_attempts = 4;
+	seeking = 1;
 
 	pthread_cond_broadcast(&video_cond);
 }
@@ -668,8 +666,10 @@ static int
 do_seek(void)
 {
 	demux_attr_t *attr;
+	pts_sync_data_t pts;
 
 	attr = demux_get_attr(handle);
+	get_video_sync(&pts);
 
 	if ((seek_attempts <= 0) && seeking) {
 		seeking = 0;
@@ -715,14 +715,14 @@ do_seek(void)
 			printf("SEEK DONE: to %d at %d\n",
 			       seek_seconds, seconds);
 		} else {
-			printf("RESEEK: From 0x%llx + 0x%x\n",
+			printf("RESEEK: From %lld + %d\n",
 			       lseek(fd, 0, SEEK_CUR),
 			       seek_bps * (seek_seconds-seconds));
 			lseek(fd, seek_bps * (seek_seconds-seconds), SEEK_CUR);
 			demux_flush(handle);
 			demux_seek(handle);
 			seek_attempts--;
-			printf("SEEKING 1: %d/%d 0x%llx\n",
+			printf("SEEKING 1: %d/%d %lld\n",
 			       seconds, seek_seconds, lseek(fd, 0, SEEK_CUR));
 			return -1;
 		}
