@@ -1635,7 +1635,7 @@ screensaver_init(void)
 		return -1;
 	screensaver_image = mvpw_create_image(screensaver, 50, 25,
 					      iid.width, iid.height,
-					      0, 0, 0);
+					      MVPW_BLACK, 0, 0);
 	mvpw_set_image(screensaver_image, file);
 
 	mvpw_keystroke_callback(screensaver_callback);
