@@ -535,6 +535,7 @@ video_callback(mvp_widget_t *widget, char key)
 			demux_flush(handle);
 			demux_seek(handle);
 			av_stop();
+			av_reset();
 			av_play();
 			mvpw_hide(ffwd_widget);
 			mvpw_hide(mute_widget);
