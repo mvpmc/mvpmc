@@ -2,9 +2,24 @@
 #define SURFACE_H
 
 /*
- * $Id$
+ *  $Id$
  *
- * Jon Gettler <gettler@acm.org>
+ *  Copyright (C) 2004, BtB, Jon Gettler
+ *  http://mvpmc.sourceforge.net/
+ *
+ *  This library is free software; you can redistribute it and/or
+ *  modify it under the terms of the GNU Lesser General Public
+ *  License as published by the Free Software Foundation; either
+ *  version 2.1 of the License, or (at your option) any later version.
+ *
+ *  This library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ *  Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public
+ *  License along with this library; if not, write to the Free Software
+ *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 typedef struct {
@@ -81,7 +96,7 @@ struct osd_surface_s {
 #define GFX_FB_RESET_ENGINE	_IO(0xfb,61)
 #define GFX_FB_SET_ENGINE_MODE	_IOW(0xfb,62,int)
 #define GFX_FB_GET_ENGINE_MODE	_IO(0xfb,63)
-#define GFX_FB_SET_SOMETHING	_IO(0xfb,64)
+#define GFX_FB_GET_SFC_INFO	_IO(0xfb,64,int*)
 #define GFX_FB_OSD_SFC_CLIP	_IOW(0xfb,65,osd_clip_rec_t*)
 #define GFX_FB_OSD_COLOURKEY	_IOW(0xfb,67,int*)
 #define GFX_FB_GET_SFC_PSEUDO	_IOWR(0xfb,68,int*)

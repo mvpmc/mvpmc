@@ -39,11 +39,14 @@ typedef struct {
 /*
  * /dev/adec_mpeg
  */
+#define AV_SET_AUD_STOP		_IOW('a',1,int)
 #define AV_SET_AUD_PLAY		_IOW('a',2,int)
 #define AV_SET_AUD_PAUSE	_IOW('a',3,int)
 #define AV_SET_AUD_UNPAUSE	_IOW('a',4,int)
 #define AV_SET_AUD_SRC		_IOW('a',5,int)
 #define AV_SET_AUD_MUTE		_IOW('a',6,int)
+#define AV_SET_AUD_SYNC		_IOW('a',7,int)
+#define AV_SET_AUD_BYPASS	_IOW('a',8,int)
 #define AV_SET_AUD_CHANNEL	_IOW('a',9,int)
 #define AV_GET_AUD_INFO		_IOR('a',10,int)
 #define AV_SET_AUD_VOLUME	_IOW('a',13,int)
@@ -54,6 +57,7 @@ typedef struct {
 #define AV_SET_AUD_STC		_IOW('a',22,uint64_t *)
 #define AV_SET_AUD_SYNC		_IOW('a',23,int)
 #define AV_SET_AUD_DISABLE_SYNC	_IOW('a',24,aud_sync_parms_t*)
+#define AV_SET_AUD_END_STREAM	_IOW('a',25,int)
 #define AV_SET_AUD_RESET	_IOW('a',26,int)
 #define AV_SET_AUD_DAC_CLK	_IOW('a',27,int)
 #define AV_GET_AUD_REGS		_IOW('a',28,aud_ctl_regs_t*)
