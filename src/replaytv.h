@@ -30,14 +30,6 @@ extern int  replaytv_hide_device_menu(void);
 extern int  replaytv_device_update(void);
 extern int  replaytv_show_device_menu(void);
 extern void replaytv_back_from_video(void);
-
-
-
-
-extern int  rtv_back(mvp_widget_t*);
-extern void rtv_show_widgets(void);
-extern void rtv_program(mvp_widget_t *widget);
-extern int  replaytv_osd_init(void);
-
+extern void replaytv_osd_proginfo_update(mvp_widget_t *widget);
 
 #endif /* REPLAYTV_H */

@@ -1379,9 +1379,8 @@ osd_init(void)
 
 	/*
 	 * ReplayTV OSD
+    * Comon stuff: progress meter, demux, clock
 	 */
-	replaytv_osd_init();
-
 	x = si.cols - 475;
 	y = si.rows - 125;
 	contain = mvpw_create_container(NULL, x, y,
@@ -1565,7 +1564,6 @@ gui_init(char *server, char *replaytv)
 		return -1;
 	if (myth_browser_init() < 0)
 		return -1;
-//	replaytv_browser_init();
 	replaytv_browser_init();
 	file_browser_init();
 	settings_init();
