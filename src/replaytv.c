@@ -86,6 +86,7 @@ static void rtv_init(void)
    static int rtv_initialized = 0;
    if ( rtv_initialized == 0 ) {
       memset(rtv_top, 0, sizeof(rtv_top));
+      rtv_init_lib();
       rtv_initialized = 1;
    }
 }
@@ -106,6 +107,7 @@ static rtv_device_t *get_rtv_device_struct(char* ipaddr, int *new) {
    return(NULL);
 }
 
+#if 0
 static void
 write_start(void *arg)
 {
@@ -130,23 +132,27 @@ write_start(void *arg)
 		pthread_testcancel();
 	}
 }
+#endif
 
 static void GetMpgCallback(unsigned char * buf, size_t len, void * vd)
 {
-	int nput = 0, n;
-	int alen, vlen;
-	unsigned char *newbuf;
-	int x;
+        int nput = 0, n;
 
-	while (nput < len) {
-		n = demux_put(handle, buf+nput, len-nput);
-		if (n > 0)
-			nput += n;
-		else
-			usleep(1000);
+//        printf(".");
+        while (nput < len) {
+                n = demux_put(handle, buf+nput, len-nput);
+                pthread_cond_broadcast(&video_cond);
+                if (n > 0)
+                        nput += n;
+                else
+                        usleep(1000);
 
-		pthread_testcancel();
-	}
+                pthread_testcancel();
+        }
+        //JBH: Fixme
+        //We should call free here but somehow it doesn't matter
+        //If we do call free here then mvpmc cores when the OSD button is pressed.
+        //free(buf);
 }
 
 void GetMpgFile(char *IPAddress, char *FileName, int ToStdOut) 
@@ -168,12 +174,8 @@ void GetMpgFile(char *IPAddress, char *FileName, int ToStdOut)
     rtv = get_rtv_device_struct(replaytv_server, &new_entry);
 
     //Send the request for the file
-    i = hfs_do_chunked(GetMpgCallback, NULL, &(rtv->device), 75,
-                       "readfile",
-                       "pos", "0",
-                       "name", pathname,
-                       NULL);
-    
+    i = rtv_read_file( &(rtv->device), pathname, 0, 0, 32, 0, GetMpgCallback, NULL );
+
     //all done, cleanup as we leave 
     fprintf(stderr, "\nDone.\n"); 
 } 
@@ -183,6 +185,9 @@ read_start(void *arg)
 {
 	printf("read thread is pid %d\n", getpid());
 
+	pthread_mutex_init(&mutex, NULL);
+	pthread_mutex_lock(&mutex);
+
 	GetMpgFile(replaytv_server, (char*)arg, 0);
 
 	return NULL;
@@ -191,8 +196,6 @@ read_start(void *arg)
 static void
 old_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
-	int i;
-
 	mvpw_hide(widget);
 	av_move(0, 0, 0);
 	mvpw_show(root);
@@ -203,7 +206,6 @@ old_select_callback(mvp_widget_t *widget, char *item, void *key)
 	demux_reset(handle);
 
 	pthread_create(&read_thread, NULL, read_start, (void*)item);
-	pthread_create(&write_thread, NULL, write_start, NULL);
 
 	playing = 1;
 }
@@ -211,7 +213,6 @@ old_select_callback(mvp_widget_t *widget, char *item, void *key)
 static void
 select_callback(mvp_widget_t *widget, char *item, void *key)
 {
-	int i;
    rtv_show_export_t  *show = (rtv_show_export_t*)key;
 
 	mvpw_hide(widget);
@@ -226,53 +227,35 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 	demux_reset(handle);
 
 	pthread_create(&read_thread, NULL, read_start, (void*)show->file_name);
-	pthread_create(&write_thread, NULL, write_start, NULL);
 
 	playing = 1;
 }
 
 void GetDir(mvp_widget_t *widget, char *IPAddress)
 {
-    rtv_device_t *rtv;  
-    int     i, new_entry;
-    time_t  TimeStamp=0;            //A Unix Timestamp
-    char * data, * cur, * e;
+    rtv_device_t       *rtv;  
+    rtv_fs_filelist_t  *filelist;
+    int                 i, new_entry;
 
     rtv = get_rtv_device_struct(replaytv_server, &new_entry);
-
-    fprintf(stderr, "[Directory Listing of /Video...]\n"); 
-
-    i = hfs_do_simple(&data, &(rtv->device),
-                      "ls",
-                      "name", "\"/Video\"",
-                      NULL);
-    if (i != 0) {
-        fprintf(stderr, "hfs_do_simple returned error code %d.\n", i);
-        exit(-1);
-    }
-
-	item_attr.select = old_select_callback;
     
-    cur = data;
-    while (cur && *cur) {
-        e = strchr(cur, '\n');
-        if (e)
-            *e = '\0';
-        
-            fprintf(stdout, "'%s'\n", cur);
-	    if (strstr(cur, ".mpg") != 0)
-		mvpw_add_menu_item(widget, cur, (void*)0, &item_attr);
-
-        if (e)
-            cur = e + 1;
-        else
-            cur = NULL;
+    i = rtv_get_filelist( &(rtv->device), "/Video", 0, &filelist );
+    if ( i == 0 ) {
+       rtv_print_file_list(filelist, 0);
     }
-
-    //all done, cleanup as we leave 
-    fprintf(stderr, "\n[End of listing.]\n");
-
-    free(data);
+    else {
+       fprintf(stderr, "rtv_get_filelist failed: error code %d.\n", i);
+       exit(-1);      
+    }
+    
+    item_attr.select = old_select_callback;
+    
+    for ( i=0; i < filelist->num_files; i++) {
+       if (strstr(filelist->files[i].name, ".mpg") != 0) {
+          mvpw_add_menu_item(widget, filelist->files[i].name, (void*)0, &item_attr);
+       }
+    }
+    rtv_free_file_list(&filelist);
 }
 
 void GetGuide(mvp_widget_t *widget, char *IPAddress)
@@ -355,7 +338,6 @@ replaytv_stop(void)
 
 	if (playing) {
 		pthread_cancel(read_thread);
-		pthread_cancel(write_thread);
 
 		playing = 0;
 	}
