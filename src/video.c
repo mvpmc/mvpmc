@@ -29,6 +29,7 @@
 #include <fcntl.h>
 #include <time.h>
 #include <sys/time.h>
+#include <signal.h>
 #include <pthread.h>
 
 #include <mvp_demux.h>
@@ -46,15 +47,19 @@
 #define BSIZE	(1024*96)
 #define SEEK_FUDGE	2
 
+static char inbuf[BSIZE];
+
 static pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
+static pthread_cond_t video_cond = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 static int fd = -1;
 static av_stc_t seek_stc;
-static int seeking;
-static int seek_bps;
-static int seek_attempts;
-static int audio_type = 0;
+static volatile int seeking = 0;
+static volatile int jumping = 0;
+static volatile int seek_bps;
+static volatile int seek_attempts;
+static volatile int audio_type = 0;
 static int zoomed = 0;
 static int display_on = 0;
 
@@ -66,7 +71,20 @@ static stream_type_t audio_output = STREAM_MPEG;
 static unsigned char ac3buf[BSIZE];
 static volatile int ac3len = 0, ac3more = 0;
 
+static volatile int video_reopen = 0;
+static volatile int video_playing = 0;
+
 void video_play(mvp_widget_t *widget);
+
+static void
+sighandler(int sig)
+{
+	/*
+	 * The signal handler is here simply to allow the threads writing to
+	 * the hardware devices to be interrupted, and break out of the write()
+	 * system call.
+	 */
+}
 
 static void
 video_show_widgets(void)
@@ -75,323 +93,26 @@ video_show_widgets(void)
 }
 
 void
-video_player(int reset)
-{
-	static char buf[BSIZE];
-	static int len = 0, n = 0, nput = 0;
-	int alen = 0, vlen = 0;
-	demux_attr_t *attr;
-	video_info_t *vi;
-	static int count = 0, resize = 0;
-	pts_sync_data_t pts;
-	static uint64_t first_stc = 0, old_pts = 0;
-	static struct timeval start;
-	struct timeval now, delta;
-	spu_item_t *spu;
-	static int set_aspect = 1;
-	static int pcm_decoded = 0;
-
-	if (reset) {
-		n = 0;
-		nput = 0;
-		resize = 0;
-		set_aspect = 1;
-		pcm_decoded = 0;
-		gettimeofday(&start, NULL);
-	}
-
-	if ((len=read(fd, buf+n, BSIZE-n)) > 0)
-		n += len;
-	nput += demux_put(handle, buf+nput, n-nput);
-
-	if (nput == n) {
-		n = 0;
-		nput = 0;
-	}
-
-	attr = demux_get_attr(handle);
-	vi = &attr->video.stats.info.video;
-	if (attr->audio.type != audio_type) {
-		audio_type = attr->audio.type;
-		switch (audio_type) {
-		case AUDIO_MODE_AC3:
-			pthread_cond_signal(&cond);
-		case AUDIO_MODE_PCM:
-			audio_output = AV_AUDIO_PCM;
-			printf("switching to PCM audio output device\n");
-			break;
-		default:
-			av_set_audio_type(audio_type);
-			audio_output = AV_AUDIO_MPEG;
-			printf("switching to MPEG audio output device\n");
-			break;
-		}
-		av_set_audio_output(audio_output);
-	}
-	if (set_aspect) {
-		if (vi->aspect == 3) {
-			av_set_video_aspect(1);
-			printf("video aspect ratio: 16:9\n");
-		} else {
-			av_set_video_aspect(0);
-			printf("video aspect ratio: 4:3\n");
-		}
-		set_aspect = 0;
-	}
-
-	if ((seek_attempts == 0) && seeking) {
-		seeking = 0;
-		printf("SEEK ABORTED\n");
-	}
-
-	if (seeking && !attr->gop_valid) {
-		seek_attempts--;
-		printf("SEEK RETRY due to lack of GOP\n");
-		n = 0;
-		nput = 0;
-		demux_flush(handle);
-		demux_seek(handle);
-		return;
-	}
-
-	if (seeking) {
-		int seconds, seek_seconds;
-
-		seconds = (attr->gop.hour * 3600) + (attr->gop.minute * 60) +
-			attr->gop.second;
-		seek_seconds = (seek_stc.hour * 3600) +
-			(seek_stc.minute * 60) + seek_stc.second;
-
-		if (seeking > 0) {
-			if (seconds >= (seek_seconds - SEEK_FUDGE)) {
-				if (seconds > (seek_seconds + SEEK_FUDGE)) {
-					n = 0;
-					nput = 0;
-					lseek(fd,
-					      -(seek_bps *
-						(seconds-seek_seconds)) / 2,
-					      SEEK_CUR);
-					demux_flush(handle);
-					demux_seek(handle);
-					seeking = -1;
-					seek_attempts--;
-					printf("SEEKING 1: %d/%d 0x%llx\n",
-					       seconds, seek_seconds,
-					       lseek(fd, 0, SEEK_CUR));
-					return;
-				}
-				seeking = 0;
-				printf("SEEK DONE: to %d at %d\n",
-				       seek_seconds, seconds);
-			} else {
-				n = 0;
-				nput = 0;
-				lseek(fd,
-				      (seek_bps*(seek_seconds-seconds)) / 2,
-				      SEEK_CUR);
-				demux_flush(handle);
-				demux_seek(handle);
-				seek_attempts--;
-				printf("SEEKING 2: %d/%d 0x%llx\n",
-				       seconds, seek_seconds,
-				       lseek(fd, 0, SEEK_CUR));
-				return;
-			}
-		} else {
-			if (seconds > (seek_seconds + SEEK_FUDGE)) {
-				n = 0;
-				nput = 0;
-				lseek(fd,
-				      -(seek_bps *
-					(seconds-seek_seconds)) / 2,
-				      SEEK_CUR);
-				demux_flush(handle);
-				demux_seek(handle);
-				seek_attempts--;
-				printf("SEEKING 3: %d/%d 0x%llx\n",
-				       seconds, seek_seconds,
-				       lseek(fd, 0, SEEK_CUR));
-				return;
-			} else {
-				if (seek_seconds > (seconds + SEEK_FUDGE)) {
-					n = 0;
-					nput = 0;
-					lseek(fd,
-					      (seek_bps *
-					       (seek_seconds-seconds)) / 2,
-					      SEEK_CUR);
-					demux_flush(handle);
-					demux_seek(handle);
-					seeking = 1;
-					seek_attempts--;
-					printf("SEEKING 4: %d/%d 0x%llx\n",
-					       seconds, seek_seconds,
-					       lseek(fd, 0, SEEK_CUR));
-					return;
-				}
-				seeking = 0;
-				printf("SEEK DONE: to %d at %d\n",
-				       seek_seconds, seconds);
-			}
-		}
-	}
-
-	switch (audio_type) {
-	    case AUDIO_MODE_MPEG1_PES:
-	    case AUDIO_MODE_MPEG2_PES:
-	    case AUDIO_MODE_ES:
-		    alen = demux_write_audio(handle, fd_audio);
-		    break;
-	    case AUDIO_MODE_PCM:
-		    /*
-		     * XXX: this does not work
-		     */
-		    if (pcm_decoded) {
-			    alen = demux_write_audio(handle, fd_audio);
-		    } else {
-			    unsigned long rate;
-
-			    ac3len = demux_get_audio(handle, ac3buf,
-						     sizeof(ac3buf));
-			    write(fd, ac3buf, ac3len);
-			    rate = 48000;
-			    printf("PCM rate %lu\n", rate);
-			    av_set_pcm_rate(rate);
-			    write(fd_audio, ac3buf, ac3len);
-			    pcm_decoded = 1;
-		    }
-		    break;
-	    case AUDIO_MODE_AC3:
-		    if (ac3more == 0) {
-			    ac3len = demux_get_audio(handle, ac3buf,
-						     sizeof(ac3buf));
-			    ac3more = 1;
-		    }
-		    pcm_decoded = 1;
-		    break;
-	}
-	vlen = demux_write_video(handle, fd_video);
-
-	if ((alen == 0) || (vlen == 0)) {
-		mvpw_set_idle(NULL);
-		mvpw_set_timer(root, video_play, 100);
-	}
-
-	gettimeofday(&now, NULL);
-	timersub(&now, &start, &delta);
-	get_video_sync(&pts);
-	if (reset || (first_stc > pts.stc))
-		first_stc = pts.stc;
-	if (old_pts != pts.stc) {
-		PRINTF("HARDWARE: 0x%llx 0x%llx [%d %d] 0x%x\n",
-		       pts.stc, first_stc, delta.tv_sec, delta.tv_usec,
-		       (unsigned int)(pts.stc /
-				      ((float)delta.tv_sec +
-				       (delta.tv_usec/1000000.0))));
-	}
-	old_pts = pts.stc;
-
-#if 0
-	spu = demux_spu_get_next(handle);
-	if (spu) {
-		char *image;
-
-		if ((image=demux_spu_decompress(handle, spu)) != NULL) {
-			mvpw_bitmap_attr_t bitmap;
-
-			if (spu_widget) {
-				mvpw_hide(spu_widget);
-				mvpw_expose(root);
-				mvpw_destroy(spu_widget);
-			}
-
-			spu_widget = mvpw_create_bitmap(NULL,
-							spu->x, spu->y,
-							spu->w, spu->h,
-							0, 0, 0);
-
-			bitmap.image = image;
-
-			/*
-			 * XXX: we really should wait until the proper
-			 *      moment to display the subtitle
-			 */
-			if (spu_widget) {
-				mvpw_set_bitmap(spu_widget, &bitmap);
-				mvpw_lower(spu_widget);
-				mvpw_show(spu_widget);
-				mvpw_expose(spu_widget);
-			}
-
-			free(image);
-		} else {
-			printf("fb: got subtitle, decompress failed\n");
-		}
-
-		free(spu);
-	}
-#endif
-
-	if ((alen == 0) && (vlen == 0) && (n == 0) && demux_empty(handle)) {
-		if (count++ > 10) {
-			close(fd);
-			fd = -1;
-			if (running_mythtv)
-				mythtv_show_widgets();
-			else
-				video_show_widgets();
-		}
-	} else
-		count = 0;
-}
-
-static void
-video_idle(void)
-{
-	int reset = 0;
-
-	if (fd == -1) {
-		if ((fd=open(current, O_RDONLY|O_LARGEFILE|O_NDELAY)) < 0)
-			return;
-		printf("opened %s\n", current);
-
-		av_set_audio_output(AV_AUDIO_MPEG);
-		fd_audio = av_audio_fd();
-
-		av_play();
-
-		demux_reset(handle);
-		if (si.rows == 480)
-			av_move(475, si.rows-60, 4);
-		else
-			av_move(475, si.rows-113, 4);
-		av_play();
-
-#if 0
-		spu_stream = -1;
-		demux_spu_set_id(handle, spu_stream);
-#endif
-
-		reset = 1;
-		zoomed = 0;
-		display_on = 0;
-	}
-
-	video_player(reset);
-}
-
-void
 video_play(mvp_widget_t *widget)
 {
-	mvpw_set_idle(video_idle);
+	mvpw_set_idle(NULL);
 	mvpw_set_timer(root, NULL, 0);
+
+	video_reopen = 1;
+	video_playing = 1;
+	pthread_cond_broadcast(&video_cond);
 }
 
 void
 video_clear(void)
 {
+	close(fd);
 	fd = -1;
+	video_playing = 0;
+	pthread_kill(video_write_thread, SIGURG);
+	pthread_kill(audio_write_thread, SIGURG);
 	av_reset();
+	pthread_cond_broadcast(&video_cond);
 }
 
 void
@@ -571,6 +292,8 @@ video_callback(mvp_widget_t *widget, char key)
 	case '(':
 	case '{':
 		seeking = 1;
+		pthread_kill(video_write_thread, SIGURG);
+		pthread_kill(audio_write_thread, SIGURG);
 		av_current_stc(&seek_stc);
 		seek_stc.second -= 30;
 		if (seek_stc.second >= 60) {
@@ -587,12 +310,12 @@ video_callback(mvp_widget_t *widget, char key)
 		lseek(fd, -delta, SEEK_CUR);
 		seek_bps = attr->bps;
 		seek_attempts = 4;
-		demux_flush(handle);
-		demux_seek(handle);
-		av_reset();
+		pthread_cond_broadcast(&video_cond);
 		break;
 	case ')':
 		seeking = 1;
+		pthread_kill(video_write_thread, SIGURG);
+		pthread_kill(audio_write_thread, SIGURG);
 		av_current_stc(&seek_stc);
 		seek_stc.second += 30;
 		if (seek_stc.second >= 60) {
@@ -609,9 +332,7 @@ video_callback(mvp_widget_t *widget, char key)
 		lseek(fd, delta, SEEK_CUR);
 		seek_bps = attr->bps;
 		seek_attempts = 4;
-		demux_flush(handle);
-		demux_seek(handle);
-		av_reset();
+		pthread_cond_broadcast(&video_cond);
 		break;
 	case '}':
 		if (av_ffwd() == 0) {
@@ -627,13 +348,14 @@ video_callback(mvp_widget_t *widget, char key)
 		}
 		break;
 	case '0' ... '9':
+		jumping = 1;
+		pthread_kill(video_write_thread, SIGURG);
+		pthread_kill(audio_write_thread, SIGURG);
 		jump = key - '0';
 		fstat64(fd, &sb);
 		offset = sb.st_size * (jump / 10.0);
 		lseek(fd, offset, SEEK_SET);
-		demux_flush(handle);
-		demux_seek(handle);
-		av_reset();
+		pthread_cond_broadcast(&video_cond);
 		break;
 	case 'M':
 		mvpw_show(popup_menu);
@@ -675,6 +397,7 @@ video_callback(mvp_widget_t *widget, char key)
 		break;
 	case '\n':
 		av_move(0, 0, 0);
+		pthread_cond_broadcast(&video_cond);
 		break;
 	default:
 		printf("char '%c'\n", key);
@@ -803,24 +526,326 @@ video_switch_stream(mvp_widget_t *widget, int stream)
 	}
 }
 
-void*
-ac3_start(void *arg)
+static int
+do_seek(void)
 {
-	int pcm_decoded = 0;
+	demux_attr_t *attr;
+
+	attr = demux_get_attr(handle);
+
+	if ((seek_attempts <= 0) && seeking) {
+		seeking = 0;
+		printf("SEEK ABORTED\n");
+	}
+
+	if (seeking && !attr->gop_valid) {
+		seek_attempts--;
+		printf("SEEK RETRY due to lack of GOP\n");
+		demux_flush(handle);
+		demux_seek(handle);
+	}
+
+	if (seeking) {
+		int seconds, seek_seconds;
+
+		seconds = (attr->gop.hour * 3600) + (attr->gop.minute * 60) +
+			attr->gop.second;
+		seek_seconds = (seek_stc.hour * 3600) +
+			(seek_stc.minute * 60) + seek_stc.second;
+
+		if (seeking > 0) {
+			if (seconds >= (seek_seconds - SEEK_FUDGE)) {
+				if (seconds > (seek_seconds + SEEK_FUDGE)) {
+					lseek(fd,
+					      -(seek_bps *
+						(seconds-seek_seconds)) / 2,
+					      SEEK_CUR);
+					demux_flush(handle);
+					demux_seek(handle);
+					seeking = -1;
+					seek_attempts--;
+					printf("SEEKING 1: %d/%d 0x%llx\n",
+					       seconds, seek_seconds,
+					       lseek(fd, 0, SEEK_CUR));
+					return -1;
+				}
+				seeking = 0;
+				printf("SEEK DONE: to %d at %d\n",
+				       seek_seconds, seconds);
+			} else {
+				lseek(fd,
+				      (seek_bps*(seek_seconds-seconds)) / 2,
+				      SEEK_CUR);
+				demux_flush(handle);
+				demux_seek(handle);
+				seek_attempts--;
+				printf("SEEKING 2: %d/%d 0x%llx\n",
+				       seconds, seek_seconds,
+				       lseek(fd, 0, SEEK_CUR));
+				return -1;
+			}
+		} else {
+			if (seconds > (seek_seconds + SEEK_FUDGE)) {
+				lseek(fd,
+				      -(seek_bps *
+					(seconds-seek_seconds)) / 2,
+				      SEEK_CUR);
+				demux_flush(handle);
+				demux_seek(handle);
+				seek_attempts--;
+				printf("SEEKING 3: %d/%d 0x%llx\n",
+				       seconds, seek_seconds,
+				       lseek(fd, 0, SEEK_CUR));
+				return -1;
+			} else {
+				if (seek_seconds > (seconds + SEEK_FUDGE)) {
+					lseek(fd,
+					      (seek_bps *
+					       (seek_seconds-seconds)) / 2,
+					      SEEK_CUR);
+					demux_flush(handle);
+					demux_seek(handle);
+					seeking = 1;
+					seek_attempts--;
+					printf("SEEKING 4: %d/%d 0x%llx\n",
+					       seconds, seek_seconds,
+					       lseek(fd, 0, SEEK_CUR));
+					return -1;
+				}
+				seeking = 0;
+				printf("SEEK DONE: to %d at %d\n",
+				       seek_seconds, seconds);
+			}
+		}
+	}
+
+	return 0;
+}
+
+static void
+open_file(void)
+{
+	close(fd);
+
+	pthread_kill(video_write_thread, SIGURG);
+	pthread_kill(audio_write_thread, SIGURG);
+
+	if ((fd=open(current, O_RDONLY|O_LARGEFILE)) < 0)
+		return;
+	printf("opened %s\n", current);
+
+	av_set_audio_output(AV_AUDIO_MPEG);
+	fd_audio = av_audio_fd();
+
+	av_play();
+
+	demux_reset(handle);
+	demux_seek(handle);
+	if (si.rows == 480)
+		av_move(475, si.rows-60, 4);
+	else
+		av_move(475, si.rows-113, 4);
+	av_play();
+
+	zoomed = 0;
+	display_on = 0;
+
+	seeking = 0;
+	jumping = 0;
+
+	video_reopen = 0;
+
+	pthread_cond_broadcast(&video_cond);
+}
+void*
+video_read_start(void *arg)
+{
+	pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+	int ret;
+	int n = 0, len = 0, reset = 1;
+	demux_attr_t *attr;
+	video_info_t *vi;
+	int set_aspect = 1;
 
 	pthread_mutex_lock(&mutex);
-	printf("ac3 thread sleeping...\n");
-	pthread_cond_wait(&cond, &mutex);
+
+	printf("mpeg read thread started (pid %d)\n", getpid());
+	pthread_cond_wait(&video_cond, &mutex);
 
 	while (1) {
-		if (ac3more == -1)
-			ac3more = a52_decode_data(NULL, NULL, pcm_decoded);
-		if (ac3more == 1)
-			ac3more = a52_decode_data(ac3buf, ac3buf + ac3len,
-						  pcm_decoded);
-		if (ac3more == 0)
+		while (!video_playing) {
+			demux_reset(handle);
+			demux_seek(handle);
+			printf("mpeg read thread sleeping...\n");
+			pthread_cond_wait(&video_cond, &mutex);
+		}
+
+		if (video_reopen) {
+			open_file();
+			len = 0;
+			reset = 1;
+			set_aspect = 1;
+		}
+
+		if ((seeking && reset) || jumping) {
+			demux_reset(handle);
+			demux_seek(handle);
+			av_reset();
+			if (seeking)
+				reset = 0;
+			jumping = 0;
+		}
+
+		if (len == 0) {
+			len = read(fd, inbuf, sizeof(inbuf));
+			n = 0;
+		}
+
+		ret = demux_put(handle, inbuf+n, len-n);
+
+		if ((ret <= 0) && (!seeking)) {
+			pthread_cond_broadcast(&video_cond);
 			usleep(1000);
-		pcm_decoded = 1;
+			continue;
+		}
+
+		if (seeking) { 
+			if (do_seek()) {
+				len = 0;
+				continue;
+			} else {
+				reset = 1;
+			}
+		}
+
+		n += ret;
+		if (n == len)
+			len = 0;
+
+		pthread_cond_broadcast(&video_cond);
+
+		attr = demux_get_attr(handle);
+		vi = &attr->video.stats.info.video;
+		if (attr->audio.type != audio_type) {
+			audio_type = attr->audio.type;
+			switch (audio_type) {
+			case AUDIO_MODE_AC3:
+				pthread_cond_signal(&cond);
+			case AUDIO_MODE_PCM:
+				audio_output = AV_AUDIO_PCM;
+				printf("switch to PCM audio output device\n");
+				break;
+			default:
+				av_set_audio_type(audio_type);
+				audio_output = AV_AUDIO_MPEG;
+				printf("switch to MPEG audio output device\n");
+				break;
+			}
+			av_set_audio_output(audio_output);
+		}
+
+		if (set_aspect) {
+			if (vi->aspect == 3) {
+				av_set_video_aspect(1);
+				printf("video aspect ratio: 16:9\n");
+			} else {
+				av_set_video_aspect(0);
+				printf("video aspect ratio: 4:3\n");
+			}
+			set_aspect = 0;
+		}
+	}
+
+	return NULL;
+}
+
+void*
+video_write_start(void *arg)
+{
+	pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+	int len;
+	sigset_t sigs;
+
+	signal(SIGURG, sighandler);
+	sigemptyset(&sigs);
+	sigaddset(&sigs, SIGURG);
+	pthread_sigmask(SIG_UNBLOCK, &sigs, NULL);
+
+	pthread_mutex_lock(&mutex);
+
+	printf("video write thread started (pid %d)\n", getpid());
+	pthread_cond_wait(&video_cond, &mutex);
+
+	while (1) {
+		if (video_playing &&
+		    (len=demux_write_video(handle, fd_video)) > 0)
+			pthread_cond_broadcast(&video_cond);
+		else
+			pthread_cond_wait(&video_cond, &mutex);
+	}
+
+	return NULL;
+}
+
+void*
+audio_write_start(void *arg)
+{
+	pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+	int len;
+	int pcm_decoded = 0;
+	sigset_t sigs;
+
+	signal(SIGURG, sighandler);
+	sigemptyset(&sigs);
+	sigaddset(&sigs, SIGURG);
+	pthread_sigmask(SIG_UNBLOCK, &sigs, NULL);
+
+	pthread_mutex_lock(&mutex);
+
+	printf("audio write thread started (pid %d)\n", getpid());
+	pthread_cond_wait(&video_cond, &mutex);
+
+	while (1) {
+		while (!video_playing)
+			pthread_cond_wait(&video_cond, &mutex);
+
+		switch (audio_type) {
+		case AUDIO_MODE_MPEG1_PES:
+		case AUDIO_MODE_MPEG2_PES:
+		case AUDIO_MODE_ES:
+			if ((len=demux_write_audio(handle, fd_audio)) > 0)
+				pthread_cond_broadcast(&video_cond);
+			else
+				pthread_cond_wait(&video_cond, &mutex);
+			break;
+		case AUDIO_MODE_PCM:
+			/*
+			 * XXX: PCM audio does not work yet
+			 */
+			pthread_cond_wait(&video_cond, &mutex);
+			break;
+		case AUDIO_MODE_AC3:
+			if (ac3more == -1)
+				ac3more = a52_decode_data(NULL, NULL,
+							  pcm_decoded);
+			if (ac3more == 1)
+				ac3more = a52_decode_data(ac3buf,
+							  ac3buf + ac3len,
+							  pcm_decoded);
+			if (ac3more == 0) {
+				ac3len = demux_get_audio(handle, ac3buf,
+							 sizeof(ac3buf));
+				ac3more = 1;
+			}
+
+			if (ac3more == 0)
+				pthread_cond_wait(&video_cond, &mutex);
+			else
+				pthread_cond_broadcast(&video_cond);
+
+			pcm_decoded = 1;
+			break;
+		}
 	}
 
 	return NULL;

@@ -499,6 +499,7 @@ fb_key_callback(mvp_widget_t *widget, char key)
 		mvpw_set_timer(root, NULL, 0);
 
 		audio_clear();
+		video_clear();
 	}
 }
 
@@ -779,11 +780,11 @@ myth_browser_init(void)
 	mvpw_image_info_t iid;
 	mvpw_widget_info_t wid, wid2, info;
 	int h;
-	char path[] = "/usr/share/mvpmc";
 	char file[128];
 
-	snprintf(file, sizeof(file), "%s/mythtv_logo_rotate.png", path);
-	mvpw_get_image_info(file, &iid);
+	snprintf(file, sizeof(file), "%s/mythtv_logo_rotate.png", imagedir);
+	if (mvpw_get_image_info(file, &iid) < 0)
+		return -1;
 	mythtv_logo = mvpw_create_image(NULL, 50, 25, iid.width, iid.height,
 				       0, 0, 0);
 	mvpw_set_image(mythtv_logo, file);
@@ -981,46 +982,51 @@ main_menu_init(char *server, char *replaytv)
 {
 	mvpw_image_info_t iid;
 	mvpw_widget_info_t wid;
-	char path[] = "/usr/share/mvpmc";
 	char file[128];
 
-	snprintf(file, sizeof(file), "%s/wrench.png", path);
-	mvpw_get_image_info(file, &iid);
+	snprintf(file, sizeof(file), "%s/wrench.png", imagedir);
+	if (mvpw_get_image_info(file, &iid) < 0)
+		return -1;
 	setup_image = mvpw_create_image(NULL, 50, 25,
 					iid.width, iid.height, 0, 0, 0);
 	mvpw_set_image(setup_image, file);
 	splash_update();
 
-	snprintf(file, sizeof(file), "%s/video_folder.png", path);
-	mvpw_get_image_info(file, &iid);
+	snprintf(file, sizeof(file), "%s/video_folder.png", imagedir);
+	if (mvpw_get_image_info(file, &iid) < 0)
+		return -1;
 	fb_image = mvpw_create_image(NULL, 50, 25,
 				     iid.width, iid.height, 0, 0, 0);
 	mvpw_set_image(fb_image, file);
 	splash_update();
 
-	snprintf(file, sizeof(file), "%s/tv2.png", path);
-	mvpw_get_image_info(file, &iid);
+	snprintf(file, sizeof(file), "%s/tv2.png", imagedir);
+	if (mvpw_get_image_info(file, &iid) < 0)
+		return -1;
 	mythtv_image = mvpw_create_image(NULL, 50, 25,
 					 iid.width, iid.height, 0, 0, 0);
 	mvpw_set_image(mythtv_image, file);
 	splash_update();
 
-	snprintf(file, sizeof(file), "%s/unknown.png", path);
-	mvpw_get_image_info(file, &iid);
+	snprintf(file, sizeof(file), "%s/unknown.png", imagedir);
+	if (mvpw_get_image_info(file, &iid) < 0)
+		return -1;
 	about_image = mvpw_create_image(NULL, 50, 25,
 					iid.width, iid.height, 0, 0, 0);
 	mvpw_set_image(about_image, file);
 	splash_update();
 
-	snprintf(file, sizeof(file), "%s/stop.png", path);
-	mvpw_get_image_info(file, &iid);
+	snprintf(file, sizeof(file), "%s/stop.png", imagedir);
+	if (mvpw_get_image_info(file, &iid) < 0)
+		return -1;
 	exit_image = mvpw_create_image(NULL, 50, 25,
 				       iid.width, iid.height, 0, 0, 0);
 	mvpw_set_image(exit_image, file);
 	splash_update();
 
-	snprintf(file, sizeof(file), "%s/mvpmc_logo.png", path);
-	mvpw_get_image_info(file, &iid);
+	snprintf(file, sizeof(file), "%s/mvpmc_logo.png", imagedir);
+	if (mvpw_get_image_info(file, &iid) < 0)
+		return -1;
 	mvpmc_logo = mvpw_create_image(NULL, 50, 25, iid.width, iid.height,
 				       0, 0, 0);
 	mvpw_set_image(mvpmc_logo, file);
@@ -1373,8 +1379,10 @@ gui_init(char *server, char *replaytv)
 	mvpw_expose(splash);
 	mvpw_event_flush();
 
-	main_menu_init(server, replaytv);
-	myth_browser_init();
+	if (main_menu_init(server, replaytv) < 0)
+		return -1;
+	if (myth_browser_init() < 0)
+		return -1;
 	replaytv_browser_init();
 	file_browser_init();
 	settings_init();

@@ -48,7 +48,7 @@ a52_state_t *a52_state;
 static int disable_adjust=0;
 static int disable_dynrng=0;
 static float gain = 1;
-static char *ac3_buf, *ac3_start, *ac3_end;
+static char *ac3_buf, *ac3_end;
 static int ac3_size;
 
 typedef enum {
@@ -407,7 +407,6 @@ int a52_decode_data (uint8_t * start, uint8_t * end, int reset)
 	if (ac3_buf == NULL) {
                 ac3_size = 1024*256;
                 ac3_buf = malloc(ac3_size);
-                ac3_start = ac3_buf;
                 ac3_end = ac3_buf;
 	}
 

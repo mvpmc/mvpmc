@@ -45,12 +45,13 @@ char *mythtv_recdir = NULL;
 
 char *saved_argv[32];
 int saved_argc = 0;
+char *imagedir = "/usr/share/mvpmc";
 
 extern a52_state_t *a52_state;
 
-extern void *ac3_start(void*);
-
-static pthread_t ac3_thread;
+static pthread_t video_read_thread;
+pthread_t video_write_thread;
+pthread_t audio_write_thread;
 
 /*
  * print_help() - print command line arguments
@@ -97,7 +98,7 @@ main(int argc, char **argv)
 	for (i=0; i<argc; i++)
 		saved_argv[i] = strdup(argv[i]);
 
-	while ((c=getopt(argc, argv, "a:f:hm:Mo:r:R:s:")) != -1) {
+	while ((c=getopt(argc, argv, "a:f:hi:m:Mo:r:R:s:")) != -1) {
 		switch (c) {
 		case 'a':
 			if (strcmp(optarg, "4:3") == 0) {
@@ -114,6 +115,9 @@ main(int argc, char **argv)
 		case 'h':
 			print_help(argv[0]);
 			exit(0);
+			break;
+		case 'i':
+			imagedir = strdup(optarg);
 			break;
 		case 'f':
 			font = strdup(optarg);
@@ -209,7 +213,9 @@ main(int argc, char **argv)
 	if (mythtv_server)
 		mythtv_init(mythtv_server, -1);
 
-	pthread_create(&ac3_thread, NULL, ac3_start, NULL);
+	pthread_create(&video_read_thread, NULL, video_read_start, NULL);
+	pthread_create(&video_write_thread, NULL, video_write_start, NULL);
+	pthread_create(&audio_write_thread, NULL, audio_write_start, NULL);
 
 	if (gui_init(mythtv_server, replaytv_server) < 0) {
 		fprintf(stderr, "failed to initialize gui!\n");

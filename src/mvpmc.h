@@ -77,6 +77,8 @@ extern char *mythtv_recdir;
 
 extern char *replaytv_server;
 
+extern char *imagedir;
+
 extern int fontid;
 extern mvpw_screen_info_t si;
 
@@ -111,6 +113,13 @@ extern void audio_switch_stream(mvp_widget_t*, int);
 extern void video_switch_stream(mvp_widget_t*, int);
 extern void add_audio_streams(mvp_widget_t*, mvpw_menu_item_attr_t*);
 extern void add_video_streams(mvp_widget_t*, mvpw_menu_item_attr_t*);
+
+extern void *video_read_start(void*);
+extern void *video_write_start(void*);
+extern void *audio_write_start(void*);
+
+pthread_t video_write_thread;
+pthread_t audio_write_thread;
 
 extern void add_osd_widget(mvp_widget_t *widget, int type, int visible,
 			   void (*callback)(mvp_widget_t*));
