@@ -45,7 +45,6 @@ typedef struct {
 #define AV_SET_AUD_UNPAUSE	_IOW('a',4,int)
 #define AV_SET_AUD_SRC		_IOW('a',5,int)
 #define AV_SET_AUD_MUTE		_IOW('a',6,int)
-#define AV_SET_AUD_SYNC		_IOW('a',7,int)
 #define AV_SET_AUD_BYPASS	_IOW('a',8,int)
 #define AV_SET_AUD_CHANNEL	_IOW('a',9,int)
 #define AV_GET_AUD_INFO		_IOR('a',10,int)

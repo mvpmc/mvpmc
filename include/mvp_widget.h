@@ -56,12 +56,12 @@ extern void mvpw_set_bg(mvp_widget_t *widget, uint32_t bg);
 extern uint32_t mvpw_get_bg(const mvp_widget_t *widget);
 extern void mvpw_set_timer(mvp_widget_t *widget,
 			   void (*callback)(mvp_widget_t*), uint32_t timeout);
-extern void mvpw_focus(const mvp_widget_t *widget);
+extern void mvpw_focus(mvp_widget_t *widget);
 extern mvp_widget_t *mvpw_get_focus(void);
-extern void mvpw_show(const mvp_widget_t *widget);
-extern void mvpw_hide(const mvp_widget_t *widget);
-extern void mvpw_raise(const mvp_widget_t *widget);
-extern void mvpw_lower(const mvp_widget_t *widget);
+extern void mvpw_show(mvp_widget_t *widget);
+extern void mvpw_hide(mvp_widget_t *widget);
+extern void mvpw_raise(mvp_widget_t *widget);
+extern void mvpw_lower(mvp_widget_t *widget);
 extern void mvpw_expose(const mvp_widget_t *widget);
 extern int mvpw_font_height(int font);
 extern int mvpw_font_width(int font, char *str);
@@ -76,7 +76,7 @@ extern void mvpw_set_key(mvp_widget_t *widget,
 extern void mvpw_destroy(mvp_widget_t *widget);
 extern int mvpw_visible(const mvp_widget_t *widget);
 extern int mvpw_keystroke_callback(void (*callback)(void));
-extern int mvpw_set_screensaver(const mvp_widget_t *widget, int seconds,
+extern int mvpw_set_screensaver(mvp_widget_t *widget, int seconds,
 				void (*callback)(mvp_widget_t*, int));
 
 /*

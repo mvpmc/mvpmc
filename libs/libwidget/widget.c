@@ -41,7 +41,7 @@ static mvp_widget_t *root;
 static volatile int modal_mode = 0;
 static volatile mvp_widget_t *modal_focus = NULL;
 static volatile mvp_widget_t *screensaver_widget = NULL;
-static volatile void (*screensaver_callback)(mvp_widget_t*, int) = NULL;
+static void (*screensaver_callback)(mvp_widget_t*, int) = NULL;
 
 static void (*idle)(void);
 static void (*keystroke_callback)(void);
@@ -223,7 +223,7 @@ mvpw_destroy(mvp_widget_t *widget)
 }
 
 void
-mvpw_focus(const mvp_widget_t *widget)
+mvpw_focus(mvp_widget_t *widget)
 {
 	if (mvpw_get_focus() == widget)
 		return;
@@ -236,13 +236,13 @@ mvpw_focus(const mvp_widget_t *widget)
 		} else {
 			raise_widget(widget, NULL);
 			if ((widget != screensaver_widget) && (modal_mode))
-				raise_widget(modal_focus, NULL);
+				raise_widget((mvp_widget_t*)modal_focus, NULL);
 		}
 	}
 }
 
 void
-mvpw_show(const mvp_widget_t *widget)
+mvpw_show(mvp_widget_t *widget)
 {
 	mvp_widget_t *top;
 
@@ -263,7 +263,7 @@ mvpw_show(const mvp_widget_t *widget)
 }
 
 void
-mvpw_hide(const mvp_widget_t *widget)
+mvpw_hide(mvp_widget_t *widget)
 {
 	mvp_widget_t *top;
 
@@ -568,7 +568,8 @@ static void
 screensaver(GR_EVENT_SCREENSAVER *event)
 {
 	if (screensaver_callback) {
-		screensaver_callback(screensaver_widget, event->activate);
+		screensaver_callback((mvp_widget_t*)screensaver_widget,
+				     event->activate);
 	}
 }
 
@@ -627,7 +628,7 @@ mvpw_event_flush(void)
 			timer(&event.timer);
 			break;
 		case GR_EVENT_TYPE_SCREENSAVER:
-			screensaver(&event.timer);
+			screensaver(&event.screensaver);
 			break;
 		case GR_EVENT_TYPE_NONE:
 			return 0;
@@ -659,7 +660,7 @@ mvpw_event_loop(void)
 			timer(&event.timer);
 			break;
 		case GR_EVENT_TYPE_SCREENSAVER:
-			screensaver(&event.timer);
+			screensaver(&event.screensaver);
 			break;
 		case GR_EVENT_TYPE_NONE:
 			if (idle)
@@ -737,7 +738,7 @@ mvpw_set_idle(void (*callback)(void))
 }
 
 void
-mvpw_raise(const mvp_widget_t *widget)
+mvpw_raise(mvp_widget_t *widget)
 {
 	if (widget) {
 		if (modal_mode) {
@@ -752,7 +753,7 @@ mvpw_raise(const mvp_widget_t *widget)
 }
 
 void
-mvpw_lower(const mvp_widget_t *widget)
+mvpw_lower(mvp_widget_t *widget)
 {
 	if (widget) {
 		lower_widget(widget);
@@ -792,7 +793,7 @@ mvpw_get_focus(void)
 }
 
 int
-mvpw_set_screensaver(const mvp_widget_t *widget, int seconds,
+mvpw_set_screensaver(mvp_widget_t *widget, int seconds,
 	void (*callback)(mvp_widget_t*, int))
 {
 	if (widget) {
