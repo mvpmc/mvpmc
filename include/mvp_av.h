@@ -45,5 +45,7 @@ extern int av_set_audio_type(int audio_mode);
 extern int av_stop(void);
 extern int av_pause(void);
 extern int av_move(int x, int y, int video_mode);
+extern int av_ffwd(void);
+extern int av_mute(void);
 
 #endif /* MVP_AV_H */

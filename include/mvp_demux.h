@@ -23,12 +23,22 @@
 #define MVP_DEMUX_H
 
 typedef struct {
+	int width;
+	int height;
+	int aspect;
+	int frame_rate;
+} video_info_t;
+
+typedef struct {
 	unsigned int frames;
 	unsigned int bytes;
 	unsigned int full_count;
 	unsigned int empty_count;
 	unsigned int drain_count;
 	unsigned int fill_count;
+	union {
+		video_info_t video;
+	} info;
 } stream_stats_t;
 
 typedef struct {
@@ -63,5 +73,6 @@ extern int demux_set_video_stream(demux_handle_t*, unsigned int);
 extern int demux_buffer_resize(demux_handle_t *handle);
 extern int demux_empty(demux_handle_t *handle);
 extern int demux_flush(demux_handle_t *handle);
+extern void demux_seek(demux_handle_t *handle);
 
 #endif /* MVP_DEMUX_H */

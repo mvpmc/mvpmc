@@ -41,6 +41,7 @@ struct demux_handle_s {
 	unsigned char buf[16];
 	int bufsz;
 	int headernum;
+	int seeking;
 };
 
 #define pack_start_code			0xBA
