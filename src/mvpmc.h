@@ -40,6 +40,7 @@ typedef struct {
 
 extern char *mythtv_server;
 extern int mythtv_debug;
+extern volatile int mythtv_level;
 
 extern mvp_widget_t *file_browser;
 extern mvp_widget_t *replaytv_browser;

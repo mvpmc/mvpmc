@@ -749,8 +749,11 @@ open_file(void)
 	pthread_kill(video_write_thread, SIGURG);
 	pthread_kill(audio_write_thread, SIGURG);
 
-	if ((fd=open(current, O_RDONLY|O_LARGEFILE)) < 0)
+	if ((fd=open(current, O_RDONLY|O_LARGEFILE)) < 0) {
+		printf("failed to open %s\n", current);
+		video_reopen = 0;
 		return;
+	}
 	printf("opened %s\n", current);
 
 	av_set_audio_output(AV_AUDIO_MPEG);

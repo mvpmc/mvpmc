@@ -67,7 +67,7 @@ static char *titles[1024];
 static char *pathname = NULL;
 static char program_name[256];
 
-static int level = 0;
+volatile int mythtv_level = 0;
 
 static int show_count, episode_count;
 
@@ -465,7 +465,7 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 	int err, count, i, n = 0, episodes = 0;
 	char buf[256];
 
-	level = 1;
+	mythtv_level = 1;
 
 	item_attr.select = show_select_callback;
 	item_attr.hilite = hilite_callback;
@@ -623,7 +623,7 @@ mythtv_back(mvp_widget_t *widget)
 	mvpw_show(shows_widget);
 	mvpw_show(episodes_widget);
 
-	if (level == 0) {
+	if (mythtv_level == 0) {
 		running_mythtv = 0;
 		return 0;
 	}
@@ -631,7 +631,7 @@ mythtv_back(mvp_widget_t *widget)
 	if (playing_via_mythtv)
 		mythtv_close_file();
 
-	level = 0;
+	mythtv_level = 0;
 	mythtv_update(widget);
 
 	return -1;
@@ -695,4 +695,70 @@ mythtv_program(mvp_widget_t *widget)
 
 	mvpw_set_text_str(mythtv_osd_program, program_name);
 	mvpw_expose(mythtv_osd_program);
+}
+
+int
+mythtv_delete(void)
+{
+	int ret;
+
+	ret = cmyth_proginfo_delete_recording(control, current_prog);
+
+	return ret;
+}
+
+int
+mythtv_forget(void)
+{
+	int ret;
+
+	ret = cmyth_proginfo_forget_recording(control, current_prog);
+
+	return ret;
+}
+
+int
+mythtv_proginfo(char *buf, int size)
+{
+	cmyth_timestamp_t ts;
+	char airdate[256], start[256], end[256];
+	char *ptr;
+
+	ts = cmyth_proginfo_originalairdate(current_prog);
+	cmyth_timestamp_to_string(airdate, ts);
+	ts = cmyth_proginfo_rec_start(current_prog);
+	cmyth_timestamp_to_string(start, ts);
+	ts = cmyth_proginfo_rec_end(current_prog);
+	cmyth_timestamp_to_string(end, ts);
+
+	if ((ptr=strchr(airdate, 'T')) != NULL)
+		*ptr = '\0';
+	if ((ptr=strchr(start, 'T')) != NULL)
+		*ptr = ' ';
+	if ((ptr=strchr(end, 'T')) != NULL)
+		*ptr = ' ';
+
+	snprintf(buf, size,
+		 "Title: %s\n"
+		 "Subtitle: %s\n"
+		 "Description: %s\n"
+		 "Start: %s\n"
+		 "End: %s\n"
+		 "Category: %s\n"
+		 "Channel: %s\n"
+		 "Series ID: %s\n"
+		 "Program ID: %s\n"
+		 "Stars: %s\n",
+		 cmyth_proginfo_title(current_prog),
+		 cmyth_proginfo_subtitle(current_prog),
+		 cmyth_proginfo_description(current_prog),
+		 start,
+		 end,
+		 cmyth_proginfo_category(current_prog),
+		 cmyth_proginfo_channame(current_prog),
+		 cmyth_proginfo_seriesid(current_prog),
+		 cmyth_proginfo_programid(current_prog),
+		 cmyth_proginfo_stars(current_prog));
+
+	return 0;
 }

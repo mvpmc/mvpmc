@@ -75,6 +75,12 @@ static mvpw_menu_item_attr_t popup_item_attr = {
 	.checkbox_fg = mvpw_color_alpha(MVPW_PURPLE, 0x80),
 };
 
+static mvpw_menu_item_attr_t mythtv_popup_item_attr = {
+	.selectable = 1,
+	.fg = MVPW_GREEN,
+	.bg = MVPW_BLACK,
+};
+
 static mvpw_menu_item_attr_t item_attr = {
 	.selectable = 1,
 	.fg = MVPW_WHITE,
@@ -105,12 +111,29 @@ static mvpw_menu_attr_t popup_attr = {
 	.title_bg = mvpw_color_alpha(MVPW_WHITE, 0x80),
 };
 
+static mvpw_menu_attr_t mythtv_popup_attr = {
+	.font = 0,
+	.fg = MVPW_BLACK,
+	.hilite_fg = MVPW_BLACK,
+	.hilite_bg = MVPW_WHITE,
+	.title_fg = MVPW_BLACK,
+	.title_bg = MVPW_LIGHTGREY,
+};
+
 static mvpw_text_attr_t about_attr = {
 	.wrap = 1,
 	.justify = MVPW_TEXT_LEFT,
 	.margin = 4,
 	.font = 0,
 	.fg = MVPW_BLACK,
+};
+
+static mvpw_text_attr_t mythtv_info_attr = {
+	.wrap = 1,
+	.justify = MVPW_TEXT_LEFT,
+	.margin = 4,
+	.font = 0,
+	.fg = MVPW_WHITE,
 };
 
 static mvpw_text_attr_t description_attr = {
@@ -190,6 +213,8 @@ mvp_widget_t *mythtv_logo;
 mvp_widget_t *mythtv_date;
 mvp_widget_t *mythtv_description;
 mvp_widget_t *mythtv_channel;
+mvp_widget_t *mythtv_popup;
+mvp_widget_t *mythtv_info;
 mvp_widget_t *pause_widget;
 mvp_widget_t *mute_widget;
 mvp_widget_t *ffwd_widget;
@@ -419,6 +444,16 @@ about_key_callback(mvp_widget_t *widget, char key)
 }
 
 static void
+mythtv_info_key_callback(mvp_widget_t *widget, char key)
+{
+	if (key == 'P') {
+		power_toggle();
+	} else {
+		mvpw_hide(widget);
+	}
+}
+
+static void
 sub_settings_key_callback(mvp_widget_t *widget, char key)
 {
 	if (key == 'P')
@@ -513,6 +548,40 @@ fb_key_callback(mvp_widget_t *widget, char key)
 }
 
 static void
+mythtv_popup_select_callback(mvp_widget_t *widget, char *item, void *key)
+{
+	int which = (int)key;
+	char buf[1024];
+
+	switch (which) {
+	case 0:
+		printf("trying to forget recording\n");
+		if ((mythtv_delete() == 0) && (mythtv_forget() == 0)) {
+			mvpw_hide(mythtv_popup);
+			mythtv_update(mythtv_browser);
+		}
+		break;
+	case 1:
+		printf("trying to delete recording\n");
+		if (mythtv_delete() == 0) {
+			mvpw_hide(mythtv_popup);
+			mythtv_update(mythtv_browser);
+		}
+		break;
+	case 2:
+		printf("show info...\n");
+		mythtv_proginfo(buf, sizeof(buf));
+		mvpw_set_text_str(mythtv_info, buf);
+		mvpw_show(mythtv_info);
+		mvpw_focus(mythtv_info);
+		break;
+	case 3:
+		mvpw_hide(mythtv_popup);
+		break;
+	}
+}
+
+static void
 mythtv_key_callback(mvp_widget_t *widget, char key)
 {
 	if (key == 'P')
@@ -533,6 +602,39 @@ mythtv_key_callback(mvp_widget_t *widget, char key)
 			mvpw_show(mvpmc_logo);
 			mvpw_focus(main_menu);
 		}
+	}
+
+	if ((key == 'M') && (mythtv_level)) {
+		printf("mythtv popup menu\n");
+		mvpw_clear_menu(mythtv_popup);
+		mythtv_popup_item_attr.select = mythtv_popup_select_callback;
+		mvpw_add_menu_item(mythtv_popup,
+				   "Delete, but allow future recordings",
+				   (void*)0, &mythtv_popup_item_attr);
+		mvpw_add_menu_item(mythtv_popup, "Delete",
+				   (void*)1, &mythtv_popup_item_attr);
+		mvpw_add_menu_item(mythtv_popup, "Show Info",
+				   (void*)2, &mythtv_popup_item_attr);
+		mvpw_add_menu_item(mythtv_popup, "Cancel",
+				   (void*)3, &mythtv_popup_item_attr);
+		mvpw_menu_hilite_item(mythtv_popup, (void*)3);
+		mvpw_show(mythtv_popup);
+		mvpw_focus(mythtv_popup);
+	}
+}
+
+static void
+mythtv_popup_key_callback(mvp_widget_t *widget, char key)
+{
+	if (key == 'P')
+		power_toggle();
+
+	if (key == 'M') {
+		mvpw_hide(mythtv_popup);
+	}
+
+	if (key == 'E') {
+		mvpw_hide(mythtv_popup);
 	}
 }
 
@@ -800,8 +902,8 @@ myth_browser_init(void)
 {
 	mvpw_image_info_t iid;
 	mvpw_widget_info_t wid, wid2, info;
-	int h;
 	char file[128];
+	int x, y, w, h;
 
 	snprintf(file, sizeof(file), "%s/mythtv_logo_rotate.png", imagedir);
 	if (mvpw_get_image_info(file, &iid) < 0)
@@ -857,7 +959,41 @@ myth_browser_init(void)
 
 	mvpw_attach(shows_widget, episodes_widget, MVPW_DIR_DOWN);
 
+	/*
+	 * mythtv popup menu
+	 */
+	w = 300;
+	h = 150;
+	x = (si.cols - w) / 2;
+	y = (si.rows - h) / 2;
+
+	mythtv_popup = mvpw_create_menu(NULL, x, y, w, h,
+					MVPW_BLACK, MVPW_GREEN, 2);
+
+	mythtv_popup_attr.font = fontid;
+	mvpw_set_menu_attr(mythtv_popup, &mythtv_popup_attr);
+
+	mvpw_set_menu_title(mythtv_popup, "Recording Menu");
+	mvpw_set_bg(mythtv_popup, MVPW_BLACK);
+
+	mvpw_set_key(mythtv_popup, mythtv_popup_key_callback);
+
+	/*
+	 * mythtv show info
+	 */
+	w = si.cols - 100;
+	h = si.rows - 40;
+	x = (si.cols - w) / 2;
+	y = (si.rows - h) / 2;
+	mythtv_info = mvpw_create_text(NULL, x, y, w, h, 0, 0, 0);
+	mvpw_set_key(mythtv_info, mythtv_info_key_callback);
+
+	mythtv_info_attr.font = fontid;
+	mvpw_set_text_attr(mythtv_info, &mythtv_info_attr);
+
 	mvpw_raise(mythtv_browser);
+	mvpw_raise(mythtv_popup);
+	mvpw_raise(mythtv_info);
 
 	splash_update();
 
