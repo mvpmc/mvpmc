@@ -91,12 +91,12 @@ static int playing    = 0;
 static int abort_read = 0;
 
 // Top level replayTV structure
-static int           num_rtv_ipaddrs    = 0;
-static rtv_device_t *current_rtv_device = NULL;
+static int           num_cmdline_ipaddrs = 0;
+static int           rtvs_discovered     = 0;
+static rtv_device_t *current_rtv_device  = NULL;
 
 //hack
 #define MAX_IP_SZ (50)
-#define MAX_RTVS (10)
 static char rtv_ip_addrs[MAX_RTVS][MAX_IP_SZ + 1];
 
 static char* strip_spaces(char *str)
@@ -123,9 +123,9 @@ static int parse_ip_init_str(char *str)
          next[0] = '\0';
          next++;
       }
-      strncpy(rtv_ip_addrs[num_rtv_ipaddrs], cur, MAX_IP_SZ );
-      printf("RTV IP [%d]: %s\n", num_rtv_ipaddrs, rtv_ip_addrs[num_rtv_ipaddrs]);
-      num_rtv_ipaddrs++;
+      strncpy(rtv_ip_addrs[num_cmdline_ipaddrs], cur, MAX_IP_SZ );
+      printf("RTV IP [%d]: %s\n", num_cmdline_ipaddrs, rtv_ip_addrs[num_cmdline_ipaddrs]);
+      num_cmdline_ipaddrs++;
       cur = next;
    }
    return(0);
@@ -145,9 +145,11 @@ int rtv_init(char *init_str)
    
    printf("replaytv init string: %s\n", init_str);
    if ( strchr(cur, '=') == NULL ) {
-      // Assume just a single parm that is an ip address
-      strncpy(rtv_ip_addrs[0], cur, MAX_IP_SZ );
-      num_rtv_ipaddrs = 1;
+      // Assume just a single parm that is either an ip address or "discover"
+      if ( strncmp(cur, "disc", 4) != 0 ) {
+         strncpy(rtv_ip_addrs[0], cur, MAX_IP_SZ );
+         num_cmdline_ipaddrs = 1;
+      }
    }
    else {
       int done = 0;
@@ -169,7 +171,9 @@ int rtv_init(char *init_str)
          
          printf("------------> KEY=%s VAL=%s\n", cur, val);
          if ( strcmp(cur, "ip") == 0 ) {
-            parse_ip_init_str(val);
+            if ( strncmp(val, "disc", 4) != 0 ) {
+               parse_ip_init_str(val);
+            }
          }
          else if ( strcmp(cur, "debug") == 0 ) {
             unsigned int dbgmask = strtoul((val), NULL, 16);
@@ -248,7 +252,7 @@ read_start(void *arg)
 }
 
 static void
-old_select_callback(mvp_widget_t *widget, char *item, void *key)
+dirlist_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
    mvpw_hide(widget);
    av_move(0, 0, 0);
@@ -276,7 +280,7 @@ old_select_callback(mvp_widget_t *widget, char *item, void *key)
 }
 
 static void
-select_callback(mvp_widget_t *widget, char *item, void *key)
+guide_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
    rtv_show_export_t  *show = (rtv_show_export_t*)key;
 
@@ -319,7 +323,7 @@ void GetDir(mvp_widget_t *widget, rtv_device_t *rtv)
        exit(-1);      
     }
     
-    item_attr.select = old_select_callback;
+    item_attr.select = dirlist_select_callback;
     
     for ( i=0; i < filelist->num_files; i++) {
        if (strstr(filelist->files[i].name, ".mpg") != 0) {
@@ -350,7 +354,7 @@ void GetGuide(mvp_widget_t *widget, rtv_device_t *rtv)
       return;
    }
    rtv_print_guide(guide);
-   item_attr.select = select_callback;
+   item_attr.select = guide_select_callback;
    
    for ( x=0; x < guide->num_rec_shows; x++ ) {
       char title_episode[255];
@@ -374,8 +378,11 @@ rtv_device_select_callback(mvp_widget_t *widget, char *item, void *key)
 	mvpw_set_menu_title(widget, buf);
 
    current_rtv_device = rtv;
-   if ( atoi(rtv->device.modelNumber) == 4999 ) {
-      //DVArchive hack since guide doesn't work yet
+
+   // We have to do SSDP (discovery) on DVArchive to put it into RTV 4K/5K mode
+   // If a static address was used instead of discovery then just list the dir
+   //
+   if ( (atoi(rtv->device.modelNumber) == 4999) && (rtvs_discovered == 0) ) {
       GetDir(widget, rtv);
    }
    else {
@@ -389,27 +396,29 @@ static int bogus_discover(void)
    rtv_device_t      *rtv;  
    int                rc, x;
 
-   for ( x=0; x < num_rtv_ipaddrs; x++ ) {
+   for ( x=0; x < num_cmdline_ipaddrs; x++ ) {
       printf( "\nGetting replaytv (%s) device info...\n", rtv_ip_addrs[x]);
       
       if ( (rc = rtv_get_device_info(rtv_ip_addrs[x], NULL, &rtv)) != 0 ) {
          printf("Failed to get RTV Device Info. Retrying...\n");
          
-         // JBH: Fixme: Hack for dvarchive failing on first attempt. Need to get discovery working  
+         // Hack for dvarchive failing on first attempt is not auto-discovered 
          if ( (rc = rtv_get_device_info(rtv_ip_addrs[x], NULL, &rtv)) != 0 ) {
             printf("**ERROR: Unable to get RTV Device Info for: %s. Giving up\n", rtv_ip_addrs[x]);
             return 0;
          } 
       } 
-      rtv_print_device_info(&(rtv->device));
+      //rtv_print_device_info(&(rtv->device));
    }
+   rtv_print_device_list();
    return(0);
 }
 
 int replaytv_update(mvp_widget_t *widget)
 {
-   int h, w, x, y, idx;
-	char buf[128];
+   int                h, w, x, y, idx, rc;
+	char               buf[128];
+   rtv_device_list_t *rtv_list;
 
    running_replaytv = 1;
 
@@ -436,10 +445,22 @@ int replaytv_update(mvp_widget_t *widget)
 	mvpw_show(splash);
 	mvpw_event_flush();
 
-   sleep(1);
+   if ( num_cmdline_ipaddrs == 0 ) {
+      rtv_free_devices();
+      rc = rtv_discover(4000, &rtv_list);
+      if ( rc == 0 ) {
+         rtvs_discovered = 1;
+         rtv_print_device_list();
+      }
+      else {
+         printf("\n***ERROR: RTV Discovery Failed\n\n");
+      }
+   }
+   else {
+      bogus_discover();
+      sleep(1);
+   }
 	mvpw_destroy(splash);
-
-   bogus_discover();
 
    device_menu_item_attr.select = rtv_device_select_callback;
    for ( idx=0; idx < rtv_devices.num_rtvs; idx++ ) {
