@@ -34,6 +34,12 @@ typedef struct {
         int state;
 } vid_state_regs_t;
 
+typedef struct {
+        int hour;
+        int minute;
+        int second;
+} av_stc_t;
+
 extern int av_init(int);
 extern int av_video_set_nonblock(int);
 extern int av_audio_set_nonblock(int);
@@ -48,5 +54,7 @@ extern int av_move(int x, int y, int video_mode);
 extern int av_ffwd(void);
 extern int av_mute(void);
 extern int av_reset(void);
+extern int get_video_sync(pts_sync_data_t *p);
+extern int av_current_stc(av_stc_t *stc);
 
 #endif /* MVP_AV_H */

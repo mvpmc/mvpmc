@@ -395,5 +395,6 @@ void
 demux_seek(demux_handle_t *handle)
 {
 	handle->seeking = 1;
+	handle->attr.gop_valid = 0;
 }
 

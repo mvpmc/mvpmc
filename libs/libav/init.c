@@ -326,6 +326,28 @@ get_vid_state(vid_state_regs_t *p)
 }
 
 int
+av_current_stc(av_stc_t *stc)
+{
+	pts_sync_data_t pts;
+	int hour, minute, second;
+
+	if (get_video_sync(&pts) == 0) {
+		second = pts.stc / 90000;
+		hour = second / 3600;
+		minute = second / 60 - hour * 60;
+		second = second % 60;
+
+		stc->hour = hour;
+		stc->minute = minute;
+		stc->second = second;
+
+		return 0;
+	}
+
+	return -1;
+}
+
+int
 av_move(int x, int y, int video_mode)
 {
 	vid_pos_regs_t pos_d;

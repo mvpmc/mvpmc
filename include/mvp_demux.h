@@ -63,6 +63,7 @@ typedef struct {
 	stream_attr_t video;
 	int bps;
 	gop_t gop;
+	int gop_valid;
 } demux_attr_t;
 
 typedef struct demux_handle_s demux_handle_t;

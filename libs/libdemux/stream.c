@@ -397,7 +397,7 @@ parse_video_frame(demux_handle_t *handle, unsigned char *buf, int len)
 		PRINTF("dts 0x%.8x\n", dts);
 	}
 
-	for (i=0; i<(len-4); i++)
+	for (i=2; i<(len-4); i++)
 		if ((buf[i] == 0) && (buf[i+1] == 0) &&
 		    (buf[i+2] == 1)) {
 			switch (buf[i+3]) {
@@ -441,6 +441,8 @@ parse_video_frame(demux_handle_t *handle, unsigned char *buf, int len)
 				ret = 0;
 				break;
 			case 0xb8:
+				if ((buf[i+7] & 0x1f) != 0)
+					break;
 				hour = (buf[i+4] >> 2) & 0x1f;
 				minute = (buf[i+5] >> 4) |
 					((buf[i+4] & 0x3) << 4);
@@ -448,13 +450,22 @@ parse_video_frame(demux_handle_t *handle, unsigned char *buf, int len)
 					(buf[i+6] >> 5);
 				frame = ((buf[i+6] & 0x1f) << 1) |
 					(buf[i+7] >> 7);
-				PRINTF("GOP: %.2d:%.2d:%.2d %d\n",
-				       hour, minute, second, frame);
+				PRINTF("GOP: %.2d:%.2d:%.2d %d [%d] PTS 0x%x\n",
+				       hour, minute, second, frame, i, pts);
 				delta = (hour - handle->attr.gop.hour) * 3600 +
 					(minute - handle->attr.gop.minute) * 60 +
 					(second - handle->attr.gop.second);
 				if (handle->seeking == 0) {
-					if (delta > 0) {
+					if (delta < 0) {
+						PRINTF("OLD GOP: %.2d:%.2d:%.2d %d\n",
+						       handle->attr.gop.hour,
+						       handle->attr.gop.minute,
+						       handle->attr.gop.second,
+						       handle->attr.gop.frame);
+						PRINTF("NEW GOP: %.2d:%.2d:%.2d %d\n",
+						       hour, minute, second, frame);
+					}
+					if (delta != 0) {
 						handle->attr.bps =
 							(handle->bytes -
 							 handle->attr.gop.offset) /
@@ -466,6 +477,7 @@ parse_video_frame(demux_handle_t *handle, unsigned char *buf, int len)
 						handle->attr.gop.minute = minute;
 						handle->attr.gop.second = second;
 						handle->attr.gop.frame = frame;
+						handle->attr.gop_valid = 1;
 					}
 					goto out;
 				} else {
@@ -475,10 +487,13 @@ parse_video_frame(demux_handle_t *handle, unsigned char *buf, int len)
 					handle->attr.gop.minute = minute;
 					handle->attr.gop.second = second;
 					handle->attr.gop.frame = frame;
+					handle->attr.gop_valid = 1;
 				}
 				ret = 0;
+				goto out;
 				break;
 			}
+			i += 4;
 		}
 
  out:
