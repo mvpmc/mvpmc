@@ -228,11 +228,8 @@ attach_list(mvp_widget_t *widget, mvp_widget_t **list, int *size, int *count)
 			return list;
 
 	if (*size == *count) {
-		if ((list=realloc(list, sizeof(*list)*(*size+128))) == NULL) {
-			if (list)
-				free(list);
+		if ((list=realloc(list, sizeof(*list)*(*size+128))) == NULL)
 			return NULL;
-		}
 		*size += 128;
 	}
 
@@ -253,7 +250,7 @@ mvpw_attach(mvp_widget_t *w1, mvp_widget_t *w2, int direction)
 {
 	int ret = 0, i, size, count;
 	GR_COORD x = 0, y = 0;
-	mvp_widget_t **list;
+	mvp_widget_t **list, **l;
 
 	switch (direction) {
 	case MVPW_DIR_UP:
@@ -271,8 +268,11 @@ mvpw_attach(mvp_widget_t *w1, mvp_widget_t *w2, int direction)
 
 	size = 128;
 	count = 0;
-	if ((list=attach_list(w2, list, &size, &count)) == NULL)
+	l = list;
+	if ((list=attach_list(w2, list, &size, &count)) == NULL) {
+		free(l);
 		return -1;
+	}
 
 	for (i=0; i<count; i++)
 		if (list[i] == w1) {
@@ -482,13 +482,15 @@ void
 mvpw_set_timer(mvp_widget_t *widget, void (*callback)(mvp_widget_t*),
 	       uint32_t timeout)
 {
-	widget->callback_timer = callback;
-
-	if (callback == NULL) {
+	if (widget->callback_timer) {
 		widget->event_mask &= ~GR_EVENT_MASK_TIMER;
 		GrSelectEvents(widget->wid, widget->event_mask);
 		GrDestroyTimer(widget->tid);
-	} else {
+	}
+
+	widget->callback_timer = callback;
+
+	if (callback) {
 		widget->event_mask |= GR_EVENT_MASK_TIMER;
 		GrSelectEvents(widget->wid, widget->event_mask);
 		widget->tid = GrCreateTimer(widget->wid, timeout);
