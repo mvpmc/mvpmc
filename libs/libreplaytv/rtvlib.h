@@ -262,6 +262,7 @@ typedef struct rtv_ndx_30_record_t
 
 // RTV 5K evt record: size=24 bytes
 //
+#define RTV_EVT_HDR_SZ (8)
 typedef struct rtv_evt_record_t 
 {
    __u64 timestamp;            // 8 byte timestamp, in nanoseconds
@@ -274,7 +275,7 @@ typedef struct rtv_evt_record_t
 
 
 //+************************************************************
-// rtv_read_file callback fxn prototype
+// rtv_read_file_chunked callback fxn prototype
 // parms:
 //         buf:    Read data from the replay device
 //         len:    length of data
@@ -289,6 +290,14 @@ typedef struct rtv_evt_record_t
 //+************************************************************
 typedef int (*rtv_read_file_chunked_cb_t)(unsigned char *buf, size_t len, size_t offset, void *vd);
 
+// rtv_read_file() data parameter
+//
+typedef struct rtv_http_resp_data_t 
+{
+   char         *buf;        // returned data buffer
+   char         *data_start; // start of data in buf
+   unsigned int  len;        // length of data in buf
+} rtv_http_resp_data_t;
 
 //+************************************************************************
 //+******************** Local IP Address & Hostname ***********************
@@ -316,9 +325,11 @@ extern char         *rtv_format_time64_1(__u64 ttk);             // Returned str
 extern char         *rtv_format_time64_2(__u64 ttk);             // Returned string is malloc'd: user must free
 extern char         *rtv_format_time32(__u32 t);                 // Returned string is malloc'd: user must free
 extern char         *rtv_sec_to_hr_mn_str(unsigned int seconds); // Returned string is malloc'd: user must free
+extern char         *rtv_format_nsec64(__u64 nsec);              // Returned string is malloc'd: user must free
 extern int           rtv_crypt_test(void);
 extern void          rtv_convert_22_ndx_rec(rtv_ndx_22_record_t *rec);
 extern void          rtv_convert_30_ndx_rec(rtv_ndx_30_record_t *rec);
+extern void          rtv_print_30_ndx_rec(char *tag, int rec_no, rtv_ndx_30_record_t *rec);
 extern void          rtv_convert_evt_rec(rtv_evt_record_t *rec);
 extern void          rtv_hex_dump(char * tag, unsigned char * buf, unsigned int sz);
 
@@ -349,20 +360,20 @@ extern int  rtv_get_filelist( const rtv_device_info_t  *device, const char *name
 extern void rtv_free_file_list( rtv_fs_filelist_t **filelist ); 
 extern void rtv_print_file_list(const rtv_fs_filelist_t *filelist, int detailed);
 
-extern __u32  rtv_read_file( const rtv_device_info_t    *device, 
-                             const char                 *filename, 
-                             __u64                       pos,        //fileposition
-                             __u64                       size,       //amount of file to read ( 0 reads all of file )
-                             unsigned int                ms_delay,   //mS delay between reads
-                             rtv_read_file_chunked_cb_t  callback_fxn,
-                             void                       *callback_data ); 
+extern __u32  rtv_read_file_chunked( const rtv_device_info_t    *device, 
+                                     const char                 *filename, 
+                                     __u64                       pos,        //fileposition
+                                     __u64                       size,       //amount of file to read ( 0 reads all of file )
+                                     unsigned int                ms_delay,   //mS delay between reads
+                                     rtv_read_file_chunked_cb_t  callback_fxn,
+                                     void                       *callback_data ); 
 
 
-extern __u32  rtv_read_file_chunk( const rtv_device_info_t  *device, 
-                                   const char               *filename, 
-                                   __u64                     pos,        //fileposition
-                                   __u64                     size,       //amount of file to read
-                                   char                    **data  );    //returned file data
+extern __u32  rtv_read_file( const rtv_device_info_t  *device, 
+                             const char               *filename, 
+                             __u64                     pos,        //fileposition
+                             __u64                     size,       //amount of file to read
+                             rtv_http_resp_data_t     *data  );    //returned file data
 
 #ifdef __cplusplus
 }

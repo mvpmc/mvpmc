@@ -97,7 +97,7 @@ extern int             hc_post_request(struct hc *hc,
                                        int (*callback)(unsigned char *, size_t, void *), void *v);
 extern int             hc_get_status(const struct hc * hc);
 extern char*           hc_lookup_rsp_header(const struct hc *hc, const char *tag);
-extern int             hc_read_all(struct hc *hc, char **data_p);
+extern int             hc_read_all(struct hc *hc, char **data_p, unsigned int *len);
 extern int             hc_read_pieces(const struct hc *,
                                       http_read_chunked_cb_t,
                                       void *,

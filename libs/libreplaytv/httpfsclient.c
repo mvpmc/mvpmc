@@ -174,11 +174,63 @@ exit:
 }
 
     
+
+// hfs_do_simple()
+// JBH: This function only works for string results.
+//
 static unsigned long hfs_do_simple(char **presult, const rtv_device_info_t *device, const char * command, ...)
 {
     va_list        ap;
     struct hc     *hc;
     char          *tmp, *e;
+    unsigned long  rtv_status;
+    unsigned int   len;
+    int            rc; 
+    
+    RTV_DBGLOG(RTVLOG_CMD, "%s: ip_addr=%s cmd=%s\n", __FUNCTION__, device->ipaddr, command);    
+    va_start(ap, command);
+    hc = make_request(device, command, ap);
+    va_end(ap);
+
+    if (!hc) {
+       return -ECANCELED;
+    }
+
+    rc = hc_read_all(hc, &tmp, &len);
+    hc_free(hc);
+    if ( rc != 0 ) {
+       RTV_ERRLOG("%s: hc_read_all call failed rc=%d\n", __FUNCTION__, rc);
+       return(rc);
+    }
+
+    e = strchr(tmp, '\n');
+    if (e) {
+       *presult = strdup(e+1);
+       rtv_status = strtoul(tmp, NULL, 10);
+       RTV_DBGLOG(RTVLOG_CMD, "%s: http_status=%lu\n", __FUNCTION__, rtv_status);    
+       free(tmp);
+       return(map_httpfs_status_to_rc(rtv_status));
+    } else if (hc_get_status(hc) == 204) {
+       RTV_WARNLOG("%s: http_status == *** 204 ***\n",  __FUNCTION__);
+       *presult = NULL;
+       free(tmp);
+       return -ECONNABORTED;
+    } else {
+       RTV_ERRLOG("%s: end of httpfs status line not found\n", __FUNCTION__);
+       *presult = NULL;
+       free(tmp);
+       return -EPROTO;
+    }
+}
+
+// hfs_do_simple_binary()
+// This function works for binary data.
+//
+static unsigned long hfs_do_simple_binary(rtv_http_resp_data_t *data, const rtv_device_info_t *device, const char * command, ...)
+{
+    va_list        ap;
+    struct hc     *hc;
+    char          *e;
     unsigned long  rtv_status;
     int            rc; 
     
@@ -191,29 +243,29 @@ static unsigned long hfs_do_simple(char **presult, const rtv_device_info_t *devi
        return -ECANCELED;
     }
 
-    rc = hc_read_all(hc, &tmp);
+    rc = hc_read_all(hc, &(data->buf), &(data->len));
     hc_free(hc);
     if ( rc != 0 ) {
        RTV_ERRLOG("%s: hc_read_all call failed rc=%d\n", __FUNCTION__, rc);
        return(rc);
     }
 
-    e = strchr(tmp, '\n');
+    e = strchr(data->buf, '\n');
     if (e) {
-       *presult = strdup(e+1);
-       rtv_status = strtoul(tmp, NULL, 10);
-       RTV_DBGLOG(RTVLOG_CMD, "%s: status=%s\n", __FUNCTION__, tmp);    
-       free(tmp);
+       data->data_start = e + 1;
+       data->len        = data->len - (data->data_start - data->buf);
+       rtv_status       = strtoul(data->buf, NULL, 10);
+       RTV_DBGLOG(RTVLOG_CMD, "%s: http_status=%lu\n", __FUNCTION__, rtv_status);    
        return(map_httpfs_status_to_rc(rtv_status));
     } else if (hc_get_status(hc) == 204) {
        RTV_WARNLOG("%s: http_status == *** 204 ***\n",  __FUNCTION__);
-       *presult = NULL;
-       free(tmp);
-       return 0;
+       free(data->buf);
+       data->buf = NULL;
+       return -ECONNABORTED;
     } else {
        RTV_ERRLOG("%s: end of httpfs status line not found\n", __FUNCTION__);
-       *presult = NULL;
-       free(tmp);
+       free(data->buf);
+       data->buf = NULL;
        return -EPROTO;
     }
 }
@@ -321,6 +373,7 @@ unsigned long hfs_do_post_simple(char **presult, const rtv_device_info_t *device
     char *        tmp, * e;
     int           http_status, rc;
     unsigned long rtv_status;
+    unsigned int  len;
     
     va_start(ap, command);
     if (make_httpfs_url(buf, sizeof buf, device, command, ap) < 0)
@@ -348,7 +401,7 @@ unsigned long hfs_do_post_simple(char **presult, const rtv_device_info_t *device
         return -ECANCELED;
     }
     
-    rc = hc_read_all(hc, &tmp);
+    rc = hc_read_all(hc, &tmp, &len);
     hc_free(hc);
     if ( rc != 0 ) {
        RTV_ERRLOG("%s: hc_read_all call failed rc=%d\n", __FUNCTION__, rc);
@@ -681,13 +734,13 @@ void rtv_print_file_list(const rtv_fs_filelist_t *filelist, int detailed)
 // Callback data returned in 128KB chunks
 // Returns 0 for success
 //
-__u32  rtv_read_file( const rtv_device_info_t    *device, 
-                      const char                 *filename, 
-                      __u64                       pos,        //fileposition
-                      __u64                       size,       //amount of file to read ( 0 reads all of file )
-                      unsigned int                ms_delay,   //mS delay between reads
-                      rtv_read_file_chunked_cb_t  callback_fxn,
-                      void                       *callback_data  )
+__u32  rtv_read_file_chunked( const rtv_device_info_t    *device, 
+                              const char                 *filename, 
+                              __u64                       pos,        //fileposition
+                              __u64                       size,       //amount of file to read ( 0 reads all of file )
+                              unsigned int                ms_delay,   //mS delay between reads
+                              rtv_read_file_chunked_cb_t  callback_fxn,
+                              void                       *callback_data  )
 {
    __u32 status;
    char  pos_str[256];
@@ -715,16 +768,15 @@ __u32  rtv_read_file( const rtv_device_info_t    *device,
 } 
 
 
-// read a piece of a file.
+// read a file.
 // File data is returned when call completes
-// Max size to read is 32K. (Replaytv chunk size)
 // Returned data is malloc'd. User must free.
 //
-__u32  rtv_read_file_chunk( const rtv_device_info_t  *device, 
-                            const char               *filename, 
-                            __u64                     pos,        //fileposition
-                            __u64                     size,       //amount of file to read
-                            char                    **data  )
+__u32  rtv_read_file( const rtv_device_info_t  *device, 
+                      const char               *filename, 
+                      __u64                     pos,        //fileposition
+                      __u64                     size,       //amount of file to read
+                      rtv_http_resp_data_t     *data  )
 {
    __u32 status;
    char  pos_str[256];
@@ -733,11 +785,11 @@ __u32  rtv_read_file_chunk( const rtv_device_info_t  *device,
    snprintf(pos_str, 255, "%"U64F"d", pos);
    snprintf(size_str, 255, "%"U64F"d", size);
 
-   status = hfs_do_simple( data, device,
-                           "readfile",
-                           "pos",  pos_str,
-                           "size", size_str,
-                           "name", filename,
-                           NULL);
+   status = hfs_do_simple_binary( data, device,
+                                  "readfile",
+                                  "pos",  pos_str,
+                                  "size", size_str,
+                                  "name", filename,
+                                  NULL);
    return(status);
 } 

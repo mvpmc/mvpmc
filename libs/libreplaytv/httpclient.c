@@ -460,7 +460,7 @@ static int read_all_callback(unsigned char * buf, size_t len, void * vd)
     return(0);
 }
 
-int hc_read_all(struct hc *hc, char **data_p)
+int hc_read_all(struct hc *hc, char **data_p, unsigned int *len)
 {
     struct read_all_data  data;
     struct chunk         *chunk, *next;
@@ -475,6 +475,7 @@ int hc_read_all(struct hc *hc, char **data_p)
     if ( rc != 0 ) {
        RTV_ERRLOG("%s: hc_read_pieces call failed: rc=%d\n", __FUNCTION__, rc);
        *data_p = NULL;
+       *len    = 0;
        return(rc);
     }
     
@@ -490,6 +491,7 @@ int hc_read_all(struct hc *hc, char **data_p)
 
     r[data.total] = '\0';
     *data_p = r;
+    *len    = data.total;
     return (0);
 }
 

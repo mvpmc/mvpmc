@@ -20,6 +20,7 @@
 #include <errno.h>
 #include <time.h>
 #include <sys/utsname.h>
+#include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <unistd.h>
@@ -150,6 +151,33 @@ char *rtv_format_time32(__u32 t)
    return result;
 }
 
+// rtv_format_nsec64()
+// nanoseconds to minute second string. User must free string.
+//
+char *rtv_format_nsec64(__u64 nsec)
+{
+   char *result; 
+   int   minutes;
+   float seconds;
+
+   result  = malloc(20);
+   seconds = nsec / 1000000000.0;
+
+   minutes = (int)seconds / 60;
+   seconds -= minutes * 60;
+   
+   if (minutes) {
+      sprintf(result, "%03d:", minutes);
+   }
+   else {
+      strcpy(result, "    ");
+   }
+   sprintf(result + 4, "%07.4f", seconds);
+   
+   return(result);
+}
+
+
 char *rtv_sec_to_hr_mn_str(unsigned int seconds)
 {
    char *result = malloc(30);
@@ -197,7 +225,7 @@ int rtv_init_lib(void)
    rtv_globals.merge_chunk_sz   = 3;                // 3 - 32K chunks
    rtv_globals.log_fd           = stdout;
    rtv_globals.rtv_debug        = 0x00000000;
-   //rtv_globals.rtv_debug        = 0x100000ff;
+   //rtv_globals.rtv_debug        = 0x000000ff;
 
    rtv_devices.num_rtvs = 0;
    rtv_devices.rtv      = malloc(sizeof(rtv_device_t) * MAX_RTVS);
@@ -264,6 +292,25 @@ void rtv_convert_evt_rec(rtv_evt_record_t *rec)
    rec->data_type   = ntohl(rec->data_type);
    rec->audiopower  = ntohl(rec->audiopower);
    rec->blacklevel  = ntohl(rec->blacklevel);
+   return;
+}
+
+// rtv_print_30_ndx_rec()
+//
+void rtv_print_30_ndx_rec(char *tag, int rec_no, rtv_ndx_30_record_t *rec)
+{
+   char *ts;
+
+   ts = rtv_format_nsec64(rec->timestamp);
+   if ( tag != NULL ) {
+      printf("NDXREC: %s: rec_no=%05d ts=%s fpos_iframe=0x%010llx(%011llu) iframe_size=%lu\n", 
+             tag, rec_no, ts, rec->filepos_iframe, rec->filepos_iframe, rec->iframe_size);
+   }
+   else {
+      printf("NDXREC: rec_no=%05d ts=%s fpos_iframe=0x%010llx(%011llu) iframe_size=%lu\n", 
+             rec_no, ts, rec->filepos_iframe, rec->filepos_iframe, rec->iframe_size);
+   }
+   free(ts);
    return;
 }
 
