@@ -538,6 +538,11 @@ mythtv_pending(mvp_widget_t *widget)
 {
 	int err, i, count;
 	char *title, *subtitle;
+	time_t t, rec_t;
+	struct tm *tm, rec_tm;
+
+	t = time(NULL);
+	tm = localtime(&t);
 
 	mvpw_set_text_str(mythtv_channel, "");
 	mvpw_set_text_str(mythtv_date, "");
@@ -572,18 +577,13 @@ mythtv_pending(mvp_widget_t *widget)
 	count = cmyth_proglist_get_count(pending_plist);
 	printf("found %d pending recordings\n", count);
 	for (i = 0; i < count; ++i) {
-		cmyth_timestamp_t ts;
+		cmyth_timestamp_t ts, te;
 		cmyth_proginfo_rec_status_t status;
-		int month, day, hour, minute;
+		int year, month, day, hour, minute;
 		char type;
-		char start[256];
+		char start[256], end[256];
 		char buf[256];
 		char *ptr;
-
-		/*
-		 * XXX: probably should not display pending recordings which
-		 *      are in the past
-		 */
 
 		if (pending_prog)
 			cmyth_proginfo_release(pending_prog);
@@ -595,7 +595,38 @@ mythtv_pending(mvp_widget_t *widget)
 		ts = cmyth_proginfo_rec_start(pending_prog);
 		cmyth_timestamp_to_string(start, ts);
 
+		te = cmyth_proginfo_rec_end(pending_prog);
+		cmyth_timestamp_to_string(end, te);
+
 		status = cmyth_proginfo_rec_status(pending_prog);
+
+		year = atoi(end);
+		ptr = strchr(end, '-');
+		month = atoi(++ptr);
+		ptr = strchr(ptr, '-');
+		day = atoi(++ptr);
+		ptr = strchr(ptr, 'T');
+		hour = atoi(++ptr);
+		ptr = strchr(ptr, ':');
+		minute = atoi(++ptr);
+
+		rec_tm.tm_year = year - 1900;
+		rec_tm.tm_mon = month - 1;
+		rec_tm.tm_mday = day;
+		rec_tm.tm_hour = hour;
+		rec_tm.tm_min = minute;
+		rec_tm.tm_sec = 0;
+		rec_tm.tm_wday = 0;
+		rec_tm.tm_yday = 0;
+		rec_tm.tm_isdst = -1;
+
+		rec_t = mktime(&rec_tm);
+
+		/*
+		 * If the recording ends in the past, don't show it.
+		 */
+		if (rec_t < t)
+			continue;
 
 		switch (status) {
 		case RS_RECORDING:

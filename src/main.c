@@ -29,6 +29,7 @@
 #include <pthread.h>
 #include <sys/select.h>
 #include <fcntl.h>
+#include <time.h>
 
 #include <mvp_widget.h>
 #include <mvp_av.h>
@@ -206,6 +207,8 @@ main(int argc, char **argv)
 
 	for (i=0; i<argc; i++)
 		saved_argv[i] = strdup(argv[i]);
+
+	tzset();
 
 	while ((c=getopt(argc, argv, "a:f:hi:m:Mo:r:R:s:")) != -1) {
 		switch (c) {
