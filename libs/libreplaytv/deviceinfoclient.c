@@ -210,7 +210,8 @@ int rtv_get_device_info(const char *address, rtv_device_info_t *devinfo )
    int            rc;
 
    rtv_free_device_info(devinfo);
-   devinfo->ipaddr = malloc(sizeof(*address));
+   devinfo->ipaddr = malloc(strlen(address) + 1);
+
    strcpy(devinfo->ipaddr, address);
 
    parser = XML_ParserCreate("US-ASCII");

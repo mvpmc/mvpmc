@@ -285,35 +285,35 @@ static int parse_show(replay_show_t *show_rec, rtv_show_export_t *sh)
    
    // Process the record's description buffer
    //
-   sh->title = malloc(show_rec->programInfo.titleLen);
+   sh->title = malloc(show_rec->programInfo.titleLen + 1);
    strncpy(sh->title, convertCodepage(bufptr), show_rec->programInfo.titleLen);
    bufptr += show_rec->programInfo.titleLen;
 
-   sh->episode = malloc(show_rec->programInfo.episodeLen);
+   sh->episode = malloc(show_rec->programInfo.episodeLen + 1);
    strncpy(sh->episode, convertCodepage(bufptr), show_rec->programInfo.episodeLen);
    bufptr += show_rec->programInfo.episodeLen;
    
-   sh->description = malloc(show_rec->programInfo.descriptionLen);
+   sh->description = malloc(show_rec->programInfo.descriptionLen + 1);
    strncpy(sh->description, convertCodepage(bufptr), show_rec->programInfo.descriptionLen);
    bufptr += show_rec->programInfo.descriptionLen;
     
-   sh->actors = malloc(show_rec->programInfo.actorLen);
+   sh->actors = malloc(show_rec->programInfo.actorLen + 1);
    strncpy(sh->actors, convertCodepage(bufptr), show_rec->programInfo.actorLen);
    bufptr += show_rec->programInfo.actorLen;
    
-   sh->guest = malloc(show_rec->programInfo.guestLen);
+   sh->guest = malloc(show_rec->programInfo.guestLen + 1);
    strncpy(sh->guest, convertCodepage(bufptr), show_rec->programInfo.guestLen);
    bufptr += show_rec->programInfo.guestLen;
   
-   sh->suzuki = malloc(show_rec->programInfo.suzukiLen);
+   sh->suzuki = malloc(show_rec->programInfo.suzukiLen + 1);
    strncpy(sh->suzuki, convertCodepage(bufptr), show_rec->programInfo.suzukiLen);
    bufptr += show_rec->programInfo.suzukiLen;
    
-   sh->producer = malloc(show_rec->programInfo.producerLen);
+   sh->producer = malloc(show_rec->programInfo.producerLen + 1);
    strncpy(sh->producer, convertCodepage(bufptr), show_rec->programInfo.producerLen);
    bufptr += show_rec->programInfo.producerLen;
    
-   sh->director = malloc(show_rec->programInfo.directorLen);
+   sh->director = malloc(show_rec->programInfo.directorLen + 1);
    strncpy(sh->director, convertCodepage(bufptr), show_rec->programInfo.directorLen);
    bufptr += show_rec->programInfo.directorLen;
 
