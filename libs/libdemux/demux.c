@@ -372,6 +372,18 @@ demux_attr_reset(demux_handle_t *handle)
 		handle->attr.spu[i].frames = 0;
 	}
 
+	if (handle->video) {
+		handle->video->attr->existing = 0;
+		handle->video->attr->current = -1;
+		handle->video->attr->stats.cur_bytes = 0;
+	}
+
+	if (handle->audio) {
+		handle->audio->attr->existing = 0;
+		handle->audio->attr->current = -1;
+		handle->audio->attr->stats.cur_bytes = 0;
+	}
+
 	return 0;
 }
 
@@ -386,10 +398,6 @@ demux_reset(demux_handle_t *handle)
 
 		handle->video->head = 0;
 		handle->video->tail = handle->video->size - 1;
-		handle->video->attr->stats.cur_bytes = 0;
-
-		handle->video->attr->existing = 0;
-		handle->video->attr->current = -1;
 	}
 
 	if (handle->audio) {
@@ -399,10 +407,6 @@ demux_reset(demux_handle_t *handle)
 		handle->audio->buf = handle->video->buf + handle->video->size;
 		handle->audio->head = 0;
 		handle->audio->tail = handle->audio->size - 1;
-		handle->audio->attr->stats.cur_bytes = 0;
-
-		handle->audio->attr->existing = 0;
-		handle->audio->attr->current = -1;
 	}
 
 	for (i=0; i<SPU_MAX; i++) {
