@@ -1429,7 +1429,7 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 	/*
 	 * Get proginfo_rec_status (ulong)
 	 */
-	consumed = cmyth_rcv_ulong(conn, err, &buf->proginfo_rec_status, count);
+	consumed = cmyth_rcv_long(conn, err, &buf->proginfo_rec_status, count);
 	count -= consumed;
 	total += consumed;
 	if (*err) {

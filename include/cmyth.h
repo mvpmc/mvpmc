@@ -143,6 +143,8 @@ extern cmyth_recorder_t cmyth_conn_get_recorder_from_num(cmyth_conn_t conn,
 extern cmyth_recorder_t cmyth_conn_get_free_recorder(cmyth_conn_t conn,
 													 cmyth_recorder_t rec);
 
+extern int cmyth_conn_get_freespace(cmyth_conn_t control,
+				    unsigned int *total, unsigned int *used);
 /*
  * -----------------------------------------------------------------
  * Recorder Operations
@@ -344,6 +346,25 @@ extern void cmyth_posmap_release(cmyth_posmap_t p);
  * -----------------------------------------------------------------
  */
 
+typedef enum {
+	RS_DELETED = -5,
+	RS_STOPPED = -4,
+	RS_RECORDED = -3,
+	RS_RECORDING = -2,
+	RS_WILL_RECORD = -1,
+	RS_DONT_RECORD = 1,
+	RS_PREVIOUS_RECORDING = 2,
+	RS_CURRENT_RECORDING = 3,
+	RS_EARLIER_RECORDING = 4,
+	RS_TOO_MANY_RECORDINGS = 5,
+	RS_CANCELLED = 6,
+	RS_CONFLICT = 7,
+	RS_LATER_SHOWING = 8,
+	RS_REPEAT = 9,
+	RS_LOW_DISKSPACE = 11,
+	RS_TUNER_BUSY = 12,
+} cmyth_proginfo_rec_status_t;
+
 extern cmyth_proginfo_t cmyth_proginfo_create(void);
 
 extern cmyth_proginfo_t cmyth_proginfo_hold(cmyth_proginfo_t p);
@@ -399,6 +420,8 @@ extern cmyth_timestamp_t cmyth_proginfo_rec_start(cmyth_proginfo_t prog);
 extern cmyth_timestamp_t cmyth_proginfo_rec_end(cmyth_proginfo_t prog);
 
 extern cmyth_timestamp_t cmyth_proginfo_originalairdate(cmyth_proginfo_t prog);
+
+extern int cmyth_proginfo_rec_status(cmyth_proginfo_t prog);
 /*
  * -----------------------------------------------------------------
  * Program List Operations

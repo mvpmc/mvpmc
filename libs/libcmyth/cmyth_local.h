@@ -229,7 +229,7 @@ struct cmyth_proginfo {
 	long proginfo_card_id;   /* ??? in V8 */
 	long proginfo_input_id;  /* ??? in V8 */
 	char *proginfo_rec_priority;  /* ??? in V8 */
-	unsigned long proginfo_rec_status; /* ??? in V8 */
+	long proginfo_rec_status; /* ??? in V8 */
 	unsigned long proginfo_record_id;  /* ??? in V8 */
 	unsigned long proginfo_rec_type;   /* ??? in V8 */
 	unsigned long proginfo_rec_dups;   /* ??? in V8 */

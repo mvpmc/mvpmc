@@ -187,9 +187,6 @@ cmyth_proginfo_destroy(cmyth_proginfo_t p)
 	if (p->proginfo_unknown_0) {
 		free(p->proginfo_unknown_0);
 	}
-	if (p->proginfo_hostname) {
-		free(p->proginfo_hostname);
-	}
 	if (p->proginfo_rec_priority) {
 		free(p->proginfo_rec_priority);
 	}
@@ -241,6 +238,10 @@ cmyth_proginfo_destroy(cmyth_proginfo_t p)
 	if (p->proginfo_chancommfree) {
 		free(p->proginfo_chancommfree);
 	}
+
+	memset(p, 0, sizeof(*p));
+
+	free(p);
 }
 
 /*
@@ -368,7 +369,6 @@ delete_command(cmyth_conn_t control, cmyth_proginfo_t prog, char *cmd)
 	char rec_end_ts[CMYTH_TIMESTAMP_LEN + 1];
 	char originalairdate[CMYTH_TIMESTAMP_LEN + 1];
 	char lastmodified[CMYTH_TIMESTAMP_LEN + 1];
-	char msg[128];
 	int err;
 	int count;
 	long r;
@@ -401,7 +401,7 @@ delete_command(cmyth_conn_t control, cmyth_proginfo_t prog, char *cmd)
 	cmyth_timestamp_to_string(originalairdate, prog->proginfo_originalairdate);
 	cmyth_timestamp_to_string(lastmodified, prog->proginfo_lastmodified);
 
-	if (control->conn_version >= 13) {
+	if (control->conn_version >= 12) {
 		sprintf(ret,
 			"%s 0[]:[]"
 			"%s[]:[]%s[]:[]%s[]:[]%s[]:[]%ld[]:[]"
@@ -634,12 +634,12 @@ cmyth_proginfo_string(cmyth_proginfo_t prog)
 		sprintf(ret,
 				"%s[]:[]%s[]:[]%s[]:[]%s[]:[]%ld[]:[]"
 				"%s[]:[]%s[]:[]%s[]:[]%s[]:[]"
-				"%lld[]:[]%s[]:[]%s[]:[]%s[]:[]%ld[]:[]"
+				"%lld[]:[]%lld[]:[]%s[]:[]%s[]:[]%s[]:[]"
+				"%ld[]:[]%ld[]:[]%s[]:[]%ld[]:[]%ld[]:[]"
 				"%ld[]:[]%s[]:[]%ld[]:[]%ld[]:[]%ld[]:[]"
-				"%s[]:[]%ld[]:[]%ld[]:[]%ld[]:[]%ld[]:[]"
-				"%ld[]:[]%s[]:[]%s[]:[]%ld[]:[]%ld[]:[]"
-				"%s[]:[]%s[]:[]%s[]:[]%s[]:[]"
-				"%s[]:[]%s[]:[]%s[]:[]%s[]:[]",
+				"%ld[]:[]%ld[]:[]%s[]:[]%s[]:[]%ld[]:[]"
+				"%ld[]:[]%s[]:[]%s[]:[]%s[]:[]"
+				"%s[]:[]%s[]:[]%s[]:[]%s[]:[]%s[]:[]",
 				prog->proginfo_title,
 				prog->proginfo_subtitle,
 				prog->proginfo_description,
@@ -796,7 +796,7 @@ cmyth_chaninfo_string(cmyth_proginfo_t prog)
 	len += strlen(prog->proginfo_channame);
 	len += strlen(prog->proginfo_url);
 
-	ret = malloc(len + 1);
+	ret = malloc(len + 1 +2048);
 	if (!ret) {
 		return NULL;
 	}
@@ -1168,4 +1168,13 @@ cmyth_proginfo_rec_end(cmyth_proginfo_t prog)
 		return NULL;
 	}
 	return cmyth_timestamp_hold(prog->proginfo_rec_end_ts);
+}
+
+int
+cmyth_proginfo_rec_status(cmyth_proginfo_t prog)
+{
+	if (!prog) {
+		return 0;
+	}
+	return prog->proginfo_rec_status;
 }

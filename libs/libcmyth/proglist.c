@@ -29,6 +29,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <errno.h>
+#include <string.h>
 #include <cmyth.h>
 #include <cmyth_local.h>
 
@@ -91,6 +92,7 @@ cmyth_proglist_destroy(cmyth_proglist_t pl)
 		pl->proglist_list[i] = NULL;
 	}
 	pl->proglist_count = 0;
+	memset(pl, 0, sizeof(*pl));
 	free(pl);
 }
 
@@ -268,6 +270,17 @@ cmyth_proglist_get_list(cmyth_conn_t conn,
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_rcv_length() failed (%d)\n",
 				  func, count);
 		return count;
+	}
+	if (strcmp(msg, "QUERY_GETALLPENDING") == 0) {
+		long c;
+		int r;
+		if ((r=cmyth_rcv_long(conn, &err, &c, count)) < 0) {
+			cmyth_dbg(CMYTH_DBG_ERROR,
+				  "%s: cmyth_rcv_length() failed (%d)\n",
+				  __FUNCTION__, r);
+			return err;
+		}
+		count -= r;
 	}
 	if (cmyth_rcv_proglist(conn, &err, proglist, count) != count) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_rcv_proglist() < count\n",
