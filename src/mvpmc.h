@@ -49,6 +49,7 @@ extern mvp_widget_t *mythtv_logo;
 extern mvp_widget_t *mythtv_date;
 extern mvp_widget_t *mythtv_description;
 extern mvp_widget_t *mythtv_channel;
+extern mvp_widget_t *mythtv_record;
 extern mvp_widget_t *root;
 extern mvp_widget_t *iw;
 extern mvp_widget_t *pause_widget;
@@ -63,6 +64,7 @@ extern mvp_widget_t *spu_widget;
 
 extern mvp_widget_t *episodes_widget;
 extern mvp_widget_t *shows_widget;
+extern mvp_widget_t *freespace_widget;
 
 extern mvp_widget_t *popup_menu;
 

@@ -88,6 +88,13 @@ static mvpw_menu_item_attr_t item_attr = {
 	.checkbox_fg = MVPW_GREEN,
 };
 
+static mvpw_menu_item_attr_t myth_menu_item_attr = {
+	.selectable = 1,
+	.fg = MVPW_WHITE,
+	.bg = 0,
+	.checkbox_fg = MVPW_GREEN,
+};
+
 static mvpw_menu_item_attr_t settings_item_attr = {
 	.selectable = 1,
 	.fg = MVPW_BLACK,
@@ -209,10 +216,12 @@ static mvp_widget_t *exit_image;
 mvp_widget_t *file_browser;
 mvp_widget_t *replaytv_browser;
 mvp_widget_t *mythtv_browser;
+mvp_widget_t *mythtv_menu;
 mvp_widget_t *mythtv_logo;
 mvp_widget_t *mythtv_date;
 mvp_widget_t *mythtv_description;
 mvp_widget_t *mythtv_channel;
+mvp_widget_t *mythtv_record;
 mvp_widget_t *mythtv_popup;
 mvp_widget_t *mythtv_info;
 mvp_widget_t *pause_widget;
@@ -228,6 +237,7 @@ mvp_widget_t *spu_widget;
 
 mvp_widget_t *shows_widget;
 mvp_widget_t *episodes_widget;
+mvp_widget_t *freespace_widget;
 
 mvp_widget_t *popup_menu;
 mvp_widget_t *audio_stream_menu;
@@ -381,6 +391,7 @@ hide_widgets(void)
 	mvpw_hide(mythtv_channel);
 	mvpw_hide(mythtv_date);
 	mvpw_hide(mythtv_description);
+	mvpw_hide(mythtv_record);
 	mvpw_hide(about);
 	mvpw_hide(settings);
 	mvpw_hide(sub_settings);
@@ -394,6 +405,7 @@ hide_widgets(void)
 	mvpw_hide(fb_image);
 	mvpw_hide(shows_widget);
 	mvpw_hide(episodes_widget);
+	mvpw_hide(freespace_widget);
 
 	if (spu_widget) {
 		mvpw_hide(spu_widget);
@@ -419,6 +431,33 @@ main_menu_callback(mvp_widget_t *widget, char key)
 {
 	if (key == 'P')
 		power_toggle();
+}
+
+static void
+mythtv_menu_callback(mvp_widget_t *widget, char key)
+{
+	if (key == 'P')
+		power_toggle();
+
+	if (key == 'E') {
+		mvpw_hide(mythtv_browser);
+		mvpw_hide(mythtv_menu);
+		mvpw_hide(mythtv_logo);
+		mvpw_hide(mythtv_channel);
+		mvpw_hide(mythtv_date);
+		mvpw_hide(mythtv_description);
+		mvpw_hide(mythtv_record);
+		mvpw_hide(shows_widget);
+		mvpw_hide(episodes_widget);
+		mvpw_hide(freespace_widget);
+
+		mythtv_cleanup();
+
+		mvpw_show(mythtv_image);
+		mvpw_show(main_menu);
+		mvpw_show(mvpmc_logo);
+		mvpw_focus(main_menu);
+	}
 }
 
 static void
@@ -594,8 +633,10 @@ mythtv_key_callback(mvp_widget_t *widget, char key)
 			mvpw_hide(mythtv_channel);
 			mvpw_hide(mythtv_date);
 			mvpw_hide(mythtv_description);
+			mvpw_hide(mythtv_record);
 			mvpw_hide(shows_widget);
 			mvpw_hide(episodes_widget);
+			mvpw_hide(freespace_widget);
 
 			mvpw_show(mythtv_image);
 			mvpw_show(main_menu);
@@ -897,6 +938,29 @@ settings_init(void)
 	return 0;
 }
 
+static void
+myth_menu_select_callback(mvp_widget_t *widget, char *item, void *key)
+{
+	int which = (int)key;
+
+	switch (which) {
+	case 0:
+		mythtv_update(mythtv_browser);
+		mvpw_show(mythtv_browser);
+
+		mvpw_hide(mythtv_menu);
+		mvpw_focus(mythtv_browser);
+		break;
+	case 1:
+		mythtv_pending(mythtv_browser);
+		mvpw_show(mythtv_browser);
+
+		mvpw_hide(mythtv_menu);
+		mvpw_focus(mythtv_browser);
+		break;
+	}
+}
+
 static int
 myth_browser_init(void)
 {
@@ -911,6 +975,21 @@ myth_browser_init(void)
 	mythtv_logo = mvpw_create_image(NULL, 50, 25, iid.width, iid.height,
 				       0, 0, 0);
 	mvpw_set_image(mythtv_logo, file);
+
+	mythtv_menu = mvpw_create_menu(NULL, 50+iid.width, 25,
+				       si.cols-120-iid.width, si.rows-190,
+				       MVPW_BLACK, 0, 0);
+	attr.font = fontid;
+	mvpw_set_menu_attr(mythtv_menu, &attr);
+
+	myth_menu_item_attr.select = myth_menu_select_callback;
+
+	mvpw_add_menu_item(mythtv_menu, "Watch Recordings",
+			   (void*)0, &myth_menu_item_attr);
+	mvpw_add_menu_item(mythtv_menu, "Upcoming Recordings",
+			   (void*)1, &myth_menu_item_attr);
+
+	mvpw_set_key(mythtv_menu, mythtv_menu_callback);
 
 	mythtv_browser = mvpw_create_menu(NULL, 50, 30,
 					  si.cols-120-iid.width, si.rows-190,
@@ -933,10 +1012,13 @@ myth_browser_init(void)
 				       MVPW_BLACK, 0, 0);
 	mythtv_description = mvpw_create_text(NULL, 0, 0, 350, h*3,
 					      MVPW_BLACK, 0, 0);
+	mythtv_record = mvpw_create_text(NULL, 0, 0, 350, h,
+					 MVPW_BLACK, 0, 0);
 
 	mvpw_set_text_attr(mythtv_channel, &description_attr);
 	mvpw_set_text_attr(mythtv_date, &description_attr);
 	mvpw_set_text_attr(mythtv_description, &description_attr);
+	mvpw_set_text_attr(mythtv_record, &description_attr);
 
 	mvpw_get_widget_info(mythtv_logo, &wid);
 	mvpw_get_widget_info(mythtv_browser, &wid2);
@@ -946,6 +1028,8 @@ myth_browser_init(void)
 	mvpw_get_widget_info(mythtv_date, &wid2);
 	mvpw_moveto(mythtv_description, wid.x, wid2.y+wid2.h);
 
+	mvpw_attach(mythtv_channel, mythtv_record, MVPW_DIR_RIGHT);
+
 	/*
 	 * MythTV menu info
 	 */
@@ -954,10 +1038,14 @@ myth_browser_init(void)
 					300, h, 0x80000000, 0, 0);
 	episodes_widget = mvpw_create_text(NULL, 50, 80,
 					   300, h, 0x80000000, 0, 0);
+	freespace_widget = mvpw_create_text(NULL, 50, 80,
+					    300, h, 0x80000000, 0, 0);
 	mvpw_set_text_attr(shows_widget, &description_attr);
 	mvpw_set_text_attr(episodes_widget, &description_attr);
+	mvpw_set_text_attr(freespace_widget, &description_attr);
 
 	mvpw_attach(shows_widget, episodes_widget, MVPW_DIR_DOWN);
+	mvpw_attach(episodes_widget, freespace_widget, MVPW_DIR_DOWN);
 
 	/*
 	 * mythtv popup menu
@@ -992,6 +1080,7 @@ myth_browser_init(void)
 	mvpw_set_text_attr(mythtv_info, &mythtv_info_attr);
 
 	mvpw_raise(mythtv_browser);
+	mvpw_raise(mythtv_menu);
 	mvpw_raise(mythtv_popup);
 	mvpw_raise(mythtv_info);
 
@@ -1058,10 +1147,9 @@ main_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mvpw_hide(mvpmc_logo);
 		mvpw_hide(mythtv_image);
 
-		mythtv_update(mythtv_browser);
-
 		mvpw_show(mythtv_logo);
-		mvpw_show(mythtv_browser);
+		mvpw_show(mythtv_menu);
+		mvpw_focus(mythtv_menu);
 		break;
 	case MM_REPLAYTV:
 		mvpw_hide(main_menu);

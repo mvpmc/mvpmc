@@ -62,8 +62,9 @@ static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 static cmyth_conn_t control;
 static cmyth_proginfo_t current_prog;
 static cmyth_proglist_t episode_plist;
+static cmyth_proglist_t pending_plist;
 static cmyth_proginfo_t episode_prog;
-static char *titles[1024];
+static cmyth_proginfo_t pending_prog;
 static char *pathname = NULL;
 static char program_name[256];
 
@@ -351,10 +352,18 @@ hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 
 	mvpw_hide(shows_widget);
 	mvpw_hide(episodes_widget);
+	mvpw_hide(freespace_widget);
 
 	if (hilite) {
 		cmyth_timestamp_t ts;
 		char start[256], end[256], str[256], *ptr;
+
+		mvpw_show(mythtv_channel);
+		mvpw_show(mythtv_date);
+		mvpw_show(mythtv_description);
+
+		if (current_prog)
+			cmyth_proginfo_release(current_prog);
 
 		current_prog = cmyth_proglist_get_item(episode_plist,
 						       (int)key);
@@ -446,8 +455,10 @@ show_select_callback(mvp_widget_t *widget, char *item, void *key)
 	mvpw_hide(mythtv_channel);
 	mvpw_hide(mythtv_date);
 	mvpw_hide(mythtv_description);
+	mvpw_hide(mythtv_record);
 	mvpw_hide(shows_widget);
 	mvpw_hide(episodes_widget);
+	mvpw_hide(freespace_widget);
 
 	mvpw_hide(widget);
 	av_move(0, 0, 0);
@@ -472,6 +483,9 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 
 	mvpw_clear_menu(widget);
 
+	if (episode_plist)
+		cmyth_proglist_release(episode_plist);
+
 	if ((episode_plist=cmyth_proglist_create()) == NULL) {
 		fprintf(stderr, "cannot get program list\n");
 		return;
@@ -485,6 +499,9 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 	count = cmyth_proglist_get_count(episode_plist);
 	for (i = 0; i < count; ++i) {
 		char full[256];
+
+		if (episode_prog)
+			cmyth_proginfo_release(episode_prog);
 
 		if (strcmp(item, "All - Newest first") == 0)
 			episode_prog = cmyth_proglist_get_item(episode_plist,
@@ -530,6 +547,7 @@ add_shows(mvp_widget_t *widget)
 	int err, count;
 	int i, j, n = 0;
 	const char *title;
+	char *titles[1024];
 
 	item_attr.select = select_callback;
 	item_attr.hilite = NULL;
@@ -541,7 +559,7 @@ add_shows(mvp_widget_t *widget)
 
 	if ((err=cmyth_proglist_get_all_recorded(control, plist)) < 0) {
 		fprintf(stderr, "get recorded failed, err %d\n", err);
-		return;
+		goto out;
 	}
 
 	count = cmyth_proglist_get_count(plist);
@@ -555,6 +573,7 @@ add_shows(mvp_widget_t *widget)
 			titles[n] = title;
 			n++;
 		}
+		cmyth_proginfo_release(prog);
 	}
 
 	episode_count = count;
@@ -568,6 +587,7 @@ add_shows(mvp_widget_t *widget)
 	for (i=0; i<n; i++)
 		mvpw_add_menu_item(widget, titles[i], (void*)n+2, &item_attr);
 
+ out:
 	cmyth_proglist_release(plist);
 }
 
@@ -575,6 +595,7 @@ int
 mythtv_update(mvp_widget_t *widget)
 {
 	char buf[64];
+	unsigned int total, used;
 
 	running_mythtv = 1;
 
@@ -599,12 +620,21 @@ mythtv_update(mvp_widget_t *widget)
 	snprintf(buf, sizeof(buf), "Total episodes: %d", episode_count);
 	mvpw_set_text_str(episodes_widget, buf);
 
+	if (cmyth_conn_get_freespace(control, &total, &used) == 0) {
+		snprintf(buf, sizeof(buf), "Diskspace: %d/%d  %5.2f%%",
+			 used, total, ((float)used/total)*100.0);
+		mvpw_set_text_str(freespace_widget, buf);
+	}
+
+#if 0
 	mvpw_show(mythtv_channel);
 	mvpw_show(mythtv_date);
 	mvpw_show(mythtv_description);
+#endif
 
 	mvpw_show(shows_widget);
 	mvpw_show(episodes_widget);
+	mvpw_show(freespace_widget);
 
 	return 0;
 }
@@ -622,6 +652,7 @@ mythtv_back(mvp_widget_t *widget)
 
 	mvpw_show(shows_widget);
 	mvpw_show(episodes_widget);
+	mvpw_show(freespace_widget);
 
 	if (mythtv_level == 0) {
 		running_mythtv = 0;
@@ -635,6 +666,190 @@ mythtv_back(mvp_widget_t *widget)
 	mythtv_update(widget);
 
 	return -1;
+}
+
+static void
+pending_hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
+{
+	int n = (int)key;
+
+	if (hilite) {
+		char start[256], end[256], str[256];
+		char *description, *channame, *ptr;
+		cmyth_timestamp_t ts;
+		cmyth_proginfo_rec_status_t status;
+
+		if (pending_prog)
+			cmyth_proginfo_release(pending_prog);
+
+		pending_prog = cmyth_proglist_get_item(pending_plist, n);
+
+		status = cmyth_proginfo_rec_status(pending_prog);
+		description = cmyth_proginfo_description(pending_prog);
+		channame = cmyth_proginfo_channame(pending_prog);
+		ts = cmyth_proginfo_rec_start(pending_prog);
+		cmyth_timestamp_to_string(start, ts);
+		ts = cmyth_proginfo_rec_end(pending_prog);
+		cmyth_timestamp_to_string(end, ts);
+
+		ptr = strchr(start, 'T');
+		*ptr = '\0';
+		sprintf(str, "%s %s - ", start, ptr+1);
+		ptr = strchr(end, 'T');
+		*ptr = '\0';
+		strcat(str, ptr+1);
+
+		switch (status) {
+		case RS_RECORDING:
+			ptr = "Recording";
+			break;
+		case RS_WILL_RECORD:
+			ptr = "Will Record";
+			break;
+		case RS_CONFLICT:
+			ptr = "Conflict";
+			break;
+		case RS_DONT_RECORD:
+			ptr = "Don't Record";
+			break;
+		case RS_TOO_MANY_RECORDINGS:
+			ptr = "Too Many Recordings";
+			break;
+		case RS_PREVIOUS_RECORDING:
+			ptr = "Previous Recording";
+			break;
+		default:
+			ptr = "";
+			break;
+		}
+
+		mvpw_set_text_str(mythtv_description, description);
+		mvpw_set_text_str(mythtv_channel, channame);
+		mvpw_set_text_str(mythtv_date, str);
+		mvpw_set_text_str(mythtv_record, ptr);
+
+		mvpw_expose(mythtv_description);
+		mvpw_expose(mythtv_channel);
+		mvpw_expose(mythtv_date);
+		mvpw_expose(mythtv_record);
+	}
+}
+
+int
+mythtv_pending(mvp_widget_t *widget)
+{
+	int err, i, count;
+	char *title, *subtitle;
+
+	mvpw_set_text_str(mythtv_channel, "");
+	mvpw_set_text_str(mythtv_date, "");
+	mvpw_set_text_str(mythtv_description, "");
+
+	mvpw_show(mythtv_channel);
+	mvpw_show(mythtv_date);
+	mvpw_show(mythtv_description);
+	mvpw_show(mythtv_record);
+
+	mvpw_set_menu_title(widget, "Recording Schedule");
+	mvpw_clear_menu(widget);
+
+	if (pending_plist)
+		cmyth_proglist_release(pending_plist);
+
+	if ((pending_plist=cmyth_proglist_create()) == NULL) {
+		fprintf(stderr, "cannot get program list\n");
+		return -1;
+	}
+
+	if ((err=cmyth_proglist_get_all_pending(control, pending_plist)) < 0) {
+		fprintf(stderr, "get pending failed, err %d\n", err);
+		return -1;
+	}
+
+	item_attr.select = NULL;
+	item_attr.hilite = pending_hilite_callback;
+
+	item_attr.bg = MVPW_BLACK;
+
+	count = cmyth_proglist_get_count(pending_plist);
+	printf("found %d pending recordings\n", count);
+	for (i = 0; i < count; ++i) {
+		cmyth_timestamp_t ts;
+		cmyth_proginfo_rec_status_t status;
+		int month, day, hour, minute;
+		char type;
+		char start[256];
+		char buf[256];
+		char *ptr;
+
+		/*
+		 * XXX: probably should not display pending recordings which
+		 *      are in the past
+		 */
+
+		if (pending_prog)
+			cmyth_proginfo_release(pending_prog);
+
+		pending_prog = cmyth_proglist_get_item(pending_plist, i);
+		title = cmyth_proginfo_title(pending_prog);
+		subtitle = cmyth_proginfo_subtitle(pending_prog);
+
+		ts = cmyth_proginfo_rec_start(pending_prog);
+		cmyth_timestamp_to_string(start, ts);
+
+		status = cmyth_proginfo_rec_status(pending_prog);
+
+		switch (status) {
+		case RS_RECORDING:
+			item_attr.fg = MVPW_ORANGE;
+			type = '1';
+			break;
+		case RS_WILL_RECORD:
+			item_attr.fg = MVPW_GREEN;
+			type = '1';
+			break;
+		case RS_CONFLICT:
+			item_attr.fg = MVPW_YELLOW;
+			type = 'C';
+			break;
+		case RS_DONT_RECORD:
+			item_attr.fg = MVPW_LIGHTGREY;
+			type = 'X';
+			break;
+		case RS_TOO_MANY_RECORDINGS:
+			item_attr.fg = MVPW_LIGHTGREY;
+			type = 'T';
+			break;
+		case RS_PREVIOUS_RECORDING:
+			item_attr.fg = MVPW_LIGHTGREY;
+			type = 'P';
+			break;
+		default:
+			item_attr.fg = MVPW_LIGHTGREY;
+			type = '?';
+			break;
+		}
+
+		ptr = strchr(start, '-');
+		month = atoi(++ptr);
+		ptr = strchr(ptr, '-');
+		day = atoi(++ptr);
+		ptr = strchr(ptr, 'T');
+		hour = atoi(++ptr);
+		ptr = strchr(ptr, ':');
+		minute = atoi(++ptr);
+
+		snprintf(buf, sizeof(buf),
+			 "%.2d/%.2d  %.2d:%.2d   %c   %s  -  %s",
+			 month, day, hour, minute, type, title, subtitle);
+
+		mvpw_add_menu_item(widget, buf, (void*)i, &item_attr);
+	}
+
+	item_attr.fg = MVPW_BLACK;
+	item_attr.bg = MVPW_LIGHTGREY;
+
+	return 0;
 }
 
 static void*
@@ -761,4 +976,19 @@ mythtv_proginfo(char *buf, int size)
 		 cmyth_proginfo_stars(current_prog));
 
 	return 0;
+}
+
+void
+mythtv_cleanup(void)
+{
+	printf("cleanup mythtv data structures\n");
+
+	if (pending_plist) {
+		cmyth_proglist_release(pending_plist);
+		pending_plist = NULL;
+	}
+	if (episode_plist) {
+		cmyth_proglist_release(episode_plist);
+		episode_plist = NULL;
+	}
 }
