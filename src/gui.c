@@ -1043,7 +1043,9 @@ main_select_callback(mvp_widget_t *widget, char *item, void *key)
 
 	switch (k) {
 	case MM_EXIT:
+#ifndef MVPMC_HOST
 		system("/sbin/reboot");
+#endif
 		exit(0);
 		break;
 	case MM_FILESYSTEM:
@@ -1243,8 +1245,13 @@ main_menu_init(char *server, char *replaytv)
 			   (void*)MM_SETTINGS, &item_attr);
 	mvpw_add_menu_item(main_menu, "About",
 			   (void*)MM_ABOUT, &item_attr);
+#ifdef MVPMC_HOST
+	mvpw_add_menu_item(main_menu, "Exit",
+			   (void*)MM_EXIT, &item_attr);
+#else
 	mvpw_add_menu_item(main_menu, "Reboot",
 			   (void*)MM_EXIT, &item_attr);
+#endif
 
 	mvpw_set_key(main_menu, main_menu_callback);
 

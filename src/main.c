@@ -275,7 +275,9 @@ main(int argc, char **argv)
 		}
 	}
 
+#ifndef MVPMC_HOST
 	spawn_child();
+#endif
 
 	if (font)
 		fontid = mvpw_load_font(font);
