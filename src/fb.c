@@ -158,6 +158,11 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 		} else if (is_image(item)) {
 			mvpw_hide(widget);
 			mvpw_focus(iw);
+		} else if (is_playlist(item)) {
+			mvpw_hide(widget);
+			printf("Show playlist menu\n");
+			mvpw_show(playlist_widget);
+			mvpw_focus(playlist_widget);
 		}
 	}
 }
@@ -273,11 +278,11 @@ static void
 add_files(mvp_widget_t *fbw)
 {
 	char *wc[] = { "*.mpg", "*.mpeg", "*.mp3", "*.nuv", "*.vob", "*.gif",
-		       "*.bmp", "*.m3u", "*.jpg", "*.jpeg", "*.png", "*.wav", "*.ac3",
-	           "*.ogg", NULL };
+		       "*.bmp", "*.m3u", "*.jpg", "*.jpeg", "*.png", "*.wav",
+		       "*.ac3", "*.ogg", NULL };
 	char *WC[] = { "*.MPG", "*.MPEG", "*.MP3", "*.NUV", "*.VOB", "*.GIF",
-		       "*.BMP", "*.M3U", "*.JPG", "*.JPEG", "*.PNG", "*.WAV", "*.AC3",
-	           "*.OGG", NULL };
+		       "*.BMP", "*.M3U", "*.JPG", "*.JPEG", "*.PNG", "*.WAV",
+		       "*.AC3", "*.OGG", NULL };
 
 	item_attr.select = select_callback;
 	item_attr.hilite = hilite_callback;

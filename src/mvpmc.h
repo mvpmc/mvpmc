@@ -59,7 +59,11 @@ typedef struct playlist_struct playlist_t;
 
 struct playlist_struct {
   char *filename;
+  char *name;
+  int seconds;
+  void *key;
   struct playlist_struct *next;
+  struct playlist_struct *prev;
 };
 
 extern volatile video_callback_t *video_functions;
@@ -102,6 +106,8 @@ extern mvp_widget_t *mythtv_osd_description;
 extern mvp_widget_t *clock_widget;
 extern mvp_widget_t *demux_video;
 extern mvp_widget_t *demux_audio;
+
+extern mvp_widget_t *playlist_widget;
 
 extern char *current;
 extern char *mythtv_recdir;

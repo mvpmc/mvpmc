@@ -262,6 +262,8 @@ mvp_widget_t *demux_audio;
 mvp_widget_t *screensaver;
 mvp_widget_t *screensaver_image;
 
+mvp_widget_t *playlist_widget;
+
 static int screensaver_enabled = 0;
 
 mvp_widget_t *focus_widget;
@@ -516,6 +518,36 @@ fb_key_callback(mvp_widget_t *widget, char key)
 }
 
 static void
+playlist_key_callback(mvp_widget_t *widget, char key)
+{
+	switch (key) {
+	case MVPW_KEY_EXIT:
+		mvpw_hide(widget);
+		mvpw_show(file_browser);
+		mvpw_focus(file_browser);
+		break;
+	case MVPW_KEY_SKIP:
+		audio_clear();
+		av_reset();
+		playlist_next();
+		break;
+	case MVPW_KEY_REPLAY:
+		audio_clear();
+		av_reset();
+		playlist_prev();
+		break;
+	case MVPW_KEY_STOP:
+		audio_clear();
+		av_reset();
+		playlist_stop();
+		break;
+	case MVPW_KEY_PAUSE:
+		av_pause();
+		break;
+	}
+}
+
+static void
 mythtv_popup_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
 	int which = (int)key;
@@ -681,6 +713,26 @@ file_browser_init(void)
 	mvpw_set_bg(file_browser, MVPW_LIGHTGREY);
 
 	mvpw_set_key(file_browser, fb_key_callback);
+
+	splash_update();
+
+	return 0;
+}
+
+static int
+playlist_init(void)
+{
+	playlist_widget = mvpw_create_menu(NULL, 50, 30,
+					   si.cols-120, si.rows-190,
+					   0xff808080, 0xff606060, 2);
+
+	fb_attr.font = fontid;
+	mvpw_set_menu_attr(playlist_widget, &fb_attr);
+
+	mvpw_set_menu_title(playlist_widget, "Playlist");
+	mvpw_set_bg(playlist_widget, MVPW_LIGHTGREY);
+
+	mvpw_set_key(playlist_widget, playlist_key_callback);
 
 	splash_update();
 
@@ -1722,6 +1774,7 @@ gui_init(char *server, char *replaytv)
 	osd_init();
 	replaytv_browser_init(); // must come after osd_init
 	popup_init();
+	playlist_init();
 	screensaver_init();
 
 	mvpw_destroy(splash);

@@ -31,6 +31,13 @@
 
 #include "mvpmc.h"
 
+static mvpw_menu_item_attr_t item_attr = {
+	.selectable = 1,
+	.fg = MVPW_BLACK,
+	.bg = MVPW_LIGHTGREY,
+	.checkbox_fg = MVPW_GREEN,
+};
+
 typedef enum {
 	PLAYLIST_FILE_UNKNOWN,
 	PLAYLIST_FILE_FILELIST
@@ -40,7 +47,24 @@ static char *playlist_current = NULL;
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_once_t init_control = PTHREAD_ONCE_INIT;
 
-playlist_t *playlist=NULL;
+playlist_t *playlist=NULL, *playlist_head = NULL;
+
+static void playlist_change(playlist_t *next);
+
+static void select_callback(mvp_widget_t *widget, char *item, void *key)
+{
+  playlist_t *pl = playlist_head;
+
+  while (pl) {
+    if (pl->key == key) {
+      audio_clear();
+      av_reset();
+      playlist_change(pl);
+      break;
+    }
+    pl = pl->next;
+  }
+}
 
 /* playlist_init sets up the pthreads mutex used by this module */
 static void playlist_init()
@@ -72,6 +96,7 @@ static void free_playlist()
 {
   pthread_once(&init_control,playlist_init);
   pthread_mutex_lock(&mutex);
+  playlist = playlist_head;
   while(playlist){
 	/*fprintf(stderr,"free playlist %x %x\n",playlist,playlist->next); */
 	playlist_t *p = playlist;
@@ -79,12 +104,15 @@ static void free_playlist()
 	if(p->filename){
 	  free(p->filename);
 	}
+	if (p->name)
+	  free(p->name);
 	free(p);
   }
   if(playlist_current){
 	free(playlist_current);
 	playlist_current = NULL;
   }
+  playlist_head = NULL;
   pthread_mutex_unlock(&mutex);
 }
 
@@ -130,9 +158,15 @@ static int build_playlist_from_file(const char *filename)
   playlist_t *pl_dest=NULL;
   int count=0;
   char *cwd;
+  char *sep = NULL, *name = NULL;
+  int seconds = -1;
+  char *ptr;
 
   pthread_once(&init_control,playlist_init);
   pthread_mutex_lock(&mutex);
+
+  mvpw_set_menu_title(playlist_widget, filename);
+  mvpw_clear_menu(playlist_widget);
 
   fprintf(stderr,"building playlist from file %s\n",filename);
   if ((fd=open(filename, O_RDONLY)) < 0){
@@ -168,30 +202,71 @@ static int build_playlist_from_file(const char *filename)
 	sz++;
 	if(ch=='\0'){
 	  /*fprintf(stderr,"playlist line %d: %s %s\n",count,cwd,tmpbuf);*/
-	  if(tmpbuf[0]!='#' && tmpbuf[0]!='\0'){
+	  switch (tmpbuf[0]) {
+	  case '#':
+	    if ((sep=strchr(tmpbuf, ':')) != NULL) {
+	      *sep = '\0';
+	      seconds = atoi(sep + 1);
+	      if (strcasecmp(tmpbuf+1, "extinf") == 0) {
+		if ((sep=strchr(sep+1, ',')) != NULL) {
+		  *sep = '\0';
+		  if (name)
+		    free(name);
+		  name = strdup(sep + 1);
+		  printf("EXTINF: name '%s'\n", name);
+		}
+	      }
+	    }
+	    break;
+	  case '\0':
+	    break;
+	  default:
 		pl_item = (playlist_t*)malloc(sizeof(playlist_t));
 		if(pl_item){
 		  if ((tmpbuf[0]=='/') || (tmpbuf[0]=='\\')) {
 			pl_item->filename = strdup(tmpbuf);
+			if ((ptr=strrchr(pl_item->filename, '/')) == NULL)
+			  ptr = strrchr(pl_item->filename, '\\');
 		  }
 		  else{
-			pl_item->filename = (char*)malloc(strlen(cwd)+strlen(tmpbuf)+1);
+			pl_item->filename = (char*)malloc(strlen(cwd)+strlen(tmpbuf)+2);
 			sprintf(pl_item->filename,"%s/%s",cwd,tmpbuf);
+			ptr = tmpbuf;
 		  }
+		  if (seconds)
+		    pl_item->seconds = seconds;
+		  else
+		    pl_item->seconds = -1;
+		  if (name)
+		    pl_item->name = ptr = name;
+		  else
+		    pl_item->name = NULL;
+		  pl_item->key = (void*)count;
 		  pl_item->next = NULL;
+		  pl_item->prev = NULL;
+		  item_attr.select = select_callback;
+		  mvpw_add_menu_item(playlist_widget, ptr,
+				     pl_item->key, &item_attr);
 		  if(pl_dest==NULL){
 			playlist = pl_item;
 		  }
 		  else{
 			pl_dest->next = pl_item;
+			pl_item->prev = pl_dest;
 		  }
 		  pl_dest = pl_item;
 		  count++;
 		}
+		name = NULL;
+		seconds = -1;
+		break;
 	  }
 	  sz = 0;
 	}
   }
+  if (name)
+    free(name);
+  playlist_head = playlist;
   free(fdbuf);
   close(fd);
   /*fprintf(stderr,"playlist parsing done, %d items\n",count);*/
@@ -228,7 +303,7 @@ playlist_idle(void)
 	
 	if(playlist){
 	  /* play first item */
-	  playlist_next();
+	  playlist_change(playlist);
 	}
   }
 }
@@ -240,28 +315,25 @@ playlist_play(mvp_widget_t *widget)
 	mvpw_set_timer(root, NULL, 0);
 }
 
-/* move to the next file in a playlist. if this is the first call,
- * play the first item in the play list 
-*/
-void playlist_next()
+static void playlist_change(playlist_t *next)
 {
   if(!playlist){
 	return;
   }
   if (current){
-	if(strcmp(playlist->filename,current)==0){
-	  playlist_t *pl = playlist;
-	  playlist = playlist->next;
-	  free(pl->filename);
-	  free(pl);
-	}
-	free(current);
-	current=NULL;
-	if(!playlist){
-	  return;
-	}
+    playlist = next;
+
+    if (playlist) {
+      mvpw_menu_hilite_item(playlist_widget, playlist->key);
+    }
+    free(current);
+    current=NULL;
+    if(!playlist){
+      return;
+    }
   }
-  fprintf(stderr,"playlist: play item %s\n",playlist->filename);
+  printf("playlist: play item '%s', file '%s'\n",
+	 playlist->name, playlist->filename);
   current = strdup(playlist->filename);
   if (is_video(current)) {
 	mvpw_set_timer(root, video_play, 50);
@@ -273,6 +345,30 @@ void playlist_next()
 	mvpw_show(iw);
   } else {
   }
+}
+
+/* move to the next file in a playlist. if this is the first call,
+ * play the first item in the play list 
+*/
+void playlist_next()
+{
+  if (playlist)
+    playlist_change(playlist->next);
+}
+
+void playlist_prev(void)
+{
+  if (playlist)
+    playlist_change(playlist->prev);
+}
+
+void playlist_stop(void)
+{
+  if (current) {
+	free(current);
+	current=NULL;
+  }
+  playlist = NULL;
 }
 
 void playlist_clear(void)
