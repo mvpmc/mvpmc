@@ -1,0 +1,6 @@
+dump /lib/modules/2.4.17_mvl21-vdongle/misc/av_core.o fs/lib/modules/2.4.17_mvl21-vdongle/misc/av_core.o
+dump /lib/modules/2.4.17_mvl21-vdongle/misc/gfx.o fs/lib/modules/2.4.17_mvl21-vdongle/misc/gfx.o
+dump /lib/modules/2.4.17_mvl21-vdongle/misc/ircombo.o fs/lib/modules/2.4.17_mvl21-vdongle/misc/ircombo.o
+dump /lib/modules/2.4.17_mvl21-vdongle/misc/os_core.o fs/lib/modules/2.4.17_mvl21-vdongle/misc/os_core.o
+dump /lib/modules/2.4.17_mvl21-vdongle/misc/osdfb.o fs/lib/modules/2.4.17_mvl21-vdongle/misc/osdfb.o
+dump /lib/modules/2.4.17_mvl21-vdongle/misc/xrmod.o fs/lib/modules/2.4.17_mvl21-vdongle/misc/xrmod.o
