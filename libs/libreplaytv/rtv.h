@@ -124,6 +124,7 @@ inline static void rtv_log(const char *format, ...)
 #define RTVLOG_NETDUMP       (rtv_globals.rtv_debug & 0x10000000)
 
 #define RTV_PRT(fmt, args...)  rtv_log(fmt, ## args)
+#define RTV_PRT(fmt, args...)  printf(fmt, ## args)
 
 #define RTV_ERRLOG(fmt, args...) RTV_PRT("rtv:ERROR: " fmt, ## args)
 #define RTV_WARNLOG(fmt, args...) RTV_PRT("rtv:WARN: " fmt, ## args)

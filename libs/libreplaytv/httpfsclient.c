@@ -30,8 +30,7 @@ static int map_httpfs_status_to_rc(unsigned long status)
 {
    int rc;
 
-   // JBH: Fixme: codes should be hex not dec.
-   // Attempting to get volume info for / returns code 8082000a
+   // Note: Attempting to get volume info for / returns code 8082000a
    //
 
    //
@@ -42,17 +41,20 @@ static int map_httpfs_status_to_rc(unsigned long status)
    if ( status == 0 ) {
       rc = 0;
    }
-   else if ( status == 80820005 ) {
+   else if ( status == 0x80820005 ) {
       rc = -ENOENT;
    }
-   else if ( status == 80820018 ) {
+   else if ( status == 0x80820018 ) {
       rc = -EEXIST;
    }
-   else if ( status == 80820024 ) {
+   else if ( status == 0x80820024 ) {
       rc = -EACCES;
    }
+   else if ( status == 0x8082000a ) {
+      rc = -EPERM;
+   }
    else {
-      RTV_ERRLOG("%s: unknown return code: %lu\n", __FUNCTION__, status);
+      RTV_ERRLOG("%s: unknown return code: 0x%lx\n", __FUNCTION__, status);
       rc  = -ENOSYS;
    }
    return(rc);
@@ -210,8 +212,8 @@ static int hfs_do_simple(char **presult, const rtv_device_info_t *device, const 
     e = strchr(tmp, '\n');
     if (e) {
        *presult = strdup(e+1);
-       rtv_status = strtoul(tmp, NULL, 10);
-       RTV_DBGLOG(RTVLOG_CMD, "%s: httpfs_status=%lu\n", __FUNCTION__, rtv_status);    
+       rtv_status = strtoul(tmp, NULL, 16);
+       RTV_DBGLOG(RTVLOG_CMD, "%s: httpfs_status=0x%lx\n", __FUNCTION__, rtv_status);    
        free(tmp);
        return(map_httpfs_status_to_rc(rtv_status));
     } else if ( hc_stat == 204 ) {
@@ -260,8 +262,8 @@ static int hfs_do_simple_binary(rtv_http_resp_data_t *data, const rtv_device_inf
     if (e) {
        data->data_start = e + 1;
        data->len        = data->len - (data->data_start - data->buf);
-       rtv_status       = strtoul(data->buf, NULL, 10);
-       RTV_DBGLOG(RTVLOG_CMD, "%s: http_status=%lu\n", __FUNCTION__, rtv_status);    
+       rtv_status       = strtoul(data->buf, NULL, 16);
+       RTV_DBGLOG(RTVLOG_CMD, "%s: http_status=0x%lx\n", __FUNCTION__, rtv_status);    
        return(map_httpfs_status_to_rc(rtv_status));
     } else if (hc_stat == 204) {
        RTV_WARNLOG("%s: http_status == *** 204 ***\n",  __FUNCTION__);
@@ -302,9 +304,9 @@ static int hfs_callback(unsigned char * buf, size_t len, void * vd)
             *e = '\0';
         }
         data->status = strtoul(buf, NULL, 16);
-        RTV_DBGLOG(RTVLOG_CMD, "%s: status: %s (%u)\n", __FUNCTION__, buf, data->status);
+        RTV_DBGLOG(RTVLOG_CMD, "%s: status: %s (0x%lx)\n", __FUNCTION__, buf, data->status);
         if ( (rc = map_httpfs_status_to_rc(data->status)) != 0 ) {
-           RTV_ERRLOG("%s: bad httpfs returncode: %d", __FUNCTION__, rc);
+           RTV_ERRLOG("%s: bad httpfs returncode: %d\n", __FUNCTION__, rc);
            free(buf);
            return(1); //abort the transfer
         }
@@ -418,7 +420,8 @@ unsigned long hfs_do_post_simple(char **presult, const rtv_device_info_t *device
     e = strchr(tmp, '\n');
     if (e) {
        *presult = strdup(e+1);
-       rtv_status = strtoul(tmp, NULL, 10);
+       rtv_status = strtoul(tmp, NULL, 16);
+       RTV_DBGLOG(RTVLOG_CMD, "%s: httpfs_status=0x%lx\n", __FUNCTION__, rtv_status);    
        free(tmp);
        return(map_httpfs_status_to_rc(rtv_status));
     } else if (http_status == 204) {
@@ -459,7 +462,7 @@ int rtv_get_volinfo( const rtv_device_info_t  *device, const char *name, rtv_fs_
                           "name", name,
                           NULL);
    if (status != 0) {
-      RTV_ERRLOG("%s:  hfs_do_simple returned %ld\n", __FUNCTION__, status);
+      RTV_ERRLOG("%s:  hfs_do_simple returned %d\n", __FUNCTION__, status);
       if ( data != NULL) free(data);
       *volinfo = NULL;
       return status;
@@ -541,7 +544,7 @@ int rtv_get_file_info( const rtv_device_info_t  *device, const char *name,  rtv_
          // File not found. Do nothing.
       }
       else {
-         RTV_ERRLOG("%s: hfs_do_simple fstat failed: %ld\n", __FUNCTION__, status);
+         RTV_ERRLOG("%s: hfs_do_simple fstat failed: %d\n", __FUNCTION__, status);
       }
       if ( data != NULL) free(data);
       return(status);
@@ -630,7 +633,7 @@ int rtv_get_filelist( const rtv_device_info_t  *device, const char *name, int de
    //
    status = rtv_get_file_info(device, name, &fileinfo);
    if (status != 0) {
-      RTV_ERRLOG("%s:  rtv_get_file_info returned %ld\n", __FUNCTION__, status);
+      RTV_ERRLOG("%s:  rtv_get_file_info returned %d\n", __FUNCTION__, status);
       *filelist = NULL;
       return status;
    }
@@ -655,7 +658,7 @@ int rtv_get_filelist( const rtv_device_info_t  *device, const char *name, int de
                           "name", name,
                           NULL);
    if (status != 0) {
-      RTV_ERRLOG("%s:  hfs_do_simple returned %ld\n", __FUNCTION__, status);
+      RTV_ERRLOG("%s:  hfs_do_simple returned %d\n", __FUNCTION__, status);
       if ( data != NULL) free(data);
       *filelist = NULL;
       return status;
@@ -689,7 +692,7 @@ int rtv_get_filelist( const rtv_device_info_t  *device, const char *name, int de
          snprintf(pathfile, 255, "%s/%s", rec->pathname, lines[x]);
          status = rtv_get_file_info( device, pathfile,  &(rec->files[x]));
          if ( status != 0 ) {
-            RTV_ERRLOG("%s: rtv_get_file_info returned: %ld\n", __FUNCTION__, status);
+            RTV_ERRLOG("%s: rtv_get_file_info returned: %d\n", __FUNCTION__, status);
             break;
          }
       }

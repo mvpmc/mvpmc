@@ -717,6 +717,13 @@ static int parse_show(replay_show_t *show_rec, rtv_show_export_t *sh)
    sh->sch_show_length = show_rec->programInfo.minutes;
    sh->sch_st_tm_str   = rtv_format_time32(sh->sch_start_time);
 
+   // If a shows GOP_count or seconds field is zero then the show has been deleted 
+   // but is still in the guide.
+   //
+   if ( (show_rec->GOP_count == 0) || (show_rec->seconds == 0) ) {
+      sh->unavailable = 1;
+   }
+
    // Misc show info
    //
    sh->quality      = show_rec->quality;

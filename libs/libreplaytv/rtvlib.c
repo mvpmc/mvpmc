@@ -185,6 +185,11 @@ char *rtv_sec_to_hr_mn_str(unsigned int seconds)
    char *pos;
    unsigned int minutes, hours;
 
+   if ( seconds < 60 ) {
+      sprintf(result, "0 minutes");
+      return(result);
+   }
+
    minutes = seconds / 60;
    if ( (seconds % 60) > 30 ) {
       minutes++;
@@ -238,7 +243,7 @@ int rtv_init_lib(void)
    // to figure out the ip address.
    //
    if ( uname(&myname) < 0 ) {
-      RTV_ERRLOG("%s: Unable to determine local Hostname\n");
+      RTV_ERRLOG("%s: Unable to determine local Hostname\n", __FUNCTION__);
    }
    else {
       strncpy(local_hostname, myname.nodename, 254);

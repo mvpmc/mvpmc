@@ -148,6 +148,7 @@ typedef struct rtv_show_export_t
    __u32               show_id;            //show id: show creation time
    __u32               channel_id;         //channel id: channel creation time
    int                 rtvchan_idx;        //index into rtv channel array (JBH: Not yet parsing RTV channel info)
+   int                 unavailable;        //set to 1 if show is unavailable. ie: has been deleted but is still in the guide.
    rtv_show_flags_t    flags;
    rtv_show_quality_t  quality;            // recording quality 
    int                 input_source;       // xref with rtv_xref_input_source()
@@ -355,11 +356,12 @@ extern int rtv_is_show_inuse(const rtv_device_info_t   *device,
 
 extern int rtv_delete_show(const rtv_device_info_t   *device,
                            const rtv_guide_export_t  *guide, 
-                           const unsigned int         show_idx);
+                           unsigned int               show_idx,
+                           __u32                      show_id);
 
-extern int rtv_release_show_and_wait(const rtv_device_info_t   *device,
-                                           rtv_guide_export_t  *guide, 
-                                     const unsigned int         show_idx);
+extern int rtv_release_show_and_wait(const rtv_device_info_t *device,
+                                     rtv_guide_export_t      *guide, 
+                                     __u32                    show_id);
 
 extern int rtv_get_play_position(const rtv_device_info_t   *device,
                                  const rtv_guide_export_t  *guide, 

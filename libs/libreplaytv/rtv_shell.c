@@ -284,14 +284,14 @@ static int ciDeleteShow(int argc, char **argv)
       return(0);
    } 
 
-   rc = rtv_delete_show(&(rtv->device), &(rtv->guide), show_idx);
+   rc = rtv_delete_show(&(rtv->device), &(rtv->guide), show_idx, rtv->guide.rec_show_list[show_idx].show_id);
    if ( rc != 0 ) {
       printf("Error: rtv_delete_show call failed.");
       return(rc);
    }
    printf("Show deleted: Waiting for guide release...\n");
 
-   rc = rtv_release_show_and_wait(&(rtv->device), &(rtv->guide), show_idx);
+   rc = rtv_release_show_and_wait(&(rtv->device), &(rtv->guide), rtv->guide.rec_show_list[show_idx].show_id);
    if ( rc != 0 ) {
       printf("Error: rtv_release_show_and_wait call failed.");
       return(rc);

@@ -238,14 +238,22 @@ static int update_shows_file_info( const rtv_device_info_t  *device,
     for ( x=0; x < guide->num_rec_shows; x++ ) {
        rtv_fs_file_t *fileinfo;
        char           path[255];
-       
+
+       // Don't attempt to stat the the mpg file if the show has been deleted.
+       //
+       if ( guide->rec_show_list[x].unavailable ) {
+          continue;
+       } 
+
        fileinfo = malloc(sizeof(rtv_fs_file_t));
        sprintf(path, "/Video/%s", guide->rec_show_list[x].file_name);
        RTV_DBGLOG(RTVLOG_GUIDE, "%s: idx=%d: show=%s\n", __FUNCTION__, x, path); 
        rc = rtv_get_file_info(device, path, fileinfo);
        if ( rc != 0 ) {
-          RTV_ERRLOG("%s: rtv_get_file_info failed: %s: %d=>%s\n", __FUNCTION__, rc, path, strerror(abs(rc)));
+          RTV_ERRLOG("%s: rtv_get_file_info failed: %s: %d=>%s\n", __FUNCTION__, path, rc, strerror(abs(rc)));
+          RTV_ERRLOG("%s: Marking show as unavailable.\n", __FUNCTION__);
           memset(fileinfo, 0, sizeof(fileinfo));
+          guide->rec_show_list[x].unavailable = 1;
        }
        guide->rec_show_list[x].file_info = fileinfo;
     }
@@ -312,7 +320,7 @@ static int guide_do_request(  const char  *url,
        if (e) {
           *response = strdup(e+1);
           status = strtoul(tmp, NULL, 16);
-          RTV_DBGLOG(RTVLOG_CMD, "%s: http_status=0x%08lx(%lu)\n", __FUNCTION__, status);    
+          RTV_DBGLOG(RTVLOG_CMD, "%s: http_status=0x%08lx(%lu)\n", __FUNCTION__, status, status);    
           rc = map_guide_status_to_rc(status);
        } else if (hc_stat == 204) {
           RTV_WARNLOG("%s: http_status == *** 204 ***\n",  __FUNCTION__);
@@ -384,7 +392,12 @@ void rtv_print_show(const rtv_show_export_t *show, int num)
    char *strp = tmpstr;
 
    if ( show != NULL ) {
-      RTV_PRT("Show #%d:\n", num);
+      if ( show->unavailable ) {
+         RTV_PRT("Show #%d:  ******** UNAVAILABLE (gop/count duration eq zero or mpg not found *******\n", num);
+      }
+      else {
+         RTV_PRT("Show #%d:\n", num);
+      }
       RTV_PRT("  title:       %s\n", show->title);
       RTV_PRT("  episode:     %s\n", show->episode);
       RTV_PRT("  description: %s\n", show->description);
@@ -414,7 +427,7 @@ void rtv_print_show(const rtv_show_export_t *show, int num)
       if (show->flags.movie) {
          RTV_PRT("  movie_stars: %d    movie_year: %d    movie_runtime: %d\n", show->movie_stars, show->movie_year, show-> movie_runtime);
       }      
-      RTV_PRT("  show_id:  0x%08x   channel_id:  0x%08x\n", show->show_id, show->channel_id);
+      RTV_PRT("  show_id:  0x%08lx   channel_id:  0x%08lx\n", show->show_id, show->channel_id);
       RTV_PRT("  filename:           %s\n", show->file_name);
       if ( show->file_info != NULL ) {
       RTV_PRT("  file size           %"U64F"d %lu(MB)\n", show->file_info->size, show->file_info->size_k / 1024);
@@ -425,12 +438,12 @@ void rtv_print_show(const rtv_show_export_t *show, int num)
       else {
          RTV_PRT("************* WARNING: show->fileinfo == NULL\n");
       }
-      RTV_PRT("  GOP_count:          %u\n", show->gop_count);
-      RTV_PRT("  duration (seconds): %u\n", show->duration_sec);
+      RTV_PRT("  GOP_count:          %lu\n", show->gop_count);
+      RTV_PRT("  duration (seconds): %lu\n", show->duration_sec);
       RTV_PRT("  duration:           %s\n", show->duration_str);
-      RTV_PRT("  sch start time:     %u\n", show->sch_start_time);
+      RTV_PRT("  sch start time:     %lu\n", show->sch_start_time);
       RTV_PRT("  sch start time:     %s\n", show->sch_st_tm_str);
-      RTV_PRT("  sch len (minutes):  %u\n", show->sch_show_length);
+      RTV_PRT("  sch len (minutes):  %lu\n", show->sch_show_length);
       RTV_PRT("  minutes padding before: %u minutes padding after: %u\n", show->padding_before, show->padding_after);
 
    }
@@ -513,11 +526,14 @@ int rtv_is_show_inuse( const rtv_device_info_t   *device,
 
 //+******************************************
 // rtv_delete_show()
+// Show_idx and show_id must correlate for delete
+// request to be sent.
 // Returns 0 for success
 //+******************************************
 int rtv_delete_show( const rtv_device_info_t   *device,
                      const rtv_guide_export_t  *guide, 
-                     const unsigned int         show_idx)
+                     unsigned int               show_idx,
+                     __u32                      show_id  )
 {
     char   url[512];
     char  *response;
@@ -534,6 +550,12 @@ int rtv_delete_show( const rtv_device_info_t   *device,
     }
     if ( show_idx >= guide->num_rec_shows ) {
        RTV_ERRLOG("%s: show_idx out-of-range: idx=%u, num_rec_shows=%u\n", __FUNCTION__, show_idx, guide->num_rec_shows);
+       return(-EINVAL);
+    }
+
+    if ( show_id != guide->rec_show_list[show_idx].show_id ) {
+       RTV_ERRLOG("%s: show_id mismatch: idx=%u, show_parm=%lu guide->rec_show_list[show_idx].show_id=%lu\n", 
+                  __FUNCTION__, show_idx, show_id, guide->rec_show_list[show_idx].show_id);
        return(-EINVAL);
     }
 
@@ -561,16 +583,14 @@ int rtv_delete_show( const rtv_device_info_t   *device,
 // the guide snapshot
 // Returns 0 for success
 //+******************************************
-int rtv_release_show_and_wait( const rtv_device_info_t   *device,
-                                     rtv_guide_export_t  *guide, 
-                               const unsigned int         show_idx)
+int rtv_release_show_and_wait( const rtv_device_info_t *device,
+                               rtv_guide_export_t      *guide, 
+                               __u32                    show_id )
 {
    int           trys_left = 10;
    int           done      = 0;
    unsigned int  x;
-   int           rc;
-   __u32         show_id;
-   
+   int           rc;   
 
    if ( (atoi(device->modelNumber) == 4999) && (device->autodiscovered != 1) ) {
       RTV_ERRLOG("%s: DVArchive must be auto-discovered before guide snapshot can be retrieved\n", __FUNCTION__);
@@ -581,12 +601,6 @@ int rtv_release_show_and_wait( const rtv_device_info_t   *device,
       RTV_ERRLOG("%s: Guide is NULL\n", __FUNCTION__);
       return(-EINVAL);
    }
-   if ( show_idx >= guide->num_rec_shows ) {
-      RTV_ERRLOG("%s: show_idx out-of-range: idx=%u, num_rec_shows=%u\n", __FUNCTION__, show_idx, guide->num_rec_shows);
-      return(-EINVAL);
-   }
-   
-   show_id = guide->rec_show_list[show_idx].show_id;
 
    // Wait for the guide to update
    //
@@ -599,13 +613,15 @@ int rtv_release_show_and_wait( const rtv_device_info_t   *device,
       // See if the show is gone yet.
       //
       for (x=0; x < guide->num_rec_shows; x++ ) {
-         if ( guide->rec_show_list[show_idx].show_id == show_id ) {
-            break;
+         if ( guide->rec_show_list[x].show_id == show_id ) {
+            if ( guide->rec_show_list[x].unavailable == 0 ) {
+               break; //Show is still there.
+            }
          }
       }
 
       if ( x == guide->num_rec_shows ) {
-         done = 1;;
+         done = 1;
       }
    } //while
    

@@ -1049,11 +1049,12 @@ static int get_ndx_chunk(unsigned int start_rec, rtv_ndx_info_t *ndx_info)
 static void play_show(const rtv_show_export_t *show, int start_gop)
 {
    rtv_ndx_info_t      *ndx_info = &(rtv_video_state.ndx_info); 
-   char                 show_base_name[MAX_FILENAME_LEN];
+   char                 show_name[MAX_FILENAME_LEN];
    rtv_device_info_t   *devinfo;
    rtv_fs_file_t        fileinfo;
    int                  len, rc;
    unsigned int         first_ndx_rec;
+   rtv_http_resp_data_t file_data;
 
    devinfo = (rtv_device_info_t*)&(current_rtv_device->device); //cast to override volatile warning
 
@@ -1072,82 +1073,121 @@ static void play_show(const rtv_show_export_t *show, int start_gop)
       return;
    } 
 
-   if ( show->file_info->name == NULL ) {
+   
+   // Make sure the mpg file exists
+   //
+   sprintf(show_name, "/Video/%s", show->file_name);
+   rc = rtv_get_file_info(devinfo, show_name, &fileinfo );
+   rtv_free_file_info(&fileinfo);
+   if ( rc != 0 ) {
       //
       // Show is in the guide but the mpg doesn't exist.
+      // Actually this means we were able to stat the file when the guide was pulled
+      // but it is gone now. Must have been deleted.
       //
       char buf[128];
+      printf("ERROR: mpg file not present in rtv filesystem.\n");
       snprintf(buf, sizeof(buf), "ERROR: mpg file not present in rtv filesystem. ");
       gui_error(buf);
       return;
    }
 
-   // Get .ndx & .evt info
+   // Make sure the ndx file exists
    //
+   memcpy(show_name, show->file_name, len-4);
+   show_name[len-4] = '\0'; 
+   sprintf(ndx_info->filename, "/Video/%s.ndx", show_name);
+   printf("NDX: %s\n", ndx_info->filename);
+   rc = rtv_get_file_info(devinfo, ndx_info->filename, &fileinfo );
+   if ( (rc != 0) ||  (fileinfo.size <= sizeof(rtv_ndx_30_header_t)) ) {
+      char buf[128];
+      printf("ERROR: ndx file not present in rtv filesystem.\n");
+      snprintf(buf, sizeof(buf), "ERROR: ndx file not present in rtv filesystem. ");
+      gui_error(buf);
+      rtv_free_file_info(&fileinfo);
+      return;
+   } 
+   //rtv_print_file_info(&fileinfo);
+
+   //+**************************************
+   // Get .ndx & .evt info
+   //+**************************************
    free_ndx_chunk(ndx_info);
    memset(&(rtv_video_state.evt_info), 0, sizeof(rtv_video_state.evt_info));
 
-   memcpy(show_base_name, show->file_name, len-4);
-   show_base_name[len-4] = '\0'; 
-   sprintf(ndx_info->filename, "/Video/%s.ndx", show_base_name);
-   printf("NDX: %s\n", ndx_info->filename);
-   rc = rtv_get_file_info(devinfo, ndx_info->filename, &fileinfo );
+
+   // Determine ndx file version and setup data structs
+   //
+   rc = rtv_read_file(devinfo, ndx_info->filename, 0, sizeof(rtv_ndx_30_header_t), &file_data);
    if ( rc == 0 ) {
-      rtv_http_resp_data_t file_data;
-      //rtv_print_file_info(&fileinfo);
-      if ( fileinfo.size > sizeof(rtv_ndx_30_header_t) ) {
-         rc = rtv_read_file(devinfo, ndx_info->filename, 0, sizeof(rtv_ndx_30_header_t), &file_data);
-         if ( rc == 0 ) {
-            //rtv_hex_dump("NDX HDR", buf_p, sizeof(rtv_ndx_30_header_t));
-            if ( (file_data.data_start[0] == 3) && (file_data.data_start[1] == 0) ) {
-               ndx_info->ver    = RTV_NDX_30;
-               ndx_info->hdr_sz = sizeof(rtv_ndx_30_header_t);
-               ndx_info->rec_sz = sizeof(rtv_ndx_30_record_t);
-               ndx_info->rec_cnt_to_load = 600;
-               if ( ((fileinfo.size - sizeof(rtv_ndx_30_header_t)) % sizeof(rtv_ndx_30_record_t)) != 0 ) {
-                  printf("\n***WARNING: ndx file size not consistant with record size\n\n");
-               }
-               ndx_info->num_rec = (fileinfo.size - sizeof(rtv_ndx_30_header_t)) / sizeof(rtv_ndx_30_record_t);
-            }
-            else if ( (file_data.data_start[0] == 2) && (file_data.data_start[2] == 0) ) {
-               ndx_info->ver    = RTV_NDX_22;
-               ndx_info->hdr_sz = sizeof(rtv_ndx_22_header_t);
-               ndx_info->rec_sz = sizeof(rtv_ndx_22_record_t);
-               ndx_info->rec_cnt_to_load = 600;
-               if ( ((fileinfo.size - sizeof(rtv_ndx_22_header_t)) % sizeof(rtv_ndx_22_record_t)) != 0 ) {
-                  printf("\n***WARNING: ndx file size not consistant with record size\n\n");
-               }
-               ndx_info->num_rec = (fileinfo.size - sizeof(rtv_ndx_22_header_t)) / sizeof(rtv_ndx_22_record_t);
-               ndx_info->com_skip_ok = 1;
-            }
-            else {
-               printf("***ERROR: invalid ndx file version: %d %d\n", file_data.data_start[0], file_data.data_start[1]);
-            }
-            free(file_data.buf);
+      //rtv_hex_dump("NDX HDR", buf_p, sizeof(rtv_ndx_30_header_t));
+      if ( (file_data.data_start[0] == 3) && (file_data.data_start[1] == 0) ) {
+         ndx_info->ver    = RTV_NDX_30;
+         ndx_info->hdr_sz = sizeof(rtv_ndx_30_header_t);
+         ndx_info->rec_sz = sizeof(rtv_ndx_30_record_t);
+         ndx_info->rec_cnt_to_load = 600;
+         if ( ((fileinfo.size - sizeof(rtv_ndx_30_header_t)) % sizeof(rtv_ndx_30_record_t)) != 0 ) {
+            printf("\n***WARNING: ndx file size not consistant with record size\n\n");
          }
+         ndx_info->num_rec = (fileinfo.size - sizeof(rtv_ndx_30_header_t)) / sizeof(rtv_ndx_30_record_t);
       }
-      ndx_info->file_sz = fileinfo.size;
-      printf("NDX: ver=%d size=%u rec=%u\n", ndx_info->ver, ndx_info->file_sz, ndx_info->num_rec);
+      else if ( (file_data.data_start[0] == 2) && (file_data.data_start[2] == 0) ) {
+         ndx_info->ver    = RTV_NDX_22;
+         ndx_info->hdr_sz = sizeof(rtv_ndx_22_header_t);
+         ndx_info->rec_sz = sizeof(rtv_ndx_22_record_t);
+         ndx_info->rec_cnt_to_load = 600;
+         if ( ((fileinfo.size - sizeof(rtv_ndx_22_header_t)) % sizeof(rtv_ndx_22_record_t)) != 0 ) {
+            printf("\n***WARNING: ndx file size not consistant with record size\n\n");
+         }
+         ndx_info->num_rec = (fileinfo.size - sizeof(rtv_ndx_22_header_t)) / sizeof(rtv_ndx_22_record_t);
+         ndx_info->com_skip_ok = 1;
+      }
+      else {
+         char buf[128];
+         printf("***ERROR: invalid ndx file version: %d %d\n", file_data.data_start[0], file_data.data_start[1]);
+         snprintf(buf, sizeof(buf), "ERROR: invalid ndx file version: %d %d ", file_data.data_start[0], file_data.data_start[1]);
+         gui_error(buf);
+         rtv_free_file_info(&fileinfo);
+         free(file_data.buf);
+         return;
+      }
+      free(file_data.buf);
+   }
+   
+   ndx_info->file_sz = fileinfo.size;
+   printf("NDX: ver=%d size=%u rec=%u\n", ndx_info->ver, ndx_info->file_sz, ndx_info->num_rec);
+   rtv_free_file_info(&fileinfo);
+
+
+   // Setup the .evt struct.
+   //
+   if ( ndx_info->ver == RTV_NDX_30 ) {
+      //
+      // Make sure the evt file exists
+      //
+      sprintf(rtv_video_state.evt_info.filename, "/Video/%s.evt", show_name);
+      printf("EVT: %s\n", rtv_video_state.evt_info.filename);
+      rc = rtv_get_file_info(devinfo, rtv_video_state.evt_info.filename, &fileinfo );
+      if ( rc != 0 ) {
+         char buf[128];
+         printf("ERROR: evt file not present in rtv filesystem.\n");
+         snprintf(buf, sizeof(buf), "ERROR: evt file not present in rtv filesystem. ");
+         gui_error(buf);
+         rtv_free_file_info(&fileinfo);
+         return;
+      }
+      //rtv_print_file_info(&fileinfo);
+
+      rtv_video_state.evt_info.hdr_sz = RTV_EVT_HDR_SZ;
+      if ( ((fileinfo.size - RTV_EVT_HDR_SZ) % sizeof(rtv_evt_record_t)) != 0 ) {
+         printf("\n***WARNING: evt file size not consistant with record size\n\n");
+      }
+      rtv_video_state.evt_info.num_rec = (fileinfo.size - RTV_EVT_HDR_SZ) / sizeof(rtv_evt_record_t);
+      rtv_video_state.evt_info.file_sz = fileinfo.size;
+      printf("EVT: size=%u rec=%u\n\n", rtv_video_state.evt_info.file_sz, rtv_video_state.evt_info.num_rec);
       rtv_free_file_info(&fileinfo);
    }
 
-   if ( ndx_info->ver == RTV_NDX_30 ) {
-      // Setup the .evt struct.
-      //
-      sprintf(rtv_video_state.evt_info.filename, "/Video/%s.evt", show_base_name);
-      printf("EVT: %s\n", rtv_video_state.evt_info.filename);
-      rc = rtv_get_file_info(devinfo, rtv_video_state.evt_info.filename, &fileinfo );
-      if ( rc == 0 ) {
-         rtv_video_state.evt_info.hdr_sz = RTV_EVT_HDR_SZ;
-         if ( ((fileinfo.size - RTV_EVT_HDR_SZ) % sizeof(rtv_evt_record_t)) != 0 ) {
-            printf("\n***WARNING: evt file size not consistant with record size\n\n");
-         }
-         rtv_video_state.evt_info.num_rec = (fileinfo.size - RTV_EVT_HDR_SZ) / sizeof(rtv_evt_record_t);
-         rtv_video_state.evt_info.file_sz = fileinfo.size;
-         printf("EVT: size=%u rec=%u\n\n", rtv_video_state.evt_info.file_sz, rtv_video_state.evt_info.num_rec);
-         rtv_free_file_info(&fileinfo);
-      }
-   }
 
    // Each GOP is 1/2 second. (1 ndx rec)
    // Load the ndx record for GOP - 10sec. = GOP - 20
@@ -1160,7 +1200,6 @@ static void play_show(const rtv_show_export_t *show, int start_gop)
    }
    get_ndx_chunk(first_ndx_rec, ndx_info);
 
-   printf("Playing file: %s\n", show->file_name);  
    if ( rtv_video_state.ndx_info.ver == RTV_NDX_30 ) {
       rtv_ndx_30_record_t *ndx_recs = (rtv_ndx_30_record_t*)rtv_video_state.ndx_info.file_chunk.data_start;
       rtv_ndx_30_record_t  rec;
@@ -1176,7 +1215,7 @@ static void play_show(const rtv_show_export_t *show, int start_gop)
          rtv_video_state.pos          = 0;
          rtv_video_state.chunk_offset = 0;
       }
-      rtv_print_30_ndx_rec("StartGOP      ", start_gop, &rec);   
+      rtv_print_30_ndx_rec("StartGOP    ", start_gop, &rec);   
    }
    else {
       rtv_video_state.pos          = 0;
@@ -1377,9 +1416,15 @@ static int rtv_get_guide(mvp_widget_t *widget, rtv_device_t *rtv)
 
    for ( x=0; x < guide->num_rec_shows; x++ ) {
       char title_episode[255];
-      snprintf(title_episode, 254, "%s: %s", sorted_show_ptr_list[x]->title, sorted_show_ptr_list[x]->episode);
-      printf("%d:  %s\n", x, title_episode);
-      mvpw_add_menu_item(widget, title_episode, sorted_show_ptr_list[x], &rtv_default_item_attr);
+
+         snprintf(title_episode, 254, "%s: %s", sorted_show_ptr_list[x]->title, sorted_show_ptr_list[x]->episode);
+      if ( !(sorted_show_ptr_list[x]->unavailable) ) {
+         printf("%d:  %s\n", x, title_episode);
+         mvpw_add_menu_item(widget, title_episode, sorted_show_ptr_list[x], &rtv_default_item_attr);         
+      }
+      else {
+          printf("%d:  ***Unavailable*** %s\n", x, title_episode);        
+      }
    }
    
    //all done, cleanup as we leave 
@@ -1617,7 +1662,8 @@ static void delete_show_from_guide( unsigned int show_idx )
    //
    rc = rtv_delete_show((rtv_device_info_t*)&(current_rtv_device->device), 
                         (rtv_guide_export_t*)&(current_rtv_device->guide), 
-                        show_idx);   
+                        show_idx,
+                        current_rtv_device->guide.rec_show_list[show_idx].show_id);   
    if ( rc != 0 ) {
       char buf[128];
       snprintf(buf, sizeof(buf), "Error: rtv_delete_show call failed.");
@@ -1628,7 +1674,7 @@ static void delete_show_from_guide( unsigned int show_idx )
 
    rc = rtv_release_show_and_wait((rtv_device_info_t*)&(current_rtv_device->device), 
                                   (rtv_guide_export_t*)&(current_rtv_device->guide), 
-                                  show_idx);   
+                                  current_rtv_device->guide.rec_show_list[show_idx].show_id);   
    if ( rc != 0 ) {
       printf("Error: rtv_release_show_and_wait call failed.\n");
    }

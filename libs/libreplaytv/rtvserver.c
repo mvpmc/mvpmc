@@ -164,7 +164,7 @@ int server_open_port(char *host, int port)
    //
 	if ( listen(fd, MAX_RTVS) != 0 ) {
       errno_sav = errno;
-		RTV_ERRLOG("%s: listen failed: %s\n", __FUNCTION__, port, strerror(errno_sav));
+		RTV_ERRLOG("%s: listen failed: port=%d %s\n", __FUNCTION__, port, strerror(errno_sav));
       return(-errno_sav);
    }
 

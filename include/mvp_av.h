@@ -140,7 +140,7 @@ extern av_aspect_t av_get_video_aspect(void);
 extern int av_get_video_status(void);
 extern int av_get_audio_status(void);
 
-extern int av_video_black(void);
+extern int av_video_blank(void);
 
 extern int set_video_stc(uint64_t stc);
 extern int set_audio_stc(uint64_t stc);

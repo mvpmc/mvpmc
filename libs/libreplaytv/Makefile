@@ -39,7 +39,7 @@ LDFLAGS=-L. -L../../install/lib -static
 LDLIBS=-lreplaytv -lexpat
 
 RTVSHELL_PROG=rtv_shell
-NDXTOOL_PROG=ndxtool
+MPGTOOL_PROG=rtvmpgtool
 
 LIB=libreplaytv.a
 LIBCLI=shell/libcli.a
@@ -82,8 +82,8 @@ $(OBJMD5):$(LIBMD5)
 $(RTVSHELL_PROG): $(LIB) $(LIBCLI) rtv_shell.c
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) rtv_shell.c $(LDLIBS) $(LIBCLI) -o $(RTVSHELL_PROG)
 
-$(NDXTOOL_PROG): $(LIB) rtvndxtool.c
-	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) rtvndxtool.c $(LDLIBS) $(LIBCLI) -o $(NDXTOOL_PROG)
+$(MPGTOOL_PROG): $(LIB) rtvmpegtool.c
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) rtvmpegtool.c $(LDLIBS) $(LIBCLI) -o $(MPGTOOL_PROG)
 
 bindist: all
 	-mkdir replaytvlib-$(VER)-$(PLATFORM)
@@ -91,7 +91,7 @@ bindist: all
 	tar cf - replaytvlib-$(VER)-$(PLATFORM) | gzip > replaytvlib-$(VER)-$(PLATFORM).tar.gz
 
 clean:
-	-rm *.o $(PROGRAMS) $(RTVSHELL_PROG) $(NDXTOOL_PROG) $(LIB) 
+	-rm *.o $(PROGRAMS) $(RTVSHELL_PROG) $(MPGTOOL_PROG) $(LIB) 
 	(cd shell && echo "cleaning shell dir..." && $(MAKE) CC='$(CC)' clean )
 	(cd MD5 && echo "cleaning MD5 dir..." && $(MAKE) CC='$(CC)' clean )
 
