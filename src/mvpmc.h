@@ -22,6 +22,8 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#define VIDEO_BUFF_SIZE	(1024*96)
+
 typedef enum {
 	OSD_BITRATE = 1,
 	OSD_CLOCK,

@@ -53,6 +53,7 @@
 
 #define MAX_IP_SZ (50)
 #define NUM_EPISODE_LINES (5)
+#define RTV_XFER_CHUNK_SZ (1024 * 32)
 
 //+***********************************************
 //    externals 
@@ -408,10 +409,13 @@ static int rtv_abort_read(void)
 // get_mpeg_callback()
 // rtvlib callback for rtv_read_file()
 //
-static int get_mpeg_callback(unsigned char *buf, size_t len, void *vd)
+static int get_mpeg_callback(unsigned char *buf, size_t len, size_t offset, void *vd)
 {
-   int nput = 0, n;
-   
+   unsigned char *buf_start = buf;
+   int nput                 = 0;
+   int n;
+
+   buf+=offset;
    while (nput < len) {
       n = demux_put(handle, buf+nput, len-nput);
       pthread_cond_broadcast(&video_cond);
@@ -426,6 +430,7 @@ static int get_mpeg_callback(unsigned char *buf, size_t len, void *vd)
          return(1);
       }
    }
+   free(buf_start);
    return(0);
 }
 
@@ -813,7 +818,8 @@ int replaytv_init(char *init_str)
    
    memset(rtv_ip_addrs, 0, sizeof(rtv_ip_addrs));
    rtv_init_lib();
-   
+   rtv_set_32k_chunks_to_merge(VIDEO_BUFF_SIZE / RTV_XFER_CHUNK_SZ);
+
    printf("replaytv init string: %s\n", init_str);
    if ( strchr(cur, '=') == NULL ) {
       // Assume just a single parm that is either an ip address or "discover"

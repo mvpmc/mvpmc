@@ -45,10 +45,9 @@
 #define PRINTF(x...)
 #endif
 
-#define BSIZE	(1024*96)
 #define SEEK_FUDGE	2
 
-static char inbuf[BSIZE];
+static char inbuf[VIDEO_BUFF_SIZE];
 
 static pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
 pthread_cond_t video_cond = PTHREAD_COND_INITIALIZER;
