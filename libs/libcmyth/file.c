@@ -133,19 +133,59 @@ cmyth_file_hold(cmyth_file_t p)
  *
  * Return Value:
  *
- * None.
+ * Sucess: 0
+ *
+ * Failure: an int containing -errno
  */
-void
-cmyth_file_release(cmyth_file_t p)
+int
+cmyth_file_release(cmyth_conn_t control, cmyth_file_t file)
 {
-	if (p) {
-		if (cmyth_atomic_dec_and_test(&p->refcount)) {
-			/*
-			 * Last reference, free it.
-			 */
-			cmyth_file_destroy(p);
-		}
+	int err, count;
+	int r;
+	long c;
+	char msg[256];
+
+	if (!file) {
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: no connection\n",
+			  __FUNCTION__);
+		return -EINVAL;
 	}
+
+	/*
+	 * do not close the file connection if it is not the last reference
+	 */
+	if (cmyth_atomic_dec_and_test(&file->refcount) == 0)
+		return 0;
+
+	snprintf(msg, sizeof(msg),
+		 "QUERY_FILETRANSFER %ld[]:[]DONE", file->file_id);
+
+	if ((err = cmyth_send_message(control, msg)) < 0) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_send_message() failed (%d)\n",
+			  __FUNCTION__, err);
+		goto fail;
+	}
+
+	count = cmyth_rcv_length(control);
+	if ((r=cmyth_rcv_long(control, &err, &c, count)) < 0) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_rcv_length() failed (%d)\n",
+			  __FUNCTION__, r);
+		goto fail;
+	}
+
+	/*
+	 * Last reference, free it.
+	 */
+	cmyth_file_destroy(file);
+
+	return 0;
+
+ fail:
+	cmyth_atomic_inc(&file->refcount);
+
+	return err;
 }
 
 /*

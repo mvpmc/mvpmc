@@ -460,7 +460,7 @@ extern int cmyth_proglist_get_count(cmyth_proglist_t pl);
  */
 extern cmyth_file_t cmyth_file_hold(cmyth_file_t p);
 
-extern void cmyth_file_release(cmyth_file_t p);
+extern int cmyth_file_release(cmyth_conn_t control, cmyth_file_t file);
 
 extern cmyth_conn_t cmyth_file_data(cmyth_file_t file);
 
