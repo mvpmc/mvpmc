@@ -30,12 +30,21 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <pthread.h>
+#include <assert.h>
 
 #include "mvp_demux.h"
 
 #define BSIZE	(256*1024)
 
 static demux_handle_t *handle;
+
+static pthread_t thread;
+
+static volatile read_done = 0;
+
+volatile int audio_read = 0;
+volatile int video_read = 0;
 
 static unsigned int
 hash(char *s, int len, unsigned int old)
@@ -52,6 +61,59 @@ hash(char *s, int len, unsigned int old)
 	}
 
 	return h;
+}
+
+static void*
+write_start(void *arg)
+{
+	int fd, len, n, alen, vlen, aget, vget, tot, atot, vtot, i;
+	unsigned int ah, vh;
+	char buf[BSIZE], abuf[BSIZE], vbuf[BSIZE];
+	int x = 0;
+
+	sleep(1);
+
+	while (1) {
+		alen = 0;
+		vlen = 0;
+
+		aget = rand() % sizeof(abuf);
+		vget = rand() % sizeof(vbuf);
+		if (aget > 0)
+			alen = demux_get_audio(handle, abuf, aget);
+		if (vget > 0)
+			vlen = demux_get_video(handle, vbuf, vget);
+
+		if (alen < 0)
+			printf("alen = %d\n", alen);
+		if (vlen < 0)
+			printf("vlen = %d\n", vlen);
+
+		assert(alen >= 0);
+		assert(vlen >= 0);
+
+		if ((vlen == 0) && (alen == 0) &&
+		    ((aget > 0) && (vget > 0)) &&
+		    (read_done) && (x++ > 16))
+			break;
+
+		if (alen > 0) {
+			ah = hash(abuf, alen, ah);
+			atot += alen;
+		}
+		if (vlen > 0) {
+			vh = hash(vbuf, vlen, vh);
+			vtot += vlen;
+		}
+	}
+
+	printf("Bytes: stream %d  audio %d  video %d\n", tot, atot, vtot);
+	printf("Hash: audio 0x%.8x video 0x%.8x\n", ah, vh);
+
+	audio_read = atot;
+	video_read = vtot;
+
+	return NULL;
 }
 
 int
@@ -75,46 +137,29 @@ main(int argc, char **argv)
 		exit(1);
 	}
 
+	pthread_create(&thread, NULL, write_start, NULL);
+
 	ah = vh = 0;
 	len = n = 0;
 	tot = atot = vtot = 0;
 	while (1) {
-		if ((len-n) == 0) {
+		do {
 			rget = rand() % sizeof(buf);
-			len = read(fd, buf, rget);
-			n = 0;
-			if (len >= 0)
-				tot += len;
-			else {
-				perror("read()");
-				break;
-			}
-		}
+		} while (rget == 0);
 
-		if ((rand() % 8) == 0)
-			n += demux_put(handle, buf+n, len-n);
+		len = read(fd, buf, rget);
 
-		aget = rand() % sizeof(abuf);
-		vget = rand() % sizeof(vbuf);
-		alen = demux_get_audio(handle, abuf, aget);
-		vlen = demux_get_video(handle, vbuf, vget);
-
-		if (((len == 0) && (n == 0) && (alen == 0) && (vlen == 0)) &&
-		    ((aget > 0) && (vget > 0) && (rget > 0)))
+		if (len <= 0)
 			break;
 
-		if (alen > 0) {
-			ah = hash(abuf, alen, ah);
-			atot += alen;
-		}
-		if (vlen > 0) {
-			vh = hash(vbuf, vlen, vh);
-			vtot += vlen;
-		}
+		n = 0;
+		while (n < len)
+			n += demux_put(handle, buf+n, len-n);
 	}
 
-	printf("Bytes: stream %d  audio %d  video %d\n", tot, atot, vtot);
-	printf("Hash: audio 0x%.8x video 0x%.8x\n", ah, vh);
+	read_done = 1;
+
+	sleep(2);
 
 	attr = demux_get_attr(handle);
 
@@ -133,9 +178,9 @@ main(int argc, char **argv)
 		i++;
 	}
 
-	if (attr->audio.stats.bytes != atot)
+	if (attr->audio.stats.bytes != audio_read)
 		return -1;
-	if (attr->video.stats.bytes != vtot)
+	if (attr->video.stats.bytes != video_read)
 		return -1;
 
 	return 0;

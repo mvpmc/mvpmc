@@ -177,25 +177,29 @@ mvpw_destroy(mvp_widget_t *widget)
 void
 mvpw_focus(mvp_widget_t *widget)
 {
-	GrSetFocus(widget->wid);
+	if (widget)
+		GrSetFocus(widget->wid);
 }
 
 void
 mvpw_show(mvp_widget_t *widget)
 {
-	GrMapWindow(widget->wid);
+	if (widget)
+		GrMapWindow(widget->wid);
 }
 
 void
 mvpw_hide(mvp_widget_t *widget)
 {
-	GrUnmapWindow(widget->wid);
+	if (widget)
+		GrUnmapWindow(widget->wid);
 }
 
 void
 mvpw_expose(mvp_widget_t *widget)
 {
-	GrClearArea(widget->wid, 0, 0, 0, 0, 1);
+	if (widget)
+		GrClearArea(widget->wid, 0, 0, 0, 0, 1);
 }
 
 int
@@ -625,4 +629,17 @@ void
 mvpw_lower(mvp_widget_t *widget)
 {
 	GrLowerWindow(widget->wid);
+}
+
+int
+mvpw_visible(mvp_widget_t *widget)
+{
+	GR_WINDOW_INFO info;
+
+	GrGetWindowInfo(widget->wid, &info);
+
+	if (info.realized)
+		return 1;
+	else
+		return 0;
 }

@@ -26,8 +26,8 @@
 
 typedef struct {
 	unsigned char *buf;
-	volatile unsigned int head;
-	volatile unsigned int tail;
+	unsigned int head;
+	unsigned int tail;
 	unsigned int size;
 	stream_attr_t *attr;
 	gop_t *gop;
@@ -71,16 +71,28 @@ struct demux_handle_s {
 #define private_stream_1		0xBD
 #define private_stream_2		0xBF
 #define padding_stream			0xBE
-#define audio_stream			0xC0
-#define video_stream			0xE0
+
+#define audio_stream_0			0xc0
+#define audio_stream_1			0xc1
+#define audio_stream_2			0xc2
+#define audio_stream_3			0xc3
+#define audio_stream_4			0xc4
+#define audio_stream_5			0xc5
+#define audio_stream_6			0xc6
+#define audio_stream_7			0xc7
+
+#define video_stream_0			0xe0
+#define video_stream_1			0xe1
+#define video_stream_2			0xe2
+#define video_stream_3			0xe3
+#define video_stream_4			0xe4
+#define video_stream_5			0xe5
+#define video_stream_6			0xe6
+#define video_stream_7			0xe7
 
 #define UNKNOWN		0
 #define MPEG1		1
 #define MPEG2		2
-
-#define AUDIO_MODE_ES		1
-#define AUDIO_MODE_MPEG2_PES	2
-#define AUDIO_MODE_MPEG1_PES	3
 
 extern int start_stream(demux_handle_t *handle, char *buf, int len);
 extern int add_buffer(demux_handle_t *handle, char *buf, int len);
@@ -89,5 +101,22 @@ extern int parse_frame(demux_handle_t *handle, unsigned char *buf,
 extern int stream_drain(stream_t *stream, char *buf, int max);
 extern int stream_drain_fd(stream_t *stream, int fd);
 extern int stream_resize(stream_t *stream, char *start, int size);
+
+extern inline void
+register_stream(stream_t *stream, int id, stream_type_t type)
+{
+	int i, existing;
+
+	existing = stream->attr->existing;
+
+	for (i=0; i<existing; i++) {
+		if (stream->attr->ids[i].id == id)
+			return;
+	}
+
+	stream->attr->ids[i].id = id;
+	stream->attr->ids[i].type = type;
+	stream->attr->existing++;
+}
 
 #endif /* DEMUX_H */

@@ -73,6 +73,7 @@ extern void mvpw_unattach(mvp_widget_t *widget, int direction);
 extern void mvpw_set_key(mvp_widget_t *widget,
 			 void (*callback)(mvp_widget_t*, char));
 extern void mvpw_destroy(mvp_widget_t *widget);
+extern int mvpw_visible(mvp_widget_t *widget);
 
 /*
  * container widget
@@ -206,9 +207,11 @@ extern int mvpw_set_bitmap(mvp_widget_t *widget, mvpw_bitmap_attr_t *bitmap);
 #define MVPW_RED		MVPW_RGBA(255,0,0,255)
 #define MVPW_GREEN		MVPW_RGBA(0,255,0,255)
 #define MVPW_BLUE		MVPW_RGBA(0,0,255,255)
+#define MVPW_CYAN		MVPW_RGBA(0,255,255,255)
 #define MVPW_WHITE		MVPW_RGBA(255,255,255,255)
 #define MVPW_BLACK		MVPW_RGBA(0,0,0,255)
 #define MVPW_ORANGE		MVPW_RGBA(255,110,0,255)
+#define MVPW_DARK_ORANGE	MVPW_RGBA(255,190,0,255)
 #define MVPW_PURPLE		MVPW_RGBA(255,0,255,255)
 #define MVPW_LIGHTGREY		MVPW_RGBA(128,128,128,255)
 #define MVPW_DARKGREY		MVPW_RGBA(96,96,96,255)
@@ -221,5 +224,7 @@ mvpw_rgba(unsigned char r, unsigned char g, unsigned char b, unsigned char a)
 {
 	return (a<<24) | (b<<16) | (g<<8) | r;
 }
+
+#define mvpw_color_alpha(c,a)	((a << 24) | (c & 0x00ffffff))
 
 #endif /* MVP_WIDGET_H */

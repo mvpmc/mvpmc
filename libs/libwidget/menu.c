@@ -91,16 +91,17 @@ change_items(mvp_widget_t *widget, int first)
 			mvpw_set_text_str(cw->data.container.widgets[i], "");
 		else
 			mvpw_set_text_str(cw->data.container.widgets[i],
-					  widget->data.menu.items[first++].label);
-		if (widget->data.menu.items[i].checkbox) {
-			cbw = widget->data.menu.items[i].checkbox;
+					  widget->data.menu.items[first].label);
+		if (widget->data.menu.items[first].checkbox) {
+			cbw = widget->data.menu.items[first].checkbox;
 			mvpw_set_checkbox(cbw,
-					  widget->data.menu.items[i].checked);
+					  widget->data.menu.items[first].checked);
 			mvpw_set_checkbox_fg(cbw,
-					     widget->data.menu.items[i].checkbox_fg);
+					     widget->data.menu.items[first].checkbox_fg);
 			mvpw_expose(cbw);
 		}
 		mvpw_expose(cw->data.container.widgets[i]);
+		first++;
 	}
 }
 

@@ -22,6 +22,12 @@
 #ifndef MVP_DEMUX_H
 #define MVP_DEMUX_H
 
+#define AUDIO_MODE_ES		1
+#define AUDIO_MODE_MPEG2_PES	2
+#define AUDIO_MODE_MPEG1_PES	3
+#define AUDIO_MODE_AC3		4
+#define AUDIO_MODE_PCM		5
+
 typedef struct {
 	unsigned char hour;
 	unsigned char minute;
@@ -50,9 +56,21 @@ typedef struct {
 	} info;
 } stream_stats_t;
 
+typedef enum {
+	STREAM_MPEG,
+	STREAM_AC3,
+	STREAM_PCM,
+} stream_type_t;
+
 typedef struct {
-	unsigned int display;
+	unsigned int id;
+	stream_type_t type;
+} stream_info_t;
+
+typedef struct {
+	unsigned int current;
 	unsigned int existing;
+	stream_info_t ids[16];
 	unsigned int type;
 	stream_stats_t stats;
 	unsigned int bufsz;
@@ -70,6 +88,7 @@ typedef struct {
 	int bps;
 	gop_t gop;
 	int gop_valid;
+	int ac3_audio;
 } demux_attr_t;
 
 typedef struct {

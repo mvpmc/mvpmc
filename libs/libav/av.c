@@ -25,6 +25,7 @@
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <assert.h>
+#include <string.h>
 
 #include "mvp_av.h"
 #include "stb.h"
@@ -32,6 +33,26 @@
 
 static int letterbox = 0;
 static int output = -1;
+
+static av_audio_output_t audio_output = AV_AUDIO_MPEG;
+
+/*
+ * id, data input frequency, data output frequency
+ */
+static int pcmfrequencies[][3] = {{9 ,8000 ,32000},
+				  {10,11025,44100},
+				  {11,12000,48000},
+				  {1 ,16000,32000},
+				  {2 ,22050,44100},
+				  {3 ,24000,48000},
+				  {5 ,32000,32000},
+				  {0 ,44100,44100},
+				  {7 ,48000,48000},
+				  {13,64000,32000},
+				  {14,88200,44100},
+				  {15,96000,48000}};
+
+static int numfrequencies = sizeof(pcmfrequencies)/12;
 
 int
 av_sync(void)
@@ -375,3 +396,92 @@ av_move(int x, int y, int video_mode)
 	return 0;
 }
 
+int
+av_set_audio_output(av_audio_output_t type)
+{
+	if (audio_output != type) {
+		close(fd_audio);
+
+		if (type == AV_AUDIO_MPEG) {
+			if ((fd_audio=open("/dev/adec_mpg",
+					   O_RDWR|O_NONBLOCK)) < 0)
+				return -1;
+			printf("opened /dev/adec_mpg\n");
+			if (ioctl(fd_audio, AV_SET_AUD_SRC, 1) < 0)
+				return -1;
+			if (ioctl(fd_audio, AV_SET_AUD_STREAMTYPE, 2) < 0)
+				return -1;
+			if (ioctl(fd_audio, AV_SET_AUD_CHANNEL, 0) < 0)
+				return -1;
+
+			av_sync();
+
+			if (ioctl(fd_audio, AV_SET_AUD_PLAY, 0) != 0)
+				return -1;
+		} else {
+			int mix[5] = { 0, 2, 7, 1, 0 };
+
+			if ((fd_audio=open("/dev/adec_pcm",
+					   O_RDWR|O_NONBLOCK)) < 0)
+				return -1;
+			printf("opened /dev/adec_pcm\n");
+			if (ioctl(fd_audio, AV_SET_AUD_SRC, 1) < 0)
+				return -1;
+			if (ioctl(fd_audio, AV_SET_AUD_STREAMTYPE, 0) < 0)
+				return -1;
+			if (ioctl(fd_audio, AV_SET_AUD_FORMAT, &mix) < 0)
+				return -1;
+
+			av_sync();
+
+			if (ioctl(fd_audio, AV_SET_AUD_PLAY, 0) < 0)
+				return -1;
+		}
+	}
+
+	audio_output = type;
+
+	return 0;
+}
+
+int
+av_set_pcm_rate(unsigned long rate)
+{
+	int iloop;
+	int mix[5];
+
+	mix[0]=0;	/* 0=stereo,1=mono */
+	mix[1]=2;	/* 0,1=24bit(24) , 2,3=16bit */
+
+	/*
+	 * if there is an exact match for the frequency, use it.
+	 */
+	for(iloop = 0;iloop<numfrequencies;iloop++)
+	{
+		if(rate == pcmfrequencies[iloop][1])
+		{
+			mix[2] = pcmfrequencies[iloop][0];
+			printf("Using %iHz input frequency.\n",
+			       pcmfrequencies[iloop][1]);
+			break;
+		}
+	}
+
+	if (iloop >= numfrequencies) {
+		fprintf(stderr,"Can not find suitable output frequency for %d\n",rate);
+		return -1;
+	}
+
+	mix[3]=1;	/* 1 causes 'thump' ?? */
+	mix[4]=0;	/* 0 = MSB First 1 = LSB First */
+
+	if (ioctl(fd_audio, AV_SET_AUD_FORMAT, &mix) < 0)
+		return -1;
+
+	av_sync();
+
+	if (ioctl(fd_audio, AV_SET_AUD_PLAY, 0) < 0)
+		return -1;
+
+	return 0;
+}

@@ -68,6 +68,11 @@ demux_init(unsigned int size)
 	handle->size = size;
 	handle->spu_current = -1;
 
+	handle->attr.audio.current = -1;
+	handle->attr.video.current = -1;
+
+	demux_reset(handle);
+
 	return handle;
 }
 
@@ -110,8 +115,8 @@ demux_put(demux_handle_t *handle, char *buf, int len)
 	case MPEG_program_end_code:
 	case pack_start_code:
 	case system_header_start_code:
-	case video_stream:
-	case audio_stream:
+	case video_stream_0 ... video_stream_7:
+	case audio_stream_0 ... audio_stream_7:
 	case private_stream_2:
 	case private_stream_1:
 	case padding_stream:
@@ -366,6 +371,9 @@ demux_reset(demux_handle_t *handle)
 		handle->video->head = 0;
 		handle->video->tail = handle->video->size - 1;
 		handle->video->attr->stats.cur_bytes = 0;
+
+		handle->video->attr->existing = 0;
+		handle->video->attr->current = -1;
 	}
 
 	if (handle->audio) {
@@ -376,6 +384,9 @@ demux_reset(demux_handle_t *handle)
 		handle->audio->head = 0;
 		handle->audio->tail = handle->audio->size - 1;
 		handle->audio->attr->stats.cur_bytes = 0;
+
+		handle->audio->attr->existing = 0;
+		handle->audio->attr->current = -1;
 	}
 
 	for (i=0; i<SPU_MAX; i++) {
@@ -626,4 +637,46 @@ demux_set_display_size(demux_handle_t *handle, int w, int h)
 	handle->height = h;
 
 	return 0;
+}
+
+int
+demux_set_audio_stream(demux_handle_t *handle, unsigned int id)
+{
+	int i;
+
+	if (handle == NULL)
+		return -1;
+
+	if (handle->attr.audio.current == id)
+		return 0;
+
+	for (i=0; i<handle->attr.audio.existing; i++) {
+		if (handle->attr.audio.ids[i].id == id) {
+			handle->attr.audio.current = id;
+			return handle->attr.audio.ids[i].type;
+		}
+	}
+
+	return -1;
+}
+
+int
+demux_set_video_stream(demux_handle_t *handle, unsigned int id)
+{
+	int i;
+
+	if (handle == NULL)
+		return -1;
+
+	if (handle->attr.video.current == id)
+		return 0;
+
+	for (i=0; i<handle->attr.video.existing; i++) {
+		if (handle->attr.video.ids[i].id == id) {
+			handle->attr.video.current = id;
+			return handle->attr.video.ids[i].type;
+		}
+	}
+
+	return -1;
 }

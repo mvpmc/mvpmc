@@ -162,7 +162,7 @@ stream_resize(stream_t *stream, char *start, int size)
 static int
 stream_add(demux_handle_t *handle, stream_t *stream, char *buf, int len)
 {
-	unsigned int end;
+	unsigned int end, tail;
 	int size1, size2;
 
 	if (len <= 0)
@@ -171,23 +171,25 @@ stream_add(demux_handle_t *handle, stream_t *stream, char *buf, int len)
 	if (handle->seeking)
 		return len;
 
+	tail = stream->tail;
+
 	PRINTF("%s(): stream 0x%p buf 0x%p len %d\n",
 	       __FUNCTION__, stream, buf, len);
 	PRINTF("stream size %d head %d tail %d\n", stream->size,
-	       stream->head, stream->tail);
+	       stream->head, tail);
 
 	if (len > stream->size)
 		goto full;
-	if (stream->head == stream->tail)
+	if (stream->head == tail)
 		goto full;
 
 	end = (stream->head + len + 6) % stream->size;
 
-	if (stream->head > stream->tail) {
-		if ((end < stream->head) && (end > stream->tail))
+	if (stream->head > tail) {
+		if ((end < stream->head) && (end > tail))
 			goto full;
 	} else {
-		if ((end > stream->tail) || (end < stream->head))
+		if ((end > tail) || (end < stream->head))
 			goto full;
 	}
 
@@ -213,7 +215,7 @@ stream_add(demux_handle_t *handle, stream_t *stream, char *buf, int len)
 	stream->head = end;
 
 	PRINTF("stream size %d head %d tail %d\n", stream->size,
-	       stream->head, stream->tail);
+	       stream->head, tail);
 
 	stream->attr->stats.cur_bytes += (size1 + size2);
 	stream->attr->stats.bytes += (size1 + size2);
@@ -244,22 +246,30 @@ int
 stream_drain(stream_t *stream, char *buf, int max)
 {
 	int size1, size2;
+	unsigned int head;
 
 	if (max <= 0)
 		return 0;
 
+	head = stream->head;
+
 	PRINTF("%s(): stream 0x%p buf 0x%p max %d\n",
 	       __FUNCTION__, stream, buf, max);
 	PRINTF("stream size %d head %d tail %d\n", stream->size,
-	       stream->head, stream->tail);
+	       head, stream->tail);
 
-	if (stream->head >= stream->tail) {
-		size1 = stream->head - stream->tail - 1;
+	if (head >= stream->tail) {
+		size1 = head - stream->tail - 1;
 		size2 = 0;
 	} else {
 		size1 = stream->size - stream->tail - 1;
-		size2 = stream->head;
+		size2 = head;
 	}
+
+	PRINTF("size1 %d size2 %d\n", size1, size2);
+
+	if ((size1 + size2) == 0)
+		goto empty;
 
 	if ((size1 + size2) > max) {
 		if (size1 > max) {
@@ -270,8 +280,6 @@ stream_drain(stream_t *stream, char *buf, int max)
 		}
 	}
 
-	PRINTF("size1 %d size2 %d\n", size1, size2);
-
 	if (size1 > 0)
 		memcpy(buf, stream->buf+stream->tail+1, size1);
 	if (size2 > 0)
@@ -280,14 +288,16 @@ stream_drain(stream_t *stream, char *buf, int max)
 	stream->tail = (stream->tail + size1 + size2) % stream->size;
 
 	PRINTF("stream size %d head %d tail %d\n", stream->size,
-	       stream->head, stream->tail);
-
-	if ((size1 + size2) == 0)
-		stream->attr->stats.empty_count++;
+	       head, stream->tail);
 
 	stream->attr->stats.cur_bytes -= (size1 + size2);
 
 	return size1 + size2;
+
+ empty:
+	stream->attr->stats.empty_count++;
+
+	return 0;
 }
 
 /*
@@ -304,19 +314,22 @@ stream_drain(stream_t *stream, char *buf, int max)
 int
 stream_drain_fd(stream_t *stream, int fd)
 {
+	unsigned int head;
 	int size1, size2;
 	int n, ret;
 
+	head = stream->head;
+
 	PRINTF("%s(): stream 0x%p fd %d\n", __FUNCTION__, stream, fd);
 	PRINTF("stream size %d head %d tail %d\n", stream->size,
-	       stream->head, stream->tail);
+	       head, stream->tail);
 
-	if (stream->head >= stream->tail) {
-		size1 = stream->head - stream->tail - 1;
+	if (head >= stream->tail) {
+		size1 = head - stream->tail - 1;
 		size2 = 0;
 	} else {
 		size1 = stream->size - stream->tail - 1;
-		size2 = stream->head;
+		size2 = head;
 	}
 
 	PRINTF("%s(): size1 %d size2 %d\n", __FUNCTION__, size1, size2);
@@ -342,7 +355,7 @@ stream_drain_fd(stream_t *stream, int fd)
 	stream->tail = (stream->tail + size1 + size2) % stream->size;
 
 	PRINTF("%s(): wrote %d bytes, head %d tail %d\n", __FUNCTION__,
-	       ret, stream->head, stream->tail);
+	       ret, head, stream->tail);
 
 	if ((size1 + size2) == 0)
 		stream->attr->stats.empty_count++;
@@ -745,6 +758,109 @@ parse_spu_frame(demux_handle_t *handle, unsigned char *buf, int len)
 }
 
 /*
+ * parse_ac3_frame() - Parse an AC3 audio frame
+ *
+ * Arguments:
+ *	handle	- demux context handle
+ *	buf	- buffer containing an entire private stream frame
+ *	len	- length of buffer
+ *
+ * Returns:
+ *	>=0	number of bytes consumed
+ *	-1	if an error occurred, or the frame was not AC3 audio
+ */
+static int
+parse_ac3_frame(demux_handle_t *handle, unsigned char *buf, int len)
+{
+	unsigned int pts[2], color = 0, alpha = 0;
+	unsigned int x = 0, y = 0, w=0, h=0, line1 = 0, line2 = 0;
+	unsigned int id, start, cmd;
+	unsigned int size, data_size = 0;
+	int i, m, end, header, offset;
+
+	id = buf[buf[2] + 3] - 128;
+	header = buf[2] + 3 + 1;
+
+	if ((id < 0) || (id > 31))
+		return -1;
+
+	register_stream(handle->audio, id + 128, STREAM_AC3);
+	handle->attr.audio.type = AUDIO_MODE_AC3;
+
+	PRINTF("AC3 stream %d len %d size %d\n", id, len, size);
+
+	offset = buf[2] + 7;
+
+	if (handle->audio->attr->current == -1)
+		handle->audio->attr->current = id + 128;
+
+	if ((id + 128) == handle->audio->attr->current) {
+		handle->attr.ac3_audio = 1;
+		/*
+		 * XXX: broken if the demuxer fills up
+		 */
+		m = stream_add(handle, handle->audio, buf+offset, len-offset);
+
+		return m + offset;
+	} else {
+		return len;
+	}
+
+	return 0;
+}
+
+/*
+ * parse_pcm_frame() - Parse an PCM audio frame
+ *
+ * Arguments:
+ *	handle	- demux context handle
+ *	buf	- buffer containing an entire private stream frame
+ *	len	- length of buffer
+ *
+ * Returns:
+ *	>=0	number of bytes consumed
+ *	-1	if an error occurred, or the frame was not PCM audio
+ */
+static int
+parse_pcm_frame(demux_handle_t *handle, unsigned char *buf, int len)
+{
+	unsigned int pts[2], color = 0, alpha = 0;
+	unsigned int x = 0, y = 0, w=0, h=0, line1 = 0, line2 = 0;
+	unsigned int id, start, cmd;
+	unsigned int size, data_size = 0;
+	int i, m, end, header, offset;
+
+	id = buf[buf[2] + 3] - 160;
+	header = buf[2] + 3 + 1;
+
+	if ((id < 0) || (id > 31))
+		return -1;
+
+	register_stream(handle->audio, id + 160, STREAM_PCM);
+	handle->attr.audio.type = AUDIO_MODE_PCM;
+
+	PRINTF("PCM stream %d len %d size %d\n", id, len, size);
+
+	offset = buf[2] + 7;
+
+	if (handle->audio->attr->current == -1)
+		handle->audio->attr->current = id + 160;
+
+	if ((id + 160) == handle->audio->attr->current) {
+		/*
+		 * XXX: broken if the demuxer fills up
+		 */
+		m = stream_add(handle, handle->audio, buf+offset, len-offset);
+
+		return m + offset;
+	} else {
+		return len;
+	}
+
+	return 0;
+}
+
+/*
  * parse_frame() - Parse a single frame in the media stream
  *
  * Arguments:
@@ -821,6 +937,14 @@ parse_frame(demux_handle_t *handle, unsigned char *buf, int len, int type)
 						    handle->spu_buf,
 						    handle->spu_len) == 0) {
 					PRINTF("found partial sub picture\n");
+				} else if (parse_ac3_frame(handle,
+							   handle->spu_buf,
+							   handle->spu_len) >= 0) {
+					PRINTF("found AC3 frame\n");
+				} else if (parse_pcm_frame(handle,
+							   handle->spu_buf,
+							   handle->spu_len) >= 0) {
+					PRINTF("found PCM frame\n");
 				}
 				handle->spu_len = 0;
 			}
@@ -933,6 +1057,12 @@ parse_frame(demux_handle_t *handle, unsigned char *buf, int len, int type)
 			if (type == private_stream_1) {
 				if (parse_spu_frame(handle, buf, n) == 0) {
 					PRINTF("found sub picture\n");
+				} else if (parse_ac3_frame(handle,
+							   buf, n) >= 0) {
+					PRINTF("found AC3 frame\n");
+				} else if (parse_pcm_frame(handle,
+							   buf, n) >= 0) {
+					PRINTF("found PCM frame\n");
 				}
 			}
 			buf += n;
@@ -951,8 +1081,13 @@ parse_frame(demux_handle_t *handle, unsigned char *buf, int len, int type)
 			ret += (len-ret);
 		}
 		break;
-	case video_stream:
+	case video_stream_0 ... video_stream_7:
 		PRINTF("found video stream, stream %p\n", handle->video);
+
+		register_stream(handle->video, type, STREAM_MPEG);
+
+		if (handle->video->attr->current == -1)
+			handle->video->attr->current = type;
 
 		if (((len-ret) + handle->bufsz) >= 2) {
 			n = 2 - handle->bufsz;
@@ -969,11 +1104,24 @@ parse_frame(demux_handle_t *handle, unsigned char *buf, int len, int type)
 			break;
 		}
 
+#if 1
+		if (type != handle->video->attr->current) {
+			/*
+			 * Throw stream away if it is not currently
+			 * being played.
+			 */
+			n = handle->buf[0] * 256 + handle->buf[1];
+			handle->remain = n;
+			handle->frame_state = 0;
+			break;
+		}
+#endif
+
 		if (handle->headernum == 0) {
 			header[0] = 0;
 			header[1] = 0;
 			header[2] = 1;
-			header[3] = video_stream;
+			header[3] = type;
 			if (stream_add(handle, handle->video,
 				       header, 4) != 4) {
 				break;
@@ -1001,7 +1149,7 @@ parse_frame(demux_handle_t *handle, unsigned char *buf, int len, int type)
 				header[0] = 0;
 				header[1] = 0;
 				header[2] = 1;
-				header[3] = video_stream;
+				header[3] = type;
 				stream_add(handle, handle->video, header, 4);
 				stream_add(handle, handle->video, handle->buf,
 					   handle->bufsz);
@@ -1026,8 +1174,13 @@ parse_frame(demux_handle_t *handle, unsigned char *buf, int len, int type)
 			ret += m;
 		}
 		break;
-	case audio_stream:
+	case audio_stream_0 ... audio_stream_7:
 		PRINTF("found audio stream\n");
+
+		register_stream(handle->audio, type, STREAM_MPEG);
+
+		if (handle->audio->attr->current == -1)
+			handle->audio->attr->current = type;
 
 		if (((len-ret) + handle->bufsz) >= 2) {
 			n = 2 - handle->bufsz;
@@ -1044,11 +1197,24 @@ parse_frame(demux_handle_t *handle, unsigned char *buf, int len, int type)
 			break;
 		}
 
+#if 1
+		if (type != handle->audio->attr->current) {
+			/*
+			 * Throw stream away if it is not currently
+			 * being played.
+			 */
+			n = handle->buf[0] * 256 + handle->buf[1];
+			handle->remain = n;
+			handle->frame_state = 0;
+			break;
+		}
+#endif
+
 		if (handle->headernum == 0) {
 			header[0] = 0;
 			header[1] = 0;
 			header[2] = 1;
-			header[3] = audio_stream;
+			header[3] = type;
 			if (stream_add(handle, handle->audio,
 				       header, 4) != 4) {
 				break;

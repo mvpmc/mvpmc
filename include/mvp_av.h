@@ -40,6 +40,11 @@ enum {
 	AV_ASPECT_16x9 = 1,
 };
 
+typedef enum {
+	AV_AUDIO_MPEG,
+	AV_AUDIO_PCM
+} av_audio_output_t;
+
 typedef struct {
         uint64_t stc;
         uint64_t pts;
@@ -80,5 +85,10 @@ extern int av_get_aspect(void);
 extern int av_set_mode(int);
 extern int av_set_output(int);
 extern int av_set_aspect(int);
+
+extern int av_set_led(int);
+
+extern int av_set_pcm_rate(unsigned long rate);
+extern int av_set_audio_output(av_audio_output_t type);
 
 #endif /* MVP_AV_H */
