@@ -51,6 +51,7 @@ typedef struct {
 	GR_FONT_ID	 font;
 	GR_COLOR	 fg;
 	GR_COLOR	 text_bg;
+	int		 rounded;
 
 	void (*callback_key)(char*, char);
 } mvpw_text_t;
@@ -70,6 +71,7 @@ typedef struct {
 	int		 columns;
 	int		 rows;
 	int		 checkboxes;
+	int		 rounded;
 
 	mvp_widget_t	*title_widget;
 	mvp_widget_t	*container_widget;

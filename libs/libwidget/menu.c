@@ -131,8 +131,15 @@ hilite_item(mvp_widget_t *widget, int which, int hilite)
 		mvpw_get_text_attr(widget->data.menu.items[which].widget,
 				   &attr);
 		mvpw_expose(widget->data.menu.items[which].widget);
-		mvpw_set_bg(widget->data.menu.items[which].widget,
-			    widget->data.menu.hilite_bg);
+		if (widget->data.menu.rounded) {
+			mvpw_set_bg(widget->data.menu.items[which].widget,
+				    widget->data.menu.items[which].bg);
+			attr.bg = widget->data.menu.hilite_bg;
+			attr.rounded = 1;
+		} else {
+			mvpw_set_bg(widget->data.menu.items[which].widget,
+				    widget->data.menu.hilite_bg);
+		}
 		attr.fg = widget->data.menu.hilite_fg;
 		mvpw_set_text_attr(widget->data.menu.items[which].widget,
 				   &attr);
@@ -143,6 +150,7 @@ hilite_item(mvp_widget_t *widget, int which, int hilite)
 		mvpw_set_bg(widget->data.menu.items[which].widget,
 			    widget->data.menu.items[which].bg);
 		attr.fg = widget->data.menu.items[which].fg;
+		attr.rounded = 0;
 		mvpw_set_text_attr(widget->data.menu.items[which].widget,
 				   &attr);
 	}
@@ -360,7 +368,14 @@ mvpw_add_menu_item(mvp_widget_t *widget, char *label, void *key,
 
 	if (i == widget->data.menu.current) {
 		attr.fg = widget->data.menu.hilite_fg;
-		mvpw_set_bg(tw, widget->data.menu.hilite_bg);
+		if (widget->data.menu.rounded) {
+			mvpw_set_bg(tw, widget->bg);
+			attr.bg = widget->data.menu.hilite_bg;
+			attr.rounded = 1;
+		} else {
+			mvpw_set_bg(tw, widget->data.menu.hilite_bg);
+			attr.rounded = 0;
+		}
 	} else {
 		if (item_attr) {
 			attr.fg = item_attr->fg;
@@ -525,6 +540,7 @@ mvpw_set_menu_attr(mvp_widget_t *widget, mvpw_menu_attr_t *attr)
 	widget->data.menu.title_bg = attr->title_bg;
 	widget->data.menu.title_justify = attr->title_justify;
 	widget->data.menu.checkboxes = attr->checkboxes;
+	widget->data.menu.rounded = attr->rounded;
 
 	i = widget->data.menu.current;
 	if (i < widget->data.menu.nitems)

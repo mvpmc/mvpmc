@@ -100,6 +100,8 @@ typedef struct {
 	int	 	margin;
 	int	 	font;
 	uint32_t 	fg;
+	uint32_t 	bg;
+	int	 	rounded;
 } mvpw_text_attr_t;
 
 extern mvp_widget_t *mvpw_create_text(mvp_widget_t *parent,
@@ -124,6 +126,7 @@ typedef struct {
 	uint32_t 	title_bg;
 	int	 	title_justify;
 	int	 	checkboxes;
+	int	 	rounded;
 } mvpw_menu_attr_t;
 
 typedef struct {

@@ -30,9 +30,9 @@
 static void
 expose(mvp_widget_t *widget)
 {
-	GR_GC_ID gc;
+	GR_GC_ID gc, gcr;
 	GR_FONT_INFO finfo;
-	int x, y, h, w, descent;
+	int x, y, h, w, descent, indent = 0, width, dia;
 	char *str;
 	int i, nl = 0;
 
@@ -44,10 +44,39 @@ expose(mvp_widget_t *widget)
 	descent = h - finfo.baseline;
 
 	gc = GrNewGC();
+	gcr = GrNewGC();
 
+	if (widget->data.text.rounded) {
+		GrSetGCBackground(gc, widget->data.text.text_bg);
+	} else {
+		GrSetGCBackground(gc, widget->bg);
+	}
 	GrSetGCForeground(gc, widget->data.text.fg);
-	GrSetGCBackground(gc, widget->bg);
 	GrSetGCFont(gc, widget->data.text.font);
+
+	GrSetGCForeground(gcr, widget->data.text.text_bg);
+
+	if (widget->data.text.rounded) {
+		dia = widget->height / 2;
+		indent = dia / 2;
+		GrArc(widget->wid, gcr,
+		      dia, dia,
+		      dia, dia,
+		      0, 0,
+		      0, dia,
+		      GR_PIE);
+		width = mvpw_font_width(widget->data.text.font,
+					widget->data.text.str);
+		if (width > widget->width - (2*dia))
+			width = widget->width - (2*dia);
+		GrArc(widget->wid, gcr,
+		      dia+width, dia,
+		      dia, dia,
+		      0+width, dia,
+		      0+width, 0,
+		      GR_PIE);
+		GrFillRect(widget->wid, gcr, dia, 0, width, widget->height);
+	}
 
 	str = widget->data.text.str;
 
@@ -125,7 +154,7 @@ expose(mvp_widget_t *widget)
 			}
 			if (buf[strlen(buf)-1] == '\n')
 				buf[strlen(buf)-1] = '\0';
-			GrText(widget->wid, gc, x, y-descent, buf, strlen(buf), 0);
+			GrText(widget->wid, gc, x+indent, y-descent, buf, strlen(buf), 0);
 			y += h;
 
 			i += j;
@@ -134,10 +163,11 @@ expose(mvp_widget_t *widget)
 				i++;
 		}
 	} else {
-		GrText(widget->wid, gc, x, y-descent, str, strlen(str), 0);
+		GrText(widget->wid, gc, x+indent, y-descent, str, strlen(str), 0);
 	}
 
 	GrDestroyGC(gc);
+	GrDestroyGC(gcr);
 }
 
 mvp_widget_t*
@@ -189,6 +219,8 @@ mvpw_set_text_attr(mvp_widget_t *widget, mvpw_text_attr_t *attr)
 	widget->data.text.margin = attr->margin;
 	widget->data.text.fg = attr->fg;
 	widget->data.text.font = attr->font;
+	widget->data.text.rounded = attr->rounded;
+	widget->data.text.text_bg = attr->bg;
 }
 
 void
@@ -199,6 +231,7 @@ mvpw_get_text_attr(mvp_widget_t *widget, mvpw_text_attr_t *attr)
 	attr->margin = widget->data.text.margin;
 	attr->fg = widget->data.text.fg;
 	attr->font = widget->data.text.font;
+	attr->rounded = widget->data.text.rounded;
 }
 
 void
