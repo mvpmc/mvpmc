@@ -339,6 +339,7 @@ main(int argc, char **argv)
 	if (mythtv_server)
 		mythtv_init(mythtv_server, -1);
 
+	video_init();
 	pthread_create(&video_read_thread, NULL, video_read_start, NULL);
 	pthread_create(&video_write_thread, NULL, video_write_start, NULL);
 	pthread_create(&audio_write_thread, NULL, audio_write_start, NULL);

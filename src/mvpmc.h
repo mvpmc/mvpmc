@@ -114,6 +114,7 @@ extern volatile int seeking;
 extern volatile int jumping;
 extern volatile int paused;
 
+extern int video_init(void);
 extern void audio_play(mvp_widget_t*);
 extern void video_play(mvp_widget_t*);
 

@@ -31,7 +31,7 @@
 #include <sys/time.h>
 #include <signal.h>
 #include <pthread.h>
-
+#include <semaphore.h>
 #include <mvp_demux.h>
 #include <mvp_widget.h>
 #include <mvp_av.h>
@@ -50,6 +50,7 @@
 static char inbuf_static[VIDEO_BUFF_SIZE];
 
 pthread_cond_t video_cond = PTHREAD_COND_INITIALIZER;
+static sem_t   write_threads_idle_sem;
 
 static int fd = -1;
 static av_stc_t seek_stc;
@@ -190,6 +191,12 @@ video_subtitle_check(mvp_widget_t *widget)
 	}
 }
 
+int video_init(void)
+{
+	sem_init(&write_threads_idle_sem, 0, 2);
+	return(0);
+}
+
 void
 video_play(mvp_widget_t *widget)
 {
@@ -208,13 +215,19 @@ video_play(mvp_widget_t *widget)
 void
 video_clear(void)
 {
+	int cnt;
 	if (fd >= 0)
 		close(fd);
 	fd = -1;
 	video_playing = 0;
 	pthread_kill(video_write_thread, SIGURG);
 	pthread_kill(audio_write_thread, SIGURG);
-	usleep(3000);
+	sem_getvalue(&write_threads_idle_sem, &cnt);
+	while ( cnt != 2 ) {
+		sleep(0);
+		sem_getvalue(&write_threads_idle_sem, &cnt);
+		pthread_cond_broadcast(&video_cond);
+	}
 	av_reset();
 	pthread_cond_broadcast(&video_cond);
 }
@@ -913,9 +926,11 @@ video_read_start(void *arg)
 		while (!video_playing) {
 			demux_reset(handle);
 			demux_seek(handle);
-			printf("mpeg read thread sleeping...\n");
-			if ( !(sent_idle_notify) && (video_functions->notify != NULL) ) {
-				video_functions->notify(MVP_READ_THREAD_IDLE);
+			if ( !(sent_idle_notify) ) {
+				if ( video_functions->notify != NULL ) {
+					video_functions->notify(MVP_READ_THREAD_IDLE);
+				}
+				printf("mpeg read thread sleeping...\n");
 				sent_idle_notify = 1;
 			}
 			pthread_cond_wait(&video_cond, &mutex);
@@ -1025,6 +1040,7 @@ video_read_start(void *arg)
 void*
 video_write_start(void *arg)
 {
+	int idle = 1;
 	pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 	int len;
 	sigset_t sigs;
@@ -1040,10 +1056,23 @@ video_write_start(void *arg)
 	pthread_cond_wait(&video_cond, &mutex);
 
 	while (1) {
+		while (!video_playing) {
+			if ( !(idle) ) {
+				sem_post(&write_threads_idle_sem);
+				idle = 1;
+				printf("video write thread sleeping...\n");
+			}
+			pthread_cond_wait(&video_cond, &mutex);
+		}
+		if ( idle ) {
+			sem_wait(&write_threads_idle_sem);
+			idle = 0;
+			printf("video write thread running\n");
+		}
+
 		while (seeking || jumping)
 			pthread_cond_wait(&video_cond, &mutex);
-		if ((video_playing || running_replaytv) &&
-		    (len=demux_write_video(handle, fd_video)) > 0)
+		if (video_playing && (len=demux_write_video(handle, fd_video)) > 0)
 			pthread_cond_broadcast(&video_cond);
 		else
 			pthread_cond_wait(&video_cond, &mutex);
@@ -1055,6 +1084,7 @@ video_write_start(void *arg)
 void*
 audio_write_start(void *arg)
 {
+	int idle = 1;
 	pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 	int len;
 	sigset_t sigs;
@@ -1075,16 +1105,27 @@ audio_write_start(void *arg)
 		while (seeking || jumping)
 			pthread_cond_wait(&video_cond, &mutex);
 
-		while (!video_playing && !running_replaytv) {
+		while (!video_playing) {
 			pcm_decoded = 0;
 			empty_ac3();
+			if ( !(idle) ) {
+				sem_post(&write_threads_idle_sem);
+				idle = 1;
+				printf("audio write thread sleeping...\n");
+			}
 			pthread_cond_wait(&video_cond, &mutex);
+		}
+		if ( idle ) {
+			sem_wait(&write_threads_idle_sem);
+			idle = 0;
+			printf("audio write thread running\n");
 		}
 
 		if (running_replaytv) {
 			attr = demux_get_attr(handle);
 			vi = &attr->video.stats.info.video;
 			if (attr->audio.type != audio_type) {
+            // JBH: FIX ME: This code never gets hit
 				audio_type = attr->audio.type;
 				switch (audio_type) {
 				case AUDIO_MODE_AC3:
