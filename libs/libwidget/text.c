@@ -93,10 +93,16 @@ expose(mvp_widget_t *widget)
 		x = widget->data.text.margin;
 		break;
 	case MVPW_TEXT_RIGHT:
-		x = widget->width - w - widget->data.text.margin;
+		if (w > (widget->width - widget->data.text.margin))
+			x = 0;
+		else
+			x = widget->width - w - widget->data.text.margin;
 		break;
 	case MVPW_TEXT_CENTER:
-		x = (widget->width - w - widget->data.text.margin) / 2;
+		if (w > (widget->width - widget->data.text.margin))
+			x = 0;
+		else
+			x = (widget->width - w - widget->data.text.margin) / 2;
 		break;
 	default:
 		x = 0;
