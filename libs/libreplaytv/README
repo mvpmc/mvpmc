@@ -1,0 +1,102 @@
+ReplayTV Client Interface Library (replaytvlib) Readme
+------------------------------------------------------
+John Honeycutt (honeycut@nc.rr.com) 09/20/2004
+
+General
+-------
+This is replaytvlib, a C library for communicating with ReplayTV 4XXX & 5XXX series 
+PVR's. i.e. obtaining show guide information, streaming video, etc...
+It is based on the replaypc-0.4.0 source code. http://replaypc.sourceforge.net/
+Where replaypc is a commandline driven toolset, replaytvlib is intended to be a library
+which is linked by applications desiring to communicate with ReplayTV devices.
+The initial user of replaytvlib is MediaMVP. http://mvpmc.sourceforge.net/
+
+Some great replaytv resources are:
+  The ReplayTV FAQ page: http://www.replayfaqs.com/
+  molehill:              http://www.molehill.org/twiki/bin/view/Replay/WebHome
+     The molehill site contains tons-o protocol information on replaytv lan video sharing.
+  
+Library API
+------------
+The library's api header is: rtvlib.h
+All public structure types and api fuctions are exported through this header.
+
+Usage
+-----
+-Just link libreplaytv.a to the application.
+ WARNING: Make sure the applications system time is within 40 seconds of the 
+          replaytv device's time or the replaytv device will refuse to communicate.
+
+Dependencies
+------------
+Currently the only external dependency is expat which is used for XML parsing.
+http://expat.sourceforge.net/
+
+Debugging Shell
+---------------
+The library build also generates the 'rtv_shell' executable.
+This is a debug program that allows exercising the library's. 
+e.g: obtaining & and displaying a replaytv's device information, 
+     obtaining and displaying a replay guide snapshot, etc...
+
+mvpmc
+-----
+mvpmc interfaces to replaytvlib from mvpmc/src/replaytv.c
+
+Library Development
+-------------------
+There's still lots to do. If you want to help, great!
+
+Status
+------
+09/20/2004:
+- rtv_get_device_info() api fully functional
+  Also parses the SW version string to generate major, minor, & build keys. 
+- rtv_get_guide_snapshot() api returns partial guide information for 5K series devices.
+- api's for formatting & printing device information and guide snapshot data. 
+- api's for freeing device info & guide snapshot structure memory.
+- api's for setting/getting library debug flags.
+- raw httpfs access functions exported. (Need create targeted api's and quit exporting these)
+- rtv_shell debug executable fully functional
+
+Library TODO
+------------
+-Set up autoconf and get rid of Makefile
+-Cleanup internal header files
+-Added ability & api to re-direct RTV_PRT statements to a file.
+-Finish 5K Guide parsing and string formatting routines.
+-Add 4K Guide parsing
+-Figure out how to get DVArchive to send a 5K guide instead of an XML formatted guide.
+ (I know this can be done because I've snooped DVArchive communicating w/ my RTV5K)
+-Maybe remove the expat lib dependency. It's only used for rtv_get_device_info() response 
+ parsing.
+-Cleanup error checking. Current code is inconsistent. Can hang under some conditions, etc...
+-Create httpfs api's. rtv_fsget_dir_list(), rtv_fsget_vol_info(), rtv_fsget_filestat().
+-Get copying a file from replayTV to local or NFS working.
+-Add rtv_get_device_info() check to compare replaytv device's time to application platform's
+ time. Spew error message if greater than 30 second difference.
+-Add replay unit discovery (SSDP). i.e. Autodiscover replaytv devices instead of passing 
+ ipaddr at application command line.
+-Add support for deleting a show.
+-Add support for the replay show ".ndx" files to allow jumping
+ around the show by timestamp.
+-Add commercial skip support.
+ 
+mvpmv TODO
+----------
+-Add support for multiple replaytv devices
+-Add support to display replay device 'friendly name', Den, Bedroom, etc...
+-Add support for displaying the show synopsys, actors, recorded
+ date/time, etc...
+-Add commandline option for setting library debug flags and re-dirrecting library 
+ RTV_PRT statements to a file.
+
+
+
+
+
+
+
+
+
+
