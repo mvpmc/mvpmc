@@ -27,6 +27,14 @@
 #include "rtv.h"
 
 
+rtv_idns_t rtv_idns = 
+{
+   .sn_4k   = "RTV4080L1AA5319999",
+   .uuid_4k = "506052b0-242e-a2cb-3921-72f0f3319999",
+   .sn_5k   = "RTV5040J3TR0209999",
+   .uuid_5k = "93da697b-a177-96c3-3858-2c19c9899999"
+};
+
 FILE        *log_fd;
 volatile u32 rtv_debug = 0x00000000;
 //volatile u32 rtv_debug = 0x100000ff;

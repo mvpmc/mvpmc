@@ -67,12 +67,25 @@ extern int  split_lines(char * src, char *** pdst);
 #define U64F "ll"
 #endif
 
-
 struct mapping 
 {
     u32   value;
     char *name;
 };
+
+//+********************************************************************
+// Device specific ID numbers. (serial#, uuid, etc)
+//+********************************************************************
+typedef struct rtv_idns_t
+{
+   char *sn_4k;
+   char *uuid_4k;
+   char *sn_5k;
+   char *uuid_5k;   
+} rtv_idns_t;
+
+extern rtv_idns_t rtv_idns;
+
 
 //+********************************************************************
 // Debugging/logging infrastructure

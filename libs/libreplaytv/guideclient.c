@@ -127,21 +127,23 @@ int rtv_get_guide_snapshot( const rtv_device_info_t  *device,
        send_timestamp = cur_timestamp;
     }
 
-    if ( atoi(device->modelNumber) == 4999 ) {
-       RTV_PRT("Sorry DVArchive not supported yet\n");
-       return(-ENOTSUP);
-    }
+    //if ( atoi(device->modelNumber) == 4999 ) {
+    //   RTV_PRT("Sorry DVArchive not supported yet\n");
+    //   return(-ENOTSUP);
+    //}
     if ( device->version.vintage == RTV_DEVICE_4K ) {
        sprintf(url, "http://%s/http_replay_guide-get_snapshot?"
-               "guide_file_name=%s&serial_no=RTV4080K0000000000",
+               "guide_file_name=%s&serial_no=%s",
                device->ipaddr,
-               send_timestamp);
+               send_timestamp,
+               rtv_idns.sn_4k);
     }
     else if ( device->version.vintage == RTV_DEVICE_5K ) {       
        sprintf(url, "http://%s/http_replay_guide-get_snapshot?"
-               "guide_file_name=%s&serial_no=RTV5040J3TR0202999",
+               "guide_file_name=%s&serial_no=%s",
                device->ipaddr,
-               send_timestamp);
+               send_timestamp,
+               rtv_idns.sn_5k);
 //               "guide_file_name=%s&serial_no=RTV5040K0000000000",
     }
     else {

@@ -59,6 +59,7 @@ LIBOBJS=			\
 	sleep.o			\
 	deviceinfoclient.o	\
 	discovery.o	\
+	rtvserver.o	\
 	guideparser.o	\
 	rtvlib.o		\
 	$(OBJMD5)

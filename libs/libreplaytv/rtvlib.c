@@ -19,10 +19,15 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <time.h>
+#include <sys/utsname.h>
+#include <arpa/inet.h>
+#include <netdb.h>
+#include <unistd.h>
 #include "rtv.h"
 #include "rtvlib.h"
 
-#define MAX_RTVS 10
+char local_ip_address[INET_ADDRSTRLEN] = "";
+char local_hostname[255]   = "NoHostName";
 
 // ReplayTV device list
 rtv_device_list_t rtv_devices;
@@ -64,7 +69,7 @@ void rtv_print_device_list( void )
    for ( x=0; x < rtv_devices.num_rtvs; x++ ) {
       printf("  idx=%2d  ", x);
       if ( rtv_devices.rtv[x].device.ipaddr != NULL ) {
-         printf("ip=%s  model=%s  name=%s\n", 
+         printf("ip=%-16s  model=%s  name=%s\n", 
                 rtv_devices.rtv[x].device.ipaddr,rtv_devices.rtv[x].device.modelNumber, rtv_devices.rtv[x].device.name);
       }
       else {
@@ -101,9 +106,41 @@ char *rtv_format_time(__u64 ttk)
 
 int rtv_init_lib(void) 
 {
+   struct utsname     myname;
+   int                bogus_fd, len, errno_sav;
+   struct sockaddr_in ssdp_addr, local_addr;
+
    log_fd = stdout;
    rtv_devices.num_rtvs = 0;
    rtv_devices.rtv      = malloc(sizeof(rtv_device_t) * MAX_RTVS);
    memset(rtv_devices.rtv, 0, sizeof(rtv_device_t) * MAX_RTVS); 
+
+   // Determine our IP address & hostname
+   // gethostbyname doesn't work on the mvp so setup a bogus socket 
+   // to figure out the ip address.
+   //
+   if ( uname(&myname) < 0 ) {
+      RTV_ERRLOG("%s: Unable to determine local Hostname\n");
+   }
+   else {
+      strncpy(local_hostname, myname.nodename, 254);
+   }
+   
+   bzero(&ssdp_addr, sizeof(ssdp_addr));
+   ssdp_addr.sin_family = AF_INET;
+   ssdp_addr.sin_port   = htons(1900);
+   inet_aton("239.255.255.250", &(ssdp_addr.sin_addr));
+   bogus_fd = socket(AF_INET, SOCK_DGRAM, 0);
+   if ( (connect(bogus_fd, (struct sockaddr*)&ssdp_addr, sizeof(ssdp_addr))) != 0 ) {
+      errno_sav = errno;
+      RTV_ERRLOG("%s: Unable to determine local IP address: %d==>%s\n", __FUNCTION__, errno_sav, strerror(errno_sav));
+   }
+   else {
+      len = sizeof(local_addr);
+      getsockname(bogus_fd, (struct sockaddr*)&local_addr, &len);
+      inet_ntop(AF_INET, &(local_addr.sin_addr), local_ip_address, INET_ADDRSTRLEN);  
+      RTV_PRT("rtv: ipaddress: %s   hostname: %s\n", local_ip_address, local_hostname);
+   }
+   close(bogus_fd);
    return(0);
 }

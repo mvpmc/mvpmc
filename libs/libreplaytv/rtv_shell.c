@@ -162,6 +162,7 @@ static int ciDiscoverDevices(int argc, char **argv)
    if ( (rc = rtv_discover(tmo_ms, &dev_list)) != 0 ) {
       return(rc);
    } 
+   rtv_print_device_list();
    return(0);
 }
 

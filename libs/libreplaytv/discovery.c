@@ -23,22 +23,68 @@
 #include <arpa/inet.h>
 #include "rtv.h"
 #include "rtvlib.h"
+#include "rtvserver.h"
 
 #define SSDP_BUF_SZ (1023)
 
+static int process_ssdp_response( const char *ip_addr, char *resp )
+{
+   int           rc;
+   char         *pt1, *pt2;
+   char          query_str[255];
+   rtv_device_t *rtv;
+
+   // Verify it's a rtv device that responded
+   //
+   if ( strstr(resp, "ReplayDevice") == NULL ) {
+      RTV_WARNLOG("%s: Received ssdp response from non-replaytv device\n", __FUNCTION__);
+      RTV_WARNLOG("%s", resp);
+      return(-EBADMSG);
+   }
+
+   // Extract the query string
+   //
+   pt1 = strstr(resp, "LOCATION: http://") + 10;
+   pt2 = strstr(pt1, "\r");
+   if ( (pt1 == NULL) || (pt2 == NULL) || ((pt2 - pt1) > 254) ) {
+      RTV_ERRLOG("%s: Malformed ssdp response\n", __FUNCTION__);
+      RTV_WARNLOG("%s", resp);
+      return(-EBADMSG);
+   } 
+   memcpy(query_str, pt1, pt2 - pt1);
+   query_str[pt2-pt1] = '\0';
+   RTV_DBGLOG(RTVLOG_DSCVR, "%s: query_str: %s: l=%d\n\n", __FUNCTION__, query_str, strlen(query_str));
+   
+   // Query the device
+   //
+   rc = rtv_get_device_info(ip_addr, query_str, &rtv);
+   return(rc);
+}
+
+#define SSDP_QUERY_STR "M-SEARCH * HTTP/1.1\r\nHOST: 239.255.255.250:1900\r\nMAN:\"ssdp:discover\"\r\n"\
+                       "ST: urn:replaytv-com:device:ReplayDevice:1\r\nMX: 3\r\n\r\n"
+
+#define SSDP_NOTIFY_HEAD_STR "NOTIFY * HTTP/1.1\r\nDate: Mon, 05 Jan 1970 23:11:55 GMT\r\n"\
+                             "Server: Unknown/0.0 UPnP/1.0 Virata-EmWeb/R6_0_1\r\n"\
+                             "HOST: 239.255.255.250:1900\r\nNTS: ssdp:alive\r\n"\
+                             "CACHE-CONTROL: max-age = 1830\r\n"\
+                             "LOCATION: http://%s/Device_Descr.xml\r\n"
+#define SSDP_NOTIFY_TAIL1_STR "NT: upnp:rootdevice\r\nUSN: uuid:%s::upnp:rootdevice\r\n\r\n"
+#define SSDP_NOTIFY_TAIL2_STR "NT: uuid:%s\r\nUSN: uuid:%s\r\n\r\n"
+#define SSDP_NOTIFY_TAIL3_STR "NT: urn:replaytv-com:device:ReplayDevice:1\r\nUSN: uuid:%s::urn:replaytv-com:device:ReplayDevice:1\r\n\r\n"
+
+
+//+***********************************************************************************
+//                         PUBLIC FUNCTIONS
+//+***********************************************************************************
+
 int rtv_discover(unsigned int timeout_ms, rtv_device_list_t **device_list)
 {
-
-   const char   queryStr[]       = "M-SEARCH * HTTP/1.1\r\nHOST: 239.255.255.250:1900\r\nMAN: \"ssdp:discover\"\r\nST: urn:replaytv-com:device:ReplayDevice:1\r\nMX: 3\r\n\r\n";
-   const char   notifyHeadStr[]  = "NOTIFY * HTTP/1.1\r\nDate: Mon, 05 Jan 1970 23:11:55 GMT\r\nServer: Unknown/0.0 UPnP/1.0 Virata-EmWeb/R6_0_1\r\nHOST: 239.255.255.250:1900\r\nNTS: ssdp:alive\r\nCACHE-CONTROL: max-age = 1830\r\nLOCATION: http://%s/Device_Descr.xml\r\n%s";
-   const char   notify1TailStr[] = "NT: upnp:rootdevice\r\nUSN: uuid:a74f4677-c352-8b5c-3ee7-26382ab12cae::upnp:rootdevice\r\n\r\n";
-   const char   notify2TailStr[] = "NT: uuid:a74f4677-c352-8b5c-3ee7-26382ab12cae\r\nUSN: uuid:a74f4677-c352-8b5c-3ee7-26382ab12cae\r\n\r\n";
-   const char   notify3TailStr[] = "NT: urn:replaytv-com:device:ReplayDevice:1\r\nUSN: uuid:a74f4677-c352-8b5c-3ee7-26382ab12cae::urn:replaytv-com:device:ReplayDevice:1\r\n\r\n";
    const u_char ttl              = 1;
    const int    on               = 1;
 
-	int                ssdp_sendfd, resp_recvfd, recv_mcastfd;
-   int                rc, len, done, errno_sav;
+	int                ssdp_sendfd, resp_recvfd, recv_mcastfd, http_fd;
+   int                tmp, rc, len, done, errno_sav, pid;
 	struct sockaddr_in ssdp_addr, resp_addr, local_addr, recv_addr;
    struct ip_mreq     mreq;
    int                maxFDp1;
@@ -46,9 +92,10 @@ int rtv_discover(unsigned int timeout_ms, rtv_device_list_t **device_list)
 	struct timeval     tv;
    char               buff[SSDP_BUF_SZ + 1];
    char               tm_buf[255];
+   char               ip_addr[INET_ADDRSTRLEN+1];
    time_t             tim;
 
-   ssdp_sendfd = resp_recvfd = recv_mcastfd = -1;
+   ssdp_sendfd = resp_recvfd = recv_mcastfd = http_fd = -1;
    errno_sav = 0;
 
    // Setup ssdp multicast send socket
@@ -62,7 +109,7 @@ int rtv_discover(unsigned int timeout_ms, rtv_device_list_t **device_list)
    setsockopt(ssdp_sendfd, IPPROTO_IP, IP_MULTICAST_TTL, &ttl, sizeof(ttl));
    if ( (rc = connect(ssdp_sendfd, (struct sockaddr*)&ssdp_addr, sizeof(ssdp_addr))) != 0 ) {
       errno_sav = errno;
-      RTV_ERRLOG("ssdp_sendfd connect failed: %s\n", strerror(errno_sav));
+      RTV_ERRLOG("%s: ssdp_sendfd connect failed: %s\n", __FUNCTION__, strerror(errno_sav));
       goto error;
    }
 
@@ -70,6 +117,8 @@ int rtv_discover(unsigned int timeout_ms, rtv_device_list_t **device_list)
    //
    len = sizeof(local_addr);
    getsockname(ssdp_sendfd, (struct sockaddr*)&local_addr, &len);
+   RTV_DBGLOG(RTVLOG_DSCVR, "%s: --------------->>>>>>>>>local addr : %s \n", __FUNCTION__, inet_ntoa(local_addr.sin_addr));
+
    bzero(&resp_addr, sizeof(resp_addr));
    resp_addr.sin_family      = AF_INET;
    resp_addr.sin_addr.s_addr = htons(INADDR_ANY);
@@ -79,10 +128,10 @@ int rtv_discover(unsigned int timeout_ms, rtv_device_list_t **device_list)
    setsockopt(resp_recvfd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
    if ( (rc = bind(resp_recvfd, (struct sockaddr*)&resp_addr, sizeof(resp_addr))) != 0 ) {
       errno_sav = errno;
-      RTV_ERRLOG("resp_recvfd bind failed: %s\n", strerror(errno_sav));
+      RTV_ERRLOG("%s: resp_recvfd bind failed: %s\n", __FUNCTION__, strerror(errno_sav));
       goto error;       
    }
-   RTV_DBGLOG(RTVLOG_DSCVR, "resp_recvfd: bind addr %s   bind port %d\n", inet_ntoa(resp_addr.sin_addr), ntohs(resp_addr.sin_port));
+   RTV_DBGLOG(RTVLOG_DSCVR, "%s: resp_recvfd: bind addr %s   bind port %d\n", __FUNCTION__, inet_ntoa(resp_addr.sin_addr), ntohs(resp_addr.sin_port));
 
    // Setup multicast receive socket
    //
@@ -92,46 +141,53 @@ int rtv_discover(unsigned int timeout_ms, rtv_device_list_t **device_list)
    mreq.imr_interface.s_addr = htonl(INADDR_ANY);
    if ( setsockopt(recv_mcastfd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq)) != 0 ) {
       errno_sav = errno;
-      RTV_ERRLOG("recv_mcastfd IP_ADD_MEMBERSHIP failed: %s\n", strerror(errno_sav));
+      RTV_ERRLOG("%s: recv_mcastfd IP_ADD_MEMBERSHIP failed: %s\n", __FUNCTION__, strerror(errno_sav));
       goto error;       
    }
    if ( bind(recv_mcastfd, (struct sockaddr*)&ssdp_addr, sizeof(ssdp_addr)) != 0 ) {
       errno_sav = errno;
-      RTV_ERRLOG("recv_mcastfd bind failed: %s\n", strerror(errno_sav));
+      RTV_ERRLOG("%s: recv_mcastfd bind failed: %s\n", __FUNCTION__, strerror(errno_sav));
       goto error;       
    }
 
+   // Setup to receive port 80 http connections
+   //
+   if ( (http_fd = server_open_port(NULL, 80)) < 0 ) {
+      RTV_ERRLOG("%s: failed to open http server port\n", __FUNCTION__);
+   }
+
+   snprintf(buff, SSDP_BUF_SZ, SSDP_NOTIFY_HEAD_STR SSDP_NOTIFY_TAIL1_STR, inet_ntoa(local_addr.sin_addr), rtv_idns.uuid_5k);
+   rc = send(ssdp_sendfd, buff, strlen(buff), 0);
+   snprintf(buff, SSDP_BUF_SZ, SSDP_NOTIFY_HEAD_STR SSDP_NOTIFY_TAIL2_STR, inet_ntoa(local_addr.sin_addr), rtv_idns.uuid_5k, rtv_idns.uuid_5k);
+   rc = send(ssdp_sendfd, buff, strlen(buff), 0);
+   snprintf(buff, SSDP_BUF_SZ, SSDP_NOTIFY_HEAD_STR SSDP_NOTIFY_TAIL3_STR, inet_ntoa(local_addr.sin_addr), rtv_idns.uuid_5k);
+   rc = send(ssdp_sendfd, buff, strlen(buff), 0);
+#if 0
+#endif
+
    // Send SSDP query
    //
-   rc = send(ssdp_sendfd, queryStr, strlen(queryStr), 0);
-
-#if 0
-   snprintf(buff, SSDP_BUF_SZ, notifyHeadStr, inet_ntoa(local_addr.sin_addr), notify1TailStr);
+   snprintf(buff, SSDP_BUF_SZ, SSDP_QUERY_STR);
    rc = send(ssdp_sendfd, buff, strlen(buff), 0);
-   snprintf(buff, SSDP_BUF_SZ, notifyHeadStr, inet_ntoa(local_addr.sin_addr), notify2TailStr);
-   rc = send(ssdp_sendfd, buff, strlen(buff), 0);
-   snprintf(buff, SSDP_BUF_SZ, notifyHeadStr, inet_ntoa(local_addr.sin_addr), notify3TailStr);
-   rc = send(ssdp_sendfd, buff, strlen(buff), 0);
-#endif
-  if ( rc <= 0 ) {
+   if ( rc <= 0 ) {
       errno_sav = errno;
-      RTV_ERRLOG(" SSDP send failed: %s\n", strerror(errno_sav));
+      RTV_ERRLOG("%s: SSDP send failed: %s\n", __FUNCTION__, strerror(errno_sav));
       goto error;
-  }
-
+   }
+   
    // Get responses
    //
    FD_ZERO(&fds_setup);
    FD_SET(recv_mcastfd, &fds_setup);
    FD_SET(resp_recvfd, &fds_setup);
-   maxFDp1 = (recv_mcastfd > resp_recvfd) ? (recv_mcastfd + 1) : (resp_recvfd + 1);
-
+   FD_SET(http_fd, &fds_setup);
+   tmp     = (recv_mcastfd > resp_recvfd) ? (recv_mcastfd) : (resp_recvfd);
+   maxFDp1 = (tmp > http_fd) ? (tmp +1) : (http_fd + 1);
+   tv.tv_sec  = timeout_ms / 1000;
+   tv.tv_usec = (timeout_ms % 1000) * 1000;
    done = 0;
    while ( !(done) ) {
-       rfds       = fds_setup;
-       tv.tv_sec  = timeout_ms / 1000;
-       tv.tv_usec = (timeout_ms % 1000) * 1000;
-
+       rfds = fds_setup;
        rc   = select(maxFDp1, &rfds, NULL, NULL, &tv);          
        tim  = time(NULL);
        ctime_r(&tim, tm_buf);
@@ -144,7 +200,7 @@ int rtv_discover(unsigned int timeout_ms, rtv_device_list_t **device_list)
        case -1:
           // Error
           errno_sav = errno;
-          RTV_ERRLOG("discover select stmt error: %d=>%s\n",errno_sav, strerror(errno_sav));
+          RTV_ERRLOG("%s: discover select stmt error: %d=>%s\n",__FUNCTION__, errno_sav, strerror(errno_sav));
           goto error;
           break;
        default:
@@ -159,9 +215,11 @@ int rtv_discover(unsigned int timeout_ms, rtv_device_list_t **device_list)
                 goto error;
              }
              else {
-                RTV_DBGLOG(RTVLOG_DSCVR, "recvfrom IP: %s\n", inet_ntoa(recv_addr.sin_addr));
+                inet_ntop(AF_INET, &(recv_addr.sin_addr), ip_addr, INET_ADDRSTRLEN);
+                RTV_DBGLOG(RTVLOG_DSCVR, "recvfrom IP: %s\n", ip_addr);
                 buff[rc] = '\0';
                 RTV_DBGLOG(RTVLOG_DSCVR, "%s", buff);
+                process_ssdp_response(ip_addr, buff);
              }
           }
           else if ( FD_ISSET(recv_mcastfd, &rfds) ) {
@@ -179,6 +237,19 @@ int rtv_discover(unsigned int timeout_ms, rtv_device_list_t **device_list)
                 RTV_DBGLOG(RTVLOG_DSCVR, "%s", buff);
              }
           }
+          else if ( FD_ISSET(http_fd, &rfds) ) {
+             RTV_DBGLOG(RTVLOG_DSCVR, "FSSET: http_fd: %s\n", tm_buf);
+             if ( (pid = fork()) < 0) {
+                errno_sav = errno;
+                RTV_ERRLOG("%s: fork error: %d=>%s\n", __FUNCTION__, errno_sav, strerror(errno_sav));
+                goto error;
+             }
+             if (pid ==  0) {
+                // child
+                server_handle_connection(http_fd);
+                // child never returns
+             }
+          }
           else {
              RTV_ERRLOG("discover select: invalid FD\n");
              goto error;
@@ -187,15 +258,15 @@ int rtv_discover(unsigned int timeout_ms, rtv_device_list_t **device_list)
        } //switch
    } //while
 
-   close(ssdp_sendfd); close(resp_recvfd); close(recv_mcastfd);
+   close(ssdp_sendfd); close(resp_recvfd); close(recv_mcastfd), close(http_fd);
    *device_list = &rtv_devices;
-   printf("done.\n");
    return(0);
    
 error:
    if ( ssdp_sendfd  != -1 ) close (ssdp_sendfd);
    if ( resp_recvfd  != -1 ) close (resp_recvfd);
    if ( recv_mcastfd != -1 ) close (recv_mcastfd);
+   if ( http_fd      != -1 ) close (http_fd);
    *device_list = NULL;
    return(-errno_sav);
 }
