@@ -30,6 +30,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <errno.h>
+#include <string.h>
 #include <cmyth.h>
 #include <cmyth_local.h>
 
@@ -162,7 +163,7 @@ cmyth_ringbuf_setup(cmyth_conn_t control, cmyth_recorder_t rec,
 {
 	int err, count;
 	int r;
-	long c, ret;
+	long ret;
 	long long size, fill;
 	char msg[256];
 	char url[1024];
@@ -176,7 +177,7 @@ cmyth_ringbuf_setup(cmyth_conn_t control, cmyth_recorder_t rec,
 	pthread_mutex_lock(&mutex);
 
 	snprintf(msg, sizeof(msg),
-		 "QUERY_RECORDER %ld[]:[]SETUP_RING_BUFFER[]:[]0",
+		 "QUERY_RECORDER %u[]:[]SETUP_RING_BUFFER[]:[]0",
 		 rec->rec_id);
 
 	if ((err=cmyth_send_message(control, msg)) < 0) {

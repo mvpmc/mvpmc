@@ -228,7 +228,7 @@ cmyth_recorder_is_recording(cmyth_conn_t control, cmyth_recorder_t rec)
 
 	pthread_mutex_lock(&mutex);
 
-	snprintf(msg, sizeof(msg), "QUERY_RECORDER %ld[]:[]IS_RECORDING",
+	snprintf(msg, sizeof(msg), "QUERY_RECORDER %u[]:[]IS_RECORDING",
 		 rec->rec_id);
 
 	if ((err=cmyth_send_message(control, msg)) < 0) {
@@ -281,7 +281,7 @@ cmyth_recorder_get_framerate(cmyth_conn_t control,
 {
 	int err, count;
 	int r;
-	long c, ret;
+	long ret;
 	char msg[256];
 	char reply[256];
 
@@ -293,7 +293,7 @@ cmyth_recorder_get_framerate(cmyth_conn_t control,
 
 	pthread_mutex_lock(&mutex);
 
-	snprintf(msg, sizeof(msg), "QUERY_RECORDER %ld[]:[]GET_FRAMERATE",
+	snprintf(msg, sizeof(msg), "QUERY_RECORDER %u[]:[]GET_FRAMERATE",
 		 rec->rec_id);
 
 	if ((err=cmyth_send_message(control, msg)) < 0) {
@@ -654,9 +654,8 @@ cmyth_recorder_change_channel(cmyth_conn_t control,
 							  cmyth_recorder_t rec,
 							  cmyth_channeldir_t direction)
 {
-	int err, count;
+	int err;
 	int ret = -1;
-	long c;
 	char msg[256];
 
 	if (!control || !rec) {
@@ -943,7 +942,7 @@ cmyth_recorder_get_program_info(cmyth_conn_t control,
 				cmyth_recorder_t rec,
 				cmyth_proginfo_t proginfo)
 {
-	int err, r, count;
+	int err, count;
 	int ret = -ENOSYS;
 	char msg[256];
 
@@ -1120,9 +1119,8 @@ int
 cmyth_recorder_spawn_livetv(cmyth_conn_t control,
 							cmyth_recorder_t rec)
 {
-	int err, count;
+	int err;
 	int ret = -1;
-	long c;
 	char msg[256];
 
 	if (!control || !rec) {
@@ -1161,9 +1159,8 @@ cmyth_recorder_spawn_livetv(cmyth_conn_t control,
 int
 cmyth_recorder_stop_livetv(cmyth_conn_t control, cmyth_recorder_t rec)
 {
-	int err, count;
+	int err;
 	int ret = -1;
-	long c;
 	char msg[256];
 
 	if (!control || !rec) {
@@ -1202,9 +1199,8 @@ cmyth_recorder_stop_livetv(cmyth_conn_t control, cmyth_recorder_t rec)
 int
 cmyth_recorder_done_ringbuf(cmyth_conn_t control, cmyth_recorder_t rec)
 {
-	int err, count;
+	int err;
 	int ret = -1;
-	long c;
 	char msg[256];
 
 	if (!control || !rec) {

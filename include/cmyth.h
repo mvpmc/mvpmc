@@ -153,6 +153,8 @@ extern int cmyth_conn_hung(cmyth_conn_t control);
  */
 extern cmyth_recorder_t cmyth_recorder_create(void);
 
+extern void cmyth_recorder_release(cmyth_recorder_t p);
+
 extern int cmyth_recorder_request_block(cmyth_conn_t control,
 										cmyth_recorder_t rec,
 										unsigned len);
@@ -312,6 +314,8 @@ extern long long cmyth_timestamp_to_longlong(cmyth_timestamp_t ts);
 extern int cmyth_timestamp_to_string(char *str, cmyth_timestamp_t ts);
 
 extern int cmyth_datetime_to_string(char *str, cmyth_timestamp_t ts);
+
+extern int cmyth_datetime_from_string(cmyth_timestamp_t ts, char *str);
 
 extern int cmyth_timestamp_compare(cmyth_timestamp_t ts1,
 								   cmyth_timestamp_t ts2);

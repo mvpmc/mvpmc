@@ -972,7 +972,7 @@ cmyth_rcv_ubyte(cmyth_conn_t conn, int *err, unsigned char *buf, int count)
 int
 cmyth_rcv_ushort(cmyth_conn_t conn, int *err, unsigned short *buf, int count)
 {
-	unsigned long long val;
+	unsigned long val;
 	int consumed;
 	int tmp;
 

@@ -292,7 +292,6 @@ cmyth_timestamp_from_string(cmyth_timestamp_t ts, char *str)
 int
 cmyth_datetime_from_string(cmyth_timestamp_t ts, char *str)
 {
-	int i;
 	unsigned int isecs;
 	struct tm *tm_datetime;
 	time_t t_datetime;
@@ -462,7 +461,7 @@ cmyth_datetime_to_string(char *str, cmyth_timestamp_t ts)
 			ts->timestamp_minute,
 			ts->timestamp_second);
 	cmyth_dbg(CMYTH_DBG_ERROR, "original timestamp string: %s \n",str);
-	sprintf(str,"%u",t_datetime);
+	sprintf(str,"%u",(unsigned int)t_datetime);
 	cmyth_dbg(CMYTH_DBG_ERROR, "time in seconds: %s \n",str);
 	
 	return 0;
