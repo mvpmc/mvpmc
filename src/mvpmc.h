@@ -171,6 +171,8 @@ extern int is_video(char *item);
 extern int is_audio(char *item);
 extern int is_image(char *item);
 
+extern void gui_error(char*);
+
 extern pthread_t video_write_thread;
 extern pthread_t audio_write_thread;
 

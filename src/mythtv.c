@@ -127,6 +127,24 @@ mythtv_show_widgets(void)
 	mvpw_show(mythtv_channel);
 }
 
+static int
+mythtv_verify(void)
+{
+	char buf[128];
+
+	if (control == NULL) {
+		if (mythtv_init(mythtv_server, -1) < 0) {
+			snprintf(buf, sizeof(buf),
+				 "Connect to mythtv server %s failed!",
+				 mythtv_server ? mythtv_server : "127.0.0.1");
+			gui_error(buf);
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
 static void
 mythtv_close_file(void)
 {
@@ -443,8 +461,8 @@ mythtv_update(mvp_widget_t *widget)
 	mvpw_show(root);
 	mvpw_expose(root);
 
-	if (control == NULL)
-		mythtv_init(mythtv_server, -1);
+	if (mythtv_verify() < 0)
+		return -1;
 
 	add_osd_widget(mythtv_program_widget, OSD_PROGRAM, 1, NULL);
 
@@ -591,6 +609,9 @@ mythtv_pending(mvp_widget_t *widget)
 	char *title, *subtitle;
 	time_t t, rec_t;
 	struct tm *tm, rec_tm;
+
+	if (mythtv_verify() < 0)
+		return -1;
 
 	pthread_mutex_lock(&myth_mutex);
 
@@ -1135,8 +1156,12 @@ mythtv_livetv_start(void)
 	cmyth_conn_t conn;
 	double rate;
 	char *rb_file;
+	char *msg;
 
 	printf("Starting Live TV...\n");
+
+	if (mythtv_verify() < 0)
+		return -1;
 
 	playing_via_mythtv = 1;
 	video_functions = &file_functions;
@@ -1144,33 +1169,33 @@ mythtv_livetv_start(void)
 	ring = cmyth_ringbuf_create();
 
 	if ((recorder=cmyth_conn_get_free_recorder(control)) == NULL) {
-		fprintf(stderr, "failed to get free recorder\n");
-		return -1;
+		msg = "Failed to get free recorder.";
+		goto err;
 	}
 
 	if (cmyth_ringbuf_setup(control, recorder, ring) != 0) {
-		fprintf(stderr, "failed to setup ringbuffer\n");
-		return -1;
+		msg = "Failed to setup ringbuffer.";
+		goto err;
 	}
 
 	if ((conn=cmyth_conn_connect_ring(recorder, 16*1024)) == NULL) {
-		fprintf(stderr, "cannot conntect to mythtv ringbuffer\n");
-		return -1;
+		msg = "Cannot conntect to mythtv ringbuffer.";
+		goto err;
 	}
 
 	if (cmyth_recorder_spawn_livetv(control, recorder) != 0) {
-		fprintf(stderr, "spawn livetv failed\n");
-		return -1;
+		msg = "Spawn livetv failed.";
+		goto err;
 	}
 
 	if (cmyth_recorder_is_recording(control, recorder) != 1) {
-		fprintf(stderr, "livetv not recording!\n");
-		return -1;
+		msg = "LiveTV not recording.";
+		goto err;
 	}
 
 	if (cmyth_recorder_get_framerate(control, recorder, &rate) != 0) {
-		fprintf(stderr, "get framerate failed!\n");
-		return -1;
+		msg = "Get framerate failed.";
+		goto err;
 	}
 
 	printf("recorder framerate is %5.2f\n", rate);
@@ -1189,6 +1214,12 @@ mythtv_livetv_start(void)
 	video_play(root);
 
 	return 0;
+
+ err:
+	fprintf(stderr, msg);
+	gui_error(msg);
+
+	return -1;
 }
 
 int
