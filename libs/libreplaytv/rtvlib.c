@@ -89,7 +89,7 @@ __u32 rtv_get_dbgmask(void)
    return(rtv_debug);
 }
 
-char *rtv_format_time(__u64 ttk) 
+char *rtv_format_time64_1(__u64 ttk) 
 {
    char      *results;   
    time_t     tt;
@@ -102,7 +102,22 @@ char *rtv_format_time(__u64 ttk)
    localtime_r(&tt, &tm_st);
   
    strftime(results, 255, "%Y-%m-%d %H:%M:%S", &tm_st);   
-//   sprintf(results + 19, ".%03d", msec);
+   return results;
+}
+
+char *rtv_format_time64_2(__u64 ttk) 
+{
+   char      *results;   
+   time_t     tt;
+   int        msec;
+   struct tm  tm_st;
+
+   results = malloc(256);
+   tt      = ttk / 1000;
+   msec    = ttk % 1000;
+   localtime_r(&tt, &tm_st);
+  
+   strftime(results, 255, "%m/%d at %l:%M %p", &tm_st);   
    return results;
 }
 
@@ -114,6 +129,41 @@ char *rtv_format_time32(__u32 t)
    tm = localtime(&t);
    strftime(result, 20, "%Y-%m-%d %H:%M:%S", tm);
    return result;
+}
+
+char *rtv_sec_to_hr_mn_str(unsigned int seconds)
+{
+   char *result = malloc(30);
+   char *pos;
+   unsigned int minutes, hours;
+
+   minutes = seconds / 60;
+   if ( (seconds % 60) > 30 ) {
+      minutes++;
+   }
+   hours = minutes / 60;
+   minutes %= 60;
+      
+   pos = result;
+   if ( hours == 1 ) {
+      pos += sprintf(pos, "1 hour");
+   }
+   else if ( hours > 1 ) { 
+      pos += snprintf(pos, 29, "%u hours", hours);      
+   }
+   
+   if ( (pos != result) && (minutes) ) {
+      pos += snprintf(pos, 29-(pos-result), " ");
+   } 
+   
+   if ( minutes > 1 ) {
+      pos += snprintf(pos, 29-(pos-result), "%u minutes", minutes);
+   }
+   else if ( minutes == 1 ) {
+      pos += snprintf(pos, 29-(pos-result), "1 minute");
+   }
+   
+   return(result);
 }
 
 int rtv_init_lib(void) 

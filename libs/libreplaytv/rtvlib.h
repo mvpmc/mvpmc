@@ -32,6 +32,43 @@ typedef unsigned long long __u64;
 typedef signed   long long __s64;
 
 //+****************************************
+// RTV Filesystem types/ structures
+//+****************************************
+typedef enum rtv_filesystype_t 
+{
+   RTV_FS_DIRECTORY = 'd',
+   RTV_FS_FILE      = 'f',
+   RTV_FS_UNKNOWN   = '?'
+} rtv_filesystype_t;
+
+typedef struct rtv_fs_file_t
+{
+   char              *name;
+   rtv_filesystype_t  type;
+   __u64              size;
+   __u64              time;
+   __u32              size_k;
+   char              *time_str_fmt1;
+   char              *time_str_fmt2;
+} rtv_fs_file_t;
+
+typedef struct rtv_fs_filelist_t
+{
+   char              *pathname;
+   unsigned int       num_files;
+   rtv_fs_file_t     *files;
+} rtv_fs_filelist_t;
+
+typedef struct rtv_fs_volume_t
+{
+   char      *name;
+   __u64      size;
+   __u32      size_k;
+   __u64      used;
+   __u32      used_k;
+} rtv_fs_volume_t;
+
+//+****************************************
 // RTV Show Information Types
 //+****************************************
 typedef enum rtv_show_quality_t 
@@ -131,8 +168,10 @@ typedef struct rtv_show_export_t
    int                 movie_year;         // Year made
    int                 movie_runtime;      // Movie run time (minutes)
    char               *file_name;          // mpg file name
+   rtv_fs_file_t      *file_info;          // mpg file info
    __u32               gop_count;          // MPEG Group of Picture Count
    __u32               duration_sec;       // duration of the recording (seconds)
+   char               *duration_str;       // duration of the recording ( hours/minutes string)
    __u8                padding_before;     // minutes padding before show
    __u8                padding_after;      // minutes padding after show
    __u32               sch_start_time;     // Scheduled Time of the Show (TimeT format)
@@ -172,42 +211,6 @@ typedef struct rtv_device_list_t
    rtv_device_t *rtv;      // List of rtv_device_t
 } rtv_device_list_t;
 
-
-//+****************************************
-// RTV Filesystem types/ structures
-//+****************************************
-typedef enum rtv_filesystype_t 
-{
-   RTV_FS_DIRECTORY = 'd',
-   RTV_FS_FILE      = 'f',
-   RTV_FS_UNKNOWN   = '?'
-} rtv_filesystype_t;
-
-typedef struct rtv_fs_file_t
-{
-   char              *name;
-   rtv_filesystype_t  type;
-   __u64              size;
-   __u64              time;
-   __u32              size_k;
-   char              *time_str;
-} rtv_fs_file_t;
-
-typedef struct rtv_fs_filelist_t
-{
-   char              *pathname;
-   unsigned int       num_files;
-   rtv_fs_file_t     *files;
-} rtv_fs_filelist_t;
-
-typedef struct rtv_fs_volume_t
-{
-   char      *name;
-   __u64      size;
-   __u32      size_k;
-   __u64      used;
-   __u32      used_k;
-} rtv_fs_volume_t;
 
 //+****************************************************
 // rtv_read_file parameter that specifies how many 32K
@@ -254,13 +257,15 @@ extern rtv_device_t *rtv_get_device_struct(const char *ipaddr, int *new);
 extern int           rtv_free_devices(void);
 extern void          rtv_print_device_list(void); 
 extern int           rtv_route_logs(char *filename);
-extern char         *rtv_format_time(__u64 ttk);     // Returned string is malloc'd: user must free
-extern char         *rtv_format_time32(__u32 t);     // Returned string is malloc'd: user must free
+extern char         *rtv_format_time64_1(__u64 ttk);             // Returned string is malloc'd: user must free
+extern char         *rtv_format_time64_2(__u64 ttk);             // Returned string is malloc'd: user must free
+extern char         *rtv_format_time32(__u32 t);                 // Returned string is malloc'd: user must free
+extern char         *rtv_sec_to_hr_mn_str(unsigned int seconds); // Returned string is malloc'd: user must free
 extern void          rtv_set_dbgmask(__u32 mask);
 extern __u32         rtv_get_dbgmask(void);
 extern int           rtv_crypt_test(void);
 
-extern int rtv_discover(unsigned int timeout_ms, rtv_device_list_t **device_list);
+extern int  rtv_discover(unsigned int timeout_ms, rtv_device_list_t **device_list);
 extern int  rtv_get_device_info(const char *address,  char *queryStr, rtv_device_t **device_p);
 extern void rtv_free_device_info(rtv_device_info_t  *devinfo_p); 
 extern void rtv_print_device_info(const rtv_device_info_t *devinfo); 

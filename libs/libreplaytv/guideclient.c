@@ -127,6 +127,9 @@ static void rtv_free_show(rtv_show_export_t *show)
       if ( show->genre       != NULL ) free(show->genre);
       if ( show->rating_extended != NULL ) free(show->rating_extended);
       if ( show->sch_st_tm_str   != NULL ) free(show->sch_st_tm_str);
+      if ( show->duration_str    != NULL ) free(show->duration_str);
+
+      if ( show->file_info != NULL ) rtv_free_file_info(show->file_info);
    }
 }
 
@@ -143,6 +146,7 @@ int rtv_get_guide_snapshot( const rtv_device_info_t  *device,
     struct hc            *hc;
     struct snapshot_data  data;
     int                   rc;
+    unsigned int          x;
 
     rtv_free_guide(guide);
     memset(&data, 0, sizeof data);
@@ -196,6 +200,26 @@ int rtv_get_guide_snapshot( const rtv_device_info_t  *device,
 
     rc = parse_guide_snapshot(data.buf, data.bytes_read, guide);
     free(data.buf);
+
+    // Get file info for the show mpg files
+    //
+    for ( x=0; x < guide->num_rec_shows; x++ ) {
+       rtv_fs_file_t *fileinfo;
+       char           path[255];
+       
+       fileinfo = malloc(sizeof(rtv_fs_file_t));
+       sprintf(path, "/Video/%s", guide->rec_show_list[x].file_name);
+       rc = rtv_get_file_info(device, path, fileinfo);
+       if ( rc != 0 ) {
+          RTV_ERRLOG("guide_client_get_snapshot(): rtv_get_file_info failed: %d=>%s\n", errno, strerror(errno));
+          free(fileinfo);
+          rtv_free_guide(guide);
+          guide = NULL;
+          return(rc);
+       }
+       guide->rec_show_list[x].file_info = fileinfo;
+    }
+    
     return(rc);
 }
 
@@ -261,8 +285,18 @@ void rtv_print_show(const rtv_show_export_t *show, int num)
          RTV_PRT("  movie_stars: %d    movie_year: %d    movie_runtime: %d\n", show->movie_stars, show->movie_year, show-> movie_runtime);
       }
       RTV_PRT("  filename:           %s\n", show->file_name);
+      if ( show->file_info != NULL ) {
+      RTV_PRT("  file size           %"U64F"d %lu(MB)\n", show->file_info->size, show->file_info->size_k / 1024);
+      RTV_PRT("  file creation time: %"U64F"d\n", show->file_info->time);
+      RTV_PRT("                      %s\n", show->file_info->time_str_fmt1);
+      RTV_PRT("                      %s\n", show->file_info->time_str_fmt2);
+      }
+      else {
+         RTV_PRT("************* WARNING: show->fileinfo == NULL\n");
+      }
       RTV_PRT("  GOP_count:          %u\n", show->gop_count);
       RTV_PRT("  duration (seconds): %u\n", show->duration_sec);
+      RTV_PRT("  duration:           %s\n", show->duration_str);
       RTV_PRT("  sch start time:     %u\n", show->sch_start_time);
       RTV_PRT("  sch start time:     %s\n", show->sch_st_tm_str);
       RTV_PRT("  sch len (minutes):  %u\n", show->sch_show_length);

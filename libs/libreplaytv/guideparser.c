@@ -708,6 +708,7 @@ static int parse_show(replay_show_t *show_rec, rtv_show_export_t *sh)
    snprintf(sh->file_name, 19, "%lu.mpg", show_rec->recorded);
    sh->gop_count       = show_rec->GOP_count;
    sh->duration_sec    = show_rec->seconds;
+   sh->duration_str    = rtv_sec_to_hr_mn_str(show_rec->seconds);
    sh->padding_before  = show_rec->beforepadding;
    sh->sch_start_time  = show_rec->programInfo.eventtime;
    sh->sch_show_length = show_rec->programInfo.minutes;

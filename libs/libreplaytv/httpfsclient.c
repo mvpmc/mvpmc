@@ -456,7 +456,7 @@ void rtv_print_volinfo(const rtv_fs_volume_t *volinfo)
 }
 
 
-// updates  pre-allocated rtv_fs_file_t *fileinfo struct.
+// updates pre-allocated rtv_fs_file_t *fileinfo struct.
 // Returns 0 for success
 //
 int rtv_get_file_info( const rtv_device_info_t  *device, const char *name,  rtv_fs_file_t *fileinfo )
@@ -498,9 +498,10 @@ int rtv_get_file_info( const rtv_device_info_t  *device, const char *name,  rtv_
 
    fileinfo->name = malloc(strlen(name)+1);
    strcpy(fileinfo->name, name);
-   fileinfo->type     = type;
-   fileinfo->time     = filetime;
-   fileinfo->time_str = rtv_format_time(filetime + 3000); //add 3 seconds to time
+   fileinfo->type          = type;
+   fileinfo->time          = filetime;
+   fileinfo->time_str_fmt1 = rtv_format_time64_1(filetime + 3000); //add 3 seconds to time
+   fileinfo->time_str_fmt2 = rtv_format_time64_2(filetime + 3000); //add 3 seconds to time
    if ( type == 'f' ) {
       fileinfo->size     = size;
       fileinfo->size_k   = size / 1024;
@@ -517,8 +518,9 @@ void rtv_free_file_info(rtv_fs_file_t *fileinfo)
 {
    if (  fileinfo == NULL ) return;
 
-   if ( fileinfo->name     != NULL ) free(fileinfo->name);
-   if ( fileinfo->time_str != NULL ) free(fileinfo->time_str);
+   if ( fileinfo->name          != NULL ) free(fileinfo->name);
+   if ( fileinfo->time_str_fmt1 != NULL ) free(fileinfo->time_str_fmt1);
+   if ( fileinfo->time_str_fmt2 != NULL ) free(fileinfo->time_str_fmt2);
    memset(fileinfo, 0, sizeof(rtv_fs_file_t));
 }
 
@@ -535,7 +537,8 @@ void rtv_print_file_info(const rtv_fs_file_t *fileinfo)
    if ( fileinfo->type == 'f' ) {
       RTV_PRT("                 size: %"U64F"d %lu(MB)\n", fileinfo->size, fileinfo->size_k / 1024);
       RTV_PRT("                 time: %"U64F"d\n", fileinfo->time);
-      RTV_PRT("                       %s\n", fileinfo->time_str);
+      RTV_PRT("                       %s\n", fileinfo->time_str_fmt1);
+      RTV_PRT("                       %s\n", fileinfo->time_str_fmt2);
    }
 }
 
@@ -664,7 +667,7 @@ void rtv_print_file_list(const rtv_fs_filelist_t *filelist, int detailed)
       printf("%-25s", filelist->files[x].name);
       if (detailed) {
          printf("   %19s    type=%c  size: %11"U64F"d %7lu(MB)", 
-                filelist->files[x].time_str, filelist->files[x].type, filelist->files[x].size, filelist->files[x].size_k / 1024 );
+                filelist->files[x].time_str_fmt1, filelist->files[x].type, filelist->files[x].size, filelist->files[x].size_k / 1024 );
       }
       printf("\n");
    }
