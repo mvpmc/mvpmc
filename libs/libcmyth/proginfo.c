@@ -1505,3 +1505,35 @@ cmyth_proginfo_fill(cmyth_conn_t control, cmyth_proginfo_t prog)
 
 	return ret;
 }
+
+int
+cmyth_proginfo_compare(cmyth_proginfo_t a, cmyth_proginfo_t b)
+{
+	if (a == b)
+		return 0;
+
+	if ((a == NULL) || (b == NULL))
+		return -1;
+
+#define STRCMP(a, b) ( (a && b && (strcmp(a,b) == 0)) ? 0 : \
+		       ((a == NULL) && (b == NULL) ? 0 : -1) )
+
+	if (STRCMP(a->proginfo_title, b->proginfo_title) != 0)
+		return -1;
+	if (STRCMP(a->proginfo_subtitle, b->proginfo_subtitle) != 0)
+		return -1;
+	if (STRCMP(a->proginfo_description, b->proginfo_description) != 0)
+		return -1;
+
+	if (STRCMP(a->proginfo_url, b->proginfo_url) != 0)
+		return -1;
+
+	if (cmyth_timestamp_compare(a->proginfo_start_ts,
+				    b->proginfo_start_ts) != 0)
+		return -1;
+	if (cmyth_timestamp_compare(a->proginfo_end_ts,
+				    b->proginfo_end_ts) != 0)
+		return -1;
+
+	return 0;
+}

@@ -426,6 +426,8 @@ extern cmyth_timestamp_t cmyth_proginfo_originalairdate(cmyth_proginfo_t prog);
 extern int cmyth_proginfo_rec_status(cmyth_proginfo_t prog);
 
 extern long long cmyth_proginfo_length(cmyth_proginfo_t prog);
+
+extern int cmyth_proginfo_compare(cmyth_proginfo_t a, cmyth_proginfo_t b);
 /*
  * -----------------------------------------------------------------
  * Program List Operations
