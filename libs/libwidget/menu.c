@@ -33,6 +33,30 @@ expose(mvp_widget_t *widget)
 }
 
 static void
+destroy(mvp_widget_t *widget)
+{
+	int i;
+	char *str;
+	void *key;
+
+	for (i=0; i<widget->data.menu.nitems; i++) {
+		if (widget->data.menu.items[i].destroy) {
+			str = widget->data.menu.items[i].label;
+			key = widget->data.menu.items[i].key;
+			widget->data.menu.items[i].destroy(widget, str, key);
+		}
+	}
+
+	if (widget->data.menu.container_widget)
+		mvpw_destroy(widget->data.menu.container_widget);
+	if (widget->data.menu.title_widget)
+		mvpw_destroy(widget->data.menu.title_widget);
+
+	if (widget->data.menu.items)
+		free(widget->data.menu.items);
+}
+
+static void
 change_items(mvp_widget_t *widget, int first)
 {
 	int i;
@@ -50,6 +74,10 @@ change_items(mvp_widget_t *widget, int first)
 			break;
 		widget->data.menu.items[first].widget =
 			cw->data.container.widgets[i];
+		mvpw_set_bg(widget->data.menu.items[first].widget,
+			    widget->data.menu.items[first].bg);
+		mvpw_set_text_fg(widget->data.menu.items[first].widget,
+				 widget->data.menu.items[first].fg);
 		if (first >= widget->data.menu.nitems)
 			mvpw_set_text_str(cw->data.container.widgets[i], "");
 		else
@@ -59,14 +87,17 @@ change_items(mvp_widget_t *widget, int first)
 	}
 }
 
-static void
+static int
 hilite_item(mvp_widget_t *widget, int which, int hilite)
 {
 	mvpw_text_attr_t attr;
 	char *str;
-	int key;
+	void *key;
 
 	if (hilite) {
+		if (!widget->data.menu.items[which].selectable)
+			return -1;
+
 		mvpw_get_text_attr(widget->data.menu.items[which].widget,
 				   &attr);
 		mvpw_expose(widget->data.menu.items[which].widget);
@@ -80,8 +111,8 @@ hilite_item(mvp_widget_t *widget, int which, int hilite)
 				   &attr);
 		mvpw_expose(widget->data.menu.items[which].widget);
 		mvpw_set_bg(widget->data.menu.items[which].widget,
-			    widget->bg);
-		attr.fg = widget->data.menu.fg;
+			    widget->data.menu.items[which].bg);
+		attr.fg = widget->data.menu.items[which].fg;
 		mvpw_set_text_attr(widget->data.menu.items[which].widget,
 				   &attr);
 	}
@@ -92,12 +123,15 @@ hilite_item(mvp_widget_t *widget, int which, int hilite)
 		widget->data.menu.items[which].hilite(widget, str, key,
 						      hilite);
 	}
+
+	return 0;
 }
 
 static void
 key(mvp_widget_t *widget, char c)
 {
-	int i, j, k;
+	int i, j;
+	void *k;
 	char *str;
 
 	switch (c) {
@@ -170,8 +204,9 @@ key(mvp_widget_t *widget, char c)
 		i = widget->data.menu.current;
 		str = widget->data.menu.items[i].label;
 		k = widget->data.menu.items[i].key;
-		if (widget->data.menu.items[i].callback)
-			widget->data.menu.items[i].callback(widget, str, k);
+		if (widget->data.menu.items[i].select &&
+		    widget->data.menu.items[i].selectable)
+			widget->data.menu.items[i].select(widget, str, k);
 		break;
 	}
 }
@@ -195,6 +230,7 @@ mvpw_create_menu(mvp_widget_t *parent,
 
 	widget->type = MVPW_MENU;
 	widget->expose = expose;
+	widget->destroy = destroy;
 	widget->key = key;
 
 	memset(&widget->data, 0, sizeof(widget->data));
@@ -203,9 +239,8 @@ mvpw_create_menu(mvp_widget_t *parent,
 }
 
 int
-mvpw_add_menu_item(mvp_widget_t *widget, char *label, int key,
-		   void (*callback)(mvp_widget_t*, char*, int),
-		   void (*hilite)(mvp_widget_t*, char*, int, int))
+mvpw_add_menu_item(mvp_widget_t *widget, char *label, void *key,
+		   mvpw_menu_item_attr_t *item_attr)
 {
 	int i, border_size;
 	GR_COORD w, h;
@@ -283,6 +318,11 @@ mvpw_add_menu_item(mvp_widget_t *widget, char *label, int key,
 	if (i == widget->data.menu.current) {
 		attr.fg = widget->data.menu.hilite_fg;
 		mvpw_set_bg(tw, widget->data.menu.hilite_bg);
+	} else {
+		if (item_attr) {
+			attr.fg = item_attr->fg;
+			mvpw_set_bg(tw, item_attr->bg);
+		}
 	}
 
 	attr.font = widget->data.menu.font;
@@ -300,16 +340,79 @@ mvpw_add_menu_item(mvp_widget_t *widget, char *label, int key,
  out:
 	widget->data.menu.items[i].label = strdup(label);
 	widget->data.menu.items[i].key = key;
-	widget->data.menu.items[i].callback = callback;
-	widget->data.menu.items[i].hilite = hilite;
 	widget->data.menu.items[i].widget = tw;
+
+	if (item_attr) {
+		widget->data.menu.items[i].select = item_attr->select;
+		widget->data.menu.items[i].hilite = item_attr->hilite;
+		widget->data.menu.items[i].destroy = item_attr->destroy;
+		widget->data.menu.items[i].selectable = item_attr->selectable;
+		widget->data.menu.items[i].fg = item_attr->fg;
+		widget->data.menu.items[i].bg = item_attr->bg;
+	}
 
 	widget->data.menu.nitems++;
 
-	if ((i == 0) && (hilite != NULL))
-		hilite(widget, label, key, 1);
+	if ((i == 0) && (widget->data.menu.items[i].hilite != NULL))
+		widget->data.menu.items[i].hilite(widget, label, key, 1);
 
 	return 0;
+}
+
+int
+mvpw_delete_menu_item(mvp_widget_t *widget, void *key)
+{
+	char *str;
+	void *k;
+	int count = 0, i, j;
+	mvp_widget_t *w;
+	struct menu_item_s *item;
+
+	for (i=0; i<widget->data.menu.nitems; i++) {
+		k = widget->data.menu.items[i].key;
+		if (k == key) {
+			if (widget->data.menu.items[i].destroy) {
+				str = widget->data.menu.items[i].label;
+				widget->data.menu.items[i].destroy(widget,
+								   str, key);
+			}
+			if (widget->data.menu.items[i].label)
+				free(widget->data.menu.items[i].label);
+			for (j=widget->data.menu.nitems-1; j>i; j--) {
+				item = widget->data.menu.items+j;
+				item->widget =
+					widget->data.menu.items[j-1].widget;
+				w = item->widget;
+				str = item->label;
+				if (w) {
+					mvpw_set_text_str(w, str);
+					mvpw_set_bg(w, item->bg);
+					mvpw_set_text_fg(w, item->fg);
+					mvpw_expose(w);
+				}
+			}
+			widget->data.menu.nitems--;
+			memmove(widget->data.menu.items+i,
+				widget->data.menu.items+i+1,
+				(widget->data.menu.nitems - i) *
+				sizeof(struct menu_item_s));
+			j = widget->data.menu.nitems;
+			item = widget->data.menu.items + j + 1;
+			if (item->widget) {
+				mvpw_set_text_str(item->widget, "");
+				mvpw_set_bg(item->widget, widget->bg);
+				mvpw_expose(item->widget);
+			}
+			count++;
+		}
+	}
+
+	if (widget->data.menu.current >= widget->data.menu.nitems)
+		widget->data.menu.current = widget->data.menu.nitems - 1;
+
+	hilite_item(widget, widget->data.menu.current, 1);
+
+	return count;
 }
 
 int
@@ -322,7 +425,7 @@ mvpw_set_menu_title(mvp_widget_t *widget, char *title)
 	int border_size;
 	mvpw_text_attr_t attr = {
 		.wrap = 0,
-		.justify = MVPW_TEXT_LEFT,
+		.justify = widget->data.menu.title_justify,
 		.margin = 4,
 		.font = widget->data.menu.font,
 		.fg = widget->data.menu.title_fg,
@@ -362,19 +465,31 @@ mvpw_set_menu_attr(mvp_widget_t *widget, mvpw_menu_attr_t *attr)
 	widget->data.menu.hilite_bg = attr->hilite_bg;
 	widget->data.menu.title_fg = attr->title_fg;
 	widget->data.menu.title_bg = attr->title_bg;
+	widget->data.menu.title_justify = attr->title_justify;
 }
+
+
 
 void
 mvpw_clear_menu(mvp_widget_t *widget)
 {
 	int i;
+	char *str;
+	void *key;
 
 	for (i=0; i<widget->data.menu.nitems; i++) {
+		if (widget->data.menu.items[i].destroy) {
+			str = widget->data.menu.items[i].label;
+			key = widget->data.menu.items[i].key;
+			widget->data.menu.items[i].destroy(widget, str, key);
+		}
 		if (widget->data.menu.items[i].widget) {
 			mvpw_set_text_str(widget->data.menu.items[i].widget,
 					  "");
 			mvpw_expose(widget->data.menu.items[i].widget);
 		}
+		memset(widget->data.menu.items+i, 0,
+		       sizeof(*(widget->data.menu.items+i)));
 	}
 
 	free(widget->data.menu.items);

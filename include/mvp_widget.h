@@ -60,13 +60,16 @@ extern void mvpw_show(mvp_widget_t *widget);
 extern void mvpw_hide(mvp_widget_t *widget);
 extern void mvpw_expose(mvp_widget_t *widget);
 extern int mvpw_font_height(int font);
+extern int mvpw_font_width(int font, char *str);
 extern int mvpw_load_font(char *file);
 extern void mvpw_move(mvp_widget_t *widget, int x, int y);
+extern void mvpw_moveto(mvp_widget_t *widget, int x, int y);
 extern void mvpw_resize(mvp_widget_t *widget, int w, int h);
 extern int mvpw_attach(mvp_widget_t *w1, mvp_widget_t *w2, int direction);
 extern void mvpw_unattach(mvp_widget_t *widget, int direction);
 extern void mvpw_set_key(mvp_widget_t *widget,
 			 void (*callback)(mvp_widget_t*, char));
+extern void mvpw_destroy(mvp_widget_t *widget);
 
 /*
  * container widget
@@ -81,7 +84,7 @@ extern mvp_widget_t *mvpw_create_container(mvp_widget_t *parent,
  */
 #define MVPW_TEXT_LEFT		0
 #define MVPW_TEXT_RIGHT		1
-#define MVPW_TEXT_MIDDLE	2
+#define MVPW_TEXT_CENTER	2
 
 typedef struct {
 	int	 	wrap;
@@ -98,6 +101,7 @@ extern mvp_widget_t *mvpw_create_text(mvp_widget_t *parent,
 extern void mvpw_set_text_str(mvp_widget_t *widget, char *str);
 extern void mvpw_set_text_attr(mvp_widget_t *widget, mvpw_text_attr_t *attr);
 extern void mvpw_get_text_attr(mvp_widget_t *widget, mvpw_text_attr_t *attr);
+extern void mvpw_set_text_fg(mvp_widget_t *widget, uint32_t fg);
 
 /*
  * menu widget
@@ -109,7 +113,17 @@ typedef struct {
 	uint32_t 	hilite_bg;
 	uint32_t 	title_fg;
 	uint32_t 	title_bg;
+	int	 	title_justify;
 } mvpw_menu_attr_t;
+
+typedef struct {
+	int	 	  selectable;
+	uint32_t 	  fg;
+	uint32_t 	  bg;
+	void 		(*destroy)(mvp_widget_t*, char*, void*);
+	void 		(*select)(mvp_widget_t*, char*, void*);
+	void 		(*hilite)(mvp_widget_t*, char*, void*, int);
+} mvpw_menu_item_attr_t;
 
 extern mvp_widget_t *mvpw_create_menu(mvp_widget_t *parent,
 				      int x, int y, int w, int h,
@@ -117,10 +131,10 @@ extern mvp_widget_t *mvpw_create_menu(mvp_widget_t *parent,
 				      int border_size);
 extern void mvpw_set_menu_attr(mvp_widget_t *widget, mvpw_menu_attr_t *attr);
 extern int mvpw_set_menu_title(mvp_widget_t *widget, char *title);
-extern int mvpw_add_menu_item(mvp_widget_t *widget, char *label, int key,
-			      void (*callback)(mvp_widget_t*, char*, int),
-			      void (*hilite)(mvp_widget_t*, char*, int, int));
+extern int mvpw_add_menu_item(mvp_widget_t *widget, char *label, void *key,
+			      mvpw_menu_item_attr_t *item_attr);
 extern void mvpw_clear_menu(mvp_widget_t *widget);
+extern int mvpw_delete_menu_item(mvp_widget_t *widget, void *key);
 
 /*
  * image widget
@@ -141,6 +155,7 @@ extern int mvpw_set_image(mvp_widget_t *widget, char *file);
 #define MVPW_WHITE		MVPW_RGBA(255,255,255,255)
 #define MVPW_BLACK		MVPW_RGBA(0,0,0,255)
 #define MVPW_ORANGE		MVPW_RGBA(255,110,0,255)
+#define MVPW_PURPLE		MVPW_RGBA(255,0,255,255)
 #define MVPW_LIGHTGREY		MVPW_RGBA(128,128,128,255)
 #define MVPW_DARKGREY		MVPW_RGBA(96,96,96,255)
 #define MVPW_DARKGREY2		MVPW_RGBA(64,64,64,255)

@@ -350,6 +350,17 @@ mvpw_unattach(mvp_widget_t *widget, int dir)
 }
 
 void
+mvpw_moveto(mvp_widget_t *widget, int x, int y)
+{
+	int dx, dy;
+
+	dx = x - widget->x;
+	dy = y - widget->y;
+
+	mvpw_move(widget, dx, dy);
+}
+
+void
 mvpw_move(mvp_widget_t *widget, int x, int y)
 {
 	int i, size, count;
@@ -386,6 +397,20 @@ mvpw_font_height(int font)
 	GrGetFontInfo(font, &finfo);
 
 	return finfo.height;
+}
+
+int
+mvpw_font_width(int font, char *str)
+{
+	GR_FONT_INFO finfo;
+	int i, w = 0;
+
+	GrGetFontInfo(font, &finfo);
+
+	for (i=0; i<strlen(str); i++)
+		w += finfo.widths[(int)str[i]];
+
+	return w;
 }
 
 static void
@@ -547,7 +572,7 @@ mvpw_get_root(void)
 void
 mvpw_set_key(mvp_widget_t *widget, void (*callback)(mvp_widget_t*, char))
 {
-	widget->key = callback;
+	widget->callback_key = callback;
 }
 
 void

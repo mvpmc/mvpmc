@@ -62,6 +62,7 @@ typedef struct {
 	GR_COLOR	 hilite_bg;
 	GR_COLOR	 title_fg;
 	GR_COLOR	 title_bg;
+	int		 title_justify;
 	int		 columns;
 	int		 rows;
 
@@ -70,10 +71,14 @@ typedef struct {
 
 	struct menu_item_s {
 		char		 *label;
-		int		  key;
-		void		(*callback)(mvp_widget_t*, char*, int);
-		void		(*hilite)(mvp_widget_t*, char*, int, int);
+		void		 *key;
+		void		(*select)(mvp_widget_t*, char*, void*);
+		void		(*hilite)(mvp_widget_t*, char*, void*, int);
+		void		(*destroy)(mvp_widget_t*, char*, void*);
 		mvp_widget_t	 *widget;
+		int		  selectable;
+		GR_COLOR	  fg;
+		GR_COLOR	  bg;
 	} *items;
 } mvpw_menu_t;
 

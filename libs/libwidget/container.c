@@ -28,6 +28,15 @@
 #include "widget.h"
 
 static void
+destroy(mvp_widget_t *widget)
+{
+	int i;
+
+	for (i=0; i<widget->data.container.nitems; i++)
+		mvpw_destroy(widget->data.container.widgets[i]);
+}
+
+static void
 key(mvp_widget_t *widget, char c)
 {
 	if (widget->parent->key)
@@ -73,6 +82,7 @@ mvpw_create_container(mvp_widget_t *parent,
 	widget->key = key;
 	widget->add_child = add_child;
 	widget->remove_child = remove_child;
+	widget->destroy = destroy;
 
 	memset(&widget->data, 0, sizeof(widget->data));
 

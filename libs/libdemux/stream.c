@@ -368,7 +368,8 @@ parse_video_frame(demux_handle_t *handle, unsigned char *buf, int len)
 	int h, w;
 	int aspect, frame_rate;
 	int type;
-	int minute;
+	int hour, minute, second, frame;
+	int ret = -1;
 	video_info_t *vi;
 
 	for (i=0; i<(len-4); i++)
@@ -377,9 +378,25 @@ parse_video_frame(demux_handle_t *handle, unsigned char *buf, int len)
 			switch (buf[i+3]) {
 			case 0x0:
 				type = (buf[i+5] >> 3) & 7;
-				PRINTF("picture 0x%x\n", type);
+				switch (type) {
+				case 1:
+					PRINTF("picture I frame\n");
+					break;
+				case 2:
+					PRINTF("picture P frame\n");
+					break;
+				case 3:
+					PRINTF("picture B frame\n");
+					break;
+				case 4:
+					PRINTF("picture D frame\n");
+					break;
+				default:
+					PRINTF("picture 0x%x\n", type);
+					break;
+				}
 				if (type == 1)
-					goto found;
+					ret = 0;
 				break;
 			case 0xb3:
 				w = (buf[i+5] >> 4) |
@@ -395,19 +412,24 @@ parse_video_frame(demux_handle_t *handle, unsigned char *buf, int len)
 				vi->height = h;
 				vi->aspect = aspect;
 				vi->frame_rate = frame_rate;
-				goto found;
+				ret = 0;
+				break;
 			case 0xb8:
+				hour = (buf[i+4] >> 2) & 0x1f;
 				minute = (buf[i+5] >> 4) |
-					((buf[i+4] & 3) << 4);
-				PRINTF("GOP: min %d\n", minute);
-				goto found;
+					((buf[i+4] & 0x3) << 4);
+				second = ((buf[i+5] & 0x3) << 3) |
+					(buf[i+6] >> 5);
+				frame = ((buf[i+6] & 0x1f) << 1) |
+					(buf[i+7] >> 7);
+				PRINTF("GOP: %.2d:%.2d:%.2d %d\n",
+				       hour, minute, second, frame);
+				ret = 0;
+				break;
 			}
 		}
 
-	return -1;
-
- found:
-	return 0;
+	return ret;
 }
 
 /*

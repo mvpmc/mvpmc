@@ -32,7 +32,7 @@ expose(mvp_widget_t *widget)
 {
 	GR_GC_ID gc;
 	GR_FONT_INFO finfo;
-	int x, y, h;
+	int x, y, h, w;
 	char *str;
 
 	if (widget->data.text.str == NULL)
@@ -49,9 +49,17 @@ expose(mvp_widget_t *widget)
 
 	str = widget->data.text.str;
 
+	w = mvpw_font_width(widget->data.text.font, widget->data.text.str);
+
 	switch (widget->data.text.justify) {
 	case MVPW_TEXT_LEFT:
 		x = widget->data.text.margin;
+		break;
+	case MVPW_TEXT_RIGHT:
+		x = widget->width - w - widget->data.text.margin;
+		break;
+	case MVPW_TEXT_CENTER:
+		x = (widget->width - w - widget->data.text.margin) / 2;
 		break;
 	default:
 		x = 0;
@@ -59,25 +67,56 @@ expose(mvp_widget_t *widget)
 	}
 	y = h + widget->data.text.margin;
 
-	if (widget->data.text.wrap) {
-		int i, c;
-		char *p;
-		int width = 0;
+	if (widget->data.text.wrap && (w > widget->width)) {
+		int i = 0;
+		char buf[256];
 
-		c = 0;
-		p = str;
-		for (i=0; i<strlen(str); i++) {
-			width += finfo.widths[(int)str[i]];
-			if (width > widget->width) {
-				GrText(widget->wid, gc, x, y, p, c-1, 0);
-				p = p+c-1;
-				width = finfo.widths[(int)p[0]];
-				y += h;
-				c = 0;
+		while (i < strlen(str)) {
+			int j = 0;
+
+			while (str[i] == ' ')
+				i++;
+
+			memset(buf, 0, sizeof(buf));
+
+			w = 0;
+			while ((w < widget->width) && ((j+i) < strlen(str))) {
+				strncpy(buf, str+i, j+1);
+				w = mvpw_font_width(widget->data.text.font,
+						    buf);
+				j++;
 			}
-			c++;
+
+			if ((j+i) < strlen(str)) {
+				while ((j > 0) && (buf[j] != ' '))
+					j--;
+				while ((j > 0) && (buf[j] == ' '))
+					j--;
+				buf[++j] = '\0';
+			}
+
+			w = mvpw_font_width(widget->data.text.font, buf);
+
+			switch (widget->data.text.justify) {
+			case MVPW_TEXT_LEFT:
+				x = widget->data.text.margin;
+				break;
+			case MVPW_TEXT_RIGHT:
+				x = widget->width - w -
+					widget->data.text.margin;
+				break;
+			case MVPW_TEXT_CENTER:
+				x = (widget->width - w -
+				     widget->data.text.margin) / 2;
+				break;
+			default:
+				break;
+			}
+			GrText(widget->wid, gc, x, y, buf, strlen(buf), 0);
+			y += h;
+
+			i += j;
 		}
-		GrText(widget->wid, gc, x, y, p, strlen(p), 0);
 	} else {
 		GrText(widget->wid, gc, x, y, str, strlen(str), 0);
 	}
@@ -133,4 +172,10 @@ mvpw_get_text_attr(mvp_widget_t *widget, mvpw_text_attr_t *attr)
 	attr->margin = widget->data.text.margin;
 	attr->fg = widget->data.text.fg;
 	attr->font = widget->data.text.font;
+}
+
+void
+mvpw_set_text_fg(mvp_widget_t *widget, uint32_t fg)
+{
+	widget->data.text.fg = fg;
 }
