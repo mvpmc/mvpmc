@@ -12,6 +12,7 @@
  *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *    GNU General Public License for more details.
  */
+#include <stdio.h>
 
 #ifndef RTV_H
 #define RTV_H
@@ -72,22 +73,24 @@ struct mapping
     char *name;
 };
 
-
 //+********************************************************************
 // Debugging
 //+********************************************************************
+typedef int (*rtvlogfxn_t)(FILE *, const char *, ...);
+extern rtvlogfxn_t rtvlogfxn; 
+extern FILE *log_fd;
 extern u32   rtv_debug;
 
 #define RTVLOG_INFO          (rtv_debug & 0x00000001)
 #define RTVLOG_DSCVR         (rtv_debug & 0x00000002)
 #define RTVLOG_GUIDE         (rtv_debug & 0x00000004)
-#define RTVLOG_MSG           (rtv_debug & 0x00000008)
-#define RTVLOG_MSG_VERB      (rtv_debug & 0x00000010)
+#define RTVLOG_HTTP          (rtv_debug & 0x00000008)
+#define RTVLOG_HTTP_VERB     (rtv_debug & 0x00000010)
 #define RTVLOG_NET           (rtv_debug & 0x00000020)
 #define RTVLOG_CMD           (rtv_debug & 0x00000040)
 #define RTVLOG_NETDUMP       (rtv_debug & 0x10000000)
 
-#define RTV_PRT(fmt, args...)  fprintf(stdout, fmt, ## args)
+#define RTV_PRT(fmt, args...)  rtvlogfxn(log_fd, fmt, ## args)
 
 #define RTV_ERRLOG(fmt, args...) RTV_PRT("rtv:ERROR: " fmt, ## args)
 #define RTV_WARNLOG(fmt, args...) RTV_PRT("rtv:WARN: " fmt, ## args)

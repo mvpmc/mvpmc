@@ -166,6 +166,8 @@ typedef struct rtv_fs_volume_t
 //+************************************************************************
 //+**************************   RTV API's *********************************
 //+************************************************************************
+extern int   rtv_init_lib(void);
+extern int   rtv_route_logs(char *filename);
 extern char *rtv_format_time(__u64 ttk); 
 
 extern void   rtv_set_dbgmask(__u32 mask);

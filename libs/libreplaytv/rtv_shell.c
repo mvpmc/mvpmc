@@ -24,9 +24,6 @@
 #include "rtvlib.h"
 #include "bigfile.h"
 
-int ciCmdTestFxn(int argc, char **argv);
-int ciSetDbgLevel(int argc, char **argv);
-
 #define STRTOHEX(x) strtoul((x), NULL, 16)
 #define STRTODEC(x) strtol((x), NULL, 10)
 
@@ -122,7 +119,7 @@ static int isaDecNum (const char *str)
 }
 #endif
 
-int ciCmdTestFxn(int argc, char **argv)
+static int ciCmdTestFxn(int argc, char **argv)
 {
    int x;
 
@@ -143,7 +140,7 @@ int ciCmdTestFxn(int argc, char **argv)
 }
 
 
-int ciSetDbgLevel(int argc, char **argv)
+static int ciSetDbgLevel(int argc, char **argv)
 {
    USAGE("<hex debug mask>\n");
 
@@ -158,6 +155,20 @@ int ciSetDbgLevel(int argc, char **argv)
    rtv_set_dbgmask(STRTOHEX(argv[1]));
    printf("New debug mask is:0x%08lx\n", rtv_get_dbgmask());
    return(0);
+}
+
+static int ciRouteLogs(int argc, char **argv)
+{
+   int rc;
+
+   USAGE("<logFile>\n");
+
+   if ( argc !=2 ) {
+      printf("Parm Error: single 'logFile' parameter required\n");
+      return(0); 
+   }
+   rc = rtv_route_logs(argv[1]);
+   return(rc);
 }
 
 static int ciGetDeviceInfo(int argc, char **argv)
@@ -440,6 +451,7 @@ static int ciHttpFsGetFile(int argc, char ** argv)
 }
 
 cmdb_t cmd_list[] = {
+   {"sendlogs",   ciRouteLogs,       0, MAX_PARMS, "send logs to a file"              },
    {"sdm",        ciSetDbgLevel,     0, MAX_PARMS, "set the debug trace mask"         },
    {"di",         ciGetDeviceInfo,   0, MAX_PARMS, "get RTV device information"       },
    {"guide",      ciGetGuide,        0, MAX_PARMS, "get RTV guide"                    },
@@ -454,12 +466,11 @@ cmdb_t cmd_list[] = {
 };
 
 
-
-
 int main (int argc, char **argv)
 {
    argc=argc; argv=argv;
    rtvShellInit();
+   rtv_init_lib();
    start_cli(cmd_list, "rtv_sh>", "WELCOME TO THE REPLAYTV SHELL");
    return(0);
 }

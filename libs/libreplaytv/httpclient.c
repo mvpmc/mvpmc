@@ -110,7 +110,7 @@ int hc_add_req_header(struct hc * hc, const char * tag, const char * value)
 {
     struct hc_headers * h;
 
-    RTV_DBGLOG(RTVLOG_MSG_VERB, "%s: tag=%s val=%s\n", __FUNCTION__, tag, value); 
+    RTV_DBGLOG(RTVLOG_HTTP_VERB, "%s: tag=%s val=%s\n", __FUNCTION__, tag, value); 
     h = hc_h_make(tag, value);
     if (!h)
         goto error;
@@ -129,7 +129,7 @@ struct hc * hc_start_request(char * url)
     hc = malloc(sizeof *hc);
     memset(hc, 0, sizeof *hc);
     
-    RTV_DBGLOG(RTVLOG_MSG, "%s: url=%s\n", __FUNCTION__, url); 
+    RTV_DBGLOG(RTVLOG_HTTP_VERB, "%s: url=%s\n", __FUNCTION__, url); 
     if (strncmp(url, "http://", 7) != 0) {
         RTV_ERRLOG("%s: malformed url:%s\n", __FUNCTION__, url); 
         goto error;
@@ -147,7 +147,7 @@ struct hc * hc_start_request(char * url)
         hc->localpart       = strdup(e);
         if (!hc->localpart) goto error;
     }
-    RTV_DBGLOG(RTVLOG_MSG, "%s: hostname=%s local_part=%s\n", __FUNCTION__, hc->hostname, hc->localpart); 
+    RTV_DBGLOG(RTVLOG_HTTP_VERB, "%s: hostname=%s local_part=%s\n", __FUNCTION__, hc->hostname, hc->localpart); 
 
     if (hc_add_req_header(hc, "Host", hc->hostname) < 0) {
         RTV_ERRLOG("%s: hc_add_req_header failed: %s\n", __FUNCTION__, hc->hostname); 
@@ -203,7 +203,7 @@ int hc_send_request(struct hc * hc, const char *append)
     else {
        l += sprintf(buffer+l, "\r\n");
     }
-    RTV_DBGLOG(RTVLOG_MSG, "%s: nc_write: %s\n", __FUNCTION__, buffer); 
+    RTV_DBGLOG(RTVLOG_HTTP_VERB, "%s: nc_write: %s\n", __FUNCTION__, buffer); 
     nc_write(hc->nc, buffer, l);
 
     if (nc_read_line(hc->nc, buffer, sizeof buffer) <= 0) {
@@ -212,18 +212,18 @@ int hc_send_request(struct hc * hc, const char *append)
     }
     
     hc->status = strdup(buffer);
-    RTV_DBGLOG(RTVLOG_MSG, "%s: status: %s\n", __FUNCTION__, hc->status); 
-    RTV_DBGLOG(RTVLOG_MSG, "%s: start nc_read_line...\n", __FUNCTION__); 
+    RTV_DBGLOG(RTVLOG_HTTP, "%s: status: %s\n", __FUNCTION__, hc->status); 
+    RTV_DBGLOG(RTVLOG_HTTP, "%s: start nc_read_line...\n", __FUNCTION__); 
     while (nc_read_line(hc->nc, buffer, sizeof buffer) > 0) {
         char *e;
-        RTV_DBGLOG(RTVLOG_MSG, "%s: line: %d: %s\n", __FUNCTION__, x++, buffer); 
+        RTV_DBGLOG(RTVLOG_HTTP, "%s: line: %d: %s\n", __FUNCTION__, x++, buffer); 
         e = strchr(buffer, ':');
         if (e) {
             *e = '\0';
             e++;
             while (isspace(*e))
                 e++;
-            RTV_DBGLOG(RTVLOG_MSG, "%s: value: %s\n", __FUNCTION__, e); 
+            RTV_DBGLOG(RTVLOG_HTTP, "%s: value: %s\n", __FUNCTION__, e); 
             h = hc_h_make(buffer, e);
             h->next = hc->rsp_headers;
             hc->rsp_headers = h;
@@ -231,7 +231,7 @@ int hc_send_request(struct hc * hc, const char *append)
             RTV_ERRLOG("hc_send_request got invalid header line :%s:\n", buffer);
         }
     }
-    RTV_DBGLOG(RTVLOG_MSG, "%s: done nc_read_line.\n", __FUNCTION__); 
+    RTV_DBGLOG(RTVLOG_HTTP, "%s: done nc_read_line.\n", __FUNCTION__); 
     return 0;
 }
 
@@ -314,12 +314,12 @@ extern int hc_read_pieces(struct hc * hc,
     size_t len, len_read;
     int x = 1;
     
-    RTV_DBGLOG(RTVLOG_MSG_VERB, "%s: hc struct dump:\n", __FUNCTION__);
-    if ( RTVLOG_MSG_VERB ) {
+    RTV_DBGLOG(RTVLOG_HTTP_VERB, "%s: hc struct dump:\n", __FUNCTION__);
+    if ( RTVLOG_HTTP_VERB ) {
        hc_dump_struct(hc);
     }
     te = hc_lookup_rsp_header(hc, "Transfer-Encoding");
-    RTV_DBGLOG(RTVLOG_MSG_VERB, "%s: lookup_rsp_header: tag: %s    value: %s\n", __FUNCTION__, "Transfer-Encoding", te);    
+    RTV_DBGLOG(RTVLOG_HTTP, "%s: lookup_rsp_header: tag: %s    value: %s\n", __FUNCTION__, "Transfer-Encoding", te);    
     if (te && strcmp(te, "chunked") == 0) {
         chunked = 1;
     }
@@ -330,7 +330,7 @@ extern int hc_read_pieces(struct hc * hc,
 
             nc_read_line(hc->nc, lenstr, sizeof lenstr);
             len = strtoul(lenstr, NULL, 16);
-            RTV_DBGLOG(RTVLOG_MSG, "%s: lenstr: %d: 0x%s = %d\n", __FUNCTION__, x++, lenstr, len); 
+            RTV_DBGLOG(RTVLOG_HTTP, "%s: lenstr: %d: 0x%s = %d\n", __FUNCTION__, x++, lenstr, len); 
         } else {
             len = 4096;
         }
@@ -340,10 +340,10 @@ extern int hc_read_pieces(struct hc * hc,
             if (len_read < len)
                 done = 1;
             buf[len_read] = '\0';
-            RTV_DBGLOG(RTVLOG_MSG, "%s: line: %d: len=%d len_rd=%d\n %s\n", __FUNCTION__, x++, len, len_read, buf); 
+            RTV_DBGLOG(RTVLOG_HTTP_VERB, "%s: line: %d: len=%d len_rd=%d\n %s\n", __FUNCTION__, x++, len, len_read, buf); 
             callback(buf, len_read, v);
         } else {
-            RTV_DBGLOG(RTVLOG_MSG, "%s: LEN=0\n", __FUNCTION__); 
+            RTV_DBGLOG(RTVLOG_HTTP, "%s: LEN=0\n", __FUNCTION__); 
             done = 1;
         }
         if (chunked) {
@@ -355,7 +355,7 @@ extern int hc_read_pieces(struct hc * hc,
                discarding them. (2616 3.7b).  The Replay doesn't use
                trailers anyway */
             while (nc_read_line(hc->nc, linebuf, sizeof linebuf) > 0) {
-               RTV_DBGLOG(RTVLOG_MSG, "%s: trailer: %s\n", __FUNCTION__, linebuf); 
+               RTV_DBGLOG(RTVLOG_HTTP, "%s: trailer: %s\n", __FUNCTION__, linebuf); 
             }
         }
     }

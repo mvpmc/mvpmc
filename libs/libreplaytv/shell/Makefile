@@ -26,19 +26,17 @@ CFLAGS=$(WARNINGS) $(OPTIMIZE) $(DEBUG)
 LDFLAGS=-L.
 LDLIBS=-lcli
 
-PROGRAMS=dbg_shell_test
 LIB=libcli.a
 
 LIBOBJS=			\
 	readline_lite.o		\
 	cli.o
 
-all: $(LIB) $(PROGRAMS)
-$(PROGRAMS): $(LIB)
+all: $(LIB)
 $(LIB): $(LIBOBJS)
 	ar r $@ $^
 	ranlib $(LIB)
 
 clean:
-	-rm *.o $(PROGRAMS) $(LIB)
+	-rm *.o $(LIB)
 

@@ -78,6 +78,7 @@ static int make_httpfs_url(char *dst, size_t size, const rtv_device_info_t *devi
 
         strcpy(d, "__Q_=");
         d += strlen(d);
+        RTV_DBGLOG(RTVLOG_CMD, "%s: d = %s\n argb = %s\n", __FUNCTION__, dst, argbuf);
         rtv_encrypt(argbuf, argl, ctext, sizeof ctext, &ctextlen, 1);
         for (i = 0; i < ctextlen; i++)
             d += sprintf(d, "%02x", ctext[i]);

@@ -21,10 +21,12 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-
 #include "rtv.h"
 
-u32 rtv_debug = 0x00000000;
+
+FILE        *log_fd;
+rtvlogfxn_t  rtvlogfxn = fprintf;
+u32          rtv_debug = 0x00000000;
 //u32 rtv_debug = 0x100000ff;
 
 void hex_dump(char * tag, unsigned char * buf, size_t sz)
