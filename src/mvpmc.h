@@ -53,7 +53,6 @@ extern int mythtv_debug;
 extern volatile int mythtv_level;
 
 extern mvp_widget_t *file_browser;
-extern mvp_widget_t *replaytv_browser;
 extern mvp_widget_t *mythtv_browser;
 extern mvp_widget_t *mythtv_logo;
 extern mvp_widget_t *mythtv_date;
@@ -89,15 +88,12 @@ extern mvp_widget_t *demux_audio;
 extern char *current;
 extern char *mythtv_recdir;
 
-extern char *replaytv_server;
-
 extern char *imagedir;
 
 extern int fontid;
 extern mvpw_screen_info_t si;
 
 extern int running_mythtv;
-extern volatile int running_replaytv;
 
 extern int fd_audio, fd_video;
 
@@ -134,6 +130,8 @@ extern void add_video_streams(mvp_widget_t*, mvpw_menu_item_attr_t*);
 extern void *video_read_start(void*);
 extern void *video_write_start(void*);
 extern void *audio_write_start(void*);
+
+extern void replaytv_back_to_mvp_main_menu(void);
 
 extern pthread_t video_write_thread;
 extern pthread_t audio_write_thread;

@@ -36,6 +36,7 @@
 #include <mvp_osd.h>
 
 #include "mvpmc.h"
+#include "replaytv.h"
 
 #include "a52dec/a52.h"
 #include "a52dec/mm_accel.h"
@@ -58,8 +59,6 @@ extern a52_state_t *a52_state;
 static pthread_t video_read_thread;
 pthread_t video_write_thread;
 pthread_t audio_write_thread;
-
-extern int rtv_init(char *init_str);
 
 static pid_t child;
 
@@ -288,7 +287,7 @@ main(int argc, char **argv)
 	}
    
 	if (rtv_init_str) {
-		rtv_init(rtv_init_str);
+		replaytv_init(rtv_init_str);
 	}
 
 	if (mode != -1)

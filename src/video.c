@@ -37,6 +37,7 @@
 #include <mvp_av.h>
 
 #include "mvpmc.h"
+#include "replaytv.h"
 
 #if 0
 #define PRINTF(x...) printf(x)
@@ -168,8 +169,7 @@ video_subtitle_check(mvp_widget_t *widget)
 		mvpw_set_timer(root, video_subtitle_check, 1000);
 
 	if (! (mvpw_visible(file_browser) ||
-	       mvpw_visible(mythtv_browser) ||
-	       mvpw_visible(replaytv_browser))) {
+	       mvpw_visible(mythtv_browser))) {
 		av_move(0, 0, 0);
 	}
 }
@@ -430,8 +430,7 @@ video_callback(mvp_widget_t *widget, char key)
 			mvpw_show(mythtv_browser);
 			mvpw_focus(mythtv_browser);
 		} else if (running_replaytv) {
-			mvpw_show(replaytv_browser);
-			mvpw_focus(replaytv_browser);
+			replaytv_back_from_video();
 		} else {
 			mvpw_show(file_browser);
 			mvpw_focus(file_browser);

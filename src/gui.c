@@ -29,6 +29,7 @@
 #include <mvp_osd.h>
 
 #include "mvpmc.h"
+#include "replaytv.h"
 
 volatile int running_replaytv = 0;
 
@@ -214,7 +215,6 @@ static mvp_widget_t *about_image;
 static mvp_widget_t *exit_image;
 
 mvp_widget_t *file_browser;
-mvp_widget_t *replaytv_browser;
 mvp_widget_t *mythtv_browser;
 mvp_widget_t *mythtv_menu;
 mvp_widget_t *mythtv_logo;
@@ -370,6 +370,7 @@ hide_widgets(void)
 	mvpw_hide(shows_widget);
 	mvpw_hide(episodes_widget);
 	mvpw_hide(freespace_widget);
+	replaytv_hide_widgets();
 
 	if (spu_widget) {
 		mvpw_hide(spu_widget);
@@ -412,6 +413,15 @@ mythtv_menu_callback(mvp_widget_t *widget, char key)
 		mvpw_show(mvpmc_logo);
 		mvpw_focus(main_menu);
 	}
+}
+
+void
+replaytv_back_to_mvp_main_menu(void) {
+	replaytv_hide_device_menu();
+	mvpw_show(replaytv_image);
+	mvpw_show(main_menu);
+	mvpw_show(mvpmc_logo);
+	mvpw_focus(main_menu);
 }
 
 static void
@@ -481,22 +491,6 @@ settings_key_callback(mvp_widget_t *widget, char key)
 
 	if (key == '>') {
 		settings_select_callback(NULL, NULL, NULL);
-	}
-}
-
-static void
-replaytv_key_callback(mvp_widget_t *widget, char key)
-{
-	if (key == 'E') {
-		replaytv_stop();
-
-		mvpw_hide(replaytv_browser);
-
-		mvpw_show(main_menu);
-		mvpw_show(mvpmc_logo);
-		mvpw_show(replaytv_image);
-
-		mvpw_focus(main_menu);
 	}
 }
 
@@ -1019,20 +1013,8 @@ myth_browser_init(void)
 static int
 replaytv_browser_init(void)
 {
-	replaytv_browser = mvpw_create_menu(NULL, 50, 30,
-					    si.cols-120, si.rows-190,
-					    0xff808080, 0xff606060, 2);
-
-	fb_attr.font = fontid;
-	mvpw_set_menu_attr(replaytv_browser, &fb_attr);
-
-	mvpw_set_menu_title(replaytv_browser, "ReplayTV");
-	mvpw_set_bg(replaytv_browser, MVPW_LIGHTGREY);
-
-	mvpw_set_key(replaytv_browser, replaytv_key_callback);
-
+	replay_gui_init();
 	splash_update();
-
 	return 0;
 }
 
@@ -1087,9 +1069,8 @@ main_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mvpw_hide(replaytv_image);
 		mvpw_hide(fb_image);
 
-		replaytv_update(replaytv_browser);
-
-		mvpw_show(replaytv_browser);
+		replaytv_device_update();
+		replaytv_show_device_menu();
 		break;
 	case MM_ABOUT:
 		mvpw_show(about);
@@ -1396,6 +1377,11 @@ osd_init(void)
 	mythtv_osd_description = widget;
 	mvpw_attach(mythtv_osd_program, mythtv_osd_description, MVPW_DIR_DOWN);
 
+	/*
+	 * ReplayTV OSD
+	 */
+	replaytv_osd_init();
+
 	x = si.cols - 475;
 	y = si.rows - 125;
 	contain = mvpw_create_container(NULL, x, y,
@@ -1579,6 +1565,7 @@ gui_init(char *server, char *replaytv)
 		return -1;
 	if (myth_browser_init() < 0)
 		return -1;
+//	replaytv_browser_init();
 	replaytv_browser_init();
 	file_browser_init();
 	settings_init();
