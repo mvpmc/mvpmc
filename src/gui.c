@@ -261,6 +261,8 @@ mvp_widget_t *demux_audio;
 mvp_widget_t *screensaver;
 mvp_widget_t *screensaver_image;
 
+static int screensaver_enabled = 0;
+
 mvp_widget_t *focus_widget;
 
 mvpw_screen_info_t si;
@@ -1566,9 +1568,6 @@ screensaver_timer(mvp_widget_t *widget)
 	mvpw_widget_info_t info;
 	int x, y;
 
-	if (focus_widget == NULL)
-		focus_widget = mvpw_get_focus();
-
 	mvpw_set_timer(screensaver, screensaver_timer, 1000);
 
 	mvpw_get_widget_info(screensaver_image, &info);
@@ -1578,38 +1577,47 @@ screensaver_timer(mvp_widget_t *widget)
 
 	mvpw_moveto(screensaver_image, x, y);
 
-	mvpw_show(screensaver);
-	mvpw_raise(screensaver);
-	mvpw_focus(screensaver);
-}
-
-static void
-screensaver_callback(void)
-{
-	mvpw_set_timer(screensaver, screensaver_timer, 60*1000);
-
-	mvpw_hide(screensaver);
-
-	mvpw_focus(focus_widget);
-	focus_widget = NULL;
-}
-
-static void
-screensaver_cb(mvp_widget_t *widget, char key)
-{
-	screensaver_callback();
+	if (focus_widget == NULL) {
+		focus_widget = mvpw_get_focus();
+		mvpw_show(screensaver);
+		mvpw_raise(screensaver);
+		mvpw_focus(screensaver);
+	}
 }
 
 void
 screensaver_enable(void)
 {
+	screensaver_enabled = 1;
 	mvpw_set_timer(screensaver, screensaver_timer, 60*1000);
 }
 
 void
 screensaver_disable(void)
 {
+	screensaver_enabled = 0;
 	mvpw_set_timer(screensaver, NULL, 0);
+}
+
+static void
+screensaver_callback(void)
+{
+	if (screensaver_enabled) {
+		screensaver_enable();
+
+		mvpw_hide(screensaver);
+
+		mvpw_focus(focus_widget);
+		focus_widget = NULL;
+	} else {
+		screensaver_disable();
+	}
+}
+
+static void
+screensaver_cb(mvp_widget_t *widget, char key)
+{
+	screensaver_callback();
 }
 
 static int

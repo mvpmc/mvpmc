@@ -110,6 +110,26 @@ sighandler(int sig)
 }
 
 static void
+video_thumbnail(int on)
+{
+	static int enable = 1;
+
+	if (on) {
+		if (si.rows == 480)
+			av_move(475, si.rows-60, 4);
+		else
+			av_move(475, si.rows-113, 4);
+		screensaver_enable();
+		enable = 1;
+	} else {
+		av_move(0, 0, 0);
+		if (enable)
+			screensaver_disable();
+		enable = 0;
+	}
+}
+
+static void
 video_show_widgets(void)
 {
 	mvpw_show(file_browser);
@@ -171,8 +191,7 @@ video_subtitle_check(mvp_widget_t *widget)
 
 	if (! (mvpw_visible(file_browser) ||
 	       mvpw_visible(mythtv_browser))) {
-		av_move(0, 0, 0);
-		screensaver_disable();
+		video_thumbnail(0);
 	}
 }
 
@@ -406,11 +425,7 @@ video_callback(mvp_widget_t *widget, char key)
 	case '.':
 	case 'E':
 		disable_osd();
-		if (si.rows == 480)
-			av_move(475, si.rows-60, 4);
-		else
-			av_move(475, si.rows-113, 4);
-		screensaver_enable();
+		video_thumbnail(1);
 		if (spu_widget) {
 			mvpw_hide(spu_widget);
 			mvpw_expose(root);
@@ -444,10 +459,12 @@ video_callback(mvp_widget_t *widget, char key)
 		if (av_pause()) {
 			mvpw_show(pause_widget);
 			paused = 1;
+			screensaver_enable();
 		} else {
 			mvpw_hide(pause_widget);
 			mvpw_hide(mute_widget);
 			paused = 0;
+			screensaver_disable();
 		}
 		break;
 	case '(':
@@ -533,8 +550,7 @@ video_callback(mvp_widget_t *widget, char key)
 		av_set_video_aspect(1-av_get_video_aspect());
 		break;
 	case '\n':
-		av_move(0, 0, 0);
-		screensaver_disable();
+		video_thumbnail(0);
 		pthread_cond_broadcast(&video_cond);
 		break;
 	default:
@@ -824,11 +840,7 @@ file_open(void)
 	demux_attr_reset(handle);
 	demux_seek(handle);
 
-	if (si.rows == 480)
-		av_move(475, si.rows-60, 4);
-	else
-		av_move(475, si.rows-113, 4);
-	screensaver_enable();
+	video_thumbnail(1);
 	
 	av_play();
 
@@ -908,8 +920,20 @@ video_read_start(void *arg)
 		}
 
 		if (len == 0) {
+			static int on = 0;
+
 			len = video_functions->read(inbuf, sizeof(inbuf));
 			n = 0;
+
+			if ((len < 0) && !on) {
+				screensaver_enable();
+				on = 1;
+			}
+
+			if ((len > 0) && on) {
+				screensaver_disable();
+				on = 0;
+			}
 		}
 
 		ret = demux_put(handle, inbuf+n, len-n);
