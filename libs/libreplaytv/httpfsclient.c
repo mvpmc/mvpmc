@@ -713,3 +713,31 @@ __u32  rtv_read_file( const rtv_device_info_t    *device,
    }
    return(status);
 } 
+
+
+// read a piece of a file.
+// File data is returned when call completes
+// Max size to read is 32K. (Replaytv chunk size)
+// Returned data is malloc'd. User must free.
+//
+__u32  rtv_read_file_chunk( const rtv_device_info_t  *device, 
+                            const char               *filename, 
+                            __u64                     pos,        //fileposition
+                            __u64                     size,       //amount of file to read
+                            char                    **data  )
+{
+   __u32 status;
+   char  pos_str[256];
+   char  size_str[256];
+   
+   snprintf(pos_str, 255, "%"U64F"d", pos);
+   snprintf(size_str, 255, "%"U64F"d", size);
+
+   status = hfs_do_simple( data, device,
+                           "readfile",
+                           "pos",  pos_str,
+                           "size", size_str,
+                           "name", filename,
+                           NULL);
+   return(status);
+} 

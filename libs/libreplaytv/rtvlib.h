@@ -357,6 +357,13 @@ extern __u32  rtv_read_file( const rtv_device_info_t    *device,
                              rtv_read_file_chunked_cb_t  callback_fxn,
                              void                       *callback_data ); 
 
+
+extern __u32  rtv_read_file_chunk( const rtv_device_info_t  *device, 
+                                   const char               *filename, 
+                                   __u64                     pos,        //fileposition
+                                   __u64                     size,       //amount of file to read
+                                   char                    **data  );    //returned file data
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
