@@ -41,6 +41,9 @@ extern int osd_close(void);
  */
 extern void osd_draw_pixel(osd_surface_t *surface, int x, int y,
 			   unsigned int c);
+extern void osd_draw_pixel_ayuv(osd_surface_t *surface, int x, int y,
+				unsigned char a, unsigned char Y,
+				unsigned char U, unsigned char V);
 extern void osd_draw_horz_line(osd_surface_t *surface, int x1, int x2, int y,
 			       unsigned int c);
 extern void osd_draw_vert_line(osd_surface_t *surface, int x, int y1, int y2,

@@ -109,18 +109,14 @@ osd_bitblt(osd_surface_t *dstsfc, int xd, int yd,
 }
 
 void
-osd_draw_pixel(osd_surface_t *surface, int x, int y, unsigned int c)
+osd_draw_pixel_ayuv(osd_surface_t *surface, int x, int y, unsigned char a,
+		    unsigned char Y, unsigned char U, unsigned char V)
 {
 	int offset;
-	unsigned char r, g, b, a, Y, U, V;
 	unsigned int line, remainder;
 
 	if ((x >= surface->sfc.width) || (y >= surface->sfc.height))
 		return;
-
-	c2rgba(c, &r, &g, &b, &a);
-
-	rgb2yuv(r, g, b, &Y, &U, &V);
 
 	remainder = (surface->sfc.width % 4);
 	if (remainder == 0)
@@ -134,6 +130,17 @@ osd_draw_pixel(osd_surface_t *surface, int x, int y, unsigned int c)
 	*(surface->base[1] + (offset & 0xfffffffe)) = U;
 	*(surface->base[1] + (offset & 0xfffffffe) + 1) = V;
 	*(surface->base[2] + offset) = a;
+}
+
+void
+osd_draw_pixel(osd_surface_t *surface, int x, int y, unsigned int c)
+{
+	unsigned char r, g, b, a, Y, U, V;
+
+	c2rgba(c, &r, &g, &b, &a);
+	rgb2yuv(r, g, b, &Y, &U, &V);
+
+	osd_draw_pixel_ayuv(surface, x, y, a, Y, U, V);
 }
 
 unsigned int
