@@ -181,13 +181,32 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 
 	count = cmyth_proglist_get_count(episode_plist);
 	for (i = 0; i < count; ++i) {
-		episode_prog = cmyth_proglist_get_item(episode_plist, i);
+		char full[256];
+
+		if (strcmp(item, "All - Newest first") == 0)
+			episode_prog = cmyth_proglist_get_item(episode_plist,
+							       count-i-1);
+		else
+			episode_prog = cmyth_proglist_get_item(episode_plist,
+							       i);
+
 		title = cmyth_proginfo_title(episode_prog);
+		subtitle = cmyth_proginfo_subtitle(episode_prog);
+
 		if (strcmp(title, item) == 0) {
-			subtitle = cmyth_proginfo_subtitle(episode_prog);
 			if (strcmp(subtitle, " ") == 0)
 				subtitle = "<no subtitle>";
 			mvpw_add_menu_item(widget, subtitle, (void*)n,
+					   &item_attr);
+		} else if (strcmp(item, "All - Oldest first") == 0) {
+			snprintf(full, sizeof(full), "%s - %s",
+				 title, subtitle);
+			mvpw_add_menu_item(widget, full, (void*)n,
+					   &item_attr);
+		} else if (strcmp(item, "All - Newest first") == 0) {
+			snprintf(full, sizeof(full), "%s - %s",
+				 title, subtitle);
+			mvpw_add_menu_item(widget, full, (void*)count-n-1,
 					   &item_attr);
 		}
 		n++;
@@ -231,8 +250,11 @@ add_shows(mvp_widget_t *widget)
 
 	qsort(titles, n, sizeof(char*), string_compare);
 
+	mvpw_add_menu_item(widget, "All - Newest first", (void*)0, &item_attr);
+	mvpw_add_menu_item(widget, "All - Oldest first", (void*)1, &item_attr);
+
 	for (i=0; i<n; i++)
-		mvpw_add_menu_item(widget, titles[i], (void*)n, &item_attr);
+		mvpw_add_menu_item(widget, titles[i], (void*)n+2, &item_attr);
 
 	cmyth_proglist_release(plist);
 }

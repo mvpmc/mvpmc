@@ -38,6 +38,9 @@ extern demux_handle_t *handle;
 
 char *mythtv_recdir = NULL;
 
+char *saved_argv[32];
+int saved_argc = 0;
+
 /*
  * print_help() - print command line arguments
  *
@@ -68,10 +71,18 @@ print_help(char *prog)
 int
 main(int argc, char **argv)
 {
-	int c;
+	int c, i;
 	char *font = NULL;
 	int mode = -1, output = -1, aspect = -1;
 	int width, height;
+
+	if (argc > 32) {
+		fprintf(stderr, "too many arguments\n");
+		exit(1);
+	}
+
+	for (i=0; i<argc; i++)
+		saved_argv[i] = strdup(argv[i]);
 
 	while ((c=getopt(argc, argv, "a:f:hm:Mo:r:s:")) != -1) {
 		switch (c) {
@@ -183,4 +194,19 @@ main(int argc, char **argv)
 	mvpw_event_loop();
 
 	return 0;
+}
+
+void
+re_exec(void)
+{
+	int i, dt;
+
+	dt = getdtablesize();
+
+	for (i=3; i<dt; i++)
+		close(i);
+
+	execv(saved_argv[0], saved_argv);
+
+	exit(1);
 }

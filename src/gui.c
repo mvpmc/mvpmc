@@ -163,6 +163,43 @@ enum {
 
 static void settings_select_callback(mvp_widget_t*, char*, void*);
 static void sub_settings_select_callback(mvp_widget_t*, char*, void*);
+static void hide_widgets(void);
+
+static int powered_off = 0;
+
+void
+power_toggle(void)
+{
+	static int on = 1;
+	int afd, vfd;
+
+	if (on == 0) {
+		av_set_led(1);
+		re_exec();
+	}
+
+	av_set_led(0);
+
+	mvpw_focus(root);
+	hide_widgets();
+	mvpw_expose(root);
+
+	video_clear();
+	mvpw_set_idle(NULL);
+	mvpw_set_timer(root, NULL, 0);
+
+	afd = av_audio_fd();
+	vfd = av_video_fd();
+
+	close(afd);
+	close(vfd);
+
+	osd_destroy_all_surfaces();
+	osd_close();
+
+	on = 0;
+	powered_off = 1;
+}
 
 static void
 hide_widgets(void)
@@ -172,12 +209,39 @@ hide_widgets(void)
 	mvpw_hide(file_browser);
 	mvpw_hide(settings);
 	mvpw_hide(sub_settings);
+	mvpw_hide(mythtv_browser);
+	mvpw_hide(mythtv_logo);
+	mvpw_hide(mythtv_channel);
+	mvpw_hide(mythtv_date);
+	mvpw_hide(mythtv_description);
+	mvpw_hide(about);
+	mvpw_hide(settings);
+	mvpw_hide(sub_settings);
+	mvpw_hide(iw);
+	mvpw_hide(fb_image);
+	mvpw_hide(mythtv_image);
+	mvpw_hide(setup_image);
+	mvpw_hide(about_image);
+	mvpw_hide(exit_image);
+	mvpw_hide(fb_image);
 }
 
 static void
 root_callback(mvp_widget_t *widget, char key)
 {
-	video_callback(widget, key);
+	if (powered_off) {
+		if (key == 'P')
+			power_toggle();
+	} else {
+		video_callback(widget, key);
+	}
+}
+
+static void
+main_menu_callback(mvp_widget_t *widget, char key)
+{
+	if (key == 'P')
+		power_toggle();
 }
 
 static void
@@ -190,17 +254,24 @@ iw_key_callback(mvp_widget_t *widget, char key)
 static void
 about_key_callback(mvp_widget_t *widget, char key)
 {
-	mvpw_hide(about);
-	mvpw_show(root);
-	mvpw_expose(root);
-	mvpw_show(main_menu);
-	mvpw_expose(main_menu);
-	mvpw_focus(main_menu);
+	if (key == 'P') {
+		power_toggle();
+	} else {
+		mvpw_hide(about);
+		mvpw_show(root);
+		mvpw_expose(root);
+		mvpw_show(main_menu);
+		mvpw_expose(main_menu);
+		mvpw_focus(main_menu);
+	}
 }
 
 static void
 sub_settings_key_callback(mvp_widget_t *widget, char key)
 {
+	if (key == 'P')
+		power_toggle();
+
 	if (key == 'E') {
 		mvpw_hide(settings);
 		mvpw_hide(sub_settings);
@@ -228,6 +299,9 @@ sub_settings_key_callback(mvp_widget_t *widget, char key)
 static void
 settings_key_callback(mvp_widget_t *widget, char key)
 {
+	if (key == 'P')
+		power_toggle();
+
 	if (key == 'E') {
 		mvpw_hide(settings);
 		mvpw_hide(sub_settings);
@@ -247,6 +321,9 @@ settings_key_callback(mvp_widget_t *widget, char key)
 static void
 fb_key_callback(mvp_widget_t *widget, char key)
 {
+	if (key == 'P')
+		power_toggle();
+
 	if (key == 'E') {
 		mvpw_hide(widget);
 		mvpw_hide(iw);
@@ -266,6 +343,9 @@ fb_key_callback(mvp_widget_t *widget, char key)
 static void
 mythtv_key_callback(mvp_widget_t *widget, char key)
 {
+	if (key == 'P')
+		power_toggle();
+
 	if (key == 'E') {
 		if (mythtv_back(widget) == 0) {
 			mvpw_hide(mythtv_browser);
@@ -659,6 +739,8 @@ main_menu_init(void)
 			   (void*)MM_ABOUT, &item_attr);
 	mvpw_add_menu_item(main_menu, "Exit",
 			   (void*)MM_EXIT, &item_attr);
+
+	mvpw_set_key(main_menu, main_menu_callback);
 
 	return 0;
 }

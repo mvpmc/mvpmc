@@ -300,7 +300,10 @@ video_idle(void)
 		av_play();
 
 		demux_reset(handle);
-		av_move(475, si.rows-60, 4);
+		if (si.rows == 480)
+			av_move(475, si.rows-60, 4);
+		else
+			av_move(475, si.rows-113, 4);
 		av_play();
 
 #if 0
@@ -373,7 +376,10 @@ video_callback(mvp_widget_t *widget, char key)
 
 	switch (key) {
 	case '.':
-		av_move(475, si.rows-60, 4);
+		if (si.rows == 480)
+			av_move(475, si.rows-60, 4);
+		else
+			av_move(475, si.rows-113, 4);
 		mvpw_hide(osd_widget);
 		mvpw_hide(mute_widget);
 		mvpw_hide(pause_widget);
@@ -502,6 +508,9 @@ video_callback(mvp_widget_t *widget, char key)
 			av_move(0, 0, 5);
 		}
 		zoomed = !zoomed;
+		break;
+	case 'P':
+		power_toggle();
 		break;
 	default:
 		printf("char '%c'\n", key);
