@@ -44,7 +44,7 @@
 #define PRINTF(x...)
 #endif
 
-#define BSIZE	(96*1024)
+#define BSIZE	(256*1024)
 
 static volatile cmyth_file_t file;
 extern demux_handle_t *handle;
@@ -60,6 +60,7 @@ static mvpw_menu_item_attr_t item_attr = {
 static pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t seek_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t myth_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 static cmyth_conn_t control;
 static cmyth_proginfo_t current_prog;
@@ -699,20 +700,18 @@ control_start(void *arg)
 
 		do {
 			if (seeking || jumping) {
-				while ((myth_seeking == 0) &&
-				       (seeking || jumping))
-					usleep(1000);
-				if (!seeking && !jumping)
-					continue;
-				printf("%s(): seeking...\n", __FUNCTION__);
-				seek_pos = cmyth_file_seek(control, file,
-							   seek_offset,
-							   seek_whence);
-				printf("%s(): done\n", __FUNCTION__);
-				myth_seeking = 0;
+				len = cmyth_file_request_block(control, file,
+							       1024*96);
+			} else {
+				len = cmyth_file_request_block(control, file,
+							       BSIZE);
 			}
 
-			len = cmyth_file_request_block(control, file, BSIZE);
+			/*
+			 * Will block if another command is executing
+			 */
+			pthread_mutex_lock(&myth_mutex);
+			pthread_mutex_unlock(&myth_mutex);
 
 			if ((len < 0) && paused) {
 				printf("%s(): waiting to unpause...\n",
@@ -773,7 +772,10 @@ mythtv_delete(void)
 {
 	int ret;
 
+	pthread_mutex_lock(&myth_mutex);
 	ret = cmyth_proginfo_delete_recording(control, current_prog);
+	mythtv_close_file();
+	pthread_mutex_unlock(&myth_mutex);
 
 	return ret;
 }
@@ -783,7 +785,10 @@ mythtv_forget(void)
 {
 	int ret;
 
+	pthread_mutex_lock(&myth_mutex);
 	ret = cmyth_proginfo_forget_recording(control, current_prog);
+	mythtv_close_file();
+	pthread_mutex_unlock(&myth_mutex);
 
 	return ret;
 }
@@ -880,11 +885,7 @@ mythtv_seek(long long offset, int whence)
 	me = getpid();
 
 	pthread_mutex_lock(&seek_mutex);
-
-	printf("%s(): pid %d doing seek...\n", __FUNCTION__, me);
-
-	seek_offset = offset;
-	seek_whence = whence;
+	pthread_mutex_lock(&myth_mutex);
 
 	while (1) {
 		char buf[4096];
@@ -915,14 +916,9 @@ mythtv_seek(long long offset, int whence)
 		}
 	}
 
-	printf("%s(): waiting for seek...\n", __FUNCTION__);
+	seek_pos = cmyth_file_seek(control, file, offset, whence);
 
-	myth_seeking = 1;
-	while (myth_seeking)
-		usleep(1000);
-
-	printf("%s(): pid %d done\n", __FUNCTION__, me);
-
+	pthread_mutex_unlock(&myth_mutex);
 	pthread_mutex_unlock(&seek_mutex);
 
 	return seek_pos;
@@ -936,9 +932,6 @@ mythtv_read(char *buf, int len)
 
 	if (file == NULL)
 		return -EINVAL;
-
-	while (myth_seeking)
-		usleep(1000);
 
 	pthread_mutex_lock(&seek_mutex);
 
@@ -968,5 +961,41 @@ mythtv_read(char *buf, int len)
 static long long
 mythtv_size(void)
 {
-	return cmyth_file_length(file);
+	static struct timeval last = { 0, 0 };
+	static cmyth_proginfo_t prog = NULL;
+	struct timeval now;
+	long long ret;
+
+	gettimeofday(&now, NULL);
+
+	/*
+	 * This is expensive, so use the cached value if less than 30 seconds
+	 * have elapsed since the last try, and we are still playing the
+	 * same recording.
+	 */
+	if ((prog == current_prog) && ((now.tv_sec - last.tv_sec) < 30)) {
+		ret = cmyth_proginfo_length(current_prog);
+		goto out;
+	}
+
+	pthread_mutex_lock(&myth_mutex);
+
+	/*
+	 * If the refill fails, use the value in the file structure.
+	 */
+	if (cmyth_proginfo_fill(control, current_prog) < 0) {
+		ret = cmyth_file_length(file);
+		goto unlock;
+	}
+
+	ret = cmyth_proginfo_length(current_prog);
+
+	memcpy(&last, &now, sizeof(last));
+	prog = current_prog;
+
+ unlock:
+	pthread_mutex_unlock(&myth_mutex);
+
+ out:
+	return ret;
 }
