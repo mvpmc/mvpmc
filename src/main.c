@@ -23,6 +23,9 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <signal.h>
+#include <errno.h>
+#include <sys/wait.h>
 #include <pthread.h>
 
 #include <mvp_widget.h>
@@ -56,6 +59,8 @@ pthread_t audio_write_thread;
 
 extern int rtv_init(char *init_str);
 
+static pid_t child;
+
 /*
  * print_help() - print command line arguments
  *
@@ -80,6 +85,56 @@ print_help(char *prog)
 	printf("\t-s server \tmythtv server IP address\n");
 	printf("\t-r path   \tpath to NFS mounted mythtv recordings\n");
 	printf("\t-R server \treplaytv server IP address\n");
+}
+
+/*
+ * sighandler() - kill the child and exit
+ */
+void
+sighandler(int sig)
+{
+	kill(child, SIGKILL);
+	exit(sig);
+}
+
+/*
+ * spawn_child() - spawn a child, and respawn it whenever it exits
+ *
+ * This is used to implement the power button.  If the child exits cleanly,
+ * then another child should be started.  If the child exits with a signal,
+ * restart another child.  If the child exits with a 1, the parent should
+ * just give up and exit.
+ */
+void
+spawn_child(void)
+{
+	int status;
+
+	while (1) {
+		if ((child=fork()) == 0) {
+			printf("child pid %d\n", getpid());
+			return;
+		}
+
+		signal(SIGINT, sighandler);
+		signal(SIGTERM, sighandler);
+
+		while ((waitpid(child, &status, 0) < 0) && (errno == EINTR));
+
+		switch (status) {
+		case 0:
+			printf("child exited cleanly\n");
+			break;
+		case 1:
+			printf("child failed\n");
+			exit(1);
+			break;
+		default:
+			printf("child failed, with status %d, restarting...\n",
+			       status);
+			break;
+		}
+	}
 }
 
 /*
@@ -156,8 +211,8 @@ main(int argc, char **argv)
 			mythtv_recdir = strdup(optarg);
 			break;
 		case 'R':
-         replaytv_server = "RTV";
-         rtv_init_str = strdup(optarg);
+			replaytv_server = "RTV";
+			rtv_init_str = strdup(optarg);
 			break;
 		case 's':
 			mythtv_server = strdup(optarg);
@@ -169,6 +224,8 @@ main(int argc, char **argv)
 		}
 	}
 
+	spawn_child();
+
 	if (font)
 		fontid = mvpw_load_font(font);
 
@@ -177,9 +234,9 @@ main(int argc, char **argv)
 		exit(1);
 	}
    
-   if (rtv_init_str) {
-      rtv_init(rtv_init_str);
-   }
+	if (rtv_init_str) {
+		rtv_init(rtv_init_str);
+	}
 
 	if (mode != -1)
 		av_set_mode(mode);
@@ -231,6 +288,7 @@ main(int argc, char **argv)
 		exit(1);
 	}
 
+#ifdef __UCLIBC__
 	/*
 	 * XXX: moving to uClibc seems to have exposed a problem...
 	 *
@@ -291,6 +349,7 @@ main(int argc, char **argv)
 		else
 			printf("Failed to create hole in heap\n");
 	}
+#endif /* __UCLIBC__ */
 
 	mvpw_set_idle(NULL);
 	mvpw_event_loop();
@@ -301,17 +360,8 @@ main(int argc, char **argv)
 void
 re_exec(void)
 {
-	int i, dt;
-
-	dt = getdtablesize();
-
-	for (i=3; i<dt; i++)
-		close(i);
-
-	printf("calling exec()...\n");
-
-	pthread_kill_other_threads_np();
-	execv(saved_argv[0], saved_argv);
-
-	exit(1);
+	/*
+	 * exiting will allow the parent to do another fork()...
+	 */
+	exit(0);
 }
