@@ -24,6 +24,22 @@
 
 #include <stdint.h>
 
+enum {
+	AV_MODE_PAL,
+	AV_MODE_NTSC,
+};
+
+enum {
+	AV_OUTPUT_SCART = 0,
+	AV_OUTPUT_COMPOSITE = 1,
+	AV_OUTPUT_SVIDEO = 2,
+};
+
+enum {
+	AV_ASPECT_4x3 = 0,
+	AV_ASPECT_16x9 = 1,
+};
+
 typedef struct {
         uint64_t stc;
         uint64_t pts;
@@ -40,7 +56,7 @@ typedef struct {
         int second;
 } av_stc_t;
 
-extern int av_init(int);
+extern int av_init(void);
 extern int av_video_set_nonblock(int);
 extern int av_audio_set_nonblock(int);
 extern int av_attach_fb(void);
@@ -56,5 +72,13 @@ extern int av_mute(void);
 extern int av_reset(void);
 extern int get_video_sync(pts_sync_data_t *p);
 extern int av_current_stc(av_stc_t *stc);
+
+extern int av_get_mode(void);
+extern int av_get_output(void);
+extern int av_get_aspect(void);
+
+extern int av_set_mode(int);
+extern int av_set_output(int);
+extern int av_set_aspect(int);
 
 #endif /* MVP_AV_H */

@@ -23,53 +23,39 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <sys/ioctl.h>
-#include <assert.h>
 
 #include "mvp_av.h"
-#include "stb.h"
 #include "av_local.h"
 
-int fd_video = -1;
-int fd_audio = -1;
-int paused = 0;
-int muted = 0;
-int ffwd = 0;
-int pal_mode, aspect;
-
+/*
+ * init_mtd1() - Read configuration data out of flash
+ *
+ * Arguments:
+ *	none
+ *
+ * Returns:
+ *	0 if mtd1 could be read, -1 if it failed
+ */
 int
-av_init(void)
+init_mtd1(void)
 {
-	int video_mode = 0, audio_mode = 2;
+	int fd;
+	short *mtd;
 
-	if (init_mtd1() < 0)
-		return -1;
-
-	if ((fd_video=open("/dev/vdec_dev", O_RDWR|O_NONBLOCK)) < 0)
-		return -1;
-	if ((fd_audio=open("/dev/adec_mpg", O_RDWR|O_NONBLOCK)) < 0)
+	if ((fd=open("/dev/mtd1", O_RDONLY)) < 0)
 		return -1;
 
-	if (set_output_method() < 0)
+	if ((mtd=malloc(8192)) == NULL)
 		return -1;
 
-	if (ioctl(fd_video, AV_SET_VID_MODE, video_mode) < 0)
-		return -1;
-	if (ioctl(fd_video, AV_SET_VID_RATIO, aspect) < 0)
-		return -1;
+	read(fd, mtd, 8192);
 
-	if (ioctl(fd_audio, AV_SET_AUD_SRC, 1) < 0)
-		return -1;
-	if (ioctl(fd_audio, AV_SET_AUD_STREAMTYPE, audio_mode) < 0)
-		return -1;
-	if (ioctl(fd_audio, AV_SET_AUD_CHANNEL, 0) < 0)
-		return -1;
+	close(fd);
 
-	av_sync();
+	pal_mode = mtd[2119];
+	aspect = mtd[2125];
 
-	if (ioctl(fd_audio, AV_SET_AUD_PLAY, 0) != 0)
-		return -1;
+	free(mtd);
 
 	return 0;
 }
-

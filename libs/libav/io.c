@@ -23,53 +23,31 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <sys/ioctl.h>
-#include <assert.h>
 
 #include "mvp_av.h"
 #include "stb.h"
 #include "av_local.h"
 
-int fd_video = -1;
-int fd_audio = -1;
-int paused = 0;
-int muted = 0;
-int ffwd = 0;
-int pal_mode, aspect;
-
 int
-av_init(void)
+av_write_audio(char *buf, int len)
 {
-	int video_mode = 0, audio_mode = 2;
-
-	if (init_mtd1() < 0)
-		return -1;
-
-	if ((fd_video=open("/dev/vdec_dev", O_RDWR|O_NONBLOCK)) < 0)
-		return -1;
-	if ((fd_audio=open("/dev/adec_mpg", O_RDWR|O_NONBLOCK)) < 0)
-		return -1;
-
-	if (set_output_method() < 0)
-		return -1;
-
-	if (ioctl(fd_video, AV_SET_VID_MODE, video_mode) < 0)
-		return -1;
-	if (ioctl(fd_video, AV_SET_VID_RATIO, aspect) < 0)
-		return -1;
-
-	if (ioctl(fd_audio, AV_SET_AUD_SRC, 1) < 0)
-		return -1;
-	if (ioctl(fd_audio, AV_SET_AUD_STREAMTYPE, audio_mode) < 0)
-		return -1;
-	if (ioctl(fd_audio, AV_SET_AUD_CHANNEL, 0) < 0)
-		return -1;
-
-	av_sync();
-
-	if (ioctl(fd_audio, AV_SET_AUD_PLAY, 0) != 0)
-		return -1;
-
-	return 0;
+	return write(fd_audio, buf, len);
 }
 
+int
+av_write_video(char *buf, int len)
+{
+	return write(fd_video, buf, len);
+}
+
+int
+av_audio_fd(void)
+{
+	return fd_audio;
+}
+
+int
+av_video_fd(void)
+{
+	return fd_video;
+}
