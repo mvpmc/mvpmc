@@ -136,10 +136,10 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 		if (is_video(item)) {
 			mvpw_hide(widget);
 			av_move(0, 0, 0);
-			video_subtitle_check(NULL);
 			mvpw_show(root);
 			mvpw_expose(root);
 			mvpw_focus(root);
+			video_play(widget);
 		} else if (is_image(item)) {
 			mvpw_hide(widget);
 			mvpw_focus(iw);
@@ -177,6 +177,7 @@ hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 			}
 		}
 	} else {
+		mvpw_hide(iw);
 		mvpw_set_idle(NULL);
 		mvpw_set_timer(root, NULL, 0);
 		audio_clear();

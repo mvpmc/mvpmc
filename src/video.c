@@ -60,6 +60,7 @@ static volatile int jumping = 0;
 static volatile int seek_bps;
 static volatile int seek_attempts;
 static volatile int audio_type = 0;
+static volatile int pcm_decoded = 0;
 static int zoomed = 0;
 static int display_on = 0;
 
@@ -145,6 +146,12 @@ video_subtitle_check(mvp_widget_t *widget)
 		mvpw_set_timer(root, video_subtitle_display, 250);
 	else
 		mvpw_set_timer(root, video_subtitle_check, 1000);
+
+	if (! (mvpw_visible(file_browser) ||
+	       mvpw_visible(mythtv_browser) ||
+	       mvpw_visible(replaytv_browser))) {
+		av_move(0, 0, 0);
+	}
 }
 
 void
@@ -735,6 +742,8 @@ do_seek(void)
 static void
 open_file(void)
 {
+	seeking = 1;
+
 	close(fd);
 
 	pthread_kill(video_write_thread, SIGURG);
@@ -752,10 +761,12 @@ open_file(void)
 	demux_reset(handle);
 	demux_attr_reset(handle);
 	demux_seek(handle);
+
 	if (si.rows == 480)
 		av_move(475, si.rows-60, 4);
 	else
 		av_move(475, si.rows-113, 4);
+	
 	av_play();
 
 	zoomed = 0;
@@ -763,10 +774,17 @@ open_file(void)
 
 	seeking = 0;
 	jumping = 0;
+	audio_type = 0;
+	pcm_decoded = 0;
+	ac3len = 0;
+
+	audio_clear();
 
 	video_reopen = 0;
 
 	pthread_cond_broadcast(&video_cond);
+
+	printf("write threads released\n");
 }
 void*
 video_read_start(void *arg)
@@ -811,6 +829,9 @@ video_read_start(void *arg)
 			av_reset();
 			if (seeking)
 				reset = 0;
+			pcm_decoded = 0;
+			ac3len = 0;
+			audio_clear();
 			jumping = 0;
 		}
 
@@ -911,7 +932,6 @@ audio_write_start(void *arg)
 {
 	pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 	int len;
-	int pcm_decoded = 0;
 	sigset_t sigs;
 	demux_attr_t *attr;
 	video_info_t *vi;
