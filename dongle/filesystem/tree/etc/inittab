@@ -1,0 +1,5 @@
+#
+# $Id$
+#
+::sysinit:/etc/rcS
+::restart:/sbin/init

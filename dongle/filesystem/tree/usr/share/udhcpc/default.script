@@ -1,0 +1,7 @@
+#!/bin/sh
+
+cat <<EOF > /etc/udhcpc.config
+DONGLE=$boot_file
+SERVER=${siaddr:-$serverid}
+EOF
+

@@ -1,0 +1,38 @@
+#!/bin/sh
+#
+# $Id$
+#
+
+#
+# Mount everything in /etc/fstab
+#
+/bin/umount -a
+/bin/mount -a -o rw
+
+#
+# Configure lo0
+# eth0 will be autoconfigured by the kernel
+#
+/sbin/ifconfig lo 127.0.0.1
+
+#
+# Start telnetd
+#
+/usr/sbin/telnetd
+
+#
+# Load kernel modules
+#
+insmod os_core
+insmod av_core _fmt=1
+insmod ircombo
+insmod gfx
+insmod osdfb
+#insmod xrmod
+
+udhcpc
+. /etc/udhcpc.config
+
+tftp -g -l /etc/dongle.config -r ${DONGLE}.config ${SERVER}
+. /etc/dongle.config
+
