@@ -15,8 +15,15 @@
 
 #set -x
 
-TMP=`mktemp -q -d dir.XXXXXX` || error "mktemp dir failed"
-RAMDISK=`mktemp -q ramdisk.XXXXXX` || error "mktemp dir failed"
+TMP="tmpdir"
+RAMDISK="ramdisk"
+
+if [ -a $TMP ] ; then
+	rm -rf $TMP
+fi
+if [ -a $RAMDISK ] ; then
+	rm -rf $RAMDISK
+fi
 
 print_help() {
 	echo "$0 [-d dongle.bin] [-k kernel dir] [-o outfile]"
@@ -27,6 +34,9 @@ error() {
 
 	exit 1
 }
+
+mkdir $TMP || error "failed to create directory $TMP"
+touch $RAMDISK || error "failed to create file $RAMDISK"
 
 #
 # make_dongle() - this is straight out of arch/ppc in the linux tree
