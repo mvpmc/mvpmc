@@ -258,6 +258,14 @@ audio_player(int reset)
 			mvpw_set_idle(NULL);
 			mvpw_set_timer(root, audio_play, 100);
 		}
+		else if(ac3len==0){
+			/* fprintf(stderr,"ac3 file finished\n"); */
+			mvpw_set_idle(NULL);
+			audio_clear();
+			if(playlist){
+				playlist_next();
+			}
+		}
 		break;
 	case AUDIO_FILE_WAV:
 		pcm_play(fd, afd, align, channels, bps);
@@ -265,6 +273,15 @@ audio_player(int reset)
 	case AUDIO_FILE_MP3:
 		len = read(fd, buf+n, BSIZE-n);
 		n += len;
+		if(n==0 && nput==0){
+			/* fprintf(stderr,"mp3 file finished\n"); */
+			mvpw_set_idle(NULL);
+			audio_clear();
+			if(playlist){
+				playlist_next();
+			}
+			break;
+		}
 		if ((tot=write(afd, buf+nput, n-nput)) == 0) {
 			mvpw_set_idle(NULL);
 			mvpw_set_timer(root, audio_play, 100);
@@ -352,6 +369,9 @@ audio_play(mvp_widget_t *widget)
 void
 audio_clear(void)
 {
+	if(fd>=0){
+		close(fd);
+	}
 	fd = -1;
 	av_reset();
 }

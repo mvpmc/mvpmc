@@ -48,7 +48,7 @@ static void add_files(mvp_widget_t*);
 
 char *current = NULL;
 
-static int
+int
 is_video(char *item)
 {
 	char *wc[] = { ".mpg", ".mpeg", ".nuv", ".vob", NULL };
@@ -64,7 +64,7 @@ is_video(char *item)
 	return 0;
 }
 
-static int
+int
 is_image(char *item)
 {
 	char *wc[] = { ".bmp", ".gif", ".jpg", ".jpeg", ".png", NULL };
@@ -80,10 +80,26 @@ is_image(char *item)
 	return 0;
 }
 
-static int
+int
 is_audio(char *item)
 {
 	char *wc[] = { ".mp3", ".wav", ".ac3", NULL };
+	int i = 0;
+
+	while (wc[i] != NULL) {
+		if ((strlen(item) >= strlen(wc[i])) &&
+		    (strcasecmp(item+strlen(item)-strlen(wc[i]), wc[i]) == 0))
+			return 1;
+		i++;
+	}
+
+	return 0;
+}
+
+static int
+is_playlist(char *item)
+{
+	char *wc[] = { ".m3u", NULL };
 	int i = 0;
 
 	while (wc[i] != NULL) {
@@ -164,10 +180,13 @@ hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 			if (current)
 				free(current);
 			current = strdup(path);
+			playlist_clear();
 			if (is_video(item)) {
 				mvpw_set_timer(root, video_play, 500);
 			} else if (is_audio(item)) {
 				mvpw_set_timer(root, audio_play, 500);
+			} else if (is_playlist(item)) {
+				mvpw_set_timer(root, playlist_play, 500);
 			} else if (is_image(item)) {
 				mvpw_set_image(iw, path);
 				mvpw_lower(iw);
@@ -181,6 +200,7 @@ hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 		mvpw_set_timer(root, NULL, 0);
 		audio_clear();
 		video_clear();
+		playlist_clear();
 	}
 }
 
@@ -253,10 +273,10 @@ static void
 add_files(mvp_widget_t *fbw)
 {
 	char *wc[] = { "*.mpg", "*.mpeg", "*.mp3", "*.nuv", "*.vob", "*.gif",
-		       "*.bmp", "*.jpg", "*.jpeg", "*.png", "*.wav", "*.ac3",
+		       "*.bmp", "*.m3u", "*.jpg", "*.jpeg", "*.png", "*.wav", "*.ac3",
 		       NULL };
 	char *WC[] = { "*.MPG", "*.MPEG", "*.MP3", "*.NUV", "*.VOB", "*.GIF",
-		       "*.BMP", "*.JPG", "*.JPEG", "*.PNG", "*.WAV", "*.AC3",
+		       "*.BMP", "*.M3U", "*.JPG", "*.JPEG", "*.PNG", "*.WAV", "*.AC3",
 		       NULL };
 
 	item_attr.select = select_callback;

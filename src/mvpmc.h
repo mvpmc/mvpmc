@@ -55,6 +55,13 @@ typedef struct {
                                       // Client should return 1 if it handled the keypress. Else return 0
 } video_callback_t;
 
+typedef struct playlist_struct playlist_t;
+
+struct playlist_struct {
+  char *filename;
+  struct playlist_struct *next;
+};
+
 extern volatile video_callback_t *video_functions;
 extern video_callback_t file_functions, mythtv_functions;
 
@@ -100,6 +107,8 @@ extern char *current;
 extern char *mythtv_recdir;
 extern char *mythtv_ringbuf;
 
+extern playlist_t *playlist;
+
 extern char *imagedir;
 
 extern int fontid;
@@ -117,6 +126,8 @@ extern volatile int paused;
 extern int video_init(void);
 extern void audio_play(mvp_widget_t*);
 extern void video_play(mvp_widget_t*);
+extern void playlist_play(mvp_widget_t*);
+extern void playlist_next();
 
 extern int mythtv_init(char*, int);
 extern int gui_init(char*, char*);
@@ -124,6 +135,7 @@ extern int mw_init(char *server, char *replaytv);
 
 extern void audio_clear(void);
 extern void video_clear(void);
+extern void playlist_clear(void);
 extern void video_stop_play(void);
 
 extern int mythtv_back(mvp_widget_t*);
@@ -148,6 +160,10 @@ extern void *video_write_start(void*);
 extern void *audio_write_start(void*);
 
 extern void replaytv_back_to_mvp_main_menu(void);
+
+extern int is_video(char *item);
+extern int is_audio(char *item);
+extern int is_image(char *item);
 
 extern pthread_t video_write_thread;
 extern pthread_t audio_write_thread;
