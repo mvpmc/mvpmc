@@ -120,6 +120,7 @@ extern void mvpw_set_text_fg(mvp_widget_t *widget, uint32_t fg);
 typedef struct {
 	int	 	font;
 	uint32_t 	fg;
+	uint32_t 	bg;
 	uint32_t 	hilite_fg;
 	uint32_t 	hilite_bg;
 	uint32_t 	title_fg;

@@ -540,6 +540,7 @@ mvpw_set_menu_attr(mvp_widget_t *widget, mvpw_menu_attr_t *attr)
 
 	widget->data.menu.font = attr->font;
 	widget->data.menu.fg = attr->fg;
+	widget->data.menu.bg = attr->bg;
 	widget->data.menu.hilite_fg = attr->hilite_fg;
 	widget->data.menu.hilite_bg = attr->hilite_bg;
 	widget->data.menu.title_fg = attr->title_fg;

@@ -64,6 +64,7 @@ typedef struct {
 	int		 current;
 	GR_FONT_ID	 font;
 	GR_COLOR	 fg;
+	GR_COLOR	 bg;
 	GR_COLOR	 hilite_fg;
 	GR_COLOR	 hilite_bg;
 	GR_COLOR	 title_fg;
