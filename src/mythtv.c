@@ -242,7 +242,7 @@ show_select_callback(mvp_widget_t *widget, char *item, void *key)
 
 	printf("fullscreen video mode\n");
 
-	if (current_prog != hilite_prog) {
+	if (cmyth_proginfo_compare(hilite_prog, current_prog) != 0) {
 		if (current_prog)
 			cmyth_proginfo_release(current_prog);
 
@@ -265,7 +265,7 @@ show_select_callback(mvp_widget_t *widget, char *item, void *key)
 void
 mythtv_start_thumbnail(void)
 {
-	if (current_prog != hilite_prog) {
+	if (cmyth_proginfo_compare(hilite_prog, current_prog) != 0) {
 		if (si.rows == 480)
 			av_move(475, si.rows-60, 4);
 		else
@@ -848,7 +848,7 @@ mythtv_delete(void)
 
 	pthread_mutex_lock(&myth_mutex);
 	ret = cmyth_proginfo_delete_recording(control, hilite_prog);
-	if (hilite_prog == current_prog)
+	if (cmyth_proginfo_compare(hilite_prog, current_prog) == 0)
 		mythtv_close_file();
 	pthread_mutex_unlock(&myth_mutex);
 
@@ -862,7 +862,7 @@ mythtv_forget(void)
 
 	pthread_mutex_lock(&myth_mutex);
 	ret = cmyth_proginfo_forget_recording(control, hilite_prog);
-	if (hilite_prog == current_prog)
+	if (cmyth_proginfo_compare(hilite_prog, current_prog) == 0)
 		mythtv_close_file();
 	pthread_mutex_unlock(&myth_mutex);
 
