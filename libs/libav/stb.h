@@ -92,4 +92,9 @@ typedef struct {
 #define AV_SET_VID_DENC		_IOW('v',63,int)
 #define AV_CHK_SCART		_IOW('v',64,int) 
 
+/*
+ * /dev/rawir
+ */
+#define IR_SET_LED		_IOW('i',21,int)
+
 #endif /* STB_H */

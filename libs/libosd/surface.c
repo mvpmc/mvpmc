@@ -36,6 +36,8 @@
 #define PRINTF(x...)
 #endif
 
+static osd_surface_t *all[128];
+
 static int full_width = 720, full_height = 480;
 
 void
@@ -67,6 +69,7 @@ osd_create_surface(int w, int h)
 {
 	osd_surface_t *surface;
 	int ret, num = 0;
+	int i;
 
 	if (w == -1)
 		w = full_width;
@@ -135,6 +138,12 @@ osd_create_surface(int w, int h)
 	PRINTF("surface 0x%.8x created of size %d x %d   [%d]\n",
 	       surface, w, h, surface->map.map[0].size);
 
+	i = 0;
+	while ((all[i] != NULL) && (i < 128))
+		i++;
+	if (i < 128)
+		all[i] = surface;
+
 	return surface;
 
  err:
@@ -148,6 +157,12 @@ int
 osd_destroy_surface(osd_surface_t *surface)
 {
 	int i;
+
+	i = 0;
+	while ((all[i] != surface) && (i < 128))
+		i++;
+	if (i < 128)
+		all[i] = NULL;
 
 	for (i=0; i<3; i++)
 		if (surface->base[i])
@@ -172,4 +187,15 @@ osd_display_surface(osd_surface_t *surface)
 	fb_descriptor[1] = 1;
 	
 	ioctl(stbgfx, GFX_FB_ATTACH, fb_descriptor);
+}
+
+void
+osd_destroy_all_surfaces(void)
+{
+	int i;
+
+	for (i=0; i<128; i++) {
+		if (all[i])
+			osd_destroy_surface(all[i]);
+	}
 }

@@ -73,3 +73,30 @@ av_init(void)
 	return 0;
 }
 
+int
+av_set_led(int on)
+{
+	static int rawir = -1;
+	static int lit = 1;
+
+	if (rawir < 0) {
+		/*
+		 * XXX: The first open doesn't seem to work...
+		 */
+		if ((rawir=open("/dev/rawir", O_RDONLY)) < 0)
+			return -1;
+		close(rawir);
+		if ((rawir=open("/dev/rawir", O_RDONLY)) < 0)
+			return -1;
+	}
+
+	if (lit == on)
+		return 0;
+
+	if (ioctl(rawir, IR_SET_LED, lit) < 0)
+		return -1;
+
+	lit = !lit;
+
+	return 0;
+}

@@ -176,3 +176,12 @@ yuv2rgb(unsigned char y, unsigned char u, unsigned char v,
 	*g = G;
 	*b = B;
 }
+
+int
+osd_close(void)
+{
+	close(stbgfx);
+	stbgfx = -1;
+
+	return 0;
+}
