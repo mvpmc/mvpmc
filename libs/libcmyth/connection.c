@@ -684,7 +684,7 @@ int
 cmyth_conn_get_freespace(cmyth_conn_t control,
 			 unsigned int *total, unsigned int *used)
 {
-	int err, count;
+	int err, count, ret = 0;
 	int r;
 	long c;
 	char msg[256];
@@ -693,13 +693,16 @@ cmyth_conn_get_freespace(cmyth_conn_t control,
 	if ((total == NULL) || (used == NULL))
 		return -EINVAL;
 
+	pthread_mutex_lock(&mutex);
+
 	snprintf(msg, sizeof(msg), "QUERY_FREESPACE");
 
 	if ((err = cmyth_send_message(control, msg)) < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_send_message() failed (%d)\n",
 			  __FUNCTION__, err);
-		return err;
+		ret = err;
+		goto out;
 	}
 
 	count = cmyth_rcv_length(control);
@@ -708,5 +711,8 @@ cmyth_conn_get_freespace(cmyth_conn_t control,
 	r = cmyth_rcv_string(control, &err, reply, sizeof(reply)-1, count-r); 
 	*used = atoi(reply);
 
-	return 0;
+ out:
+	pthread_mutex_unlock(&mutex);
+
+	return ret;
 }
