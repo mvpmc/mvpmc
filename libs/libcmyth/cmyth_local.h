@@ -242,6 +242,9 @@ struct cmyth_proginfo {
 	char *proginfo_unknown_4;    /* new in V8 */
 	char *proginfo_unknown_5;    /* new in V8 */
 	char *proginfo_pathname;
+	char *proginfo_originalairdate;	/* new in V12 */
+	cmyth_timestamp_t proginfo_lastmodified;		/* new in V12 */
+	long proginfo_stars;				/* new in V12 */
 	int proginfo_port;
 	char *proginfo_host;
     unsigned long proginfo_version;

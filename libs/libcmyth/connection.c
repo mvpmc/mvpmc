@@ -333,6 +333,8 @@ top:
 				  __FUNCTION__);
 		goto shut;
 	}
+	cmyth_dbg(CMYTH_DBG_ERROR, "%s: asked for version %ld, got version %ld\n",
+				  __FUNCTION__, conn->conn_version, tmp_ver);
 	if (conn->conn_version != tmp_ver) {
 		if (attempt == 1) {
 			cmyth_dbg(CMYTH_DBG_ERROR,

@@ -78,6 +78,10 @@ cmyth_proginfo_create(void)
 	if (!ret->proginfo_rec_end_ts) {
 		goto err;
 	}
+	ret->proginfo_lastmodified = cmyth_timestamp_create();
+	if (!ret->proginfo_lastmodified) {
+		goto err;
+	}
 	ret->proginfo_title = NULL;
 	ret->proginfo_subtitle = NULL;
 	ret->proginfo_description = NULL;
@@ -114,7 +118,8 @@ cmyth_proginfo_create(void)
 	ret->proginfo_unknown_3 = NULL;
 	ret->proginfo_unknown_4 = NULL;
 	ret->proginfo_unknown_5 = NULL;
-	ret->proginfo_version = 8;
+	ret->proginfo_originalairdate = NULL;
+	ret->proginfo_version = 12;
 	return ret;
 
  err:
