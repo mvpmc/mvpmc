@@ -1401,19 +1401,11 @@ static void rtv_device_hilite_callback(mvp_widget_t *widget, char *item, void *k
          mvpw_event_flush();
          volinfo = malloc(sizeof(rtv_fs_volume_t));
          memset(volinfo, 0,sizeof(rtv_fs_volume_t)); 
-         volinfo->size = 1000000000; 
-         volinfo->used = 1000000000;
       }
-
-      size_gig   = (double)volinfo->size / (double)(1000 * 1000 * 1000);
-      used_gig   = (double)volinfo->used / (double)(1000 * 1000 * 1000);
-      free_gig   = size_gig - used_gig;
-      percentage = (int)((double)(volinfo->used_k) / (double)(volinfo->size_k) * 100.0);
-      rtv_free_volinfo(&volinfo);
 
       sprintf(strp, "Name:  %s", rtv->device.name);
       mvpw_set_text_str(rtv_device_descr.name, strp);
-
+      
       if ( atoi(rtv->device.modelNumber) == 4999 ) {
          sprintf(strp, "Model: DVArchive");
       }
@@ -1421,19 +1413,41 @@ static void rtv_device_hilite_callback(mvp_widget_t *widget, char *item, void *k
          sprintf(strp, "Model: %s", rtv->device.modelNumber);
       }
       mvpw_set_text_str(rtv_device_descr.model, strp);
-
+      
       sprintf(strp, "IPAddress: %s", rtv->device.ipaddr);
       mvpw_set_text_str(rtv_device_descr.ipaddr, strp);
-      
-      sprintf(strp, "Capacity: %3.1f GB", size_gig);
-      mvpw_set_text_str(rtv_device_descr.capacity, strp);
-      sprintf(strp, "Used: %3.1f GB", used_gig);
-      mvpw_set_text_str(rtv_device_descr.inuse, strp);
-      sprintf(strp, "Free: %3.1f GB", free_gig);
-      mvpw_set_text_str(rtv_device_descr.free, strp);
-      sprintf(strp, "%d%%", percentage);
-      mvpw_set_text_str(rtv_device_descr.percentage, strp);
-      mvpw_set_graph_current(rtv_device_descr.graph, percentage);
+
+      if ( volinfo->size == 0 ) {
+         //
+         // Probably DVArchive. It sends zero for the volume size.
+         //
+         sprintf(strp, "Capacity: Unknown");
+         mvpw_set_text_str(rtv_device_descr.capacity, strp);
+         sprintf(strp, " ");
+         mvpw_set_text_str(rtv_device_descr.inuse, strp);
+         mvpw_set_text_str(rtv_device_descr.free, strp);
+         mvpw_set_text_str(rtv_device_descr.percentage, strp);
+         mvpw_set_graph_current(rtv_device_descr.graph, 0);
+      }
+      else {
+         size_gig   = (double)volinfo->size / (double)(1000 * 1000 * 1000);
+         used_gig   = (double)volinfo->used / (double)(1000 * 1000 * 1000);
+         free_gig   = size_gig - used_gig;
+         percentage = (int)((double)(volinfo->used_k) / (double)(volinfo->size_k) * 100.0);
+         
+         
+         sprintf(strp, "Capacity: %3.1f GB", size_gig);
+         mvpw_set_text_str(rtv_device_descr.capacity, strp);
+         sprintf(strp, "Used: %3.1f GB", used_gig);
+         mvpw_set_text_str(rtv_device_descr.inuse, strp);
+         sprintf(strp, "Free: %3.1f GB", free_gig);
+         mvpw_set_text_str(rtv_device_descr.free, strp);
+         sprintf(strp, "%d%%", percentage);
+         mvpw_set_text_str(rtv_device_descr.percentage, strp);
+         mvpw_set_graph_current(rtv_device_descr.graph, percentage);
+      }
+
+      rtv_free_volinfo(&volinfo);
 
       // display it
       //
@@ -1561,7 +1575,7 @@ static void msg_win_delete_callback(mvp_widget_t *widget, char key)
                         (rtv_guide_export_t*)&(current_rtv_device->guide), 
                         show_idx);   
    if ( rc != 0 ) {
-      printf("Error: rtv_delete_show call failed.");
+      printf("Error: rtv_delete_show call failed.\n");
       show_message_window(msg_win_destroy_any_key_callback, "Error: rtv_delete_show call failed.\nPress any key to continue");
       mvpw_event_flush();
       goto err_exit;
@@ -1571,7 +1585,7 @@ static void msg_win_delete_callback(mvp_widget_t *widget, char key)
                                   (rtv_guide_export_t*)&(current_rtv_device->guide), 
                                   show_idx);   
    if ( rc != 0 ) {
-      printf("Error: rtv_release_show_and_wait call failed.");
+      printf("Error: rtv_release_show_and_wait call failed.\n");
    }
 
    // Update the show browser
@@ -1612,8 +1626,8 @@ static void rtv_popup_select_callback(mvp_widget_t *widget, char *item, void *ke
                                  show_idx, 
                                  &play_gop);
       if ( rc != 0 ) {
-         printf("Error: rtv_get_play_position call failed.");
-         return;
+         printf("Error: rtv_get_play_position call failed.\n");
+         play_gop = 0;
       }
       printf("CurrentGopPosition=0x%x (%u)\n", play_gop, play_gop);
       

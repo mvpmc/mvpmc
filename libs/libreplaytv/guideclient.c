@@ -271,18 +271,19 @@ static int guide_do_request(  const char  *url,
 
 
     RTV_DBGLOG(RTVLOG_GUIDE, "%s: url=%s\n", __FUNCTION__, url); 
+    *response = NULL;
 
     // Send the request & get the response back
     //
     hc = hc_start_request((char*)url); //JBH: hack cast to eliminate warning
     if (!hc) {
-        RTV_ERRLOG("%s: hc_start_request(): %d=>%s\n", __FUNCTION__, errno, strerror(errno));
-        return(-1);
+       RTV_ERRLOG("%s: hc_start_request(): %d=>%s\n", __FUNCTION__, errno, strerror(errno));
+       return(-1);
     }
     hc_send_request(hc, ":80\r\nAccept-Encoding: gzip\r\n");
-
+    
     rc = hc_read_all(hc, &tmp, &len);
-
+    
     if ( rc != 0 ) {
        RTV_ERRLOG("%s: hc_read_all call failed rc=%d\n", __FUNCTION__, rc);
        hc_free(hc);
@@ -300,9 +301,9 @@ static int guide_do_request(  const char  *url,
        return -ECONNABORTED;
     }
     hc_free(hc);
-
+    
     if ( response != NULL ) {
-
+       
        // A text response is expected
        //
        RTV_DBGLOG(RTVLOG_GUIDE, "%s: response=%s\n", __FUNCTION__, tmp); 
@@ -315,7 +316,6 @@ static int guide_do_request(  const char  *url,
           rc = map_guide_status_to_rc(status);
        } else {
           RTV_ERRLOG("%s: end of http guide status line not found\n", __FUNCTION__);
-          *response = NULL;
           rc = -EPROTO;
        }
     }
@@ -462,48 +462,49 @@ int rtv_is_show_inuse( const rtv_device_info_t   *device,
                        const unsigned int         show_idx,
                        int                       *in_use )
 {
-    char   url[512];
-    char  *response, *e;
-    int    rc;
-
-    if ( (atoi(device->modelNumber) == 4999) && (device->autodiscovered != 1) ) {
-       RTV_ERRLOG("%s: DVArchive must be auto-discovered before guide snapshot can be retrieved\n", __FUNCTION__);
-       return(-ENOTSUP);
-    }
-
-    if ( guide == NULL ) {
-       RTV_ERRLOG("%s: Guide is NULL\n", __FUNCTION__);
-       return(-EINVAL);
-    }
-    if ( show_idx >= guide->num_rec_shows ) {
-       RTV_ERRLOG("%s: show_idx out-of-range: idx=%u, num_rec_shows=%u\n", __FUNCTION__, show_idx, guide->num_rec_shows);
-       return(-EINVAL);
-    }
-
-    sprintf(url, "http://%s/http_replay_guide-is_show_in_use?"
-            "channel_id=0x%08lx&show_id=0x%08lx&serial_no=%s",
-            device->ipaddr,
-            guide->rec_show_list[show_idx].channel_id,
-            guide->rec_show_list[show_idx].show_id,
-            device->serialNum);
-
-    RTV_DBGLOG(RTVLOG_GUIDE, "%s: url=%s\n", __FUNCTION__, url); 
-
-    rc = guide_do_request(url, &response);
-
-    //response format: "show_in_use=0x0" or "show_in_use=0x1"
-    if ( rc == 0 ) {
-       if ( (e = strchr(response, '=')) == NULL ) {
-          rc = -EILSEQ;
-          *in_use = 1;
-       }
-       else {
-          *in_use = e[3] - '0';
-       }
-    }
-
-    free(response);
-    return(rc);
+   char  *response = NULL;
+   char   url[512];
+   char  *e;
+   int    rc;
+   
+   if ( (atoi(device->modelNumber) == 4999) && (device->autodiscovered != 1) ) {
+      RTV_ERRLOG("%s: DVArchive must be auto-discovered before guide snapshot can be retrieved\n", __FUNCTION__);
+      return(-ENOTSUP);
+   }
+   
+   if ( guide == NULL ) {
+      RTV_ERRLOG("%s: Guide is NULL\n", __FUNCTION__);
+      return(-EINVAL);
+   }
+   if ( show_idx >= guide->num_rec_shows ) {
+      RTV_ERRLOG("%s: show_idx out-of-range: idx=%u, num_rec_shows=%u\n", __FUNCTION__, show_idx, guide->num_rec_shows);
+      return(-EINVAL);
+   }
+   
+   sprintf(url, "http://%s/http_replay_guide-is_show_in_use?"
+           "channel_id=0x%08lx&show_id=0x%08lx&serial_no=%s",
+           device->ipaddr,
+           guide->rec_show_list[show_idx].channel_id,
+           guide->rec_show_list[show_idx].show_id,
+           device->serialNum);
+   
+   RTV_DBGLOG(RTVLOG_GUIDE, "%s: url=%s\n", __FUNCTION__, url); 
+   
+   rc = guide_do_request(url, &response);
+   
+   //response format: "show_in_use=0x0" or "show_in_use=0x1"
+   if ( rc == 0 ) {
+      if ( (e = strchr(response, '=')) == NULL ) {
+         rc = -EILSEQ;
+         *in_use = 1;
+      }
+      else {
+         *in_use = e[3] - '0';
+      }
+      free(response);
+   }
+   
+   return(rc);
 }
 
 //+******************************************
@@ -544,7 +545,9 @@ int rtv_delete_show( const rtv_device_info_t   *device,
     rc = guide_do_request(url, &response);
 
     //response format: nothing
-    free(response);
+    if ( rc == 0 ) {
+       free(response);
+    }
     return(rc);
 }
 
@@ -560,8 +563,6 @@ int rtv_release_show_and_wait( const rtv_device_info_t   *device,
 {
    int           trys_left = 10;
    int           done      = 0;
-   char          url[512];
-   char         *response;
    unsigned int  x;
    int           rc;
    __u32         show_id;
@@ -663,9 +664,9 @@ int rtv_get_play_position( const rtv_device_info_t   *device,
        else {
           *play_pos = strtoul(&(e[1]), NULL, 16);
        }
+       free(response);
     }
 
-    free(response);
     return(rc);
 }
 
