@@ -41,7 +41,7 @@ static demux_handle_t *handle;
 
 static pthread_t thread;
 
-static volatile read_done = 0;
+static volatile int read_done = 0;
 
 volatile int audio_read = 0;
 volatile int video_read = 0;
@@ -66,9 +66,9 @@ hash(char *s, int len, unsigned int old)
 static void*
 write_start(void *arg)
 {
-	int fd, len, n, alen, vlen, aget, vget, tot, atot, vtot, i;
-	unsigned int ah, vh;
-	char buf[BSIZE], abuf[BSIZE], vbuf[BSIZE];
+	int alen, vlen, aget, vget, tot = 0, atot = 0, vtot = 0;
+	unsigned int ah = 0, vh = 0;
+	char abuf[BSIZE], vbuf[BSIZE];
 	int x = 0;
 
 	sleep(1);
@@ -119,10 +119,10 @@ write_start(void *arg)
 int
 main(int argc, char **argv)
 {
-	int fd, len, n, alen, vlen, aget, vget, tot, atot, vtot, i;
+	int fd, len, n, tot, atot, vtot, i;
 	int rget = 0;
 	unsigned int ah, vh;
-	char buf[BSIZE], abuf[BSIZE], vbuf[BSIZE];
+	char buf[BSIZE];
 	demux_attr_t *attr;
 
 	srand(getpid());

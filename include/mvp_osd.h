@@ -29,6 +29,7 @@ typedef struct osd_surface_s osd_surface_t;
  */
 extern osd_surface_t *osd_create_surface(int w, int h);
 extern int osd_destroy_surface(osd_surface_t *surface);
+extern void osd_destroy_all_surfaces(void);
 extern void osd_display_surface(osd_surface_t *surface);
 extern void osd_display_all_surfaces(void);
 extern int osd_get_surface_size(osd_surface_t *surface, int *w, int *h);

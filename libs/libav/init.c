@@ -37,6 +37,15 @@ int muted = 0;
 int ffwd = 0;
 int pal_mode, aspect;
 
+/*
+ * av_init() - initialze the audio/video devices
+ *
+ * Arguments:
+ *	none
+ *
+ * Returns:
+ *	0 if the initialization succeeded, -1 if it failed
+ */
 int
 av_init(void)
 {
@@ -73,6 +82,15 @@ av_init(void)
 	return 0;
 }
 
+/*
+ * av_init() - initialze the audio/video devices
+ *
+ * Arguments:
+ *	on	- 1 to turn the LED on, 0 to turn it off
+ *
+ * Returns:
+ *	0 if the LED toggle succeeded, -1 if it failed
+ */
 int
 av_set_led(int on)
 {

@@ -25,6 +25,7 @@
 #define init_mtd1	__init_mtd1
 #define pal_mode	__pal_mode
 #define aspect		__aspect
+#define set_output_method		__set_output_method
 
 extern int fd_video;
 extern int fd_audio;
@@ -32,5 +33,8 @@ extern int paused;
 extern int muted;
 extern int ffwd;
 extern int pal_mode, aspect;
+
+extern int init_mtd1(void);
+extern int set_output_method(void);
 
 #endif /* AV_LOCAL_H */

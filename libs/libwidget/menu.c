@@ -266,7 +266,8 @@ mvpw_add_menu_item(mvp_widget_t *widget, char *label, void *key,
 	GR_COORD w, h;
 	GR_COLOR bg, border_color;
 	GR_FONT_INFO finfo;
-	mvp_widget_t *cw, *tw = NULL, *cbw = NULL;
+	mvp_widget_t *cw;
+	mvp_widget_t *tw = NULL, *cbw = NULL;
 	mvpw_text_attr_t attr = {
 		.wrap = 0,
 		.justify = MVPW_TEXT_LEFT,

@@ -30,6 +30,7 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <errno.h>
+#include <string.h>
 #include <cmyth.h>
 #include <cmyth_local.h>
 

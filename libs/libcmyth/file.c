@@ -272,7 +272,6 @@ cmyth_file_request_block(cmyth_conn_t control, cmyth_file_t file,
 	int r;
 	long c;
 	char msg[256];
-	int tot = 0;
 
 	if (!file) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: no connection\n",

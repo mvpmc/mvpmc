@@ -91,4 +91,8 @@ extern int av_set_led(int);
 extern int av_set_pcm_rate(unsigned long rate);
 extern int av_set_audio_output(av_audio_output_t type);
 
+extern int av_sync(void);
+
+extern int av_set_video_aspect(int wide);
+
 #endif /* MVP_AV_H */

@@ -54,6 +54,15 @@ static int pcmfrequencies[][3] = {{9 ,8000 ,32000},
 
 static int numfrequencies = sizeof(pcmfrequencies)/12;
 
+/*
+ * av_sync() - synchronize the audio and video output devices
+ *
+ * Arguments:
+ *	none
+ *
+ * Returns:
+ *	0 if it succeeded, -1 if it failed
+ */
 int
 av_sync(void)
 {
@@ -65,6 +74,15 @@ av_sync(void)
 	return 0;
 }
 
+/*
+ * set_output_method() - setup the current output device
+ *
+ * Arguments:
+ *	none
+ *
+ * Returns:
+ *	0 if it succeeded, -1 if it failed
+ */
 int
 set_output_method(void)
 {
@@ -96,6 +114,15 @@ set_output_method(void)
 	return 0;
 }
 
+/*
+ * av_set_output() - set the video output method
+ *
+ * Arguments:
+ *	method	- AV_OUTPUT_SVIDEO or AV_OUTPUT_COMPOSITE
+ *
+ * Returns:
+ *	0 if it succeeded, -1 if it failed
+ */
 int
 av_set_output(int method)
 {
@@ -106,12 +133,30 @@ av_set_output(int method)
 	return 0;
 }
 
+/*
+ * av_get_output() - get the video output method
+ *
+ * Arguments:
+ *	none
+ *
+ * Returns:
+ *	AV_OUTPUT_SVIDEO or AV_OUTPUT_COMPOSITE
+ */
 int
 av_get_output(void)
 {
 	return output;
 }
 
+/*
+ * av_set_video_aspect() - set the aspect ratio of the video being played
+ *
+ * Arguments:
+ *	wide	- 1 if the video is 16:9, 0 if it is 4:3
+ *
+ * Returns:
+ *	AV_OUTPUT_SVIDEO or AV_OUTPUT_COMPOSITE
+ */
 int
 av_set_video_aspect(int wide)
 {
@@ -120,12 +165,30 @@ av_set_video_aspect(int wide)
 	return 0;
 }
 
+/*
+ * av_get_video_aspect() - get the aspect ratio of the video being played
+ *
+ * Arguments:
+ *	none
+ *
+ * Returns:
+ *	1 if the video is 16:9, 0 if it is 4:3
+ */
 int
 av_get_video_aspect(void)
 {
 	return letterbox;
 }
 
+/*
+ * av_get_mode() - get the video output mode
+ *
+ * Arguments:
+ *	none
+ *
+ * Returns:
+ *	AV_MODE_PAL or AV_MODE_NTSC
+ */
 int
 av_get_mode(void)
 {
@@ -135,6 +198,15 @@ av_get_mode(void)
 		return AV_MODE_NTSC;
 }
 
+/*
+ * av_set_mode() - set the video output mode
+ *
+ * Arguments:
+ *	mode	- AV_MODE_PAL or AV_MODE_NTSC
+ *
+ * Returns:
+ *	0 if it succeeded in changing the output mode, -1 if it failed
+ */
 int
 av_set_mode(int mode)
 {
@@ -154,28 +226,66 @@ av_set_mode(int mode)
 	return 0;
 }
 
+/*
+ * av_set_aspect() - set the aspect ratio of the output device (ie, the TV)
+ *
+ * Arguments:
+ *	ratio	- AV_ASPECT_4x3 or AV_ASPECT_16x9
+ *
+ * Returns:
+ *	0 if it succeeded in changing the aspect ratio, -1 if it failed
+ */
 int
-av_set_aspect(int aspect_ratio)
+av_set_aspect(int ratio)
 {
-	if (ioctl(fd_video, AV_SET_VID_RATIO, aspect_ratio) < 0)
+	if (ioctl(fd_video, AV_SET_VID_RATIO, ratio) < 0)
 		return -1;
-	aspect = aspect_ratio;
+	aspect = ratio;
 
 	return 0;
 }
 
+/*
+ * av_get_aspect() - get the aspect ratio of the output device (ie, the TV)
+ *
+ * Arguments:
+ *	none
+ *
+ * Returns:
+ *	AV_ASPECT_4x3 or AV_ASPECT_16x9
+ */
 int
 av_get_aspect(void)
 {
 	return aspect;
 }
 
+/*
+ * av_set_audio_type() - set the audio stream type
+ *
+ * XXX: What does this do for PCM output?
+ *
+ * Arguments:
+ *	mode	- AUDIO_MODE_MPEG1_PES or AUDIO_MODE_MPEG2_PES
+ *
+ * Returns:
+ *	0 if it succeeded in changing the audio type, -1 if it failed
+ */
 int
-av_set_audio_type(int audio_mode)
+av_set_audio_type(int mode)
 {
-	return ioctl(fd_audio, AV_SET_AUD_STREAMTYPE, audio_mode);
+	return ioctl(fd_audio, AV_SET_AUD_STREAMTYPE, mode);
 }
 
+/*
+ * av_attach_fb() - attach framebuffer to OSD
+ *
+ * Arguments:
+ *	none
+ *
+ * Returns:
+ *	0 if it succeeded, -1 if it failed
+ */
 int
 av_attach_fb(void)
 {
@@ -185,6 +295,15 @@ av_attach_fb(void)
 	return 0;
 }
 
+/*
+ * av_play() - allow audio and video to play
+ *
+ * Arguments:
+ *	none
+ *
+ * Returns:
+ *	0 if it succeeded, -1 if it failed
+ */
 int
 av_play(void)
 {
@@ -208,6 +327,17 @@ av_play(void)
 }
 
 
+/*
+ * av_pause() - toggle the pause state of the audio and video
+ *
+ * Arguments:
+ *	none
+ *
+ * Returns:
+ *	0	- audio/video is not paused
+ *	1	- audio/video is paused
+ *	-1	- pause failed
+ */
 int
 av_pause(void)
 {
@@ -234,6 +364,17 @@ av_pause(void)
 	return paused;
 }
 
+/*
+ * av_mute() - toggle the mute state of the audio
+ *
+ * Arguments:
+ *	none
+ *
+ * Returns:
+ *	0	- audio is not muted
+ *	1	- audio is muted
+ *	-1	- mute failed
+ */
 int
 av_mute(void)
 {
@@ -250,6 +391,17 @@ av_mute(void)
 	return muted;
 }
 
+/*
+ * av_ffwd() - toggle the fast forward state of the video
+ *
+ * Arguments:
+ *	none
+ *
+ * Returns:
+ *	0	- video is in normal play mode
+ *	1	- video is in fast forward mode
+ *	-1	- fast forward failed
+ */
 int
 av_ffwd(void)
 {
@@ -270,6 +422,15 @@ av_ffwd(void)
 	return ffwd;
 }
 
+/*
+ * av_stop() - stop the audio and video
+ *
+ * Arguments:
+ *	none
+ *
+ * Returns:
+ *	0 if it succeeded, -1 if it failed
+ */
 int
 av_stop(void)
 {
@@ -281,6 +442,15 @@ av_stop(void)
 	return 0;
 }
 
+/*
+ * av_reset() - reset the audio and video devices
+ *
+ * Arguments:
+ *	none
+ *
+ * Returns:
+ *	0 if it succeeded, -1 if it failed
+ */
 int
 av_reset(void)
 {
@@ -396,6 +566,15 @@ av_move(int x, int y, int video_mode)
 	return 0;
 }
 
+/*
+ * av_set_audio_output() - change the audio output device
+ *
+ * Arguments:
+ *	type	- AV_AUDIO_MPEG or AV_AUDIO_PCM
+ *
+ * Returns:
+ *	0 if it succeeded, -1 if it failed
+ */
 int
 av_set_audio_output(av_audio_output_t type)
 {
@@ -468,7 +647,9 @@ av_set_pcm_rate(unsigned long rate)
 	}
 
 	if (iloop >= numfrequencies) {
-		fprintf(stderr,"Can not find suitable output frequency for %d\n",rate);
+		fprintf(stderr,
+			"Can not find suitable output frequency for %ld\n",
+			rate);
 		return -1;
 	}
 

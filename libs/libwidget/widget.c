@@ -22,6 +22,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
 
 #include "mvp_widget.h"
 #include "widget.h"
@@ -175,28 +176,28 @@ mvpw_destroy(mvp_widget_t *widget)
 }
 
 void
-mvpw_focus(mvp_widget_t *widget)
+mvpw_focus(const mvp_widget_t *widget)
 {
 	if (widget)
 		GrSetFocus(widget->wid);
 }
 
 void
-mvpw_show(mvp_widget_t *widget)
+mvpw_show(const mvp_widget_t *widget)
 {
 	if (widget)
 		GrMapWindow(widget->wid);
 }
 
 void
-mvpw_hide(mvp_widget_t *widget)
+mvpw_hide(const mvp_widget_t *widget)
 {
 	if (widget)
 		GrUnmapWindow(widget->wid);
 }
 
 void
-mvpw_expose(mvp_widget_t *widget)
+mvpw_expose(const mvp_widget_t *widget)
 {
 	if (widget)
 		GrClearArea(widget->wid, 0, 0, 0, 0, 1);
@@ -209,7 +210,7 @@ mvpw_load_font(char *file)
 }
 
 void
-mvpw_resize(mvp_widget_t *widget, int w, int h)
+mvpw_resize(const mvp_widget_t *widget, int w, int h)
 {
 	GrResizeWindow(widget->wid, w, h);
 }
@@ -472,7 +473,7 @@ mvpw_set_bg(mvp_widget_t *widget, uint32_t bg)
 }
 
 uint32_t
-mvpw_get_bg(mvp_widget_t *widget)
+mvpw_get_bg(const mvp_widget_t *widget)
 {
 	return widget->bg;
 }
@@ -620,19 +621,19 @@ mvpw_set_idle(void (*callback)(void))
 }
 
 void
-mvpw_raise(mvp_widget_t *widget)
+mvpw_raise(const mvp_widget_t *widget)
 {
 	GrRaiseWindow(widget->wid);
 }
 
 void
-mvpw_lower(mvp_widget_t *widget)
+mvpw_lower(const mvp_widget_t *widget)
 {
 	GrLowerWindow(widget->wid);
 }
 
 int
-mvpw_visible(mvp_widget_t *widget)
+mvpw_visible(const mvp_widget_t *widget)
 {
 	GR_WINDOW_INFO info;
 

@@ -772,11 +772,8 @@ parse_spu_frame(demux_handle_t *handle, unsigned char *buf, int len)
 static int
 parse_ac3_frame(demux_handle_t *handle, unsigned char *buf, int len)
 {
-	unsigned int pts[2], color = 0, alpha = 0;
-	unsigned int x = 0, y = 0, w=0, h=0, line1 = 0, line2 = 0;
-	unsigned int id, start, cmd;
-	unsigned int size, data_size = 0;
-	int i, m, end, header, offset;
+	unsigned int id;
+	int m, header, offset;
 
 	id = buf[buf[2] + 3] - 128;
 	header = buf[2] + 3 + 1;
@@ -824,11 +821,8 @@ parse_ac3_frame(demux_handle_t *handle, unsigned char *buf, int len)
 static int
 parse_pcm_frame(demux_handle_t *handle, unsigned char *buf, int len)
 {
-	unsigned int pts[2], color = 0, alpha = 0;
-	unsigned int x = 0, y = 0, w=0, h=0, line1 = 0, line2 = 0;
-	unsigned int id, start, cmd;
-	unsigned int size, data_size = 0;
-	int i, m, end, header, offset;
+	unsigned int id;
+	int m, header, offset;
 
 	id = buf[buf[2] + 3] - 160;
 	header = buf[2] + 3 + 1;

@@ -32,6 +32,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <errno.h>
+#include <string.h>
 #include <cmyth.h>
 #include <cmyth_local.h>
 
@@ -486,7 +487,7 @@ cmyth_proginfo_string(cmyth_proginfo_t prog)
 	if (prog->proginfo_version >= 8) {
 		sprintf(ret,
 				"%s[]:[]%s[]:[]%s[]:[]%s[]:[]%ld[]:[]"
-				"%s[]:[]%s[]:[]%s[]:[]%s[]:[]%ld[]:[]"
+				"%s[]:[]%s[]:[]%s[]:[]%s[]:[]%lld[]:[]"
 				"%lld[]:[]%s[]:[]%s[]:[]%s[]:[]%ld[]:[]"
 				"%ld[]:[]%s[]:[]%ld[]:[]%ld[]:[]%ld[]:[]"
 				"%s[]:[]%ld[]:[]%ld[]:[]%ld[]:[]%ld[]:[]"

@@ -53,27 +53,27 @@ extern void mvpw_get_widget_info(mvp_widget_t *widget, mvpw_widget_info_t *info)
 extern void mvpw_get_screen_info(mvpw_screen_info_t *info);
 
 extern void mvpw_set_bg(mvp_widget_t *widget, uint32_t bg);
-extern uint32_t mvpw_get_bg(mvp_widget_t *widget);
+extern uint32_t mvpw_get_bg(const mvp_widget_t *widget);
 extern void mvpw_set_timer(mvp_widget_t *widget,
 			   void (*callback)(mvp_widget_t*), uint32_t timeout);
-extern void mvpw_focus(mvp_widget_t *widget);
-extern void mvpw_show(mvp_widget_t *widget);
-extern void mvpw_hide(mvp_widget_t *widget);
-extern void mvpw_raise(mvp_widget_t *widget);
-extern void mvpw_lower(mvp_widget_t *widget);
-extern void mvpw_expose(mvp_widget_t *widget);
+extern void mvpw_focus(const mvp_widget_t *widget);
+extern void mvpw_show(const mvp_widget_t *widget);
+extern void mvpw_hide(const mvp_widget_t *widget);
+extern void mvpw_raise(const mvp_widget_t *widget);
+extern void mvpw_lower(const mvp_widget_t *widget);
+extern void mvpw_expose(const mvp_widget_t *widget);
 extern int mvpw_font_height(int font);
 extern int mvpw_font_width(int font, char *str);
 extern int mvpw_load_font(char *file);
 extern void mvpw_move(mvp_widget_t *widget, int x, int y);
 extern void mvpw_moveto(mvp_widget_t *widget, int x, int y);
-extern void mvpw_resize(mvp_widget_t *widget, int w, int h);
+extern void mvpw_resize(const mvp_widget_t *widget, int w, int h);
 extern int mvpw_attach(mvp_widget_t *w1, mvp_widget_t *w2, int direction);
 extern void mvpw_unattach(mvp_widget_t *widget, int direction);
 extern void mvpw_set_key(mvp_widget_t *widget,
 			 void (*callback)(mvp_widget_t*, char));
 extern void mvpw_destroy(mvp_widget_t *widget);
-extern int mvpw_visible(mvp_widget_t *widget);
+extern int mvpw_visible(const mvp_widget_t *widget);
 
 /*
  * container widget

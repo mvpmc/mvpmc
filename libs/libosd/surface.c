@@ -25,6 +25,7 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/ioctl.h>
+#include <string.h>
 
 #include "mvp_osd.h"
 #include "osd.h"
