@@ -112,6 +112,7 @@ osd_draw_pixel(osd_surface_t *surface, int x, int y, unsigned int c)
 {
 	int offset;
 	unsigned char r, g, b, a, Y, U, V;
+	unsigned int line, remainder;
 
 	if ((x >= surface->sfc.width) || (y >= surface->sfc.height))
 		return;
@@ -120,7 +121,13 @@ osd_draw_pixel(osd_surface_t *surface, int x, int y, unsigned int c)
 
 	rgb2yuv(r, g, b, &Y, &U, &V);
 
-	offset = (y * surface->sfc.width) + x;
+	remainder = (surface->sfc.width % 4);
+	if (remainder == 0)
+		line = surface->sfc.width;
+	else
+		line = surface->sfc.width + (4 - remainder);
+
+	offset = (y * line) + x;
 
 	*(surface->base[0] + offset) = Y;
 	*(surface->base[1] + (offset & 0xfffffffe)) = U;
@@ -133,11 +140,18 @@ osd_read_pixel(osd_surface_t *surface, int x, int y)
 {
 	int offset;
 	unsigned char r, g, b, a, Y, U, V;
+	unsigned int line, remainder;
 
 	if ((x >= surface->sfc.width) || (y >= surface->sfc.height))
 		return 0;
 
-	offset = (y * surface->sfc.width) + x;
+	remainder = (surface->sfc.width % 4);
+	if (remainder == 0)
+		line = surface->sfc.width;
+	else
+		line = surface->sfc.width + (4 - remainder);
+
+	offset = (y * line) + x;
 
 	Y = *(surface->base[0] + offset);
 	U = *(surface->base[1] + (offset & 0xfffffffe));
