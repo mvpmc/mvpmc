@@ -30,7 +30,7 @@
 
 #include "mvpmc.h"
 
-int running_replaytv = 0;
+volatile int running_replaytv = 0;
 
 static mvpw_menu_attr_t fb_attr = {
 	.font = 0,
@@ -179,6 +179,7 @@ static mvp_widget_t *about;
 static mvp_widget_t *setup_image;
 static mvp_widget_t *fb_image;
 static mvp_widget_t *mythtv_image;
+static mvp_widget_t *replaytv_image;
 static mvp_widget_t *about_image;
 static mvp_widget_t *exit_image;
 
@@ -359,6 +360,7 @@ hide_widgets(void)
 	mvpw_hide(iw);
 	mvpw_hide(fb_image);
 	mvpw_hide(mythtv_image);
+	mvpw_hide(replaytv_image);
 	mvpw_hide(setup_image);
 	mvpw_hide(about_image);
 	mvpw_hide(exit_image);
@@ -466,15 +468,13 @@ replaytv_key_callback(mvp_widget_t *widget, char key)
 		power_toggle();
 
 	if (key == 'E') {
-#ifdef REPLAYTV
 		replaytv_stop();
-#endif
 
 		mvpw_hide(replaytv_browser);
 
 		mvpw_show(main_menu);
 		mvpw_show(mvpmc_logo);
-		mvpw_show(mythtv_image);
+		mvpw_show(replaytv_image);
 
 		mvpw_focus(main_menu);
 	}
@@ -909,11 +909,10 @@ main_select_callback(mvp_widget_t *widget, char *item, void *key)
 	case MM_REPLAYTV:
 		mvpw_hide(main_menu);
 		mvpw_hide(mvpmc_logo);
-		mvpw_hide(mythtv_image);
+		mvpw_hide(replaytv_image);
+		mvpw_hide(fb_image);
 
-#ifdef REPLAYTV
 		replaytv_update(replaytv_browser);
-#endif
 
 		mvpw_show(replaytv_browser);
 		break;
@@ -944,7 +943,7 @@ main_hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 			mvpw_show(mythtv_image);
 			break;
 		case MM_REPLAYTV:
-			mvpw_show(mythtv_image);
+			mvpw_show(replaytv_image);
 			break;
 		case MM_ABOUT:
 			mvpw_show(about_image);
@@ -965,7 +964,7 @@ main_hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 			mvpw_hide(mythtv_image);
 			break;
 		case MM_REPLAYTV:
-			mvpw_hide(mythtv_image);
+			mvpw_hide(replaytv_image);
 			break;
 		case MM_ABOUT:
 			mvpw_hide(about_image);
@@ -1008,6 +1007,14 @@ main_menu_init(char *server, char *replaytv)
 	mvpw_set_image(mythtv_image, file);
 	splash_update();
 
+	snprintf(file, sizeof(file), "%s/replaytv1.png", imagedir);
+	if (mvpw_get_image_info(file, &iid) < 0)
+		return -1;
+	replaytv_image = mvpw_create_image(NULL, 50, 25,
+					iid.width, iid.height, 0, 0, 0);
+	mvpw_set_image(replaytv_image, file);
+	splash_update();
+
 	snprintf(file, sizeof(file), "%s/unknown.png", imagedir);
 	if (mvpw_get_image_info(file, &iid) < 0)
 		return -1;
@@ -1041,6 +1048,7 @@ main_menu_init(char *server, char *replaytv)
 	mvpw_get_widget_info(setup_image, &wid);
 	mvpw_moveto(fb_image, wid.x, wid.y);
 	mvpw_moveto(mythtv_image, wid.x, wid.y);
+	mvpw_moveto(replaytv_image, wid.x, wid.y);
 	mvpw_moveto(about_image, wid.x, wid.y);
 	mvpw_moveto(exit_image, wid.x, wid.y);
 
@@ -1397,6 +1405,8 @@ gui_init(char *server, char *replaytv)
 
 	if (server)
 		mvpw_show(mythtv_image);
+	else if (replaytv)
+		mvpw_show(replaytv_image);
 	else
 		mvpw_show(fb_image);
 	mvpw_show(mvpmc_logo);
