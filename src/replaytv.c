@@ -75,16 +75,106 @@ static int playing    = 0;
 static int abort_read = 0;
 
 // Top level replayTV structure
-static rtv_device_t rtv_top[10];
+static int          num_rtv = 0;
+static rtv_device_t rtv_top[MAX_RTVS];
 
-static void rtv_init(void) 
+//hack
+#define MAX_IP_SZ (50)
+static char rtv_ip_addrs[MAX_RTVS][MAX_IP_SZ + 1];
+
+static char* strip_spaces(char *str)
 {
-   static int rtv_initialized = 0;
-   if ( rtv_initialized == 0 ) {
-      memset(rtv_top, 0, sizeof(rtv_top));
-      rtv_init_lib();
-      rtv_initialized = 1;
+   while ( str[0] == ' ' ) 
+      str++;
+   while ( str[strlen(str)-1] == ' ' )
+      str[strlen(str)-1] = '\0';
+   return(str);
+}
+
+static int parse_ip_init_str(char *str)  
+{
+   int   done = 0;
+   char *cur  = str;
+
+   while ( !(done) ) {
+      char *next; 
+      
+      if ( (next = strchr(cur, '/')) == NULL ) {
+         done = 1;
+      }
+      else {
+         next[0] = '\0';
+         next++;
+      }
+      strncpy(rtv_ip_addrs[num_rtv], cur, MAX_IP_SZ );
+      printf("RTV IP [%d]: %s\n", num_rtv, rtv_ip_addrs[num_rtv]);
+      num_rtv++;
+      cur = next;
    }
+   return(0);
+}
+
+int rtv_init(char *init_str) 
+{
+   char *cur = init_str;
+
+   static int rtv_initialized = 0;
+   if ( rtv_initialized == 1 ) {
+      return(0);
+   }
+
+   memset(rtv_top, 0, sizeof(rtv_top));
+   memset(rtv_ip_addrs, 0, sizeof(rtv_ip_addrs));
+   rtv_init_lib();
+   
+   printf("replaytv init string: %s\n", init_str);
+   if ( strchr(cur, '=') == NULL ) {
+      // Assume just a single parm that is an ip address
+      strncpy(rtv_ip_addrs[0], cur, MAX_IP_SZ );
+      num_rtv = 1;
+   }
+   else {
+      int done = 0;
+      while ( !(done) ) {
+         char *val, *next_cur; 
+         cur = strip_spaces(cur);
+         if ( (val = strchr(cur, '=')) == NULL ) {
+            break;
+         }
+         val[0] = '\0';
+         val++;
+         if ( (next_cur = strchr(val, ' ')) == NULL ) {
+            done = 1;
+         }
+         else {
+            next_cur[0] = '\0';
+            next_cur++;
+         }
+         
+         printf("------------> KEY=%s VAL=%s\n", cur, val);
+         if ( strcmp(cur, "ip") == 0 ) {
+            parse_ip_init_str(val);
+         }
+         else if ( strcmp(cur, "debug") == 0 ) {
+            unsigned int dbgmask = strtoul((val), NULL, 16);
+            rtv_set_dbgmask(dbgmask);
+         }
+         else if ( strcmp(cur, "logfile") == 0 ) {
+            int rc; 
+            if ( (rc = rtv_route_logs(val)) != 0 ) {
+               printf("***ERROR: RTV: Failed to open logfile: %s\n", val);
+            }
+         }
+         else {
+            printf("***ERROR: RTV: Invalid option: %s\n", cur);
+         }
+         
+         cur = next_cur;
+      } //while
+   }
+
+   rtv_initialized = 1;
+   return(0);
 }
 
 static rtv_device_t *get_rtv_device_struct(char* ipaddr, int *new) {
@@ -138,7 +228,7 @@ void GetMpgFile(char *IPAddress, char *FileName, int ToStdOut)
     //Tell the user we're up to something
     fprintf(stderr, "Retrieving /Video/%s...\n", FileName); 
 
-    rtv = get_rtv_device_struct(replaytv_server, &new_entry);
+    rtv = get_rtv_device_struct(IPAddress, &new_entry);
 
     //Send the request for the file
     i = rtv_read_file( &(rtv->device), pathname, 0, 0, 0, GetMpgCallback, NULL );
@@ -155,7 +245,7 @@ read_start(void *arg)
    pthread_mutex_init(&mutex, NULL);
    pthread_mutex_lock(&mutex);
 
-   GetMpgFile(replaytv_server, (char*)arg, 0);
+   GetMpgFile(rtv_ip_addrs[0], (char*)arg, 0);
    pthread_exit(NULL);
    return NULL;
 }
@@ -224,7 +314,7 @@ void GetDir(mvp_widget_t *widget, char *IPAddress)
     rtv_fs_filelist_t  *filelist;
     int                 i, new_entry;
 
-    rtv = get_rtv_device_struct(replaytv_server, &new_entry);
+    rtv = get_rtv_device_struct(IPAddress, &new_entry);
     
     i = rtv_get_filelist( &(rtv->device), "/Video", 0, &filelist );
     if ( i == 0 ) {
@@ -251,14 +341,14 @@ void GetGuide(mvp_widget_t *widget, char *IPAddress)
     rtv_guide_export_t *guide;
     int                 x, new_entry, rc;
 
-    rtv = get_rtv_device_struct(replaytv_server, &new_entry);
+    rtv = get_rtv_device_struct(IPAddress, &new_entry);
     if ( new_entry == 1 ) {
-       fprintf(stderr, "**ERROR: Failed to get existing RTV device info for %s\n", replaytv_server);
+       fprintf(stderr, "**ERROR: Failed to get existing RTV device info for %s\n", IPAddress);
        return;
     }
     guide = &(rtv->guide);
     if ( (rc = rtv_get_guide_snapshot( &(rtv->device), NULL, guide)) != 0 ) {
-       fprintf(stderr, "**ERROR: Failed to get Show Guilde for %s\n", replaytv_server);
+       fprintf(stderr, "**ERROR: Failed to get Show Guilde for %s\n", IPAddress);
        return;
     }
     rtv_print_guide(guide);
@@ -283,10 +373,9 @@ replaytv_update(mvp_widget_t *widget)
    int                rc, new_entry;
 
    running_replaytv = 1;
-   rtv_init();
 
-   printf( "\nGetting replaytv (%s) device info...\n", replaytv_server);
-   rtv = get_rtv_device_struct(replaytv_server, &new_entry);
+   printf( "\nGetting replaytv (%s) device info...\n", rtv_ip_addrs[0]);
+   rtv = get_rtv_device_struct(rtv_ip_addrs[0], &new_entry);
    if ( new_entry ) {
       printf("Got New RTV Device Struct Entry\n");
    }
@@ -295,11 +384,11 @@ replaytv_update(mvp_widget_t *widget)
    }
    devinfo = &(rtv->device);
 
-   if ( (rc = rtv_get_device_info(replaytv_server, devinfo)) != 0 ) {
+   if ( (rc = rtv_get_device_info(rtv_ip_addrs[0], devinfo)) != 0 ) {
       printf("Failed to get RTV Device Info. Retrying...\n");
 
       // JBH: Fixme: Hack for dvarchive failing on first attempt. Need to get discovery working  
-      if ( (rc = rtv_get_device_info(replaytv_server, devinfo)) != 0 ) {
+      if ( (rc = rtv_get_device_info(rtv_ip_addrs[0], devinfo)) != 0 ) {
          printf("**ERROR: Unable to get RTV Device Info. Giving up\n");
          return 0;
       } 
@@ -315,10 +404,10 @@ replaytv_update(mvp_widget_t *widget)
 
    if ( atoi(rtv->device.modelNumber) == 4999 ) {
       //DVArchive hack since guide doesn't work yet
-      GetDir(widget, replaytv_server);
+      GetDir(widget, rtv_ip_addrs[0]);
    }
    else {
-      GetGuide(widget, replaytv_server);
+      GetGuide(widget, rtv_ip_addrs[0]);
    }
    return 0;
 }

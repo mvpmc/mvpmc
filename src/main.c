@@ -42,6 +42,7 @@ int fontid;
 extern demux_handle_t *handle;
 
 char *mythtv_recdir = NULL;
+char *rtv_init_str  = NULL;
 
 char *saved_argv[32];
 int saved_argc = 0;
@@ -52,6 +53,8 @@ extern a52_state_t *a52_state;
 static pthread_t video_read_thread;
 pthread_t video_write_thread;
 pthread_t audio_write_thread;
+
+extern int rtv_init(char *init_str);
 
 /*
  * print_help() - print command line arguments
@@ -152,7 +155,8 @@ main(int argc, char **argv)
 			mythtv_recdir = strdup(optarg);
 			break;
 		case 'R':
-			replaytv_server = strdup(optarg);
+         replaytv_server = "RTV";
+         rtv_init_str = strdup(optarg);
 			break;
 		case 's':
 			mythtv_server = strdup(optarg);
@@ -171,6 +175,10 @@ main(int argc, char **argv)
 		fprintf(stderr, "failed to initialize av hardware!\n");
 		exit(1);
 	}
+   
+   if (rtv_init_str) {
+      rtv_init(rtv_init_str);
+   }
 
 	if (mode != -1)
 		av_set_mode(mode);
