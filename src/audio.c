@@ -37,6 +37,7 @@
 
 #include "mvpmc.h"
 
+#define LIBA52_FIXED
 #include "a52dec/a52.h"
 #include "a52dec/mm_accel.h"
 
@@ -84,7 +85,7 @@ static inline uint16_t convert (int32_t j)
   return(sample);
 }
 
-void ao_convert(sample_t* samples, uint16_t *out, int flags)
+static void ao_convert(sample_t* samples, uint16_t *out, int flags)
 {
     int i;
     
