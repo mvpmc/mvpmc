@@ -143,6 +143,9 @@ extern cmyth_recorder_t cmyth_conn_get_free_recorder(cmyth_conn_t conn);
 
 extern int cmyth_conn_get_freespace(cmyth_conn_t control,
 				    unsigned int *total, unsigned int *used);
+
+extern int cmyth_conn_hung(cmyth_conn_t control);
+
 /*
  * -----------------------------------------------------------------
  * Recorder Operations

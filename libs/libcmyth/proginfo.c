@@ -1279,7 +1279,6 @@ cmyth_proginfo_rec_status(cmyth_proginfo_t prog)
 static int
 fill_command(cmyth_conn_t control, cmyth_proginfo_t prog, char *cmd)
 {
-	long c = 0;
 	char *buf;
 	unsigned int len = ((2 * CMYTH_LONGLONG_LEN) + 
 			    (4 * CMYTH_TIMESTAMP_LEN) +
@@ -1297,8 +1296,6 @@ fill_command(cmyth_conn_t control, cmyth_proginfo_t prog, char *cmd)
 	char originalairdate_dt[CMYTH_TIMESTAMP_LEN + 1];
 	char lastmodified_dt[CMYTH_TIMESTAMP_LEN + 1];
 	int err;
-	int count;
-	long r;
 	int ret;
 	char *host = "mediamvp";
 

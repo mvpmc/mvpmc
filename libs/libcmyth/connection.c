@@ -31,6 +31,7 @@
 #include <netdb.h>
 #include <errno.h>
 #include <string.h>
+#include <signal.h>
 #include <cmyth.h>
 #include <cmyth_local.h>
 
@@ -65,6 +66,7 @@ cmyth_conn_create(void)
 	ret->conn_len = 0;
 	ret->conn_buflen = 0;
 	ret->conn_pos = 0;
+	ret->conn_hang = 0;
 	cmyth_atomic_set(&ret->refcount, 1);
 	return ret;
 }
@@ -187,6 +189,17 @@ cmyth_conn_release(cmyth_conn_t p)
  * Failure: A NULL cmyth_conn_t
  */
 static char my_hostname[128];
+static volatile int my_fd;
+
+static void
+sighandler(int sig)
+{
+	/*
+	 * XXX: This is not thread safe...
+	 */
+	close(my_fd);
+	my_fd = -1;
+}
 
 cmyth_conn_t
 cmyth_connect(char *server, unsigned short port, unsigned buflen)
@@ -196,6 +209,8 @@ cmyth_connect(char *server, unsigned short port, unsigned buflen)
 	struct sockaddr_in addr;
 	unsigned char *buf = NULL;
 	int fd;
+	void (*old_sighandler)(int);
+	int old_alarm;
 
 	/*
 	 * First try to establish the connection with the server.
@@ -233,13 +248,22 @@ cmyth_connect(char *server, unsigned short port, unsigned buflen)
 			  (ntohl(addr.sin_addr.s_addr) & 0x00FF0000) >> 16,
 			  (ntohl(addr.sin_addr.s_addr) & 0x0000FF00) >>  8,
 			  (ntohl(addr.sin_addr.s_addr) & 0x000000FF));
+	old_sighandler = signal(SIGALRM, sighandler);
+	old_alarm = alarm(5);
+	my_fd = fd;
 	if (connect(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
 				  "%s: connect failed on port %d to '%s' (%d)\n",
 				  __FUNCTION__, port, server, errno);
 		close(fd);
+		printf("connect failed!\n");
+		signal(SIGALRM, old_sighandler);
+		alarm(old_alarm);
 		return NULL;
 	}
+	my_fd = -1;
+	signal(SIGALRM, old_sighandler);
+	alarm(old_alarm);
 
 	if ((my_hostname[0] == '\0') &&
 		(gethostname(my_hostname, sizeof(my_hostname)) < 0)) {
@@ -684,7 +708,6 @@ cmyth_conn_get_free_recorder(cmyth_conn_t conn)
 	int err, count;
 	int r;
 	long port, id;
-	long c;
 	char msg[256];
 	char reply[256];
 	cmyth_recorder_t rec = NULL;
@@ -710,6 +733,12 @@ cmyth_conn_get_free_recorder(cmyth_conn_t conn)
 	}
 
 	count = cmyth_rcv_length(conn);
+	if (count < 0) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_rcv_length() failed (%d)\n",
+			  __FUNCTION__, count);
+		goto fail;
+	}
 	if ((r=cmyth_rcv_long(conn, &err, &id, count)) < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_rcv_long() failed (%d)\n",
@@ -717,7 +746,12 @@ cmyth_conn_get_free_recorder(cmyth_conn_t conn)
 		goto fail;
 	}
 	count -= r;
-	r = cmyth_rcv_string(conn, &err, reply, sizeof(reply)-1, count); 
+	if ((r=cmyth_rcv_string(conn, &err, reply, sizeof(reply)-1, count)) < 0) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_rcv_string() failed (%d)\n",
+			  __FUNCTION__, r);
+		goto fail;
+	}
 	count -= r;
 	if ((r=cmyth_rcv_long(conn, &err, &port, count)) < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
@@ -752,9 +786,11 @@ cmyth_conn_get_freespace(cmyth_conn_t control,
 {
 	int err, count, ret = 0;
 	int r;
-	long c;
 	char msg[256];
 	char reply[256];
+
+	if (control == NULL)
+		return -EINVAL;
 
 	if ((total == NULL) || (used == NULL))
 		return -EINVAL;
@@ -771,14 +807,43 @@ cmyth_conn_get_freespace(cmyth_conn_t control,
 		goto out;
 	}
 
-	count = cmyth_rcv_length(control);
-	r = cmyth_rcv_string(control, &err, reply, sizeof(reply)-1, count); 
+	if ((count=cmyth_rcv_length(control)) < 0) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_rcv_length() failed (%d)\n",
+			  __FUNCTION__, count);
+		ret = count;
+		goto out;
+	}
+	if ((r=cmyth_rcv_string(control, &err, reply,
+				sizeof(reply)-1, count)) < 0) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_rcv_string() failed (%d)\n",
+			  __FUNCTION__, err);
+		ret = err;
+		goto out;
+	}
 	*total = atoi(reply);
-	r = cmyth_rcv_string(control, &err, reply, sizeof(reply)-1, count-r); 
+	if ((r=cmyth_rcv_string(control, &err, reply,
+				sizeof(reply)-1, count-r)) < 0) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_rcv_string() failed (%d)\n",
+			  __FUNCTION__, err);
+		ret = err;
+		goto out;
+	}
 	*used = atoi(reply);
 
  out:
 	pthread_mutex_unlock(&mutex);
 
 	return ret;
+}
+
+int
+cmyth_conn_hung(cmyth_conn_t control)
+{
+	if (control == NULL)
+		return -EINVAL;
+
+	return control->conn_hang;
 }

@@ -152,7 +152,8 @@ struct cmyth_conn {
 	int conn_len;
 	int conn_pos;
 	cmyth_atomic_t refcount;
-    unsigned long conn_version;
+	unsigned long conn_version;
+	volatile int conn_hang;
 };
 
 struct cmyth_recorder {

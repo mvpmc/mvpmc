@@ -290,9 +290,22 @@ cmyth_file_length(cmyth_file_t file)
 int
 cmyth_file_get_block(cmyth_file_t file, char *buf, unsigned long len)
 {
+	struct timeval tv;
+	fd_set fds;
+
 	if (file == NULL)
 		return -EINVAL;
 
+	tv.tv_sec = 10;
+	tv.tv_usec = 0;
+	FD_ZERO(&fds);
+	FD_SET(file->file_data->conn_fd, &fds);
+	if (select(file->file_data->conn_fd+1, NULL, &fds, NULL, &tv) == 0) {
+		file->file_data->conn_hang = 1;
+		return 0;
+	} else {
+		file->file_data->conn_hang = 0;
+	}
 	return read(file->file_data->conn_fd, buf, len);
 }
 
@@ -300,7 +313,7 @@ int
 cmyth_file_select(cmyth_file_t file, struct timeval *timeout)
 {
 	fd_set fds;
-	int fd;
+	int fd, ret;
 
 	if (file == NULL)
 		return -EINVAL;
@@ -310,7 +323,14 @@ cmyth_file_select(cmyth_file_t file, struct timeval *timeout)
 	FD_ZERO(&fds);
 	FD_SET(fd, &fds);
 
-	return select(fd+1, &fds, NULL, NULL, timeout);
+	ret = select(fd+1, &fds, NULL, NULL, timeout);
+
+	if (ret == 0)
+		file->file_data->conn_hang = 1;
+	else
+		file->file_data->conn_hang = 0;
+
+	return ret;
 }
 
 /*
@@ -408,7 +428,6 @@ cmyth_file_seek(cmyth_conn_t control, cmyth_file_t file, long long offset,
 	int count;
 	long long c;
 	long r;
-	long hi, lo;
 	long long ret;
 
 	if ((control == NULL) || (file == NULL))
