@@ -175,6 +175,7 @@ extern void gui_error(char*);
 
 extern pthread_t video_write_thread;
 extern pthread_t audio_write_thread;
+extern pthread_attr_t thread_attr;
 
 extern pthread_cond_t video_cond;
 

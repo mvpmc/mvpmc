@@ -982,8 +982,9 @@ mythtv_init(char *server_name, int portnum)
 
 	if (!thread) {
 		thread = 1;
-		pthread_create(&control_thread, NULL, control_start, NULL);
-		pthread_create(&wd_thread, NULL, wd_start, NULL);
+		pthread_create(&control_thread, &thread_attr,
+			       control_start, NULL);
+		pthread_create(&wd_thread, &thread_attr, wd_start, NULL);
 	}
 
 	return 0;

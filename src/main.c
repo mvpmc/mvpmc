@@ -61,6 +61,7 @@ extern a52_state_t *a52_state;
 static pthread_t video_read_thread;
 pthread_t video_write_thread;
 pthread_t audio_write_thread;
+pthread_attr_t thread_attr;
 
 static pid_t child;
 
@@ -357,9 +358,16 @@ main(int argc, char **argv)
 	demux_set_display_size(handle, width, height);
 
 	video_init();
-	pthread_create(&video_read_thread, NULL, video_read_start, NULL);
-	pthread_create(&video_write_thread, NULL, video_write_start, NULL);
-	pthread_create(&audio_write_thread, NULL, audio_write_start, NULL);
+
+	pthread_attr_init(&thread_attr);
+	pthread_attr_setstacksize(&thread_attr, 1024*128);
+
+	pthread_create(&video_read_thread, &thread_attr,
+		       video_read_start, NULL);
+	pthread_create(&video_write_thread, &thread_attr,
+		       video_write_start, NULL);
+	pthread_create(&audio_write_thread, &thread_attr,
+		       audio_write_start, NULL);
 
 	if (gui_init(mythtv_server, replaytv_server) < 0) {
 		fprintf(stderr, "failed to initialize gui!\n");
