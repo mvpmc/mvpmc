@@ -32,7 +32,7 @@ expose(mvp_widget_t *widget)
 {
 	GR_GC_ID gc;
 	GR_FONT_INFO finfo;
-	int x, y, h, w;
+	int x, y, h, w, descent;
 	char *str;
 	int i, nl = 0;
 
@@ -40,7 +40,8 @@ expose(mvp_widget_t *widget)
 		return;
 
 	GrGetFontInfo(widget->data.text.font, &finfo);
-	h = finfo.height;
+	h       = finfo.height;
+	descent = h - finfo.baseline;
 
 	gc = GrNewGC();
 
@@ -124,7 +125,7 @@ expose(mvp_widget_t *widget)
 			}
 			if (buf[strlen(buf)-1] == '\n')
 				buf[strlen(buf)-1] = '\0';
-			GrText(widget->wid, gc, x, y, buf, strlen(buf), 0);
+			GrText(widget->wid, gc, x, y-descent, buf, strlen(buf), 0);
 			y += h;
 
 			i += j;
@@ -133,7 +134,7 @@ expose(mvp_widget_t *widget)
 				i++;
 		}
 	} else {
-		GrText(widget->wid, gc, x, y, str, strlen(str), 0);
+		GrText(widget->wid, gc, x, y-descent, str, strlen(str), 0);
 	}
 
 	GrDestroyGC(gc);
