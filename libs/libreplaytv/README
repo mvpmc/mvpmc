@@ -1,6 +1,6 @@
 ReplayTV Client Interface Library (replaytvlib) Readme
 ------------------------------------------------------
-John Honeycutt (honeycut@nc.rr.com) 10/04/2004
+John Honeycutt (honeycut@sourceforge.net) 10/04/2004
 
 General
 -------
@@ -89,31 +89,15 @@ Status
 -Got RTV 4K guide parsing working.
 11/15/2004:
 -Finished guide parsing. (Atleast everything I care about)
+12/29/2004:
+-Added ndx file support.
+01/23/2005:
+-Added support for deleting a show.
+-Added support for getting current play position.
 
 Library TODO
 ------------
 -Set up autoconf and get rid of Makefile
 -Cleanup internal header files
 -Remove the expat lib dependency. It's only used for rtv_get_device_info() response parsing.
--Add support for deleting a show.
--Add support for the replay show ".ndx" files to allow jumping
- around the show by timestamp.
 -Add commercial skip support.
- 
-09/28/2004:DONE: -Create httpfs api's. rtv_fsget_dir_list(), rtv_fsget_vol_info(), rtv_fsget_filestat().
-09/28/2004:DONE: -Get copying a file from replayTV to local or NFS working.
-09/29/2004:DONE: -Add ability & api to re-direct RTV_PRT statements to a file.
-10/04/2004:DONE: -Cleanup error checking. Current code is inconsistent. Can hang under some conditions, etc...
-11/11/2004:DONE: -Add 4K Guide parsing
-11/15/2004:DONE: -Finish 5K Guide parsing and string formatting routines.
-
-mvpmv TODO
-----------
--Add support for displaying the show synopsys, actors, recorded
- date/time, etc...
--Still much cleaning up & stuff to add to mvpmc replaytv gui i/f.
-10/04/2004:DONE: -Add commandline option for setting library debug flags and re-directing library 
-                  RTV_PRT statements to a file.
-10/04/2004:DONE: -Add support for multiple replaytv devices
-10/04/2004:DONE: -Add support to display replay device 'friendly name', Den, Bedroom, etc...
-

@@ -42,7 +42,7 @@ static int map_guide_status_to_rc(unsigned long status)
 
    // returncodes: 
    // 0x94780001: for invalid show_id or invalid channel_id
-   // 0x94780004: invalid request string parameters
+   // 0x94780004: invalid request string format
    //
    if ( status == 0 ) {
       rc = 0;
@@ -549,7 +549,7 @@ int rtv_delete_show( const rtv_device_info_t   *device,
 }
 
 //+******************************************
-// rtv_release_show()
+// rtv_release_show_and_wait()
 // Waits for a deleted show to be released and updates
 // the guide snapshot
 // Returns 0 for success
@@ -566,11 +566,7 @@ int rtv_release_show_and_wait( const rtv_device_info_t   *device,
    int           rc;
    __u32         show_id;
    
-   // Send the http_replay_guide-release_show command.
-   // The release_show stuff does not seem to work right unless it is sent in a 2nd thread
-   // before the delete_show command completes.
-   // We don't do that because it would be a PITA. We just wait for the guide to get updated.
-   //
+
    if ( (atoi(device->modelNumber) == 4999) && (device->autodiscovered != 1) ) {
       RTV_ERRLOG("%s: DVArchive must be auto-discovered before guide snapshot can be retrieved\n", __FUNCTION__);
       return(-ENOTSUP);
@@ -586,19 +582,7 @@ int rtv_release_show_and_wait( const rtv_device_info_t   *device,
    }
    
    show_id = guide->rec_show_list[show_idx].show_id;
-   sprintf(url, "http://%s/http_replay_guide-release_show?"
-           "channel_id=0x11%06lx&show_id=0x%08lx&serial_no=%s",
-           device->ipaddr,
-           guide->rec_show_list[show_idx].channel_id,
-           show_id,
-           device->serialNum);
-   
-   RTV_DBGLOG(RTVLOG_GUIDE, "%s: url=%s\n", __FUNCTION__, url);
-   guide_do_request(url, &response);
-   
-   //response format: nothing
-   free(response);
-   
+
    // Wait for the guide to update
    //
    while ( (trys_left-- > 0) && !(done) ) {
