@@ -1,0 +1,13 @@
+
+# default timezone
+TZ=CST+6CDT,M4.1.0/2,M10.5.0/2
+export TZ
+
+# if shell.config exist then source it.
+# shell.config should be created by dongle.config
+# eg: to set timezone to EST
+# echo "TZ=EST+5EDT,M4.1.0/2,M10.5.0/2; export TZ" > /etc/shell.config
+#
+if [ -r /etc/shell.config ]; then
+   . /etc/shell.config
+fi   
