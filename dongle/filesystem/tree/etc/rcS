@@ -28,6 +28,7 @@ insmod av_core _fmt=1
 insmod ircombo
 insmod gfx
 insmod osdfb
+insmod ac3_mod
 #insmod xrmod
 
 #default timezone
