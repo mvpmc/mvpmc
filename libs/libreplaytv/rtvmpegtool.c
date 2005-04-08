@@ -23,12 +23,22 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <sys/errno.h>
 #include <netinet/in.h>
 #include "rtvlib.h"
-#include "bigfile.h"
 
 #define PRT(fmt, args...)  fprintf(outfd, fmt, ## args)
+
+#define UNEXPECTED(fmt, args...) \
+{ \
+  /* fprintf(stderr, "#UNEXPECTED: " fmt, ## args);*/  \
+  PRT("\n#UNEXPECTED: " fmt, ## args); \
+}
+
+
+#define READ_BUF_SIZE (128 * 1024)
 
 #define MPEG_VID_STREAM_HDR (0x000001e0)
 #define MPEG_AUD_STREAM_HDR (0x000001c0)
@@ -36,13 +46,32 @@
 #define MPEG_SYSTEM_HDR     (0x000001bb)
 #define MPEG_PROGRAM_END    (0x000001b9)
 
-typedef enum {
+typedef enum 
+{
    NDX_VER_22 = 2,
    NDX_VER_30 = 3
 } ndx_version_t;
 
+typedef enum
+{
+   SRCH_VIDEO      = 1,
+   SRCH_AUDIO_PACK = 2,
+   SRCH_NDX_DONE   = 3,
+   SRCH_MPG_DONE   = 4
+} search_state_t;
+
+typedef struct ndx_rec_info_t
+{
+   rtv_ndx_30_record_t r;
+   float               seconds;
+   __u64               delta_tm;
+   int                 bad_video;
+   int                 bad_audio;
+} ndx_rec_info_t;
+
 // Globals
 //
+int           do_mpg_only = 0;
 int           do_ndx_only = 0;
 int           do_evt_file = 0;
 int           ndx_exists  = 0;
@@ -53,11 +82,12 @@ const char   *outfile     = NULL;
 FILE         *outfd;
 ndx_version_t ndx_ver;
 
-int mpg_fpos = 0;
-int ndx_fpos = 0;
+unsigned int mpg_fpos    = 0;
+unsigned int ndx_fpos    = 0;
 
-int           dump_level = 1
-;
+u_char mpg_buf[READ_BUF_SIZE];
+u_char skip_buf[READ_BUF_SIZE];
+
 
 // rtv_hex_dump()
 //
@@ -90,22 +120,14 @@ static void hex_dump(char * tag, unsigned long address, unsigned char * buf, siz
     }
 }
 
-static void unexpected(int recno, const char *reason, __u64 value)
-{
-   fprintf(stderr, "UNEXPECTED %d: %s; value == %llx\n", recno, reason, value);
-   if ( outfd != stdout ) {
-      PRT("#UNEXPECTED %d %s; value == %llx\n", recno, reason, value);
-   }
-}
-
-static int process_ndx_header(FILE *fp)
+static int process_ndx_header(int fd)
 {
    size_t               cnt;
    char                 buf[32];
    rtv_ndx_30_header_t *hdr30; //32-bytes
    
-   if ( (cnt = fread(buf, 1, sizeof(rtv_ndx_30_header_t), fp)) != sizeof(rtv_ndx_30_header_t) ) {
-      fprintf(stderr, "ERROR: unable to read header version info\n");
+   if ( (cnt = read(fd, buf, sizeof(rtv_ndx_30_header_t))) != sizeof(rtv_ndx_30_header_t) ) {
+      UNEXPECTED("ERROR: unable to read header version info\n");
       return(cnt);
    }
    
@@ -122,7 +144,7 @@ static int process_ndx_header(FILE *fp)
       ndx_fpos += sizeof(rtv_ndx_30_header_t);
    }
    else {
-      fprintf(stderr, "ERROR: unknown ndx header version\n");
+      UNEXPECTED("ERROR: unknown ndx header version\n");
       hex_dump("UNKNOWN HEADER", 0, buf, sizeof(rtv_ndx_30_header_t));
       return(-1);
    }
@@ -149,172 +171,408 @@ static char *format_seconds(float seconds)
    return buffer;
 }
 
-
-static int process_30(FILE *ndx, BIGFILE *mpg)
+static void prt_ndx_banner(void)
 {
-   unsigned char buf[1024], *p;
+   PRT("\nrec         timestamp    delta_t        iframe_filepos                        iframe_size\n");
+   PRT("-----------------------------------------------------------------------------------------------\n");
+}
+
+static void prt_ndx_rec(int recno, ndx_rec_info_t *rp)
+{
+   PRT("%06d    %s   %8llu    0x%016llx = %-16llu  0x%08lx = %-8lu\n", 
+       recno, format_seconds(rp->seconds), rp->delta_tm,
+       rp->r.filepos_iframe, rp->r.filepos_iframe, rp->r.iframe_size, rp->r.iframe_size);
+}
+
+static void crunch_ndx_30_rec(int recno, ndx_rec_info_t *this, ndx_rec_info_t *last)
+{
+   static __u64 basetime = 0;
+
+   if (recno == 0) {
+      basetime      = this->r.timestamp;
+      this->delta_tm = 0;
+   }
    
-   struct 
-   {
-      rtv_ndx_30_record_t r;
-      float               seconds;
-      __u64               delta_tm;
-      int                 bad_video;
-      int                 bad_audio;
-   } this, last;
+   if (this->r.empty != 0) {
+      UNEXPECTED("ndx recno %d: empty != 0\n", recno);
+   }
+   if ((this->r.filepos_iframe  % 4) != 0) {
+      UNEXPECTED("ndx recno %d: filepos_iframe not on 4 byte boundry\n", recno);
+   }
+   if ((this->r.iframe_size  % 4) != 0) {
+      UNEXPECTED("ndx recno %d: iframe_size not on 4 byte boundry\n", recno);
+   }
    
+   this->seconds = ((__s64)(this->r.timestamp - basetime)) / 1000000000.0;
+   
+   if ( recno > 0 ) {
+      this->delta_tm = (__s64)(this->r.timestamp - last->r.timestamp) / 1000000; // convert to mS
+      if ( (this->delta_tm < 480) || (this->delta_tm > 520) ) {
+         UNEXPECTED("ndx recno %d: *****************Timestamp skew********************\n", recno);
+      } 
+   }
+}
+
+static int process_ndx_30(int ndx_fd)
+{
    int recno      = 0;
-   __u64 basetime = 0;
    int cnt;
-
-
+   ndx_rec_info_t this, last; 
+      
    last = this;
    memset(&this, 0, sizeof this);
+   prt_ndx_banner();
    
-   if ( do_ndx_only ) {
-      printf("\nrec         timestamp    delta_t        iframe_filepos                        iframe_size\n");
-      printf("-----------------------------------------------------------------------------------------------\n");
-
-      while ( (cnt = fread(&this.r, 1, sizeof(rtv_ndx_30_record_t), ndx)) > 0) {
-         
-         rtv_convert_30_ndx_rec(&this.r);
-         if (recno == 0) {
-            basetime      = this.r.timestamp;
-            this.delta_tm = 0;
-         }
-         
-         
-         if (this.r.empty != 0) {
-            unexpected(recno, "empty != 0", this.r.empty);
-         }
-         if ((this.r.filepos_iframe  % 4) != 0) {
-            unexpected(recno, "filepos_iframe not on 4 byte boundry", this.r.empty);
-         }
-         if ((this.r.iframe_size  % 4) != 0) {
-            unexpected(recno, "iframe_size not on 4 byte boundry", this.r.iframe_size);
-         }
-         
-         this.seconds = ((__s64)(this.r.timestamp - basetime)) / 1000000000.0;
-
-         if ( recno > 0 ) {
-            this.delta_tm = (__s64)(this.r.timestamp - last.r.timestamp) / 1000000; // convert to mS
-            if ( (this.delta_tm < 480) || (this.delta_tm > 520) ) {
-               unexpected(recno, "*****************Timestamp skew********************",  this.delta_tm);
-            } 
-         }
-         
-         PRT("%06d    %s   %8llu    0x%016llx = %-16llu  0x%08lx = %-8lu\n", 
-                recno, format_seconds(this.seconds), this.delta_tm,
-                this.r.filepos_iframe, this.r.filepos_iframe, this.r.iframe_size, this.r.iframe_size);
-         
-
-         memcpy(&last, &this, sizeof this);
-         recno++;
-         ndx_fpos += cnt;
-      } //while
-
-      printf("\nDone. Processed %d ndx records\n", recno);
-      return(0);
-   } //do_ndx_only
-
-   
-   if ( dump_level == 1 ) {
-      printf("\nrec       timestamp     delta_t   iframe_filepos   iframe_size\n");
-      printf("----------------------------------------------------------------\n");
-   }
-   else if ( dump_level == 2 ) {
-      printf("\nrec       timestamp     iframe_filepos   iframe_size    empty\n");
-      printf("--------------------------------------------------------------\n");
-   }
-
-   while ( (cnt = fread(&this.r, 1, sizeof(rtv_ndx_30_record_t), ndx)) > 0) {
-      
+   while ( (cnt = read(ndx_fd, &this.r, sizeof(rtv_ndx_30_record_t))) > 0 ) {      
       rtv_convert_30_ndx_rec(&this.r);
-      if (recno == 0) {
-         basetime      = this.r.timestamp;
-         this.delta_tm = 0;
-      }
-      
-      if ( dump_level == 2 ) {
-         printf("%06d   0x%016llx=%016llu   0x%016llx=%016llu   0x%08lx=%8lu     0x%08lx\n", 
-                recno, this.r.timestamp, this.r.timestamp, 
-                this.r.filepos_iframe, this.r.filepos_iframe, this.r.iframe_size, this.r.iframe_size,
-                this.r.empty);
-      }
-
-      if (this.r.empty != 0) {
-         unexpected(recno, "empty != 0", this.r.empty);
-      }
-      if ((this.r.filepos_iframe  % 4) != 0) {
-         unexpected(recno, "filepos_iframe not on 4 byte boundry", this.r.empty);
-      }
-      if ((this.r.iframe_size  % 4) != 0) {
-         unexpected(recno, "iframe_size not on 4 byte boundry", this.r.iframe_size);
-      }
-      
-      this.seconds = ((__s64)(this.r.timestamp - basetime)) / 1000000000.0;
-      
-      
-      if (mpg) {
-         bfseek(mpg, this.r.filepos_iframe, SEEK_SET);
-         bfread(buf, 1, 256, mpg);
-         if ( ntohl(*(__u32*)buf) != MPEG_VID_STREAM_HDR ) {
-            unexpected(recno, "mpeg Video Iframe start expected",  ntohl(*(__u32*)buf));
-         }
-         if ( dump_level == 2 ) {
-            rtv_hex_dump("VID", buf, 256);      
-         }
-         bfseek(mpg, this.r.filepos_iframe + this.r.iframe_size, SEEK_SET);
-         bfread(buf, 1, 256, mpg);
-         if ( (ntohl(*(__u32*)buf) != MPEG_AUD_STREAM_HDR) &&
-              (ntohl(*(__u32*)buf) != MPEG_PACK_HDR)) {
-            unexpected(recno, "mpeg audio frame or pack hdr expected",  ntohl(*(__u32*)buf));
-         }
-         if ( dump_level == 2 ) {
-            rtv_hex_dump("AUD/PACK", buf, 256);
-         }
-
-         if ( recno > 0 ) {
-            this.delta_tm = (__s64)(this.r.timestamp - last.r.timestamp) / 1000000; // convert to mS
-            if ( (this.delta_tm < 480) || (this.delta_tm > 520) ) {
-               unexpected(recno, "Timestamp skew",  this.delta_tm);
-            } 
-         }
-      
-         if ( dump_level == 1 ) {
-            printf("%06d      %s   %10llu    0x%016llx=%016llu    0x%08lx=%8lu\n", 
-                   recno, format_seconds(this.seconds), this.delta_tm,
-                   this.r.filepos_iframe, this.r.filepos_iframe, this.r.iframe_size, this.r.iframe_size);
-         }
-         
-      } //mpg
+      crunch_ndx_30_rec(recno, &this, &last);
+      prt_ndx_rec(recno, &this);      
       
       memcpy(&last, &this, sizeof this);
       recno++;
+      ndx_fpos += cnt;
    } //while
-   printf("\nDone. Processed %d ndx records\n", recno);
    
+   PRT("\nDone. Processed %d ndx records\n", recno);
+   return(0);
+}
+
+
+//+********************************
+// pes_SyncRead: based off DVBSNOOP
+//+********************************
+static int pes_SyncRead (int fd, u_char *buf, u_long len, u_long *skipped_bytes)
+{
+
+   unsigned int  skipbuf_pos = 0;
+   int           n1,n2;
+   unsigned long l;
+   unsigned long syncp;   
+   
+   // -- simple PES sync... seek for 0x000001 (PES_SYNC_BYTE)
+   // -- $$$ Q: has this to be byteshifted or bit shifted???
+   //
+   // ISO/IEC 13818-1:
+   // -- packet_start_code_prefix -- The packet_start_code_prefix is
+   // -- a 24-bit code. Together with the stream_id that follows it constitutes
+   // -- a packet start code that identifies the beginning of a packet.
+   // -- The packet_start_code_prefix  is the bit string '0000 0000 0000 0000
+   // -- 0000 0001' (0x000001).
+   // ==>   Check the stream_id with "dvb_str.c", if you do changes!
+   
+   
+   *skipped_bytes = 0;
+   syncp = 0xFFFFFFFF;
+   while (1) {
+      u_char c;
+      
+      n1 = read(fd,buf+3,1);
+      if (n1 <= 0) {
+         if ( n1 == 0 ) {
+            PRT("MPEG EOF.\n");
+         }
+         else {
+            UNEXPECTED("%s: read failed: %d<=>%s\n", __FUNCTION__, errno, strerror(errno));
+         }
+         return n1;
+      }
+      
+      // -- byte shift for packet_start_code_prefix
+      // -- sync found? 0x000001 + valid PESstream_ID
+      // -- $$$ check this if streamID defs will be enhanced by ISO!!!
+      
+      c = buf[3];
+      syncp = (syncp << 8) | c;
+      if ( (syncp & 0xFFFFFF00) == 0x00000100 ) {
+         if (c >= 0xBC)  {
+            break;
+         }
+         else if ( c == 0xBA ||  c== 0xBB || c == 0xb9 ) {
+            break;
+         }
+      }
+      
+      if ( skipbuf_pos < READ_BUF_SIZE ) {
+         skip_buf[skipbuf_pos++] = c;
+      }
+      else if ( skipbuf_pos == READ_BUF_SIZE ) {
+         UNEXPECTED("%s: HOLY CRAP: Skipping more than READ_BUF_SIZE bytes: %u\n", __FUNCTION__, READ_BUF_SIZE);
+      }
+   }
+   
+   
+   // -- Sync found!
+   //
+   *skipped_bytes = skipbuf_pos - 3;
+   buf[0] = 0x00;   // write packet_start_code_prefix to buffer
+   buf[1] = 0x00;
+   buf[2] = 0x01;
+   // buf[3] = streamID == recent read
+   
+   //PRT("%s: found header: %08x  mpg_pos=%08x\n", __FUNCTION__, ntohl(*(__u32*)buf), mpg_pos);
+   
+   if ( buf[3] == 0xBA ) {
+      int padding;
+
+      //PACK Header. Length is 14 bytes plus padding specified by byte 14 bits 2..0
+      //
+      n1 = read(fd,buf+4, 10);
+      if (n1 <= 0) {
+         UNEXPECTED("%s: read failed (PACK): %d<=>%s\n", __FUNCTION__, errno, strerror(errno));
+         return(n1);
+      }
+      else if ( n1 < 10 ) {
+         UNEXPECTED("%s: PACK short READ: got %d expected 10\n", __FUNCTION__, n1);
+         return(-1);
+      }
+      padding = buf[13] & 0x07;
+      if ( padding == 0 ) {
+         return(14);
+      }
+
+      n1 = read(fd,buf+14, padding);
+      if (n1 <= 0) {
+         UNEXPECTED("%s: read failed (PACK) Padding: %d<=>%s\n", __FUNCTION__, errno, strerror(errno));
+         return(n1);
+      }
+      else if ( n1 < padding ) {
+         UNEXPECTED("%s: PACK Padding short READ: got %d expected 10\n", __FUNCTION__, n1);
+         return(-1);
+      }
+      return(14+n1);
+
+   }
+   else if ( buf[3] == 0xB9 ) {
+      //Program END
+      return(4);
+   }
+   
+   // -- read more 2 bytes (packet length)
+   // -- read rest ...
+   
+   n1 = read(fd, buf+4, 2);
+   if (n1 <= 0) {
+      UNEXPECTED("%s: read failed (LEN): %d<=>%s\n", __FUNCTION__, errno, strerror(errno));
+      return(n1);
+   }
+   if (n1 == 2) {
+      l = (buf[4]<<8) + buf[5];		// PES packet size...
+      n1 = 6; 				// 4+2 bytes read
+      // $$$ TODO    if len == 0, special unbound length
+
+      if ( (l + 6) > len ) {
+         UNEXPECTED("%s: Excessive PKT len: %lu\n", __FUNCTION__, l);
+      }
+      if (l > 0) {
+         n2 = read(fd, buf+6, (unsigned int) l );
+         if (n2 <= 0) {
+            UNEXPECTED("%s: read failed (DATA): %d<=>%s\n", __FUNCTION__, errno, strerror(errno));
+            return(n1);
+         }
+         n1 = (n2 < 0) ? n2 : n1+n2;
+      }
+   }
+   
+   return n1;
+}
+
+
+
+static int process_mpg(int mpg_fd, int ndx_fd)
+{
+   int            recno       = 0;
+   int            ndx_done    = 0;
+   int            mpg_done    = 0;
+   int            ndx_cnt     = 0;
+   int            mpg_cnt     = 0;
+   unsigned long  audio_addr  = 0;
+   search_state_t state;
+   ndx_rec_info_t this, last;
+   unsigned long skipped_bytes;
+
+
+   if ( ndx_fd != -1 ) {
+      // Setup for ndx file processing
+      state = SRCH_VIDEO;      
+      last = this;
+      memset(&this, 0, sizeof this);
+
+      // get first ndx rec
+      if ( (ndx_cnt = read(ndx_fd, &this.r, sizeof(rtv_ndx_30_record_t))) <= 0 ) {
+         UNEXPECTED("WARNING: Failed to read first ndx record. Doing mpg processing only.\n");
+         if ( ndx_cnt == -1 ) {
+            UNEXPECTED("ERROR: %d<=>%s\n", errno, strerror(errno));
+         }
+         state    = SRCH_NDX_DONE;
+         ndx_done = 1;
+      }
+      else {
+         rtv_convert_30_ndx_rec(&this.r);
+      }
+   }
+   else {
+      state    = SRCH_NDX_DONE; //mpg file only
+      ndx_done = 1;
+   }
+
+   // Process the mpg & ndx files.
+   //
+   while ( !(ndx_done) || !(mpg_done) ) {
+
+      if (  !(mpg_done) ) {
+         mpg_cnt = pes_SyncRead (mpg_fd, mpg_buf, READ_BUF_SIZE, &skipped_bytes);
+         if ( mpg_cnt <= 0 ) {
+            mpg_done = 1;
+            state = SRCH_MPG_DONE;
+            continue;
+         }
+
+         // Handle skipped bytes
+         //
+         if ( skipped_bytes ) {
+            if ( mpg_fpos != 0 ) {
+               UNEXPECTED("Skipped bytes: fpos=0x%08x cnt=%lu\n", mpg_fpos, skipped_bytes);
+            }
+            if ( hex_verb == 3 ) {
+               hex_dump("MPG SKIPPED BYTES", mpg_fpos, skip_buf, skipped_bytes);      
+            }
+            else if ( hex_verb > 0 ) {
+               hex_dump("MPG SKIPPED BYTES", mpg_fpos, skip_buf, 64);      
+            }
+            mpg_fpos += skipped_bytes;
+         }
+      }
+
+      PRT("%s: found header: %08x  mpg_pos=%08x len=%d\n", __FUNCTION__, ntohl(*(__u32*)mpg_buf), mpg_fpos, mpg_cnt);
+
+      // See if ndx is out of wack with mpg. If so, try to sync back up.
+      //
+      if ( !(ndx_done) &&  !(mpg_done) && (this.r.filepos_iframe < mpg_fpos) ) {
+         UNEXPECTED("NDX Record I-frame not found: fpos=0x%08x ndx_iframe=0x%016llx\n", mpg_fpos, this.r.filepos_iframe);
+         prt_ndx_banner();
+         while (  this.r.filepos_iframe < mpg_fpos ) {
+
+            crunch_ndx_30_rec(recno, &this, &last);
+            prt_ndx_rec(recno, &this);      
+            
+            memcpy(&last, &this, sizeof this);
+            recno++;
+            ndx_fpos += ndx_cnt;
+            
+            ndx_cnt = read(ndx_fd, &this.r, sizeof(rtv_ndx_30_record_t));
+            if ( ndx_cnt == -1 ) {
+               UNEXPECTED("ERROR: ndx read read failed: %d<=>%s\n", errno, strerror(errno));
+               state    = SRCH_NDX_DONE;
+               ndx_done = 1;
+               break;
+            }
+            else if ( ndx_cnt == 0 ) {
+               UNEXPECTED("End of ndx file\n");
+               state    = SRCH_NDX_DONE;
+               ndx_done = 1;
+               break;
+            }
+            rtv_convert_30_ndx_rec(&this.r);
+         } //while
+         PRT("\n");
+      } // if ndx out of wack
+      
+
+      switch (state) {
+
+      case SRCH_VIDEO: {
+         if ( this.r.filepos_iframe == mpg_fpos ) {
+            prt_ndx_banner();
+            crunch_ndx_30_rec(recno, &this, &last);
+            prt_ndx_rec(recno, &this);
+            PRT("\n");
+            audio_addr = this.r.filepos_iframe + this.r.iframe_size;
+            state = SRCH_AUDIO_PACK;
+
+            //verify stream id
+            //
+            if ( ntohl(*(__u32*)mpg_buf) != MPEG_VID_STREAM_HDR ) {
+               UNEXPECTED("mpeg VIDEO I-frame start expected: got 0x%08x\n", ntohl(*(__u32*)mpg_buf) );
+            }
+
+            // get next ndx rec
+            //
+            memcpy(&last, &this, sizeof(this));
+            recno++;
+            ndx_fpos += ndx_cnt;
+            ndx_cnt = read(ndx_fd, &this.r, sizeof(rtv_ndx_30_record_t));
+            if ( ndx_cnt == -1 ) {
+               UNEXPECTED("ERROR: ndx read read failed: %d<=>%s\n", errno, strerror(errno));
+               state    = SRCH_NDX_DONE;
+               ndx_done = 1;
+            }
+            else if ( ndx_cnt == 0 ) {
+               UNEXPECTED("End of ndx file\n");
+               state    = SRCH_NDX_DONE;
+               ndx_done = 1;
+            }
+            else {
+               rtv_convert_30_ndx_rec(&this.r);
+            }
+         } //if ndx match
+         
+         break;
+      }
+
+      case SRCH_AUDIO_PACK: {
+         if ( audio_addr ) {
+            if ( ntohl(*(__u32*)mpg_buf) != MPEG_AUD_STREAM_HDR ) {
+               UNEXPECTED("mpeg AUDIO I-frame start expected: got 0x%08x\n",  ntohl(*(__u32*)mpg_buf));
+            }
+            if ( audio_addr != mpg_fpos ) {
+               UNEXPECTED("mpeg AUDIO address mismatch: got 0x%08lx expected 0x%08x\n", audio_addr, mpg_fpos);
+            }
+            audio_addr = 0;
+         }
+         
+         break;
+      }
+
+      case SRCH_NDX_DONE:
+         // Nothing to do
+         break;
+
+      case SRCH_MPG_DONE:
+         break;
+
+      default:
+         UNEXPECTED("SW ERROR: state=%d\n", state);
+      } //switch
+      
+      if ( !(mpg_done) ) {
+         ///// dump PES
+         mpg_fpos += mpg_cnt;
+      }
+
+   } //while
+
+   PRT("\nDone. Processed %d ndx records\n", recno);
    return(0);
 }
 
 static int explore_evt(FILE *evt)
 {
-   unsigned char buf[1024], *p;
+   unsigned char buf[1024];
    
    rtv_evt_record_t rec;
    
    int recno      = 0;
    __u64 basetime = 0;
-   double commercial_start_seconds = 0;
-   int in_commercial = 0;
+//   double commercial_start_seconds = 0;
+//   int in_commercial = 0;
    int cnt;
    
    fread(buf, 1, 8, evt); //header
-   printf("\n\n");
-   rtv_hex_dump("EVT FILE HDR", buf, 8);      
+   PRT("\n\n");
+   hex_dump("EVT FILE HDR", 0, buf, 8);      
    
-   printf("\nrec       timestamp     aud/vid   audiopower    blacklevel   unknown\n");
-   printf("-----------------------------------------------------------------------\n");
+   PRT("\nrec       timestamp     aud/vid   audiopower    blacklevel   unknown\n");
+   PRT("-----------------------------------------------------------------------\n");
    
    while ( (cnt = fread(&rec, 1, sizeof(rtv_evt_record_t), evt)) > 0) {
       
@@ -322,7 +580,7 @@ static int explore_evt(FILE *evt)
       if (recno == 0) {
          basetime = rec.timestamp;
       }
-      printf("%06d:%d   0x%016llx=%016llu   0x%08lx=%010lu     0x%08lx=%010lu     0x%08lx=%010lu     0x%08lx\n", 
+      PRT("%06d:%d   0x%016llx=%016llu   0x%08lx=%010lu     0x%08lx=%010lu     0x%08lx=%010lu     0x%08lx\n", 
              recno, cnt, rec.timestamp, rec.timestamp, rec.data_type, rec.data_type, 
              rec.audiopower, rec.audiopower, rec.blacklevel,  rec.blacklevel, rec.unknown1);
       
@@ -339,28 +597,27 @@ static void usage(char *name)
    fprintf(stderr, "Options:\n");
    fprintf(stderr, "   -f <output file name> : write results to output file\n");
    fprintf(stderr, "   -n                    : only process ndx file (skip mpg parsing)\n");
+   fprintf(stderr, "   -m                    : only process mpg file (skip ndx parsing)\n");
    fprintf(stderr, "   -e                    : process evt file\n");
    fprintf(stderr, "   -v <level>            : results verbosity level (default = 1)\n");
    fprintf(stderr, "       level=0           : Quiet. Only report errors\n");
    fprintf(stderr, "       level=1           : Report ndx & mpg file timestamps\n");
-   fprintf(stderr, "       level=2           : Report ndx & mpg file timestamps\n");
-   fprintf(stderr, "       level=3           : Report ndx & mpg file timestamps, display mpeg headers\n");
+   fprintf(stderr, "       level=2           : Report ndx & mpg file timestamps, display mpeg headers\n");
    fprintf(stderr, "   -h <level>            : hex dump level (default = 0)\n");
    fprintf(stderr, "       level=0           : Quiet.\n");
    fprintf(stderr, "       level=1           : Do mpeg header hex dumps.\n");
-   fprintf(stderr, "       level=2           : Dump first 100 bytes or streams.\n");
+   fprintf(stderr, "       level=2           : Dump first 64 bytes or streams.\n");
    fprintf(stderr, "       level=3           : Dump all data..\n");
 
 }
 int main(int argc, char ** argv)
 {
-   FILE    *ndx = NULL;
-   FILE    *evt = NULL;
-   BIGFILE *mpg = NULL;
-   char     filename[1024];
-   char    *basefile;
-   char     ch;
-
+   int     ndx = -1;
+   int     evt = -1;
+   int     mpg = -1;
+   char    filename[1024];
+   char   *basefile;
+   char    ch;
 
    if ( argc < 2 ) {
       usage(argv[0]);
@@ -378,6 +635,9 @@ int main(int argc, char ** argv)
          break;
       case 'f':
          outfile = optarg;
+         break;
+      case 'm':
+         do_mpg_only = 1;
          break;
       case 'n':
          do_ndx_only = 1;
@@ -415,9 +675,9 @@ int main(int argc, char ** argv)
 
    if ( do_evt_file ) {
       sprintf(filename, "%s.evt", basefile);
-      evt = fopen(filename, "r");
-      if (!evt) {
-         fprintf(stderr, "Error: Couldn't open %s, \n", filename);
+      evt = open(filename, O_RDONLY);
+      if (evt == -1) {
+         UNEXPECTED("ERROR: Couldn't open %s: %d<=>%s\n", filename, errno, strerror(errno));
          exit(1);
       }
       PRT("Found ent file: %s\n", filename);
@@ -425,31 +685,39 @@ int main(int argc, char ** argv)
       //process evt file
    }
 
-   sprintf(filename, "%s.ndx", basefile);
-   ndx = fopen(filename, "r");
-   if (!ndx) {
-      if ( do_ndx_only ) {
-         fprintf(stderr, "Error: Couldn't open %s\n", filename);
-         exit(1);
+   //Check/open ndx file
+   if ( !(do_mpg_only) ) {
+      sprintf(filename, "%s.ndx", basefile);
+      ndx = open(filename, O_RDONLY);
+      if (ndx == -1) {
+         if ( do_ndx_only ) {
+            UNEXPECTED("ERROR: Couldn't open %s: %d<=>%s\n", filename, errno, strerror(errno));
+            exit(1);
+         }
+      }
+      else {
+         ndx_exists = 1;
+         PRT("Found ndx file: %s\n", filename);
       }
    }
-   else {
-      ndx_exists = 1;
-      PRT("Found ndx file: %s\n", filename);
+
+   //Check/open mpg file
+   if ( !(do_ndx_only) ) {
+      sprintf(filename, "%s.mpg", basefile);
+      mpg = open(filename, O_RDONLY);
+      if (mpg == -1) {
+         UNEXPECTED("ERROR: Couldn't open mpg file: %s: %d<=>%s\n", filename, errno, strerror(errno));
+         exit(1);
+      } 
+      else {
+         PRT("Found mpg file: %s\n", filename);
+         mpg_exists = 1;
+      }
    }
 
-   sprintf(filename, "%s.mpg", basefile);
-   mpg = bfopen(filename, "r");
-   if (!mpg) {
-      PRT("Couldn't open mpg file: %s, reducing checking\n", filename);
-   } 
-   else {
-      PRT("Found mpg file: %s\n", filename);
-      mpg_exists = 1;
-   }
 
    if ( !(ndx_exists) && !(mpg_exists) ) {
-      fprintf(stderr, "Error: neither ndx or mpg file found\n");      
+      UNEXPECTED("ERROR: neither ndx or mpg file found\n");      
       exit(0);
    }
 
@@ -462,13 +730,31 @@ int main(int argc, char ** argv)
          exit(1);
       }
       if ( ndx_ver == NDX_VER_22 ) {
-         fprintf(stderr, "Error: RTV 4K header format not supported\n");
+         UNEXPECTED("ERROR: RTV 4K header format not supported\n");
          exit(1);
       }
-      else if ( ndx_ver == NDX_VER_30 ) {
-         process_30(ndx, mpg);
+      else if ( ndx_ver != NDX_VER_30 ) {
+         UNEXPECTED("ERROR: Unknown ndx header format.\n");
+         exit(1);
       }
    }
 
-   return(0);
+   if ( ndx_exists && !(mpg_exists) ) {
+      PRT("\n*** PERFORMING NDX ONLY FILE PROCESSING ***\n");
+      process_ndx_30(ndx);
+   }
+   else if ( mpg_exists && !(ndx_exists) ) {
+      PRT("\n*** PERFORMING MPG ONLY FILE PROCESSING ***\n");
+      process_mpg(mpg, -1);
+   }
+   else if ( mpg_exists && ndx_exists ) {
+      PRT("\n*** PERFORMING MPG AND NDX FILE PROCESSING ***\n");
+      process_mpg(mpg, ndx);
+   }
+   else {
+      UNEXPECTED("ERROR: Im so confused......\n");
+      exit(1);
+   }
+
+   exit(0);
 }
