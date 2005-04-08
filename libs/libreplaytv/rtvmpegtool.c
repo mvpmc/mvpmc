@@ -69,6 +69,35 @@ typedef struct ndx_rec_info_t
    int                 bad_audio;
 } ndx_rec_info_t;
 
+
+typedef struct pack_hdr_t
+{
+   unsigned long long scr_all;
+   unsigned int       scr_ext;
+   unsigned int       prog_mux_rate;
+} pack_hdr_t;
+
+typedef struct audvid_hdr_t
+{
+   unsigned int       ptsdts_flags;
+   unsigned long long pts_all;
+} audvid_hdr_t;
+
+typedef struct string_xref_t
+{
+   __u32 key;
+   char  val[32];
+} string_xref_t;
+
+string_xref_t stream_id_xref[] =
+{
+   { MPEG_PROGRAM_END,    "PRG_END" },
+   { MPEG_PACK_HDR,       "PACK   " },
+   { MPEG_SYSTEM_HDR,     "SYSTEM " },
+   { MPEG_AUD_STREAM_HDR, "AUDIO  " },
+   { MPEG_VID_STREAM_HDR, "VIDEO  " },
+   
+};
 // Globals
 //
 int           do_mpg_only = 0;
@@ -89,8 +118,25 @@ u_char mpg_buf[READ_BUF_SIZE];
 u_char skip_buf[READ_BUF_SIZE];
 
 
-// rtv_hex_dump()
+//+****************************************************
 //
+//+****************************************************
+static char* str_xref(string_xref_t *st, __u32 key, int num_elem)
+{
+   int x;
+   for ( x=0; x < num_elem; x++ )
+   {
+      if ( st[x].key == key ) {
+         return(st[x].val);
+      }
+   }
+   return(NULL);
+}
+
+
+//+****************************************************
+//
+//+****************************************************
 static void hex_dump(char * tag, unsigned long address, unsigned char * buf, size_t sz)
 {
     unsigned int  rows, row, col, i;
@@ -120,6 +166,9 @@ static void hex_dump(char * tag, unsigned long address, unsigned char * buf, siz
     }
 }
 
+//+****************************************************
+//
+//+****************************************************
 static int process_ndx_header(int fd)
 {
    size_t               cnt;
@@ -152,8 +201,9 @@ static int process_ndx_header(int fd)
    return(ndx_ver);
 }
 
-
-
+//+****************************************************
+//
+//+****************************************************
 static char *format_seconds(float seconds)
 {
    static char buffer[12];
@@ -171,10 +221,19 @@ static char *format_seconds(float seconds)
    return buffer;
 }
 
+//+****************************************************
+//
+//+****************************************************
 static void prt_ndx_banner(void)
 {
    PRT("\nrec         timestamp    delta_t        iframe_filepos                        iframe_size\n");
    PRT("-----------------------------------------------------------------------------------------------\n");
+}
+
+static void prt_pes_banner(void)
+{
+   PRT("\ntype                    address       size            pts\n");
+   PRT("--------------------------------------------------------------\n");
 }
 
 static void prt_ndx_rec(int recno, ndx_rec_info_t *rp)
@@ -184,6 +243,9 @@ static void prt_ndx_rec(int recno, ndx_rec_info_t *rp)
        rp->r.filepos_iframe, rp->r.filepos_iframe, rp->r.iframe_size, rp->r.iframe_size);
 }
 
+//+****************************************************
+//
+//+****************************************************
 static void crunch_ndx_30_rec(int recno, ndx_rec_info_t *this, ndx_rec_info_t *last)
 {
    static __u64 basetime = 0;
@@ -213,6 +275,9 @@ static void crunch_ndx_30_rec(int recno, ndx_rec_info_t *this, ndx_rec_info_t *l
    }
 }
 
+//+****************************************************
+//
+//+****************************************************
 static int process_ndx_30(int ndx_fd)
 {
    int recno      = 0;
@@ -221,13 +286,15 @@ static int process_ndx_30(int ndx_fd)
       
    last = this;
    memset(&this, 0, sizeof this);
-   prt_ndx_banner();
-   
+   if ( verb > 0 ) {
+      prt_ndx_banner();
+   }
    while ( (cnt = read(ndx_fd, &this.r, sizeof(rtv_ndx_30_record_t))) > 0 ) {      
       rtv_convert_30_ndx_rec(&this.r);
       crunch_ndx_30_rec(recno, &this, &last);
-      prt_ndx_rec(recno, &this);      
-      
+      if ( verb > 0 ) {
+         prt_ndx_rec(recno, &this);      
+      }
       memcpy(&last, &this, sizeof this);
       recno++;
       ndx_fpos += cnt;
@@ -235,6 +302,234 @@ static int process_ndx_30(int ndx_fd)
    
    PRT("\nDone. Processed %d ndx records\n", recno);
    return(0);
+}
+
+
+
+//+****************************************************
+//  -- get bits out of buffer  (max 48 bit)
+//  -- extended bitrange, so it's slower
+//  -- return: value
+//  based off DVBSNOOP
+//+****************************************************
+static long long getBits48 (u_char *buf, int byte_offset, int startbit, int bitlen)
+{
+   u_char *b;
+   unsigned long long v;
+   unsigned long long mask;
+   unsigned long long tmp;
+   
+   if (bitlen > 48) {
+      PRT("ERROR: getBits48() request out of bound!!!! (report!!) \n");
+      return 0xFEFEFEFEFEFEFEFELL;
+   }
+   
+   b = &buf[byte_offset + (startbit / 8)];
+   startbit %= 8;
+   
+   // -- safe is 48 bitlen
+   tmp = (unsigned long long)(
+      ((unsigned long long)*(b  )<<48) + ((unsigned long long)*(b+1)<<40) +
+      ((unsigned long long)*(b+2)<<32) + ((unsigned long long)*(b+3)<<24) +
+      (*(b+4)<<16) + (*(b+5)<< 8) + *(b+6) );
+   
+   startbit = 56 - startbit - bitlen;
+   tmp      = tmp >> startbit;
+   mask     = (1ULL << bitlen) - 1;	// 1ULL !!!
+   v        = tmp & mask;
+   
+   return v;
+}
+
+
+//+****************************************************
+//  -- get bits out of buffer (max 32 bit!!!)
+//  -- return: value
+//  based off DVBSNOOP
+//+****************************************************
+static unsigned long getBits (u_char *buf, int byte_offset, int startbit, int bitlen)
+{
+   u_char *b;
+   unsigned long  v;
+   unsigned long mask;
+   unsigned long tmp_long;
+   int           bitHigh;
+   
+   
+   b = &buf[byte_offset + (startbit >> 3)];
+   startbit %= 8;
+   
+   switch ((bitlen-1) >> 3) {
+   case -1:	// -- <=0 bits: always 0
+		return 0L;
+		break;
+      
+	case 0:		// -- 1..8 bit
+ 		tmp_long = (unsigned long)(
+			(*(b  )<< 8) +  *(b+1) );
+		bitHigh = 16;
+		break;
+      
+	case 1:		// -- 9..16 bit
+ 		tmp_long = (unsigned long)(
+		 	(*(b  )<<16) + (*(b+1)<< 8) +  *(b+2) );
+		bitHigh = 24;
+		break;
+      
+	case 2:		// -- 17..24 bit
+ 		tmp_long = (unsigned long)(
+		 	(*(b  )<<24) + (*(b+1)<<16) +
+			(*(b+2)<< 8) +  *(b+3) );
+		bitHigh = 32;
+		break;
+      
+	case 3:		// -- 25..32 bit
+      // -- to be safe, we need 32+8 bit as shift range 
+		return (unsigned long) getBits48 (b, 0, startbit, bitlen);
+		break;
+      
+	default:	// -- 33.. bits: fail, deliver constant fail value
+		PRT("ERROR: getBits() request out of bound!!!!\n");
+		return (unsigned long) 0xFEFEFEFE;
+		break;
+   }
+   
+   startbit = bitHigh - startbit - bitlen;
+   tmp_long = tmp_long >> startbit;
+   mask     = (1ULL << bitlen) - 1;  // 1ULL !!!
+   v        = tmp_long & mask;
+   
+   return v;
+}
+
+//+****************************************************
+//
+//+****************************************************
+static void print_tb90kHz (long long time90kHz, char *time_str)
+
+{
+   long long ull = time90kHz;
+   
+   int     h,m,s,u;
+   u_long  p = ull/90;
+   
+   // -- following lines taken from "dvbtextsubs  Dave Chapman"
+   h=(p/(1000*60*60));
+   m=(p/(1000*60))-(h*60);
+   s=(p/1000)-(h*3600)-(m*60);
+   u=p-(h*1000*60*60)-(m*1000*60)-(s*1000);
+   
+   //PRT("TimeBase: %llu (0x%08llx)\n", ull,ull);
+   sprintf(time_str, "%d:%02d:%02d.%03d", h,m,s,u);
+}
+
+//+****************************************************
+//
+//+****************************************************
+static void  PES_decodePACKHDR (u_char *b, pack_hdr_t *pk)
+
+{
+   unsigned int scr32_30 = getBits(b, 4, 2, 3);
+   unsigned int scr29_15 = getBits(b, 4, 6, 15);
+   unsigned int scr14_00 = getBits(b, 6, 6, 15);
+
+   pk->scr_all       = (scr32_30 << 30) | (scr29_15 << 15) | scr14_00;
+   pk->scr_ext       = getBits(b, 8, 6, 9);
+   pk->prog_mux_rate = getBits(b, 10, 0, 22);
+
+   //PRT("scr32..00: 0x%010llX (%llu)\n", pk->scr_all, pk->scr_all);
+   //PRT("scr ext:          0x%03X (%u)\n", pk->scr_ext, pk->scr_ext);
+   //PRT("mux_rate:      0x%06X (%u): bps=%u\n", pk->prog_mux_rate, pk->prog_mux_rate, 50 * 8 * pk->prog_mux_rate);
+}
+
+
+//+****************************************************
+//
+//+****************************************************
+static void  PES_decodeAUDVIDHDR(u_char *b, audvid_hdr_t *av)
+
+{
+   unsigned int pts32_30;
+   unsigned int pts29_15;
+   unsigned int pts14_00;
+
+   
+   av->ptsdts_flags = getBits (b, 7, 0, 2);
+   if ( av->ptsdts_flags & 0x02 ) {
+      pts32_30 = getBits(b, 9, 4, 3);
+      pts29_15 = getBits(b, 10, 0, 15);
+      pts14_00 = getBits(b, 12, 0, 15);
+      av->pts_all = (pts32_30 << 30) | (pts29_15 << 15) | pts14_00;
+   }
+   else {
+      av->pts_all = 0;
+   }
+
+   //PRT("pts32..00: 0x%010llX (%llu)\n", av->pts_all, av->pts_all);
+}
+
+
+//+****************************************************
+//
+//+****************************************************
+static void dump_pes(u_char *buf, __u64 addr, int sz)
+{
+#define MSTRSZ (128)
+   __u32         stream_id = ntohl(*(__u32*)buf);
+   char          msg[MSTRSZ];
+   char          timestr[128];
+   char         *pos = msg;
+   char         *stream_str;
+   unsigned int  pts_dts;
+   pack_hdr_t    pack_hdr;
+   audvid_hdr_t  av_hdr;
+
+   stream_str = str_xref(stream_id_xref, stream_id, sizeof(stream_id_xref)/ sizeof(string_xref_t));
+   if ( stream_str ) {
+      pos += snprintf(msg, MSTRSZ-1, "%s (%08lx) %016llx %6d", stream_str, stream_id, addr, sz);
+   }
+   else {
+      pos += snprintf(msg, MSTRSZ-1, "UNKNOWN (%08lx) %016llx %6d", stream_id, addr, sz);
+   }
+
+   switch (stream_id) {
+   case MPEG_VID_STREAM_HDR:
+   case MPEG_AUD_STREAM_HDR:
+      pts_dts = getBits (buf, 6, 8, 2);
+      PES_decodeAUDVIDHDR(buf, &av_hdr);
+      if ( av_hdr.ptsdts_flags & 0x02 ) {
+         print_tb90kHz(av_hdr.pts_all, timestr);
+         pos += snprintf(pos, (MSTRSZ-1)-(pos-msg), "       %s", timestr);
+      }
+      //pos += snprintf(pos, (MSTRSZ-1)-(pos-msg), "   (%1d)(%1d)", av_hdr.ptsdts_flags, pts_dts);
+      break;
+   case MPEG_PACK_HDR:
+      PES_decodePACKHDR(buf, &pack_hdr);
+      print_tb90kHz(pack_hdr.scr_all, timestr);
+      pos += snprintf(pos, (MSTRSZ-1)-(pos-msg), "       %s", timestr);
+      break;
+   case MPEG_SYSTEM_HDR:
+      break;
+   case MPEG_PROGRAM_END:
+      break;
+   default:
+      UNEXPECTED("Unknown streamID: 0x%08lx\n", stream_id);
+   } //switch
+
+   if ( hex_verb == 1 ) {
+      PRT("\n");
+      hex_dump(stream_str, addr, buf, (sz > 64) ? 64 : sz);      
+      PRT("\n");
+   }
+   else if ( hex_verb == 2 ) {
+      PRT("\n");
+      hex_dump(stream_str, addr, buf, sz);      
+      PRT("\n");
+   }
+
+   if ( verb > 0 ) {
+      PRT("%s\n", msg);
+   }
 }
 
 
@@ -269,7 +564,7 @@ static int pes_SyncRead (int fd, u_char *buf, u_long len, u_long *skipped_bytes)
       n1 = read(fd,buf+3,1);
       if (n1 <= 0) {
          if ( n1 == 0 ) {
-            PRT("MPEG EOF.\n");
+            PRT("INFO: MPEG EOF.\n");
          }
          else {
             UNEXPECTED("%s: read failed: %d<=>%s\n", __FUNCTION__, errno, strerror(errno));
@@ -308,9 +603,7 @@ static int pes_SyncRead (int fd, u_char *buf, u_long len, u_long *skipped_bytes)
    buf[1] = 0x00;
    buf[2] = 0x01;
    // buf[3] = streamID == recent read
-   
-   //PRT("%s: found header: %08x  mpg_pos=%08x\n", __FUNCTION__, ntohl(*(__u32*)buf), mpg_pos);
-   
+     
    if ( buf[3] == 0xBA ) {
       int padding;
 
@@ -378,6 +671,9 @@ static int pes_SyncRead (int fd, u_char *buf, u_long len, u_long *skipped_bytes)
 
 
 
+//+****************************************************
+//
+//+****************************************************
 static int process_mpg(int mpg_fd, int ndx_fd)
 {
    int            recno       = 0;
@@ -417,6 +713,9 @@ static int process_mpg(int mpg_fd, int ndx_fd)
 
    // Process the mpg & ndx files.
    //
+   if ( verb > 0 ) {
+      prt_pes_banner();
+   }
    while ( !(ndx_done) || !(mpg_done) ) {
 
       if (  !(mpg_done) ) {
@@ -433,7 +732,7 @@ static int process_mpg(int mpg_fd, int ndx_fd)
             if ( mpg_fpos != 0 ) {
                UNEXPECTED("Skipped bytes: fpos=0x%08x cnt=%lu\n", mpg_fpos, skipped_bytes);
             }
-            if ( hex_verb == 3 ) {
+            if ( hex_verb == 2 ) {
                hex_dump("MPG SKIPPED BYTES", mpg_fpos, skip_buf, skipped_bytes);      
             }
             else if ( hex_verb > 0 ) {
@@ -443,17 +742,21 @@ static int process_mpg(int mpg_fd, int ndx_fd)
          }
       }
 
-      PRT("%s: found header: %08x  mpg_pos=%08x len=%d\n", __FUNCTION__, ntohl(*(__u32*)mpg_buf), mpg_fpos, mpg_cnt);
+      //PRT("%s: found header: %08x  mpg_pos=%08x len=%d\n", __FUNCTION__, ntohl(*(__u32*)mpg_buf), mpg_fpos, mpg_cnt);
 
       // See if ndx is out of wack with mpg. If so, try to sync back up.
       //
       if ( !(ndx_done) &&  !(mpg_done) && (this.r.filepos_iframe < mpg_fpos) ) {
          UNEXPECTED("NDX Record I-frame not found: fpos=0x%08x ndx_iframe=0x%016llx\n", mpg_fpos, this.r.filepos_iframe);
-         prt_ndx_banner();
+         if ( verb > 0 ) {
+            prt_ndx_banner();
+         }
          while (  this.r.filepos_iframe < mpg_fpos ) {
 
             crunch_ndx_30_rec(recno, &this, &last);
-            prt_ndx_rec(recno, &this);      
+            if ( verb > 0 ) {
+               prt_ndx_rec(recno, &this);
+            }      
             
             memcpy(&last, &this, sizeof this);
             recno++;
@@ -474,7 +777,9 @@ static int process_mpg(int mpg_fd, int ndx_fd)
             }
             rtv_convert_30_ndx_rec(&this.r);
          } //while
-         PRT("\n");
+         if ( verb > 0 ) {
+            prt_pes_banner();
+         }
       } // if ndx out of wack
       
 
@@ -482,10 +787,14 @@ static int process_mpg(int mpg_fd, int ndx_fd)
 
       case SRCH_VIDEO: {
          if ( this.r.filepos_iframe == mpg_fpos ) {
-            prt_ndx_banner();
+            if ( verb > 0 ) {
+               prt_ndx_banner();
+            }
             crunch_ndx_30_rec(recno, &this, &last);
-            prt_ndx_rec(recno, &this);
-            PRT("\n");
+            if ( verb > 0 ) {
+               prt_ndx_rec(recno, &this);
+               prt_pes_banner();
+            }
             audio_addr = this.r.filepos_iframe + this.r.iframe_size;
             state = SRCH_AUDIO_PACK;
 
@@ -507,7 +816,7 @@ static int process_mpg(int mpg_fd, int ndx_fd)
                ndx_done = 1;
             }
             else if ( ndx_cnt == 0 ) {
-               UNEXPECTED("End of ndx file\n");
+               PRT("INFO: NDX EOF\n");
                state    = SRCH_NDX_DONE;
                ndx_done = 1;
             }
@@ -521,13 +830,20 @@ static int process_mpg(int mpg_fd, int ndx_fd)
 
       case SRCH_AUDIO_PACK: {
          if ( audio_addr ) {
-            if ( ntohl(*(__u32*)mpg_buf) != MPEG_AUD_STREAM_HDR ) {
-               UNEXPECTED("mpeg AUDIO I-frame start expected: got 0x%08x\n",  ntohl(*(__u32*)mpg_buf));
+            if ( (ntohl(*(__u32*)mpg_buf) == MPEG_VID_STREAM_HDR) &&
+                 (mpg_fpos == (audio_addr - 16))                   ) {
+               PRT("INFO: RUNT VIDEO PES while searching for NDX AUDIO/PACK\n");
+               break;
+            }
+            if ( (ntohl(*(__u32*)mpg_buf) != MPEG_AUD_STREAM_HDR) &&
+                 (ntohl(*(__u32*)mpg_buf) != MPEG_PACK_HDR)       ) {
+               UNEXPECTED("mpeg AUDIO I-frame or PACK start expected: got 0x%08x\n",  ntohl(*(__u32*)mpg_buf));
             }
             if ( audio_addr != mpg_fpos ) {
-               UNEXPECTED("mpeg AUDIO address mismatch: got 0x%08lx expected 0x%08x\n", audio_addr, mpg_fpos);
+               UNEXPECTED("mpeg AUDIO/PACK address mismatch: got 0x%08lx expected 0x%08x\n", audio_addr, mpg_fpos);
             }
             audio_addr = 0;
+            state = SRCH_VIDEO;
          }
          
          break;
@@ -545,7 +861,7 @@ static int process_mpg(int mpg_fd, int ndx_fd)
       } //switch
       
       if ( !(mpg_done) ) {
-         ///// dump PES
+         dump_pes(mpg_buf, mpg_fpos, mpg_cnt);
          mpg_fpos += mpg_cnt;
       }
 
@@ -555,6 +871,9 @@ static int process_mpg(int mpg_fd, int ndx_fd)
    return(0);
 }
 
+//+****************************************************
+//
+//+****************************************************
 static int explore_evt(FILE *evt)
 {
    unsigned char buf[1024];
@@ -590,6 +909,9 @@ static int explore_evt(FILE *evt)
    return(0);
 }
 
+//+****************************************************
+//
+//+****************************************************
 static void usage(char *name) 
 {
    fprintf(stderr, "\n\n%s: A tool for parsing ReplayTV 5K mpg files, ndx files, and evt files.\n", name);
@@ -605,11 +927,15 @@ static void usage(char *name)
    fprintf(stderr, "       level=2           : Report ndx & mpg file timestamps, display mpeg headers\n");
    fprintf(stderr, "   -h <level>            : hex dump level (default = 0)\n");
    fprintf(stderr, "       level=0           : Quiet.\n");
-   fprintf(stderr, "       level=1           : Do mpeg header hex dumps.\n");
-   fprintf(stderr, "       level=2           : Dump first 64 bytes or streams.\n");
-   fprintf(stderr, "       level=3           : Dump all data..\n");
+   fprintf(stderr, "       level=1           : Dump first 64 bytes of streams.\n");
+   fprintf(stderr, "       level=2           : Dump all data..\n");
 
 }
+
+
+//+****************************************************
+//
+//+****************************************************
 int main(int argc, char ** argv)
 {
    int     ndx = -1;
@@ -740,15 +1066,15 @@ int main(int argc, char ** argv)
    }
 
    if ( ndx_exists && !(mpg_exists) ) {
-      PRT("\n*** PERFORMING NDX ONLY FILE PROCESSING ***\n");
+      PRT("\n*** PERFORMING NDX ONLY FILE PROCESSING ***\n\n");
       process_ndx_30(ndx);
    }
    else if ( mpg_exists && !(ndx_exists) ) {
-      PRT("\n*** PERFORMING MPG ONLY FILE PROCESSING ***\n");
+      PRT("\n*** PERFORMING MPG ONLY FILE PROCESSING ***\n\n");
       process_mpg(mpg, -1);
    }
    else if ( mpg_exists && ndx_exists ) {
-      PRT("\n*** PERFORMING MPG AND NDX FILE PROCESSING ***\n");
+      PRT("\n*** PERFORMING MPG AND NDX FILE PROCESSING ***\n\n");
       process_mpg(mpg, ndx);
    }
    else {
