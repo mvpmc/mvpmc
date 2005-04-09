@@ -117,6 +117,8 @@ unsigned int ndx_fpos    = 0;
 u_char mpg_buf[READ_BUF_SIZE];
 u_char skip_buf[READ_BUF_SIZE];
 
+static unsigned long getBits (u_char *buf, int byte_offset, int startbit, int bitlen);
+
 
 //+****************************************************
 //
@@ -304,7 +306,70 @@ static int process_ndx_30(int ndx_fd)
    return(0);
 }
 
+//+****************************************************
+//
+//+****************************************************
+static void dump_vid_stream(u_char *buf, __u64 addr, int sz)
+{
+   int            pos = 0;
+   unsigned long syncp;
 
+   syncp = 0xFFFFFFFF;
+
+   while (pos < sz-4) {
+      u_char c;
+      
+      c = buf[pos+3];
+      syncp = (syncp << 8) | c;
+      
+      if ( (syncp & 0xFFFFFF00) == 0x00000100 ) {
+         if ( c <= 0xB8 ) {
+            if ( c == 00 ) { //PICTURE
+               unsigned int seq = getBits(&(buf[pos]), 4, 0, 10);
+               unsigned int ipb = getBits(&(buf[pos]), 5, 2, 3);
+               char ipb_ch;
+
+               ipb_ch = (ipb==1) ? 'I' : ((ipb==2) ? 'P' : ((ipb==3) ? 'B' : 'X'));
+               PRT("    ES:PICT %08lx:   %016llx                       seq=%u (%c)\n", syncp, addr+pos, seq, ipb_ch);
+             }
+            else if ( c >= 0xB0 ) {
+               if ( c == 0xB2) {
+                  PRT("    ES:USER %08lx:   %016llx\n", syncp, addr+pos);
+               }
+               else if ( c == 0xB3 ) {
+                  PRT("    ES:SEQ  %08lx:   %016llx\n", syncp, addr+pos);
+               }
+               else if ( c == 0xB5 ) {
+                  PRT("    ES:EXT  %08lx:   %016llx\n", syncp, addr+pos);
+               }
+               else if ( c == 0xB8 ) {
+                  unsigned int hr    = getBits(&(buf[pos]), 4, 1, 5);
+                  unsigned int min   = getBits(&(buf[pos]), 4, 6, 6);
+                  unsigned int sec   = getBits(&(buf[pos]), 5, 5, 6);
+                  unsigned int frame = getBits(&(buf[pos]), 6, 3, 6);
+                  unsigned int cl    = getBits(&(buf[pos]), 7, 1, 1);
+                  unsigned int br    = getBits(&(buf[pos]), 7, 2, 1);
+                  unsigned int dr    = getBits(&(buf[pos]), 4, 0, 1);
+
+                  PRT("    ES:GOP  %08lx:   %016llx        %02u:%02u:%02u.000   frame=%-3u dr=%u cl=%u br=%u\n", 
+                      syncp, addr+pos, hr, min, sec, frame, dr, cl, br);
+               }
+               else  {
+                  UNEXPECTED("    ES:????  %08lx:   %016llx\n", syncp, addr+pos);
+               }
+           }
+            else {
+               //slice
+            }
+         }
+         else {
+            UNEXPECTED("    ES:???? %08lx   %016llx\n", syncp, addr+pos);
+         }
+         syncp = 0xFFFFFFFF;
+      }
+      pos++;
+   } //while
+}
 
 //+****************************************************
 //  -- get bits out of buffer  (max 48 bit)
@@ -529,6 +594,10 @@ static void dump_pes(u_char *buf, __u64 addr, int sz)
 
    if ( verb > 0 ) {
       PRT("%s\n", msg);
+   }
+
+   if ( (verb > 1) && (stream_id == MPEG_VID_STREAM_HDR) ) {
+      dump_vid_stream(buf, addr, sz);
    }
 }
 
@@ -924,7 +993,7 @@ static void usage(char *name)
    fprintf(stderr, "   -v <level>            : results verbosity level (default = 1)\n");
    fprintf(stderr, "       level=0           : Quiet. Only report errors\n");
    fprintf(stderr, "       level=1           : Report ndx & mpg file timestamps\n");
-   fprintf(stderr, "       level=2           : Report ndx & mpg file timestamps, display mpeg headers\n");
+   fprintf(stderr, "       level=2           : Report ndx & mpg file timestamps, report video ES info\n");
    fprintf(stderr, "   -h <level>            : hex dump level (default = 0)\n");
    fprintf(stderr, "       level=0           : Quiet.\n");
    fprintf(stderr, "       level=1           : Dump first 64 bytes of streams.\n");
