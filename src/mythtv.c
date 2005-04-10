@@ -171,9 +171,10 @@ mythtv_verify(void)
 static void
 mythtv_close(void)
 {
-	if (control && file) {
-		cmyth_file_release(control, file);
+	if (control_slave && file) {
+		cmyth_file_t f = file;
 		file = NULL;
+		cmyth_file_release(control_slave, f);
 	}
 	if (pending_prog) {
 		cmyth_proginfo_release(pending_prog);
@@ -204,8 +205,9 @@ mythtv_close(void)
 		control = NULL;
 	}
 	if (control_slave) {
-		cmyth_conn_release(control_slave);
+		cmyth_conn_t c = control_slave;
 		control_slave = NULL;
+		cmyth_conn_release(c);
 	}
 }
 
@@ -242,9 +244,13 @@ mythtv_close_file(void)
 	printf("%s(): closing file\n", __FUNCTION__);
 	if (playing_via_mythtv && file) {
 		if (file) {
-			printf("%s(): releasing file\n", __FUNCTION__);
-			cmyth_file_release(control, file);
+			cmyth_conn_t c = control_slave;
+			cmyth_file_t f = file;
+			control_slave = NULL;
 			file = NULL;
+			printf("%s(): releasing file\n", __FUNCTION__);
+			cmyth_file_release(c, f);
+			cmyth_conn_release(c);
 		}
 		if (current_prog) {
 			cmyth_proginfo_release(current_prog);
@@ -929,6 +935,8 @@ wd_start(void *arg)
 	char err[] = "MythTV backend connection is not responding.";
 	char ok[] = "MythTV backend connection has been restored.";
 
+	printf("myth watchdog thread started (pid %d)\n", getpid());
+
 	while (1) {
 		if ((state=cmyth_conn_hung(control)) == 1) {
 			if (old == 0) {
@@ -953,19 +961,29 @@ control_start(void *arg)
 	int len = 0;
 	int size = BSIZE;
 	demux_attr_t *attr;
+	pid_t pid;
+
+	pid = getpid();
 
 	while (1) {
 		int count = 0;
+		cmyth_conn_t c = NULL;
+		cmyth_file_t f = NULL;
 
 		pthread_mutex_lock(&mutex);
-		printf("mythtv control thread sleeping...\n");
+		printf("mythtv control thread sleeping...(pid %d)\n", pid);
 		while (file == NULL)
 			pthread_cond_wait(&cond, &mutex);
 		pthread_mutex_unlock(&mutex);
 
-		printf("mythtv control thread starting...\n");
+		printf("mythtv control thread starting...(pid %d)\n", pid);
 
 		attr = demux_get_attr(handle);
+
+		if ((c=cmyth_conn_hold(control_slave)) == NULL)
+			goto end;
+		if ((f=cmyth_file_hold(file)) == NULL)
+			goto end;
 
 		do {
 			if (seeking || jumping) {
@@ -989,8 +1007,7 @@ control_start(void *arg)
 				}
 			}
 
-			len = cmyth_file_request_block(control_slave,
-						       file, size);
+			len = cmyth_file_request_block(c, file, size);
 
 			/*
 			 * Will block if another command is executing
@@ -1024,9 +1041,12 @@ control_start(void *arg)
 		} while (file && (len > 0) &&
 			 (playing_via_mythtv == 1) && (!close_mythtv));
 
+	end:
 		printf("%s(): len %d playing_via_mythtv %d close_mythtv %d\n",
 		       __FUNCTION__, len, playing_via_mythtv, close_mythtv);
 
+		cmyth_file_release(c, f);
+		cmyth_conn_release(c);
 		mythtv_close_file();
 	}
 
@@ -1228,7 +1248,9 @@ mythtv_open(void)
 	}
 
 	if (control_slave) {
-		cmyth_conn_release(control_slave);
+		cmyth_conn_t c = control_slave;
+		control_slave = NULL;
+		cmyth_conn_release(c);
 	}
 	printf("connecting to mythtv (slave) backend %s\n", host);
 	if ((control_slave=cmyth_conn_connect_ctrl(host, port,
@@ -1261,10 +1283,19 @@ mythtv_seek(long long offset, int whence)
 {
 	struct timeval to;
 	int count = 0;
-	long long seek_pos;
+	long long seek_pos = -1;
+	cmyth_file_t f = NULL;
+	cmyth_conn_t c = NULL;
 
-	if ((offset == 0) && (whence == SEEK_CUR))
-		return cmyth_file_seek(control_slave, file, 0, SEEK_CUR);
+	if ((c=cmyth_conn_hold(control_slave)) == NULL)
+		goto out;
+	if ((f=cmyth_file_hold(file)) == NULL)
+		goto out;
+
+	if ((offset == 0) && (whence == SEEK_CUR)) {
+		seek_pos = cmyth_file_seek(c, f, 0, SEEK_CUR);
+		goto out;
+	}
 
 	pthread_mutex_lock(&seek_mutex);
 	pthread_mutex_lock(&myth_mutex);
@@ -1276,9 +1307,9 @@ mythtv_seek(long long offset, int whence)
 		to.tv_sec = 0;
 		to.tv_usec = 10;
 		len = 0;
-		if (cmyth_file_select(file, &to) > 0) {
+		if (cmyth_file_select(f, &to) > 0) {
 			PRINTF("%s(): reading...\n", __FUNCTION__);
-			len = cmyth_file_get_block(file, buf, sizeof(buf));
+			len = cmyth_file_get_block(f, buf, sizeof(buf));
 			PRINTF("%s(): read returned %d\n", __FUNCTION__, len);
 		}
 
@@ -1298,10 +1329,14 @@ mythtv_seek(long long offset, int whence)
 		}
 	}
 
-	seek_pos = cmyth_file_seek(control_slave, file, offset, whence);
+	seek_pos = cmyth_file_seek(c, f, offset, whence);
 
 	pthread_mutex_unlock(&myth_mutex);
 	pthread_mutex_unlock(&seek_mutex);
+
+ out:
+	cmyth_file_release(c, f);
+	cmyth_conn_release(c);
 
 	return seek_pos;
 }
@@ -1311,6 +1346,8 @@ mythtv_read(char *buf, int len)
 {
 	int ret;
 	int tot = 0;
+	cmyth_file_t f = NULL;
+	cmyth_conn_t c = NULL;
 
 	if (file == NULL)
 		return -EINVAL;
@@ -1321,19 +1358,28 @@ mythtv_read(char *buf, int len)
 
 	PRINTF("cmyth getting block of size %d\n", len);
 
+	if ((c=cmyth_conn_hold(control_slave)) == NULL)
+		goto out;
+	if ((f=cmyth_file_hold(file)) == NULL)
+		goto out;
+
 	while (file && (tot < len) && !myth_seeking) {
 		struct timeval to;
 
 		to.tv_sec = 0;
 		to.tv_usec = 10;
-		if (cmyth_file_select(file, &to) <= 0)
+		if (cmyth_file_select(f, &to) <= 0)
 			break;
-		ret = cmyth_file_get_block(file, buf+tot, len-tot);
+		ret = cmyth_file_get_block(f, buf+tot, len-tot);
 		if (ret <= 0)
 			break;
 		tot += ret;
 	}
 	PRINTF("cmyth got block of size %d (out of %d)\n", tot, len);
+
+ out:
+	cmyth_file_release(c, f);
+	cmyth_conn_release(c);
 
 	pthread_mutex_unlock(&seek_mutex);
 
