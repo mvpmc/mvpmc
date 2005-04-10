@@ -281,6 +281,7 @@ extern void busy_end(void);
 extern void fb_start_thumbnail(void);
 
 typedef enum {
+	WIDGET_GRAPH,
 	WIDGET_MENU,
 	WIDGET_TEXT,
 } widget_t;
@@ -289,6 +290,7 @@ typedef struct {
 	char *name;
 	widget_t type;
 	union {
+		mvpw_graph_attr_t *graph;
 		mvpw_menu_attr_t *menu;
 		mvpw_text_attr_t *text;
 	} attr;

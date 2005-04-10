@@ -14,40 +14,84 @@
   <font name="large">/etc/helvB18.pcf</font>
 
   <!--
+     - Graph widget settings
+    -->
+  <widget type="graph" name="busy_graph">
+    <color type="left">purple</color>
+    <color type="right">blue</color>
+    <style type="border_size">2</style>
+    <color type="bg">red</color>
+  </widget>
+
+  <widget type="graph" name="splash_graph">
+    <color type="left">red</color>
+    <color type="right">purple</color>
+    <color type="border">orange</color>
+    <style type="border_size">2</style>
+    <color type="bg">snow</color>
+  </widget>
+
+  <widget type="graph" name="offset_graph">
+    <color type="bg" alpha="50%">white</color>
+    <color type="left" alpha="50%">purple</color>
+    <color type="right" alpha="100%">orange</color>
+  </widget>
+
+  <!--
      - Text widget settings
     -->
   <widget type="text" name="splash">
     <color type="bg">lightslategray</color>
     <color type="fg">black</color>
+    <color type="border">red</color>
+    <style type="border_size">2</style>
     <font>large</font>
   </widget>
 
   <widget type="text" name="myth_info">
     <color type="bg" alpha="0%">black</color>
     <color type="fg">white</color>
+    <color type="border">purple</color>
+    <style type="border_size">2</style>
     <font>large</font>
   </widget>
 
   <widget type="text" name="myth_program">
     <color type="bg" alpha="50%">black</color>
     <color type="fg">green</color>
+    <color type="border">purple</color>
+    <style type="border_size">2</style>
     <font>large</font>
   </widget>
 
   <widget type="text" name="myth_description">
     <color type="bg" alpha="50%">orange</color>
     <color type="fg">black</color>
+    <color type="border">purple</color>
+    <style type="border_size">2</style>
     <font>standard</font>
   </widget>
 
   <widget type="text" name="description">
     <color type="bg" alpha="50%">black</color>
     <color type="fg">green</color>
+    <color type="border">purple</color>
+    <style type="border_size">2</style>
   </widget>
 
   <widget type="text" name="display">
     <color type="bg" alpha="50%">black</color>
     <color type="fg">yellow</color>
+    <color type="border">purple</color>
+    <style type="border_size">2</style>
+  </widget>
+
+  <widget type="text" name="busy_text">
+    <color type="bg">red</color>
+    <color type="fg">white</color>
+    <color type="border">purple</color>
+    <style type="border_size">2</style>
+    <font>large</font>
   </widget>
 
   <!--
@@ -59,12 +103,18 @@
     <color type="hilite_bg">yellow</color>
     <color type="hilite_fg">blue</color>
     <style type="hilite">rounded</style>
+    <color type="border">purple</color>
+    <style type="border_size">2</style>
     <font>large</font>
   </widget>
 
   <widget type="menu" name="myth_menu" copy="main_menu">
     <color type="hilite_fg">darkslategray</color>
+    <color type="border">purple</color>
+    <style type="border_size">4</style>
     <style type="hilite">square</style>
+    <color type="border">purple</color>
+    <style type="border_size">2</style>
   </widget>
 
   <widget type="menu" name="myth_browser">
@@ -75,27 +125,36 @@
     <color type="title_bg">green</color>
     <color type="title_fg">black</color>
     <style type="hilite">rounded</style>
+    <color type="border">purple</color>
+    <style type="border_size">2</style>
     <font>standard</font>
   </widget>
 
   <widget type="menu" name="file_browser" copy="myth_browser">
     <color type="bg">white</color>
     <color type="title_bg">orange</color>
+    <color type="border">yellow</color>
+    <style type="border_size">8</style>
   </widget>
 
   <widget type="menu" name="popup">
-    <color type="bg" alpha="50%">orange</color>
+    <color type="bg" alpha="50%">red</color>
     <color type="fg">white</color>
     <color type="title_bg" alpha="50%">green</color>
     <color type="title_fg">black</color>
     <color type="hilite_bg">white</color>
     <color type="hilite_fg">orange</color>
-    <style type="hilite">square</style>
+    <style type="hilite">rounded</style>
+    <color type="checkbox">azure</color>
+    <color type="border">purple</color>
+    <style type="border_size">2</style>
     <font>standard</font>
   </widget>
 
   <widget type="menu" name="myth_delete" copy="popup">
     <color type="hilite_bg">black</color>
+    <color type="border">purple</color>
+    <style type="border_size">2</style>
   </widget>
 
 </mvpmctheme>

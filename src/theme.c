@@ -157,6 +157,9 @@ tag_widget_font(const char *el, const char **attr, char *value)
 	case WIDGET_MENU:
 		font = &theme_attr[cur_attr].attr.menu->font;
 		break;
+	default:
+		theme_err = "invalid widget type";
+		return -1;
 	}
 
 	if (find_font(value, font) < 0)
@@ -189,6 +192,11 @@ tag_widget_color(const char *el, const char **attr, char *value)
 		case WIDGET_MENU:
 			color = &theme_attr[cur_attr].attr.menu->fg;
 			break;
+		case WIDGET_GRAPH:
+			color = &theme_attr[cur_attr].attr.graph->fg;
+			break;
+		default:
+			return -1;
 		}
 	} else if (strcasecmp(attr[1], "bg") == 0) {
 		switch (theme_attr[cur_attr].type) {
@@ -198,6 +206,11 @@ tag_widget_color(const char *el, const char **attr, char *value)
 		case WIDGET_MENU:
 			color = &theme_attr[cur_attr].attr.menu->bg;
 			break;
+		case WIDGET_GRAPH:
+			color = &theme_attr[cur_attr].attr.graph->bg;
+			break;
+		default:
+			return -1;
 		}
 	} else if (strcasecmp(attr[1], "hilite_bg") == 0) {
 		switch (theme_attr[cur_attr].type) {
@@ -208,6 +221,8 @@ tag_widget_color(const char *el, const char **attr, char *value)
 		case WIDGET_MENU:
 			color = &theme_attr[cur_attr].attr.menu->hilite_bg;
 			break;
+		default:
+			return -1;
 		}
 	} else if (strcasecmp(attr[1], "hilite_fg") == 0) {
 		switch (theme_attr[cur_attr].type) {
@@ -218,6 +233,8 @@ tag_widget_color(const char *el, const char **attr, char *value)
 		case WIDGET_MENU:
 			color = &theme_attr[cur_attr].attr.menu->hilite_fg;
 			break;
+		default:
+			return -1;
 		}
 	} else if (strcasecmp(attr[1], "title_bg") == 0) {
 		switch (theme_attr[cur_attr].type) {
@@ -228,6 +245,8 @@ tag_widget_color(const char *el, const char **attr, char *value)
 		case WIDGET_MENU:
 			color = &theme_attr[cur_attr].attr.menu->title_bg;
 			break;
+		default:
+			return -1;
 		}
 	} else if (strcasecmp(attr[1], "title_fg") == 0) {
 		switch (theme_attr[cur_attr].type) {
@@ -238,6 +257,48 @@ tag_widget_color(const char *el, const char **attr, char *value)
 		case WIDGET_MENU:
 			color = &theme_attr[cur_attr].attr.menu->title_fg;
 			break;
+		default:
+			return -1;
+		}
+	} else if (strcasecmp(attr[1], "border") == 0) {
+		switch (theme_attr[cur_attr].type) {
+		case WIDGET_TEXT:
+			color = &theme_attr[cur_attr].attr.text->border;
+			break;
+		case WIDGET_MENU:
+			color = &theme_attr[cur_attr].attr.menu->border;
+			break;
+		case WIDGET_GRAPH:
+			color = &theme_attr[cur_attr].attr.graph->border;
+			break;
+		default:
+			return -1;
+		}
+	} else if (strcasecmp(attr[1], "checkbox") == 0) {
+		switch (theme_attr[cur_attr].type) {
+		case WIDGET_MENU:
+			color = &theme_attr[cur_attr].attr.menu->checkbox_fg;
+			break;
+		default:
+			return -1;
+		}
+	} else if (strcasecmp(attr[1], "left") == 0) {
+		switch (theme_attr[cur_attr].type) {
+		case WIDGET_GRAPH:
+			color = &theme_attr[cur_attr].attr.graph->left;
+			theme_attr[cur_attr].attr.graph->gradient = 1;
+			break;
+		default:
+			return -1;
+		}
+	} else if (strcasecmp(attr[1], "right") == 0) {
+		switch (theme_attr[cur_attr].type) {
+		case WIDGET_GRAPH:
+			color = &theme_attr[cur_attr].attr.graph->right;
+			theme_attr[cur_attr].attr.graph->gradient = 1;
+			break;
+		default:
+			return -1;
 		}
 	} else {
 		theme_err = "unknown attribute";
@@ -294,6 +355,22 @@ tag_widget_style(const char *el, const char **attr, char *value)
 			theme_attr[cur_attr].attr.menu->rounded = 0;
 		} else {
 			return -1;
+		}
+	} else if (strcasecmp(attr[1], "border_size") == 0) {
+		switch (theme_attr[cur_attr].type) {
+		case WIDGET_MENU:
+			theme_attr[cur_attr].attr.menu->border_size = atoi(value);
+			break;
+		case WIDGET_TEXT:
+			theme_attr[cur_attr].attr.text->border_size = atoi(value);
+			break;
+		case WIDGET_GRAPH:
+			theme_attr[cur_attr].attr.graph->border_size = atoi(value);
+			break;
+		default:
+			theme_err = "unknown attribute";
+			return -1;
+			break;
 		}
 	} else {
 		theme_err = "unknown attribute";
@@ -431,6 +508,11 @@ tag_widget(const char *el, const char **attr)
 			memcpy(theme_attr[cur_attr].attr.menu,
 			       theme_attr[i].attr.menu,
 			       sizeof(*(theme_attr[i].attr.menu)));
+			break;
+		case WIDGET_GRAPH:
+			memcpy(theme_attr[cur_attr].attr.graph,
+			       theme_attr[i].attr.graph,
+			       sizeof(*(theme_attr[i].attr.graph)));
 			break;
 		}
 	}

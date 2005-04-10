@@ -13,6 +13,29 @@
   <font name="large">/etc/helvB18.pcf</font>
 
   <!--
+     - Graph widget settings
+    -->
+  <widget type="graph" name="busy_graph">
+    <color type="left">black</color>
+    <color type="right">red</color>
+    <style type="border_size">0</style>
+    <color type="bg">black</color>
+  </widget>
+
+  <widget type="graph" name="splash_graph">
+    <color type="left">black</color>
+    <color type="right">red</color>
+    <color type="border">gray60</color>
+    <style type="border_size">2</style>
+    <color type="bg">black</color>
+  </widget>
+
+  <widget type="graph" name="offset_graph">
+    <color type="bg" alpha="50%">black</color>
+    <color type="fg" alpha="50%">orange</color>
+  </widget>
+
+  <!--
      - Text widget settings
     -->
   <widget type="text" name="splash">
@@ -51,6 +74,12 @@
     <font>standard</font>
   </widget>
 
+  <widget type="text" name="busy_text">
+    <color type="bg">black</color>
+    <color type="fg">white</color>
+    <font>large</font>
+  </widget>
+
   <!--
      - Menu widget settings
     -->
@@ -66,13 +95,14 @@
   <widget type="menu" name="myth_menu" copy="main_menu"></widget>
 
   <widget type="menu" name="myth_browser">
-    <color type="bg">gray60</color>
-    <color type="fg">black</color>
+    <color type="bg">black</color>
+    <color type="fg">white</color>
     <color type="hilite_bg">gray30</color>
     <color type="hilite_fg">white</color>
     <color type="title_bg">green</color>
     <color type="title_fg">black</color>
     <style type="hilite">square</style>
+    <style type="border_size">0</style>
     <font>standard</font>
   </widget>
 
@@ -83,16 +113,30 @@
 
   <widget type="menu" name="popup">
     <color type="bg" alpha="50%">orange</color>
-    <color type="fg">white</color>
+    <color type="fg">black</color>
     <color type="title_bg" alpha="50%">gray60</color>
     <color type="title_fg">white</color>
-    <color type="hilite_bg">white</color>
-    <color type="hilite_fg">orange</color>
+    <color type="hilite_bg" alpha="50%">white</color>
+    <color type="hilite_fg">black</color>
+    <color type="checkbox" alpha="50%">red</color>
+    <color type="border" alpha="50%">white</color>
+    <style type="border_size">2</style>
+    <style type="hilite">square</style>
+    <font>large</font>
+  </widget>
+
+  <widget type="menu" name="myth_delete">
+    <color type="bg">black</color>
+    <color type="fg">white</color>
+    <color type="title_bg">green</color>
+    <color type="title_fg">black</color>
+    <color type="hilite_bg">gray30</color>
+    <color type="hilite_fg">white</color>
     <style type="hilite">square</style>
     <font>standard</font>
   </widget>
 
-  <widget type="menu" name="myth_delete">
+  <widget type="menu" name="settings">
     <color type="bg">black</color>
     <color type="fg">white</color>
     <color type="title_bg">green</color>
