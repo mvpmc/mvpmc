@@ -549,6 +549,12 @@ mvpw_set_menu_attr(mvp_widget_t *widget, mvpw_menu_attr_t *attr)
 	widget->data.menu.checkboxes = attr->checkboxes;
 	widget->data.menu.rounded = attr->rounded;
 
+	if (widget->border_color != attr->border) {
+		GrSetWindowBorderColor(widget->wid, attr->border);
+		widget->border_color = attr->border;
+	}
+	widget->border_size = attr->border_size;
+
 	i = widget->data.menu.current;
 	if (i < widget->data.menu.nitems)
 		hilite_item(widget, i, 1);

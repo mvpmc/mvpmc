@@ -237,6 +237,12 @@ mvpw_set_text_attr(mvp_widget_t *widget, mvpw_text_attr_t *attr)
 	widget->data.text.font = attr->font;
 	widget->data.text.rounded = attr->rounded;
 	widget->data.text.text_bg = attr->bg;
+
+	if (widget->border_color != attr->border) {
+		GrSetWindowBorderColor(widget->wid, attr->border);
+		widget->border_color = attr->border;
+	}
+	widget->border_size = attr->border_size;
 }
 
 void
@@ -246,8 +252,12 @@ mvpw_get_text_attr(mvp_widget_t *widget, mvpw_text_attr_t *attr)
 	attr->justify = widget->data.text.justify;
 	attr->margin = widget->data.text.margin;
 	attr->fg = widget->data.text.fg;
+	attr->border = widget->border_color;
 	attr->font = widget->data.text.font;
 	attr->rounded = widget->data.text.rounded;
+
+	attr->border = widget->border_color;
+	attr->border_size = widget->border_size;
 }
 
 void
