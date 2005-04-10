@@ -72,6 +72,7 @@ static volatile int seek_bps;
 static volatile int seek_attempts;
 static volatile int gop_seek_attempts;
 static volatile int pts_seek_attempts;
+static volatile struct timeval seek_timeval;
 static volatile off_t seek_start_pos;
 static volatile int seek_start_seconds;
 static volatile int audio_type = 0;
@@ -219,6 +220,8 @@ video_play(mvp_widget_t *widget)
 	else
 		mvpw_set_timer(root, video_subtitle_display, 250);
 
+	mvpw_set_bg(root, 0);
+
 	video_reopen = 1;
 	video_playing = 1;
 	pthread_cond_broadcast(&video_cond);
@@ -246,6 +249,8 @@ video_clear(void)
 	av_reset();
 	av_reset_stc();
 	pthread_cond_broadcast(&video_cond);
+
+	mvpw_set_bg(root, MVPW_BLACK);
 }
 
 void
@@ -419,15 +424,16 @@ seek_by(int seconds)
 	seek_seconds = seek_start_seconds + seconds;
 	delta = seek_bps * seconds;
 
-	printf("%d bps, currently %lld + %d\n",
+	PRINTF("%d bps, currently %lld + %d\n",
 	       seek_bps, seek_start_pos, delta);
 
+	gettimeofday(&seek_timeval, NULL);
+	seek_attempts = 16;
 	seeking = 1;
-	seek_attempts = 8;
 	
 	offset = video_functions->seek(delta, SEEK_CUR);
 
-	printf("-> %lld\n", offset);
+	PRINTF("-> %lld\n", offset);
 
 	pthread_cond_broadcast(&video_cond);
 }
@@ -623,7 +629,7 @@ video_callback(mvp_widget_t *widget, char key)
 			mythtv_channel_down();
 		break;
 	default:
-		printf("button %d\n", key);
+		PRINTF("button %d\n", key);
 		break;
 	}
 }
@@ -798,24 +804,36 @@ do_seek(void)
 	demux_attr_t *attr;
 	int seconds, new_seek_bps;
 	long long offset;
+	struct timeval now, delta;
+	static int count = 0;
+
+	count++;
 
 	attr = demux_get_attr(handle);
+	gettimeofday(&now, NULL);
+	timersub(&now, &seek_timeval, &delta);
 
-	if ((seek_attempts <= 0) && seeking) {
+	/*
+	 * Give up after 2 seconds
+	 */
+	if ((delta.tv_sec >= 2) && seeking) {
 		seeking = 0;
-		printf("SEEK ABORTED\n");
+		printf("SEEK ABORTED (%d.%.2d) %d\n",
+		       delta.tv_sec, delta.tv_usec/10000, count);
+		count = 0;
 
 		return 0;
 	}
 
 	if (!attr->gop_valid) {
 		if ( --seek_attempts > 0 ) {
-			printf("GOP retry\n");
+			PRINTF("GOP retry\n");
 			return -1;
 		}
 		printf("SEEK RETRY due to lack of GOP\n");
 		demux_flush(handle);
 		demux_seek(handle);
+		seek_attempts = 16;
 		return -1;
 	}
 
@@ -840,23 +858,27 @@ do_seek(void)
 			seek_bps = new_seek_bps;
 	}
 
-	printf("New BPS %d\n", seek_bps);
+	PRINTF("New BPS %d\n", seek_bps);
 	
 	if ( abs(seconds - seek_seconds) <= SEEK_FUDGE ) {
 		seeking = 0;
-		printf("SEEK DONE: to %d at %d\n", seek_seconds, seconds);
+		printf("SEEK DONE: to %d at %d (%d.%.2d) %d\n",
+		       seek_seconds, seconds,
+		       delta.tv_sec, delta.tv_usec/10000, count);
 	} else {
 		offset = video_functions->seek(0, SEEK_CUR);
-		printf("RESEEK: From %lld + %d\n", offset,
+		PRINTF("RESEEK: From %lld + %d\n", offset,
 		       seek_bps * (seek_seconds-seconds));
 		offset = video_functions->seek(seek_bps * (seek_seconds-seconds), SEEK_CUR);
 		demux_flush(handle);
 		demux_seek(handle);
 		seek_attempts--;
-		printf("SEEKING 1: %d/%d %lld\n",
+		PRINTF("SEEKING 1: %d/%d %lld\n",
 		       seconds, seek_seconds, offset);
 		return -1;
 	}
+
+	count = 0;
 
 	return 0;
 }
