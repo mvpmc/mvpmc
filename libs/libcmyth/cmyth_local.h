@@ -62,6 +62,7 @@ __cmyth_atomic_increment(cmyth_atomic_t *ref)
 #elif defined __powerpc__
 	asm volatile ("1:	lwarx   %0,0,%1\n"
 		"	addic.   %0,%0,1\n"
+		"	dcbt    %0,%1\n"
 		"	stwcx.  %0,0,%1\n"
 		"	bne-    1b\n"
 		"	isync\n"
@@ -99,6 +100,7 @@ __cmyth_atomic_decrement(cmyth_atomic_t *ref)
 #elif defined __powerpc__
 	asm volatile ("1:	lwarx   %0,0,%1\n"
 		"	addic.   %0,%0,-1\n"
+		"	dcbt    %0,%1\n"
 		"	stwcx.  %0,0,%1\n"
 		"	bne-    1b\n"
 		"	isync\n"
@@ -128,8 +130,13 @@ __cmyth_atomic_decrement(cmyth_atomic_t *ref)
 	return __val;
 }
 #define cmyth_atomic_inc __cmyth_atomic_inc
-static inline void cmyth_atomic_inc(cmyth_atomic_t *a) {
-	__cmyth_atomic_increment(a);
+static inline int cmyth_atomic_inc(cmyth_atomic_t *a) {
+	return __cmyth_atomic_increment(a);
+};
+
+#define cmyth_atomic_dec __cmyth_atomic_dec
+static inline int cmyth_atomic_dec(cmyth_atomic_t *a) {
+	return __cmyth_atomic_decrement(a);
 };
 
 #define cmyth_atomic_dec_and_test __cmyth_atomic_dec_and_test

@@ -129,9 +129,10 @@ cmyth_conn_t
 cmyth_conn_hold(cmyth_conn_t p)
 {
 	if (p) {
-		cmyth_atomic_inc(&p->refcount);
+		if (cmyth_atomic_inc(&p->refcount) > 1)
+			return p;
 	}
-	return p;
+	return NULL;
 }
 
 /*

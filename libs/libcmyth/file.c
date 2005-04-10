@@ -112,9 +112,10 @@ cmyth_file_t
 cmyth_file_hold(cmyth_file_t p)
 {
 	if (p) {
-		cmyth_atomic_inc(&p->refcount);
+		if (cmyth_atomic_inc(&p->refcount) > 1)
+			return p;
 	}
-	return p;
+	return NULL;
 }
 
 /*
@@ -145,7 +146,7 @@ cmyth_file_release(cmyth_conn_t control, cmyth_file_t file)
 	long c;
 	char msg[256];
 
-	if (!file) {
+	if (!control || !file) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: no connection\n",
 			  __FUNCTION__);
 		return -EINVAL;
@@ -293,7 +294,7 @@ cmyth_file_get_block(cmyth_file_t file, char *buf, unsigned long len)
 	struct timeval tv;
 	fd_set fds;
 
-	if (file == NULL)
+	if (file == NULL || file->file_data == NULL)
 		return -EINVAL;
 
 	tv.tv_sec = 10;
@@ -315,7 +316,7 @@ cmyth_file_select(cmyth_file_t file, struct timeval *timeout)
 	fd_set fds;
 	int fd, ret;
 
-	if (file == NULL)
+	if (file == NULL || file->file_data == NULL)
 		return -EINVAL;
 
 	fd = file->file_data->conn_fd;
