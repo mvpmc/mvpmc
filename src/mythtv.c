@@ -1076,9 +1076,9 @@ mythtv_init(char *server_name, int portnum)
 
 	if (!thread) {
 		thread = 1;
-		pthread_create(&control_thread, &thread_attr,
+		pthread_create(&control_thread, &thread_attr_small,
 			       control_start, NULL);
-		pthread_create(&wd_thread, &thread_attr, wd_start, NULL);
+		pthread_create(&wd_thread, &thread_attr_small, wd_start, NULL);
 	}
 
 	return 0;
@@ -1254,7 +1254,7 @@ mythtv_open(void)
 	}
 	printf("connecting to mythtv (slave) backend %s\n", host);
 	if ((control_slave=cmyth_conn_connect_ctrl(host, port,
-						   16*1024)) == NULL) {
+						   1024)) == NULL) {
 		fprintf(stderr, "cannot connect to mythtv server %s\n",
 			host);
 		return -1;

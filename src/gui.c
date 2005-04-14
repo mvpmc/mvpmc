@@ -241,17 +241,23 @@ static mvpw_text_attr_t splash_attr = {
 static mvpw_dialog_attr_t warn_attr = {
 	.font = FONT_STANDARD,
 	.fg = MVPW_WHITE,
+	.bg = MVPW_DARKGREY,
 	.title_fg = MVPW_BLACK,
 	.title_bg = MVPW_WHITE,
 	.modal = 1,
+	.border = MVPW_RED,
+	.border_size = 4,
 };
 
 static mvpw_dialog_attr_t about_attr = {
 	.font = FONT_STANDARD,
 	.fg = MVPW_WHITE,
-	.title_fg = MVPW_BLACK,
-	.title_bg = MVPW_WHITE,
+	.bg = MVPW_DARKGREY,
+	.title_fg = MVPW_WHITE,
+	.title_bg = MVPW_DARKGREY,
 	.modal = 1,
+	.border = MVPW_BLUE,
+	.border_size = 2,
 };
 
 static mvpw_graph_attr_t offset_graph_attr = {
@@ -287,17 +293,27 @@ static mvpw_graph_attr_t splash_graph_attr = {
 	.right = MVPW_RED,
 };
 
-static mvpw_graph_attr_t demux_graph_attr = {
+static mvpw_graph_attr_t demux_audio_graph_attr = {
 	.min = 0,
 	.max = 1024*1024*2,
 	.fg = mvpw_color_alpha(MVPW_BLUE, 0x80),
+	.bg = mvpw_color_alpha(MVPW_BLACK, 0x80),
 };
 
+static mvpw_graph_attr_t demux_video_graph_attr = {
+	.min = 0,
+	.max = 1024*1024*2,
+	.fg = mvpw_color_alpha(MVPW_BLUE, 0x80),
+	.bg = mvpw_color_alpha(MVPW_BLACK, 0x80),
+};
 /*
  * Only the attribute structures in the following list will be changeable
  * via a theme XML file.
  */
 theme_attr_t theme_attr[] = {
+	{ .name = "about",
+	  .type = WIDGET_DIALOG,
+	  .attr.dialog = &about_attr },
 	{ .name = "busy_graph",
 	  .type = WIDGET_GRAPH,
 	  .attr.graph = &busy_graph_attr },
@@ -349,12 +365,17 @@ theme_attr_t theme_attr[] = {
 	{ .name = "splash_graph",
 	  .type = WIDGET_GRAPH,
 	  .attr.graph = &splash_graph_attr },
+	{ .name = "warning",
+	  .type = WIDGET_DIALOG,
+	  .attr.dialog = &warn_attr },
 	/* must be NULL-terminated */
 	{ .name = NULL }
 };
 
 static int init_done = 0;
 
+uint32_t root_color = 0;
+int root_bright = 0;
 mvp_widget_t *root;
 mvp_widget_t *iw;
 
@@ -406,6 +427,7 @@ mvp_widget_t *audio_stream_menu;
 mvp_widget_t *video_stream_menu;
 mvp_widget_t *subtitle_stream_menu;
 mvp_widget_t *osd_menu;
+mvp_widget_t *bright_menu;
 
 mvp_widget_t *mythtv_program_widget;
 mvp_widget_t *mythtv_osd_program;
@@ -418,7 +440,6 @@ mvp_widget_t *demux_video;
 mvp_widget_t *demux_audio;
 
 mvp_widget_t *screensaver;
-mvp_widget_t *screensaver_image;
 
 mvp_widget_t *playlist_widget;
 
@@ -466,6 +487,7 @@ enum {
 	MENU_VIDEO_STREAM,
 	MENU_SUBTITLES,
 	MENU_OSD,
+	MENU_BRIGHT,
 };
 
 osd_widget_t osd_widgets[MAX_OSD_WIDGETS];
@@ -910,6 +932,7 @@ popup_key_callback(mvp_widget_t *widget, char key)
 		mvpw_hide(video_stream_menu);
 		mvpw_hide(subtitle_stream_menu);
 		mvpw_hide(osd_menu);
+		mvpw_hide(bright_menu);
 		mvpw_focus(root);
 	}
 
@@ -922,6 +945,7 @@ popup_key_callback(mvp_widget_t *widget, char key)
 			mvpw_hide(video_stream_menu);
 			mvpw_hide(subtitle_stream_menu);
 			mvpw_hide(osd_menu);
+			mvpw_hide(bright_menu);
 			mvpw_show(popup_menu);
 			mvpw_focus(popup_menu);
 		}
@@ -1064,6 +1088,29 @@ osd_select_callback(mvp_widget_t *widget, char *item, void *key)
 }
 
 static void
+bright_select_callback(mvp_widget_t *widget, char *item, void *key)
+{
+	int level = (int)key;
+
+	if (root_bright == level)
+		return;
+
+	mvpw_check_menu_item(bright_menu, (void*)root_bright, 0);
+	root_bright = level;
+	mvpw_check_menu_item(bright_menu, (void*)root_bright, 1);
+
+	if (level > 0) {
+		root_color = mvpw_color_alpha(MVPW_WHITE, level*16);
+	} else if (level < 0) {
+		root_color = mvpw_color_alpha(MVPW_BLACK, level*-16);
+	} else {
+		root_color = 0;
+	}
+
+	mvpw_set_bg(root, root_color);
+}
+
+static void
 popup_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
 	mvpw_hide(popup_menu);
@@ -1091,7 +1138,9 @@ popup_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mvpw_show(osd_menu);
 		mvpw_focus(osd_menu);
 		break;
-	case 4:
+	case MENU_BRIGHT:
+		mvpw_show(bright_menu);
+		mvpw_focus(bright_menu);
 		break;
 	}
 }
@@ -1751,11 +1800,10 @@ about_init(void)
 		"Audio: mp3, ogg, wav, ac3\n"
 		"Video: mpeg1, mpeg2\n"
 		"Images: bmp, gif, png, jpeg\n"
-		"Servers: MythTV, ReplayTV, NFS\n";
+		"Servers: MythTV, ReplayTV, NFS, CIFS\n";
 
 	splash_update("Creating about dialog");
 
-	about_attr.font = fontid;
 	h = (mvpw_font_height(about_attr.font) +
 	     (2 * 2)) * 9;
 	w = 500;
@@ -1772,8 +1820,9 @@ about_init(void)
 			 version, buf);
 	}
 
-	about = mvpw_create_dialog(NULL, x, y, w, h, MVPW_LIGHTGREY,
-				   MVPW_BLUE, 2);
+	about = mvpw_create_dialog(NULL, x, y, w, h,
+				   about_attr.bg,
+				   about_attr.border, about_attr.border_size);
 
 	mvpw_set_dialog_attr(about, &about_attr);
 
@@ -1954,12 +2003,12 @@ osd_init(void)
 	mvpw_attach(progress, contain, MVPW_DIR_RIGHT);
 	widget = mvpw_create_graph(contain, 0, 0, 300, h,
 				   0x80000000, 0, 0);
-	mvpw_set_graph_attr(widget, &demux_graph_attr);
+	mvpw_set_graph_attr(widget, &demux_video_graph_attr);
 	mvpw_show(widget);
 	demux_video = widget;
 	widget = mvpw_create_graph(contain, 0, 0, 300, h,
 				   0x80000000, 0, 0);
-	mvpw_set_graph_attr(widget, &demux_graph_attr);
+	mvpw_set_graph_attr(widget, &demux_audio_graph_attr);
 	mvpw_show(widget);
 	demux_audio = widget;
 	mvpw_attach(demux_video, demux_audio, MVPW_DIR_DOWN);
@@ -2038,9 +2087,8 @@ int
 popup_init(void)
 {
 	int x, y, w, h;
-	unsigned int bg;
 
-	h = 7 * (mvpw_font_height(popup_attr.font) + 8);
+	h = 8 * (mvpw_font_height(popup_attr.font) + 8);
 	w = mvpw_font_width(popup_attr.font, "On Screen Display") * 1.5;
 	x = (si.cols - w) / 2;
 	y = (si.rows - h) / 2;
@@ -2066,6 +2114,8 @@ popup_init(void)
 			   (void*)MENU_SUBTITLES, &popup_item_attr);
 	mvpw_add_menu_item(popup_menu, "On Screen Display",
 			   (void*)MENU_OSD, &popup_item_attr);
+	mvpw_add_menu_item(popup_menu, "Brightness",
+			   (void*)MENU_BRIGHT, &popup_item_attr);
 
 	mvpw_set_key(popup_menu, popup_key_callback);
 
@@ -2140,6 +2190,28 @@ popup_init(void)
 	mvpw_check_menu_item(osd_menu, (void*)OSD_PROGRAM, 1);
 	mvpw_check_menu_item(osd_menu, (void*)OSD_TIMECODE, 1);
 
+	/*
+	 * Brightness menu
+	 */
+	bright_menu = mvpw_create_menu(NULL, x, y, w, h,
+				       popup_attr.bg,
+				       popup_attr.border,
+				       popup_attr.border_size);
+	mvpw_set_menu_attr(bright_menu, &popup_attr);
+	mvpw_set_menu_title(bright_menu, "Brightness");
+	mvpw_set_key(bright_menu, popup_key_callback);
+
+	popup_item_attr.select = bright_select_callback;
+	mvpw_add_menu_item(bright_menu, "-3", (void*)-3, &popup_item_attr);
+	mvpw_add_menu_item(bright_menu, "-2", (void*)-2, &popup_item_attr);
+	mvpw_add_menu_item(bright_menu, "-1", (void*)-1, &popup_item_attr);
+	mvpw_add_menu_item(bright_menu, "0", (void*)0, &popup_item_attr);
+	mvpw_add_menu_item(bright_menu, "+1", (void*)1, &popup_item_attr);
+	mvpw_add_menu_item(bright_menu, "+2", (void*)2, &popup_item_attr);
+	mvpw_add_menu_item(bright_menu, "+3", (void*)3, &popup_item_attr);
+
+	mvpw_check_menu_item(bright_menu, (void*)0, 1);
+
 	return 0;
 }
 
@@ -2151,24 +2223,35 @@ screensaver_timer(mvp_widget_t *widget)
 
 	mvpw_set_timer(screensaver, screensaver_timer, 1000);
 
-	mvpw_get_widget_info(screensaver_image, &info);
+	mvpw_get_widget_info(mvpmc_logo, &info);
 
 	x = rand() % (si.cols - info.w);
 	y = rand() % (si.rows - info.h);
 
-	mvpw_moveto(screensaver_image, x, y);
+	mvpw_moveto(mvpmc_logo, x, y);
 }
 
 static void
 screensaver_event(mvp_widget_t *widget, int activate)
 {
+	static int visible = 0;
+
 	if (activate) {
+		visible = mvpw_visible(mvpmc_logo);
+		mvpw_unattach(mvpmc_logo, MVPW_DIR_DOWN);
+		mvpw_reparent(mvpmc_logo, screensaver);
+		mvpw_show(mvpmc_logo);
 		mvpw_show(screensaver);
 		mvpw_focus(screensaver);
 		screensaver_timer(widget);
 	} else {
 		mvpw_set_timer(screensaver, NULL, 0);
 		mvpw_hide(screensaver);
+		mvpw_hide(mvpmc_logo);
+		mvpw_reparent(mvpmc_logo, NULL);
+		mvpw_attach(main_menu, mvpmc_logo, MVPW_DIR_UP);
+		if (visible)
+			mvpw_show(mvpmc_logo);
 	}
 }
 
@@ -2196,24 +2279,11 @@ screensaver_disable(void)
 static int
 screensaver_init(void)
 {
-	mvpw_image_info_t iid;
-	char file[128];
-
 	splash_update("Creating screensaver");
 
 	screensaver = mvpw_create_container(NULL, 0, 0,
 					    si.cols, si.rows,
 					    MVPW_BLACK, 0, 0);
-
-	snprintf(file, sizeof(file), "%s/mvpmc_logo.png", imagedir);
-	if (mvpw_get_image_info(file, &iid) < 0)
-		return -1;
-	screensaver_image = mvpw_create_image(screensaver, 50, 25,
-					      iid.width, iid.height,
-					      MVPW_BLACK, 0, 0);
-	mvpw_set_image(screensaver_image, file);
-
-	mvpw_show(screensaver_image);
 
 	screensaver_enable();
 
@@ -2253,7 +2323,6 @@ warn_init(void)
 
 	snprintf(file, sizeof(file), "%s/warning.png", imagedir);
 
-	warn_attr.font = fontid;
 	h = (mvpw_font_height(warn_attr.font) +
 	     (2 * 2)) * 6;
 	w = 400;
@@ -2262,7 +2331,9 @@ warn_init(void)
 	y = (si.rows - h) / 2;
 
 	warn_widget = mvpw_create_dialog(NULL, x, y, w, h,
-					 MVPW_DARKGREY, MVPW_RED, 4);
+					 warn_attr.bg,
+					 warn_attr.border,
+					 warn_attr.border_size);
 
 	warn_attr.image = file;
 
@@ -2341,9 +2412,9 @@ busy_init(void)
 					    busy_text_attr.border_size);
 
 	text = mvpw_create_text(busy_widget, 0, 0, w, h/2,
-				MVPW_BLACK, 0, 0);
+				busy_text_attr.bg, 0, 0);
 	graph = mvpw_create_graph(busy_widget, 0, 0, w, h/2,
-				 MVPW_BLACK, 0, 0);
+				  busy_graph_attr.bg, 0, 0);
 
 	mvpw_set_graph_attr(graph, &busy_graph_attr);
 	mvpw_set_text_attr(text, &busy_text_attr);
@@ -2356,18 +2427,26 @@ busy_init(void)
 
 	busy_graph = graph;
 
-	pthread_create(&busy_thread, &thread_attr, busy_loop, NULL);
+	pthread_create(&busy_thread, &thread_attr_small, busy_loop, NULL);
 }
 
 int
 gui_init(char *server, char *replaytv)
 {
 	char buf[128];
+	demux_attr_t *attr;
 
 	snprintf(buf, sizeof(buf), "Initializing GUI");
 	mvpw_set_text_str(splash, buf);
 	mvpw_expose(splash);
 	mvpw_event_flush();
+
+	attr = demux_get_attr(handle);
+	demux_video_graph_attr.max = attr->video.bufsz;
+	demux_audio_graph_attr.max = attr->audio.bufsz;
+
+	printf("Demux size video: %d  audio: %d\n",
+	       attr->video.bufsz, attr->audio.bufsz);
 
 	if (main_menu_init(server, replaytv) < 0)
 		return -1;

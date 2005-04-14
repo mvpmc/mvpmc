@@ -157,4 +157,27 @@
     <style type="border_size">2</style>
   </widget>
 
+  <!--
+     - Dialog widget settings
+    -->
+  <widget type="dialog" name="warning">
+    <color type="bg">orange</color>
+    <color type="fg">blue</color>
+    <color type="title_bg">red</color>
+    <color type="title_fg">black</color>
+    <color type="border">pink</color>
+    <style type="border_size">8</style>
+    <font>large</font>
+  </widget>
+
+  <widget type="dialog" name="about">
+    <color type="bg">yellow</color>
+    <color type="fg">black</color>
+    <color type="title_bg">beige</color>
+    <color type="title_fg">black</color>
+    <color type="border">green</color>
+    <style type="border_size">2</style>
+    <font>large</font>
+  </widget>
+
 </mvpmctheme>

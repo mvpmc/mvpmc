@@ -21,6 +21,8 @@
 
 #include <stdio.h>
 #include <unistd.h>
+#include <strings.h>
+#include <string.h>
 
 #include <mvp_widget.h>
 #include <mvp_demux.h>
@@ -157,6 +159,9 @@ tag_widget_font(const char *el, const char **attr, char *value)
 	case WIDGET_MENU:
 		font = &theme_attr[cur_attr].attr.menu->font;
 		break;
+	case WIDGET_DIALOG:
+		font = &theme_attr[cur_attr].attr.dialog->font;
+		break;
 	default:
 		theme_err = "invalid widget type";
 		return -1;
@@ -195,6 +200,9 @@ tag_widget_color(const char *el, const char **attr, char *value)
 		case WIDGET_GRAPH:
 			color = &theme_attr[cur_attr].attr.graph->fg;
 			break;
+		case WIDGET_DIALOG:
+			color = &theme_attr[cur_attr].attr.dialog->fg;
+			break;
 		default:
 			return -1;
 		}
@@ -208,6 +216,9 @@ tag_widget_color(const char *el, const char **attr, char *value)
 			break;
 		case WIDGET_GRAPH:
 			color = &theme_attr[cur_attr].attr.graph->bg;
+			break;
+		case WIDGET_DIALOG:
+			color = &theme_attr[cur_attr].attr.dialog->bg;
 			break;
 		default:
 			return -1;
@@ -245,6 +256,9 @@ tag_widget_color(const char *el, const char **attr, char *value)
 		case WIDGET_MENU:
 			color = &theme_attr[cur_attr].attr.menu->title_bg;
 			break;
+		case WIDGET_DIALOG:
+			color = &theme_attr[cur_attr].attr.dialog->title_bg;
+			break;
 		default:
 			return -1;
 		}
@@ -256,6 +270,9 @@ tag_widget_color(const char *el, const char **attr, char *value)
 			break;
 		case WIDGET_MENU:
 			color = &theme_attr[cur_attr].attr.menu->title_fg;
+			break;
+		case WIDGET_DIALOG:
+			color = &theme_attr[cur_attr].attr.dialog->title_fg;
 			break;
 		default:
 			return -1;
@@ -270,6 +287,9 @@ tag_widget_color(const char *el, const char **attr, char *value)
 			break;
 		case WIDGET_GRAPH:
 			color = &theme_attr[cur_attr].attr.graph->border;
+			break;
+		case WIDGET_DIALOG:
+			color = &theme_attr[cur_attr].attr.dialog->border;
 			break;
 		default:
 			return -1;
@@ -333,7 +353,6 @@ static int
 tag_widget_style(const char *el, const char **attr, char *value)
 {
 	char *tok;
-	unsigned int *color;
 
 	if ((attr[0] == NULL) || (attr[1] == NULL))
 		return -1;
@@ -366,6 +385,9 @@ tag_widget_style(const char *el, const char **attr, char *value)
 			break;
 		case WIDGET_GRAPH:
 			theme_attr[cur_attr].attr.graph->border_size = atoi(value);
+			break;
+		case WIDGET_DIALOG:
+			theme_attr[cur_attr].attr.dialog->border_size = atoi(value);
 			break;
 		default:
 			theme_err = "unknown attribute";
@@ -514,6 +536,11 @@ tag_widget(const char *el, const char **attr)
 			       theme_attr[i].attr.graph,
 			       sizeof(*(theme_attr[i].attr.graph)));
 			break;
+		case WIDGET_DIALOG:
+			memcpy(theme_attr[cur_attr].attr.dialog,
+			       theme_attr[i].attr.dialog,
+			       sizeof(*(theme_attr[i].attr.dialog)));
+			break;
 		}
 	}
 
@@ -579,7 +606,6 @@ static void XMLCALL
 start(void *data, const char *el, const char **attr)
 {
 	int i;
-	theme_data_t *udata;
 
 	PRINTF("<%s", el);
 	for (i=0; attr[i]; i+=2)
@@ -654,7 +680,7 @@ theme_parse(char *file)
 {
 	FILE *f;
 	int len, done = 0;
-	char buf[4096];
+	char buf[8000];
 
 	if ((f=fopen(file, "r")) == NULL) {
 		perror(file);

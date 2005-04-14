@@ -220,7 +220,7 @@ video_play(mvp_widget_t *widget)
 	else
 		mvpw_set_timer(root, video_subtitle_display, 250);
 
-	mvpw_set_bg(root, 0);
+	mvpw_set_bg(root, root_color);
 
 	video_reopen = 1;
 	video_playing = 1;
@@ -818,7 +818,7 @@ do_seek(void)
 	 */
 	if ((delta.tv_sec >= 2) && seeking) {
 		seeking = 0;
-		printf("SEEK ABORTED (%d.%.2d) %d\n",
+		printf("SEEK ABORTED (%lu.%.2lu) %d\n",
 		       delta.tv_sec, delta.tv_usec/10000, count);
 		count = 0;
 
@@ -862,7 +862,7 @@ do_seek(void)
 	
 	if ( abs(seconds - seek_seconds) <= SEEK_FUDGE ) {
 		seeking = 0;
-		printf("SEEK DONE: to %d at %d (%d.%.2d) %d\n",
+		printf("SEEK DONE: to %d at %d (%lu.%.2lu) %d\n",
 		       seek_seconds, seconds,
 		       delta.tv_sec, delta.tv_usec/10000, count);
 	} else {

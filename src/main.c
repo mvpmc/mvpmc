@@ -45,7 +45,7 @@
 char *mythtv_server = NULL;
 char *replaytv_server = NULL;
 
-int fontid, big_font;
+int fontid;
 extern demux_handle_t *handle;
 
 char *mythtv_recdir = NULL;
@@ -61,7 +61,7 @@ extern a52_state_t *a52_state;
 static pthread_t video_read_thread;
 pthread_t video_write_thread;
 pthread_t audio_write_thread;
-pthread_attr_t thread_attr;
+pthread_attr_t thread_attr, thread_attr_small;
 
 static pid_t child;
 
@@ -374,14 +374,6 @@ main(int argc, char **argv)
 
 	if (font)
 		fontid = mvpw_load_font(font);
-#ifdef MVPMC_HOST
-	big_font = fontid;
-#else
-	if ((big_font=mvpw_load_font("/etc/helvB18.pcf")) <= 0)
-		big_font = fontid;
-#endif
-
-	printf("fonts: %d %d\n", fontid, big_font);
 
 	if ((demux_mode=av_init()) == AV_DEMUX_ERROR) {
 		fprintf(stderr, "failed to initialize av hardware!\n");
@@ -424,7 +416,7 @@ main(int argc, char **argv)
 	if (output != -1)
 		av_set_output(output);
 
-	if ((handle=demux_init(1024*1024*4)) == NULL) {
+	if ((handle=demux_init(1024*1024*2.5)) == NULL) {
 		fprintf(stderr, "failed to initialize demuxer\n");
 		exit(1);
 	}
@@ -433,7 +425,9 @@ main(int argc, char **argv)
 	video_init();
 
 	pthread_attr_init(&thread_attr);
-	pthread_attr_setstacksize(&thread_attr, 1024*128);
+	pthread_attr_setstacksize(&thread_attr, 1024*64);
+	pthread_attr_init(&thread_attr_small);
+	pthread_attr_setstacksize(&thread_attr_small, 1024*8);
 
 	/*
 	 * If the demuxer is not being used, all mpeg data will go
@@ -453,9 +447,10 @@ main(int argc, char **argv)
 			exit(1);
 		}
 	}
-	pthread_create(&video_read_thread, &thread_attr,
+
+	pthread_create(&video_read_thread, &thread_attr_small,
 		       video_read_start, NULL);
-	pthread_create(&video_write_thread, &thread_attr,
+	pthread_create(&video_write_thread, &thread_attr_small,
 		       video_write_start, NULL);
 
 	if (gui_init(mythtv_server, replaytv_server) < 0) {
@@ -485,14 +480,14 @@ main(int argc, char **argv)
 	 */
 	{
 #define HOLE_SIZE (1024*1024*1)
-#define PAGE_SIZE 4096
+		int page_size = getpagesize();
 		int i, n = 0;
-		char *ptr[HOLE_SIZE/PAGE_SIZE];
+		char *ptr[HOLE_SIZE/page_size];
 		char *last = NULL, *guard;
-		char stack[1024*512];
+		char stack[1024*32];
 
-		for (i=0; i<HOLE_SIZE/PAGE_SIZE; i++) {
-			if ((ptr[i]=malloc(PAGE_SIZE)) != NULL) {
+		for (i=0; i<HOLE_SIZE/page_size; i++) {
+			if ((ptr[i]=malloc(page_size)) != NULL) {
 				*(ptr[i]) = 0;
 				n++;
 				last = ptr[i];
@@ -513,14 +508,14 @@ main(int argc, char **argv)
 
 		memset(stack, 0, sizeof(stack));
 
-		for (i=0; i<HOLE_SIZE/PAGE_SIZE; i++) {
+		for (i=0; i<HOLE_SIZE/page_size; i++) {
 			if (ptr[i] != NULL)
 				free(ptr[i]);
 		}
 
 		if (guard)
 			printf("Created hole in heap of size %d bytes\n",
-			       n*PAGE_SIZE);
+			       n*page_size);
 		else
 			printf("Failed to create hole in heap\n");
 	}

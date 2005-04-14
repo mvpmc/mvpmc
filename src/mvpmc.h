@@ -125,6 +125,8 @@ extern mvp_widget_t *fb_name;
 extern mvp_widget_t *fb_time;
 extern mvp_widget_t *fb_size;
 
+extern uint32_t root_color;
+
 extern char *current;
 extern char *mythtv_recdir;
 extern char *mythtv_ringbuf;
@@ -133,7 +135,7 @@ extern playlist_t *playlist;
 
 extern char *imagedir;
 
-extern int fontid, big_font;
+extern int fontid;
 extern mvpw_screen_info_t si;
 
 extern int running_mythtv;
@@ -195,7 +197,7 @@ extern void gui_error(char*);
 
 extern pthread_t video_write_thread;
 extern pthread_t audio_write_thread;
-extern pthread_attr_t thread_attr;
+extern pthread_attr_t thread_attr, thread_attr_small;
 
 extern pthread_cond_t video_cond;
 
@@ -247,6 +249,8 @@ extern char compile_time[], version[];
 
 extern av_demux_mode_t demux_mode;
 
+extern demux_handle_t *handle;
+
 extern int (*DEMUX_PUT)(demux_handle_t*, char*, int);
 extern int (*DEMUX_WRITE_VIDEO)(demux_handle_t*, int);
 
@@ -281,6 +285,7 @@ extern void busy_end(void);
 extern void fb_start_thumbnail(void);
 
 typedef enum {
+	WIDGET_DIALOG,
 	WIDGET_GRAPH,
 	WIDGET_MENU,
 	WIDGET_TEXT,
@@ -290,6 +295,7 @@ typedef struct {
 	char *name;
 	widget_t type;
 	union {
+		mvpw_dialog_attr_t *dialog;
 		mvpw_graph_attr_t *graph;
 		mvpw_menu_attr_t *menu;
 		mvpw_text_attr_t *text;
@@ -297,5 +303,7 @@ typedef struct {
 } theme_attr_t;
 
 extern theme_attr_t theme_attr[];
+
+extern int theme_parse(char *file);
 
 #endif /* MVPMC_H */
