@@ -268,9 +268,6 @@ mvpw_hide(mvp_widget_t *widget)
 	mvp_widget_t *top;
 
 	if (widget) {
-		if (!mvpw_visible(widget))
-			return;
-
 		if ((widget->type == MVPW_DIALOG) &&
 		    (widget->data.dialog.modal == 1)) {
 			modal_mode = 0;
@@ -806,4 +803,13 @@ mvpw_set_screensaver(mvp_widget_t *widget, int seconds,
 	screensaver_callback = callback;
 
 	return 0;
+}
+
+void
+mvpw_reparent(mvp_widget_t *child, mvp_widget_t *parent)
+{
+	if (parent == NULL)
+		parent = root;
+
+	GrReparentWindow(child->wid, parent->wid, 0, 0);
 }

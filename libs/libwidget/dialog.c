@@ -89,7 +89,7 @@ mvpw_set_dialog_attr(mvp_widget_t *widget, mvpw_dialog_attr_t *attr)
 	GrGetFontInfo(attr->font, &finfo);
 	h = finfo.height + (2 * 2);
 	w = widget->width;
-	title = mvpw_create_text(widget, 0, 0, w, h, widget->bg,
+	title = mvpw_create_text(widget, 0, 0, w, h, attr->title_bg,
 				 widget->border_color, widget->border_size);
 	if (title == NULL)
 		goto err;

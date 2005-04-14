@@ -78,6 +78,7 @@ extern int mvpw_visible(const mvp_widget_t *widget);
 extern int mvpw_keystroke_callback(void (*callback)(void));
 extern int mvpw_set_screensaver(mvp_widget_t *widget, int seconds,
 				void (*callback)(mvp_widget_t*, int));
+extern void mvpw_reparent(mvp_widget_t *child, mvp_widget_t *parent);
 
 /*
  * container widget
@@ -225,8 +226,11 @@ extern int mvpw_set_bitmap(mvp_widget_t *widget, mvpw_bitmap_attr_t *bitmap);
  */
 typedef struct {
 	uint32_t 	fg;
+	uint32_t 	bg;
 	uint32_t 	title_fg;
 	uint32_t 	title_bg;
+	uint32_t 	border;
+	int 		border_size;
 	char 		*image;
 	int 		modal;
 	int	 	font;

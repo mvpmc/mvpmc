@@ -120,6 +120,18 @@ mvpw_create_graph(mvp_widget_t *parent,
 }
 
 void
+mvpw_get_graph_attr(mvp_widget_t *widget, mvpw_graph_attr_t *attr)
+{
+	attr->min = widget->data.graph.min;
+	attr->max = widget->data.graph.max;
+	attr->fg = widget->data.graph.fg;
+	attr->gradient = widget->data.graph.gradient;
+	attr->left = widget->data.graph.left;
+	attr->right = widget->data.graph.right;
+	attr->bg = widget->bg;
+}
+
+void
 mvpw_set_graph_attr(mvp_widget_t *widget, mvpw_graph_attr_t *attr)
 {
 	widget->data.graph.min = attr->min;
@@ -128,6 +140,11 @@ mvpw_set_graph_attr(mvp_widget_t *widget, mvpw_graph_attr_t *attr)
 	widget->data.graph.gradient = attr->gradient;
 	widget->data.graph.left = attr->left;
 	widget->data.graph.right = attr->right;
+
+	if (widget->bg != attr->bg) {
+		widget->bg = attr->bg;
+		GrSetWindowBackgroundColor(widget->wid, attr->bg);
+	}
 }
 
 void
