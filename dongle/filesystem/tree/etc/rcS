@@ -31,10 +31,6 @@ insmod osdfb
 insmod ac3_mod
 #insmod xrmod
 
-#setup per-process TCP receive buffer size to prevent 
-#SMSC ethernet MAC RX overruns.  
-echo '4096 10500 10500' > /proc/sys/net/ipv4/tcp_rmem
-
 #default timezone
 TZ=CST+6CDT,M4.1.0/2,M10.5.0/2; export TZ
 
