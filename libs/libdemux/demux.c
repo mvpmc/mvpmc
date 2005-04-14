@@ -391,18 +391,22 @@ int
 demux_reset(demux_handle_t *handle)
 {
 	int i, j;
+	int nv, na;
+
+	na = handle->size / 5;
+	nv = handle->size - na;
 
 	if (handle->video) {
-		handle->attr.video.bufsz = handle->size / 2;
-		handle->video->size = handle->size / 2;
+		handle->attr.video.bufsz = nv;
+		handle->video->size = nv;
 
 		handle->video->head = 0;
 		handle->video->tail = handle->video->size - 1;
 	}
 
 	if (handle->audio) {
-		handle->attr.audio.bufsz = handle->size / 2;
-		handle->audio->size = handle->size / 2;
+		handle->attr.audio.bufsz = na;
+		handle->audio->size = na;
 
 		handle->audio->buf = handle->video->buf + handle->video->size;
 		handle->audio->head = 0;

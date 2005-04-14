@@ -1417,7 +1417,7 @@ stream_init(char *buf, int size)
 int
 start_stream(demux_handle_t *handle)
 {
-	int n;
+	int nv, na;
 	char *stream_buf;
 	stream_t *video, *audio;
 
@@ -1425,10 +1425,11 @@ start_stream(demux_handle_t *handle)
 		return -1;
 	memset(stream_buf, 0, handle->size);
 
-	n = handle->size / 2;
-	if ((video=stream_init(stream_buf, n)) == NULL)
+	na = handle->size / 5;
+	nv = handle->size - na;
+	if ((video=stream_init(stream_buf, nv)) == NULL)
 		goto err;
-	if ((audio=stream_init(stream_buf+n, n)) == NULL)
+	if ((audio=stream_init(stream_buf+nv, na)) == NULL)
 		goto err;
 
 	if ((handle->spu_buf=malloc(64*1024)) == NULL)
@@ -1438,8 +1439,8 @@ start_stream(demux_handle_t *handle)
 	audio->attr = &handle->attr.audio;
 	video->attr = &handle->attr.video;
 
-	handle->attr.audio.bufsz = n;
-	handle->attr.video.bufsz = n;
+	handle->attr.audio.bufsz = na;
+	handle->attr.video.bufsz = nv;
 
 	handle->audio = audio;
 	handle->video = video;
