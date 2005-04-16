@@ -247,7 +247,7 @@ cmyth_proglist_get_count(cmyth_proglist_t pl)
 static int
 cmyth_proglist_get_list(cmyth_conn_t conn,
 							cmyth_proglist_t proglist,
-							char *msg, char *func)
+							char *msg, const char *func)
 {
 	int err = 0;
 	int count;
