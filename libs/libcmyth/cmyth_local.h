@@ -213,6 +213,7 @@ struct cmyth_timestamp {
 	unsigned long timestamp_hour;
 	unsigned long timestamp_minute;
 	unsigned long timestamp_second;
+	int timestamp_isdst;
 	cmyth_atomic_t refcount;
 };
 

@@ -64,6 +64,7 @@ cmyth_timestamp_create(void)
 	ret->timestamp_hour = 0;
 	ret->timestamp_minute = 0;
 	ret->timestamp_second = 0;
+	ret->timestamp_isdst = 0;
 	cmyth_atomic_set(&ret->refcount, 1);
 	return ret;
 }
@@ -316,6 +317,7 @@ cmyth_datetime_from_string(cmyth_timestamp_t ts, char *str)
 	ts->timestamp_hour = tm_datetime->tm_hour;
 	ts->timestamp_minute = tm_datetime->tm_min;
 	ts->timestamp_second = tm_datetime->tm_sec;
+	ts->timestamp_isdst = tm_datetime->tm_isdst;
 	return 0;
 }
 
@@ -451,6 +453,7 @@ cmyth_datetime_to_string(char *str, cmyth_timestamp_t ts)
 	tm_datetime.tm_hour = ts->timestamp_hour;
 	tm_datetime.tm_min = ts->timestamp_minute;
 	tm_datetime.tm_sec = ts->timestamp_second;
+	tm_datetime.tm_isdst = ts->timestamp_isdst;
 	t_datetime = mktime(&tm_datetime);
 	sprintf(str,
 			"%4.4ld-%2.2ld-%2.2ldT%2.2ld:%2.2ld:%2.2ld",
