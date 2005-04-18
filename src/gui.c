@@ -1502,8 +1502,8 @@ myth_browser_init(void)
 	/*
 	 * mythtv popup menu
 	 */
-	w = 300;
-	h = 150;
+	w = 400;
+	h = 5 * (mvpw_font_height(mythtv_popup_attr.font) + 8);
 	x = (si.cols - w) / 2;
 	y = (si.rows - h) / 2;
 

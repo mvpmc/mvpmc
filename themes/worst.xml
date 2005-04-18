@@ -152,9 +152,11 @@
   </widget>
 
   <widget type="menu" name="myth_delete" copy="popup">
+    <color type="bg">green</color>
     <color type="hilite_bg">black</color>
     <color type="border">purple</color>
     <style type="border_size">2</style>
+    <font>large</font>
   </widget>
 
   <!--

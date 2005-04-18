@@ -133,7 +133,7 @@
     <color type="hilite_bg">gray30</color>
     <color type="hilite_fg">white</color>
     <style type="hilite">square</style>
-    <font>standard</font>
+    <font>large</font>
   </widget>
 
   <widget type="menu" name="settings">
