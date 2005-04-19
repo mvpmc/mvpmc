@@ -305,6 +305,8 @@ mvpw_get_rgba(unsigned long c, unsigned char *r, unsigned char *g,
 #define MVPW_KEY_MENU	'M'
 #define MVPW_KEY_CHAN_UP	8
 #define MVPW_KEY_CHAN_DOWN	9
+#define MVPW_KEY_VOL_UP	'^'
+#define MVPW_KEY_VOL_DOWN	'v'
 #define MVPW_KEY_BLUE	'b'
 #define MVPW_KEY_GREEN	'g'
 #define MVPW_KEY_MUTE	'Q'
@@ -318,6 +320,7 @@ mvpw_get_rgba(unsigned long c, unsigned char *r, unsigned char *g,
 #define MVPW_KEY_FFWD	'}'
 #define MVPW_KEY_REPLAY	'('
 #define MVPW_KEY_SKIP	')'
+#define	MVPW_KEY_PREV_CHAN	'C'
 #else
 #define	MVPW_KEY_ZERO		 0
 #define	MVPW_KEY_ONE		 1
@@ -361,6 +364,14 @@ mvpw_get_rgba(unsigned long c, unsigned char *r, unsigned char *g,
 #define	MVPW_KEY_DOWN		33
 #define	MVPW_KEY_CHAN_UP	20
 #define	MVPW_KEY_CHAN_DOWN	21
+#define	MVPW_KEY_VOL_UP		23
+#define	MVPW_KEY_VOL_DOWN	22
+
+#define	MVPW_KEY_ASTERISK	10
+#define	MVPW_KEY_POUND		14
+#define	MVPW_KEY_PREV_CHAN	18
+
+#define	MVPW_KEY_RADIO		101
 #endif /* MVPMC_HOST */
 
 #endif /* MVP_WIDGET_H */

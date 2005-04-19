@@ -587,7 +587,7 @@ mythtv_menu_callback(mvp_widget_t *widget, char key)
 		mythtv_state = MYTHTV_STATE_MAIN;
 	}
 
-	if (key == MVPW_KEY_FULL) {
+	if ((key == MVPW_KEY_FULL) || (key == MVPW_KEY_PREV_CHAN)) {
 		mvpw_hide(mythtv_logo);
 		mvpw_hide(mythtv_menu);
 		mvpw_focus(root);
@@ -614,6 +614,8 @@ mythtv_menu_callback(mvp_widget_t *widget, char key)
 	case MVPW_KEY_FFWD:
 	case MVPW_KEY_LEFT:
 	case MVPW_KEY_RIGHT:
+	case MVPW_KEY_VOL_UP:
+	case MVPW_KEY_VOL_DOWN:
 	case MVPW_KEY_PAUSE:
 	case MVPW_KEY_MUTE:
 	case MVPW_KEY_ZERO ... MVPW_KEY_NINE:
@@ -665,7 +667,7 @@ sub_settings_key_callback(mvp_widget_t *widget, char key)
 		mvpw_focus(main_menu);
 	}
 
-	if (key == MVPW_KEY_LEFT) {
+	if ((key == MVPW_KEY_LEFT) || (key == MVPW_KEY_VOL_DOWN)) {
 		/*
 		 * XXX: fix this
 		 */
@@ -695,7 +697,7 @@ settings_key_callback(mvp_widget_t *widget, char key)
 		mvpw_focus(main_menu);
 	}
 
-	if (key == MVPW_KEY_RIGHT) {
+	if ((key == MVPW_KEY_RIGHT) || (key == MVPW_KEY_VOL_UP)) {
 		settings_select_callback(NULL, NULL, NULL);
 	}
 }
@@ -730,6 +732,7 @@ fb_key_callback(mvp_widget_t *widget, char key)
 		video_clear();
 		break;
 	case MVPW_KEY_FULL:
+	case MVPW_KEY_PREV_CHAN:
 		mvpw_hide(fb_progress);
 		mvpw_hide(widget);
 		mvpw_focus(root);
@@ -865,7 +868,7 @@ mythtv_key_callback(mvp_widget_t *widget, char key)
 		mvpw_focus(mythtv_popup);
 	}
 
-	if (key == MVPW_KEY_FULL) {
+	if ((key == MVPW_KEY_FULL) || (key == MVPW_KEY_PREV_CHAN)) {
 		mvpw_hide(mythtv_logo);
 		mvpw_hide(mythtv_channel);
 		mvpw_hide(mythtv_date);
@@ -2249,6 +2252,7 @@ screensaver_event(mvp_widget_t *widget, int activate)
 		mvpw_hide(screensaver);
 		mvpw_hide(mvpmc_logo);
 		mvpw_reparent(mvpmc_logo, NULL);
+		mvpw_lower(mvpmc_logo);
 		mvpw_attach(main_menu, mvpmc_logo, MVPW_DIR_UP);
 		if (visible)
 			mvpw_show(mvpmc_logo);
