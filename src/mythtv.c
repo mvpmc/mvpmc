@@ -1393,6 +1393,7 @@ mythtv_size(void)
 	static cmyth_proginfo_t prog = NULL;
 	struct timeval now;
 	long long ret;
+	static volatile int failed = 0;
 
 	gettimeofday(&now, NULL);
 
@@ -1412,9 +1413,17 @@ mythtv_size(void)
 	 * If the refill fails, use the value in the file structure.
 	 */
 	if (cmyth_proginfo_fill(control, current_prog) < 0) {
+		if (!failed) {
+			fprintf(stderr,
+				"%s(): cmyth_proginfo_fill() failed!\n",
+				__FUNCTION__);
+			failed = 1;
+		}
 		ret = cmyth_file_length(file);
 		goto unlock;
 	}
+
+	failed = 0;
 
 	ret = cmyth_proginfo_length(current_prog);
 
