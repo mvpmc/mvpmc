@@ -1617,6 +1617,7 @@ cmyth_proginfo_fill(cmyth_conn_t control, cmyth_proginfo_t prog)
 	int err = 0;
 	int count;
 	int ret;
+	long long length = prog->proginfo_Length;
 
 	if (!control) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: no connection\n", __FUNCTION__);
@@ -1629,6 +1630,7 @@ cmyth_proginfo_fill(cmyth_conn_t control, cmyth_proginfo_t prog)
 
 	pthread_mutex_lock(&mutex);
 
+	length = prog->proginfo_Length;
 	if ((ret=fill_command(control, prog, "FILL_PROGRAM_INFO") != 0))
 		goto out;
 
@@ -1644,6 +1646,21 @@ cmyth_proginfo_fill(cmyth_conn_t control, cmyth_proginfo_t prog)
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_rcv_proginfo() < count\n", __FUNCTION__);
 		ret = err;
+		goto out;
+	}
+
+	/*
+	 * Myth seems to cache the program length, rather than call stat()
+	 * every time it needs to know.  Using FILL_PROGRAM_INFO has worked
+	 * to force mythbackend to call stat() and return the correct length.
+	 *
+	 * However, some users are reporting that FILL_PROGRAM_INFO is
+	 * returning 0 for the program length.  In that case, the original
+	 * number is still probably wrong, but it's better than 0.
+	 */
+	if (prog->proginfo_Length == 0) {
+		prog->proginfo_Length = length;
+		ret = -1;
 		goto out;
 	}
 
