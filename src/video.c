@@ -551,7 +551,6 @@ video_callback(mvp_widget_t *widget, char key)
 		}
 		break;
 	case MVPW_KEY_LEFT:
-	case MVPW_KEY_VOL_DOWN:
 		jump_target = -1;
 		jumping = 1;
 		pthread_kill(video_write_thread, SIGURG);
@@ -562,7 +561,6 @@ video_callback(mvp_widget_t *widget, char key)
 		pthread_cond_broadcast(&video_cond);
 		break;
 	case MVPW_KEY_RIGHT:
-	case MVPW_KEY_VOL_UP:
 		jump_target = -1;
 		jumping = 1;
 		pthread_kill(video_write_thread, SIGURG);
