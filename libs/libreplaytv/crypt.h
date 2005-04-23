@@ -18,13 +18,13 @@
 
 #include "rtv.h"
 
-int rtv_decrypt(const char *cyphertext, u32  cypherlength,
-                      char *plainbuf,   u32  plainbuflength,
-                      u32  *p_time,     u32 *plainlen,
-                      int   checksum_num);
-int rtv_encrypt(const char *plaintext,  u32 plaintext_len,
-                      char *cyphertext, u32 buffer_len, u32 *cyphertext_len,
-                      int   checksum_num);
+int rtv_decrypt(const char   *cyphertext, __u32  cypherlength,
+                      char   *plainbuf,   __u32  plainbuflength,
+                      __u32  *p_time,     __u32 *plainlen,
+                      int     checksum_num);
+int rtv_encrypt(const char   *plaintext,  __u32 plaintext_len,
+                      char   *cyphertext, __u32 buffer_len, __u32 *cyphertext_len,
+                      int     checksum_num);
 #endif
 
 

@@ -17,6 +17,6 @@
 
 #include "rtv.h"
 
-void rtv_sleep(u16 msec);
+void rtv_sleep(__u16 msec);
 
 #endif

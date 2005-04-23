@@ -28,24 +28,26 @@
 //+**********************************************************
 #ifdef __unix__
 #define _LARGEFILE64_SOURCE
-typedef unsigned char      u8;
-typedef unsigned short     u16;
-typedef unsigned long      u32;
-typedef unsigned long long u64;
-typedef          long long s64;
+typedef unsigned char      __u8;
+typedef unsigned short     __u16;
+typedef unsigned long      __u32;
+typedef unsigned long long __u64;
+typedef          long long __s64;
+#define __RTV_DATA_SIZES_DEFINED__
 #endif
 
 #ifdef _WIN32
-typedef unsigned char      u8;
-typedef unsigned short     u16;
-typedef unsigned long      u32;
-typedef unsigned __int64   u64;
-typedef          __int64   s64;
+typedef unsigned char      __u8;
+typedef unsigned short     __u16;
+typedef unsigned long      __u32;
+typedef unsigned __int64   __u64;
+typedef          __int64   __s64;
+#define __RTV_DATA_SIZES_DEFINED__
 #endif
 
 #ifdef __unix__
 #   if ( __BYTE_ORDER == __LITTLE_ENDIAN )
-#      define ntohll(x) (((u64)(ntohl((int)((x << 32) >> 32))) << 32) | (u32)ntohl(((int)(x >> 32))))
+#      define ntohll(x) (((__u64)(ntohl((int)((x << 32) >> 32))) << 32) | (__u32)ntohl(((int)(x >> 32))))
 #      define htonll(x) ntohll(x)
 #   elif ( __BYTE_ORDER == __BIG_ENDIAN )
 #      define ntohll(x) (x)
@@ -68,7 +70,7 @@ extern int  split_lines(char * src, char *** pdst);
 
 struct mapping 
 {
-    u32   value;
+    __u32   value;
     char *name;
 };
 
@@ -91,10 +93,10 @@ extern rtv_idns_t rtv_idns;
 //+********************************************************************
 typedef struct rtv_globals_t
 {
-   int            rtv_emulate_mode; // Kick dvarchive into 4K or 5K mode
-   int            merge_chunk_sz;   // Number or 32K file chunks to merge
-   FILE          *log_fd;           // Where to set logs
-   volatile u32   rtv_debug;        // debug log mask
+   int              rtv_emulate_mode; // Kick dvarchive into 4K or 5K mode
+   int              merge_chunk_sz;   // Number or 32K file chunks to merge
+   FILE            *log_fd;           // Where to set logs
+   volatile __u32   rtv_debug;        // debug log mask
 } rtv_globals_t;
 
 extern  rtv_globals_t rtv_globals; 
@@ -121,9 +123,11 @@ inline static void rtv_log(const char *format, ...)
 #define RTVLOG_HTTP_VERB     (rtv_globals.rtv_debug & 0x00000010)
 #define RTVLOG_NET           (rtv_globals.rtv_debug & 0x00000020)
 #define RTVLOG_CMD           (rtv_globals.rtv_debug & 0x00000040)
+#define RTVLOG_EVTFILE       (rtv_globals.rtv_debug & 0x00000080)
 #define RTVLOG_NETDUMP       (rtv_globals.rtv_debug & 0x10000000)
 
-#define RTV_PRT(fmt, args...)  rtv_log(fmt, ## args)
+//#define RTV_PRT(fmt, args...)  rtv_log(fmt, ## args)
+#define RTV_PRT(fmt, args...) fprintf(stdout, fmt, ## args) 
 
 #define RTV_ERRLOG(fmt, args...) RTV_PRT("rtv:ERROR: " fmt, ## args)
 #define RTV_WARNLOG(fmt, args...) RTV_PRT("rtv:WARN: " fmt, ## args)

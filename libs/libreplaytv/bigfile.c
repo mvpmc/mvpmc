@@ -59,12 +59,12 @@ BIGFILE * bfreopen(FILE *fp)
     return stream;
 }
 
-int bfseek(BIGFILE * stream, s64 offset, int whence)
+int bfseek(BIGFILE * stream, __s64 offset, int whence)
 {
     return fseeko(stream->fp, offset, whence);
 }
 
-u64 bftell(BIGFILE * stream)
+__u64 bftell(BIGFILE * stream)
 {
     return ftello(stream->fp);
 }

@@ -25,11 +25,13 @@ extern "C" {
 //+**********************************************************
 // Define architecture specific data types
 //+**********************************************************
+#ifndef __RTV_DATA_SIZES_DEFINED__
 typedef unsigned char      __u8;
 typedef unsigned short     __u16;
 typedef unsigned long      __u32;
 typedef unsigned long long __u64;
 typedef signed   long long __s64;
+#endif
 
 //+****************************************
 // RTV Filesystem types/ structures
@@ -263,6 +265,11 @@ typedef struct rtv_ndx_30_record_t
    __u32 empty;                // Always Zero, possibly for alignment
 } rtv_ndx_30_record_t; 
 
+
+//+****************************************
+// evt file processing
+//+****************************************
+
 // RTV 5K evt record: size=24 bytes
 //
 #define RTV_EVT_HDR_SZ (8)
@@ -275,6 +282,30 @@ typedef struct rtv_evt_record_t
    __u32 blacklevel;
 } rtv_evt_record_t; 
 
+//
+//
+typedef struct rtv_chapter_mark_parms_t
+{
+   int   p_seg_min; //minimum program segment time. (sec)
+   int   scene_min; //minimum scene segment time (sec)
+   int   buf_sz;    //evt file buffer size
+   char *buf;       //evt file buffer 
+} rtv_chapter_mark_parms_t;
+
+//
+//
+typedef struct rtv_prog_seg_t {
+   __u64 start;
+   __u64 stop;
+} rtv_prog_seg_t;
+
+//
+//
+typedef struct rtv_chapters_t
+{
+   int              num_chapters;
+   rtv_prog_seg_t  *chapter;      //array of chapters
+} rtv_chapters_t;
 
 
 //+************************************************************
@@ -370,6 +401,8 @@ extern int rtv_get_play_position(const rtv_device_info_t   *device,
    
 extern char *rtv_xref_quality(int key);
 extern char *rtv_xref_input_source(int key);
+
+extern int rtv_parse_evt_file( rtv_chapter_mark_parms_t evtfile_parms, rtv_chapters_t *chapter_struct);
 
 extern int  rtv_get_volinfo( const rtv_device_info_t  *device, const char *name, rtv_fs_volume_t **volinfo );
 extern void rtv_free_volinfo(rtv_fs_volume_t **volinfo); 

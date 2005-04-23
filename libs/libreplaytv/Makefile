@@ -62,6 +62,7 @@ LIBOBJS=			\
 	discovery.o	\
 	rtvserver.o	\
 	guideparser.o	\
+	evtfileparser.o	\
 	rtvlib.o		\
 	$(OBJMD5)
 

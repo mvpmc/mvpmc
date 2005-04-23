@@ -1,5 +1,6 @@
 /*
- * Copyright (C) 2002 John Todd Larason <jtl@molehill.org>
+ *  Copyright (C) 2005, John Honeycutt
+ *  http://mvpmc.sourceforge.net/
  *
  *    This program is free software; you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -12,19 +13,14 @@
  *    GNU General Public License for more details.
  */
 
-#include "sleep.h"
+#ifndef __EVTFILEPARSER_H__
+#define __EVTFILEPARSER_H__
 
-#ifdef WIN32
-#include "windows.h"
 
-void rtv_sleep(__u16 msec) 
-{
-    Sleep(msec);
-}
-#else
-#include <unistd.h>
-void rtv_sleep(__u16 msec)
-{
-    usleep(msec * 1000);
-}
+typedef enum { 
+   EVT_AUD = 1, 
+   EVT_VID = 2 
+} evt_rec_type_t;
+
+
 #endif

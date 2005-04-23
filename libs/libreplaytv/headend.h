@@ -23,17 +23,17 @@ extern struct mapping device_bitmapping[];
 extern struct mapping service_tier_mapping[];
 
 struct headend_header {
-/*  0 */ u32 device_bitmap;
-/*  4 */ u8  max_tier[32];
+/*  0 */ __u32 device_bitmap;
+/*  4 */ __u8  max_tier[32];
 }; /* 36 */
 
 struct headend_channel {
-/*  0 */ u32 tmsid;
-/*  4 */ u16 tuning;
-/*  6 */ u8  device;
-/*  7 */ u8  service_tier;
-/*  8 */ u8  name[16];
-/* 24 */ u8  description[32];
+/*  0 */ __u32 tmsid;
+/*  4 */ __u16 tuning;
+/*  6 */ __u8  device;
+/*  7 */ __u8  service_tier;
+/*  8 */ __u8  name[16];
+/* 24 */ __u8  description[32];
 }; /* 56 */
 
 int parse_headend_header(unsigned char **p, struct headend_header *h);

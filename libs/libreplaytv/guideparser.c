@@ -855,7 +855,7 @@ static int rtv_struct_chk(void)
 //+***********************************************************************************************
 static int convert_v1_to_v2_snapshot_header(guide_header_t *v2hdr, v1_guide_header_t *v1hdr) 
 {
-   u32 chancount;
+   __u32 chancount;
    memset(v2hdr, 0, sizeof(guide_header_t));
    v2hdr->guideSnapshotHeader.osversion         = htons(0);
    v2hdr->guideSnapshotHeader.snapshotversion   = htons(2);

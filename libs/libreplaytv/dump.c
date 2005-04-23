@@ -41,7 +41,7 @@ void dump_group_end(void)
     fprintf(fp, "%s}\n", leader);
 }
 
-void dump_mapping(char const *tag, u32 value, struct mapping *map)
+void dump_mapping(char const *tag, __u32 value, struct mapping *map)
 {
     int i;
 
@@ -56,7 +56,7 @@ void dump_mapping(char const *tag, u32 value, struct mapping *map)
             leader, tag, (unsigned long)value);
 }
 
-void dump_bitmapping(char const *tag, u32 value, struct mapping *map)
+void dump_bitmapping(char const *tag, __u32 value, struct mapping *map)
 {
     int i;
     int first = 1;
@@ -80,7 +80,7 @@ void dump_bitmapping(char const *tag, u32 value, struct mapping *map)
     fprintf(fp, "& %02lx\n", (unsigned long) value);
 }
 
-void dump_time(char const *tag, u32 value)
+void dump_time(char const *tag, __u32 value)
 {
     char buffer[32];
     struct tm * tm;
@@ -96,17 +96,17 @@ void dump_string(char const *tag, char const *value)
     fprintf(fp, "%s%-24s\t%s\n", leader, tag, value);
 }
 
-void dump_u8(char const *tag, u8 value)
+void dump_u8(char const *tag, __u8 value)
 {
     fprintf(fp, "%s%-24s\t      0x%02x %12u\n", leader, tag, value, value);
 }
 
-void dump_u16(char const *tag, u16 value)
+void dump_u16(char const *tag, __u16 value)
 {
     fprintf(fp, "%s%-24s\t    0x%04x %12u\n", leader, tag, value, value);
 }
 
-void dump_u32(char const *tag, u32 value)
+void dump_u32(char const *tag, __u32 value)
 {
     if (value > 0x80000000)
         fprintf(fp, "%s%-24s\t0x%08lx %12lu  %12lu\n", leader, tag,
@@ -117,13 +117,13 @@ void dump_u32(char const *tag, u32 value)
                (unsigned long)value, (unsigned long)value);
 }
 
-void dump_u64(char const *tag, u64 value)
+void dump_u64(char const *tag, __u64 value)
 {
     fprintf(fp, "%s%-24s\t0x%016"U64F"x %24"U64F"u\n",
             leader, tag, value, value);
 }
 
-void dump_buffer(char const *tag, u8 const *buffer, size_t len) 
+void dump_buffer(char const *tag, __u8 const *buffer, size_t len) 
 {
     unsigned int row, column, byte;
 #define COLUMNS 16
@@ -159,7 +159,7 @@ void dump_buffer(char const *tag, u8 const *buffer, size_t len)
 #undef COLUMNS
 }
 
-char const *lookup_mapping(u32 value, struct mapping *map)
+char const *lookup_mapping(__u32 value, struct mapping *map)
 {
     int i;
 

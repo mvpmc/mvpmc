@@ -46,6 +46,8 @@
 #define MPEG_SYSTEM_HDR     (0x000001bb)
 #define MPEG_PROGRAM_END    (0x000001b9)
 
+#define MAX_EVT_FILE_SZ (200 *1024)
+
 typedef enum 
 {
    NDX_VER_22 = 2,
@@ -943,38 +945,78 @@ static int process_mpg(int mpg_fd, int ndx_fd)
 //+****************************************************
 //
 //+****************************************************
-static int explore_evt(FILE *evt)
+static int process_evt(int evt_fd)
 {
-   unsigned char buf[1024];
+   int          pos = 0;
+   int          cnt;
+   struct stat  fst;
+   char        *buf;
+
+   rtv_chapter_mark_parms_t ch_parms;
+   rtv_chapters_t           chapters;
+
+   if ( fstat(evt_fd, &fst) != 0 ) {
+      UNEXPECTED("%s: fstat failed: %d<=>%s\n", __FUNCTION__, errno, strerror(errno));
+      return(-1);
+   }
+
+   if ( fst.st_size > MAX_EVT_FILE_SZ ) {
+      UNEXPECTED("%s: File too large: sz: %ld\n", __FUNCTION__, (long)fst.st_size);
+      return(-1);
+   }
+   PRT("Evt file size: %ld\n", (long)fst.st_size);
+   PRT("Evt file recs: %lu\n", ((long)fst.st_size - RTV_EVT_HDR_SZ) / sizeof(rtv_evt_record_t));
+
    
-   rtv_evt_record_t rec;
-   
-   int recno      = 0;
-   __u64 basetime = 0;
-//   double commercial_start_seconds = 0;
-//   int in_commercial = 0;
-   int cnt;
-   
-   fread(buf, 1, 8, evt); //header
-   PRT("\n\n");
-   hex_dump("EVT FILE HDR", 0, buf, 8);      
-   
-   PRT("\nrec       timestamp     aud/vid   audiopower    blacklevel   unknown\n");
-   PRT("-----------------------------------------------------------------------\n");
-   
-   while ( (cnt = fread(&rec, 1, sizeof(rtv_evt_record_t), evt)) > 0) {
-      
-      rtv_convert_evt_rec(&rec);
-      if (recno == 0) {
-         basetime = rec.timestamp;
-      }
-      PRT("%06d:%d   0x%016llx=%016llu   0x%08lx=%010lu     0x%08lx=%010lu     0x%08lx=%010lu     0x%08lx\n", 
-             recno, cnt, rec.timestamp, rec.timestamp, rec.data_type, rec.data_type, 
-             rec.audiopower, rec.audiopower, rec.blacklevel,  rec.blacklevel, rec.unknown1);
-      
-      recno++;
+   buf = malloc(fst.st_size);
+   if ( buf == NULL ) {
+      UNEXPECTED("%s: malloc failed: sz: %ld\n", __FUNCTION__, (long)fst.st_size);
+      return(-1);
+   } 
+
+   while ( (cnt = read(evt_fd, &(buf[pos]), 4096)) > 0 ) {      
+      pos += cnt;
    } //while
+
+   if ( cnt == -1 ) {
+      UNEXPECTED("%s: read failed: %d<=>%s\n", __FUNCTION__, errno, strerror(errno));
+      return(-1);
+   }
+   if ( fst.st_size != pos ) {
+      UNEXPECTED("%s: file size mismatch: fstat=%ld read_sz=%d\n", __FUNCTION__, (long)fst.st_size, pos);
+      return(-1);
+   }
    
+   // rtvlib logging level
+   //
+   if ( verb > 0 ) {
+      rtv_set_dbgmask(0x80);
+   }
+
+   ch_parms.p_seg_min = 180; //seconds
+   ch_parms.scene_min = 0;   //seconds
+   ch_parms.buf       = buf;
+   ch_parms.buf_sz    = fst.st_size;
+   rtv_parse_evt_file( ch_parms, &chapters);
+
+   if ( hex_verb > 0 ) {
+      int x;
+      int nrec              = (fst.st_size - RTV_EVT_HDR_SZ) / sizeof(rtv_evt_record_t);
+      rtv_evt_record_t *rec = (rtv_evt_record_t*)(buf + RTV_EVT_HDR_SZ);
+
+      PRT("\n\n");
+      hex_dump("EVT FILE HDR", 0, buf,  RTV_EVT_HDR_SZ);      
+      
+      PRT("\nrec          timestamp                           aud/vid          audiopower              blacklevel             unknown\n");
+      PRT("--------------------------------------------------------------------------------------------------------------------------\n");
+      for ( x = 0; x < nrec; x++ ) {
+         PRT("%05d   0x%016llx=%016llu   0x%08lx     0x%08lx=%010lu     0x%08lx=%010lu     0x%08lx\n", 
+             x, rec[x].timestamp, rec[x].timestamp, rec[x].data_type, 
+             rec[x].audiopower, rec[x].audiopower, rec[x].blacklevel,  rec[x].blacklevel, rec[x].unknown1);
+      }      
+   }
+
+   printf("done.........\n");   
    return(0);
 }
 
@@ -1075,9 +1117,11 @@ int main(int argc, char ** argv)
          UNEXPECTED("ERROR: Couldn't open %s: %d<=>%s\n", filename, errno, strerror(errno));
          exit(1);
       }
-      PRT("Found ent file: %s\n", filename);
+      PRT("Found evt file: %s\n", filename);
 
       //process evt file
+      process_evt(evt);
+      exit(0);
    }
 
    //Check/open ndx file

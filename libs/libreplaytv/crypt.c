@@ -32,7 +32,7 @@
 
 #include "crypt.h"
 
-static void checksum(unsigned char * dest, unsigned const char * src, u32 len,
+static void checksum(unsigned char * dest, unsigned const char * src, __u32 len,
                      int checksum_num)
 {
     MD5_CTX c;
@@ -63,9 +63,9 @@ static void checksum(unsigned char * dest, unsigned const char * src, u32 len,
     MD5_Final(dest, &c);
 }
 
-static u32 cryptblock(u32 k, char * buf, u32 size)
+static __u32 cryptblock(__u32 k, char * buf, __u32 size)
 {
-    u32 i;
+    __u32 i;
 
     for (i = 0; i < size; i++) {
         k = k * 0xb8f7 + 0x15bb9;
@@ -88,9 +88,9 @@ static u32 cryptblock(u32 k, char * buf, u32 size)
  * and don't mind it all in one buffer
  */
  
-int rtv_decrypt(const char * cyphertext, u32 cyphertext_len,
-                char * plainbuf, u32 plainbuf_len,
-                u32 * p_time, u32 * p_plain_len,
+int rtv_decrypt(const char * cyphertext, __u32 cyphertext_len,
+                char * plainbuf, __u32 plainbuf_len,
+                __u32 * p_time, __u32 * p_plain_len,
                 int checksum_num)
 {
     unsigned char key_buf[4];
@@ -98,13 +98,13 @@ int rtv_decrypt(const char * cyphertext, u32 cyphertext_len,
     unsigned char time_buf[4];
     unsigned char csum_buf[16];
     unsigned char * p;
-    u32 key;
-    u32 sanity;
-    u32 tmp32;
+    __u32 key;
+    __u32 sanity;
+    __u32 tmp32;
     unsigned char test_buf[4];
 #if VERBOSE_OBFUSC
     unsigned char obfusc_buf[4];
-    u32 obfusc;
+    __u32 obfusc;
 #endif
 
     if (plainbuf_len < cyphertext_len - 32)
@@ -122,11 +122,11 @@ int rtv_decrypt(const char * cyphertext, u32 cyphertext_len,
     test_buf[3] = cyphertext[7];
 
     p = key_buf;
-    //RTV_PRT("pnet1:         0x%08x: %02x %02x %02x %02x \n", *(u32*)p, p[0], p[1], p[2], p[3]);
+    //RTV_PRT("pnet1:         0x%08x: %02x %02x %02x %02x \n", *(__u32*)p, p[0], p[1], p[2], p[3]);
     //tmp32 = rtv_to_u32(&p);
-    tmp32 = ntohl(*(u32*)p);
+    tmp32 = ntohl(*(__u32*)p);
     p = (char*)&tmp32;
-    //RTV_PRT("pnet2:          0x%08x: %02x %02x %02x %02x \n", *(u32*)p, p[0], p[1], p[2], p[3]);
+    //RTV_PRT("pnet2:          0x%08x: %02x %02x %02x %02x \n", *(__u32*)p, p[0], p[1], p[2], p[3]);
     key   = tmp32 ^ 0xcb0baf47;
 
 #if VERBOSE_OBFUSC
@@ -136,7 +136,7 @@ int rtv_decrypt(const char * cyphertext, u32 cyphertext_len,
     obfusc_buf[3] = cyphertext[6];
     p = key_buf;
     //obfusc = rtv_to_u32(&p);
-    obfusc = ntohl(*(u32*)p);
+    obfusc = ntohl(*(__u32*)p);
     RTV_PRT("Key: %ld (0x%lx)\n", (unsigned long)key, (unsigned long)key);
     RTV_PRT("Obfusc: %ld (0x%lx)\n", (unsigned long)obfusc, (unsigned long)obfusc);
 #endif
@@ -146,7 +146,7 @@ int rtv_decrypt(const char * cyphertext, u32 cyphertext_len,
     key = cryptblock(key, sanity_buf, 4);
     p = sanity_buf;
     //sanity = rtv_to_u32(&p);
-    sanity = ntohl(*(u32*)p);
+    sanity = ntohl(*(__u32*)p);
     if (sanity != 0x42ffdfa9)
         return -1;
 
@@ -169,7 +169,7 @@ int rtv_decrypt(const char * cyphertext, u32 cyphertext_len,
     if (p_time) {
         p = time_buf;
         //*p_time = rtv_to_u32(&p);
-        *p_time = ntohl(*(u32*)p);
+        *p_time = ntohl(*(__u32*)p);
 #if VERBOSE_OBFUSC
 	RTV_PRT("Time: %ld (0x%lx)\n", (unsigned long)*p_time, (unsigned long)*p_time);
 #endif
@@ -177,14 +177,14 @@ int rtv_decrypt(const char * cyphertext, u32 cyphertext_len,
     return 0;
 }
 
-int rtv_encrypt(const char *plaintext, u32 plaintext_len,
-                char *cyphertext, u32 buffer_len, u32 *cyphertext_len,
+int rtv_encrypt(const char *plaintext, __u32 plaintext_len,
+                char *cyphertext, __u32 buffer_len, __u32 *cyphertext_len,
                 int checksum_num)
 {
-    u32            key;
-    u32            t;
-    u32            obfusc;
-    u32           *rslt;
+    __u32          key;
+    __u32          t;
+    __u32          obfusc;
+    __u32         *rslt;
     unsigned char  key_buf[4];
     unsigned char  obfusc_buf[4];
     unsigned char *p;
@@ -203,12 +203,12 @@ int rtv_encrypt(const char *plaintext, u32 plaintext_len,
 
     /* encrypt the key */
     p     = key_buf;
-    rslt  = (u32*)p;
+    rslt  = (__u32*)p;
     *rslt = htonl(key ^ 0xcb0baf47);
     p+=4;
 
     p = obfusc_buf;
-    rslt  = (u32*)p;
+    rslt  = (__u32*)p;
     *rslt = htonl(obfusc);
     p+=4;
 
@@ -224,11 +224,11 @@ int rtv_encrypt(const char *plaintext, u32 plaintext_len,
 
     /* store the sanity check & time */
     p = cyphertext + 24;
-    rslt  = (u32*)p;
+    rslt  = (__u32*)p;
     *rslt = htonl(0x42ffdfa9);
     p+=4;
 
-    rslt  = (u32*)p;
+    rslt  = (__u32*)p;
     *rslt = htonl(t);
     p+=4;
 

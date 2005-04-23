@@ -46,7 +46,7 @@ static int nc_initted = 0;
 
 struct nc
 {
-    u8        rcv_buf[32768];
+    __u8        rcv_buf[32768];
     size_t    low, high;
     socket_fd fd;
 };

@@ -104,7 +104,7 @@ static int make_httpfs_url(char *dst, size_t size, const rtv_device_info_t *devi
     if (device->version.major >= 5 ||
         (device->version.major == 4 && device->version.minor >= 3)) {
         unsigned char ctext[ARGBUFSIZE+32] ;
-        u32 ctextlen;
+        __u32 ctextlen;
         unsigned int i;
 
         if (l + strlen("__Q_=") + 2*argl + 32 >= size) {
@@ -283,8 +283,8 @@ struct hfs_data
     rtv_read_file_chunked_cb_t  fn;
     void                       *v;
     unsigned long               status;
-    u16                         msec_delay;
-    u8                          firsttime;
+    __u16                       msec_delay;
+    __u8                        firsttime;
 };
 
 static int hfs_callback(unsigned char * buf, size_t len, void * vd)
@@ -527,8 +527,8 @@ int rtv_get_file_info( const rtv_device_info_t  *device, const char *name,  rtv_
 {
    char           *data     = NULL;
    char            type     = RTV_FS_UNKNOWN;
-   u64             filetime = 0;
-   u64             size     = 0;
+   __u64           filetime = 0;
+   __u64           size     = 0;
    int             rc       = 0;
    int             status;
    unsigned int    num_lines, x;

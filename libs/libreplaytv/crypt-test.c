@@ -30,9 +30,9 @@ static int run_crypt_test(unsigned char * cyphertext1, size_t ctext_len,
     unsigned char plaintext1[1024];
     unsigned char cyphertext2[1024];
     unsigned char plaintext2[1024];
-    u32  plain_length, cypher_length;
-    u32  t;
-    u32  r;
+    __u32  plain_length, cypher_length;
+    __u32  t;
+    __u32  r;
 
     memset(plaintext1, 0, sizeof plaintext1);
     memset(cyphertext2, 0, sizeof cyphertext2);

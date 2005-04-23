@@ -527,6 +527,7 @@ static int ciHttpFsGetFile(int argc, char ** argv)
    getsize64 = getsize_kb *1024;
    status = rtv_read_file_chunked(&(rtv->device), f_from, pos64, getsize64, delay, hfs_rf_callback, &data);
    
+   bfclose(data.dstfile);
    if (status != 0) {
       printf("\nError: rtv_read_file_chunked: rc=%ld\n\n", status);
    }

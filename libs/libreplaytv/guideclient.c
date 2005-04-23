@@ -33,7 +33,7 @@ struct snapshot_data
     int   bytes_read;
     char *timestamp;
     char *buf;
-    u32   status;
+    __u32 status;
 };
 
 static int map_guide_status_to_rc(unsigned long status)
