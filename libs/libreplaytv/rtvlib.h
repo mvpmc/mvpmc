@@ -295,8 +295,8 @@ typedef struct rtv_chapter_mark_parms_t
 //
 //
 typedef struct rtv_prog_seg_t {
-   __u64 start;
-   __u64 stop;
+   __u32 start; //mS
+   __u32 stop;  //mS
 } rtv_prog_seg_t;
 
 //

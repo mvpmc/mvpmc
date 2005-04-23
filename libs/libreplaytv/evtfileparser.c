@@ -83,45 +83,53 @@ static void normalize(rtv_evt_record_t *recs, int num_recs, __u32 *audmin_p, __u
 }
 
 
-// From evtdump.c (rtvtools)
-static char* format_ts(__s64 ts, char *time)
+static char* format_ts(__u32 ts, char *time)
 {
- __u32 ms = (__u32)(ts / 1000000);
- __u32 sec = ms / 1000;
- __u32 min = sec / 60;
-
+   __u32 ms = ts;
+   __u32 sec = ms / 1000;
+   __u32 min = sec / 60;
+   
    sec -= (min*60);
    ms %= 1000;
    sprintf (time, "%03d:%02d.%03d", (int)min, (int)sec, (int)ms);
    return time;
 }
-static char* format_ts2(__s64 ts, char *time)
-{
- __u32 ms = (__u32)(ts / 1000000);
- __u32 sec = ms / 1000;
- __u32 min = sec / 60;
 
-   sec -= (min*60);
-   sprintf (time, "%02d:%02d", (int)min, (int)sec);
-   return time;
-}
-static char* format_ts3(__u64 ts, char *time)
-{
- __u32 ms = (__u32)(ts / 1000000);
- __u32 sec = ms / 1000;
- __u32 min = sec / 60;
- __u32 hour = min / 60;
- __u32 minlim = 60;
 
-   if( min < minlim ) {
-      char tt[16];
-      return(format_ts2(ts,tt));
+static void print_fadepoints(const fade_pt_t *fpts) 
+{
+   int cnt = 0;
+   char start_str[20];
+   char stop_str[20];
+
+   RTV_PRT("start       stop          vid      aud      type\n");
+   RTV_PRT("---------------------------------------------------\n");
+
+   while ( fpts != NULL ) {
+      cnt++;
+      format_ts(fpts->start, start_str);
+      format_ts(fpts->stop, stop_str);
+      RTV_PRT("%s  %s   %08lx %08lx %08lx\n", start_str, stop_str, fpts->video, fpts->audio, fpts->type);
+      fpts = fpts->next;
    }
+   RTV_PRT("FadepointCount=%d\n", cnt);
+}
 
-   sec -= (min*60);
-   min -= (hour*60);
-   sprintf (time, "%02d:%02d:%02d", (int)hour, (int)min, (int)sec);
-   return time;
+
+static void print_chapters(const rtv_prog_seg_t *chapters, int num_chapters) 
+{
+   int  x;
+   char start_str[20];
+   char stop_str[20];
+
+   RTV_PRT(" num   start       stop  \n");
+   RTV_PRT("-------------------------\n");
+
+   for ( x=0; x < num_chapters; x++ ) {
+      format_ts(chapters[x].start, start_str);
+      format_ts(chapters[x].stop, stop_str);
+      RTV_PRT("%3d: %s  %s\n", x, start_str, stop_str);
+   }
 }
 
 static char* vid_level(__u32 level)
@@ -165,15 +173,27 @@ static char* aud_level(__u32 level)
 //+***********************************************************************************************
 int rtv_parse_evt_file( rtv_chapter_mark_parms_t evtfile_parms, rtv_chapters_t *chapter_struct)
 {
-   unsigned int  progseg_min = evtfile_parms.p_seg_min; //minimum program segment time. (sec)
-   unsigned int  scene_min   = evtfile_parms.scene_min; //minimum scene time (sec)
-   unsigned int  evtfile_sz  = evtfile_parms.buf_sz;    //evt file buffer size
-   char         *evtfile_buf = evtfile_parms.buf;       //evt file buffer
+   unsigned int  progseg_min = evtfile_parms.p_seg_min * 1000; //minimum program segment time. (mS)
+   unsigned int  scene_min   = evtfile_parms.scene_min * 1000; //minimum scene time (mS)
+   unsigned int  evtfile_sz  = evtfile_parms.buf_sz;           //evt file buffer size
+   char         *evtfile_buf = evtfile_parms.buf;              //evt file buffer
+   __u32         lastvid     = 256;
+   __u32         lastaud     = 10000;
 
    rtv_evt_record_t *evt_recs; //array of evt recs
    int               num_recs; //number of evt records
+   rtv_prog_seg_t   *chapter_recs;
+   int               num_chapters;
+   int               addcount;
+   int               commercial_start;
+   int               x, i, j;
    __u32             audio_min;
    __u32             audio_factor;
+   __u32             lasttime, lastvidtime, lastaudtime;
+   __u32             addpoint[20];
+   __u32             last_added;
+   fade_pt_t        *current;
+   fade_pt_t        *root;
 
    // Setup & file error checking.
    //
@@ -202,168 +222,166 @@ int rtv_parse_evt_file( rtv_chapter_mark_parms_t evtfile_parms, rtv_chapters_t *
    normalize(evt_recs, num_recs, &audio_min, &audio_factor);
 
 
-   return(0);
-}
-
-
-
-#if 0
-int rtv_parse_evt_filexxx( unsigned char *evtbuf, long int evtSize, struct evt5kStruct ***s, int *evtcount)
-{
-   EVT_EVENT   event;
-   __u32      lastvid = 256;
-   __u32      lastaud = 10000;
-   __s64    lasttime, lastvidtime, lastaudtime;
-   FADE*    current;
-   FADE*    root;
-   long int size=0;
-   int commercial_start=0, i, j;
-   __s64 last_added=0;
-   char t1[16], t2[16];
-   __s64 addpoint[20];
-   int addcount = 0;
-   
-   // Normalize audio range
-   normalize(evtbuf, evtSize);
-   
-   lasttime = lastvidtime = lastaudtime = 0;
-   
-   root = current = (FADE*)malloc(sizeof(FADE));
-   memset(current, 0, sizeof(FADE));
-   
    // First pass: Create a list of valid fade points within the event groups.
    // We don't care what these fade points are yet.
-   evtbuf += 8;         // skip header
-   while( size <= evtSize ) {
-      memcpy(&event, evtbuf, 24);
-      size += 24;
-      evtbuf += 24;
-      event.timestamp   = SWAP64(event.timestamp);
-      event.type  = SWAP32(event.type);
-      event.value1   = SWAP32(event.value1);
-      event.value2   = SWAP32(event.value2);
-      
-      //event.timestamp   = rtv_to_u64(&evtbuf);
-      //event.type        = rtv_to_u32(&evtbuf);
-      //event.value1      = rtv_to_u32(&evtbuf);
-      //event.value2      = rtv_to_u32(&evtbuf);
-      //memcpy(&(event.color), evtbuf, 4); evtbuf += 4;
-      //size += 24;
-      
-      if (!lasttime || (factor == 1 && (event.timestamp - lasttime) > (__s64)1000000000)) {
-         // re-use node if not used
-         if (current->start) {
-            if (!current->stop) current->stop = lasttime;
-            current->next = (FADE*)malloc(sizeof(FADE));
+   //
+   lasttime = lastvidtime = lastaudtime = 0;
+   
+   root = current = (fade_pt_t*)malloc(sizeof(fade_pt_t));
+   memset(current, 0, sizeof(fade_pt_t));
+   
+   for ( x=0; x < num_recs; x++ ) {
+      __u32 rec_timestamp = evt_recs[x].timestamp / 1000000; //nS to mS
+
+      if ( !(lasttime) || ((audio_factor == 1) && (rec_timestamp - lasttime) > 1000) ) { //1 sec
+         if ( current->start ) {
+            if ( !(current->stop) ) {
+               current->stop = lasttime;
+            }
+            current->next = (fade_pt_t*)malloc(sizeof(fade_pt_t));
             current = current->next;
-            memset(current, 0, sizeof(FADE));
+            memset(current, 0, sizeof(fade_pt_t));
          }
-         current->stop = 0;
+         current->stop  = 0;
          current->video = 256;
          current->audio = 10000;
-         lastvid = 256;
-         lastaud = 10000;
+         lastvid        = 256;
+         lastaud        = 10000;
       }
-      if (event.type == EVT_AUD) {
-         if ((event.timestamp - lastvidtime) > 70000000) lastvid = 256;
-         lastaud = event.value1 * factor;
-         lastaudtime = event.timestamp;
+      
+      if ( evt_recs[x].data_type == EVT_AUD ) {
+         if ( (rec_timestamp - lastvidtime) > 70 ) { //70mS
+            lastvid = 256;
+         }
+         lastaud     = evt_recs[x].audiopower * audio_factor;
+         lastaudtime = rec_timestamp;
       }
-      if (event.type == EVT_VID) {
-         int i, divisor = 0;
-         if ((event.timestamp - lastaudtime) > 50000000) lastaud = 10000;
+
+      if (evt_recs[x].data_type == EVT_VID) {
+         __u8 *color   = (__u8*)&(evt_recs[x].blacklevel);
+         int   divisor = 0;
+
+         if ( (rec_timestamp - lastaudtime) > 50 ) { //50mS
+            lastaud = 10000;
+         }
          lastvid = 0;
-         for (i=0; i<4; i++) {
-            if (event.color[i]) {
-               lastvid += event.color[i];
+         for ( i=0; i < 4; i++ ) {
+            if ( color[i] ) {
+               lastvid += color[i];
                divisor++;
             }
          }
-         if (divisor) lastvid /= divisor;
-         lastvidtime = event.timestamp;
+         if ( divisor ) {
+            lastvid /= divisor;
+         }
+         lastvidtime = rec_timestamp;
       }
-      if ((factor > 1 && ((!current->start && lastaud < audmin) || (current->start && lastaud >= audmin)))) {
-         // re-use node if not used
-         if (current->start) {
-            if ((event.timestamp - current->start) > 1000000000) {
-               if (!current->stop) current->stop = lasttime;
-               current->next = (FADE*)malloc(sizeof(FADE));
+
+      if ( ((audio_factor > 1) && ((!(current->start) && lastaud < audio_min) || (current->start && lastaud >= audio_min))) ) {
+         if ( current->start ) {
+            if ( (rec_timestamp - current->start) > 1000 ) { //1sec
+               if ( !(current->stop) ) {
+                  current->stop = lasttime;
+               }
+               current->next = (fade_pt_t*)malloc(sizeof(fade_pt_t));
                current = current->next;
-               memset(current, 0, sizeof(FADE));
+               memset(current, 0, sizeof(fade_pt_t));
             }
          }
          current->stop = 0;
          current->video = 256;
          current->audio = 10000;
       }
+
       // sometimes we see errant past times at the end of the evt,
       // filter them out
-      if (event.timestamp >= lasttime) {
-         lasttime = event.timestamp;
+      //
+      if ( rec_timestamp >= lasttime ) {
+         lasttime = rec_timestamp;
+         
          // A fade is only valid if BOTH vid and aud fall below
          // our thresholds.
-         if (lastvid < 32) {
-            if (lastaud < audmin) {
-               if (!current->start) {
+         //
+         if ( lastvid < 32 ) {
+            if ( lastaud < audio_min ) {
+               if ( !(current->start) ) {
                   current->start = lasttime;
                   current->video = lastvid;
                   current->audio = lastaud;
                }
-               else if (current->stop) {
+               else if ( current->stop ) {
                   current->start = lasttime;
                   current->video = lastvid;
                   current->audio = lastaud;
                   current->stop = 0;
                }
             }
-            else if (current->start && !current->stop) {
+            else if ( current->start && !(current->stop) ) {
                current->stop = lasttime;
             }
          }
-         else if ((lastvid > 200) && current->start && !current->stop) {
+         else if ( (lastvid > 200) && current->start && !(current->stop) ) {
             current->stop = lasttime;
          }
       }
+   } //for
+
+   if ( RTVLOG_EVTFILE ) {
+      RTV_PRT("\n>>>Fadepoints<<<\n");
+      print_fadepoints(root);
    }
-   
+
+
    // Second pass: Walk the list of fade points and see if anything falls out.
    // For now, just look for time between fades, if it's > 5 minutes it's likely
    // to be a program segment, else it's likely to be a commercial segment.  if
    // there is a fade in the first minute, the recording may have started on a
    // commercial.  nothing fancy.
-   
-   current = root;
-   lasttime = 0;
-   (*evtcount) = 0;
-   
+   //
+   current          = root;
+   lasttime         = 0;
+   addcount         = 0;
+   last_added       = 0;
+   chapter_recs     = NULL;
+   num_chapters     = 0;
+   commercial_start = 0;
+      
    while (current) {
       if (current->start) {
-         __s64 spottime;
+         __u32 spottime;
+
          // use the middle value of the fade range as the edit time
+         //
          current->stop = (current->stop + current->start)/2;
          spottime = current->stop - lasttime;
-         if (!lasttime || spottime >= gMinTime) {
-            // if it's less than gProgTime, we want to add the edit
-            if (lasttime && spottime < gProgTime) {
+         if ( !(lasttime) || (spottime >= scene_min) ) {
+
+            // if it's less than progseg_min, we want to add the edit
+            //
+            if ( lasttime && (spottime < progseg_min) ) {
                current->type = 1;
             }
+
             // if it's the first one in the first minute, we want to add
             // the edit
-            if (!lasttime && spottime < (__s64)60000000000LL) {
-               // 1 min
+            //
+            if ( !(lasttime) && spottime < 60000 ) { //60sec
                current->type = 1;
             }
-            else lasttime = current->stop;
+            else {
+               lasttime = current->stop;
+            }
             
-            if(RTV_DEBUG) {
-               fprintf(stderr,"%c ", current->type ? 'A' : 'D');
-               fprintf(stderr,"%s\n", format_ts(current->stop,t1));
+            if( RTVLOG_EVTFILE ) {
+               char t1[16];
+               RTV_PRT("%c ", current->type ? 'A' : 'D');
+               RTV_PRT("%s\n", format_ts(current->stop,t1));
             }
             
             if( current->type ) {
                last_added = current->stop;
-               if(last_added) {
-                  if(addcount > 20) {
+               if( last_added ) {
+                  if( addcount > 20 ) {
                      addpoint[0] = addpoint[19];
                      addpoint[1] = addpoint[20];
                      addcount = 2;
@@ -376,86 +394,88 @@ int rtv_parse_evt_filexxx( unsigned char *evtbuf, long int evtSize, struct evt5k
             }
             
             if( commercial_start ) {
-               if( (*evtcount) == 0 ) {
-                  (*s) = (struct evt5kStruct **)malloc(
-                     sizeof(struct evt5kStruct *)
-                     );
+               if( num_chapters == 0 ) {
+                  chapter_recs = (rtv_prog_seg_t*)malloc(sizeof(rtv_prog_seg_t));
                } else {
-                  (*s) = (struct evt5kStruct **)realloc(
-                     (*s), sizeof(struct evt5kStruct *)*((*evtcount)+1)
-                     );
+                  chapter_recs = (rtv_prog_seg_t*)realloc(chapter_recs, sizeof(rtv_prog_seg_t) * (num_chapters+1));
                }
-               (*s)[(*evtcount)] = (struct evt5kStruct *)malloc(
-                  sizeof(struct evt5kStruct)
-                  );
-               (*s)[(*evtcount)]->start = current->stop;
-               if( last_added && (*evtcount) > 0 ) {
-                  (*s)[(*evtcount)-1]->stop = last_added;
+
+               chapter_recs[num_chapters].start = current->stop;
+               if( last_added && (num_chapters > 0) ) {
+                  chapter_recs[num_chapters-1].stop = last_added;
                }
-               (*evtcount)++;
+               num_chapters++;
                commercial_start = 0;
             }
          }
          else lasttime = current->stop;
       }
       current = current->next;
+   } //while
+
+
+   if ( RTVLOG_EVTFILE ) {
+      RTV_PRT("\n>>>Chapters 1st Pass<<<\n");
+      print_chapters(chapter_recs, num_chapters);
    }
-   
-   if( (*evtcount) > 0 ) {
-      (*s)[(*evtcount)-1]->stop = lasttime;
-      if( last_added > (*s)[(*evtcount)-1]->start )
-         (*s)[(*evtcount)-1]->stop = last_added;
+
+   if( num_chapters > 0 ) {
+      chapter_recs[num_chapters-1].stop = lasttime;
+      if( last_added > chapter_recs[num_chapters-1].start )
+         chapter_recs[num_chapters-1].stop = last_added;
    }
-   // Throw out last evt point if it's bogus (start time < previous stop time)
-   if( (*evtcount) > 1 ) {
-      if( (*s)[(*evtcount)-1]->start <= (*s)[(*evtcount)-2]->stop ) {
-         (*evtcount)--;
+
+   // Throw out last evt point if it's bogus
+   //
+   if( num_chapters > 1 ) {
+      if( chapter_recs[num_chapters-1].start <= chapter_recs[num_chapters-2].stop ) {
+         num_chapters--;
       }
    }
+
    // last add points > 1 min apart most likely means that last
    // commercial block really ends at the previous add point
+   //
    if( addcount > 1 ) {
       addcount--;
-      if( addpoint[addcount] - addpoint[addcount-1] > (__s64)60000000000LL ) {
-         (*s)[(*evtcount)-1]->stop = addpoint[addcount-1];
+      if( addpoint[addcount] - addpoint[addcount-1] > 60000 ) { //60sec
+         chapter_recs[num_chapters-1].stop = addpoint[addcount-1];
       }
    }
-   
+
    // Sanity check commercial blocks (>6 min diff => throw out)
-   for(i=0; i<(*evtcount); ++i) {
-      if( (*s)[i]->stop - (*s)[i]->start > (__s64)360000000000LL ) {
-         fprintf(stderr,"**Throwing out commercial block: ");
-         fprintf(stderr,"%s -> ", format_ts((*s)[i]->start,t1));
-         fprintf(stderr,"%s\n", format_ts((*s)[i]->stop,t2));
-         for(j=i+1; j<(*evtcount); ++j) {
-            (*s)[j-1]->start = (*s)[j]->start;
-            (*s)[j-1]->stop = (*s)[j]->stop;
+   //
+   for( i=0; i < num_chapters; ++i ) {
+      if( chapter_recs[i].stop - chapter_recs[i].start > 360000 ) { //360sec
+         if ( RTVLOG_EVTFILE ) {
+            char t1[20], t2[20];
+            RTV_PRT("**Throwing out commercial block: ");
+            RTV_PRT("%s -> ", format_ts(chapter_recs[i].start, t1));
+            RTV_PRT("%s\n", format_ts(chapter_recs[i].stop, t2));
          }
-         (*evtcount)--;
+         for( j=i+1; j < num_chapters; ++j ) {
+            chapter_recs[j-1].start = chapter_recs[j].start;
+            chapter_recs[j-1].stop  = chapter_recs[j].stop;
+         }
+         num_chapters--;
       }
+   } //for
+
+   if ( RTVLOG_EVTFILE ) {
+      RTV_PRT("\n>>>Chapters 2nd Pass<<<\n");
+      print_chapters(chapter_recs, num_chapters);
    }
-   
-   if(RTV_DEBUG) {
-      fprintf(stderr,"**5K Commercial EVT points**\n");
-      fprintf(stderr,"evtcount = %d\n",(*evtcount));
-      for(i=0; i<(*evtcount); ++i) {
-         fprintf(stderr,"%d ",i); 
-         fprintf(stderr,"(%4.2f mins) ",
-                 (float)((*s)[i]->stop-(*s)[i]->start)/60e9
-            );
-         fprintf(stderr,"%s -> ", format_ts((*s)[i]->start,t1));
-         fprintf(stderr,"%s\n", format_ts((*s)[i]->stop,t2));
-      }
-   }
-   
+
    // release the fade list
+   //
    current = root;
    while (current) {
       root = current;
       current = current->next;
       free(root);
    }
-   return 1;
-}
 
-#endif
+   chapter_struct->num_chapters = num_chapters;
+   chapter_struct->chapter      = chapter_recs;
+   return(0);
+}

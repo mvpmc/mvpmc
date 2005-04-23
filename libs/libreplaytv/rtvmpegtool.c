@@ -994,7 +994,7 @@ static int process_evt(int evt_fd)
    }
 
    ch_parms.p_seg_min = 180; //seconds
-   ch_parms.scene_min = 0;   //seconds
+   ch_parms.scene_min = 3;   //seconds
    ch_parms.buf       = buf;
    ch_parms.buf_sz    = fst.st_size;
    rtv_parse_evt_file( ch_parms, &chapters);
@@ -1016,7 +1016,6 @@ static int process_evt(int evt_fd)
       }      
    }
 
-   printf("done.........\n");   
    return(0);
 }
 

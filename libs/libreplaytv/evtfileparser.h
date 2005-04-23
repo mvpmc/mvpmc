@@ -23,4 +23,14 @@ typedef enum {
 } evt_rec_type_t;
 
 
+typedef struct _fade_pt
+{
+   struct _fade_pt *next;
+   __u32            start;
+   __u32            stop;
+   __u32            video;
+   __u32            audio;
+   __u32            type;
+} fade_pt_t;
+
 #endif
