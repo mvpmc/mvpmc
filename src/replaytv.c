@@ -142,7 +142,7 @@ typedef struct rtv_selected_show_state_t
 {
    volatile rtv_play_state_t  play_state;
    rtv_ndx_info_t             ndx_info;
-   rtv_comm_blks_t            comm_blks;
+   rtv_comm_blks_t            comm_blks;              // commercial blocks
    int                        processing_jump_input;  // capturing key input for jump
    const rtv_show_export_t   *show_p;                 // currently selected show record
    __u64                      pos;                    // mpg file position
@@ -1150,9 +1150,11 @@ static void play_show(const rtv_show_export_t *show, int start_gop)
    // Figure out commercial blocks
    //
    if ( ndx_info->ver == RTV_NDX_30 ) {
-      char          evt_fn[MAX_FILENAME_LEN+1];
-      unsigned int  num_evt_rec;
-      unsigned int  evt_file_sz;
+      char           evt_fn[MAX_FILENAME_LEN+1];
+      unsigned int   num_evt_rec;
+      unsigned int   evt_file_sz;
+      rtv_chapter_mark_parms_t cb_parms;
+
 
       // Make sure the evt file exists
       //
@@ -1165,7 +1167,7 @@ static void play_show(const rtv_show_export_t *show, int start_gop)
          snprintf(buf, sizeof(buf), "ERROR: evt file not present in rtv filesystem. ");
          gui_error(buf);
          rtv_free_file_info(&fileinfo);
-         return;
+         goto evt_file_done;
       }
       //rtv_print_file_info(&fileinfo);
       evt_file_sz = fileinfo.size;
@@ -1173,7 +1175,7 @@ static void play_show(const rtv_show_export_t *show, int start_gop)
 
       if ( evt_file_sz > MAX_EVT_FILE_SZ ) {
          printf("INFO: evt file too big. Most likely screwed up: sz=%u\n", evt_file_sz);
-         return;
+         goto evt_file_done;
       }
 
       if ( ((evt_file_sz - RTV_EVT_HDR_SZ) % sizeof(rtv_evt_record_t)) != 0 ) {
@@ -1182,8 +1184,30 @@ static void play_show(const rtv_show_export_t *show, int start_gop)
       num_evt_rec = (evt_file_sz - RTV_EVT_HDR_SZ) / sizeof(rtv_evt_record_t);
       printf("EVT: size=%u rec=%u\n\n", evt_file_sz, num_evt_rec);
 
+      rc = rtv_read_file(devinfo, evt_fn, 0, evt_file_sz, &file_data);
+      if ( rc != 0 ) {
+         char buf[128];
+         printf("ERROR: EVT file read failed\n");
+         snprintf(buf, sizeof(buf), "ERROR: EVT_file read failed.");
+         gui_error(buf);
+         goto evt_file_done;
+      }
+
+      cb_parms.p_seg_min = 180; //seconds
+      cb_parms.scene_min = 3;   //seconds
+      cb_parms.buf       = file_data.data_start;
+      cb_parms.buf_sz    = file_data.len;
+      rtv_parse_evt_file( cb_parms, &(rtv_video_state.comm_blks));
+      printf("\n>>>Commercial Block List<<<\n");
+      rtv_print_comm_blks(&(rtv_video_state.comm_blks.blocks[0]), rtv_video_state.comm_blks.num_blocks);
+
+      // Warning: TODO need to free commercial blocks before calling rtv_parse_evt_file() again 
+      // Also need to verify that ndx buffer is cleared on init.
+
+      free(file_data.buf);
 
    }
+evt_file_done:
 
 
    // Each GOP is 1/2 second. (1 ndx rec)
