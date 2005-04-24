@@ -66,7 +66,7 @@ LIBOBJS=			\
 	rtvlib.o		\
 	$(OBJMD5)
 
-all: $(LIB) $(LIBCLI) $(LIBMD5) $(PROGRAMS) $(RTVSHELL_PROG)
+all: $(LIB) $(LIBCLI) $(LIBMD5) $(PROGRAMS) $(RTVSHELL_PROG) $(MPGTOOL_PROG)
 $(PROGRAMS) : $(LIB)
 $(LIB): $(LIBOBJS)
 	ar r $@ $^

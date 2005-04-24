@@ -58,6 +58,7 @@
 #define RTV_XFER_CHUNK_SZ (1024 * 32)
 #define RTV_VID_Q_SZ (2)
 #define MAX_FILENAME_LEN (256)
+#define MAX_EVT_FILE_SZ (200 *1024)
 
 
 #define MVPW_MIDNIGHTBLUE 0xff701919
@@ -116,18 +117,6 @@ typedef struct rtv_ndx_info_t
    char                  filename[MAX_FILENAME_LEN];
 } rtv_ndx_info_t;
 
-typedef struct rtv_evt_info_t 
-{
-   rtv_ndx_version_t  ver;
-   unsigned int       hdr_sz;
-   unsigned int       num_rec;
-   unsigned int       chunk_sz;
-   unsigned int       file_pos;
-   unsigned int       file_sz;
-   char              *cur_chunk_p;
-   char               filename[MAX_FILENAME_LEN];
-} rtv_evt_info_t;
-
 typedef enum rtv_play_state_t
 {
    RTV_VID_STOPPED    = 1,
@@ -153,7 +142,7 @@ typedef struct rtv_selected_show_state_t
 {
    volatile rtv_play_state_t  play_state;
    rtv_ndx_info_t             ndx_info;
-   rtv_evt_info_t             evt_info;
+   rtv_comm_blks_t            comm_blks;
    int                        processing_jump_input;  // capturing key input for jump
    const rtv_show_export_t   *show_p;                 // currently selected show record
    __u64                      pos;                    // mpg file position
@@ -1113,8 +1102,7 @@ static void play_show(const rtv_show_export_t *show, int start_gop)
    // Get .ndx & .evt info
    //+**************************************
    free_ndx_chunk(ndx_info);
-   memset(&(rtv_video_state.evt_info), 0, sizeof(rtv_video_state.evt_info));
-
+   memset(&(rtv_video_state.comm_blks), 0, sizeof(rtv_comm_blks_t));
 
    // Determine ndx file version and setup data structs
    //
@@ -1159,15 +1147,18 @@ static void play_show(const rtv_show_export_t *show, int start_gop)
    rtv_free_file_info(&fileinfo);
 
 
-   // Setup the .evt struct.
+   // Figure out commercial blocks
    //
    if ( ndx_info->ver == RTV_NDX_30 ) {
-      //
+      char          evt_fn[MAX_FILENAME_LEN+1];
+      unsigned int  num_evt_rec;
+      unsigned int  evt_file_sz;
+
       // Make sure the evt file exists
       //
-      sprintf(rtv_video_state.evt_info.filename, "/Video/%s.evt", show_name);
-      printf("EVT: %s\n", rtv_video_state.evt_info.filename);
-      rc = rtv_get_file_info(devinfo, rtv_video_state.evt_info.filename, &fileinfo );
+      sprintf(evt_fn, "/Video/%s.evt", show_name);
+      printf("EVT: %s\n", evt_fn);
+      rc = rtv_get_file_info(devinfo, evt_fn, &fileinfo );
       if ( rc != 0 ) {
          char buf[128];
          printf("ERROR: evt file not present in rtv filesystem.\n");
@@ -1177,15 +1168,21 @@ static void play_show(const rtv_show_export_t *show, int start_gop)
          return;
       }
       //rtv_print_file_info(&fileinfo);
+      evt_file_sz = fileinfo.size;
+      rtv_free_file_info(&fileinfo);
 
-      rtv_video_state.evt_info.hdr_sz = RTV_EVT_HDR_SZ;
-      if ( ((fileinfo.size - RTV_EVT_HDR_SZ) % sizeof(rtv_evt_record_t)) != 0 ) {
+      if ( evt_file_sz > MAX_EVT_FILE_SZ ) {
+         printf("INFO: evt file too big. Most likely screwed up: sz=%u\n", evt_file_sz);
+         return;
+      }
+
+      if ( ((evt_file_sz - RTV_EVT_HDR_SZ) % sizeof(rtv_evt_record_t)) != 0 ) {
          printf("\n***WARNING: evt file size not consistant with record size\n\n");
       }
-      rtv_video_state.evt_info.num_rec = (fileinfo.size - RTV_EVT_HDR_SZ) / sizeof(rtv_evt_record_t);
-      rtv_video_state.evt_info.file_sz = fileinfo.size;
-      printf("EVT: size=%u rec=%u\n\n", rtv_video_state.evt_info.file_sz, rtv_video_state.evt_info.num_rec);
-      rtv_free_file_info(&fileinfo);
+      num_evt_rec = (evt_file_sz - RTV_EVT_HDR_SZ) / sizeof(rtv_evt_record_t);
+      printf("EVT: size=%u rec=%u\n\n", evt_file_sz, num_evt_rec);
+
+
    }
 
 

@@ -301,11 +301,11 @@ typedef struct rtv_prog_seg_t {
 
 //
 //
-typedef struct rtv_chapters_t
+typedef struct rtv_comm_blks_t
 {
-   int              num_chapters;
-   rtv_prog_seg_t  *chapter;      //array of chapters
-} rtv_chapters_t;
+   int              num_blocks;
+   rtv_prog_seg_t  *blocks;      //array of commercial blocks
+} rtv_comm_blks_t;
 
 
 //+************************************************************
@@ -402,7 +402,8 @@ extern int rtv_get_play_position(const rtv_device_info_t   *device,
 extern char *rtv_xref_quality(int key);
 extern char *rtv_xref_input_source(int key);
 
-extern int rtv_parse_evt_file( rtv_chapter_mark_parms_t evtfile_parms, rtv_chapters_t *chapter_struct);
+extern int  rtv_parse_evt_file( rtv_chapter_mark_parms_t evtfile_parms, rtv_comm_blks_t *commercials);
+extern void rtv_print_comm_blks(const rtv_prog_seg_t *block, int num_blocks);
 
 extern int  rtv_get_volinfo( const rtv_device_info_t  *device, const char *name, rtv_fs_volume_t **volinfo );
 extern void rtv_free_volinfo(rtv_fs_volume_t **volinfo); 

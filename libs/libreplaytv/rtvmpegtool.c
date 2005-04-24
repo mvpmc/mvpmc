@@ -952,8 +952,8 @@ static int process_evt(int evt_fd)
    struct stat  fst;
    char        *buf;
 
-   rtv_chapter_mark_parms_t ch_parms;
-   rtv_chapters_t           chapters;
+   rtv_chapter_mark_parms_t cb_parms;
+   rtv_comm_blks_t          comm_blks;
 
    if ( fstat(evt_fd, &fst) != 0 ) {
       UNEXPECTED("%s: fstat failed: %d<=>%s\n", __FUNCTION__, errno, strerror(errno));
@@ -989,31 +989,25 @@ static int process_evt(int evt_fd)
    
    // rtvlib logging level
    //
-   if ( verb > 0 ) {
-      rtv_set_dbgmask(0x80);
+   if ( verb > 2 ) {
+      rtv_set_dbgmask(0x700);
+   }
+   else if ( verb > 1 ) {
+      rtv_set_dbgmask(0x300);
+   }
+   else if ( verb > 0 ) {
+      rtv_set_dbgmask(0x100);
    }
 
-   ch_parms.p_seg_min = 180; //seconds
-   ch_parms.scene_min = 3;   //seconds
-   ch_parms.buf       = buf;
-   ch_parms.buf_sz    = fst.st_size;
-   rtv_parse_evt_file( ch_parms, &chapters);
-
-   if ( hex_verb > 0 ) {
-      int x;
-      int nrec              = (fst.st_size - RTV_EVT_HDR_SZ) / sizeof(rtv_evt_record_t);
-      rtv_evt_record_t *rec = (rtv_evt_record_t*)(buf + RTV_EVT_HDR_SZ);
-
-      PRT("\n\n");
-      hex_dump("EVT FILE HDR", 0, buf,  RTV_EVT_HDR_SZ);      
-      
-      PRT("\nrec          timestamp                           aud/vid          audiopower              blacklevel             unknown\n");
-      PRT("--------------------------------------------------------------------------------------------------------------------------\n");
-      for ( x = 0; x < nrec; x++ ) {
-         PRT("%05d   0x%016llx=%016llu   0x%08lx     0x%08lx=%010lu     0x%08lx=%010lu     0x%08lx\n", 
-             x, rec[x].timestamp, rec[x].timestamp, rec[x].data_type, 
-             rec[x].audiopower, rec[x].audiopower, rec[x].blacklevel,  rec[x].blacklevel, rec[x].unknown1);
-      }      
+   cb_parms.p_seg_min = 180; //seconds
+   cb_parms.scene_min = 3;   //seconds
+   cb_parms.buf       = buf;
+   cb_parms.buf_sz    = fst.st_size;
+   rtv_parse_evt_file( cb_parms, &comm_blks);
+   
+   if ( verb > 0 ) {
+      PRT("\n>>>Commercial Block List<<<\n");
+      rtv_print_comm_blks(&(comm_blks.blocks[0]), comm_blks.num_blocks);
    }
 
    return(0);
@@ -1033,8 +1027,10 @@ static void usage(char *name)
    fprintf(stderr, "   -e                    : process evt file\n");
    fprintf(stderr, "   -v <level>            : results verbosity level (default = 1)\n");
    fprintf(stderr, "       level=0           : Quiet. Only report errors\n");
-   fprintf(stderr, "       level=1           : Report ndx & mpg file timestamps\n");
+   fprintf(stderr, "       level=1           : Report ndx & mpg file timestamps: (evt file: report chapter results)\n");
    fprintf(stderr, "       level=2           : Report ndx & mpg file timestamps, report video ES info\n");
+   fprintf(stderr, "                         : evt file: include evt file processing results\n");
+   fprintf(stderr, "       level=3           : evt file: include evt file dumps\n");
    fprintf(stderr, "   -h <level>            : hex dump level (default = 0)\n");
    fprintf(stderr, "       level=0           : Quiet.\n");
    fprintf(stderr, "       level=1           : Dump first 64 bytes of streams.\n");

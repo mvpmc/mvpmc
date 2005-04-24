@@ -17,8 +17,6 @@
  * NOTE: This code is based on the VideoLAN project's replaytv patch by Laurent Aimar <fenrir@via.ecp.fr>
  *       The VLC code was based on the RTV5K tools evtdump.c code byLee Thompson <thompsonl@logh.net>
  *******************************************************************************************************/
-
-
 #include <stdlib.h>
 #include <string.h>
 
@@ -26,13 +24,8 @@
 #include "rtvlib.h"
 #include "evtfileparser.h"
 
-/*****************************************************************************
- * Local prototypes
- *****************************************************************************/
-
-
-int RTV_DEBUG = 0;
-
+//#define DBGPRT(fmt, args...) fprintf(stdout, fmt, ## args) 
+#define DBGPRT(fmt, args...)
 
 //+*********************************************************************
 //  Name: convert_evtbuf_recs
@@ -83,6 +76,10 @@ static void normalize(rtv_evt_record_t *recs, int num_recs, __u32 *audmin_p, __u
 }
 
 
+//+*********************************************************************
+//  Name: format_ts
+//        Convert mS to MMM:SS.mS
+//+*********************************************************************
 static char* format_ts(__u32 ts, char *time)
 {
    __u32 ms = ts;
@@ -96,6 +93,29 @@ static char* format_ts(__u32 ts, char *time)
 }
 
 
+//+*********************************************************************
+//  Name: print_evt_recs
+//+*********************************************************************
+static void print_evt_recs(char *hdr,  rtv_evt_record_t *recs, int num_recs) 
+{
+   int x;
+   
+   RTV_PRT("\n\n");
+   rtv_hex_dump("EVT FILE HDR", hdr,  RTV_EVT_HDR_SZ);      
+   
+   RTV_PRT("\nrec          timestamp                           aud/vid          audiopower              blacklevel             unknown\n");
+   RTV_PRT("--------------------------------------------------------------------------------------------------------------------------\n");
+   for ( x = 0; x < num_recs; x++ ) {
+      RTV_PRT("%05d   0x%016llx=%016llu   0x%08lx     0x%08lx=%010lu     0x%08lx=%010lu     0x%08lx\n", 
+              x, recs[x].timestamp, recs[x].timestamp, recs[x].data_type, 
+              recs[x].audiopower, recs[x].audiopower, recs[x].blacklevel,  recs[x].blacklevel, recs[x].unknown1);
+   }
+}
+
+
+//+*********************************************************************
+//  Name: print_fadepoints
+//+*********************************************************************
 static void print_fadepoints(const fade_pt_t *fpts) 
 {
    int cnt = 0;
@@ -106,32 +126,19 @@ static void print_fadepoints(const fade_pt_t *fpts)
    RTV_PRT("---------------------------------------------------\n");
 
    while ( fpts != NULL ) {
-      cnt++;
       format_ts(fpts->start, start_str);
       format_ts(fpts->stop, stop_str);
-      RTV_PRT("%s  %s   %08lx %08lx %08lx\n", start_str, stop_str, fpts->video, fpts->audio, fpts->type);
+      RTV_PRT("%3d %s  %s   %08lx %08lx %08lx\n", cnt, start_str, stop_str, fpts->video, fpts->audio, fpts->type);
       fpts = fpts->next;
+      cnt++;
    }
-   RTV_PRT("FadepointCount=%d\n", cnt);
+   RTV_PRT("\n");
 }
 
 
-static void print_chapters(const rtv_prog_seg_t *chapters, int num_chapters) 
-{
-   int  x;
-   char start_str[20];
-   char stop_str[20];
-
-   RTV_PRT(" num   start       stop  \n");
-   RTV_PRT("-------------------------\n");
-
-   for ( x=0; x < num_chapters; x++ ) {
-      format_ts(chapters[x].start, start_str);
-      format_ts(chapters[x].stop, stop_str);
-      RTV_PRT("%3d: %s  %s\n", x, start_str, stop_str);
-   }
-}
-
+//+*********************************************************************
+//  Name: vid_level
+//+*********************************************************************
 static char* vid_level(__u32 level)
 {
    static char vid[10];
@@ -149,6 +156,10 @@ static char* vid_level(__u32 level)
    return vid;
 }
 
+
+//+*********************************************************************
+//  Name: aud_level
+//+*********************************************************************
 static char* aud_level(__u32 level)
 {
    static char aud[50];
@@ -166,12 +177,35 @@ static char* aud_level(__u32 level)
    return aud;
 }
 
+//+*************************************************************************************************************
+//           PUBLIC
+//+*************************************************************************************************************
+
+//+*********************************************************************
+//  Name: rtv_print_comm_blks
+//+*********************************************************************
+void rtv_print_comm_blks(const rtv_prog_seg_t *block, int num_blocks) 
+{
+   int  x;
+   char start_str[20];
+   char stop_str[20];
+
+   RTV_PRT(" num   start       stop  \n");
+   RTV_PRT("-------------------------\n");
+
+   for ( x=0; x < num_blocks; x++ ) {
+      format_ts(block[x].start, start_str);
+      format_ts(block[x].stop, stop_str);
+      RTV_PRT("%3d: %s  %s\n", x, start_str, stop_str);
+   }
+}
+
 
 //+***********************************************************************************************
 //  Name: rtv_parse_evt_file
 //  Processes evt file records and builds list of chapter segments.
 //+***********************************************************************************************
-int rtv_parse_evt_file( rtv_chapter_mark_parms_t evtfile_parms, rtv_chapters_t *chapter_struct)
+int rtv_parse_evt_file( rtv_chapter_mark_parms_t evtfile_parms, rtv_comm_blks_t *commercials)
 {
    unsigned int  progseg_min = evtfile_parms.p_seg_min * 1000; //minimum program segment time. (mS)
    unsigned int  scene_min   = evtfile_parms.scene_min * 1000; //minimum scene time (mS)
@@ -182,8 +216,8 @@ int rtv_parse_evt_file( rtv_chapter_mark_parms_t evtfile_parms, rtv_chapters_t *
 
    rtv_evt_record_t *evt_recs; //array of evt recs
    int               num_recs; //number of evt records
-   rtv_prog_seg_t   *chapter_recs;
-   int               num_chapters;
+   rtv_prog_seg_t   *comm_blk_recs;
+   int               num_blocks;
    int               addcount;
    int               commercial_start;
    int               x, i, j;
@@ -197,8 +231,8 @@ int rtv_parse_evt_file( rtv_chapter_mark_parms_t evtfile_parms, rtv_chapters_t *
 
    // Setup & file error checking.
    //
-   chapter_struct->num_chapters = 0;
-   chapter_struct->chapter      = NULL;
+   commercials->num_blocks = 0;
+   commercials->blocks     = NULL;
 
    if ( evtfile_sz < (RTV_EVT_HDR_SZ + sizeof(rtv_evt_record_t)) ) {
       RTV_WARNLOG("No records in EvtFile: sz=%d\n", evtfile_sz);
@@ -219,8 +253,12 @@ int rtv_parse_evt_file( rtv_chapter_mark_parms_t evtfile_parms, rtv_chapters_t *
    // Do endian conversion on records, & calculate the audio threshold.
    //
    convert_evtbuf_recs(evt_recs, num_recs);
-   normalize(evt_recs, num_recs, &audio_min, &audio_factor);
 
+   if ( RTVLOG_EVTFILE_V3 ) {
+      print_evt_recs(evtfile_buf - RTV_EVT_HDR_SZ,  evt_recs, num_recs);
+   }
+
+   normalize(evt_recs, num_recs, &audio_min, &audio_factor);
 
    // First pass: Create a list of valid fade points within the event groups.
    // We don't care what these fade points are yet.
@@ -293,6 +331,15 @@ int rtv_parse_evt_file( rtv_chapter_mark_parms_t evtfile_parms, rtv_chapters_t *
          current->audio = 10000;
       }
 
+      if ( RTVLOG_EVTFILE_V3 ) {
+         char rec_ts_str[20];
+         if ( rec_timestamp > (lasttime + 1000) ) {
+            RTV_PRT("----------:\n");
+         }
+         RTV_PRT("%4d: %s: %c %s | %s\n", x, format_ts(rec_timestamp, rec_ts_str), (evt_recs[x].data_type == EVT_AUD) ? 'A' : 'V',
+                 vid_level(lastvid), aud_level(lastaud));
+      }
+
       // sometimes we see errant past times at the end of the evt,
       // filter them out
       //
@@ -324,9 +371,10 @@ int rtv_parse_evt_file( rtv_chapter_mark_parms_t evtfile_parms, rtv_chapters_t *
             current->stop = lasttime;
          }
       }
+
    } //for
 
-   if ( RTVLOG_EVTFILE ) {
+   if ( RTVLOG_EVTFILE_V2 ) {
       RTV_PRT("\n>>>Fadepoints<<<\n");
       print_fadepoints(root);
    }
@@ -336,15 +384,16 @@ int rtv_parse_evt_file( rtv_chapter_mark_parms_t evtfile_parms, rtv_chapters_t *
    // For now, just look for time between fades, if it's > 5 minutes it's likely
    // to be a program segment, else it's likely to be a commercial segment.  if
    // there is a fade in the first minute, the recording may have started on a
-   // commercial.  nothing fancy.
+   // commercial.
    //
    current          = root;
    lasttime         = 0;
    addcount         = 0;
    last_added       = 0;
-   chapter_recs     = NULL;
-   num_chapters     = 0;
+   comm_blk_recs     = NULL;
+   num_blocks     = 0;
    commercial_start = 0;
+   x                = 0;   //Track fadepoint numbers.
       
    while (current) {
       if (current->start) {
@@ -352,13 +401,16 @@ int rtv_parse_evt_file( rtv_chapter_mark_parms_t evtfile_parms, rtv_chapters_t *
 
          // use the middle value of the fade range as the edit time
          //
+         DBGPRT("\n");
          current->stop = (current->stop + current->start)/2;
          spottime = current->stop - lasttime;
          if ( !(lasttime) || (spottime >= scene_min) ) {
-
+            DBGPRT("-->%3d: (!(lasttime) || spottime > scene_min)  lasttime=%lu spottime=%lu scene_min=%d\n", x, lasttime, spottime, scene_min);
+            
             // if it's less than progseg_min, we want to add the edit
             //
             if ( lasttime && (spottime < progseg_min) ) {
+               DBGPRT("------>%3d: (lasttime && (spottime < progseg_min))  lasttime=%lu spottime=%lu progseg_min=%d\n", x, lasttime, spottime, progseg_min);
                current->type = 1;
             }
 
@@ -366,13 +418,15 @@ int rtv_parse_evt_file( rtv_chapter_mark_parms_t evtfile_parms, rtv_chapters_t *
             // the edit
             //
             if ( !(lasttime) && spottime < 60000 ) { //60sec
+               DBGPRT("------>%3d: (!(lasttime) && spottime < 60000)  lasttime=%lu spottime=%lu\n", x, lasttime, spottime);
                current->type = 1;
             }
             else {
+               DBGPRT("------>%3d: (lasttime = current->stop) current->stop=%lu\n", x, current->stop);
                lasttime = current->stop;
             }
             
-            if( RTVLOG_EVTFILE ) {
+            if( RTVLOG_EVTFILE_V2 ) {
                char t1[16];
                RTV_PRT("%c ", current->type ? 'A' : 'D');
                RTV_PRT("%s\n", format_ts(current->stop,t1));
@@ -380,56 +434,74 @@ int rtv_parse_evt_file( rtv_chapter_mark_parms_t evtfile_parms, rtv_chapters_t *
             
             if( current->type ) {
                last_added = current->stop;
+               DBGPRT("------>%3d: (current->type) last_added=%lu\n", x, current->stop);
                if( last_added ) {
+                  DBGPRT("---------->%3d: (last_added)\n", x);
                   if( addcount > 20 ) {
                      addpoint[0] = addpoint[19];
                      addpoint[1] = addpoint[20];
                      addcount = 2;
+                     DBGPRT("-------------->%3d: (addcount > 20) addcnt=2 addpoint[0]=%lu addpoint[0]=%lu\n", x, addpoint[0], addpoint[2]);
                   }
                   addpoint[addcount] = last_added;
+                  DBGPRT("---------->%3d: (end: last_added) addpoint[%d]=%lu \n", x, addcount, addpoint[addcount]);
                   addcount++;
                }
             } else {
+               DBGPRT("------>%3d: (commercial_start = 1)\n", x);
                commercial_start = 1;
             }
             
             if( commercial_start ) {
-               if( num_chapters == 0 ) {
-                  chapter_recs = (rtv_prog_seg_t*)malloc(sizeof(rtv_prog_seg_t));
+               DBGPRT("------>%3d: (commercial_start)\n", x);
+               if( num_blocks == 0 ) {
+                  comm_blk_recs = (rtv_prog_seg_t*)malloc(sizeof(rtv_prog_seg_t));
                } else {
-                  chapter_recs = (rtv_prog_seg_t*)realloc(chapter_recs, sizeof(rtv_prog_seg_t) * (num_chapters+1));
+                  comm_blk_recs = (rtv_prog_seg_t*)realloc(comm_blk_recs, sizeof(rtv_prog_seg_t) * (num_blocks+1));
                }
 
-               chapter_recs[num_chapters].start = current->stop;
-               if( last_added && (num_chapters > 0) ) {
-                  chapter_recs[num_chapters-1].stop = last_added;
+               comm_blk_recs[num_blocks].start = current->stop;
+               DBGPRT("------>%3d: num_blocks=%d comm_blk_recs[num_blocks].start=%lu\n", x, num_blocks, comm_blk_recs[num_blocks].start);
+
+               if( last_added && (num_blocks > 0) ) {
+                  comm_blk_recs[num_blocks-1].stop = last_added;
+                  DBGPRT("---------->%3d: (last_added && (num_blocks > 0)) comm_blk_recs[num_blocks-1].stop=%lu\n", 
+                         x, comm_blk_recs[num_blocks-1].stop);
                }
-               num_chapters++;
+               else {
+                  DBGPRT("---------->%3d: (ELSE:NOT last_added && (num_blocks > 0))\n", x);
+               }
+               num_blocks++;
                commercial_start = 0;
             }
          }
-         else lasttime = current->stop;
+         else {
+            // This is hit if (lasttime != 0) && (spottime(time beteween fades) < scene_min)
+            //
+            lasttime = current->stop;
+            DBGPRT("------>%3d: (!(commercial_start)) lasttime=%lu\n", x, lasttime);
+         }
       }
       current = current->next;
+      x++;
    } //while
 
-
-   if ( RTVLOG_EVTFILE ) {
-      RTV_PRT("\n>>>Chapters 1st Pass<<<\n");
-      print_chapters(chapter_recs, num_chapters);
+   if ( RTVLOG_EVTFILE_V2 ) {
+      RTV_PRT("\n>>>Commercial Blocks 1st Pass<<<\n");
+      rtv_print_comm_blks(comm_blk_recs, num_blocks);
    }
 
-   if( num_chapters > 0 ) {
-      chapter_recs[num_chapters-1].stop = lasttime;
-      if( last_added > chapter_recs[num_chapters-1].start )
-         chapter_recs[num_chapters-1].stop = last_added;
+   if( num_blocks > 0 ) {
+      comm_blk_recs[num_blocks-1].stop = lasttime;
+      if( last_added > comm_blk_recs[num_blocks-1].start )
+         comm_blk_recs[num_blocks-1].stop = last_added;
    }
 
    // Throw out last evt point if it's bogus
    //
-   if( num_chapters > 1 ) {
-      if( chapter_recs[num_chapters-1].start <= chapter_recs[num_chapters-2].stop ) {
-         num_chapters--;
+   if( num_blocks > 1 ) {
+      if( comm_blk_recs[num_blocks-1].start <= comm_blk_recs[num_blocks-2].stop ) {
+         num_blocks--;
       }
    }
 
@@ -438,33 +510,35 @@ int rtv_parse_evt_file( rtv_chapter_mark_parms_t evtfile_parms, rtv_chapters_t *
    //
    if( addcount > 1 ) {
       addcount--;
-      if( addpoint[addcount] - addpoint[addcount-1] > 60000 ) { //60sec
-         chapter_recs[num_chapters-1].stop = addpoint[addcount-1];
+      if( (addpoint[addcount] - addpoint[addcount-1]) > 60000 ) { //60sec
+         comm_blk_recs[num_blocks-1].stop = addpoint[addcount-1];
       }
    }
 
    // Sanity check commercial blocks (>6 min diff => throw out)
    //
-   for( i=0; i < num_chapters; ++i ) {
-      if( chapter_recs[i].stop - chapter_recs[i].start > 360000 ) { //360sec
-         if ( RTVLOG_EVTFILE ) {
+   for( i=0; i < num_blocks; ++i ) {
+      if( comm_blk_recs[i].stop - comm_blk_recs[i].start > 360000 ) { //360sec
+         if ( RTVLOG_EVTFILE_V2 ) {
             char t1[20], t2[20];
             RTV_PRT("**Throwing out commercial block: ");
-            RTV_PRT("%s -> ", format_ts(chapter_recs[i].start, t1));
-            RTV_PRT("%s\n", format_ts(chapter_recs[i].stop, t2));
+            RTV_PRT("%s -> ", format_ts(comm_blk_recs[i].start, t1));
+            RTV_PRT("%s\n", format_ts(comm_blk_recs[i].stop, t2));
          }
-         for( j=i+1; j < num_chapters; ++j ) {
-            chapter_recs[j-1].start = chapter_recs[j].start;
-            chapter_recs[j-1].stop  = chapter_recs[j].stop;
+         for( j=i+1; j < num_blocks; ++j ) {
+            comm_blk_recs[j-1].start = comm_blk_recs[j].start;
+            comm_blk_recs[j-1].stop  = comm_blk_recs[j].stop;
          }
-         num_chapters--;
+         num_blocks--;
       }
    } //for
 
+#if 0
    if ( RTVLOG_EVTFILE ) {
-      RTV_PRT("\n>>>Chapters 2nd Pass<<<\n");
-      print_chapters(chapter_recs, num_chapters);
+      RTV_PRT("\n>>>Commercial Block List<<<\n");
+      rtv_print_comm_blks(comm_blk_recs, num_blocks);
    }
+#endif
 
    // release the fade list
    //
@@ -475,7 +549,7 @@ int rtv_parse_evt_file( rtv_chapter_mark_parms_t evtfile_parms, rtv_chapters_t *
       free(root);
    }
 
-   chapter_struct->num_chapters = num_chapters;
-   chapter_struct->chapter      = chapter_recs;
+   commercials->num_blocks = num_blocks;
+   commercials->blocks     = comm_blk_recs;
    return(0);
 }
