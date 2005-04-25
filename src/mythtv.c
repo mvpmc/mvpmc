@@ -80,6 +80,7 @@ static cmyth_ringbuf_t ring;
 volatile mythtv_state_t mythtv_state = MYTHTV_STATE_MAIN;
 
 static int show_count, episode_count;
+static volatile int list_all = 0;
 
 int running_mythtv = 0;
 int mythtv_live = 0;
@@ -431,11 +432,59 @@ mythtv_start_thumbnail(void)
 	}
 }
 
+static int
+load_episodes(void)
+{
+	int err;
+
+	if (episode_plist)
+		cmyth_proglist_release(episode_plist);
+
+	if ((episode_plist=cmyth_proglist_create()) == NULL) {
+		fprintf(stderr, "cannot get program list\n");
+		goto err;
+	}
+
+	if ((err=cmyth_proglist_get_all_recorded(control, episode_plist)) < 0) {
+		fprintf(stderr, "get recorded failed, err %d\n", err);
+		goto err;
+	}
+
+	return cmyth_proglist_get_count(episode_plist);
+
+ err:
+	return 0;
+}
+
+static int
+episode_exists(char *title)
+{
+	int i, count;
+	cmyth_proginfo_t prog;
+	const char *t;
+
+	if ((episode_plist == NULL) || (title == NULL))
+		return 0;
+
+	count = cmyth_proglist_get_count(episode_plist);
+
+	for (i = 0; i < count; ++i) {
+		prog = cmyth_proglist_get_item(episode_plist, i);
+		t = cmyth_proginfo_title(prog);
+		cmyth_proginfo_release(prog);
+		if (strcmp(title, t) == 0) {
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
 static void
-select_callback(mvp_widget_t *widget, char *item, void *key)
+add_episodes(mvp_widget_t *widget, char *item, int load)
 {
 	const char *title, *subtitle;
-	int err, count, i, n = 0, episodes = 0;
+	int count, i, n = 0, episodes = 0;
 	char buf[256];
 
 	busy_start();
@@ -451,20 +500,11 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 
 	mvpw_clear_menu(widget);
 
-	if (episode_plist)
-		cmyth_proglist_release(episode_plist);
+	if (load)
+		count = load_episodes();
+	else
+		count = cmyth_proglist_get_count(episode_plist);
 
-	if ((episode_plist=cmyth_proglist_create()) == NULL) {
-		fprintf(stderr, "cannot get program list\n");
-		goto err;
-	}
-
-	if ((err=cmyth_proglist_get_all_recorded(control, episode_plist)) < 0) {
-		fprintf(stderr, "get recorded failed, err %d\n", err);
-		goto err;
-	}
-
-	count = cmyth_proglist_get_count(episode_plist);
 	for (i = 0; i < count; ++i) {
 		char full[256];
 
@@ -482,6 +522,7 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 		subtitle = cmyth_proginfo_subtitle(episode_prog);
 
 		if (strcmp(title, item) == 0) {
+			list_all = 0;
 			if ((strcmp(subtitle, " ") == 0) ||
 			    (subtitle[0] == '\0'))
 				subtitle = "<no subtitle>";
@@ -489,12 +530,14 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 					   &item_attr);
 			episodes++;
 		} else if (strcmp(item, "All - Oldest first") == 0) {
+			list_all = 1;
 			snprintf(full, sizeof(full), "%s - %s",
 				 title, subtitle);
 			mvpw_add_menu_item(widget, full, (void*)n,
 					   &item_attr);
 			episodes++;
 		} else if (strcmp(item, "All - Newest first") == 0) {
+			list_all = 2;
 			snprintf(full, sizeof(full), "%s - %s",
 				 title, subtitle);
 			mvpw_add_menu_item(widget, full, (void*)count-n-1,
@@ -512,23 +555,19 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 	pthread_mutex_unlock(&myth_mutex);
 
 	busy_end();
+}
 
-	return;
-
- err:
-	pthread_mutex_unlock(&myth_mutex);
-
-	mythtv_shutdown();
-
-	busy_end();
+static void
+select_callback(mvp_widget_t *widget, char *item, void *key)
+{
+	add_episodes(widget, item, 1);
 }
 
 static void
 add_shows(mvp_widget_t *widget)
 {
-	cmyth_proglist_t plist;
 	cmyth_proginfo_t prog;
-	int err, count;
+	int count;
 	int i, j, n = 0;
 	const char *title;
 	char *titles[1024];
@@ -540,19 +579,9 @@ add_shows(mvp_widget_t *widget)
 
 	pthread_mutex_lock(&myth_mutex);
 
-	if ((plist=cmyth_proglist_create()) == NULL) {
-		fprintf(stderr, "cannot get program list\n");
-		goto err;
-	}
-
-	if ((err=cmyth_proglist_get_all_recorded(control, plist)) < 0) {
-		fprintf(stderr, "get recorded failed, err %d\n", err);
-		goto err;
-	}
-
-	count = cmyth_proglist_get_count(plist);
+	count = load_episodes();
 	for (i = 0; i < count; ++i) {
-		prog = cmyth_proglist_get_item(plist, i);
+		prog = cmyth_proglist_get_item(episode_plist, i);
 		title = cmyth_proginfo_title(prog);
 		for (j=0; j<n; j++)
 			if (strcmp(title, titles[j]) == 0)
@@ -575,15 +604,8 @@ add_shows(mvp_widget_t *widget)
 	for (i=0; i<n; i++)
 		mvpw_add_menu_item(widget, titles[i], (void*)n+2, &item_attr);
 
-	cmyth_proglist_release(plist);
+	cmyth_proglist_release(episode_plist);
 	pthread_mutex_unlock(&myth_mutex);
-
-	return;
-
- err:
-	pthread_mutex_unlock(&myth_mutex);
-
-	mythtv_shutdown();
 }
 
 int
@@ -606,6 +628,39 @@ mythtv_update(mvp_widget_t *widget)
 
 	if (mythtv_verify() < 0)
 		return -1;
+
+	if (mythtv_state == MYTHTV_STATE_EPISODES) {
+		const char *t;
+		char *title = NULL;
+		int count;
+
+		if ((t=cmyth_proginfo_title(hilite_prog)) != NULL) {
+			title = alloca(strlen(t)+1);
+			strcpy(title, t);
+		}
+		if (!list_all)
+			printf("checking for more episodes of '%s'\n", title);
+		count = load_episodes();
+		if ((count > 0) && (list_all || episode_exists(title))) {
+			printf("staying in episode menu\n");
+			switch (list_all) {
+			case 0:
+				add_episodes(widget, title, 0);
+				break;
+			case 1:
+				add_episodes(widget, "All - Oldest first", 0);
+				break;
+			case 2:
+				add_episodes(widget, "All - Newest first", 0);
+				break;
+			}
+			return 0;
+		}
+		printf("returning to program menu\n");
+		mythtv_state = MYTHTV_STATE_PROGRAMS;
+	}
+
+	list_all = 0;
 
 	add_osd_widget(mythtv_program_widget, OSD_PROGRAM, 1, NULL);
 

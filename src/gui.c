@@ -799,7 +799,7 @@ mythtv_popup_select_callback(mvp_widget_t *widget, char *item, void *key)
 		printf("trying to forget recording\n");
 		if ((mythtv_delete() == 0) && (mythtv_forget() == 0)) {
 			mvpw_hide(mythtv_popup);
-			mythtv_state = MYTHTV_STATE_PROGRAMS;
+			mythtv_state = MYTHTV_STATE_EPISODES;
 			mythtv_update(mythtv_browser);
 		}
 		break;
@@ -807,7 +807,7 @@ mythtv_popup_select_callback(mvp_widget_t *widget, char *item, void *key)
 		printf("trying to delete recording\n");
 		if (mythtv_delete() == 0) {
 			mvpw_hide(mythtv_popup);
-			mythtv_state = MYTHTV_STATE_PROGRAMS;
+			mythtv_state = MYTHTV_STATE_EPISODES;
 			mythtv_update(mythtv_browser);
 		}
 		break;
