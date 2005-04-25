@@ -202,8 +202,8 @@ sighandler(int sig)
 	my_fd = -1;
 }
 
-cmyth_conn_t
-cmyth_connect(char *server, unsigned short port, unsigned buflen)
+static cmyth_conn_t
+cmyth_connect(char *server, unsigned short port, unsigned buflen, int window)
 {
 	cmyth_conn_t ret = NULL;
 	struct hostent *host;
@@ -212,6 +212,7 @@ cmyth_connect(char *server, unsigned short port, unsigned buflen)
 	int fd;
 	void (*old_sighandler)(int);
 	int old_alarm;
+	int window_size = 4096;
 
 	/*
 	 * First try to establish the connection with the server.
@@ -237,6 +238,14 @@ cmyth_connect(char *server, unsigned short port, unsigned buflen)
 	memcpy(&addr.sin_addr, host->h_addr_list[0], host->h_length);
 
 	fd = socket(PF_INET, SOCK_STREAM, 0);
+	/*
+	 * Set a 4kb tcp receive buffer on all myth protocol sockets,
+	 * otherwise we risk the connection hanging.  Oddly, setting this
+	 * on the data sockets causes stuttering during playback.
+	 */
+	if (window)
+		setsockopt(fd, SOL_SOCKET, SO_RCVBUF,
+			   (void*)&window_size, sizeof(window_size));
 	if (fd < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cannot create socket (%d)\n",
 				  __FUNCTION__, errno);
@@ -336,7 +345,7 @@ cmyth_conn_connect_ctrl(char *server, unsigned short port, unsigned buflen)
 	int attempt = 0;
 
 top:
-	conn = cmyth_connect(server, port, buflen);
+	conn = cmyth_connect(server, port, buflen, 1);
 	if (!conn) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_connect(%s, %d, %d) failed\n",
 				  __FUNCTION__, server, port, buflen);
@@ -449,7 +458,7 @@ cmyth_conn_connect_file(cmyth_proginfo_t prog, unsigned buflen)
 				  __FUNCTION__);
 		goto shut;
 	}
-	conn = cmyth_connect(prog->proginfo_host, prog->proginfo_port, buflen);
+	conn = cmyth_connect(prog->proginfo_host, prog->proginfo_port, buflen, 0);
 	if (!conn) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_connect(%s, %d, %d) failed\n",
 				  __FUNCTION__, prog->proginfo_host, prog->proginfo_port,
@@ -558,7 +567,7 @@ cmyth_conn_connect_ring(cmyth_recorder_t rec, unsigned buflen)
 	server = rec->rec_server;
 	port = rec->rec_port;
 
-	conn = cmyth_connect(server, port, buflen);
+	conn = cmyth_connect(server, port, buflen, 0);
 	if (!conn) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_connect(%s, %d, %d) failed\n",
 				  __FUNCTION__, server, port, buflen);

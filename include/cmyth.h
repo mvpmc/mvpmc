@@ -122,9 +122,6 @@ extern cmyth_conn_t cmyth_conn_hold(cmyth_conn_t p);
 
 extern void cmyth_conn_release(cmyth_conn_t p);
 
-extern cmyth_conn_t cmyth_connect(char *server, unsigned short port,
-								  unsigned buflen);
-
 extern cmyth_conn_t cmyth_conn_connect_ctrl(char *server,
 											unsigned short port,
 											unsigned buflen);
