@@ -455,6 +455,9 @@ video_callback(mvp_widget_t *widget, char key)
 	int jump;
 	long long offset, size;
 
+	if (!video_playing)
+		return;
+
 	if ( video_functions->key != NULL ) {
 		if ( video_functions->key(key) == 1 ) {
 			return;
