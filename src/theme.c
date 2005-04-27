@@ -79,6 +79,7 @@ typedef struct {
 	char *tag;
 	char *attr[9];
 	int (*func)(const char*, const char**, char *value);
+	char *value;
 } theme_data_t;
 
 typedef struct {
@@ -560,8 +561,7 @@ call_func(const char *el, const char **attr, theme_tag_t *tag)
 		if (tag->func(el, attr) != 0)
 			goto err;
 	} else {
-		if ((udata=malloc(sizeof(*udata))) ==
-		    NULL)
+		if ((udata=malloc(sizeof(*udata))) == NULL)
 			goto err;
 		memset(udata, 0, sizeof(*udata));
 		udata->tag = strdup(el);
@@ -592,14 +592,22 @@ value(void *data, const char *el, int len)
 		if (data) {
 			PRINTF("DATA ");
 			udata = (theme_data_t*)data;
-			if (udata->func(udata->tag, udata->attr, val) < 0)
-				theme_fail();
+			if (udata->value) {
+				udata->value = realloc(udata->value,
+						       strlen(udata->value)+
+						       strlen(val)+1);
+				if (udata->value == NULL) {
+					theme_err = "out of memory";
+					theme_fail();
+				}
+				strcat(udata->value, val);
+			} else {
+				udata->value = strdup(val);
+			}
 		}
 
 		PRINTF("value='%s'\n", val);
 	}
-
-	XML_SetUserData(p, NULL);
 }
 
 static void XMLCALL
@@ -665,7 +673,21 @@ start(void *data, const char *el, const char **attr)
 static void XMLCALL
 end(void *data, const char *el)
 {
+	theme_data_t *udata = (theme_data_t*)data;
+
 	PRINTF("</%s>\n", el);
+
+	if (udata && udata->value) {
+		PRINTF("value '%s'\n", udata->value);
+		if (udata->func(udata->tag, udata->attr, udata->value) < 0)
+			theme_fail();
+		free(udata->value);
+	}
+
+	if (udata)
+		free(udata);
+
+	XML_SetUserData(p, NULL);
 
 	if (--depth == 1) {
 		if (cur)
@@ -680,7 +702,7 @@ theme_parse(char *file)
 {
 	FILE *f;
 	int len, done = 0;
-	char buf[8000];
+	char buf[1024];
 
 	if ((f=fopen(file, "r")) == NULL) {
 		perror(file);
