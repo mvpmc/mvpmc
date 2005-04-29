@@ -306,4 +306,7 @@ extern theme_attr_t theme_attr[];
 
 extern int theme_parse(char *file);
 
+extern int seek_osd_timeout;
+extern int pause_osd;
+
 #endif /* MVPMC_H */

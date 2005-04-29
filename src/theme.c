@@ -44,6 +44,12 @@ static XML_Parser p;
 static int depth = 0;
 static char *cur = NULL;
 static int cur_attr = -1;
+static int cur_type = -1;
+
+enum {
+	TYPE_WIDGET = 1,
+	TYPE_SETTINGS,
+};
 
 static int tag_font(const char *el, const char **attr, char *value);
 static int tag_mvpmctheme(const char *el, const char **attr);
@@ -72,6 +78,22 @@ static theme_tag_t tags_widget[] = {
 	{ .tag = "font",	.vfunc = tag_widget_font },
 	{ .tag = "color",	.vfunc = tag_widget_color },
 	{ .tag = "style",	.vfunc = tag_widget_style },
+	{ .tag = NULL }
+};
+
+static int tag_settings_item(const char *el, const char **attr, char *value);
+
+static theme_tag_t tags_settings[] = {
+	{ .tag = "item",	.vfunc = tag_settings_item },
+	{ .tag = NULL }
+};
+
+static int tag_settings_screensaver(const char *el, const char **attr, char *value);
+static int tag_settings_video(const char *el, const char **attr, char *value);
+
+static theme_tag_t tag_settings_names[] = {
+	{ .tag = "screensaver",	.vfunc = tag_settings_screensaver },
+	{ .tag = "video",	.vfunc = tag_settings_video },
 	{ .tag = NULL }
 };
 
@@ -404,6 +426,73 @@ tag_widget_style(const char *el, const char **attr, char *value)
 }
 
 static int
+tag_settings_screensaver(const char *el, const char **attr, char *value)
+{
+	if (strcasecmp(attr[1], "timeout") == 0) {
+		int to;
+
+		to = atoi(value);
+		if ((to < 0) || (to > 3600)) {
+			theme_err = "invalid screensaver timeout";
+			return -1;
+		}
+
+		screensaver_default = to;
+		screensaver_timeout = to;
+	} else {
+		theme_err = "unknown item";
+		return -1;
+	}
+
+	return 0;
+}
+
+static int
+tag_settings_video(const char *el, const char **attr, char *value)
+{
+	if (strcasecmp(attr[1], "seek_osd_timeout") == 0) {
+		int to;
+
+		to = atoi(value);
+		if ((to < 0) || (to > 3600)) {
+			theme_err = "invalid osd timeout";
+			return -1;
+		}
+
+		seek_osd_timeout = to;
+	} else if (strcasecmp(attr[1], "pause_osd") == 0) {
+		int val;
+
+		val = atoi(value);
+		pause_osd = val;
+	} else {
+		theme_err = "unknown item";
+		return -1;
+	}
+
+	return 0;
+}
+
+static int
+tag_settings_item(const char *el, const char **attr, char *value)
+{
+	char *tok;
+	int *font;
+
+	if ((tok=strtok(value, " \t\r\n")) == NULL)
+		return -1;
+
+	PRINTF("SETTINGS ITEM: '%s' '%s'\n", el, value);
+
+	if ((strcasecmp(attr[0], "name") != 0) || (attr[2] != NULL)) {
+		theme_err = "unknown attribute";
+		return -1;
+	}
+
+	return tag_settings_names[cur_attr].vfunc(el, attr, value);
+}
+
+static int
 tag_font(const char *el, const char **attr, char *value)
 {
 	char *name = NULL, *file = NULL;
@@ -467,7 +556,39 @@ tag_mvpmctheme(const char *el, const char **attr)
 static int
 tag_settings(const char *el, const char **attr)
 {
+	int i;
+	char *type = NULL, *name = NULL, *copy = NULL;
+
+	for (i=0; attr[i]; i+=2) {
+		if (strcasecmp(attr[i], "name") == 0) {
+			type = strdup(attr[i+1]);
+		} else {
+			theme_err = "unknown attribute";
+			goto err;
+		}
+	}
+
+	if (type == NULL) {
+		theme_err = "unknown setting";
+		goto err;
+	}
+
+	i = 0;
+	while (tag_settings_names[i].tag != NULL) {
+		if (strcasecmp(type, tag_settings_names[i].tag) == 0)
+			break;
+		i++;
+	}
+
+	if (tag_settings_names[i].tag == NULL)
+		goto err;
+	cur_type = TYPE_SETTINGS;
+	cur_attr = i;
+
 	return 0;
+
+ err:
+	return -1;
 }
 
 static int
@@ -505,6 +626,7 @@ tag_widget(const char *el, const char **attr)
 	}
 
 	cur_attr = i;
+	cur_type = TYPE_WIDGET;
 
 	if (copy) {
 		i = 0;
@@ -643,18 +765,39 @@ start(void *data, const char *el, const char **attr)
 		break;
 	case 2:
 		PRINTF("cur_attr %d, el '%s'\n", cur_attr, el);
-		i = 0;
-		while (tags_widget[i].tag) {
-			if (strcasecmp(tags_widget[i].tag, el) == 0) {
-				if (call_func(el, attr, tags_widget+i) != 0)
-					goto err;
-				break;
+		switch (cur_type) {
+		case TYPE_WIDGET:
+			i = 0;
+			while (tags_widget[i].tag) {
+				if (strcasecmp(tags_widget[i].tag, el) == 0) {
+					if (call_func(el, attr, tags_widget+i) != 0)
+						goto err;
+					break;
+				}
+				i++;
 			}
-			i++;
-		}
 
-		if (tags[i].tag == NULL)
+			if (tags[i].tag == NULL)
+				goto err;
+			break;
+		case TYPE_SETTINGS:
+			i = 0;
+			while (tags_settings[i].tag) {
+				if (strcasecmp(tags_settings[i].tag, el) == 0) {
+					if (call_func(el, attr, tags_settings+i) != 0)
+						goto err;
+					break;
+				}
+				i++;
+			}
+
+			if (tags[i].tag == NULL)
+				goto err;
+			break;
+		default:
 			goto err;
+			break;
+		}
 		break;
 	default:
 		goto err;

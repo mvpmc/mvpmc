@@ -79,7 +79,7 @@ static volatile int audio_type = 0;
 static volatile int pcm_decoded = 0;
 volatile int paused = 0;
 static int zoomed = 0;
-static int display_on = 0;
+static int display_on = 0, display_on_alt = 0;
 
 int fd_audio, fd_video;
 demux_handle_t *handle;
@@ -98,6 +98,10 @@ static int file_open(void);
 static int file_read(char*, int);
 static long long file_seek(long long, int);
 static long long file_size(void);
+
+static void timed_osd(int);
+int seek_osd_timeout = 0;
+int pause_osd = 0;
 
 video_callback_t file_functions = {
 	.open      = file_open,
@@ -449,6 +453,22 @@ disable_osd(void)
 	set_osd_callback(OSD_TIMECODE, NULL);
 }
 
+static void
+enable_osd(void)
+{
+	set_osd_callback(OSD_PROGRESS, video_progress);
+	set_osd_callback(OSD_TIMECODE, video_timecode);
+	set_osd_callback(OSD_BITRATE, video_bitrate);
+	set_osd_callback(OSD_CLOCK, video_clock);
+	set_osd_callback(OSD_DEMUX, video_demux);
+	if (running_mythtv)
+		set_osd_callback(OSD_PROGRAM, mythtv_program);
+	else if (running_replaytv)
+		set_osd_callback(OSD_PROGRAM, replaytv_osd_proginfo_update);
+	else
+		set_osd_callback(OSD_PROGRAM, fb_program);
+}
+
 void
 video_callback(mvp_widget_t *widget, char key)
 {
@@ -522,8 +542,18 @@ video_callback(mvp_widget_t *widget, char key)
 		if (av_pause()) {
 			mvpw_show(pause_widget);
 			paused = 1;
+			if (pause_osd && !display_on && (display_on_alt < 2)) {
+				display_on_alt = 2;
+				enable_osd();
+			}
 			screensaver_enable();
 		} else {
+			if (pause_osd && !display_on &&
+			    (display_on_alt == 2)) {
+				display_on_alt = 0;
+				disable_osd();
+				mvpw_expose(root);
+			}
 			mvpw_hide(pause_widget);
 			mvpw_hide(mute_widget);
 			paused = 0;
@@ -532,12 +562,15 @@ video_callback(mvp_widget_t *widget, char key)
 		break;
 	case MVPW_KEY_REPLAY:
 		seek_by(-30);
+		timed_osd(seek_osd_timeout*1000);
 		break;
 	case MVPW_KEY_REWIND:
 		seek_by(-10);
+		timed_osd(seek_osd_timeout*1000);
 		break;
 	case MVPW_KEY_SKIP:
 		seek_by(30);
+		timed_osd(seek_osd_timeout*1000);
 		break;
 	case MVPW_KEY_FFWD:
 		if (av_ffwd() == 0) {
@@ -552,6 +585,7 @@ video_callback(mvp_widget_t *widget, char key)
 			av_mute();
 			mvpw_show(ffwd_widget);
 		}
+		timed_osd(seek_osd_timeout*1000);
 		break;
 	case MVPW_KEY_LEFT:
 		jump_target = -1;
@@ -572,6 +606,7 @@ video_callback(mvp_widget_t *widget, char key)
 		offset = video_functions->seek(0, SEEK_CUR);
 		jump_target = ((size / 100.0) + offset);
 		pthread_cond_broadcast(&video_cond);
+		timed_osd(seek_osd_timeout*1000);
 		break;
 	case MVPW_KEY_ZERO ... MVPW_KEY_NINE:
 		jump_target = -1;
@@ -582,6 +617,7 @@ video_callback(mvp_widget_t *widget, char key)
 		size = video_functions->size();
 		jump_target = size * (jump / 10.0);
 		pthread_cond_broadcast(&video_cond);
+		timed_osd(seek_osd_timeout*1000);
 		break;
 	case MVPW_KEY_MENU:
 		mvpw_show(popup_menu);
@@ -595,21 +631,13 @@ video_callback(mvp_widget_t *widget, char key)
 		break;
 	case MVPW_KEY_BLANK:
 	case MVPW_KEY_OK:
-		if (display_on) {
+		if (display_on || display_on_alt) {
 			disable_osd();
 			mvpw_expose(root);
+			display_on = 1;
+			display_on_alt = 0;
 		} else {
-			set_osd_callback(OSD_PROGRESS, video_progress);
-			set_osd_callback(OSD_TIMECODE, video_timecode);
-			set_osd_callback(OSD_BITRATE, video_bitrate);
-			set_osd_callback(OSD_CLOCK, video_clock);
-			set_osd_callback(OSD_DEMUX, video_demux);
-			if (running_mythtv)
-				set_osd_callback(OSD_PROGRAM, mythtv_program);
-			else if (running_replaytv)
-				set_osd_callback(OSD_PROGRAM, replaytv_osd_proginfo_update);
-			else
-				set_osd_callback(OSD_PROGRAM, fb_program);
+			enable_osd();
 		}
 		display_on = !display_on;
 		break;
@@ -1170,6 +1198,31 @@ video_write_start(void *arg)
 	}
 
 	return NULL;
+}
+
+static void
+seek_disable_osd(mvp_widget_t *widget)
+{
+	if (display_on_alt != 1)
+		return;
+
+	display_on_alt = 0;
+
+	if (!display_on) {
+		disable_osd();
+	}
+}
+
+static void
+timed_osd(int timeout)
+{
+	if ((timeout == 0) || display_on)
+		return;
+
+	display_on_alt = 1;
+
+	enable_osd();
+	mvpw_set_timer(root, seek_disable_osd, timeout);
 }
 
 void*

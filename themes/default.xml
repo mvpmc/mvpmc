@@ -13,6 +13,18 @@
   <font name="large">/etc/helvB18.pcf</font>
 
   <!--
+     - Program settings
+    -->
+  <settings name="screensaver">
+    <item name="timeout">300</item>
+  </settings>
+
+  <settings name="video">
+    <item name="seek_osd_timeout">0</item>
+    <item name="pause_osd">0</item>
+  </settings>
+
+  <!--
      - Graph widget settings
     -->
   <widget type="graph" name="busy_graph">
