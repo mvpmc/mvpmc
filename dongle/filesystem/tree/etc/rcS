@@ -37,6 +37,7 @@ TZ=CST+6CDT,M4.1.0/2,M10.5.0/2; export TZ
 udhcpc
 . /etc/udhcpc.config
 
+tftp -g -l /tmp/themes/default.xml -r ${DONGLE}.xml ${SERVER}
 tftp -g -l /etc/dongle.config -r ${DONGLE}.config ${SERVER}
 . /etc/dongle.config
 
