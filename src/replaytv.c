@@ -96,27 +96,6 @@ typedef enum rtv_popup_menu_action_t
    RTV_POPUP_DELETE   = 3
 } rtv_popup_menu_action_t;
 
-typedef enum rtv_ndx_version_t 
-{
-   RTV_NDX_22      = 22,
-   RTV_NDX_30      = 30,
-} rtv_ndx_version_t;
-
-typedef struct rtv_ndx_info_t 
-{
-   rtv_ndx_version_t     ver;                 //ndx file version
-   unsigned int          file_sz;             //file size
-   unsigned int          hdr_sz;              //file header size
-   unsigned int          rec_sz;              //record size
-   unsigned int          num_rec;             //number of records in file
-   unsigned int          rec_cnt_to_load;     //number of records to load into memory
-   unsigned int          com_skip_ok;         //handle commercial skip
-   unsigned int          start_rec_num;       //starting record number for block in memory
-   unsigned int          recs_in_mem;         //number of records in memory
-   rtv_http_resp_data_t  file_chunk;          //current chunk of ndx file in memory
-   char                  filename[MAX_FILENAME_LEN];
-} rtv_ndx_info_t;
-
 typedef enum rtv_play_state_t
 {
    RTV_VID_STOPPED    = 1,
@@ -141,7 +120,6 @@ typedef struct rtv_video_queue_t
 typedef struct rtv_selected_show_state_t 
 {
    volatile rtv_play_state_t  play_state;
-   rtv_ndx_info_t             ndx_info;
    rtv_comm_blks_t            comm_blks;              // commercial blocks
    int                        processing_jump_input;  // capturing key input for jump
    const rtv_show_export_t   *show_p;                 // currently selected show record
@@ -160,8 +138,8 @@ static int rtv_video_queue_read(char**, int);
 static long long rtv_seek(long long, int);
 static long long rtv_size(void);
 static void rtv_notify(mvp_notify_t);
-static int rtv_video_key(char);
-
+static int  rtv_video_key(char);
+static void rtv_release_show_resources(void);
 
 video_callback_t replaytv_functions = {
    .open      = rtv_open,
@@ -355,8 +333,6 @@ static struct rtv_device_descr {
 } rtv_device_descr;
 
 
-static void free_ndx_chunk(rtv_ndx_info_t *ndx_info);
-static int get_ndx_chunk(unsigned int start_rec, rtv_ndx_info_t *ndx_info);
 static int rtv_abort_read(void);
 static void* thread_read_start(void *arg);
 static void rtv_browser_key_callback(mvp_widget_t *widget, char key);
@@ -609,6 +585,19 @@ static void rtv_video_queue_flush(void)
 
 }
 
+
+void rtv_release_show_resources(void)
+{
+   rtv_close_ndx_file();
+
+   if ( rtv_video_state.comm_blks.num_blocks ) {
+      free(rtv_video_state.comm_blks.blocks);
+      rtv_video_state.comm_blks.num_blocks = 0;
+   }
+   return;
+}
+
+
 //+*************************************
 //   Video Callback functions
 //+*************************************
@@ -695,8 +684,7 @@ static int rtv_video_key(char key)
    int                  rc          = 0;
    int                  jump        = 0;
    int                  jumpto_secs = 0;
-   int                  rec_no      = 0;
-   int                  cur_secs, tmp, start_rec;
+   int                  cur_secs, tmp;
    av_stc_t             stc_time;
    
 	switch (key) {
@@ -771,93 +759,37 @@ static int rtv_video_key(char key)
 	}
 
    if ( jump == 1 ) {
-      int rtn;
+      int                 rtn;
+      rtv_ndx_30_record_t ndx30_rec;
 
-      // Handle jumping before the beginning & jumping after the end.
-      // If the mpg duration is less than 10 seconds just always go to zero.
-      //
-      if ( (jumpto_secs < 0) || (rtv_video_state.show_p->duration_sec < 10) ) {
-         jumpto_secs = 0;
-      }
-      if ( jumpto_secs > (rtv_video_state.show_p->duration_sec - 3) ) {
-         jumpto_secs = rtv_video_state.show_p->duration_sec - 3;
-      }
-      printf("-->%s: jumpto: %d\n", __FUNCTION__, jumpto_secs);
-
-      if ( jumpto_secs != 0) {
-         rec_no = (jumpto_secs * 2) - 1;
-      }
-
-      // Check if we need to load a new ndx file block.
-      // If so make the record we are looking for 25% of the way into the block.
-      //
-      if ( (rec_no < rtv_video_state.ndx_info.start_rec_num)                                        || 
-           (rec_no >= (rtv_video_state.ndx_info.start_rec_num + rtv_video_state.ndx_info.recs_in_mem)) ) {
-
-         start_rec = rec_no - (rtv_video_state.ndx_info.rec_cnt_to_load / 4);
-         if ( start_rec < 0 ) {
-            start_rec = 0;
-         }
-         else if ( start_rec > (rtv_video_state.ndx_info.num_rec - (rtv_video_state.ndx_info.rec_cnt_to_load * 3/4)) ) {
-            start_rec = rtv_video_state.ndx_info.num_rec - rtv_video_state.ndx_info.rec_cnt_to_load; 
-         }
-         if ( start_rec < 0 ) {
-            start_rec = 0;
-         }
-         if ( (rtn = get_ndx_chunk(start_rec, &rtv_video_state.ndx_info)) ) {
-            printf("***ERROR: RTV failed to read ndx file chunk: rc=%d\n", rtn);
-            return(1);
-         }
-      }
-
-      // Double check to make sure we got the record in memory
-      //
-      if ( rtv_video_state.ndx_info.file_chunk.buf == NULL ) {
-         printf("***ERROR: RTV SW BUG Unexpected NULL ndx chunk pointer\n");
-         return(1);
-      }
-      if ( (rec_no < rtv_video_state.ndx_info.start_rec_num)                                        || 
-           (rec_no >= (rtv_video_state.ndx_info.start_rec_num + rtv_video_state.ndx_info.recs_in_mem)) ) {
-         printf("***ERROR: RTV SW BUG ndx chunk is screwed up\n");
-         return(1);
+      rtn = rtv_get_ndx30_rec(jumpto_secs * 1000, &ndx30_rec);
+      if ( rtn != 0 ) {
+         printf("***ERROR: %s: failed to get NDX record. rc=%d\n", __FUNCTION__, rtn);
+         return(rtn);
       }
 
       // Jump to the new spot
       // 
-      if ( rtv_video_state.ndx_info.ver == RTV_NDX_30 ) {
-         rtv_ndx_30_record_t *ndx_recs = (rtv_ndx_30_record_t*)rtv_video_state.ndx_info.file_chunk.data_start;
-         rtv_ndx_30_record_t  rec;
-
-         memcpy(&rec, &(ndx_recs[rec_no - rtv_video_state.ndx_info.start_rec_num]), sizeof(rtv_ndx_30_record_t));
-         rtv_convert_30_ndx_rec(&rec);
-
-         if ( jumpto_secs != 0) {
-            rtv_video_state.pos = rec.filepos_iframe;
-         } 
-         else {
-            rtv_video_state.pos = 0;
-         }
-         rtv_print_30_ndx_rec("JumpTo      ", rec_no, &rec);
-         
-         // Stop streaming
-         //
-         av_video_blank(); //Need to call this first or may get artifacts
-         video_stop_play();
-         rtv_abort_read();
-         video_clear();
-
-         // Restart stream
-         //
-         av_play();
-         demux_reset(handle);         
-         if ( rtv_video_state.pos != 0 ) {
-            rtv_video_state.chunk_offset = rtv_video_state.pos % 0x7FFF; //offset within 32K chunk
-         }
-         pthread_create(&rtv_stream_read_thread, NULL, thread_read_start, (void*)rtv_video_state.show_p->file_name);
-         rtv_video_state.play_state = RTV_VID_PLAYING;
-         video_play(NULL); // kick video.c 
-      } 
-
+      rtv_video_state.pos = ndx30_rec.filepos_iframe;
+      
+      // Stop streaming
+      //
+      av_video_blank(); //Need to call this first or may get artifacts
+      video_stop_play();
+      rtv_abort_read();
+      video_clear();
+      
+      // Restart stream
+      //
+      av_play();
+      demux_reset(handle);         
+      if ( rtv_video_state.pos != 0 ) {
+         rtv_video_state.chunk_offset = rtv_video_state.pos % 0x7FFF; //offset within 32K chunk
+      }
+      pthread_create(&rtv_stream_read_thread, NULL, thread_read_start, (void*)rtv_video_state.show_p->file_name);
+      rtv_video_state.play_state = RTV_VID_PLAYING;
+      video_play(NULL); // kick video.c 
+      
    } //jumping
    
    return(rc);
@@ -978,72 +910,19 @@ static void* thread_read_start(void *arg)
    return NULL;
 }
 
-static void free_ndx_chunk(rtv_ndx_info_t *ndx_info)
-{
-   if ( ndx_info->file_chunk.buf != NULL ) {
-      free(ndx_info->file_chunk.buf);
-      ndx_info->file_chunk.buf        = NULL;
-      ndx_info->file_chunk.data_start = NULL;
-      ndx_info->file_chunk.len        = 0;
-   }
-}
-
-// get_ndx_chunk()
-// Get a block of ndx records.
-//
-static int get_ndx_chunk(unsigned int start_rec, rtv_ndx_info_t *ndx_info)
-{
-   unsigned int         rd_sz, rd_pos;
-   int                  rc;
-   rtv_device_info_t   *devinfo;
-   rtv_ndx_30_record_t *ndx_recs;
-   rtv_ndx_30_record_t  rec;
-
-   devinfo = (rtv_device_info_t*)&(current_rtv_device->device); //cast to override volatile warning
-   free_ndx_chunk(ndx_info);
-
-   if ( (ndx_info->ver == RTV_NDX_22) || (ndx_info->ver == RTV_NDX_30) ) {
-      rd_pos = (start_rec * ndx_info->rec_sz) + ndx_info->hdr_sz;
-      if ( rd_pos > (ndx_info->file_sz - ndx_info->rec_sz ) ) {
-         printf("***ERROR: %s: bad start rec: %u\n", __FUNCTION__, start_rec);
-         return(-ESPIPE); //off the end of the file
-      }
-      rd_sz  = ndx_info->rec_sz * ndx_info->rec_cnt_to_load;
-      if ( (rd_pos + rd_sz) > ndx_info->file_sz ) {
-         rd_sz = ndx_info->file_sz - rd_pos; //truncate read to not go past EOF
-      }
-
-      rc = rtv_read_file(devinfo, ndx_info->filename, rd_pos, rd_sz, &(ndx_info->file_chunk));
-      if ( rc != 0 ) {
-         return(rc);
-      }
-
-      ndx_info->start_rec_num = start_rec;
-      ndx_info->recs_in_mem   = rd_sz /ndx_info->rec_sz;
-      ndx_recs = (rtv_ndx_30_record_t*)ndx_info->file_chunk.data_start;
-      printf("NDX: chunk loaded: rec=%u pos=%u sz=%u\n", start_rec, rd_pos, rd_sz);
-      memcpy(&rec, ndx_recs, sizeof(rtv_ndx_30_record_t));
-      rtv_convert_30_ndx_rec(&rec);
-      rtv_print_30_ndx_rec("LoadStartRec", ndx_info->start_rec_num, &rec);
-      memcpy(&rec, &(ndx_recs[ndx_info->recs_in_mem-1]), sizeof(rtv_ndx_30_record_t));
-      rtv_convert_30_ndx_rec(&rec);
-      rtv_print_30_ndx_rec("LoadEndRec  ", ndx_info->start_rec_num + ndx_info->recs_in_mem - 1, &rec);
-   }
-
-   return(0);
-}
 
 // play_show()
 //
 static void play_show(const rtv_show_export_t *show, int start_gop)
-{
-   rtv_ndx_info_t      *ndx_info = &(rtv_video_state.ndx_info); 
+{ 
    char                 show_name[MAX_FILENAME_LEN];
+   char                 ndx_fn[MAX_FILENAME_LEN];
    rtv_device_info_t   *devinfo;
    rtv_fs_file_t        fileinfo;
    int                  len, rc;
-   unsigned int         first_ndx_rec;
    rtv_http_resp_data_t file_data;
+   int                  start_time_ms;
+   rtv_ndx_30_record_t  ndx30_rec;
 
    devinfo = (rtv_device_info_t*)&(current_rtv_device->device); //cast to override volatile warning
 
@@ -1061,7 +940,6 @@ static void play_show(const rtv_show_export_t *show, int start_gop)
       printf("***ERROR: show file name too long: %d\n", len);
       return;
    } 
-
    
    // Make sure the mpg file exists
    //
@@ -1081,75 +959,27 @@ static void play_show(const rtv_show_export_t *show, int start_gop)
       return;
    }
 
-   // Make sure the ndx file exists
+   // Open the ndx file
    //
    memcpy(show_name, show->file_name, len-4);
    show_name[len-4] = '\0'; 
-   sprintf(ndx_info->filename, "/Video/%s.ndx", show_name);
-   printf("NDX: %s\n", ndx_info->filename);
-   rc = rtv_get_file_info(devinfo, ndx_info->filename, &fileinfo );
-   if ( (rc != 0) ||  (fileinfo.size <= sizeof(rtv_ndx_30_header_t)) ) {
+   sprintf(ndx_fn, "/Video/%s.ndx", show_name);
+   printf("NDX: file=%s\n", ndx_fn);
+
+   rc = rtv_open_ndx_file(devinfo, ndx_fn, 600);
+   if ( rc != 0 ) {
       char buf[128];
-      printf("ERROR: ndx file not present in rtv filesystem.\n");
-      snprintf(buf, sizeof(buf), "ERROR: ndx file not present in rtv filesystem. ");
+      printf("***ERROR: Failed to open NDX file. rc=%d\n", rc);
+      snprintf(buf, sizeof(buf), "ERROR: Failed to open NDX file. rc=%d. ", rc);
       gui_error(buf);
-      rtv_free_file_info(&fileinfo);
       return;
-   } 
-   //rtv_print_file_info(&fileinfo);
-
-   //+**************************************
-   // Get .ndx & .evt info
-   //+**************************************
-   free_ndx_chunk(ndx_info);
-   memset(&(rtv_video_state.comm_blks), 0, sizeof(rtv_comm_blks_t));
-
-   // Determine ndx file version and setup data structs
-   //
-   rc = rtv_read_file(devinfo, ndx_info->filename, 0, sizeof(rtv_ndx_30_header_t), &file_data);
-   if ( rc == 0 ) {
-      //rtv_hex_dump("NDX HDR", buf_p, sizeof(rtv_ndx_30_header_t));
-      if ( (file_data.data_start[0] == 3) && (file_data.data_start[1] == 0) ) {
-         ndx_info->ver    = RTV_NDX_30;
-         ndx_info->hdr_sz = sizeof(rtv_ndx_30_header_t);
-         ndx_info->rec_sz = sizeof(rtv_ndx_30_record_t);
-         ndx_info->rec_cnt_to_load = 600;
-         if ( ((fileinfo.size - sizeof(rtv_ndx_30_header_t)) % sizeof(rtv_ndx_30_record_t)) != 0 ) {
-            printf("\n***WARNING: ndx file size not consistant with record size\n\n");
-         }
-         ndx_info->num_rec = (fileinfo.size - sizeof(rtv_ndx_30_header_t)) / sizeof(rtv_ndx_30_record_t);
-      }
-      else if ( (file_data.data_start[0] == 2) && (file_data.data_start[2] == 0) ) {
-         ndx_info->ver    = RTV_NDX_22;
-         ndx_info->hdr_sz = sizeof(rtv_ndx_22_header_t);
-         ndx_info->rec_sz = sizeof(rtv_ndx_22_record_t);
-         ndx_info->rec_cnt_to_load = 600;
-         if ( ((fileinfo.size - sizeof(rtv_ndx_22_header_t)) % sizeof(rtv_ndx_22_record_t)) != 0 ) {
-            printf("\n***WARNING: ndx file size not consistant with record size\n\n");
-         }
-         ndx_info->num_rec = (fileinfo.size - sizeof(rtv_ndx_22_header_t)) / sizeof(rtv_ndx_22_record_t);
-         ndx_info->com_skip_ok = 1;
-      }
-      else {
-         char buf[128];
-         printf("***ERROR: invalid ndx file version: %d %d\n", file_data.data_start[0], file_data.data_start[1]);
-         snprintf(buf, sizeof(buf), "ERROR: invalid ndx file version: %d %d ", file_data.data_start[0], file_data.data_start[1]);
-         gui_error(buf);
-         rtv_free_file_info(&fileinfo);
-         free(file_data.buf);
-         return;
-      }
-      free(file_data.buf);
    }
-   
-   ndx_info->file_sz = fileinfo.size;
-   printf("NDX: ver=%d size=%u rec=%u\n", ndx_info->ver, ndx_info->file_sz, ndx_info->num_rec);
-   rtv_free_file_info(&fileinfo);
-
 
    // Figure out commercial blocks
    //
-   if ( ndx_info->ver == RTV_NDX_30 ) {
+   memset(&(rtv_video_state.comm_blks), 0, sizeof(rtv_comm_blks_t));
+
+   if ( devinfo->version.vintage == RTV_DEVICE_5K ) {
       char           evt_fn[MAX_FILENAME_LEN+1];
       unsigned int   num_evt_rec;
       unsigned int   evt_file_sz;
@@ -1197,52 +1027,37 @@ static void play_show(const rtv_show_export_t *show, int start_gop)
       cb_parms.scene_min = 3;   //seconds
       cb_parms.buf       = file_data.data_start;
       cb_parms.buf_sz    = file_data.len;
-      rtv_parse_evt_file( cb_parms, &(rtv_video_state.comm_blks));
+      rtv_parse_evt_file(cb_parms, &(rtv_video_state.comm_blks));
       printf("\n>>>Commercial Block List<<<\n");
       rtv_print_comm_blks(&(rtv_video_state.comm_blks.blocks[0]), rtv_video_state.comm_blks.num_blocks);
 
       // Warning: TODO need to free commercial blocks before calling rtv_parse_evt_file() again 
-      // Also need to verify that ndx buffer is cleared on init.
-
       free(file_data.buf);
 
    }
 evt_file_done:
 
 
-   // Each GOP is 1/2 second. (1 ndx rec)
-   // Load the ndx record for GOP - 10sec. = GOP - 20
+   // Each GOP is 1/2 second.
+   // Set play start time to GOP - 10sec.
    //
    if ( (start_gop - 20) < 0 ) {
-      first_ndx_rec = 0; 
+      start_time_ms = 0;
    }
    else {
-      first_ndx_rec = start_gop - 20;
+      start_time_ms = (start_gop - 20) * 500;
    }
-   get_ndx_chunk(first_ndx_rec, ndx_info);
 
-   if ( rtv_video_state.ndx_info.ver == RTV_NDX_30 ) {
-      rtv_ndx_30_record_t *ndx_recs = (rtv_ndx_30_record_t*)rtv_video_state.ndx_info.file_chunk.data_start;
-      rtv_ndx_30_record_t  rec;
-      
-      memcpy(&rec, &(ndx_recs[start_gop - rtv_video_state.ndx_info.start_rec_num]), sizeof(rtv_ndx_30_record_t));
-      rtv_convert_30_ndx_rec(&rec);
-      
-      if ( start_gop != 0) {
-         rtv_video_state.pos = rec.filepos_iframe;
-         rtv_video_state.chunk_offset = rtv_video_state.pos % 0x7FFF; //offset within 32K chunk
-      } 
-      else {
-         rtv_video_state.pos          = 0;
-         rtv_video_state.chunk_offset = 0;
-      }
-      rtv_print_30_ndx_rec("StartGOP    ", start_gop, &rec);   
+   rc = rtv_get_ndx30_rec(start_time_ms, &ndx30_rec);
+   if ( rc != 0 ) {
+      printf("***ERROR: %s: failed to get NDX record. rc=%d\n", __FUNCTION__, rc);
+      rtv_video_state.pos = 0;
    }
    else {
-      rtv_video_state.pos          = 0;
-      rtv_video_state.chunk_offset = 0;
+      rtv_video_state.pos = ndx30_rec.filepos_iframe;
    }
-
+   rtv_video_state.chunk_offset = rtv_video_state.pos % 0x7FFF; //offset within 32K chunk
+   
    // Play the show
    //
    printf("Playing file: %s\n", show->file_name);  
@@ -2033,7 +1848,8 @@ void replaytv_back_from_video(void)
 {
    video_stop_play();
    rtv_abort_read();
-   video_clear();               //kick video.c
+   video_clear();                //kick video.c
+   rtv_release_show_resources();
    mvpw_show(rtv_menu_bg);
    mvpw_show(rtv_browser);
    mvpw_show(rtv_episode_description);
