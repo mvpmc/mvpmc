@@ -269,7 +269,8 @@ static void crunch_ndx_30_rec(int recno, ndx_rec_info_t *this, ndx_rec_info_t *l
       UNEXPECTED("ndx recno %d: iframe_size not on 4 byte boundry\n", recno);
    }
    
-   this->seconds = ((__s64)(this->r.timestamp - basetime)) / 1000000000.0;
+   //this->seconds = ((__s64)(this->r.timestamp - basetime)) / 1000000000.0;
+   this->seconds = ((__s64)(this->r.timestamp)) / 1000000000.0;
    
    if ( recno > 0 ) {
       this->delta_tm = (__s64)(this->r.timestamp - last->r.timestamp) / 1000000; // convert to mS
@@ -872,7 +873,7 @@ static int process_mpg(int mpg_fd, int ndx_fd)
             //verify stream id
             //
             if ( ntohl(*(__u32*)mpg_buf) != MPEG_VID_STREAM_HDR ) {
-               UNEXPECTED("mpeg VIDEO I-frame start expected: got 0x%08x\n", ntohl(*(__u32*)mpg_buf) );
+               UNEXPECTED("mpeg VIDEO I-frame start expected: got 0x%08lx\n", (__u32)ntohl(*(__u32*)mpg_buf));
             }
 
             // get next ndx rec
@@ -908,7 +909,7 @@ static int process_mpg(int mpg_fd, int ndx_fd)
             }
             if ( (ntohl(*(__u32*)mpg_buf) != MPEG_AUD_STREAM_HDR) &&
                  (ntohl(*(__u32*)mpg_buf) != MPEG_PACK_HDR)       ) {
-               UNEXPECTED("mpeg AUDIO I-frame or PACK start expected: got 0x%08x\n",  ntohl(*(__u32*)mpg_buf));
+               UNEXPECTED("mpeg AUDIO I-frame or PACK start expected: got 0x%08lx\n",  (__u32)ntohl(*(__u32*)mpg_buf));
             }
             if ( audio_addr != mpg_fpos ) {
                UNEXPECTED("mpeg AUDIO/PACK address mismatch: got 0x%08lx expected 0x%08x\n", audio_addr, mpg_fpos);
@@ -1049,7 +1050,7 @@ int main(int argc, char ** argv)
    int     mpg = -1;
    char    filename[1024];
    char   *basefile;
-   char    ch;
+   int     ch;
 
    if ( argc < 2 ) {
       usage(argv[0]);

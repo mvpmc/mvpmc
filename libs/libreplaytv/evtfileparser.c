@@ -77,23 +77,6 @@ static void normalize(rtv_evt_record_t *recs, int num_recs, __u32 *audmin_p, __u
 
 
 //+*********************************************************************
-//  Name: format_ts
-//        Convert mS to MMM:SS.mS
-//+*********************************************************************
-static char* format_ts(__u32 ts, char *time)
-{
-   __u32 ms = ts;
-   __u32 sec = ms / 1000;
-   __u32 min = sec / 60;
-   
-   sec -= (min*60);
-   ms %= 1000;
-   sprintf (time, "%03d:%02d.%03d", (int)min, (int)sec, (int)ms);
-   return time;
-}
-
-
-//+*********************************************************************
 //  Name: print_evt_recs
 //+*********************************************************************
 static void print_evt_recs(char *hdr,  rtv_evt_record_t *recs, int num_recs) 
@@ -101,7 +84,7 @@ static void print_evt_recs(char *hdr,  rtv_evt_record_t *recs, int num_recs)
    int x;
    
    RTV_PRT("\n\n");
-   rtv_hex_dump("EVT FILE HDR", hdr,  RTV_EVT_HDR_SZ);      
+   rtv_hex_dump("EVT FILE HDR", 0, hdr,  RTV_EVT_HDR_SZ, 1);      
    
    RTV_PRT("\nrec          timestamp                           aud/vid          audiopower              blacklevel             unknown\n");
    RTV_PRT("--------------------------------------------------------------------------------------------------------------------------\n");
@@ -126,8 +109,8 @@ static void print_fadepoints(const fade_pt_t *fpts)
    RTV_PRT("---------------------------------------------------\n");
 
    while ( fpts != NULL ) {
-      format_ts(fpts->start, start_str);
-      format_ts(fpts->stop, stop_str);
+      rtv_format_ts_ms32_min_sec_ms(fpts->start, start_str);
+      rtv_format_ts_ms32_min_sec_ms(fpts->stop, stop_str);
       RTV_PRT("%3d %s  %s   %08lx %08lx %08lx\n", cnt, start_str, stop_str, fpts->video, fpts->audio, fpts->type);
       fpts = fpts->next;
       cnt++;
@@ -194,8 +177,8 @@ void rtv_print_comm_blks(const rtv_prog_seg_t *block, int num_blocks)
    RTV_PRT("-------------------------\n");
 
    for ( x=0; x < num_blocks; x++ ) {
-      format_ts(block[x].start, start_str);
-      format_ts(block[x].stop, stop_str);
+      rtv_format_ts_ms32_min_sec_ms(block[x].start, start_str);
+      rtv_format_ts_ms32_min_sec_ms(block[x].stop, stop_str);
       RTV_PRT("%3d: %s  %s\n", x, start_str, stop_str);
    }
 }
@@ -336,7 +319,9 @@ int rtv_parse_evt_file( rtv_chapter_mark_parms_t evtfile_parms, rtv_comm_blks_t 
          if ( rec_timestamp > (lasttime + 1000) ) {
             RTV_PRT("----------:\n");
          }
-         RTV_PRT("%4d: %s: %c %s | %s\n", x, format_ts(rec_timestamp, rec_ts_str), (evt_recs[x].data_type == EVT_AUD) ? 'A' : 'V',
+         RTV_PRT("%4d: %s: %c %s | %s\n", 
+                 x, rtv_format_ts_ms32_min_sec_ms(rec_timestamp, rec_ts_str), 
+                 (evt_recs[x].data_type == EVT_AUD) ? 'A' : 'V',
                  vid_level(lastvid), aud_level(lastaud));
       }
 
@@ -429,7 +414,7 @@ int rtv_parse_evt_file( rtv_chapter_mark_parms_t evtfile_parms, rtv_comm_blks_t 
             if( RTVLOG_EVTFILE_V2 ) {
                char t1[16];
                RTV_PRT("%c ", current->type ? 'A' : 'D');
-               RTV_PRT("%s\n", format_ts(current->stop,t1));
+               RTV_PRT("%s\n", rtv_format_ts_ms32_min_sec_ms(current->stop,t1));
             }
             
             if( current->type ) {
@@ -522,8 +507,8 @@ int rtv_parse_evt_file( rtv_chapter_mark_parms_t evtfile_parms, rtv_comm_blks_t 
          if ( RTVLOG_EVTFILE_V2 ) {
             char t1[20], t2[20];
             RTV_PRT("**Throwing out commercial block: ");
-            RTV_PRT("%s -> ", format_ts(comm_blk_recs[i].start, t1));
-            RTV_PRT("%s\n", format_ts(comm_blk_recs[i].stop, t2));
+            RTV_PRT("%s -> ", rtv_format_ts_ms32_min_sec_ms(comm_blk_recs[i].start, t1));
+            RTV_PRT("%s\n", rtv_format_ts_ms32_min_sec_ms(comm_blk_recs[i].stop, t2));
          }
          for( j=i+1; j < num_blocks; ++j ) {
             comm_blk_recs[j-1].start = comm_blk_recs[j].start;

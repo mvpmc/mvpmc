@@ -354,10 +354,11 @@ extern void          rtv_set_32k_chunks_to_merge(int chunks);
 extern int           rtv_route_logs(char *filename);
 extern rtv_device_t *rtv_get_device_struct(const char *ipaddr, int *new);
 extern int           rtv_free_devices(void);
-extern void          rtv_print_device_list(void); 
-extern char         *rtv_format_time64_1(__u64 ttk);             // Returned string is malloc'd: user must free
-extern char         *rtv_format_time64_2(__u64 ttk);             // Returned string is malloc'd: user must free
-extern char         *rtv_format_time32(__u32 t);                 // Returned string is malloc'd: user must free
+extern void          rtv_print_device_list(void);
+extern char         *rtv_format_ts_ms32_min_sec_ms(__u32 ts, char *time_str); //User passes in pre-alloc'd char buf
+extern char         *rtv_format_datetime_ms64_1(__u64 ttk);                   // Returned string is malloc'd: user must free
+extern char         *rtv_format_datetime_ms64_2(__u64 ttk);                   // Returned string is malloc'd: user must free
+extern char         *rtv_format_datetime_sec32(__u32 t);                      // Returned string is malloc'd: user must free
 extern char         *rtv_sec_to_hr_mn_str(unsigned int seconds); // Returned string is malloc'd: user must free
 extern char         *rtv_format_nsec64(__u64 nsec);              // Returned string is malloc'd: user must free
 extern int           rtv_crypt_test(void);
@@ -365,7 +366,7 @@ extern void          rtv_convert_22_ndx_rec(rtv_ndx_22_record_t *rec);
 extern void          rtv_convert_30_ndx_rec(rtv_ndx_30_record_t *rec);
 extern void          rtv_print_30_ndx_rec(char *tag, int rec_no, rtv_ndx_30_record_t *rec);
 extern void          rtv_convert_evt_rec(rtv_evt_record_t *rec);
-extern void          rtv_hex_dump(char * tag, unsigned char * buf, unsigned int sz);
+extern void          rtv_hex_dump(char *tag, unsigned long address, unsigned char *buf, size_t sz, int ascii_decode_bool);
 
 extern int  rtv_discover(unsigned int timeout_ms, rtv_device_list_t **device_list);
 extern int  rtv_get_device_info(const char *address,  char *queryStr, rtv_device_t **device_p);
@@ -401,6 +402,12 @@ extern int rtv_get_play_position(const rtv_device_info_t   *device,
    
 extern char *rtv_xref_quality(int key);
 extern char *rtv_xref_input_source(int key);
+
+extern int rtv_open_ndx_file(const rtv_device_info_t    *devinfo, 
+                             const char                 *filename, 
+                             unsigned int                cache_sz );
+extern int rtv_close_ndx_file(void);
+extern int rtv_get_ndx30_rec(unsigned int time_ms, rtv_ndx_30_record_t *rec);
 
 extern int  rtv_parse_evt_file( rtv_chapter_mark_parms_t evtfile_parms, rtv_comm_blks_t *commercials);
 extern void rtv_print_comm_blks(const rtv_prog_seg_t *block, int num_blocks);

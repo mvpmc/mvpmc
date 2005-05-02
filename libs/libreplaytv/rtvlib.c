@@ -78,11 +78,11 @@ int rtv_free_devices(void)
 void rtv_print_device_list( void ) 
 {
    int x;
-   printf("ReplayTV device list: num_devices=%d\n", rtv_devices.num_rtvs);
+   RTV_PRT("ReplayTV device list: num_devices=%d\n", rtv_devices.num_rtvs);
    for ( x=0; x < MAX_RTVS; x++ ) {
       if ( rtv_devices.rtv[x].device.ipaddr != NULL ) {
-         printf("  idx=%2d  ip=%-16s  model=%s  name=%s\n", 
-                x, rtv_devices.rtv[x].device.ipaddr,rtv_devices.rtv[x].device.modelNumber, rtv_devices.rtv[x].device.name);
+         RTV_PRT("  idx=%2d  ip=%-16s  model=%s  name=%s\n", 
+                 x, rtv_devices.rtv[x].device.ipaddr,rtv_devices.rtv[x].device.modelNumber, rtv_devices.rtv[x].device.name);
       }
    }
 }
@@ -109,7 +109,42 @@ __u32 rtv_get_dbgmask(void)
 
 // Time formatting api's
 //
-char *rtv_format_time64_1(__u64 ttk) 
+
+//+*********************************************************************
+//  Name: rtv_format_ts_ms32_min_sec_ms
+//        Convert mS to MMM:SS.mS
+//+*********************************************************************
+char* rtv_format_ts_ms32_min_sec_ms(__u32 ts, char *time_str)
+{
+   __u32 ms = ts;
+   __u32 sec = ms / 1000;
+   __u32 min = sec / 60;
+   
+   sec -= (min*60);
+   ms %= 1000;
+   sprintf (time_str, "%03d:%02d.%03d", (int)min, (int)sec, (int)ms);
+   return time_str;
+}
+
+//+*********************************************************************
+//  Name: rtv_format_datetime_sec32
+//        Convert 32 bit value (sec since Jan 1 1970) to date time string
+//+*********************************************************************
+char *rtv_format_datetime_sec32(__u32 t) 
+{
+   char      *result = malloc(20);
+   struct tm *tm;
+    
+   tm = localtime(&t);
+   strftime(result, 20, "%Y-%m-%d %H:%M:%S", tm);
+   return result;
+}
+
+//+*********************************************************************
+//  Name: rtv_format_datetime_ms64_1
+//        Convert 64 bit value (mS since Jan 1 1970) to date time string
+//+*********************************************************************
+char *rtv_format_datetime_ms64_1(__u64 ttk) 
 {
    char      *results;   
    time_t     tt;
@@ -125,7 +160,11 @@ char *rtv_format_time64_1(__u64 ttk)
    return results;
 }
 
-char *rtv_format_time64_2(__u64 ttk) 
+//+*********************************************************************
+//  Name: rtv_format_datetime_ms64_2
+//        Convert 64 bit value (mS since Jan 1 1970) to date time string
+//+*********************************************************************
+char *rtv_format_datetime_ms64_2(__u64 ttk) 
 {
    char      *results;   
    time_t     tt;
@@ -141,19 +180,10 @@ char *rtv_format_time64_2(__u64 ttk)
    return results;
 }
 
-char *rtv_format_time32(__u32 t) 
-{
-   char      *result = malloc(20);
-   struct tm *tm;
-    
-   tm = localtime(&t);
-   strftime(result, 20, "%Y-%m-%d %H:%M:%S", tm);
-   return result;
-}
-
-// rtv_format_nsec64()
-// nanoseconds to minute second string. User must free string.
-//
+//+*********************************************************************
+// Name: rtv_format_nsec64()
+// Convert 64 bit nanoseconds to minute second string. User must free string.
+//+*********************************************************************
 char *rtv_format_nsec64(__u64 nsec)
 {
    char         *result; 
@@ -179,6 +209,10 @@ char *rtv_format_nsec64(__u64 nsec)
 }
 
 
+//+*********************************************************************
+// Name: *rtv_sec_to_hr_mn_str
+// Convert 32 bit seconds to minute second string. User must free string.
+//+*********************************************************************
 char *rtv_sec_to_hr_mn_str(unsigned int seconds)
 {
    char *result = malloc(30);
@@ -230,7 +264,7 @@ int rtv_init_lib(void)
    rtv_globals.rtv_emulate_mode = RTV_DEVICE_5K;
    rtv_globals.merge_chunk_sz   = 3;                // 3 - 32K chunks
    rtv_globals.log_fd           = stdout;
-   rtv_globals.rtv_debug        = 0x00000000;
+   rtv_globals.rtv_debug        = 0x00000001;
    //rtv_globals.rtv_debug        = 0x100000ff;
 
    rtv_devices.num_rtvs = 0;
@@ -324,17 +358,17 @@ void rtv_print_30_ndx_rec(char *tag, int rec_no, rtv_ndx_30_record_t *rec)
 
 // rtv_hex_dump()
 //
-void rtv_hex_dump(char * tag, unsigned char * buf, size_t sz)
+void rtv_hex_dump(char *tag, unsigned long address, unsigned char *buf, size_t sz, int ascii_decode_bool)
 {
     unsigned int  rows, row, col, i, c;
     unsigned long addr;
     char          tmpstr[512];
     char         *strp = tmpstr;
 
-    RTV_PRT("rtv:HEX DUMP: %s\n", tag);
+    RTV_PRT("HEXDUMP: %s\n", tag);
     rows = (sz + 15)/16;
     for (row = 0; row < rows; row++) {
-        addr = (unsigned long)(buf + (row*16));
+        addr = address + (row*16);
         strp += sprintf(strp, "0x%08lx | ", addr);
         for (col = 0; col < 16; col++) {
             i = row * 16 + col;
@@ -348,20 +382,26 @@ void rtv_hex_dump(char * tag, unsigned char * buf, size_t sz)
                strp += sprintf(strp, " ");
             }
         }
-        strp += sprintf(strp, "  |  ");
-        for (col = 0; col < 16; col++) {
-            i = row * 16 + col;
-            if (i < sz) {
-                c = buf[i];
-                strp += sprintf(strp, "%c", (c >= ' ' && c <= '~') ? c : '.');
-            } else {
-                strp += sprintf(strp, " ");
-            }
-            if ((i & 3) == 3) {
-                strp += sprintf(strp, " ");
-            }
+        if ( ascii_decode_bool ) {
+           strp += sprintf(strp, "  |  ");
+           for (col = 0; col < 16; col++) {
+              i = row * 16 + col;
+              if (i < sz) {
+                 c = buf[i];
+                 strp += sprintf(strp, "%c", (c >= ' ' && c <= '~') ? c : '.');
+              } else {
+                 strp += sprintf(strp, " ");
+              }
+              if ((i & 3) == 3) {
+                 strp += sprintf(strp, " ");
+              }
+           }
+           RTV_PRT("%s |\n", tmpstr);
         }
-        RTV_PRT("%s |\n", tmpstr);
+        else { 
+           RTV_PRT("%s\n", tmpstr);
+        }
         strp = tmpstr;
     }
 }
+

@@ -598,7 +598,7 @@ static int parse_show(replay_show_t *show_rec, rtv_show_export_t *sh)
    bufptr = show_rec->programInfo.szDescription;
    
    if ( RTVLOG_GUIDE ) {
-      rtv_hex_dump("SHOW_DUMP", (char*)show_rec, sizeof(replay_show_t));
+      rtv_hex_dump("SHOW_DUMP", 0, (char*)show_rec, sizeof(replay_show_t), 1);
    }
 
    // process the record's flags
@@ -715,7 +715,7 @@ static int parse_show(replay_show_t *show_rec, rtv_show_export_t *sh)
    sh->padding_before  = show_rec->beforepadding;
    sh->sch_start_time  = show_rec->programInfo.eventtime;
    sh->sch_show_length = show_rec->programInfo.minutes;
-   sh->sch_st_tm_str   = rtv_format_time32(sh->sch_start_time);
+   sh->sch_st_tm_str   = rtv_format_datetime_sec32(sh->sch_start_time);
 
    // If a shows GOP_count or seconds field is zero then the show has been deleted 
    // but is still in the guide.

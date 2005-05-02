@@ -572,8 +572,8 @@ int rtv_get_file_info( const rtv_device_info_t  *device, const char *name,  rtv_
       strcpy(fileinfo->name, name);
       fileinfo->type          = type;
       fileinfo->time          = filetime;
-      fileinfo->time_str_fmt1 = rtv_format_time64_1(filetime + 3000); //add 3 seconds to time
-      fileinfo->time_str_fmt2 = rtv_format_time64_2(filetime + 3000); //add 3 seconds to time
+      fileinfo->time_str_fmt1 = rtv_format_datetime_ms64_1(filetime + 3000); //add 3 seconds to time
+      fileinfo->time_str_fmt2 = rtv_format_datetime_ms64_2(filetime + 3000); //add 3 seconds to time
       if ( type == 'f' ) {
          fileinfo->size     = size;
          fileinfo->size_k   = size / 1024;
