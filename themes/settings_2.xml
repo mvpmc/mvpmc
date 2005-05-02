@@ -1,0 +1,16 @@
+<mvpmctheme version="0">
+  <!--
+     - http://mvpmc.sourceforge.net/
+     - $Id$
+    -->
+
+  <settings name="screensaver">
+    <item name="timeout">600</item>
+  </settings>
+
+  <settings name="video">
+    <item name="seek_osd_timeout">0</item>
+    <item name="pause_osd">0</item>
+  </settings>
+
+</mvpmctheme>

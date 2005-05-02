@@ -1,7 +1,9 @@
-<mvpmctheme version="0">
+<mvpmctheme version="0" name="Default mvpmc Theme">
   <!--
      - example mvpmc theme
+     -
      - This gives you something similar to the default interface.
+     -
      - http://mvpmc.sourceforge.net/
      - $Id$
     -->
@@ -13,16 +15,9 @@
   <font name="large">/etc/helvB18.pcf</font>
 
   <!--
-     - Program settings
+     - include settings options
     -->
-  <settings name="screensaver">
-    <item name="timeout">300</item>
-  </settings>
-
-  <settings name="video">
-    <item name="seek_osd_timeout">0</item>
-    <item name="pause_osd">0</item>
-  </settings>
+  <include>/usr/share/mvpmc/settings_2.xml</include>
 
   <!--
      - Graph widget settings
@@ -159,6 +154,19 @@
     <font>standard</font>
   </widget>
 
+  <widget type="menu" name="themes">
+    <color type="bg">gray60</color>
+    <color type="fg">black</color>
+    <color type="title_bg">green</color>
+    <color type="title_fg">black</color>
+    <color type="hilite_bg">gray30</color>
+    <color type="hilite_fg">white</color>
+    <color type="checkbox">red</color>
+    <style type="border_size">0</style>
+    <style type="hilite">square</style>
+    <font>large</font>
+  </widget>
+
   <!--
      - Dialog widget settings
     -->
@@ -181,5 +189,10 @@
     <style type="border_size">2</style>
     <font>large</font>
   </widget>
+
+  <!--
+     - include user theme overrides
+    -->
+  <sinclude>/tmp/user_override.xml</sinclude>
 
 </mvpmctheme>

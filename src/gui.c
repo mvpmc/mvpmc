@@ -71,6 +71,20 @@ static mvpw_menu_attr_t settings_attr = {
 	.border = MVPW_DARKGREY2,
 };
 
+static mvpw_menu_attr_t themes_attr = {
+	.font = FONT_STANDARD,
+	.fg = MVPW_WHITE,
+	.bg = MVPW_BLACK,
+	.hilite_fg = MVPW_WHITE,
+	.hilite_bg = MVPW_DARKGREY2,
+	.title_fg = MVPW_WHITE,
+	.title_bg = MVPW_BLUE,
+	.border_size = 2,
+	.border = MVPW_DARKGREY2,
+	.checkbox_fg = MVPW_GREEN,
+	.checkboxes = 1,
+};
+
 mvpw_menu_attr_t mythtv_attr = {
 	.font = FONT_STANDARD,
 	.fg = MVPW_BLACK,
@@ -140,6 +154,13 @@ static mvpw_menu_item_attr_t settings_item_attr = {
 	.selectable = 1,
 	.fg = MVPW_BLACK,
 	.bg = MVPW_LIGHTGREY,
+	.checkbox_fg = MVPW_GREEN,
+};
+
+static mvpw_menu_item_attr_t themes_item_attr = {
+	.selectable = 1,
+	.fg = MVPW_GREEN,
+	.bg = MVPW_BLACK,
 	.checkbox_fg = MVPW_GREEN,
 };
 
@@ -286,7 +307,7 @@ static mvpw_text_attr_t busy_text_attr = {
 
 static mvpw_graph_attr_t splash_graph_attr = {
 	.min = 0,
-	.max = 17,
+	.max = 18,
 	.fg = mvpw_color_alpha(MVPW_RED, 0x80),
 	.gradient = 1,
 	.left = MVPW_BLACK,
@@ -365,6 +386,9 @@ theme_attr_t theme_attr[] = {
 	{ .name = "splash_graph",
 	  .type = WIDGET_GRAPH,
 	  .attr.graph = &splash_graph_attr },
+	{ .name = "themes",
+	  .type = WIDGET_MENU,
+	  .attr.menu = &themes_attr },
 	{ .name = "warning",
 	  .type = WIDGET_DIALOG,
 	  .attr.dialog = &warn_attr },
@@ -396,6 +420,7 @@ static mvp_widget_t *exit_image;
 static mvp_widget_t *warn_widget;
 static mvp_widget_t *busy_widget;
 static mvp_widget_t *busy_graph;
+static mvp_widget_t *themes_menu;
 
 mvp_widget_t *file_browser;
 mvp_widget_t *mythtv_browser;
@@ -472,6 +497,7 @@ enum {
 	MM_ABOUT,
 	MM_SETTINGS,
 	MM_REPLAYTV,
+	MM_THEMES,
 };
 
 enum {
@@ -699,6 +725,42 @@ settings_key_callback(mvp_widget_t *widget, char key)
 
 	if ((key == MVPW_KEY_RIGHT) || (key == MVPW_KEY_VOL_UP)) {
 		settings_select_callback(NULL, NULL, NULL);
+	}
+}
+
+static void
+themes_key_callback(mvp_widget_t *widget, char key)
+{
+	switch (key) {
+	case MVPW_KEY_EXIT:
+		mvpw_hide(widget);
+
+		mvpw_show(main_menu);
+		mvpw_show(mvpmc_logo);
+		mvpw_show(setup_image);
+
+		mvpw_focus(main_menu);
+		break;
+	}
+}
+
+static void
+themes_select_callback(mvp_widget_t *widget, char *item, void *key)
+{
+	char buf[256];
+
+	memset(buf, 0, sizeof(buf));
+	readlink(DEFAULT_THEME, buf, sizeof(buf));
+
+	if (strcmp(buf, item) != 0) {
+		printf("switch to theme '%s'\n", item);
+		unlink(DEFAULT_THEME);
+		if (symlink(item, DEFAULT_THEME) != 0) {
+			symlink(buf, DEFAULT_THEME);
+			fprintf(stderr, "switch failed!\n");
+			return;
+		}
+		exit(1);
 	}
 }
 
@@ -1347,6 +1409,53 @@ settings_init(void)
 	return 0;
 }
 
+static int
+themes_init(void)
+{
+	int x, y, w, h;
+	int i;
+	char buf[256];
+
+	splash_update("Creating themes");
+
+	h = 6 * (mvpw_font_height(themes_attr.font) + 8);
+	w = (si.cols - 250);
+
+	x = (si.cols - w) / 2;
+	y = (si.rows - h) / 2;
+
+	themes_menu = mvpw_create_menu(NULL, x, y, w, h,
+				       themes_attr.bg, themes_attr.border,
+				       themes_attr.border_size);
+
+	if (themes_attr.checkbox_fg)
+		themes_item_attr.checkbox_fg = themes_attr.checkbox_fg;
+
+	mvpw_set_menu_attr(themes_menu, &themes_attr);
+	mvpw_set_menu_title(themes_menu, "Themes");
+	mvpw_set_key(themes_menu, themes_key_callback);
+
+	themes_item_attr.select = themes_select_callback;
+	themes_item_attr.fg = themes_attr.fg;
+	themes_item_attr.bg = themes_attr.bg;
+
+	for (i=0; i<THEME_MAX; i++) {
+		if (theme_list[i].path == NULL)
+			break;
+		memset(buf, 0, sizeof(buf));
+		readlink(DEFAULT_THEME, buf, sizeof(buf));
+		mvpw_add_menu_item(themes_menu, theme_list[i].path,
+				   (void*)i, &themes_item_attr);
+		if (strcmp(buf, theme_list[i].path) == 0) {
+			mvpw_check_menu_item(themes_menu, (void*)i, 1);
+		} else {
+			mvpw_check_menu_item(themes_menu, (void*)i, 0);
+		}
+	}
+
+	return 0;
+}
+
 static void
 myth_menu_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
@@ -1613,6 +1722,13 @@ main_select_callback(mvp_widget_t *widget, char *item, void *key)
 		replaytv_device_update();
 		replaytv_show_device_menu();
 		break;
+	case MM_THEMES:
+		mvpw_hide(main_menu);
+		mvpw_hide(setup_image);
+
+		mvpw_show(themes_menu);
+		mvpw_focus(themes_menu);
+		break;
 	case MM_ABOUT:
 		mvpw_show(about);
 		mvpw_focus(about);
@@ -1631,6 +1747,9 @@ main_hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 	if (hilite) {
 		switch (k) {
 		case MM_SETTINGS:
+			mvpw_show(setup_image);
+			break;
+		case MM_THEMES:
 			mvpw_show(setup_image);
 			break;
 		case MM_FILESYSTEM:
@@ -1652,6 +1771,9 @@ main_hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 	} else {
 		switch (k) {
 		case MM_SETTINGS:
+			mvpw_hide(setup_image);
+			break;
+		case MM_THEMES:
 			mvpw_hide(setup_image);
 			break;
 		case MM_FILESYSTEM:
@@ -1680,6 +1802,13 @@ main_menu_init(char *server, char *replaytv)
 	mvpw_widget_info_t wid;
 	char file[128];
 	int w;
+	int i, theme_count = 0;
+
+	for (i=0; i<THEME_MAX; i++) {
+		if (theme_list[i].path != NULL) {
+			theme_count++;
+		}
+	}
 
 	splash_update("Creating setup image");
 
@@ -1778,6 +1907,9 @@ main_menu_init(char *server, char *replaytv)
 			   (void*)MM_FILESYSTEM, &item_attr);
 	mvpw_add_menu_item(main_menu, "Settings",
 			   (void*)MM_SETTINGS, &item_attr);
+	if (theme_count > 1)
+		mvpw_add_menu_item(main_menu, "Themes",
+				   (void*)MM_THEMES, &item_attr);
 	mvpw_add_menu_item(main_menu, "About",
 			   (void*)MM_ABOUT, &item_attr);
 #ifdef MVPMC_HOST
@@ -2458,6 +2590,7 @@ gui_init(char *server, char *replaytv)
 		return -1;
 	file_browser_init();
 	settings_init();
+	themes_init();
 	about_init();
 	image_init();
 	osd_init();

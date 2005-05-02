@@ -309,4 +309,18 @@ extern int theme_parse(char *file);
 extern int seek_osd_timeout;
 extern int pause_osd;
 
+typedef struct {
+	char	*name;
+	char	*path;
+	int	 current;
+} theme_t;
+
+extern theme_t theme_list[];
+
+#define THEME_MAX	32
+#define DEFAULT_THEME	"/usr/share/mvpmc/mvpmc_current_theme.xml"
+#define MASTER_THEME	"/usr/share/mvpmc/theme.xml"
+
+#define DEFAULT_FONT	"/etc/helvR10.fnt"
+
 #endif /* MVPMC_H */

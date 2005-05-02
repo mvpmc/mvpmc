@@ -30,6 +30,7 @@
 #include <sys/select.h>
 #include <fcntl.h>
 #include <time.h>
+#include <sys/stat.h>
 
 #include <mvp_widget.h>
 #include <mvp_av.h>
@@ -236,17 +237,20 @@ spawn_child(void)
 				break;
 		}
 
+		status = WEXITSTATUS(status);
+
 		switch (status) {
 		case 0:
 			printf("child exited cleanly\n");
-			break;
-		case 1:
-			printf("child failed\n");
-			exit(1);
+			exit(0);
 			break;
 		default:
 			printf("child failed, with status %d, restarting...\n",
 			       status);
+			if (status == 2) {
+				printf("abort theme change\n");
+				unlink(DEFAULT_THEME);
+			}
 			break;
 		}
 	}
@@ -264,6 +268,7 @@ main(int argc, char **argv)
 	int width, height;
 	uint32_t accel = MM_ACCEL_DJBFFT;
 	char *theme_file = NULL;
+	struct stat sb;
 
 	if (argc > 32) {
 		fprintf(stderr, "too many arguments\n");
@@ -355,6 +360,10 @@ main(int argc, char **argv)
 			break;
 		case 't':
 			theme_file = strdup(optarg);
+			if (stat(theme_file, &sb) != 0) {
+				perror(theme_file);
+				exit(1);
+			}
 			break;
 		default:
 			print_help(argv[0]);
@@ -363,14 +372,49 @@ main(int argc, char **argv)
 		}
 	}
 
-	if (theme_file)
-		theme_parse(theme_file);
+#ifndef MVPMC_HOST
+	theme_parse(MASTER_THEME);
+#endif
+
+	if (theme_file) {
+		for (i=0; i<THEME_MAX; i++) {
+			if (theme_list[i].path == NULL) {
+				theme_list[i].path = strdup(theme_file);
+				break;
+			}
+			if (strcmp(theme_list[i].path, theme_file) == 0)
+				break;
+		}
+		if (i == THEME_MAX) {
+			fprintf(stderr, "too many theme files!\n");
+			exit(1);
+		}
+#ifndef MVPMC_HOST
+		unlink(DEFAULT_THEME);
+		if (symlink(theme_file, DEFAULT_THEME) != 0)
+			return -1;
+#endif
+	}
 
 #ifndef MVPMC_HOST
 	spawn_child();
 #endif
 
 	signal(SIGPIPE, SIG_IGN);
+
+	if (stat(DEFAULT_THEME, &sb) == 0) {
+		theme_parse(DEFAULT_THEME);
+	} else {
+#ifndef MVPMC_HOST
+		if (font == NULL)
+			font = DEFAULT_FONT;
+#endif
+	}
+
+#ifdef MVPMC_HOST
+	if (theme_file)
+		theme_parse(theme_file);
+#endif
 
 	if (font)
 		fontid = mvpw_load_font(font);

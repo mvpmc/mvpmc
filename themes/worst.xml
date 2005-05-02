@@ -1,8 +1,10 @@
-<mvpmctheme version="0">
+<mvpmctheme version="0" name="Worst Theme Ever!">
   <!--
      - example mvpmc theme
      - "Worst Theme Ever!"
+     -
      - This is a good example, but it is pretty ugly.
+     -
      - http://mvpmc.sourceforge.net/
      - $Id$
     -->
@@ -14,16 +16,9 @@
   <font name="large">/etc/helvB18.pcf</font>
 
   <!--
-     - Program settings
+     - include settings options
     -->
-  <settings name="screensaver">
-    <item name="timeout">600</item>
-  </settings>
-
-  <settings name="video">
-    <item name="seek_osd_timeout">8</item>
-    <item name="pause_osd">1</item>
-  </settings>
+  <include>/usr/share/mvpmc/settings_1.xml</include>
 
   <!--
      - Graph widget settings
@@ -171,6 +166,20 @@
     <font>large</font>
   </widget>
 
+  <widget type="menu" name="themes">
+    <color type="bg">black</color>
+    <color type="fg">green</color>
+    <color type="title_bg">white</color>
+    <color type="title_fg">black</color>
+    <color type="hilite_bg">blue</color>
+    <color type="hilite_fg">white</color>
+    <color type="checkbox">purple</color>
+    <style type="border_size">2</style>
+    <color type="border">orange</color>
+    <style type="hilite">square</style>
+    <font>large</font>
+  </widget>
+
   <!--
      - Dialog widget settings
     -->
@@ -193,5 +202,10 @@
     <style type="border_size">2</style>
     <font>large</font>
   </widget>
+
+  <!--
+     - include user theme overrides
+    -->
+  <sinclude>/tmp/user_override.xml</sinclude>
 
 </mvpmctheme>

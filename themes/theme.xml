@@ -1,0 +1,24 @@
+<mvpmctheme version="0" name="master">
+  <!--
+     - master theme file
+     -
+     - Any .xml file put into /tmp/themes will be picked up.  If one of them
+     - is named default.xml, it will override /usr/share/mvpmc/default.xml
+     - as the default.
+     -
+     - Support XML files (ie, those included in your personal themes) should
+     - not be placed in /tmp/themes.  Put them in any other directory and
+     - include (or sinclude) them with full pathnames.
+     -
+     - http://mvpmc.sourceforge.net/
+     - $Id$
+    -->
+
+  <settings name="themes">
+    <item name="default">/usr/share/mvpmc/default.xml</item>
+    <item name="alternate">/usr/share/mvpmc/worst.xml</item>
+    <item name="alternate">/usr/share/mvpmc/none.xml</item>
+    <item name="directory">/tmp/themes</item>
+  </settings>
+
+</mvpmctheme>

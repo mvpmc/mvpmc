@@ -23,6 +23,9 @@
 #include <unistd.h>
 #include <strings.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <dirent.h>
 
 #include <mvp_widget.h>
 #include <mvp_demux.h>
@@ -39,40 +42,50 @@
 #define PRINTF(x...)
 #endif
 
-static XML_Parser p;
+theme_t theme_list[THEME_MAX+1];
 
-static int depth = 0;
-static char *cur = NULL;
-static int cur_attr = -1;
-static int cur_type = -1;
+typedef struct {
+	XML_Parser	 p;
+	void		*data;
+	int		 depth;
+	char		*cur;
+	int		 cur_attr;
+	int		 cur_type;
+	char		*theme_err;
+	char		*name;
+} parser_data_t;
 
 enum {
 	TYPE_WIDGET = 1,
 	TYPE_SETTINGS,
 };
 
-static int tag_font(const char *el, const char **attr, char *value);
-static int tag_mvpmctheme(const char *el, const char **attr);
-static int tag_settings(const char *el, const char **attr);
-static int tag_widget(const char *el, const char **attr);
+static int tag_font(parser_data_t*, const char*, const char**, char*);
+static int tag_include(parser_data_t*, const char*, const char**, char*);
+static int tag_mvpmctheme(parser_data_t*, const char*, const char**);
+static int tag_settings(parser_data_t*, const char*, const char**);
+static int tag_sinclude(parser_data_t*, const char*, const char**, char*);
+static int tag_widget(parser_data_t*, const char*, const char**);
 
 typedef struct {
 	char *tag;
-	int (*func)(const char*, const char**);
-	int (*vfunc)(const char*, const char**, char *value);
+	int (*func)(parser_data_t*, const char*, const char**);
+	int (*vfunc)(parser_data_t*, const char*, const char**, char*);
 } theme_tag_t;
 
 static theme_tag_t tags[] = {
 	{ .tag = "font",	.vfunc = tag_font },
+	{ .tag = "include",	.vfunc = tag_include },
+	{ .tag = "sinclude",	.vfunc = tag_sinclude },
 	{ .tag = "mvpmctheme",	.func = tag_mvpmctheme },
 	{ .tag = "settings",	.func = tag_settings },
 	{ .tag = "widget",	.func = tag_widget },
 	{ .tag = NULL }
 };
 
-static int tag_widget_font(const char *el, const char **attr, char *value);
-static int tag_widget_color(const char *el, const char **attr, char *value);
-static int tag_widget_style(const char *el, const char **attr, char *value);
+static int tag_widget_font(parser_data_t*, const char*, const char**, char*);
+static int tag_widget_color(parser_data_t*, const char*, const char**, char*);
+static int tag_widget_style(parser_data_t*, const char*, const char**, char*);
 
 static theme_tag_t tags_widget[] = {
 	{ .tag = "font",	.vfunc = tag_widget_font },
@@ -81,18 +94,23 @@ static theme_tag_t tags_widget[] = {
 	{ .tag = NULL }
 };
 
-static int tag_settings_item(const char *el, const char **attr, char *value);
+static int tag_settings_item(parser_data_t*, const char*, const char**, char*);
 
 static theme_tag_t tags_settings[] = {
 	{ .tag = "item",	.vfunc = tag_settings_item },
 	{ .tag = NULL }
 };
 
-static int tag_settings_screensaver(const char *el, const char **attr, char *value);
-static int tag_settings_video(const char *el, const char **attr, char *value);
+static int tag_settings_screensaver(parser_data_t*, const char*, const char**,
+				    char*);
+static int tag_settings_themes(parser_data_t*, const char*, const char**,
+			       char*);
+static int tag_settings_video(parser_data_t*, const char*, const char**,
+			      char*);
 
 static theme_tag_t tag_settings_names[] = {
 	{ .tag = "screensaver",	.vfunc = tag_settings_screensaver },
+	{ .tag = "themes",	.vfunc = tag_settings_themes },
 	{ .tag = "video",	.vfunc = tag_settings_video },
 	{ .tag = NULL }
 };
@@ -100,38 +118,36 @@ static theme_tag_t tag_settings_names[] = {
 typedef struct {
 	char *tag;
 	char *attr[9];
-	int (*func)(const char*, const char**, char *value);
+	int (*func)(parser_data_t*, const char*, const char**, char*);
 	char *value;
 } theme_data_t;
 
 typedef struct {
 	char *name;
+	char *file;
 	int id;
 } theme_font_t;
 
-#define MAX_FONTS	8
+#define MAX_FONTS	16
 static theme_font_t fonts[MAX_FONTS+1];
 
-static char *theme_err = NULL;
-
 static void
-theme_fail(void)
+theme_fail(parser_data_t *pdata)
 {
-	if (theme_err)
+	if (pdata->theme_err)
 		fprintf(stderr, "Error '%s' at line %d in theme file\n",
-			theme_err, XML_GetCurrentLineNumber(p));
+			pdata->theme_err, XML_GetCurrentLineNumber(pdata->p));
 	else
 		fprintf(stderr, "Error at line %d in theme file\n",
-			XML_GetCurrentLineNumber(p));
-	exit(1);
+			XML_GetCurrentLineNumber(pdata->p));
+	exit(2);
 }
 
 static int
-find_color(char *str, unsigned int *color)
+find_color(char *str, unsigned int *color, parser_data_t *pdata)
 {
 	int i = 0;
 
-	PRINTF("%s() line %d\n", __FUNCTION__, __LINE__);
 	while (i < sizeof(color_list)/sizeof(color_list[0])) {
 		if (strcasecmp(color_list[i].name, str) == 0) {
 			*color = color_list[i].val;
@@ -140,13 +156,13 @@ find_color(char *str, unsigned int *color)
 		i++;
 	}
 
-	theme_err = "unknown color";
+	pdata->theme_err = "unknown color";
 
 	return -1;
 }
 
 static int
-find_font(char *str, int *id)
+find_font(char *str, int *id, parser_data_t *pdata)
 {
 	int i = 0;
 
@@ -159,16 +175,18 @@ find_font(char *str, int *id)
 		i++;
 	}
 
-	theme_err = "unknown font";
+	pdata->theme_err = "unknown font";
 
 	return -1;
 }
 
 static int
-tag_widget_font(const char *el, const char **attr, char *value)
+tag_widget_font(parser_data_t *pdata, const char *el, const char **attr,
+		char *value)
 {
 	char *tok;
 	int *font;
+	int cur_attr = pdata->cur_attr;
 
 	if ((tok=strtok(value, " \t\r\n")) == NULL)
 		return -1;
@@ -186,21 +204,23 @@ tag_widget_font(const char *el, const char **attr, char *value)
 		font = &theme_attr[cur_attr].attr.dialog->font;
 		break;
 	default:
-		theme_err = "invalid widget type";
+		pdata->theme_err = "invalid widget type";
 		return -1;
 	}
 
-	if (find_font(value, font) < 0)
+	if (find_font(value, font, pdata) < 0)
 		return -1;
 
 	return 0;
 }
 
 static int
-tag_widget_color(const char *el, const char **attr, char *value)
+tag_widget_color(parser_data_t *pdata, const char *el, const char **attr,
+		 char *value)
 {
 	char *tok;
 	unsigned int *color;
+	int cur_attr = pdata->cur_attr;
 
 	if ((attr[0] == NULL) || (attr[1] == NULL))
 		return -1;
@@ -249,8 +269,8 @@ tag_widget_color(const char *el, const char **attr, char *value)
 	} else if (strcasecmp(attr[1], "hilite_bg") == 0) {
 		switch (theme_attr[cur_attr].type) {
 		case WIDGET_TEXT:
-			theme_err = "invalid attribute";
-			theme_fail();
+			pdata->theme_err = "invalid attribute";
+			theme_fail(pdata);
 			break;
 		case WIDGET_MENU:
 			color = &theme_attr[cur_attr].attr.menu->hilite_bg;
@@ -261,8 +281,8 @@ tag_widget_color(const char *el, const char **attr, char *value)
 	} else if (strcasecmp(attr[1], "hilite_fg") == 0) {
 		switch (theme_attr[cur_attr].type) {
 		case WIDGET_TEXT:
-			theme_err = "invalid attribute";
-			theme_fail();
+			pdata->theme_err = "invalid attribute";
+			theme_fail(pdata);
 			break;
 		case WIDGET_MENU:
 			color = &theme_attr[cur_attr].attr.menu->hilite_fg;
@@ -273,8 +293,8 @@ tag_widget_color(const char *el, const char **attr, char *value)
 	} else if (strcasecmp(attr[1], "title_bg") == 0) {
 		switch (theme_attr[cur_attr].type) {
 		case WIDGET_TEXT:
-			theme_err = "invalid attribute";
-			theme_fail();
+			pdata->theme_err = "invalid attribute";
+			theme_fail(pdata);
 			break;
 		case WIDGET_MENU:
 			color = &theme_attr[cur_attr].attr.menu->title_bg;
@@ -288,8 +308,8 @@ tag_widget_color(const char *el, const char **attr, char *value)
 	} else if (strcasecmp(attr[1], "title_fg") == 0) {
 		switch (theme_attr[cur_attr].type) {
 		case WIDGET_TEXT:
-			theme_err = "invalid attribute";
-			theme_fail();
+			pdata->theme_err = "invalid attribute";
+			theme_fail(pdata);
 			break;
 		case WIDGET_MENU:
 			color = &theme_attr[cur_attr].attr.menu->title_fg;
@@ -344,25 +364,25 @@ tag_widget_color(const char *el, const char **attr, char *value)
 			return -1;
 		}
 	} else {
-		theme_err = "unknown attribute";
+		pdata->theme_err = "unknown attribute";
 		return -1;
 	}
 
-	if (find_color(value, color) < 0)
+	if (find_color(value, color, pdata) < 0)
 		return -1;
 
 	if (attr[2]) {
 		int alpha;
 
 		if (strcasecmp(attr[2], "alpha") != 0) {
-			theme_err = "unknown attribute";
+			pdata->theme_err = "unknown attribute";
 			return -1;
 		}
 
 		alpha = (atoi(attr[3]) / 100.0) * 255;
 
 		if ((alpha < 0) || (alpha > 255)) {
-			theme_err = "invalid alpha value";
+			pdata->theme_err = "invalid alpha value";
 			return -1;
 		}
 
@@ -373,9 +393,11 @@ tag_widget_color(const char *el, const char **attr, char *value)
 }
 
 static int
-tag_widget_style(const char *el, const char **attr, char *value)
+tag_widget_style(parser_data_t *pdata, const char *el, const char **attr,
+		 char *value)
 {
 	char *tok;
+	int cur_attr = pdata->cur_attr;
 
 	if ((attr[0] == NULL) || (attr[1] == NULL))
 		return -1;
@@ -413,12 +435,12 @@ tag_widget_style(const char *el, const char **attr, char *value)
 			theme_attr[cur_attr].attr.dialog->border_size = atoi(value);
 			break;
 		default:
-			theme_err = "unknown attribute";
+			pdata->theme_err = "unknown attribute";
 			return -1;
 			break;
 		}
 	} else {
-		theme_err = "unknown attribute";
+		pdata->theme_err = "unknown attribute";
 		return -1;
 	}
 
@@ -426,21 +448,22 @@ tag_widget_style(const char *el, const char **attr, char *value)
 }
 
 static int
-tag_settings_screensaver(const char *el, const char **attr, char *value)
+tag_settings_screensaver(parser_data_t *pdata, const char *el,
+			 const char **attr, char *value)
 {
 	if (strcasecmp(attr[1], "timeout") == 0) {
 		int to;
 
 		to = atoi(value);
 		if ((to < 0) || (to > 3600)) {
-			theme_err = "invalid screensaver timeout";
+			pdata->theme_err = "invalid screensaver timeout";
 			return -1;
 		}
 
 		screensaver_default = to;
 		screensaver_timeout = to;
 	} else {
-		theme_err = "unknown item";
+		pdata->theme_err = "unknown item";
 		return -1;
 	}
 
@@ -448,14 +471,100 @@ tag_settings_screensaver(const char *el, const char **attr, char *value)
 }
 
 static int
-tag_settings_video(const char *el, const char **attr, char *value)
+add_theme_file(parser_data_t *pdata, char *file)
+{
+	int i;
+
+	for (i=0; i<THEME_MAX; i++) {
+		if (theme_list[i].path == NULL) {
+			theme_list[i].path = strdup(file);
+			return 0;
+		}
+	}
+
+	pdata->theme_err = "too many theme files";
+	return -1;
+}
+
+static int
+add_theme_dir(parser_data_t *pdata, char *dir)
+{
+	DIR *dp;
+	struct dirent *de;
+	int ret = -1;
+	char buf[256];
+
+	if ((dp=opendir(dir)) == NULL) {
+		pdata->theme_err = "no such directory";
+		return -1;
+	}
+
+	while ((de=readdir(dp)) != NULL) {
+		int len = strlen(de->d_name);
+		if ((len >= 4) &&
+		    (strcasecmp(de->d_name+len-4, ".xml") == 0)) {
+			snprintf(buf, sizeof(buf), "%s/%s", dir, de->d_name);
+			if (add_theme_file(pdata, buf) < 0)
+				goto err;
+			if (strcmp(de->d_name, "default.xml") == 0) {
+				unlink(DEFAULT_THEME);
+				if (symlink(buf, DEFAULT_THEME) != 0)
+					return -1;
+			}
+		}
+	}
+
+	ret = 0;
+
+ err:
+	closedir(dp);
+
+	return ret;
+}
+
+static int
+tag_settings_themes(parser_data_t *pdata, const char *el, const char **attr,
+		    char *value)
+{
+	struct stat sb;
+
+	if (strcasecmp(attr[1], "default") == 0) {
+		if (stat(value, &sb) != 0) {
+			pdata->theme_err = "no such file";
+			return -1;
+		}
+		unlink(DEFAULT_THEME);
+		if (symlink(value, DEFAULT_THEME) != 0)
+			return -1;
+		return add_theme_file(pdata, value);
+	} else if (strcasecmp(attr[1], "alternate") == 0) {
+		if (stat(value, &sb) != 0) {
+			pdata->theme_err = "no such file";
+			return -1;
+		}
+		return add_theme_file(pdata, value);
+	} else if (strcasecmp(attr[1], "directory") == 0) {
+		if (stat(value, &sb) != 0) {
+			pdata->theme_err = "no such directory";
+			return -1;
+		}
+		return add_theme_dir(pdata, value);
+	}
+
+	pdata->theme_err = "unknown item";
+	return -1;
+}
+
+static int
+tag_settings_video(parser_data_t *pdata, const char *el, const char **attr,
+		   char *value)
 {
 	if (strcasecmp(attr[1], "seek_osd_timeout") == 0) {
 		int to;
 
 		to = atoi(value);
 		if ((to < 0) || (to > 3600)) {
-			theme_err = "invalid osd timeout";
+			pdata->theme_err = "invalid osd timeout";
 			return -1;
 		}
 
@@ -466,7 +575,7 @@ tag_settings_video(const char *el, const char **attr, char *value)
 		val = atoi(value);
 		pause_osd = val;
 	} else {
-		theme_err = "unknown item";
+		pdata->theme_err = "unknown item";
 		return -1;
 	}
 
@@ -474,10 +583,11 @@ tag_settings_video(const char *el, const char **attr, char *value)
 }
 
 static int
-tag_settings_item(const char *el, const char **attr, char *value)
+tag_settings_item(parser_data_t *pdata, const char *el, const char **attr,
+		  char *value)
 {
 	char *tok;
-	int *font;
+	int cur_attr = pdata->cur_attr;
 
 	if ((tok=strtok(value, " \t\r\n")) == NULL)
 		return -1;
@@ -485,15 +595,15 @@ tag_settings_item(const char *el, const char **attr, char *value)
 	PRINTF("SETTINGS ITEM: '%s' '%s'\n", el, value);
 
 	if ((strcasecmp(attr[0], "name") != 0) || (attr[2] != NULL)) {
-		theme_err = "unknown attribute";
+		pdata->theme_err = "unknown attribute";
 		return -1;
 	}
 
-	return tag_settings_names[cur_attr].vfunc(el, attr, value);
+	return tag_settings_names[cur_attr].vfunc(pdata, el, attr, value);
 }
 
 static int
-tag_font(const char *el, const char **attr, char *value)
+tag_font(parser_data_t *pdata, const char *el, const char **attr, char *value)
 {
 	char *name = NULL, *file = NULL;
 	int i, fontid;
@@ -502,7 +612,7 @@ tag_font(const char *el, const char **attr, char *value)
 
 	for (i=0; attr[i]; i+=2) {
 		if (strcasecmp(attr[i], "name") == 0) {
-			name = attr[i+1];
+			name = (char*)attr[i+1];
 		} else {
 			return -1;
 		}
@@ -511,11 +621,42 @@ tag_font(const char *el, const char **attr, char *value)
 	if ((name == NULL) || (file == NULL))
 		return -1;
 
+	i = 0;
+	while ((i < MAX_FONTS) && (fonts[i].name != NULL)) {
+		if (strcmp(fonts[i].file, file) == 0) {
+			if (strcmp(fonts[i].name, name) != 0) {
+				int j = 0;
+				while ((j < MAX_FONTS) &&
+				       (fonts[j].name != NULL)) {
+					j++;
+				}
+				if (j < MAX_FONTS) {
+					fonts[j].name = strdup(name);
+					fonts[j].id = fonts[i].id;
+					return 0;
+				}
+				return -1;
+			}
+			return 0;
+		}
+		if (strcmp(fonts[i].name, name) == 0) {
+			/*
+			 * XXX: should we unload the font?
+			 */
+			free(fonts[i].name);
+			free(fonts[i].file);
+			fonts[i].name = NULL;
+			fonts[i].file = NULL;
+			break;
+		}
+		i++;
+	}
+
 #ifdef MVPMC_HOST
 	fontid = 0;
 #else
 	if ((fontid=mvpw_load_font(file)) <= 0)
-		theme_fail();
+		theme_fail(pdata);
 #endif /* MVPMC_HOST */
 
 	i = 0;
@@ -526,6 +667,7 @@ tag_font(const char *el, const char **attr, char *value)
 	if (i < MAX_FONTS) {
 		PRINTF("ADD FONT: '%s'\n", name);
 		fonts[i].name = strdup(name);
+		fonts[i].file = strdup(file);
 		fonts[i].id = fontid;
 	} else {
 		return -1;
@@ -538,38 +680,70 @@ tag_font(const char *el, const char **attr, char *value)
 }
 
 static int
-tag_mvpmctheme(const char *el, const char **attr)
+tag_include(parser_data_t *pdata, const char *el, const char **attr,
+	    char *value)
 {
-	int i;
+	theme_parse(value);
 
-	for (i=0; attr[i]; i+=2) {
-		if (strcasecmp(attr[i], "version") == 0) {
-		    if (strcasecmp(attr[i+1], "0") == 0)
-			    return 0;
-		    return -1;
-		}
-	}
-
-	return -1;
+	return 0;
 }
 
 static int
-tag_settings(const char *el, const char **attr)
+tag_sinclude(parser_data_t *pdata, const char *el, const char **attr,
+	     char *value)
+{
+	struct stat sb;
+
+	if (stat(value, &sb) == 0)
+		return tag_include(pdata, el, attr, value);
+
+	return 0;
+}
+
+static int
+tag_mvpmctheme(parser_data_t *pdata, const char *el, const char **attr)
 {
 	int i;
-	char *type = NULL, *name = NULL, *copy = NULL;
+	int ret = -1;
+
+	for (i=0; attr[i]; i+=2) {
+		if (strcasecmp(attr[i], "version") == 0) {
+			if (strcasecmp(attr[i+1], "0") != 0) {
+				pdata->theme_err = "invalid theme version";
+				return -1;
+			} else {
+				ret = 0;
+			}
+		} else if (strcasecmp(attr[i], "name") == 0) {
+			if (pdata->name)
+				free(pdata->name);
+			pdata->name = strdup(attr[i+1]);
+		} else {
+			pdata->theme_err = "unknown attribute";
+			return -1;
+		}
+	}
+
+	return ret;
+}
+
+static int
+tag_settings(parser_data_t *pdata, const char *el, const char **attr)
+{
+	int i;
+	char *type = NULL;
 
 	for (i=0; attr[i]; i+=2) {
 		if (strcasecmp(attr[i], "name") == 0) {
 			type = strdup(attr[i+1]);
 		} else {
-			theme_err = "unknown attribute";
+			pdata->theme_err = "unknown attribute";
 			goto err;
 		}
 	}
 
 	if (type == NULL) {
-		theme_err = "unknown setting";
+		pdata->theme_err = "unknown setting";
 		goto err;
 	}
 
@@ -582,8 +756,8 @@ tag_settings(const char *el, const char **attr)
 
 	if (tag_settings_names[i].tag == NULL)
 		goto err;
-	cur_type = TYPE_SETTINGS;
-	cur_attr = i;
+	pdata->cur_type = TYPE_SETTINGS;
+	pdata->cur_attr = i;
 
 	return 0;
 
@@ -592,7 +766,7 @@ tag_settings(const char *el, const char **attr)
 }
 
 static int
-tag_widget(const char *el, const char **attr)
+tag_widget(parser_data_t *pdata, const char *el, const char **attr)
 {
 	int i;
 	char *type = NULL, *name = NULL, *copy = NULL;
@@ -621,14 +795,16 @@ tag_widget(const char *el, const char **attr)
 	}
 
 	if (theme_attr[i].name == NULL) {
-		theme_err = "unknown widget";
+		pdata->theme_err = "unknown widget";
 		goto err;
 	}
 
-	cur_attr = i;
-	cur_type = TYPE_WIDGET;
+	pdata->cur_attr = i;
+	pdata->cur_type = TYPE_WIDGET;
 
 	if (copy) {
+		int cur_attr = pdata->cur_attr;
+
 		i = 0;
 		while (theme_attr[i].name) {
 			if (strcasecmp(theme_attr[i].name, copy) == 0) {
@@ -674,13 +850,14 @@ tag_widget(const char *el, const char **attr)
 }
 
 static int
-call_func(const char *el, const char **attr, theme_tag_t *tag)
+call_func(const char *el, const char **attr, theme_tag_t *tag,
+	  parser_data_t *pdata)
 {
 	theme_data_t *udata;
 	int i;
 
 	if (tag->func) {
-		if (tag->func(el, attr) != 0)
+		if (tag->func(pdata, el, attr) != 0)
 			goto err;
 	} else {
 		if ((udata=malloc(sizeof(*udata))) == NULL)
@@ -690,7 +867,7 @@ call_func(const char *el, const char **attr, theme_tag_t *tag)
 		for (i=0; attr[i]; i++)
 			udata->attr[i] = strdup(attr[i]);
 		udata->func = tag->vfunc;
-		XML_SetUserData(p, (void*)udata);
+		pdata->data = udata;
 	}
 
 	return 0;
@@ -704,7 +881,8 @@ value(void *data, const char *el, int len)
 {
 	char *buf;
 	char *val;
-	theme_data_t *udata;
+	parser_data_t *pdata = (parser_data_t*)data;
+	theme_data_t *udata = pdata->data;
 
 	buf = alloca(len+1);
 	strncpy(buf, el, len);
@@ -713,14 +891,13 @@ value(void *data, const char *el, int len)
 	if ((val=strtok(buf, " \t\r\n")) != NULL) {
 		if (data) {
 			PRINTF("DATA ");
-			udata = (theme_data_t*)data;
 			if (udata->value) {
 				udata->value = realloc(udata->value,
 						       strlen(udata->value)+
 						       strlen(val)+1);
 				if (udata->value == NULL) {
-					theme_err = "out of memory";
-					theme_fail();
+					pdata->theme_err = "out of memory";
+					theme_fail(pdata);
 				}
 				strcat(udata->value, val);
 			} else {
@@ -736,6 +913,7 @@ static void XMLCALL
 start(void *data, const char *el, const char **attr)
 {
 	int i;
+	parser_data_t *pdata = (parser_data_t*)data;
 
 	PRINTF("<%s", el);
 	for (i=0; attr[i]; i+=2)
@@ -745,7 +923,7 @@ start(void *data, const char *el, const char **attr)
 	if (i >= 8)
 		goto err;
 
-	switch (depth) {
+	switch (pdata->depth) {
 	case 0:
 		if (strcasecmp(el, "mvpmctheme") != 0)
 			goto err;
@@ -753,7 +931,7 @@ start(void *data, const char *el, const char **attr)
 		i = 0;
 		while (tags[i].tag) {
 			if (strcasecmp(tags[i].tag, el) == 0) {
-				if (call_func(el, attr, tags+i) != 0)
+				if (call_func(el, attr, tags+i, pdata) != 0)
 					goto err;
 				break;
 			}
@@ -764,13 +942,13 @@ start(void *data, const char *el, const char **attr)
 			goto err;
 		break;
 	case 2:
-		PRINTF("cur_attr %d, el '%s'\n", cur_attr, el);
-		switch (cur_type) {
+		switch (pdata->cur_type) {
 		case TYPE_WIDGET:
 			i = 0;
 			while (tags_widget[i].tag) {
 				if (strcasecmp(tags_widget[i].tag, el) == 0) {
-					if (call_func(el, attr, tags_widget+i) != 0)
+					if (call_func(el, attr, tags_widget+i,
+						      pdata) != 0)
 						goto err;
 					break;
 				}
@@ -784,7 +962,9 @@ start(void *data, const char *el, const char **attr)
 			i = 0;
 			while (tags_settings[i].tag) {
 				if (strcasecmp(tags_settings[i].tag, el) == 0) {
-					if (call_func(el, attr, tags_settings+i) != 0)
+					if (call_func(el, attr,
+						      tags_settings+i,
+						      pdata) != 0)
 						goto err;
 					break;
 				}
@@ -804,39 +984,41 @@ start(void *data, const char *el, const char **attr)
 		break;
 	}
 
-	if (++depth == 2)
-		cur = strdup(el);
+	if (++pdata->depth == 2)
+		pdata->cur = strdup(el);
 
 	return;
 
  err:
-	theme_fail();
+	theme_fail(pdata);
 }
 
 static void XMLCALL
 end(void *data, const char *el)
 {
-	theme_data_t *udata = (theme_data_t*)data;
+	parser_data_t *pdata = (parser_data_t*)data;
+	theme_data_t *udata = (theme_data_t*)pdata->data;
 
 	PRINTF("</%s>\n", el);
 
 	if (udata && udata->value) {
 		PRINTF("value '%s'\n", udata->value);
-		if (udata->func(udata->tag, udata->attr, udata->value) < 0)
-			theme_fail();
+		if (udata->func(pdata, udata->tag,
+				udata->attr, udata->value) < 0)
+			theme_fail(pdata);
 		free(udata->value);
 	}
 
 	if (udata)
 		free(udata);
 
-	XML_SetUserData(p, NULL);
+	pdata->data = NULL;
 
-	if (--depth == 1) {
-		if (cur)
-			free(cur);
-		cur = NULL;
-		cur_attr = -1;
+	if (--pdata->depth == 1) {
+		if (pdata->cur)
+			free(pdata->cur);
+		pdata->cur = NULL;
+		pdata->cur_attr = -1;
 	}
 }
 
@@ -846,22 +1028,35 @@ theme_parse(char *file)
 	FILE *f;
 	int len, done = 0;
 	char buf[1024];
+	parser_data_t pdata;
+
+	/*
+	 * XXX: add a mode to validate the file and get the name?
+	 */
 
 	if ((f=fopen(file, "r")) == NULL) {
 		perror(file);
 		exit(1);
 	}
 
-	p = XML_ParserCreate(NULL);
-	if (p) {
-		XML_SetElementHandler(p, start, end);
-		XML_SetCharacterDataHandler(p, value);
+	pdata.p = XML_ParserCreate(NULL);
+	if (pdata.p) {
+		pdata.data = NULL;
+		pdata.cur = NULL;
+		pdata.theme_err = NULL;
+		pdata.depth = 0;
+		pdata.cur_attr = -1;
+		pdata.cur_type = -1;
+		pdata.name = strdup(basename(file));
+		XML_SetElementHandler(pdata.p, start, end);
+		XML_SetCharacterDataHandler(pdata.p, value);
+		XML_SetUserData(pdata.p, (void*)&pdata);
 	}
 
 	while (1) {
 		len = fread(buf, 1, sizeof(buf), f);
 		done = feof(f);
-		XML_Parse(p, buf, len, done);
+		XML_Parse(pdata.p, buf, len, done);
 		if (done)
 			break;
 	}
