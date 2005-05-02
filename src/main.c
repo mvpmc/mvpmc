@@ -242,7 +242,6 @@ spawn_child(void)
 		switch (status) {
 		case 0:
 			printf("child exited cleanly\n");
-			exit(0);
 			break;
 		default:
 			printf("child failed, with status %d, restarting...\n",
