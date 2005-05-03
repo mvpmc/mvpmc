@@ -494,10 +494,11 @@ add_theme_dir(parser_data_t *pdata, char *dir)
 	int ret = -1;
 	char buf[256];
 
-	if ((dp=opendir(dir)) == NULL) {
-		pdata->theme_err = "no such directory";
-		return -1;
-	}
+	/*
+	 * Ignore directories that do not exist
+	 */
+	if ((dp=opendir(dir)) == NULL)
+		return 0;
 
 	while ((de=readdir(dp)) != NULL) {
 		int len = strlen(de->d_name);
@@ -544,10 +545,6 @@ tag_settings_themes(parser_data_t *pdata, const char *el, const char **attr,
 		}
 		return add_theme_file(pdata, value);
 	} else if (strcasecmp(attr[1], "directory") == 0) {
-		if (stat(value, &sb) != 0) {
-			pdata->theme_err = "no such directory";
-			return -1;
-		}
 		return add_theme_dir(pdata, value);
 	}
 
