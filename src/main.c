@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2004, Jon Gettler
+ *  Copyright (C) 2004, 2005, Jon Gettler
  *  http://mvpmc.sourceforge.net/
  *
  * This program is free software; you can redistribute it and/or modify
@@ -161,6 +161,7 @@ sighandler(int sig)
 static void
 doexit(int sig)
 {
+	av_deactivate();
 	exit(sig);
 }
 
@@ -218,6 +219,8 @@ spawn_child(void)
 
 					if (power == 0) {
 						printf("Power OFF\n");
+						kill(child, SIGINT);
+						usleep(5000);
 						kill(child, SIGKILL);
 						av_set_led(0);
 					} else {
