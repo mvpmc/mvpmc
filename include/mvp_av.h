@@ -147,4 +147,6 @@ extern int set_audio_stc(uint64_t stc);
 
 extern int av_get_state(av_state_t *state);
 
+extern int av_deactivate(void);
+
 #endif /* MVP_AV_H */

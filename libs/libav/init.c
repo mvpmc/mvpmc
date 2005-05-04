@@ -60,6 +60,7 @@ av_init(void)
 	if ((fd_audio=open("/dev/adec_mpg", O_RDWR|O_NONBLOCK)) < 0)
 		return -1;
 
+	ioctl(fd_video, AV_SET_VID_DENC, 1);
 	if (set_output_method() < 0)
 		return -1;
 

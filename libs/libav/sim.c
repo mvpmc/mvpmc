@@ -226,3 +226,9 @@ av_video_blank(void)
 {
 	return 0;
 }
+
+int
+av_deactivate(void)
+{
+	return 0;
+}

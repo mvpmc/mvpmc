@@ -829,3 +829,11 @@ av_get_state(av_state_t *state)
 
 	return 0;
 }
+
+int
+av_deactivate(void)
+{
+	ioctl(fd_video, AV_SET_VID_DENC, 0);
+
+	return 0;
+}
