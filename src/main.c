@@ -240,7 +240,8 @@ spawn_child(void)
 				break;
 		}
 
-		status = WEXITSTATUS(status);
+		if (WIFEXITED(status))
+			status = WEXITSTATUS(status);
 
 		switch (status) {
 		case 0:
@@ -249,7 +250,7 @@ spawn_child(void)
 		default:
 			printf("child failed, with status %d, restarting...\n",
 			       status);
-			if (status == 2) {
+			if (status == 65) {
 				printf("abort theme change\n");
 				unlink(DEFAULT_THEME);
 			}

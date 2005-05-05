@@ -140,7 +140,7 @@ theme_fail(parser_data_t *pdata)
 	else
 		fprintf(stderr, "Error at line %d in theme file\n",
 			XML_GetCurrentLineNumber(pdata->p));
-	exit(2);
+	exit(65);
 }
 
 static int
@@ -497,8 +497,11 @@ add_theme_dir(parser_data_t *pdata, char *dir)
 	/*
 	 * Ignore directories that do not exist
 	 */
-	if ((dp=opendir(dir)) == NULL)
+	if ((dp=opendir(dir)) == NULL) {
+		fprintf(stderr, "%s(): directory '%s' not found\n",
+			__FUNCTION__, dir);
 		return 0;
+	}
 
 	while ((de=readdir(dp)) != NULL) {
 		int len = strlen(de->d_name);
@@ -1026,6 +1029,8 @@ theme_parse(char *file)
 	int len, done = 0;
 	char buf[1024];
 	parser_data_t pdata;
+	char *base;
+	extern char *basename(char*);
 
 	/*
 	 * XXX: add a mode to validate the file and get the name?
@@ -1044,7 +1049,11 @@ theme_parse(char *file)
 		pdata.depth = 0;
 		pdata.cur_attr = -1;
 		pdata.cur_type = -1;
-		pdata.name = strdup(basename(file));
+		if ((base=basename(file)) == NULL) {
+			fprintf(stderr, "bad file '%s'\n", file);
+			exit(1);
+		}
+		pdata.name = strdup(base);
 		XML_SetElementHandler(pdata.p, start, end);
 		XML_SetCharacterDataHandler(pdata.p, value);
 		XML_SetUserData(pdata.p, (void*)&pdata);
