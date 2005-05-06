@@ -303,6 +303,22 @@ video_timecode(mvp_widget_t *widget)
 	av_current_stc(&stc);
 	snprintf(buf, sizeof(buf), "%.2d:%.2d:%.2d",
 		 stc.hour, stc.minute, stc.second);
+	if (running_mythtv && !mythtv_livetv) {
+		int seconds = 0, minutes = 0, hours = 0;
+
+		seconds = mythtv_program_runtime();
+
+		if (seconds > 0) {
+			hours = seconds / (60 * 60);
+			minutes = (seconds / 60) % 60;
+			seconds = seconds % 60;
+
+			snprintf(buf, sizeof(buf),
+				 "%.2d:%.2d:%.2d / %.2d:%.2d:%.2d",
+				 stc.hour, stc.minute, stc.second,
+				 hours, minutes, seconds);
+		}
+	}
 	mvpw_set_text_str(time_widget, buf);
 }
 
@@ -384,7 +400,7 @@ seek_by(int seconds)
 	demux_attr_t *attr = demux_get_attr(handle);
 	int delta;
 	int stc_time, gop_time, pts_time;
-	long long offset;
+	long long offset, size;
 
 	pthread_kill(video_write_thread, SIGURG);
 	pthread_kill(audio_write_thread, SIGURG);
@@ -424,9 +440,18 @@ seek_by(int seconds)
 		pts_seek_attempts = 4;
 	}
 	seek_start_pos = video_functions->seek(0, SEEK_CUR);
+	size = video_functions->size();
 
 	seek_seconds = seek_start_seconds + seconds;
 	delta = seek_bps * seconds;
+
+	/*
+	 * Abort the seek if near the end of the file
+	 */
+	if ((size < 0) || (seek_start_pos + delta > size)) {
+		fprintf(stderr, "near end of file, seek aborted\n");
+		return;
+	}
 
 	PRINTF("%d bps, currently %lld + %d\n",
 	       seek_bps, seek_start_pos, delta);
@@ -749,7 +774,7 @@ add_subtitle_streams(mvp_widget_t *widget, mvpw_menu_item_attr_t *item_attr)
 	}
 }
 
-void
+int
 audio_switch_stream(mvp_widget_t *widget, int stream)
 {
 	demux_attr_t *attr;
@@ -763,10 +788,12 @@ audio_switch_stream(mvp_widget_t *widget, int stream)
 		old = attr->audio.current;
 
 		if ((type=demux_set_audio_stream(handle, stream)) < 0)
-			return;
+			return -1;
 
-		mvpw_check_menu_item(widget, (void*)old, 0);
-		mvpw_check_menu_item(widget, (void*)stream, 1);
+		if (widget) {
+			mvpw_check_menu_item(widget, (void*)old, 0);
+			mvpw_check_menu_item(widget, (void*)stream, 1);
+		}
 
 		if (type == STREAM_MPEG)
 			av_set_audio_output(AV_AUDIO_MPEG);
@@ -783,6 +810,8 @@ audio_switch_stream(mvp_widget_t *widget, int stream)
 			audio_output = type;
 		}
 	}
+
+	return 0;
 }
 
 void

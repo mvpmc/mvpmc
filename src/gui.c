@@ -2061,7 +2061,7 @@ osd_init(void)
 	mvpw_set_text_attr(mute_widget, &display_attr);
 	mvpw_show(widget);
 
-	time_widget = mvpw_create_text(NULL, 0, 0, 150, h,
+	time_widget = mvpw_create_text(NULL, 0, 0, 200, h,
 				       display_attr.bg,
 				       display_attr.border,
 				       display_attr.border_size);
@@ -2070,7 +2070,7 @@ osd_init(void)
 	mvpw_attach(contain, time_widget, MVPW_DIR_DOWN);
 	add_osd_widget(time_widget, OSD_TIMECODE, 1, NULL);
 
-	bps_widget = mvpw_create_text(NULL, 0, 0, 150, h,
+	bps_widget = mvpw_create_text(NULL, 0, 0, 100, h,
 				      display_attr.bg,
 				       display_attr.border,
 				       display_attr.border_size);

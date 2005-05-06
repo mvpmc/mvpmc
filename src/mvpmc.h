@@ -178,7 +178,7 @@ extern void fb_program(mvp_widget_t *widget);
 extern void re_exec(void);
 extern void power_toggle(void);
 
-extern void audio_switch_stream(mvp_widget_t*, int);
+extern int audio_switch_stream(mvp_widget_t*, int);
 extern void video_switch_stream(mvp_widget_t*, int);
 extern void add_audio_streams(mvp_widget_t*, mvpw_menu_item_attr_t*);
 extern void add_video_streams(mvp_widget_t*, mvpw_menu_item_attr_t*);

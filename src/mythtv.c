@@ -1024,6 +1024,7 @@ control_start(void *arg)
 		int count = 0;
 		cmyth_conn_t c = NULL;
 		cmyth_file_t f = NULL;
+		int audio_selected, audio_checks;
 
 		pthread_mutex_lock(&mutex);
 		printf("mythtv control thread sleeping...(pid %d)\n", pid);
@@ -1039,6 +1040,9 @@ control_start(void *arg)
 			goto end;
 		if ((f=cmyth_file_hold(file)) == NULL)
 			goto end;
+
+		audio_selected = 0;
+		audio_checks = 0;
 
 		do {
 			if (seeking || jumping) {
@@ -1092,6 +1096,21 @@ control_start(void *arg)
 				continue;
 			} else {
 				count = 0;
+			}
+
+			/*
+			 * Force myth recordings to start with the numerically
+			 * lowest audio stream, rather than the first audio
+			 * stream seen in the file.
+			 */
+			if (!audio_selected) {
+				if (audio_switch_stream(NULL, 0xc0) == 0) {
+					printf("selected audio stream 0xc0\n");
+					audio_selected = 1;
+				} else if (audio_checks++ == 8) {
+					printf("audio stream 0xc0 not found\n");
+					audio_selected = 1;
+				}
 			}
 		} while (file && (len > 0) &&
 			 (playing_via_mythtv == 1) && (!close_mythtv));
@@ -1338,7 +1357,7 @@ mythtv_seek(long long offset, int whence)
 {
 	struct timeval to;
 	int count = 0;
-	long long seek_pos = -1;
+	long long seek_pos = -1, size;
 	cmyth_file_t f = NULL;
 	cmyth_conn_t c = NULL;
 
@@ -1347,8 +1366,19 @@ mythtv_seek(long long offset, int whence)
 	if ((f=cmyth_file_hold(file)) == NULL)
 		goto out;
 
+	seek_pos = cmyth_file_seek(c, f, 0, SEEK_CUR);
 	if ((offset == 0) && (whence == SEEK_CUR)) {
-		seek_pos = cmyth_file_seek(c, f, 0, SEEK_CUR);
+		goto out;
+	}
+
+	size = mythtv_size();
+	if (size < 0) {
+		fprintf(stderr, "seek failed, file size unknown\n");
+		goto out;
+	}
+	if (((size < offset) && (whence == SEEK_SET)) ||
+	    ((size < offset + seek_pos) && (whence == SEEK_CUR))) {
+		fprintf(stderr, "cannot seek past end of file\n");
 		goto out;
 	}
 
@@ -1489,10 +1519,6 @@ mythtv_size(void)
 	pthread_mutex_unlock(&myth_mutex);
 
  out:
-	if (ret < 0) {
-		mythtv_shutdown();
-	}
-
 	return ret;
 }
 
@@ -1670,4 +1696,14 @@ mythtv_atexit(void)
 	mythtv_close();
 
 	printf("%s(): end exit processing...\n", __FUNCTION__);
+}
+
+int
+mythtv_program_runtime(void)
+{
+	int seconds;
+
+	seconds = cmyth_proginfo_length_sec(current_prog);
+
+	return seconds;
 }
