@@ -401,4 +401,10 @@ extern char *cmyth_chaninfo_string(cmyth_proginfo_t prog);
 #define cmyth_file_create __cmyth_file_create
 extern cmyth_file_t cmyth_file_create(void);
 
+/*
+ * From timestamp.c
+ */
+#define cmyth_timestamp_diff __cmyth_timestamp_diff
+extern int cmyth_timestamp_diff(cmyth_timestamp_t, cmyth_timestamp_t);
+
 #endif /* __CMYTH_LOCAL_H */

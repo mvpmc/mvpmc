@@ -526,3 +526,32 @@ cmyth_timestamp_compare(cmyth_timestamp_t ts1, cmyth_timestamp_t ts2)
 	}
 	return 0;
 }
+
+int
+cmyth_timestamp_diff(cmyth_timestamp_t ts1, cmyth_timestamp_t ts2)
+{
+	struct tm tm_datetime;
+	time_t start, end;
+
+	memset(&tm_datetime, 0, sizeof(tm_datetime));
+	tm_datetime.tm_year = ts1->timestamp_year - 1900;
+	tm_datetime.tm_mon = ts1->timestamp_month - 1;
+	tm_datetime.tm_mday = ts1->timestamp_day;
+	tm_datetime.tm_hour = ts1->timestamp_hour;
+	tm_datetime.tm_min = ts1->timestamp_minute;
+	tm_datetime.tm_sec = ts1->timestamp_second;
+	tm_datetime.tm_isdst = ts1->timestamp_isdst;
+	start = mktime(&tm_datetime);
+
+	memset(&tm_datetime, 0, sizeof(tm_datetime));
+	tm_datetime.tm_year = ts2->timestamp_year - 1900;
+	tm_datetime.tm_mon = ts2->timestamp_month - 1;
+	tm_datetime.tm_mday = ts2->timestamp_day;
+	tm_datetime.tm_hour = ts2->timestamp_hour;
+	tm_datetime.tm_min = ts2->timestamp_minute;
+	tm_datetime.tm_sec = ts2->timestamp_second;
+	tm_datetime.tm_isdst = ts2->timestamp_isdst;
+	end = mktime(&tm_datetime);
+
+	return (int)(end - start);
+}

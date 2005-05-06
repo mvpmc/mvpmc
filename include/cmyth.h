@@ -432,6 +432,8 @@ extern long long cmyth_proginfo_length(cmyth_proginfo_t prog);
 extern char *cmyth_proginfo_host(cmyth_proginfo_t prog);
 
 extern int cmyth_proginfo_compare(cmyth_proginfo_t a, cmyth_proginfo_t b);
+
+extern int cmyth_proginfo_length_sec(cmyth_proginfo_t prog);
 /*
  * -----------------------------------------------------------------
  * Program List Operations

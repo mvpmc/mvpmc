@@ -1311,6 +1311,38 @@ cmyth_proginfo_length(cmyth_proginfo_t prog)
 }
 
 /*
+ * cmyth_proginfo_length_sec(cmyth_proginfo_t prog)
+ *
+ *
+ * Scope: PUBLIC
+ *
+ * Description
+ *
+ * Retrieves the program length in seconds.
+ *
+ * Return Value:
+ *
+ * Success: int file length
+ *
+ * Failure: NULL
+ */
+int
+cmyth_proginfo_length_sec(cmyth_proginfo_t prog)
+{
+	int seconds;
+
+	if (!prog) {
+		return -1;
+	}
+
+	seconds = cmyth_timestamp_diff(prog->proginfo_start_ts,
+				       prog->proginfo_end_ts);
+
+	return seconds;
+}
+
+
+/*
  * cmyth_proginfo_rec_start(cmyth_proginfo_t prog)
  *
  *
