@@ -204,6 +204,78 @@
   </widget>
 
   <!--
+     - ReplayTV settings
+    -->
+  <widget type="menu" name="rtv_device_menu" copy="myth_browser">
+    <color type="bg">white</color>
+    <color type="title_bg">orange</color>
+    <color type="border">yellow</color>
+    <style type="border_size">8</style>
+  </widget>
+
+  <widget type="menu" name="rtv_show_browser" copy="rtv_device_menu">
+    <color type="bg">white</color>
+    <color type="title_bg">orange</color>
+    <color type="border">yellow</color>
+    <style type="border_size">8</style>
+  </widget>
+
+  <widget type="menu" name="rtv_show_popup" copy="popup">
+    <color type="bg">green</color>
+    <color type="hilite_bg">black</color>
+    <color type="border">purple</color>
+    <style type="border_size">2</style>
+    <font>large</font>
+  </widget>
+
+  <widget type="graph" name="rtv_discspace_graph">
+    <color type="fg">purple</color>
+    <color type="bg">snow</color>
+    <color type="border">orange</color>
+    <style type="border_size">2</style>
+  </widget>
+
+  <widget type="text" name="rtv_discovery_splash">
+    <color type="bg">lightslategray</color>
+    <color type="fg">black</color>
+    <color type="border">red</color>
+    <style type="border_size">2</style>
+    <font>large</font>
+  </widget>
+
+  <widget type="text" name="rtv_device_description">
+    <color type="bg">black</color>
+    <color type="fg">orange3</color>
+    <font>large</font>
+  </widget>
+
+  <widget type="text" name="rtv_episode_description">
+    <color type="bg">black</color>
+    <color type="fg">orange3</color>
+    <font>large</font>
+  </widget>
+
+  <widget type="text" name="rtv_osd_show_title">
+    <color type="bg" alpha="50%">yellow</color>
+    <color type="fg">purple</color>
+    <font>large</font>
+  </widget>
+
+  <widget type="text" name="rtv_osd_show_description">
+    <color type="bg" alpha="50%">yellow</color>
+    <color type="fg">snow2</color>
+    <font>large</font>
+  </widget>
+
+  <widget type="text" name="rtv_message_window">
+    <color type="bg">gray50</color>
+    <color type="fg">purple</color>
+    <font>large</font>
+    <color type="border">purple</color>
+    <style type="border_size">6</style>
+  </widget>
+
+  <!--
      - include user theme overrides
     -->
   <sinclude>/tmp/user_override.xml</sinclude>

@@ -327,6 +327,127 @@ static mvpw_graph_attr_t demux_video_graph_attr = {
 	.fg = mvpw_color_alpha(MVPW_BLUE, 0x80),
 	.bg = mvpw_color_alpha(MVPW_BLACK, 0x80),
 };
+
+/* 
+ * replaytv attributes 
+ */
+
+// device menu attributes
+mvpw_menu_attr_t  rtv_device_menu_attr = {
+	.font = FONT_LARGE,
+	.fg = MVPW_BLACK,
+	.hilite_fg = MVPW_WHITE,
+	.hilite_bg = MVPW_DARKGREY2,
+	.title_fg = MVPW_WHITE,
+	.title_bg = MVPW_MIDNIGHTBLUE,
+   .rounded = 0,
+};
+
+// device menu attributes
+mvpw_menu_attr_t  rtv_show_browser_menu_attr = {
+	.font = FONT_LARGE,
+	.fg = MVPW_BLACK,
+	.hilite_fg = MVPW_WHITE,
+	.hilite_bg = MVPW_DARKGREY2,
+	.title_fg = MVPW_WHITE,
+	.title_bg = MVPW_MIDNIGHTBLUE,
+   .rounded = 0,
+};
+
+// show browser popup window menu attributes
+mvpw_menu_attr_t rtv_show_popup_attr = {
+	.font = FONT_LARGE,
+	.fg = MVPW_BLACK,
+	.hilite_fg = MVPW_BLACK,
+	.hilite_bg = MVPW_WHITE,
+	.title_fg = MVPW_WHITE,
+	.title_bg = MVPW_MIDNIGHTBLUE,
+   .rounded = 0,
+};
+
+mvpw_graph_attr_t rtv_discspace_graph_attr = {
+	.min = 0,
+	.max = 100,
+   .fg = 0xff191988, //FIREBRICK3 (2/3 intensity)
+   .bg = MVPW_LIGHTGREY,
+   .border = 0,
+   .border_size = 0,
+};
+
+// discovery splash window text attributes
+mvpw_text_attr_t rtv_discovery_splash_attr = {
+   .wrap = 1,
+   .justify = MVPW_TEXT_LEFT,
+   .margin = 6,
+   .font = FONT_LARGE,
+   .fg = MVPW_GREEN,
+   .bg = MVPW_BLACK,
+   .border = MVPW_GREEN,
+   .border_size = 2,
+};
+
+// device description window text attributes
+mvpw_text_attr_t rtv_device_descr_attr = {
+   .wrap = 1,
+   .justify = MVPW_TEXT_LEFT,
+   .margin = 0,
+   .font = FONT_LARGE,
+   .fg = 0xff8b8b7a,    //LIGHTCYAN4,
+   .bg = MVPW_BLACK,
+};
+
+// show episode description window text attributes
+mvpw_text_attr_t rtv_episode_descr_attr = {
+   .wrap = 1,
+   .justify = MVPW_TEXT_LEFT,
+   .margin = 0,
+   .font = FONT_LARGE,
+   .fg = 0xff8b8b7a,    //LIGHTCYAN4,
+   .bg = MVPW_BLACK,
+};
+
+// OSD show title attributes
+mvpw_text_attr_t rtv_osd_show_title_attr = {
+	.wrap = 0,
+	.justify = MVPW_TEXT_LEFT,
+	.margin = 0,
+	.font = FONT_LARGE,
+	.fg = MVPW_CYAN,
+	.bg = mvpw_color_alpha(MVPW_BLACK, 0x80),
+};
+
+// OSD show description attributes
+mvpw_text_attr_t rtv_osd_show_desc_attr = {
+	.wrap = 1,
+	.justify = MVPW_TEXT_LEFT,
+	.margin = 0,
+	.font = FONT_LARGE,
+	.fg = MVPW_WHITE,
+	.bg = mvpw_color_alpha(MVPW_BLACK, 0x80),
+};
+
+// popup message window attributes
+mvpw_text_attr_t rtv_message_window_attr = {
+   .wrap = 1,
+   .justify = MVPW_TEXT_LEFT,
+   .margin = 12,
+   .font = FONT_LARGE,
+   .fg = MVPW_WHITE,
+   .bg = MVPW_LIGHTGREY,
+   .border =  MVPW_MIDNIGHTBLUE,
+   .border_size = 4,
+};
+
+// numeric keypad jump_to_time attributes
+mvpw_text_attr_t rtv_jump_to_time_attr = {
+	.wrap = 1,
+	.justify = MVPW_TEXT_LEFT,
+	.margin = 0,
+	.font = FONT_LARGE,
+	.fg = MVPW_WHITE,
+};
+
+
 /*
  * Only the attribute structures in the following list will be changeable
  * via a theme XML file.
@@ -392,6 +513,39 @@ theme_attr_t theme_attr[] = {
 	{ .name = "warning",
 	  .type = WIDGET_DIALOG,
 	  .attr.dialog = &warn_attr },
+
+	{ .name = "rtv_device_menu",
+	  .type = WIDGET_MENU,
+	  .attr.menu = &rtv_device_menu_attr },
+	{ .name = "rtv_show_browser",
+	  .type = WIDGET_MENU,
+	  .attr.menu = &rtv_show_browser_menu_attr },
+	{ .name = "rtv_show_popup",
+	  .type = WIDGET_MENU,
+	  .attr.menu = &rtv_show_popup_attr },
+	{ .name = "rtv_discspace_graph",
+	  .type = WIDGET_GRAPH,
+	  .attr.graph = &rtv_discspace_graph_attr },
+	{ .name = "rtv_discovery_splash",
+	  .type = WIDGET_TEXT,
+	  .attr.text = &rtv_discovery_splash_attr },
+	{ .name = "rtv_device_description",
+	  .type = WIDGET_TEXT,
+	  .attr.text = &rtv_device_descr_attr },
+	{ .name = "rtv_episode_description",
+	  .type = WIDGET_TEXT,
+	  .attr.text = &rtv_episode_descr_attr },
+	{ .name = "rtv_osd_show_title",
+	  .type = WIDGET_TEXT,
+	  .attr.text = &rtv_osd_show_title_attr },
+	{ .name = "rtv_osd_show_description",
+	  .type = WIDGET_TEXT,
+	  .attr.text = &rtv_osd_show_desc_attr },
+	{ .name = "rtv_message_window",
+	  .type = WIDGET_TEXT,
+	  .attr.text = &rtv_message_window_attr },
+
+
 	/* must be NULL-terminated */
 	{ .name = NULL }
 };

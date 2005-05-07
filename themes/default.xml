@@ -191,6 +191,91 @@
   </widget>
 
   <!--
+     - ReplayTV settings
+    -->
+  <widget type="menu" name="rtv_device_menu">
+    <color type="bg">gray50</color>
+    <color type="fg">black</color>
+    <color type="hilite_bg">gray30</color>
+    <color type="hilite_fg">white</color>
+    <color type="title_bg">midnightblue</color>
+    <color type="title_fg">white</color>
+    <style type="hilite">square</style>
+    <color type="border">gray38</color>
+    <style type="border_size">2</style>
+    <font>large</font>
+  </widget>
+
+  <widget type="menu" name="rtv_show_browser">
+    <color type="bg">gray50</color>
+    <color type="fg">black</color>
+    <color type="hilite_bg">gray30</color>
+    <color type="hilite_fg">white</color>
+    <color type="title_bg">midnightblue</color>
+    <color type="title_fg">white</color>
+    <style type="hilite">square</style>
+    <color type="border">gray38</color>
+    <style type="border_size">2</style>
+    <font>large</font>
+  </widget>
+
+  <widget type="menu" name="rtv_show_popup">
+    <color type="bg">black</color>
+    <color type="fg">green</color>
+    <color type="hilite_bg">white</color>
+    <color type="hilite_fg">black</color>
+    <color type="title_bg">midnightblue</color>
+    <color type="title_fg">white</color>
+    <style type="hilite">square</style>
+    <color type="border">green</color>
+    <style type="border_size">2</style>
+    <font>large</font>
+  </widget>
+
+  <widget type="graph" name="rtv_discspace_graph">
+    <color type="fg">firebrick3</color>
+    <color type="bg">gray50</color>
+  </widget>
+
+  <widget type="text" name="rtv_discovery_splash">
+    <color type="bg">black</color>
+    <color type="fg">green</color>
+    <font>large</font>
+  </widget>
+
+  <widget type="text" name="rtv_device_description">
+    <color type="bg">black</color>
+    <color type="fg">lightcyan4</color>
+    <font>large</font>
+  </widget>
+
+  <widget type="text" name="rtv_episode_description">
+    <color type="bg">black</color>
+    <color type="fg">lightcyan4</color>
+    <font>large</font>
+  </widget>
+
+  <widget type="text" name="rtv_osd_show_title">
+    <color type="bg" alpha="50%">black</color>
+    <color type="fg">cyan</color>
+    <font>large</font>
+  </widget>
+
+  <widget type="text" name="rtv_osd_show_description">
+    <color type="bg" alpha="50%">black</color>
+    <color type="fg">snow2</color>
+    <font>large</font>
+  </widget>
+
+  <widget type="text" name="rtv_message_window">
+    <color type="bg">gray50</color>
+    <color type="fg">white</color>
+    <font>large</font>
+    <color type="border">midnightblue</color>
+    <style type="border_size">4</style>
+  </widget>
+
+  <!--
      - include user theme overrides
     -->
   <sinclude>/tmp/user_override.xml</sinclude>

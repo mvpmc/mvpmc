@@ -252,6 +252,7 @@ extern int mvpw_set_dialog_text(mvp_widget_t *widget, char *text);
 #define MVPW_RED		MVPW_RGBA(255,0,0,255)
 #define MVPW_GREEN		MVPW_RGBA(0,255,0,255)
 #define MVPW_BLUE		MVPW_RGBA(0,0,255,255)
+#define MVPW_MIDNIGHTBLUE	MVPW_RGBA(25,25,112,255)
 #define MVPW_CYAN		MVPW_RGBA(0,255,255,255)
 #define MVPW_YELLOW		MVPW_RGBA(255,255,0,255)
 #define MVPW_WHITE		MVPW_RGBA(255,255,255,255)
