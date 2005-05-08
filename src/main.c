@@ -405,7 +405,7 @@ main(int argc, char **argv)
 
 	signal(SIGPIPE, SIG_IGN);
 
-	if (stat(DEFAULT_THEME, &sb) == 0) {
+	if ((stat(DEFAULT_THEME, &sb) == 0) && (sb.st_size > 0)) {
 		theme_parse(DEFAULT_THEME);
 	} else {
 #ifndef MVPMC_HOST

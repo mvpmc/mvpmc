@@ -493,6 +493,7 @@ add_theme_dir(parser_data_t *pdata, char *dir)
 	struct dirent *de;
 	int ret = -1;
 	char buf[256];
+	struct stat sb;
 
 	/*
 	 * Ignore directories that do not exist
@@ -505,15 +506,17 @@ add_theme_dir(parser_data_t *pdata, char *dir)
 
 	while ((de=readdir(dp)) != NULL) {
 		int len = strlen(de->d_name);
-		if ((len >= 4) &&
+		if ((len > 4) &&
 		    (strcasecmp(de->d_name+len-4, ".xml") == 0)) {
 			snprintf(buf, sizeof(buf), "%s/%s", dir, de->d_name);
-			if (add_theme_file(pdata, buf) < 0)
-				goto err;
-			if (strcmp(de->d_name, "default.xml") == 0) {
-				unlink(DEFAULT_THEME);
-				if (symlink(buf, DEFAULT_THEME) != 0)
-					return -1;
+			if ((stat(buf, &sb) == 0) && (sb.st_size > 0)) {
+				if (add_theme_file(pdata, buf) < 0)
+					goto err;
+				if (strcmp(de->d_name, "default.xml") == 0) {
+					unlink(DEFAULT_THEME);
+					if (symlink(buf, DEFAULT_THEME) != 0)
+						return -1;
+				}
 			}
 		}
 	}
