@@ -76,6 +76,8 @@ static volatile struct timeval seek_timeval;
 static volatile off_t seek_start_pos;
 static volatile int seek_start_seconds;
 static volatile int audio_type = 0;
+static volatile int audio_selected = 0;
+static volatile int audio_checks = 0;
 static volatile int pcm_decoded = 0;
 volatile int paused = 0;
 static int zoomed = 0;
@@ -783,12 +785,13 @@ audio_switch_stream(mvp_widget_t *widget, int stream)
 
 	if (attr->audio.current != stream) {
 		stream_type_t type;
-		int old;
+		int old, ret;
 
 		old = attr->audio.current;
 
-		if ((type=demux_set_audio_stream(handle, stream)) < 0)
+		if ((ret=demux_set_audio_stream(handle, stream)) < 0)
 			return -1;
+		type = (stream_type_t)ret;
 
 		if (widget) {
 			mvpw_check_menu_item(widget, (void*)old, 0);
@@ -822,12 +825,11 @@ video_switch_stream(mvp_widget_t *widget, int stream)
 	attr = demux_get_attr(handle);
 
 	if (attr->video.current != stream) {
-		int old;
-		stream_type_t type;
+		int old, ret;
 
 		old = attr->video.current;
 
-		if ((type=demux_set_video_stream(handle, stream)) < 0)
+		if ((ret=demux_set_video_stream(handle, stream)) < 0)
 			return;
 
 		mvpw_check_menu_item(widget, (void*)old, 0);
@@ -960,6 +962,21 @@ file_seek(long long offset, int whence)
 static int
 file_read(char *buf, int len)
 {
+	/*
+	 * Force myth recordings to start with the numerically
+	 * lowest audio stream, rather than the first audio
+	 * stream seen in the file.
+	 */
+	if (running_mythtv && !audio_selected) {
+		if (audio_switch_stream(NULL, 0xc0) == 0) {
+			printf("selected audio stream 0xc0\n");
+			audio_selected = 1;
+		} else if (audio_checks++ == 4) {
+			printf("audio stream 0xc0 not found\n");
+			audio_selected = 1;
+		}
+	}
+
 	return read(fd, buf, len);
 }
 
@@ -967,6 +984,8 @@ static int
 file_open(void)
 {
 	seeking = 1;
+	audio_selected = 0;
+	audio_checks = 0;
 
 	audio_clear();
 

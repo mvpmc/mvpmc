@@ -1107,7 +1107,7 @@ control_start(void *arg)
 				if (audio_switch_stream(NULL, 0xc0) == 0) {
 					printf("selected audio stream 0xc0\n");
 					audio_selected = 1;
-				} else if (audio_checks++ == 8) {
+				} else if (audio_checks++ == 4) {
 					printf("audio stream 0xc0 not found\n");
 					audio_selected = 1;
 				}
