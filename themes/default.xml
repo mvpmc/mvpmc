@@ -280,6 +280,12 @@
     <style type="border_size">4</style>
   </widget>
 
+  <widget type="text" name="rtv_seek_osd">
+    <color type="bg" alpha="50%">black</color>
+    <color type="fg">snow2</color>
+    <font>large</font>
+  </widget>
+
   <!--
      - include user theme overrides
     -->

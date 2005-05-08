@@ -84,7 +84,7 @@ extern mvpw_text_attr_t rtv_osd_show_title_attr;
 extern mvpw_text_attr_t rtv_osd_show_desc_attr;
 extern mvpw_text_attr_t rtv_message_window_attr;
 
-extern mvpw_text_attr_t rtv_jump_to_time_attr;
+extern mvpw_text_attr_t rtv_seek_osd_attr;
 
 // show browser popup window list item attributes
 static mvpw_menu_item_attr_t rtv_show_popup_item_attr = {
@@ -231,8 +231,8 @@ static mvp_widget_t *rtv_episode_line[NUM_EPISODE_LINES]; //contained by rtv_epi
 static mvp_widget_t *rtv_osd_proginfo_widget;     
 static mvp_widget_t *rtv_osd_show_title_widget;           //contained by rtv_osd_proginfo_widget
 static mvp_widget_t *rtv_osd_show_descr_widget;           //contained by rtv_osd_proginfo_widget
-static mvp_widget_t *rtv_show_popup;                           //show browser popup window
-static mvp_widget_t *rtv_jump_to_time_widget;             //alligned to right of gui.c clock_widget
+static mvp_widget_t *rtv_show_popup;                      //show browser popup window
+static mvp_widget_t *rtv_seek_osd_widget[2];              //alligned to right of gui.c clock_widget
 static mvp_widget_t *splash;
 
 static struct rtv_device_descr {
@@ -585,7 +585,8 @@ static void rtv_notify(mvp_notify_t event)
 
 static void jumpto_timer_callback(mvp_widget_t *widget)
 {
-   mvpw_hide(rtv_jump_to_time_widget);
+   mvpw_hide(rtv_seek_osd_widget[0]);
+   mvpw_hide(rtv_seek_osd_widget[1]);
    rtv_video_state.processing_jump_input = 0;
 }
 
@@ -610,13 +611,13 @@ static int rtv_video_key(char key)
       jump_str[1] = jump_str[2];
       jump_str[2] = jump_str[3];
       jump_str[3] = '0' + key;
-      mvpw_set_text_str(rtv_jump_to_time_widget, jump_str);
+      mvpw_set_text_str(rtv_seek_osd_widget[0], jump_str);
       if ( rtv_video_state.processing_jump_input ) {
-         mvpw_hide(rtv_jump_to_time_widget);
+         mvpw_hide(rtv_seek_osd_widget[0]);
       }
-      mvpw_show(rtv_jump_to_time_widget);
+      mvpw_show(rtv_seek_osd_widget[0]);
       rtv_video_state.processing_jump_input = 1;
-      mvpw_set_timer(rtv_jump_to_time_widget, jumpto_timer_callback, 3000);
+      mvpw_set_timer(rtv_seek_osd_widget[0], jumpto_timer_callback, 3000);
       rc = 1;
       break;
 	case MVPW_KEY_GO:
@@ -624,10 +625,11 @@ static int rtv_video_key(char key)
       //printf("-->%s: handle: jump\n", __FUNCTION__);
       if ( rtv_video_state.processing_jump_input ) {
          strcat(jump_str, " JUMP");
-         mvpw_set_text_str(rtv_jump_to_time_widget, jump_str);
-         mvpw_hide(rtv_jump_to_time_widget);
-         mvpw_show(rtv_jump_to_time_widget);
-         mvpw_set_timer(rtv_jump_to_time_widget, jumpto_timer_callback, 3000);
+         mvpw_set_text_str(rtv_seek_osd_widget[0], jump_str);
+         mvpw_hide(rtv_seek_osd_widget[0]);
+         mvpw_show(rtv_seek_osd_widget[0]);
+         mvpw_show(rtv_seek_osd_widget[1]);
+         mvpw_set_timer(rtv_seek_osd_widget[0], jumpto_timer_callback, 5000);
 
          tmp = atoi(&(jump_str[1]));
          if ( tmp > 99 ) {
@@ -1000,7 +1002,7 @@ static mvp_widget_t* show_message_window(void (*callback)(mvp_widget_t *widget, 
    mvp_widget_t *wp;
    struct timespec ts;
 
-   rtv_message_window_attr.font = fontid;  
+   //rtv_message_window_attr.font = fontid;  
    calc_string_window_sz(message, rtv_message_window_attr.font, &w, &h, &lines);
    w += (rtv_message_window_attr.margin * 2);
    h += (rtv_message_window_attr.margin * lines);
@@ -1672,9 +1674,9 @@ int replaytv_device_update(void)
    // build discovery splash window
    //
    snprintf(buf, sizeof(buf), "Discovering ReplayTV devices...");
-   rtv_discovery_splash_attr.font = fontid;
+   //rtv_discovery_splash_attr.font = fontid;
    h = (mvpw_font_height(rtv_discovery_splash_attr.font) + (2 * rtv_discovery_splash_attr.margin)) * 2;
-   w = mvpw_font_width(fontid, buf) + 8;
+   w = mvpw_font_width(rtv_discovery_splash_attr.font, buf) + 8;
    
    x = (scr_info.cols - w) / 2;
    y = (scr_info.rows - h) / 2;
@@ -1832,7 +1834,7 @@ int replay_gui_init(void)
  
    // init device selection menu
    //
-   rtv_device_menu_attr.font    = fontid;
+   //rtv_device_menu_attr.font    = fontid;
    rtv_device_menu_item_attr.fg = rtv_device_menu_attr.fg;
    rtv_device_menu_item_attr.bg = rtv_device_menu_attr.bg;
    rtv_device_menu = mvpw_create_menu(NULL, 50+iid.width, 30, scr_info.cols-120-iid.width, scr_info.rows-220, 
@@ -1843,7 +1845,7 @@ int replay_gui_init(void)
    
    // init show browser 
    //
-   rtv_show_browser_menu_attr.font = fontid;
+   //rtv_show_browser_menu_attr.font = fontid;
    rtv_show_browser_item_attr.fg   = rtv_show_browser_menu_attr.fg;
    rtv_show_browser_item_attr.bg   = rtv_show_browser_menu_attr.bg;
    rtv_show_browser = mvpw_create_menu(NULL, 50+iid.width, 30, scr_info.cols-120-iid.width, scr_info.rows-220, 
@@ -1859,7 +1861,7 @@ int replay_gui_init(void)
    //printf("logo: x=%d y=%d w=%d h=%d\n", wid.x, wid.y, wid.w, wid.h);
    //printf("brow: x=%d y=%d w=%d h=%d\n", wid2.x, wid2.y, wid2.w, wid2.h);
 
-   rtv_episode_descr_attr.font = fontid;
+   //rtv_episode_descr_attr.font = fontid;
 
    x = wid.x + 20; // logo x
    y = ((wid.y + wid.h) > (wid2.y + wid2.h)) ?  (wid.y + wid.h) : (wid2.y + wid2.h); // whoever goes farthest down
@@ -1885,7 +1887,7 @@ int replay_gui_init(void)
    mvpw_get_widget_info(rtv_logo, &wid);
    mvpw_get_widget_info(rtv_device_menu, &wid2);
    
-   rtv_device_descr_attr.font = fontid;
+   //rtv_device_descr_attr.font = fontid;
 
    x = wid.x + 20; // logo x
    y = ((wid.y + wid.h) > (wid2.y + wid2.h)) ?  (wid.y + wid.h) : (wid2.y + wid2.h); // whoever goes farthest down
@@ -1940,8 +1942,8 @@ int replay_gui_init(void)
 
    // init OSD program(show) info window
    //
-   rtv_osd_show_title_attr.font = fontid;
-   rtv_osd_show_desc_attr.font  = fontid;
+   //rtv_osd_show_title_attr.font = fontid;
+   //rtv_osd_show_desc_attr.font  = fontid;
    x = 50;
    y = scr_info.rows - 125;
 
@@ -1968,7 +1970,7 @@ int replay_gui_init(void)
                                 rtv_show_popup_attr.bg, rtv_show_popup_attr.border,
                                 rtv_show_popup_attr.border_size);
 
-	rtv_show_popup_attr.font = fontid;
+	//rtv_show_popup_attr.font = fontid;
 	rtv_show_popup_item_attr.fg = rtv_show_popup_attr.fg;
 	rtv_show_popup_item_attr.bg = rtv_show_popup_attr.bg;
 
@@ -1978,15 +1980,25 @@ int replay_gui_init(void)
 	mvpw_set_bg(rtv_show_popup, MVPW_BLACK);   
 	mvpw_set_key(rtv_show_popup, sub_window_key_callback);
    
-   // init jump_to_time window
+   // init seek_osd window
    //
-   rtv_jump_to_time_attr.font = fontid;
-   h = mvpw_font_height(rtv_jump_to_time_attr.font);
-   w = mvpw_font_width(rtv_jump_to_time_attr.font, " 555 JUMP ");
-	rtv_jump_to_time_widget = mvpw_create_text(NULL, 50, 25, w, h, 0x80000000, 0, 0);
-	mvpw_set_text_attr(rtv_jump_to_time_widget, &rtv_jump_to_time_attr);
-	mvpw_set_text_str(rtv_jump_to_time_widget, "");
-	mvpw_attach(clock_widget, rtv_jump_to_time_widget, MVPW_DIR_RIGHT);
+   //rtv_seek_osd_attr.font = fontid;
+   h = mvpw_font_height(rtv_seek_osd_attr.font);
+   w = mvpw_font_width(rtv_seek_osd_attr.font, " 555 JUMP ");
+	rtv_seek_osd_widget[0] = mvpw_create_text(NULL, 50, 25, w, h, 
+                                             rtv_seek_osd_attr.bg, 
+                                             rtv_seek_osd_attr.border, 
+                                             rtv_seek_osd_attr.border_size);
+	rtv_seek_osd_widget[1] = mvpw_create_text(NULL, 50, 25, w, h,  
+                                             rtv_seek_osd_attr.bg, 
+                                             rtv_seek_osd_attr.border, 
+                                             rtv_seek_osd_attr.border_size);
+	mvpw_set_text_attr(rtv_seek_osd_widget[0], &rtv_seek_osd_attr);
+	mvpw_set_text_attr(rtv_seek_osd_widget[1], &rtv_seek_osd_attr);
+	mvpw_set_text_str(rtv_seek_osd_widget[0], "");
+	mvpw_set_text_str(rtv_seek_osd_widget[1], "12:34:56");
+	mvpw_attach(clock_widget, rtv_seek_osd_widget[0], MVPW_DIR_RIGHT);
+	mvpw_attach( rtv_seek_osd_widget[0], rtv_seek_osd_widget[1], MVPW_DIR_DOWN);
 
    //
    mvpw_raise(rtv_show_browser);

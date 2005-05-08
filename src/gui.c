@@ -438,13 +438,16 @@ mvpw_text_attr_t rtv_message_window_attr = {
    .border_size = 4,
 };
 
-// numeric keypad jump_to_time attributes
-mvpw_text_attr_t rtv_jump_to_time_attr = {
+// seek_osd attributes (jump, seek, comercial skip)
+mvpw_text_attr_t rtv_seek_osd_attr = {
 	.wrap = 1,
 	.justify = MVPW_TEXT_LEFT,
 	.margin = 0,
 	.font = FONT_LARGE,
 	.fg = MVPW_WHITE,
+	.bg = mvpw_color_alpha(MVPW_BLACK, 0x80),
+   .border = MVPW_BLACK,
+   .border_size = 0,
 };
 
 
@@ -544,7 +547,9 @@ theme_attr_t theme_attr[] = {
 	{ .name = "rtv_message_window",
 	  .type = WIDGET_TEXT,
 	  .attr.text = &rtv_message_window_attr },
-
+	{ .name = "rtv_seek_osd",
+	  .type = WIDGET_TEXT,
+	  .attr.text = &rtv_seek_osd_attr },
 
 	/* must be NULL-terminated */
 	{ .name = NULL }
