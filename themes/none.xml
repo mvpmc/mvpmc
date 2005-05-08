@@ -2,7 +2,8 @@
   <!--
      - example mvpmc theme
      -
-     - This gives you whatever the mvpmc code contains.
+     - This gives you whatever the mvpmc code contains, plus any user-supplied
+     - overrides.
      -
      - http://mvpmc.sourceforge.net/
      - $Id$
@@ -12,6 +13,11 @@
      - Load fonts (ignored under X11)
     -->
   <font name="standard">/etc/helvR10.fnt</font>
+
+  <!--
+     - include font overrides
+    -->
+  <sinclude>/tmp/font_override.xml</sinclude>
 
   <!--
      - include user theme overrides

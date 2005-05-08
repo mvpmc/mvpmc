@@ -16,6 +16,11 @@
   <font name="large">/etc/helvB18.pcf</font>
 
   <!--
+     - include font overrides
+    -->
+  <sinclude>/tmp/font_override.xml</sinclude>
+
+  <!--
      - include settings options
     -->
   <include>/usr/share/mvpmc/settings_1.xml</include>
