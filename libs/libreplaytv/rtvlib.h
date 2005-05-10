@@ -355,12 +355,15 @@ extern int           rtv_route_logs(char *filename);
 extern rtv_device_t *rtv_get_device_struct(const char *ipaddr, int *new);
 extern int           rtv_free_devices(void);
 extern void          rtv_print_device_list(void);
+
+extern char         *rtv_format_ts_sec32_hms(__u32 ts, char *time_str);       //User passes in pre-alloc'd char buf
 extern char         *rtv_format_ts_ms32_min_sec_ms(__u32 ts, char *time_str); //User passes in pre-alloc'd char buf
 extern char         *rtv_format_datetime_ms64_1(__u64 ttk);                   // Returned string is malloc'd: user must free
 extern char         *rtv_format_datetime_ms64_2(__u64 ttk);                   // Returned string is malloc'd: user must free
 extern char         *rtv_format_datetime_sec32(__u32 t);                      // Returned string is malloc'd: user must free
 extern char         *rtv_sec_to_hr_mn_str(unsigned int seconds); // Returned string is malloc'd: user must free
 extern char         *rtv_format_nsec64(__u64 nsec);              // Returned string is malloc'd: user must free
+
 extern int           rtv_crypt_test(void);
 extern void          rtv_convert_22_ndx_rec(rtv_ndx_22_record_t *rec);
 extern void          rtv_convert_30_ndx_rec(rtv_ndx_30_record_t *rec);

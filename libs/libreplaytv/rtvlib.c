@@ -111,6 +111,20 @@ __u32 rtv_get_dbgmask(void)
 //
 
 //+*********************************************************************
+//  Name: rtv_format_ts_sec32_hms
+//        Convert seconds to HH:MM:SS
+//+*********************************************************************
+char* rtv_format_ts_sec32_hms(__u32 ts, char *time_str)
+{
+   int h = ts / 3600;
+   int m = (ts - (h * 3600)) / 60; 
+   int s = ts % 60;
+
+   sprintf (time_str, "%02d:%02d:%02d", h, m, s);
+   return time_str;
+}
+
+//+*********************************************************************
 //  Name: rtv_format_ts_ms32_min_sec_ms
 //        Convert mS to MMM:SS.mS
 //+*********************************************************************
