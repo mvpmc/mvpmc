@@ -139,6 +139,13 @@ typedef enum rtv_play_state_t
    RTV_VID_ABORT_PLAY = 4
 } rtv_play_state_t;
 
+typedef struct seek_info_t 
+{
+   time_t       tod;
+   unsigned int vid_time;
+   int          osd_countdown;
+} seek_info_t;
+
 typedef struct rtv_video_queue_t 
 {
    char *buffer[RTV_VID_Q_SZ];    //buffer pointer
@@ -157,6 +164,7 @@ typedef struct rtv_selected_show_state_t
    volatile rtv_play_state_t  play_state;
    rtv_comm_blks_t            comm_blks;              // commercial blocks
    int                        processing_jump_input;  // capturing key input for jump
+   seek_info_t                seek_info;              // 
    const rtv_show_export_t   *show_p;                 // currently selected show record
    __u64                      pos;                    // mpg file position
    unsigned int               chunk_offset;           // data offset within mpeg chunk. (Used 
@@ -501,7 +509,7 @@ static void rtv_video_queue_flush(void)
 }
 
 
-void rtv_release_show_resources(void)
+static void rtv_release_show_resources(void)
 {
    rtv_close_ndx_file();
 
@@ -512,6 +520,45 @@ void rtv_release_show_resources(void)
    return;
 }
 
+
+static int get_current_vid_time(unsigned int *current_vid_time)
+{
+   av_stc_t     stc_time;
+   unsigned int cur_vid_secs;
+
+   // After a seek it can take a couple seconds for the mvp hw 
+   // to re-sync the video timestamp. 
+   // We try to use some intellegence here to approximate the timestamp
+   // when needed.
+   //
+
+   // Get what hardware thinks is the current play time.
+   //
+   av_current_stc(&stc_time);
+   cur_vid_secs = (stc_time.hour*60 + stc_time.minute)*60 + stc_time.second;
+   if ( cur_vid_secs > rtv_video_state.show_p->duration_sec ) {
+      cur_vid_secs = rtv_video_state.show_p->duration_sec;
+   }
+   printf("-->%s: cur_hw_time=%d\n", __FUNCTION__, cur_vid_secs);
+   
+   if ( (rtv_video_state.seek_info.tod == 0) || (cur_vid_secs != 0) ) {
+      *current_vid_time = cur_vid_secs;
+      return(0);
+   }
+
+   // Not first seek and the hw is showing a zero video timestamp.
+   // return the last saved video time
+   //
+	*current_vid_time = rtv_video_state.seek_info.vid_time;
+   return(0);
+}
+
+static int set_current_vid_time(unsigned int current_vid_time)
+{
+   rtv_video_state.seek_info.tod      = time(NULL);
+   rtv_video_state.seek_info.vid_time = current_vid_time;
+   return(0);
+}
 
 //+*************************************
 //   Video Callback functions
@@ -583,11 +630,31 @@ static void rtv_notify(mvp_notify_t event)
    }
 }
 
-static void jumpto_timer_callback(mvp_widget_t *widget)
+static void seek_osd_timer_callback(mvp_widget_t *widget)
 {
-   mvpw_hide(rtv_seek_osd_widget[0]);
-   mvpw_hide(rtv_seek_osd_widget[1]);
+   char     timestamp_str[20];
+   av_stc_t stc_time;
+
    rtv_video_state.processing_jump_input = 0;
+   
+   if ( rtv_video_state.seek_info.osd_countdown == 0 ) {
+      mvpw_hide(rtv_seek_osd_widget[0]);
+      mvpw_hide(rtv_seek_osd_widget[1]);
+      return;
+   }
+
+   // Update the seek osd timestamp (if hw has sync'd the stc timestamp)
+   //
+   av_current_stc(&stc_time);
+   //printf("STC: %02d %02d %02d \n", stc_time.hour, stc_time.minute, stc_time.second);
+   if ( (stc_time.hour != 0) || (stc_time.minute != 0) || (stc_time.second != 0) ) {
+      sprintf(timestamp_str, " %02d:%02d:%02d", stc_time.hour, stc_time.minute, stc_time.second);
+      mvpw_set_text_str(rtv_seek_osd_widget[1], timestamp_str);
+      mvpw_hide(rtv_seek_osd_widget[1]);
+      mvpw_show(rtv_seek_osd_widget[1]);
+   }
+   rtv_video_state.seek_info.osd_countdown--;
+   mvpw_set_timer(rtv_seek_osd_widget[0], seek_osd_timer_callback, 500);
 }
 
 // rtv_video_key()
@@ -595,43 +662,50 @@ static void jumpto_timer_callback(mvp_widget_t *widget)
 //
 static int rtv_video_key(char key)
 {
-   static char jump_str[10];
-
-   int                  rc          = 0;
-   int                  jump        = 0;
-   int                  jumpto_secs = 0;
-   int                  cur_secs, tmp;
-   av_stc_t             stc_time;
+   static char seek_str[20];
    
+   int   rc          = 0;
+   int   jump        = 0;
+   int   jumpto_secs = 0;
+   int   cur_secs;
+   char  timestamp_str[20];
+
+#if 0
+static const char *const seek_osd_str[] = {
+   [SEEK_FWD]      = "+XX >>",       //Seek forward
+   [SEEK_FWD_CB]   = "+XX >>[CB]",   //Seek forward encountered comercial break
+   [SEEK_BACK]     = "-XX <<",       //Seek back
+   [SEEK_CS_FWD]   = "+X:XX >>[CS]", //Comercial skip forward 
+   [SEEK_CS_BACK]  = "-X:XX <<[CS]", //Comercial skip back
+   [SEEK_ABS_JUMP] = "XXX JUMP"      //Jump to time
+};
+#endif
+ 
 	switch (key) {
 	case MVPW_KEY_ZERO ... MVPW_KEY_NINE:
       if ( !(rtv_video_state.processing_jump_input) ) {
-         strcpy(jump_str, " 000");
+         strcpy(seek_str, " 000");
       }
-      jump_str[1] = jump_str[2];
-      jump_str[2] = jump_str[3];
-      jump_str[3] = '0' + key;
-      mvpw_set_text_str(rtv_seek_osd_widget[0], jump_str);
+      seek_str[1] = seek_str[2];
+      seek_str[2] = seek_str[3];
+      seek_str[3] = '0' + key;
+      mvpw_set_text_str(rtv_seek_osd_widget[0], seek_str);
       if ( rtv_video_state.processing_jump_input ) {
          mvpw_hide(rtv_seek_osd_widget[0]);
       }
       mvpw_show(rtv_seek_osd_widget[0]);
-      rtv_video_state.processing_jump_input = 1;
-      mvpw_set_timer(rtv_seek_osd_widget[0], jumpto_timer_callback, 3000);
+      rtv_video_state.processing_jump_input   = 1;
+      mvpw_set_timer(rtv_seek_osd_widget[0], seek_osd_timer_callback, 3000);
       rc = 1;
       break;
 	case MVPW_KEY_GO:
 	case MVPW_KEY_GREEN:      
       //printf("-->%s: handle: jump\n", __FUNCTION__);
       if ( rtv_video_state.processing_jump_input ) {
-         strcat(jump_str, " JUMP");
-         mvpw_set_text_str(rtv_seek_osd_widget[0], jump_str);
-         mvpw_hide(rtv_seek_osd_widget[0]);
-         mvpw_show(rtv_seek_osd_widget[0]);
-         mvpw_show(rtv_seek_osd_widget[1]);
-         mvpw_set_timer(rtv_seek_osd_widget[0], jumpto_timer_callback, 5000);
+         int tmp;
 
-         tmp = atoi(&(jump_str[1]));
+         strcat(seek_str, " JUMP");
+         tmp = atoi(&(seek_str[1]));
          if ( tmp > 99 ) {
             //treat  1st digit as hours
             tmp = ((tmp / 100) * 60) + (tmp % 100);
@@ -645,15 +719,20 @@ static int rtv_video_key(char key)
 	case MVPW_KEY_REPLAY:
 	case MVPW_KEY_REWIND:
 	case MVPW_KEY_SKIP:
-      av_current_stc(&stc_time);
-      cur_secs = (stc_time.hour*60 + stc_time.minute)*60 + stc_time.second;
-      if ( cur_secs > rtv_video_state.show_p->duration_sec ) {
-         cur_secs = rtv_video_state.show_p->duration_sec;
-      }
+      get_current_vid_time(&cur_secs);
       printf("-->%s: handle: key='%c'  ct=%d\n", __FUNCTION__, key, cur_secs);
-      if      ( key == MVPW_KEY_REPLAY ) { jumpto_secs = cur_secs -  8; }
-      else if ( key == MVPW_KEY_REWIND ) { jumpto_secs = cur_secs -  3; }
-      else                               { jumpto_secs = cur_secs + 28; }
+      if      ( key == MVPW_KEY_REPLAY ) { 
+         jumpto_secs = cur_secs -  8;
+         sprintf(seek_str, " -08 <<");
+      }
+      else if ( key == MVPW_KEY_REWIND ) { 
+         jumpto_secs = cur_secs -  3; 
+         sprintf(seek_str, " -03 <<");
+      }
+      else { 
+         jumpto_secs = cur_secs + 28; 
+         sprintf(seek_str, " +28 >>");
+      }
       jump = 1; 
       rc   = 1;
       break;
@@ -679,6 +758,17 @@ static int rtv_video_key(char key)
       int                 rtn;
       rtv_ndx_30_record_t ndx30_rec;
 
+      mvpw_set_text_str(rtv_seek_osd_widget[0], seek_str);
+      timestamp_str[0] = ' ';
+      rtv_format_ts_sec32_hms(jumpto_secs, &(timestamp_str[1]));
+      mvpw_set_text_str(rtv_seek_osd_widget[1], timestamp_str);
+      mvpw_hide(rtv_seek_osd_widget[0]);
+      mvpw_hide(rtv_seek_osd_widget[1]);
+      mvpw_show(rtv_seek_osd_widget[0]);
+      mvpw_show(rtv_seek_osd_widget[1]);
+      rtv_video_state.seek_info.osd_countdown = 6; //3 seconds
+      mvpw_set_timer(rtv_seek_osd_widget[0], seek_osd_timer_callback, 500);
+
       rtn = rtv_get_ndx30_rec(jumpto_secs * 1000, &ndx30_rec);
       if ( rtn != 0 ) {
          printf("***ERROR: %s: failed to get NDX record. rc=%d\n", __FUNCTION__, rtn);
@@ -698,6 +788,7 @@ static int rtv_video_key(char key)
       
       // Restart stream
       //
+      set_current_vid_time(jumpto_secs);
       av_play();
       demux_reset(handle);         
       if ( rtv_video_state.pos != 0 ) {
@@ -857,6 +948,10 @@ static void play_show(const rtv_show_export_t *show, int start_gop)
       printf("***ERROR: show file name too long: %d\n", len);
       return;
    } 
+
+   // Clear video state struct
+   //
+   memset(&rtv_video_state, 0, sizeof(rtv_selected_show_state_t));
    
    // Make sure the mpg file exists
    //
@@ -1984,7 +2079,7 @@ int replay_gui_init(void)
    //
    //rtv_seek_osd_attr.font = fontid;
    h = mvpw_font_height(rtv_seek_osd_attr.font);
-   w = mvpw_font_width(rtv_seek_osd_attr.font, " 555 JUMP ");
+   w = mvpw_font_width(rtv_seek_osd_attr.font, " XXXXX XXXXXX ");
 	rtv_seek_osd_widget[0] = mvpw_create_text(NULL, 50, 25, w, h, 
                                              rtv_seek_osd_attr.bg, 
                                              rtv_seek_osd_attr.border, 
