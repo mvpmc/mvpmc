@@ -144,6 +144,8 @@ typedef struct seek_info_t
    time_t       tod;
    unsigned int vid_time;
    int          osd_countdown;
+   char         last_key;
+   unsigned int pre_cskip_fwd_time;
 } seek_info_t;
 
 typedef struct rtv_video_queue_t 
@@ -553,11 +555,53 @@ static int get_current_vid_time(unsigned int *current_vid_time)
    return(0);
 }
 
-static int set_current_vid_time(unsigned int current_vid_time)
+static int set_current_vid_time(unsigned int current_vid_time, char last_key)
 {
    rtv_video_state.seek_info.tod      = time(NULL);
    rtv_video_state.seek_info.vid_time = current_vid_time;
+   rtv_video_state.seek_info.last_key = last_key;
    return(0);
+}
+
+// Find a commercial break point.
+// Parms:
+//    fwd: 1=search forward from current time 
+//         0=search backwards
+//    cur_sec: current time
+//    max_sec: max time to search to. (only valid for fwd search)
+//    break_sec: returned commercial break point
+// Returns:
+//    0: commercial break found
+//   -1: break not found
+//
+static int find_commercial_break(int fwd, int cur_sec, int max_sec, int *break_sec) 
+{
+   int start_ms = cur_sec * 1000;
+   int stop_ms = max_sec * 1000;
+   int x;
+   
+   if ( fwd ) {
+      for ( x=0; x < rtv_video_state.comm_blks.num_blocks; x++ ) {
+         if ( start_ms > rtv_video_state.comm_blks.blocks[x].stop ) {
+            continue;
+         }
+         if ( stop_ms > rtv_video_state.comm_blks.blocks[x].stop ) {
+            *break_sec = rtv_video_state.comm_blks.blocks[x].stop / 1000;
+            return(0);
+         }
+         break;
+      }
+   }
+   else {
+      for ( x=rtv_video_state.comm_blks.num_blocks-1; x >= 0; x-- ) {
+         if ( start_ms > rtv_video_state.comm_blks.blocks[x].stop ) {
+            *break_sec = rtv_video_state.comm_blks.blocks[x].stop / 1000;
+            return(0);
+         }
+      }
+   }
+   
+   return(-1);
 }
 
 //+*************************************
@@ -664,23 +708,13 @@ static int rtv_video_key(char key)
 {
    static char seek_str[20];
    
-   int   rc          = 0;
-   int   jump        = 0;
-   int   jumpto_secs = 0;
-   int   cur_secs;
+   int   rc           = 0;
+   int   jump         = 0;
+   int   invalid_seek = 0;
+   int   jumpto_secs  = 0;
+   int   cur_secs, comm_break_sec;
    char  timestamp_str[20];
 
-#if 0
-static const char *const seek_osd_str[] = {
-   [SEEK_FWD]      = "+XX >>",       //Seek forward
-   [SEEK_FWD_CB]   = "+XX >>[CB]",   //Seek forward encountered comercial break
-   [SEEK_BACK]     = "-XX <<",       //Seek back
-   [SEEK_CS_FWD]   = "+X:XX >>[CS]", //Comercial skip forward 
-   [SEEK_CS_BACK]  = "-X:XX <<[CS]", //Comercial skip back
-   [SEEK_ABS_JUMP] = "XXX JUMP"      //Jump to time
-};
-#endif
- 
 	switch (key) {
 	case MVPW_KEY_ZERO ... MVPW_KEY_NINE:
       if ( !(rtv_video_state.processing_jump_input) ) {
@@ -704,12 +738,13 @@ static const char *const seek_osd_str[] = {
       if ( rtv_video_state.processing_jump_input ) {
          int tmp;
 
-         strcat(seek_str, " JUMP");
          tmp = atoi(&(seek_str[1]));
+         
          if ( tmp > 99 ) {
             //treat  1st digit as hours
             tmp = ((tmp / 100) * 60) + (tmp % 100);
          }
+         sprintf(seek_str, " %01d:%02d JUMP", tmp/60, tmp%60);
          jumpto_secs = tmp * 60;
          rtv_video_state.processing_jump_input = 0;
          jump = 1; 
@@ -718,18 +753,27 @@ static const char *const seek_osd_str[] = {
       break;
 	case MVPW_KEY_REPLAY:
 	case MVPW_KEY_REWIND:
-	case MVPW_KEY_SKIP:
       get_current_vid_time(&cur_secs);
       printf("-->%s: handle: key='%c'  ct=%d\n", __FUNCTION__, key, cur_secs);
       if      ( key == MVPW_KEY_REPLAY ) { 
          jumpto_secs = cur_secs -  8;
          sprintf(seek_str, " -08 <<");
       }
-      else if ( key == MVPW_KEY_REWIND ) { 
+      else { 
          jumpto_secs = cur_secs -  3; 
          sprintf(seek_str, " -03 <<");
       }
-      else { 
+      jump = 1; 
+      rc   = 1;
+      break;
+	case MVPW_KEY_SKIP:
+      get_current_vid_time(&cur_secs);
+      printf("-->%s: handle: key='%c'  ct=%d\n", __FUNCTION__, key, cur_secs);
+      if ( find_commercial_break( 1, cur_secs, cur_secs + 28, &comm_break_sec) == 0 ) {
+         jumpto_secs = comm_break_sec - 2;
+         sprintf(seek_str, " +%02d >>[CB]", comm_break_sec - cur_secs - 2);
+      }
+      else {
          jumpto_secs = cur_secs + 28; 
          sprintf(seek_str, " +28 >>");
       }
@@ -750,10 +794,65 @@ static const char *const seek_osd_str[] = {
          rc = 1;
       }
 		break;
+
+   case MVPW_KEY_YELLOW:
+      get_current_vid_time(&cur_secs);
+      printf("-->%s: c_skip<< ct=%d\n", __FUNCTION__, cur_secs);
+      if ( rtv_video_state.seek_info.last_key == MVPW_KEY_BLUE ) {
+
+         // Rollback the last commercial skip.
+         //
+         jumpto_secs = rtv_video_state.seek_info.pre_cskip_fwd_time - 2;
+         sprintf(seek_str, " << PREV");
+         jump = 1;
+      }
+      else {
+         if ( find_commercial_break( 0, cur_secs, 0, &comm_break_sec) == 0 ) {
+            int delta = cur_secs - comm_break_sec;
+            jumpto_secs = comm_break_sec - 2;
+            sprintf(seek_str, " +%01d:%02d >>[CS]", delta/60, delta%60);
+            jump = 1;
+         }
+         else {
+            invalid_seek = 1;
+         }
+      }
+      rc = 1;
+      break;
+   case MVPW_KEY_BLUE:
+      get_current_vid_time(&cur_secs);
+      printf("-->%s: c_skip>> ct=%d\n", __FUNCTION__, cur_secs);
+      if ( find_commercial_break( 1, cur_secs, rtv_video_state.show_p->duration_sec, &comm_break_sec) == 0 ) {
+         int delta = comm_break_sec - cur_secs;
+         jumpto_secs = comm_break_sec - 2;
+         sprintf(seek_str, " +%01d:%02d >>[CS]", delta/60, delta%60);
+         rtv_video_state.seek_info.pre_cskip_fwd_time = cur_secs;
+         jump = 1;
+      }
+      else {
+         invalid_seek = 1;
+      }
+      rc = 1;
+      break;
 	default:
 		break;
 	}
 
+   if ( invalid_seek ) {
+      sprintf(seek_str, " XXX");
+      mvpw_set_text_str(rtv_seek_osd_widget[0], seek_str);
+      timestamp_str[0] = ' ';
+      rtv_format_ts_sec32_hms(cur_secs, &(timestamp_str[1]));
+      mvpw_set_text_str(rtv_seek_osd_widget[1], timestamp_str);
+      mvpw_hide(rtv_seek_osd_widget[0]);
+      mvpw_hide(rtv_seek_osd_widget[1]);
+      mvpw_show(rtv_seek_osd_widget[0]);
+      mvpw_show(rtv_seek_osd_widget[1]);
+      rtv_video_state.seek_info.osd_countdown = 4; //2 seconds
+      mvpw_set_timer(rtv_seek_osd_widget[0], seek_osd_timer_callback, 500);
+      invalid_seek = 0;
+   }
+   
    if ( jump == 1 ) {
       int                 rtn;
       rtv_ndx_30_record_t ndx30_rec;
@@ -788,7 +887,7 @@ static const char *const seek_osd_str[] = {
       
       // Restart stream
       //
-      set_current_vid_time(jumpto_secs);
+      set_current_vid_time(jumpto_secs, key);
       av_play();
       demux_reset(handle);         
       if ( rtv_video_state.pos != 0 ) {
