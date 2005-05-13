@@ -232,3 +232,9 @@ av_deactivate(void)
 {
 	return 0;
 }
+
+int
+av_delay_video(int usec)
+{
+	return 0;
+}

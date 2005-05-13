@@ -355,7 +355,7 @@ mvpw_get_rgba(unsigned long c, unsigned char *r, unsigned char *g,
 #define	MVPW_KEY_FFWD		52
 #define	MVPW_KEY_PLAY		53
 #define	MVPW_KEY_STOP		54
-#define	MVPW_KEY_REC		55
+#define	MVPW_KEY_RECORD		55
 #define	MVPW_KEY_YELLOW		56
 #define	MVPW_KEY_GO		59
 #define	MVPW_KEY_FULL		60

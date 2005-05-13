@@ -378,6 +378,20 @@ av_pause(void)
 	return paused;
 }
 
+int
+av_delay_video(int usec)
+{
+	if (paused)
+		return -1;
+
+	if (ioctl(fd_video, AV_SET_VID_PAUSE, 0) < 0)
+		return -1;
+	usleep(usec);
+	av_play();
+
+	return 0;
+}
+
 /*
  * av_mute() - toggle the mute state of the audio
  *
