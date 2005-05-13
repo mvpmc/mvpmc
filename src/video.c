@@ -501,6 +501,7 @@ video_callback(mvp_widget_t *widget, char key)
 {
 	int jump;
 	long long offset, size;
+	pts_sync_data_t async, vsync;
 
 	if (!video_playing)
 		return;
@@ -683,6 +684,22 @@ video_callback(mvp_widget_t *widget, char key)
 	case MVPW_KEY_DOWN:
 		if (mythtv_livetv)
 			mythtv_channel_down();
+		break;
+	case MVPW_KEY_RECORD:
+		/*
+		 * XXX: This is a temporary hack until we figure out how
+		 *      to tell when the audio and video are out of sync,
+		 *      and correct it automatically.
+		 */
+		get_audio_sync(&async);
+		get_video_sync(&vsync);
+		printf("PRE SYNC:  a 0x%llx 0x%llx  v 0x%llx 0x%llx\n",
+		       async.stc, async.pts, vsync.stc, vsync.pts);
+		av_delay_video(1000);
+		get_audio_sync(&async);
+		get_video_sync(&vsync);
+		printf("POST SYNC: a 0x%llx 0x%llx  v 0x%llx 0x%llx\n",
+		       async.stc, async.pts, vsync.stc, vsync.pts);
 		break;
 	default:
 		PRINTF("button %d\n", key);
