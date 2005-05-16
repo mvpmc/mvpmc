@@ -36,7 +36,7 @@ http://expat.sourceforge.net/
 Debugging Shell
 ---------------
 The library build also generates the 'rtv_shell' executable.
-This is a debug program that allows exercising the library's. 
+This is a debug program that allows exercising the library's API's. 
 e.g: obtaining & and displaying a replaytv's device information, 
      obtaining and displaying a replay guide snapshot, etc...
 
@@ -46,7 +46,6 @@ mvpmc interfaces to replaytvlib from mvpmc/src/replaytv.c
 
 Library Development
 -------------------
-There's still lots to do. If you want to help, great!
 
 Status
 ------
@@ -94,10 +93,11 @@ Status
 01/23/2005:
 -Added support for deleting a show.
 -Added support for getting current play position.
+05/15/2005:
+-Added commercial skip support.
+-Created rtvmpegtool for parsing replaytv 5K mpeg files, parsing ndx, files, & parsing evt files.
 
 Library TODO
 ------------
 -Set up autoconf and get rid of Makefile
 -Cleanup internal header files
--Remove the expat lib dependency. It's only used for rtv_get_device_info() response parsing.
--Add commercial skip support.
