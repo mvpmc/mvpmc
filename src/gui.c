@@ -945,6 +945,10 @@ fb_key_callback(mvp_widget_t *widget, char key)
 		video_clear();
 		break;
 	case MVPW_KEY_STOP:
+		if (current) {
+			free(current);
+			current = NULL;
+		}
 		mvpw_set_idle(NULL);
 		mvpw_set_timer(root, NULL, 0);
 		mvpw_hide(fb_progress);
