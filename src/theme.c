@@ -33,8 +33,7 @@
 
 #include "expat.h"
 #include "mvpmc.h"
-
-#include "../tools/colortest.h"
+#include "colorlist.h"
 
 #if 0
 #define PRINTF(x...) printf(x)
@@ -141,24 +140,6 @@ theme_fail(parser_data_t *pdata)
 		fprintf(stderr, "Error at line %d in theme file\n",
 			XML_GetCurrentLineNumber(pdata->p));
 	exit(65);
-}
-
-static int
-find_color(char *str, unsigned int *color, parser_data_t *pdata)
-{
-	int i = 0;
-
-	while (i < sizeof(color_list)/sizeof(color_list[0])) {
-		if (strcasecmp(color_list[i].name, str) == 0) {
-			*color = color_list[i].val;
-			return 0;
-		}
-		i++;
-	}
-
-	pdata->theme_err = "unknown color";
-
-	return -1;
 }
 
 static int
@@ -368,8 +349,10 @@ tag_widget_color(parser_data_t *pdata, const char *el, const char **attr,
 		return -1;
 	}
 
-	if (find_color(value, color, pdata) < 0)
+	if (find_color(value, color) < 0) {
+		pdata->theme_err = "unknown color";
 		return -1;
+	}
 
 	if (attr[2]) {
 		int alpha;
