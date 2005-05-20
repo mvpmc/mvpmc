@@ -37,6 +37,7 @@
 
 #include "mvpmc.h"
 #include "replaytv.h"
+#include "colorlist.h"
 
 volatile int running_replaytv = 0;
 volatile int mythtv_livetv = 0;
@@ -257,6 +258,21 @@ static mvpw_text_attr_t splash_attr = {
 	.bg = MVPW_BLACK,
 	.border = MVPW_BLACK,
 	.border_size = 0,
+};
+
+static mvpw_text_attr_t ct_text_box_attr = {
+	.wrap = 1,
+	.justify = MVPW_TEXT_CENTER,
+	.margin = 6,
+	.font = FONT_LARGE,
+};
+
+static mvpw_text_attr_t ct_fgbg_box_attr = {
+	.wrap = 1,
+	.justify = MVPW_TEXT_LEFT,
+	.margin = 6,
+	.font = FONT_LARGE,
+	.fg = MVPW_GREEN,
 };
 
 static mvpw_dialog_attr_t warn_attr = {
@@ -581,6 +597,10 @@ static mvp_widget_t *busy_widget;
 static mvp_widget_t *busy_graph;
 static mvp_widget_t *themes_menu;
 
+static mvp_widget_t *ct_text_box;
+static mvp_widget_t *ct_fg_box;
+static mvp_widget_t *ct_bg_box;
+
 mvp_widget_t *file_browser;
 mvp_widget_t *mythtv_browser;
 mvp_widget_t *mythtv_menu;
@@ -638,6 +658,11 @@ static int screensaver_enabled = 0;
 volatile int screensaver_timeout = 60;
 volatile int screensaver_default = -1;
 
+static struct {
+   int  bg_idx;
+   int  fg_idx;
+} ct_globals;
+
 static pthread_t busy_thread;
 static pthread_cond_t busy_cond = PTHREAD_COND_INITIALIZER;
 
@@ -665,6 +690,7 @@ enum {
 	SETTINGS_FLICKER,
 	SETTINGS_ASPECT,
 	SETTINGS_SCREENSAVER,
+	SETTINGS_COLORTEST,
 };
 
 enum {
@@ -1374,6 +1400,109 @@ popup_select_callback(mvp_widget_t *widget, char *item, void *key)
 }
 
 static void
+colortest_draw(int fg_idx, int bg_idx)
+{
+	char buf[255];
+ 
+	snprintf(buf, 254, "FG: %3d: %06X: %s", 
+				fg_idx, 
+				color_list[fg_idx].val & 0x00ffffff, 
+				color_list[fg_idx].name);
+	mvpw_set_text_str(ct_fg_box, buf);
+	
+	snprintf(buf, 254, "BG: %3d: %06X: %s", 
+				bg_idx, 
+				color_list[bg_idx].val & 0x00ffffff, 
+				color_list[bg_idx].name);
+	mvpw_set_text_str(ct_bg_box, buf);
+	
+	ct_text_box_attr.fg = color_list[fg_idx].val;
+	mvpw_set_text_attr(ct_text_box, &ct_text_box_attr);
+	mvpw_set_bg(ct_text_box, color_list[bg_idx].val);
+
+	mvpw_hide(ct_fg_box);
+	mvpw_show(ct_fg_box);
+	mvpw_hide(ct_bg_box);
+	mvpw_show(ct_bg_box);
+	mvpw_hide(ct_text_box);
+	mvpw_show(ct_text_box);
+
+}
+
+#define INCR_COLOR(cpos, cincr) ( (((cpos)+(cincr)) < 0) ? (color_list_size()-1) : (((cpos)+(cincr)) % (color_list_size()))  )
+
+static void
+colortest_callback(mvp_widget_t *widget, char key)
+{
+	static int	cur_dir = 1;
+	static int *cur_idx = &ct_globals.fg_idx;
+
+	int  incr_val = 1;
+	int  jmp;
+
+	if ( key == MVPW_KEY_EXIT ) {
+		mvpw_hide(ct_fg_box);
+		mvpw_hide(ct_bg_box);
+		mvpw_hide(ct_text_box);
+		mvpw_set_key(root, root_callback);
+		mvpw_set_bg(root, MVPW_BLACK);
+		mvpw_show(mvpmc_logo);
+		mvpw_show(settings);
+		mvpw_show(sub_settings);
+		mvpw_focus(settings);
+		return;
+	}
+
+	switch (key) {
+	case MVPW_KEY_LEFT:
+		incr_val = 1;
+		cur_idx = &ct_globals.bg_idx;
+		cur_dir	= -1;
+		break;
+	case MVPW_KEY_RIGHT:
+		incr_val = 1;
+		cur_idx	=	&ct_globals.bg_idx;
+		cur_dir	= 1;
+		break;
+	case MVPW_KEY_DOWN:
+		incr_val = 1;
+		cur_idx	=	&ct_globals.fg_idx;
+		cur_dir	= -1;
+		break;
+	case MVPW_KEY_UP:
+		incr_val = 1;
+		cur_idx	=	&ct_globals.fg_idx;
+		cur_dir	= 1;
+		break;
+	case MVPW_KEY_ZERO:
+		incr_val = 10;		  
+		break;
+	case MVPW_KEY_ONE ... MVPW_KEY_NINE:
+		incr_val = key - MVPW_KEY_ZERO;		 
+		break;
+
+	default:
+		break;
+	} //switch
+
+	jmp		= incr_val * cur_dir;
+	*cur_idx = INCR_COLOR(*cur_idx, jmp);
+
+	colortest_draw(ct_globals.fg_idx, ct_globals.bg_idx);
+	return;
+}
+
+static void 
+run_colortest(void)
+{
+	mvpw_hide(settings);
+	mvpw_hide(sub_settings);
+	mvpw_hide(mvpmc_logo);
+	mvpw_set_key(root, colortest_callback);
+	colortest_draw(ct_globals.fg_idx, ct_globals.bg_idx);
+}
+
+static void
 sub_settings_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
 	if ((strcmp(item, "PAL") == 0) || (strcmp(item, "NTSC") == 0)) {
@@ -1417,6 +1546,13 @@ sub_settings_hilite_callback(mvp_widget_t *widget, char *item, void *key,
 static void
 settings_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
+	if ( (int)key == SETTINGS_COLORTEST ) {
+		mvpw_hide(settings);
+		mvpw_hide(sub_settings);
+		run_colortest();
+		return;
+	}
+
 	/*
 	 * XXX: fix this
 	 */
@@ -1515,7 +1651,8 @@ settings_hilite_callback(mvp_widget_t *widget, char *item, void *key,
 static int
 settings_init(void)
 {
-	int x, y, w, h;
+	int i, x, y, w, h, num_cols, num_rows, bufpos;
+	char buf[255];
 
 	splash_update("Creating settings");
 
@@ -1530,7 +1667,7 @@ settings_init(void)
 	 * XXX: fix this
 	 */
 
-	settings = mvpw_create_menu(NULL, x, y, w, h*4,
+	settings = mvpw_create_menu(NULL, x, y, w, h*5,
 				    settings_attr.bg, settings_attr.border,
 				    settings_attr.border_size);
 
@@ -1542,7 +1679,7 @@ settings_init(void)
 
 	settings_attr.hilite_bg = MVPW_DARKGREY;
 	x += w;
-	sub_settings = mvpw_create_menu(NULL, x, y, w, h*4,
+	sub_settings = mvpw_create_menu(NULL, x, y, w, h*5,
 					settings_attr.bg, settings_attr.border,
 					settings_attr.border_size);
 	mvpw_set_key(sub_settings, sub_settings_key_callback);
@@ -1565,9 +1702,40 @@ settings_init(void)
 			   (void*)SETTINGS_ASPECT, &settings_item_attr);
 	mvpw_add_menu_item(settings, "Screensaver Timeout",
 			   (void*)SETTINGS_SCREENSAVER, &settings_item_attr);
+	mvpw_add_menu_item(settings, "ColorTest",
+			   (void*)SETTINGS_COLORTEST, &settings_item_attr);
 
 	sub_settings_item_attr.hilite = sub_settings_hilite_callback;
 	sub_settings_item_attr.select = sub_settings_select_callback;
+
+	/*
+	 * Init colottest
+	 */
+	ct_globals.fg_idx	 = find_color_idx("SNOW");
+	ct_globals.bg_idx	 = find_color_idx("BLACK");
+
+	ct_fg_box = mvpw_create_text(NULL, 100, 300, 500, 50, MVPW_BLACK, 0, 0);	
+	mvpw_set_text_attr(ct_fg_box, &ct_fgbg_box_attr);
+
+	ct_bg_box = mvpw_create_text(NULL, 100, 350, 500, 50, MVPW_BLACK, 0, 0);	
+	mvpw_set_text_attr(ct_bg_box, &ct_fgbg_box_attr);
+
+	num_cols = 16;
+	num_rows = (96/16);
+	h = (mvpw_font_height(ct_text_box_attr.font) + 10) * ((95 / num_cols) + 1);
+	w = si.cols;
+
+	buf[0] = '\n';
+	bufpos = 1;
+	for (i = 0; i < 95; i++) {
+		if ( i && !(i % num_cols) ) {
+			buf[bufpos++] = '\n';
+		}	
+		buf[bufpos++] = i+32;
+	}
+	buf[bufpos] = '\0';
+	ct_text_box = mvpw_create_text(NULL, 0, 0, w, h, MVPW_BLACK, 0, 0);	
+	mvpw_set_text_str(ct_text_box, buf);
 
 	return 0;
 }

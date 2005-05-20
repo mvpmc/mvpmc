@@ -554,12 +554,26 @@ int find_color(char *str, unsigned int *color)
          return 0;
       }
       i++;
-   }
-   
+   }   
    return -1;
 }
 
 int color_list_size(void)
 {
    return(sizeof(color_list)/sizeof(color_list[0]));
+}
+
+int find_color_idx(const char *colorstr)
+{
+   int x;
+
+   for (x=0; x < color_list_size(); x++) {
+      if ( strcasecmp(colorstr, color_list[x].name) == 0 ) {
+         break;
+      }
+   }
+   if ( x == color_list_size() ) {
+      return(-1);
+   }
+   return(x);
 }

@@ -30,5 +30,6 @@ extern const color_info color_list[];
 
 extern int find_color(char *str, unsigned int *color);
 extern int color_list_size(void);
+extern int find_color_idx(const char *colorstr);
 
 #endif /* _COLORLIST_H */
