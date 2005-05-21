@@ -128,8 +128,7 @@ extern cmyth_conn_t cmyth_conn_connect_ctrl(char *server,
 
 extern cmyth_file_t cmyth_conn_connect_file(cmyth_proginfo_t prog,
 											unsigned buflen);
-extern cmyth_conn_t cmyth_conn_connect_ring(cmyth_recorder_t rec,
-					    unsigned buflen);
+extern int cmyth_conn_connect_ring(cmyth_recorder_t rec, unsigned buflen);
 
 extern int cmyth_conn_check_block(cmyth_conn_t conn, unsigned long size);
 
@@ -261,17 +260,27 @@ extern int cmyth_recorder_start_stream(cmyth_conn_t control,
 
 extern int cmyth_recorder_end_stream(cmyth_conn_t control,
 									 cmyth_recorder_t rec);
+extern char*cmyth_recorder_get_filename(cmyth_recorder_t rec);
+extern int cmyth_recorder_stop_livetv(cmyth_conn_t control, cmyth_recorder_t rec);
+extern void cmyth_recorder_release(cmyth_recorder_t p);
+extern int cmyth_recorder_done_ringbuf(cmyth_conn_t control, cmyth_recorder_t rec);
 
 /*
  * -----------------------------------------------------------------
  * Ring Buffer Operations
  * -----------------------------------------------------------------
  */
+extern char * cmyth_ringbuf_pathname(cmyth_recorder_t rec);
+
 extern cmyth_ringbuf_t cmyth_ringbuf_create(void);
 
 extern cmyth_ringbuf_t cmyth_ringbuf_hold(cmyth_ringbuf_t p);
 
 extern void cmyth_ringbuf_release(cmyth_ringbuf_t p);
+extern int cmyth_ringbuf_setup(cmyth_conn_t control, cmyth_recorder_t rec);
+extern int cmyth_ringbuf_request_block(cmyth_conn_t control, cmyth_recorder_t rec, unsigned long len);
+extern int cmyth_ringbuf_select(cmyth_recorder_t rec, struct timeval *timeout);
+extern int cmyth_ringbuf_get_block(cmyth_recorder_t rec, char *buf, unsigned long len);
 
 /*
  * -----------------------------------------------------------------
@@ -434,6 +443,8 @@ extern char *cmyth_proginfo_host(cmyth_proginfo_t prog);
 extern int cmyth_proginfo_compare(cmyth_proginfo_t a, cmyth_proginfo_t b);
 
 extern int cmyth_proginfo_length_sec(cmyth_proginfo_t prog);
+
+extern int cmyth_proginfo_fill(cmyth_conn_t control, cmyth_proginfo_t prog);
 /*
  * -----------------------------------------------------------------
  * Program List Operations
@@ -486,6 +497,8 @@ extern int cmyth_file_request_block(cmyth_conn_t control, cmyth_file_t file,
 
 extern long long cmyth_file_seek(cmyth_conn_t control, cmyth_file_t file,
 				 long long offset, int whence);
+
+extern int cmyth_file_select(cmyth_file_t file, struct timeval *timeout);
 
 /*
  * -----------------------------------------------------------------

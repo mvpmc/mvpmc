@@ -550,7 +550,7 @@ cmyth_conn_connect_file(cmyth_proginfo_t prog, unsigned buflen)
  *
  * Failure: NULL cmyth_conn_t
  */
-cmyth_conn_t
+int
 cmyth_conn_connect_ring(cmyth_recorder_t rec, unsigned buflen)
 {
 	cmyth_conn_t conn;
@@ -561,7 +561,7 @@ cmyth_conn_connect_ring(cmyth_recorder_t rec, unsigned buflen)
 
 	if (!rec) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: rec is NULL\n", __FUNCTION__);
-		return NULL;
+		return -1;
 	}
 
 	server = rec->rec_server;
@@ -571,7 +571,7 @@ cmyth_conn_connect_ring(cmyth_recorder_t rec, unsigned buflen)
 	if (!conn) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_connect(%s, %d, %d) failed\n",
 				  __FUNCTION__, server, port, buflen);
-		return NULL;
+		return -1;
 	}
 
 	ann_size += CMYTH_LONG_LEN + strlen(my_hostname);
@@ -595,11 +595,13 @@ cmyth_conn_connect_ring(cmyth_recorder_t rec, unsigned buflen)
 				  __FUNCTION__);
 		goto shut;
 	}
-	return conn;
+
+        rec->rec_ring->conn_data = conn;
+	return 0;
 
  shut:
 	cmyth_conn_release(conn);
-	return NULL;
+	return -1;
 }
 
 /*

@@ -174,10 +174,23 @@ struct cmyth_recorder {
 	cmyth_atomic_t refcount;
 };
 
+struct cmyth_file {
+	cmyth_conn_t file_data;
+	long file_id;
+	unsigned long long file_start;
+	unsigned long long file_length;
+	unsigned long long file_pos;
+	cmyth_atomic_t refcount;
+};
+
 struct cmyth_ringbuf {
+	cmyth_conn_t conn_data;
+	long file_id;
 	char *ringbuf_url;
 	unsigned long long ringbuf_size;
 	unsigned long long ringbuf_fill;
+	char *ringbuf_hostname;
+	int ringbuf_port;
 	cmyth_atomic_t refcount;
 };
 
@@ -269,15 +282,6 @@ struct cmyth_proginfo {
 struct cmyth_proglist {
 	cmyth_proginfo_t *proglist_list;
 	long proglist_count;
-	cmyth_atomic_t refcount;
-};
-
-struct cmyth_file {
-	cmyth_conn_t file_data;
-	long file_id;
-	unsigned long long file_start;
-	unsigned long long file_length;
-	unsigned long long file_pos;
 	cmyth_atomic_t refcount;
 };
 
@@ -406,5 +410,11 @@ extern cmyth_file_t cmyth_file_create(void);
  */
 #define cmyth_timestamp_diff __cmyth_timestamp_diff
 extern int cmyth_timestamp_diff(cmyth_timestamp_t, cmyth_timestamp_t);
+
+/*
+ * recorder.c
+ */
+void cmyth_recorder_release(cmyth_recorder_t p);
+int cmyth_datetime_from_string(cmyth_timestamp_t ts, char *str);
 
 #endif /* __CMYTH_LOCAL_H */

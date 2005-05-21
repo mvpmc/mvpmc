@@ -881,10 +881,45 @@ cmyth_recorder_change_hue(cmyth_conn_t control,
  */
 int
 cmyth_recorder_check_channel(cmyth_conn_t control,
-							 cmyth_recorder_t rec,
-							 char *channame)
+			     cmyth_recorder_t rec,
+                             char *channame)
 {
-	return -ENOSYS;
+	int err;
+	int ret = -1;
+	char msg[256];
+
+	if (!control || !rec) {
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: no recorder connection\n",
+			  __FUNCTION__);
+		return -ENOSYS;
+	}
+
+	pthread_mutex_lock(&mutex);
+
+	snprintf(msg, sizeof(msg),
+		 "QUERY_RECORDER %d[]:[]CHECK_CHANNEL[]:[]%s",
+		 rec->rec_id, channame);
+
+	if ((err=cmyth_send_message(control, msg)) < 0) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_send_message() failed (%d)\n",
+			  __FUNCTION__, err);
+		goto fail;
+	}
+
+	if ((err=cmyth_rcv_okay(control, "ok")) < 0) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_rcv_okay() failed (%d)\n",
+			  __FUNCTION__, err);
+		goto fail;
+	}
+
+	ret = 0;
+
+ fail:
+	pthread_mutex_unlock(&mutex);
+
+	return ret;
 }
 
 /*
@@ -1018,7 +1053,41 @@ cmyth_recorder_get_next_program_info(cmyth_conn_t control,
 									 cmyth_proginfo_t proginfo,
 									 cmyth_browsedir_t direction)
 {
-	return -ENOSYS;
+        int err, count;
+        int ret = -ENOSYS;
+        char msg[256];
+
+        if (!control || !rec) {
+                cmyth_dbg(CMYTH_DBG_ERROR, "%s: no recorder connection\n",
+                          __FUNCTION__);
+                return -ENOSYS;
+        }
+
+        pthread_mutex_lock(&mutex);
+
+        snprintf(msg, sizeof(msg), "QUERY_RECORDER %d[]:[]GET_NEXT_PROGRAM_INFO[]:[]%s[]:[]%ld[]:[]%i[]:[]%s",
+                 rec->rec_id, proginfo->proginfo_channame, proginfo->proginfo_chanId, direction, "0");
+
+        if ((err=cmyth_send_message(control, msg)) < 0) {
+                cmyth_dbg(CMYTH_DBG_ERROR,
+                          "%s: cmyth_send_message() failed (%d)\n",
+                          __FUNCTION__, err);
+                ret = err;
+                goto out;
+        }
+
+        count = cmyth_rcv_length(control);
+        if (cmyth_rcv_chaninfo(control, &err, proginfo, count) != count) {
+                cmyth_dbg(CMYTH_DBG_ERROR,
+                          "%s: cmyth_rcv_proginfo() < count\n", __FUNCTION__);
+                ret = err;
+                goto out;
+        }
+ 
+ out:
+        pthread_mutex_unlock(&mutex);
+
+        return ret;
 }
 
 /*

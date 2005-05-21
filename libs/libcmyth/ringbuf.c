@@ -33,6 +33,7 @@
 #include <string.h>
 #include <cmyth.h>
 #include <cmyth_local.h>
+#include <string.h>
 
 /*
  * cmyth_ringbuf_create(void)
@@ -58,9 +59,13 @@ cmyth_ringbuf_create(void)
 		return NULL;
 	}
 
+	ret->conn_data = NULL;
 	ret->ringbuf_url = NULL;
 	ret->ringbuf_size = 0;
 	ret->ringbuf_fill = 0;
+	ret->file_id = 0;
+	ret->ringbuf_hostname = NULL;
+	ret->ringbuf_port = 0;
 	cmyth_atomic_set(&ret->refcount, 1);
 	return ret;
 }
@@ -158,17 +163,22 @@ cmyth_ringbuf_release(cmyth_ringbuf_t p)
 }
 
 int
-cmyth_ringbuf_setup(cmyth_conn_t control, cmyth_recorder_t rec,
-		    cmyth_ringbuf_t ring)
+cmyth_ringbuf_setup(cmyth_conn_t control, cmyth_recorder_t rec)
 {
+	static const char service[]="rbuf://";
+	char *host = NULL;
+	char *port = NULL;
+	char *path = NULL;
+	char tmp;
+
 	int err, count;
 	int r;
-	long ret;
+	long ret = 0;
 	long long size, fill;
 	char msg[256];
 	char url[1024];
 
-	if (!control || !rec || !ring) {
+	if (!control || !rec) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: no recorder connection\n",
 			  __FUNCTION__);
 		return -EINVAL;
@@ -210,9 +220,49 @@ cmyth_ringbuf_setup(cmyth_conn_t control, cmyth_recorder_t rec,
 		goto out;
 	}
 
-	ring->ringbuf_url = strdup(url);
-	ring->ringbuf_size = size;
-	ring->ringbuf_fill = fill;
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s: url is: '%s'\n",
+			  __FUNCTION__, url);
+	path = url;
+	if (strncmp(url, service, sizeof(service) - 1) == 0) {
+		/*
+		 * The URL starts with rbuf://.  The rest looks like
+		 * <host>:<port>/<filename>.
+		 */
+		host = url + strlen(service);
+		port = strchr(host, ':');
+		if (!port) {
+			/*
+			 * This does not seem to be a proper URL, so just
+			 * assume it is a filename, and get out.
+			 */
+			fprintf(stderr, "1 port %s, host = %s\n", port, host);
+			goto out;
+		}
+		port = port + 1;
+		path = strchr(port, '/');
+		if (!path) {
+			/*
+			 * This does not seem to be a proper URL, so just
+			 * assume it is a filename, and get out.
+			 */
+			fprintf(stderr, "no path\n");
+			goto out;
+		}
+	}
+
+        rec->rec_ring = cmyth_ringbuf_create();
+        
+	tmp = *(port - 1);
+	*(port - 1) = '\0';
+	rec->rec_ring->ringbuf_hostname = strdup(host);
+	*(port - 1) = tmp;
+	tmp = *(path);
+	*(path) = '\0';
+	rec->rec_ring->ringbuf_port = atoi(port);
+	*(path) = tmp;
+	rec->rec_ring->ringbuf_url = strdup(url);
+	rec->rec_ring->ringbuf_size = size;
+	rec->rec_ring->ringbuf_fill = fill;
 
 	ret = 0;
 
@@ -221,3 +271,216 @@ cmyth_ringbuf_setup(cmyth_conn_t control, cmyth_recorder_t rec,
 
 	return ret;
 }
+
+char *
+cmyth_ringbuf_pathname(cmyth_recorder_t rec)
+{
+        return (char *) rec->rec_ring->ringbuf_url;
+}
+
+/*
+ * cmyth_ringbuf_get_block(cmyth_ringbuf_t file, char *buf, unsigned long len)
+ * Scope: PUBLIC
+ * Description
+ * Read incoming file data off the network into a buffer of length len.
+ *
+ * Return Value:
+ * Sucess: number of bytes read into buf
+ * Failure: -1
+ */
+int
+cmyth_ringbuf_get_block(cmyth_recorder_t rec, char *buf, unsigned long len)
+{
+	struct timeval tv;
+	fd_set fds;
+
+	if (rec == NULL)
+		return -EINVAL;
+
+	tv.tv_sec = 10;
+	tv.tv_usec = 0;
+	FD_ZERO(&fds);
+	FD_SET(rec->rec_ring->conn_data->conn_fd, &fds);
+	if (select(rec->rec_ring->conn_data->conn_fd+1, NULL, &fds, NULL, &tv) == 0) {
+		rec->rec_ring->conn_data->conn_hang = 1;
+		return 0;
+	} else {
+		rec->rec_ring->conn_data->conn_hang = 0;
+	}
+	return read(rec->rec_ring->conn_data->conn_fd, buf, len);
+}
+
+int
+cmyth_ringbuf_select(cmyth_recorder_t rec, struct timeval *timeout)
+{
+	fd_set fds;
+	int fd, ret;
+	if (rec == NULL)
+		return -EINVAL;
+
+	fd = rec->rec_ring->conn_data->conn_fd;
+
+	FD_ZERO(&fds);
+	FD_SET(fd, &fds);
+
+	ret = select(fd+1, &fds, NULL, NULL, timeout);
+
+	if (ret == 0)
+		rec->rec_ring->conn_data->conn_hang = 1;
+	else
+		rec->rec_ring->conn_data->conn_hang = 0;
+
+	return ret;
+}
+
+/*
+ * cmyth_ringbuf_request_block(cmyth_ringbuf_t control, cmyth_ringbuf_t file,
+ *                          unsigned long len)
+ * 
+ * Scope: PUBLIC
+ *
+ * Description
+ *
+ * Request a file data block of a certain size, and return when the
+ * block has been transfered.
+ *
+ * Return Value:
+ *
+ * Sucess: number of bytes transfered
+ *
+ * Failure: an int containing -errno
+ */
+int
+cmyth_ringbuf_request_block(cmyth_conn_t control, cmyth_recorder_t rec,
+			 unsigned long len)
+{
+	int err, count;
+	int r;
+	long c, ret;
+	char msg[256];
+
+	if (!rec) {
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: no connection\n",
+			  __FUNCTION__);
+		return -EINVAL;
+	}
+
+	pthread_mutex_lock(&mutex);
+
+	snprintf(msg, sizeof(msg),
+		 "QUERY_RECORDER %u[]:[]REQUEST_BLOCK_RINGBUF[]:[]%ld",
+		 rec->rec_id, len);
+
+	if ((err = cmyth_send_message(control, msg)) < 0) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_send_message() failed (%d)\n",
+			  __FUNCTION__, err);
+		ret = err;
+		goto out;
+	}
+
+	count = cmyth_rcv_length(control);
+	if ((r=cmyth_rcv_long(control, &err, &c, count)) < 0) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_rcv_length() failed (%d)\n",
+			  __FUNCTION__, r);
+		ret = err;
+		goto out;
+	}
+
+	ret = c;
+
+ out:
+	pthread_mutex_unlock(&mutex);
+
+	return ret;
+}
+
+/*
+ * cmyth_ringbuf_seek(cmyth_ringbuf_t control, cmyth_ringbuf_t file, long long offset,
+ *                 int whence)
+ * 
+ * Scope: PUBLIC
+ *
+ * Description
+ *
+ * Seek to a new position in the file based on the value of whence:
+ *	SEEK_SET
+ *		The offset is set to offset bytes.
+ *	SEEK_CUR
+ *		The offset is set to the current position plus offset bytes.
+ *	SEEK_END
+ *		The offset is set to the size of the file minus offset bytes.
+ *
+ * Return Value:
+ *
+ * Sucess: 0
+ *
+ * Failure: an int containing -errno
+ */
+#if 0
+long long
+cmyth_ringbuf_seek(cmyth_conn_t control, cmyth_ringbuf_t file, long long offset,
+		int whence)
+{
+	char msg[128];
+	int err;
+	int count;
+	long long c;
+	long r;
+	long long ret;
+
+	if ((control == NULL) || (file == NULL))
+		return -EINVAL;
+
+	if ((offset == 0) && (whence == SEEK_CUR))
+		return file->file_pos;
+
+	pthread_mutex_lock(&mutex);
+
+	snprintf(msg, sizeof(msg),
+		 "QUERY_FILETRANSFER %ld[]:[]SEEK[]:[]%ld[]:[]%ld[]:[]%d[]:[]%ld[]:[]%ld",
+		 file->file_id,
+		 (long)(offset >> 32),
+		 (long)(offset & 0xffffffff),
+		 whence,
+		 (long)(file->file_pos >> 32),
+		 (long)(file->file_pos & 0xffffffff));
+
+	if ((err = cmyth_send_message(control, msg)) < 0) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_send_message() failed (%d)\n",
+			  __FUNCTION__, err);
+		ret = err;
+		goto out;
+	}
+
+	count = cmyth_rcv_length(control);
+	if ((r=cmyth_rcv_long_long(control, &err, &c, count)) < 0) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_rcv_length() failed (%d)\n",
+			  __FUNCTION__, r);
+		ret = err;
+		goto out;
+	}
+
+	switch (whence) {
+	case SEEK_SET:
+		file->file_pos = offset;
+		break;
+	case SEEK_CUR:
+		file->file_pos += offset;
+		break;
+	case SEEK_END:
+		file->file_pos = file->file_length - offset;
+		break;
+	}
+
+	ret = file->file_pos;
+
+ out:
+	pthread_mutex_unlock(&mutex);
+	
+	return ret;
+}
+#endif
