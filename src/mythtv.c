@@ -75,7 +75,6 @@ static cmyth_proginfo_t episode_prog;
 static cmyth_proginfo_t pending_prog;
 static char *pathname = NULL;
 static cmyth_recorder_t recorder;
-static cmyth_ringbuf_t ring;
 
 volatile mythtv_state_t mythtv_state = MYTHTV_STATE_MAIN;
 
@@ -1525,7 +1524,6 @@ mythtv_size(void)
 int
 mythtv_livetv_start(void)
 {
-	cmyth_conn_t conn;
 	double rate;
 	char *rb_file;
 	char *msg;
@@ -1538,19 +1536,17 @@ mythtv_livetv_start(void)
 	playing_via_mythtv = 1;
 	video_functions = &file_functions;
 
-	ring = cmyth_ringbuf_create();
-
 	if ((recorder=cmyth_conn_get_free_recorder(control)) == NULL) {
 		msg = "Failed to get free recorder.";
 		goto err;
 	}
 
-	if (cmyth_ringbuf_setup(control, recorder, ring) != 0) {
+	if (cmyth_ringbuf_setup(control, recorder) != 0) {
 		msg = "Failed to setup ringbuffer.";
 		goto err;
 	}
 
-	if ((conn=cmyth_conn_connect_ring(recorder, 16*1024)) == NULL) {
+	if (cmyth_conn_connect_ring(recorder, 16*1024) != 0) {
 		msg = "Cannot conntect to mythtv ringbuffer.";
 		goto err;
 	}
@@ -1623,7 +1619,6 @@ mythtv_livetv_stop(void)
 	}
 
 	cmyth_recorder_release(recorder);
-	cmyth_ringbuf_release(ring);
 	if (current_prog)
 		cmyth_proginfo_release(current_prog);
 
