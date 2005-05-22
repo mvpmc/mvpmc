@@ -32,6 +32,8 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <errno.h>
+#include <string.h>
+#include <sys/time.h>
 #include <cmyth.h>
 #include <cmyth_local.h>
 
@@ -684,6 +686,8 @@ cmyth_recorder_change_channel(cmyth_conn_t control,
 		goto fail;
 	}
 
+	rec->rec_ring->file_pos = 0;
+
 	ret = 0;
 
  fail:
@@ -715,11 +719,47 @@ cmyth_recorder_change_channel(cmyth_conn_t control,
  * Failure: -(ERRNO)
  */
 int
-cmyth_recorder_set_channel(cmyth_conn_t control,
-						   cmyth_recorder_t rec,
-						   char *channame)
+cmyth_recorder_set_channel(cmyth_conn_t control, cmyth_recorder_t rec,
+			   char *channame)
 {
-	return -ENOSYS;
+	int err;
+	int ret = -1;
+	char msg[256];
+
+	if (!control || !rec) {
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: no recorder connection\n",
+			  __FUNCTION__);
+		return -ENOSYS;
+	}
+
+	pthread_mutex_lock(&mutex);
+
+	snprintf(msg, sizeof(msg),
+		 "QUERY_RECORDER %d[]:[]SET_CHANNEL[]:[]%s",
+		 rec->rec_id, channame);
+
+	if ((err=cmyth_send_message(control, msg)) < 0) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_send_message() failed (%d)\n",
+			  __FUNCTION__, err);
+		goto fail;
+	}
+
+	if ((err=cmyth_rcv_okay(control, "ok")) < 0) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_rcv_okay() failed (%d)\n",
+			  __FUNCTION__, err);
+		goto fail;
+	}
+
+	rec->rec_ring->file_pos = 0;
+
+	ret = 0;
+
+ fail:
+	pthread_mutex_unlock(&mutex);
+
+	return ret;
 }
 
 /*
@@ -1049,13 +1089,20 @@ cmyth_recorder_get_program_info(cmyth_conn_t control,
  */
 int
 cmyth_recorder_get_next_program_info(cmyth_conn_t control,
-									 cmyth_recorder_t rec,
-									 cmyth_proginfo_t proginfo,
-									 cmyth_browsedir_t direction)
+				     cmyth_recorder_t rec,
+				     cmyth_proginfo_t cur_prog,
+				     cmyth_proginfo_t next_prog,
+				     cmyth_browsedir_t direction)
 {
         int err, count;
         int ret = -ENOSYS;
         char msg[256];
+        char title[256], subtitle[256], desc[256], category[256],
+		starttime[256], endtime[256], callsign[256], iconpath[256],
+		channelname[256], chanid[256], seriesid[256], programid[256];
+	char date[256];
+	struct tm *tm;
+	time_t t;
 
         if (!control || !rec) {
                 cmyth_dbg(CMYTH_DBG_ERROR, "%s: no recorder connection\n",
@@ -1065,8 +1112,14 @@ cmyth_recorder_get_next_program_info(cmyth_conn_t control,
 
         pthread_mutex_lock(&mutex);
 
+	t = time(NULL);
+	tm = localtime(&t);
+	snprintf(date, sizeof(date), "%.4d%.2d%.2d%.2d%.2d%.2d",
+		 tm->tm_year + 1900, tm->tm_mon + 1,
+		 tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec);
+
         snprintf(msg, sizeof(msg), "QUERY_RECORDER %d[]:[]GET_NEXT_PROGRAM_INFO[]:[]%s[]:[]%ld[]:[]%i[]:[]%s",
-                 rec->rec_id, proginfo->proginfo_channame, proginfo->proginfo_chanId, direction, "0");
+                 rec->rec_id, cur_prog->proginfo_channame, cur_prog->proginfo_chanId, direction, date);
 
         if ((err=cmyth_send_message(control, msg)) < 0) {
                 cmyth_dbg(CMYTH_DBG_ERROR,
@@ -1077,12 +1130,45 @@ cmyth_recorder_get_next_program_info(cmyth_conn_t control,
         }
 
         count = cmyth_rcv_length(control);
-        if (cmyth_rcv_chaninfo(control, &err, proginfo, count) != count) {
-                cmyth_dbg(CMYTH_DBG_ERROR,
-                          "%s: cmyth_rcv_proginfo() < count\n", __FUNCTION__);
-                ret = err;
-                goto out;
-        }
+
+	count -= cmyth_rcv_string(control, &err,
+				  title, sizeof(title), count);
+	count -= cmyth_rcv_string(control, &err,
+				  subtitle, sizeof(subtitle), count);
+	count -= cmyth_rcv_string(control, &err,
+				  desc, sizeof(desc), count);
+	count -= cmyth_rcv_string(control, &err,
+				  category, sizeof(category), count);
+	count -= cmyth_rcv_string(control, &err,
+				  starttime, sizeof(starttime), count);
+	count -= cmyth_rcv_string(control, &err,
+				  endtime, sizeof(endtime), count);
+	count -= cmyth_rcv_string(control, &err,
+				  callsign, sizeof(callsign), count);
+	count -= cmyth_rcv_string(control, &err,
+				  iconpath, sizeof(iconpath), count);
+	count -= cmyth_rcv_string(control, &err,
+				  channelname, sizeof(channelname), count);
+	count -= cmyth_rcv_string(control, &err,
+				  chanid, sizeof(chanid), count);
+	if (control->conn_version >= 12) {
+		count -= cmyth_rcv_string(control, &err,
+					  seriesid, sizeof(seriesid), count);
+		count -= cmyth_rcv_string(control, &err,
+					  programid, sizeof(programid), count);
+	}
+
+	if (count != 0) {
+		ret = -1;
+		goto out;
+	}
+
+	next_prog->proginfo_title = strdup(title);
+	next_prog->proginfo_subtitle = strdup(subtitle);
+	next_prog->proginfo_channame = strdup(channelname);
+	next_prog->proginfo_chanId = atoi(chanid);
+
+	ret = 0;
  
  out:
         pthread_mutex_unlock(&mutex);

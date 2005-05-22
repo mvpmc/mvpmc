@@ -63,6 +63,7 @@ cmyth_ringbuf_create(void)
 	ret->ringbuf_url = NULL;
 	ret->ringbuf_size = 0;
 	ret->ringbuf_fill = 0;
+	ret->file_pos = 0;
 	ret->file_id = 0;
 	ret->ringbuf_hostname = NULL;
 	ret->ringbuf_port = 0;
@@ -388,6 +389,7 @@ cmyth_ringbuf_request_block(cmyth_conn_t control, cmyth_recorder_t rec,
 		goto out;
 	}
 
+	rec->rec_ring->file_pos += c;
 	ret = c;
 
  out:
@@ -418,10 +420,9 @@ cmyth_ringbuf_request_block(cmyth_conn_t control, cmyth_recorder_t rec,
  *
  * Failure: an int containing -errno
  */
-#if 0
 long long
-cmyth_ringbuf_seek(cmyth_conn_t control, cmyth_ringbuf_t file, long long offset,
-		int whence)
+cmyth_ringbuf_seek(cmyth_conn_t control, cmyth_recorder_t rec,
+		   long long offset, int whence)
 {
 	char msg[128];
 	int err;
@@ -429,23 +430,26 @@ cmyth_ringbuf_seek(cmyth_conn_t control, cmyth_ringbuf_t file, long long offset,
 	long long c;
 	long r;
 	long long ret;
+	cmyth_ringbuf_t ring;
 
-	if ((control == NULL) || (file == NULL))
+	if ((control == NULL) || (rec == NULL))
 		return -EINVAL;
 
+	ring = rec->rec_ring;
+
 	if ((offset == 0) && (whence == SEEK_CUR))
-		return file->file_pos;
+		return ring->file_pos;
 
 	pthread_mutex_lock(&mutex);
 
 	snprintf(msg, sizeof(msg),
-		 "QUERY_FILETRANSFER %ld[]:[]SEEK[]:[]%ld[]:[]%ld[]:[]%d[]:[]%ld[]:[]%ld",
-		 file->file_id,
+		 "QUERY_RECORDER %ld[]:[]SEEK_RINGBUF[]:[]%ld[]:[]%ld[]:[]%d[]:[]%ld[]:[]%ld",
+		 ring->file_id,
 		 (long)(offset >> 32),
 		 (long)(offset & 0xffffffff),
 		 whence,
-		 (long)(file->file_pos >> 32),
-		 (long)(file->file_pos & 0xffffffff));
+		 (long)(ring->file_pos >> 32),
+		 (long)(ring->file_pos & 0xffffffff));
 
 	if ((err = cmyth_send_message(control, msg)) < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
@@ -466,21 +470,20 @@ cmyth_ringbuf_seek(cmyth_conn_t control, cmyth_ringbuf_t file, long long offset,
 
 	switch (whence) {
 	case SEEK_SET:
-		file->file_pos = offset;
+		ring->file_pos = offset;
 		break;
 	case SEEK_CUR:
-		file->file_pos += offset;
+		ring->file_pos += offset;
 		break;
 	case SEEK_END:
-		file->file_pos = file->file_length - offset;
+		ring->file_pos = ring->file_length - offset;
 		break;
 	}
 
-	ret = file->file_pos;
+	ret = ring->file_pos;
 
  out:
 	pthread_mutex_unlock(&mutex);
 	
 	return ret;
 }
-#endif

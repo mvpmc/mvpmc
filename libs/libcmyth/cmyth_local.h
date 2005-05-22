@@ -188,6 +188,8 @@ struct cmyth_ringbuf {
 	long file_id;
 	char *ringbuf_url;
 	unsigned long long ringbuf_size;
+	unsigned long long file_length;
+	unsigned long long file_pos;
 	unsigned long long ringbuf_fill;
 	char *ringbuf_hostname;
 	int ringbuf_port;

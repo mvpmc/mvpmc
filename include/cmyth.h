@@ -237,9 +237,10 @@ extern int cmyth_recorder_get_program_info(cmyth_conn_t control,
 										   cmyth_proginfo_t proginfo);
 
 extern int cmyth_recorder_get_next_program_info(cmyth_conn_t control,
-												cmyth_recorder_t rec,
-												cmyth_proginfo_t proginfo,
-												cmyth_browsedir_t direction);
+						cmyth_recorder_t rec,
+						cmyth_proginfo_t cur_prog,
+						cmyth_proginfo_t next_prog,
+						cmyth_browsedir_t direction);
 
 extern int cmyth_recorder_get_input_name(cmyth_conn_t control,
 										 cmyth_recorder_t rec,
@@ -281,6 +282,8 @@ extern int cmyth_ringbuf_setup(cmyth_conn_t control, cmyth_recorder_t rec);
 extern int cmyth_ringbuf_request_block(cmyth_conn_t control, cmyth_recorder_t rec, unsigned long len);
 extern int cmyth_ringbuf_select(cmyth_recorder_t rec, struct timeval *timeout);
 extern int cmyth_ringbuf_get_block(cmyth_recorder_t rec, char *buf, unsigned long len);
+extern long long cmyth_ringbuf_seek(cmyth_conn_t control, cmyth_recorder_t rec,
+				    long long offset, int whence);
 
 /*
  * -----------------------------------------------------------------
