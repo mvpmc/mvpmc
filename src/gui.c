@@ -1079,22 +1079,33 @@ static void
 mythtv_key_callback(mvp_widget_t *widget, char key)
 {
 	if (key == MVPW_KEY_EXIT) {
-		if (mythtv_back(widget) == 0) {
+		if (mythtv_state == MYTHTV_STATE_LIVETV) {
+			printf("return from livetv to myth main menu!\n");
 			mvpw_hide(mythtv_browser);
-			mvpw_hide(mythtv_channel);
-			mvpw_hide(mythtv_date);
-			mvpw_hide(mythtv_description);
-			mvpw_hide(mythtv_record);
-			mvpw_hide(shows_widget);
-			mvpw_hide(episodes_widget);
-			mvpw_hide(freespace_widget);
-
 			mvpw_show(mythtv_logo);
 			mvpw_show(mythtv_menu);
 			mvpw_focus(mythtv_menu);
 
 			mythtv_main_menu = 1;
 			mythtv_state = MYTHTV_STATE_MAIN;
+		} else {
+			if (mythtv_back(widget) == 0) {
+				mvpw_hide(mythtv_browser);
+				mvpw_hide(mythtv_channel);
+				mvpw_hide(mythtv_date);
+				mvpw_hide(mythtv_description);
+				mvpw_hide(mythtv_record);
+				mvpw_hide(shows_widget);
+				mvpw_hide(episodes_widget);
+				mvpw_hide(freespace_widget);
+
+				mvpw_show(mythtv_logo);
+				mvpw_show(mythtv_menu);
+				mvpw_focus(mythtv_menu);
+
+				mythtv_main_menu = 1;
+				mythtv_state = MYTHTV_STATE_MAIN;
+			}
 		}
 	}
 
@@ -1825,10 +1836,9 @@ myth_menu_select_callback(mvp_widget_t *widget, char *item, void *key)
 			mythtv_livetv = 1;
 			running_mythtv = 1;
 			mvpw_hide(mythtv_menu);
-			mvpw_hide(mythtv_logo);
-			mvpw_focus(root);
 
 			mythtv_main_menu = 0;
+			mythtv_state = MYTHTV_STATE_LIVETV;
 		}
 		busy_end();
 		break;
@@ -1867,9 +1877,8 @@ myth_browser_init(void)
 			   (void*)0, &myth_menu_item_attr);
 	mvpw_add_menu_item(mythtv_menu, "Upcoming Recordings",
 			   (void*)1, &myth_menu_item_attr);
-	if (mythtv_ringbuf)
-		mvpw_add_menu_item(mythtv_menu, "Live TV",
-				   (void*)2, &myth_menu_item_attr);
+	mvpw_add_menu_item(mythtv_menu, "Live TV",
+			   (void*)2, &myth_menu_item_attr);
 
 	mvpw_set_key(mythtv_menu, mythtv_menu_callback);
 

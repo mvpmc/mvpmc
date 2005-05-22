@@ -129,7 +129,7 @@ sighandler(int sig)
 	 */
 }
 
-static void
+void
 video_thumbnail(int on)
 {
 	static int enable = 1;
@@ -268,7 +268,7 @@ video_stop_play(void)
 void
 video_progress(mvp_widget_t *widget)
 {
-	long long offset, size;
+	long long offset = 0, size;
 	int off;
 	char buf[32];
 
@@ -283,7 +283,8 @@ video_progress(mvp_widget_t *widget)
 		zoomed = 0;
 		return;
 	}
-	offset = video_functions->seek(0, SEEK_CUR);
+	if (video_functions->seek)
+		offset = video_functions->seek(0, SEEK_CUR);
 	off = (int)((double)(offset/1000) /
 		    (double)(size/1000) * 100.0);
 	snprintf(buf, sizeof(buf), "%d%%", off);
@@ -372,14 +373,15 @@ void
 osd_callback(mvp_widget_t *widget)
 {
 	struct stat64 sb;
-	long long offset;
+	long long offset = 0;
 	int off, mb;
 	char buf[32];
 	av_stc_t stc;
 	demux_attr_t *attr;
 
 	fstat64(fd, &sb);
-	offset = video_functions->seek(0, SEEK_CUR);
+	if (video_functions->seek)
+		offset = video_functions->seek(0, SEEK_CUR);
 	off = (int)((double)(offset/1000) /
 		    (double)(sb.st_size/1000) * 100.0);
 	snprintf(buf, sizeof(buf), "%d", off);
@@ -403,6 +405,11 @@ seek_by(int seconds)
 	int delta;
 	int stc_time, gop_time, pts_time;
 	long long offset, size;
+
+	if (video_functions->seek == NULL) {
+		fprintf(stderr, "cannot seek on this video!\n");
+		return;
+	}
 
 	pthread_kill(video_write_thread, SIGURG);
 	pthread_kill(audio_write_thread, SIGURG);
@@ -534,17 +541,23 @@ video_callback(mvp_widget_t *widget, char key)
 		display_on = 0;
 		zoomed = 0;
 		if (mythtv_livetv == 1) {
-			if (mythtv_state == MYTHTV_STATE_MAIN) {
+			if (mythtv_state == MYTHTV_STATE_LIVETV) {
+				if (mvpw_visible(mythtv_browser)) {
+					mythtv_livetv_stop();
+					mythtv_livetv = 0;
+					running_mythtv = 0;
+				} else {
+					mvpw_show(mythtv_logo);
+					mvpw_show(mythtv_browser);
+					mvpw_focus(mythtv_browser);
+					video_thumbnail(1);
+				}
+			} else if (mythtv_state == MYTHTV_STATE_MAIN) {
 				mvpw_show(mythtv_logo);
 				mvpw_show(mythtv_menu);
 			} else {
 				mythtv_show_widgets();
 			}
-			mythtv_livetv = 2;
-		} else if (mythtv_livetv == 2) {
-			mythtv_livetv_stop();
-			mythtv_livetv = 0;
-			running_mythtv = 0;
 		} else if (mythtv_main_menu) {
 			mvpw_show(mythtv_logo);
 			mvpw_show(mythtv_menu);
@@ -616,25 +629,29 @@ video_callback(mvp_widget_t *widget, char key)
 		timed_osd(seek_osd_timeout*1000);
 		break;
 	case MVPW_KEY_LEFT:
-		jump_target = -1;
-		jumping = 1;
-		pthread_kill(video_write_thread, SIGURG);
-		pthread_kill(audio_write_thread, SIGURG);
-		size = video_functions->size();
-		offset = video_functions->seek(0, SEEK_CUR);
-		jump_target = ((-size / 100.0) + offset);
-		pthread_cond_broadcast(&video_cond);
+		if (video_functions->seek) {
+			jump_target = -1;
+			jumping = 1;
+			pthread_kill(video_write_thread, SIGURG);
+			pthread_kill(audio_write_thread, SIGURG);
+			size = video_functions->size();
+			offset = video_functions->seek(0, SEEK_CUR);
+			jump_target = ((-size / 100.0) + offset);
+			pthread_cond_broadcast(&video_cond);
+		}
 		break;
 	case MVPW_KEY_RIGHT:
-		jump_target = -1;
-		jumping = 1;
-		pthread_kill(video_write_thread, SIGURG);
-		pthread_kill(audio_write_thread, SIGURG);
-		size = video_functions->size();
-		offset = video_functions->seek(0, SEEK_CUR);
-		jump_target = ((size / 100.0) + offset);
-		pthread_cond_broadcast(&video_cond);
-		timed_osd(seek_osd_timeout*1000);
+		if (video_functions->seek) {
+			jump_target = -1;
+			jumping = 1;
+			pthread_kill(video_write_thread, SIGURG);
+			pthread_kill(audio_write_thread, SIGURG);
+			size = video_functions->size();
+			offset = video_functions->seek(0, SEEK_CUR);
+			jump_target = ((size / 100.0) + offset);
+			pthread_cond_broadcast(&video_cond);
+			timed_osd(seek_osd_timeout*1000);
+		}
 		break;
 	case MVPW_KEY_ZERO ... MVPW_KEY_NINE:
 		jump_target = -1;
@@ -672,8 +689,6 @@ video_callback(mvp_widget_t *widget, char key)
 	case MVPW_KEY_FULL:
 	case MVPW_KEY_PREV_CHAN:
 		av_set_video_aspect(1-av_get_video_aspect());
-		if (mythtv_livetv == 2)
-			mythtv_livetv = 1;
 		break;
 	case MVPW_KEY_CHAN_UP:
 	case MVPW_KEY_UP:

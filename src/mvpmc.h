@@ -29,6 +29,7 @@ typedef enum {
 	MYTHTV_STATE_PENDING,
 	MYTHTV_STATE_PROGRAMS,
 	MYTHTV_STATE_EPISODES,
+	MYTHTV_STATE_LIVETV,
 } mythtv_state_t;
 
 typedef enum {
