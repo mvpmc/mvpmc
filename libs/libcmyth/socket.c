@@ -2008,6 +2008,8 @@ cmyth_rcv_chaninfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 
 	/*
 	 * Get proginfo_url (string) (this is the channel icon path)
+	 *
+	 * XXX: This isn't a url, but what is it?
 	 */
 	consumed = cmyth_rcv_string(conn, err,
 				    tmp_str, sizeof(tmp_str) - 1, count);
@@ -2017,7 +2019,7 @@ cmyth_rcv_chaninfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 		failed = "cmyth_rcv_string";
 		goto fail;
 	}
-	buf->proginfo_url = strdup(tmp_str);
+	buf->proginfo_url = NULL;
 
 	/*
 	 * Get proginfo_channame (string)
@@ -2102,7 +2104,6 @@ cmyth_rcv_chaninfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 		goto fail;
 	}
 
-	cmyth_proginfo_parse_url(buf);
 	return total;
 
  fail:
