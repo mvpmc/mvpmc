@@ -139,6 +139,25 @@ string_compare(const void *a, const void *b)
 	return strcmp(x, y);
 }
 
+static int
+string_int_compare(const void *a, const void *b)
+{
+	const char *x, *y;
+	int X, Y;
+
+	x = *((const char**)a);
+	y = *((const char**)b);
+	X = atoi(x);
+	Y = atoi(y);
+
+	if (X < Y)
+		return -1;
+	else if (X > Y)
+		return 1;
+	else
+		return 0;
+}
+
 void
 mythtv_show_widgets(void)
 {
@@ -1874,12 +1893,13 @@ livetv_open(void)
 static void
 livetv_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
-	int chan = (int)key;
-	char channame[32];
+	char *channame, *p;
 
-	snprintf(channame, sizeof(channame), "%d", chan);
-
-	printf("%s(): change channel %d '%s'\n", __FUNCTION__, chan, item);
+	channame = strdup(item);
+	if ((p=strchr(channame, ':')) != NULL)
+		*p = '\0';
+	
+	printf("%s(): change channel %s '%s'\n", __FUNCTION__, channame, item);
 
 	if (mythtv_livetv == 0) {
 		printf("Live TV not active!\n");
@@ -1925,8 +1945,15 @@ get_prog_list(void)
 {
 	cmyth_proginfo_t next_prog, cur;
 	char *title, *subtitle, *channame, *start;
+	char **list;
 	char buf[256];
-	int i, chan;
+	int i, j, chan, n;
+
+	n = 64;
+	if ((list=(char**)malloc(sizeof(char*)*n)) == NULL) {
+		perror("malloc()");
+		return;
+	}
 
 	mvpw_clear_menu(mythtv_browser);
 	mvpw_set_menu_title(mythtv_browser, "Live TV");
@@ -1954,15 +1981,25 @@ get_prog_list(void)
 
 		snprintf(buf, sizeof(buf),
 			 "%s: %s - %s", channame, title, subtitle);
-		chan = atoi(channame);
-		mvpw_add_menu_item(mythtv_browser, buf,
-				   (void*)chan, &item_attr);
+		list[i++] = strdup(buf);
+		if (i == n) {
+			n = n*2;
+			list = realloc(list, sizeof(char*)*n);
+		}
 
 		cur = next_prog;
-		i++;
 	} while (strcmp(start, channame) != 0);
 
 	printf("found %d channels\n", i);
 
+	qsort(list, i, sizeof(char*), string_int_compare);
+	for (j=0; j<i; j++) {
+		mvpw_add_menu_item(mythtv_browser, list[j],
+				   (void*)j, &item_attr);
+		free(list[j]);
+	}
+
 	cmyth_proginfo_release(next_prog);
+
+	free(list);
 }
