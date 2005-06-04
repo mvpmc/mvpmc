@@ -178,6 +178,7 @@ cmyth_ringbuf_setup(cmyth_conn_t control, cmyth_recorder_t rec)
 	long long size, fill;
 	char msg[256];
 	char url[1024];
+	char buf[32];
 
 	if (!control || !rec) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: no recorder connection\n",
@@ -200,6 +201,11 @@ cmyth_ringbuf_setup(cmyth_conn_t control, cmyth_recorder_t rec)
 	}
 
 	count = cmyth_rcv_length(control);
+
+	if (control->conn_version >= 16) {
+		r = cmyth_rcv_string(control, &err, buf, sizeof(buf)-1, count);
+		count -= r;
+	}
 
 	r = cmyth_rcv_string(control, &err, url, sizeof(url)-1, count); 
 	count -= r;
