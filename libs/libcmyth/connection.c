@@ -859,3 +859,45 @@ cmyth_conn_hung(cmyth_conn_t control)
 
 	return control->conn_hang;
 }
+
+int
+cmyth_conn_get_free_recorder_count(cmyth_conn_t conn)
+{
+	char msg[256];
+	int count, err;
+	long c, r;
+	int ret;
+
+	if (!conn) {
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: no connection\n",
+			  __FUNCTION__);
+		return -1;
+	}
+
+	pthread_mutex_lock(&mutex);
+
+	snprintf(msg, sizeof(msg), "GET_FREE_RECORDER_COUNT");
+	if ((err = cmyth_send_message(conn, msg)) < 0) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_send_message() failed (%d)\n",
+			  __FUNCTION__, err);
+		ret = err;
+		goto err;
+	}
+
+	count = cmyth_rcv_length(conn);
+	if ((r=cmyth_rcv_long(conn, &err, &c, count)) < 0) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_rcv_length() failed (%d)\n",
+			  __FUNCTION__, r);
+		ret = err;
+		goto err;
+	}
+
+	ret = c;
+
+ err:
+	pthread_mutex_unlock(&mutex);
+
+	return ret;
+}

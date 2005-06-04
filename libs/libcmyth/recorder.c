@@ -1454,3 +1454,15 @@ cmyth_recorder_get_filename(cmyth_recorder_t rec)
 
 	return buf;
 }
+
+int
+cmyth_recorder_get_recorder_id(cmyth_recorder_t rec)
+{
+	if (!rec) {
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: no recorder connection\n",
+			  __FUNCTION__);
+		return -1;
+	}
+
+	return rec->rec_id;
+}

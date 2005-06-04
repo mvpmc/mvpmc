@@ -142,6 +142,8 @@ extern int cmyth_conn_get_freespace(cmyth_conn_t control,
 
 extern int cmyth_conn_hung(cmyth_conn_t control);
 
+extern int cmyth_conn_get_free_recorder_count(cmyth_conn_t conn);
+
 /*
  * -----------------------------------------------------------------
  * Recorder Operations
@@ -265,6 +267,7 @@ extern char*cmyth_recorder_get_filename(cmyth_recorder_t rec);
 extern int cmyth_recorder_stop_livetv(cmyth_conn_t control, cmyth_recorder_t rec);
 extern void cmyth_recorder_release(cmyth_recorder_t p);
 extern int cmyth_recorder_done_ringbuf(cmyth_conn_t control, cmyth_recorder_t rec);
+extern int cmyth_recorder_get_recorder_id(cmyth_recorder_t rec);
 
 /*
  * -----------------------------------------------------------------
