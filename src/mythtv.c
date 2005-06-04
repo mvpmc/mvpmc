@@ -92,6 +92,18 @@ static volatile int changing_channel = 0;
 
 static pthread_t control_thread, wd_thread;
 
+#define MAX_TUNER	16
+struct livetv_prog {
+	char *program;
+	int count;
+	int rec_id[MAX_TUNER];
+	char *chan[MAX_TUNER];
+};
+static struct livetv_prog *livetv_list = NULL;
+static int livetv_count = 0;
+
+static void get_livetv_programs(void);
+
 static int mythtv_open(void);
 static int mythtv_read(char*, int);
 static long long mythtv_seek(long long, int);
@@ -140,15 +152,15 @@ string_compare(const void *a, const void *b)
 }
 
 static int
-string_int_compare(const void *a, const void *b)
+livetv_compare(const void *a, const void *b)
 {
-	const char *x, *y;
+	const struct livetv_prog *x, *y;
 	int X, Y;
 
-	x = *((const char**)a);
-	y = *((const char**)b);
-	X = atoi(x);
-	Y = atoi(y);
+	x = ((const struct livetv_prog*)a);
+	y = ((const struct livetv_prog*)b);
+	X = atoi(x->chan[0]);
+	Y = atoi(y->chan[0]);
 
 	if (X < Y)
 		return -1;
@@ -1197,7 +1209,7 @@ mythtv_init(char *server_name, int portnum)
 		port = portnum;
 
 	if ((control=cmyth_conn_connect_ctrl(server, port, 16*1024)) == NULL) {
-		fprintf(stderr, "cannot conntect to mythtv server %s\n",
+		fprintf(stderr, "cannot connect to mythtv server %s\n",
 			server);
 		return -1;
 	}
@@ -1595,6 +1607,7 @@ mythtv_livetv_start(void)
 	double rate;
 	char *rb_file;
 	char *msg;
+	int c;
 
 	if (mythtv_livetv) {
 		printf("Live TV already active\n");
@@ -1602,7 +1615,7 @@ mythtv_livetv_start(void)
 		mvpw_show(mythtv_browser);
 		mvpw_focus(mythtv_browser);
 		pthread_mutex_lock(&myth_mutex);
-		get_prog_list();
+		get_livetv_programs();
 		pthread_mutex_unlock(&myth_mutex);
 		return 0;
 	}
@@ -1622,6 +1635,13 @@ mythtv_livetv_start(void)
 		video_functions = &livetv_functions;
 	}
 
+	if ((c=cmyth_conn_get_free_recorder_count(control)) < 0) {
+		msg = "No free recorders available.";
+		goto err;
+	}
+
+	printf("Found %d recorders\n", c);
+
 	if ((recorder=cmyth_conn_get_free_recorder(control)) == NULL) {
 		msg = "Failed to get free recorder.";
 		goto err;
@@ -1633,7 +1653,7 @@ mythtv_livetv_start(void)
 	}
 
 	if (cmyth_conn_connect_ring(recorder, 16*1024) != 0) {
-		msg = "Cannot conntect to mythtv ringbuffer.";
+		msg = "Cannot connect to mythtv ringbuffer.";
 		goto err;
 	}
 
@@ -1675,7 +1695,7 @@ mythtv_livetv_start(void)
 
 	cmyth_recorder_get_program_info(control, recorder, current_prog);
 
-	get_prog_list();
+	get_livetv_programs();
 
 	mvpw_show(mythtv_browser);
 	mvpw_focus(mythtv_browser);
@@ -1894,6 +1914,25 @@ static void
 livetv_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
 	char *channame, *p;
+	int i, prog = (int)key;
+	int id;
+	int tuner_change = 1, tuner;
+
+	id = cmyth_recorder_get_recorder_id(recorder);
+
+	for (i=0; i<livetv_list[prog].count; i++) {
+		if (id == livetv_list[prog].rec_id[i]) {
+			tuner_change = 0;
+			break;
+		}
+	}
+
+	if (tuner_change && (id != -1)) {
+		tuner = livetv_list[prog].rec_id[0];
+		printf("switch from tuner %d to %d\n", id, tuner);
+		gui_error("switching tuners is not supported yet!\n");
+		return;
+	}
 
 	channame = strdup(item);
 	if ((p=strchr(channame, ':')) != NULL)
@@ -1940,36 +1979,32 @@ livetv_select_callback(mvp_widget_t *widget, char *item, void *key)
 	changing_channel = 0;
 }
 
-void
-get_prog_list(void)
+static int
+get_livetv_programs_rec(int id, struct livetv_prog **list, int *n, int *p)
 {
 	cmyth_proginfo_t next_prog, cur;
-	char *title, *subtitle, *channame, *start;
-	char **list;
+	cmyth_recorder_t rec = recorder;
+	const char *title, *subtitle, *channame, *start;
+	int cur_id, i;
+	int c = 0;
 	char buf[256];
-	int i, j, chan, n;
 
-	n = 64;
-	if ((list=(char**)malloc(sizeof(char*)*n)) == NULL) {
-		perror("malloc()");
-		return;
-	}
+	cur_id = cmyth_recorder_get_recorder_id(recorder);
 
-	mvpw_clear_menu(mythtv_browser);
-	mvpw_set_menu_title(mythtv_browser, "Live TV");
-
-	item_attr.select = livetv_select_callback;
-	item_attr.hilite = NULL;
+	printf("Getting program listings for recorder %d [%d]\n", id, cur_id);
 
 	start = cmyth_proginfo_channame(current_prog);
 
 	cur = current_prog;
 	next_prog = cmyth_proginfo_create();
 
-	i = 0;
+	if (cur_id != id)
+		if ((rec=cmyth_conn_get_free_recorder(control)) == NULL) {
+			return -1;
+		}
+
 	do {
-		if (cmyth_recorder_get_next_program_info(control,
-							 recorder, cur,
+		if (cmyth_recorder_get_next_program_info(control, rec, cur,
 							 next_prog, 1) < 0) {
 			fprintf(stderr, "get next program info failed!\n");
 			break;
@@ -1977,29 +2012,104 @@ get_prog_list(void)
 
 		title = (char *) cmyth_proginfo_title(next_prog);
 		subtitle = (char *) cmyth_proginfo_subtitle(next_prog);
-		channame = cmyth_proginfo_channame(next_prog);
+		channame = (char *) cmyth_proginfo_channame(next_prog);
 
-		snprintf(buf, sizeof(buf),
-			 "%s: %s - %s", channame, title, subtitle);
-		list[i++] = strdup(buf);
-		if (i == n) {
-			n = n*2;
-			list = realloc(list, sizeof(char*)*n);
-		}
+		snprintf(buf, sizeof(buf), "%s - %s", title, subtitle);
 
 		cur = next_prog;
+
+		for (i=0; i<*p; i++) {
+			if (strcmp((*list)[i].program, buf) == 0) {
+				if ((*list)[*p].count == MAX_TUNER)
+					goto next;
+				(*list)[i].chan[(*list)[*p].count] = strdup(channame);
+				(*list)[i].rec_id[(*list)[*p].count++] = id;
+				goto next;
+			}
+		}
+
+		(*list)[*p].program = strdup(buf);
+		(*list)[*p].count = 1;
+		(*list)[*p].rec_id[0] = id;
+		(*list)[*p].chan[0] = strdup(channame);
+		(*p)++;
+		c++;
+
+		if (*p == *n) {
+			*n = *n*2;
+			*list = realloc(*list, sizeof(**list)*(*n));
+		}
+	next:
 	} while (strcmp(start, channame) != 0);
 
-	printf("found %d channels\n", i);
-
-	qsort(list, i, sizeof(char*), string_int_compare);
-	for (j=0; j<i; j++) {
-		mvpw_add_menu_item(mythtv_browser, list[j],
-				   (void*)j, &item_attr);
-		free(list[j]);
-	}
+	if (cur_id != id)
+		if (cmyth_recorder_done_ringbuf(control, rec) != 0) {
+			fprintf(stderr, "done ringbuf failed\n");
+		}
 
 	cmyth_proginfo_release(next_prog);
 
-	free(list);
+	printf("Found %d shows on recorder %d\n", c, id);
+
+	return c;
+}
+
+static void
+get_livetv_programs(void)
+{
+	struct livetv_prog *list;
+	char buf[256];
+	int i, j, c, n, p, found;
+
+	if (livetv_list) {
+		for (i=0; i<livetv_count; i++) {
+			free(livetv_list[i].program);
+			for (j=0; j<livetv_list[i].count; j++)
+				free(livetv_list[i].chan[j]);
+		}
+		free(livetv_list);
+		livetv_count = 0;
+		livetv_list = NULL;
+	}
+
+	n = 32;
+	if ((list=(struct livetv_prog*)malloc(sizeof(*list)*n)) == NULL) {
+		perror("malloc()");
+		return;
+	}
+
+	if ((c=cmyth_conn_get_free_recorder_count(control)) < 0) {
+		fprintf(stderr, "unable to get free recorder\n");
+		return;
+	}
+
+	mvpw_clear_menu(mythtv_browser);
+
+	item_attr.select = livetv_select_callback;
+	item_attr.hilite = NULL;
+
+	p = 0;
+	found = 0;
+	for (i=0; i<MAX_TUNER; i++) {
+		if (get_livetv_programs_rec(i+1, &list, &n, &p) != -1)
+			found++;
+		if (found == c+1)
+			break;
+	}
+
+	printf("Found %d programs on %d tuners\n", p, found);
+
+	snprintf(buf, sizeof(buf), "Live TV - %d Programs on %d Tuner%s",
+		 p, found, (found == 1) ? "" : "s");
+	mvpw_set_menu_title(mythtv_browser, buf);
+
+	qsort(list, p, sizeof(*list), livetv_compare);
+	for (j=0; j<p; j++) {
+		snprintf(buf, sizeof(buf), "%s: %s",
+			 list[j].chan[0], list[j].program);
+		mvpw_add_menu_item(mythtv_browser, buf, (void*)j, &item_attr);
+	}
+
+	livetv_list = list;
+	livetv_count = p;
 }
