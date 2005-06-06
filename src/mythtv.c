@@ -102,7 +102,7 @@ struct livetv_prog {
 static struct livetv_prog *livetv_list = NULL;
 static int livetv_count = 0;
 
-static void get_livetv_programs(void);
+static int get_livetv_programs(void);
 
 static int mythtv_open(void);
 static int mythtv_read(char*, int);
@@ -1601,13 +1601,16 @@ mythtv_size(void)
 	return ret;
 }
 
-int
-mythtv_livetv_start(void)
+static int
+mythtv_livetv_start(int tuner)
 {
 	double rate;
 	char *rb_file;
 	char *msg;
 	int c;
+
+	if (playing_via_mythtv && file)
+		mythtv_stop();
 
 	if (mythtv_livetv) {
 		printf("Live TV already active\n");
@@ -1642,9 +1645,18 @@ mythtv_livetv_start(void)
 
 	printf("Found %d recorders\n", c);
 
-	if ((recorder=cmyth_conn_get_free_recorder(control)) == NULL) {
-		msg = "Failed to get free recorder.";
-		goto err;
+	if (tuner) {
+		printf("Looking for tuner %d\n", tuner);
+		if ((recorder=cmyth_conn_get_recorder_from_num(control,
+							       tuner)) == NULL) {
+			msg = "Tuner unavailable.";
+			goto err;
+		}
+	} else {
+		if ((recorder=cmyth_conn_get_free_recorder(control)) == NULL) {
+			msg = "Failed to get free recorder.";
+			goto err;
+		}
 	}
 
 	if (cmyth_ringbuf_setup(control, recorder) != 0) {
@@ -1730,6 +1742,9 @@ int
 mythtv_livetv_stop(void)
 {
 	int ret = -1;
+
+	if (!mythtv_livetv)
+		return -1;
 
 	printf("Stopping Live TV\n");
 
@@ -1913,38 +1928,47 @@ livetv_open(void)
 static void
 livetv_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
-	char *channame, *p;
+	char *channame = NULL;
 	int i, prog = (int)key;
-	int id;
-	int tuner_change = 1, tuner;
+	int id = -1;
+	int tuner_change = 1, tuner = 0;
 
-	id = cmyth_recorder_get_recorder_id(recorder);
+	printf("%s(): prog %d\n", __FUNCTION__, prog);
 
-	for (i=0; i<livetv_list[prog].count; i++) {
-		if (id == livetv_list[prog].rec_id[i]) {
-			tuner_change = 0;
-			break;
+	if (mythtv_livetv) {
+		id = cmyth_recorder_get_recorder_id(recorder);
+		for (i=0; i<livetv_list[prog].count; i++) {
+			if (id == livetv_list[prog].rec_id[i]) {
+				tuner_change = 0;
+				channame = strdup(livetv_list[prog].chan[i]);
+				break;
+			}
 		}
+	} else {
+		channame = strdup(livetv_list[prog].chan[0]);
+		tuner = livetv_list[prog].rec_id[0];
+		tuner_change = 0;
+		printf("enable livetv tuner %d chan '%s'\n", tuner, channame);
 	}
 
 	if (tuner_change && (id != -1)) {
 		tuner = livetv_list[prog].rec_id[0];
+		channame = strdup(livetv_list[prog].chan[0]);
 		printf("switch from tuner %d to %d\n", id, tuner);
-		gui_error("switching tuners is not supported yet!\n");
-		return;
+		mythtv_livetv_stop();
 	}
 
-	channame = strdup(item);
-	if ((p=strchr(channame, ':')) != NULL)
-		*p = '\0';
-	
-	printf("%s(): change channel %s '%s'\n", __FUNCTION__, channame, item);
+	if (mythtv_ringbuf)
+		mythtv_livetv_stop();
 
 	if (mythtv_livetv == 0) {
 		printf("Live TV not active!\n");
-		if (mythtv_livetv_start() != 0)
+		if (mythtv_livetv_start(tuner) != 0)
 			return;
 	}
+
+	printf("%s(): change channel '%s' '%s'\n",
+	       __FUNCTION__, channame, item);
 
 	changing_channel = 1;
 
@@ -1961,9 +1985,6 @@ livetv_select_callback(mvp_widget_t *widget, char *item, void *key)
 		goto err;
 	}
 
-	if (mythtv_ringbuf)
-		sleep(6);
-
 	if (current_prog)
 		cmyth_recorder_get_program_info(control, recorder,
 						current_prog);
@@ -1977,6 +1998,9 @@ livetv_select_callback(mvp_widget_t *widget, char *item, void *key)
 	pthread_mutex_unlock(&myth_mutex);
 	busy_end();
 	changing_channel = 0;
+
+	if (channame)
+		free(channame);
 }
 
 static int
@@ -1993,15 +2017,23 @@ get_livetv_programs_rec(int id, struct livetv_prog **list, int *n, int *p)
 
 	printf("Getting program listings for recorder %d [%d]\n", id, cur_id);
 
-	start = cmyth_proginfo_channame(current_prog);
-
-	cur = current_prog;
 	next_prog = cmyth_proginfo_create();
 
 	if (cur_id != id)
-		if ((rec=cmyth_conn_get_free_recorder(control)) == NULL) {
+		if ((rec=cmyth_conn_get_recorder_from_num(control,
+							       id)) == NULL) {
+			fprintf(stderr,
+				"failed to connect to tuner %d!\n", id);
 			return -1;
 		}
+
+	cur = cmyth_proginfo_create();
+	cmyth_proginfo_hold(cur);
+	if (cmyth_recorder_get_program_info(control, rec, cur) < 0) {
+		fprintf(stderr, "get program info failed!\n");
+		return -1;
+	}
+	start = (char *) cmyth_proginfo_channame(cur);
 
 	do {
 		if (cmyth_recorder_get_next_program_info(control, rec, cur,
@@ -2035,17 +2067,19 @@ get_livetv_programs_rec(int id, struct livetv_prog **list, int *n, int *p)
 		(*p)++;
 		c++;
 
+	next:
 		if (*p == *n) {
 			*n = *n*2;
 			*list = realloc(*list, sizeof(**list)*(*n));
 		}
-	next:
 	} while (strcmp(start, channame) != 0);
 
-	if (cur_id != id)
+	if (cur_id != id) {
 		if (cmyth_recorder_done_ringbuf(control, rec) != 0) {
 			fprintf(stderr, "done ringbuf failed\n");
 		}
+		cmyth_recorder_release(rec);
+	}
 
 	cmyth_proginfo_release(next_prog);
 
@@ -2054,7 +2088,7 @@ get_livetv_programs_rec(int id, struct livetv_prog **list, int *n, int *p)
 	return c;
 }
 
-static void
+static int
 get_livetv_programs(void)
 {
 	struct livetv_prog *list;
@@ -2075,12 +2109,12 @@ get_livetv_programs(void)
 	n = 32;
 	if ((list=(struct livetv_prog*)malloc(sizeof(*list)*n)) == NULL) {
 		perror("malloc()");
-		return;
+		return -1;
 	}
 
 	if ((c=cmyth_conn_get_free_recorder_count(control)) < 0) {
 		fprintf(stderr, "unable to get free recorder\n");
-		return;
+		return -1;
 	}
 
 	mvpw_clear_menu(mythtv_browser);
@@ -2090,7 +2124,7 @@ get_livetv_programs(void)
 
 	p = 0;
 	found = 0;
-	for (i=0; i<MAX_TUNER; i++) {
+	for (i=0; (i<MAX_TUNER) && (found<c+1); i++) {
 		if (get_livetv_programs_rec(i+1, &list, &n, &p) != -1)
 			found++;
 		if (found == c+1)
@@ -2098,6 +2132,9 @@ get_livetv_programs(void)
 	}
 
 	printf("Found %d programs on %d tuners\n", p, found);
+
+	if (p == 0)
+		return -1;
 
 	snprintf(buf, sizeof(buf), "Live TV - %d Programs on %d Tuner%s",
 		 p, found, (found == 1) ? "" : "s");
@@ -2112,4 +2149,34 @@ get_livetv_programs(void)
 
 	livetv_list = list;
 	livetv_count = p;
+
+	return 0;
+}
+
+int
+mythtv_livetv_menu(void)
+{
+	int failed = 0;
+
+	if (mythtv_verify() < 0)
+		return -1;
+
+	printf("Displaying livetv programs\n");
+
+	pthread_mutex_lock(&myth_mutex);
+	if (get_livetv_programs() < 0) {
+		if (!mythtv_livetv) {
+			gui_error("No tuners available for Live TV.");
+			failed = 1;
+		}
+	}
+	pthread_mutex_unlock(&myth_mutex);
+
+	if (!failed) {
+		mvpw_show(mythtv_logo);
+		mvpw_show(mythtv_browser);
+		mvpw_focus(mythtv_browser);
+	}
+
+	return failed;
 }

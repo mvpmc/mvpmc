@@ -270,7 +270,6 @@ extern int mythtv_forget(void);
 extern int mythtv_proginfo(char *buf, int size);
 extern void mythtv_start_thumbnail(void);
 extern int mythtv_pending(mvp_widget_t *widget);
-extern int mythtv_livetv_start(void);
 
 extern void playlist_prev(void);
 extern void playlist_stop(void);

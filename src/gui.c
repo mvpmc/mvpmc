@@ -1832,8 +1832,7 @@ myth_menu_select_callback(mvp_widget_t *widget, char *item, void *key)
 		break;
 	case 2:
 		busy_start();
-		if (mythtv_livetv_start() == 0) {
-			mythtv_livetv = 1;
+		if (mythtv_livetv_menu() == 0) {
 			running_mythtv = 1;
 			mvpw_hide(mythtv_menu);
 
