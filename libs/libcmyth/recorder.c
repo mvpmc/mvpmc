@@ -1047,6 +1047,8 @@ cmyth_recorder_get_program_info(cmyth_conn_t control,
 		ret = err;
 		goto out;
 	}
+
+	ret = 0;
  
  out:
 	pthread_mutex_unlock(&mutex);
