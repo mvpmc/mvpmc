@@ -133,7 +133,7 @@ extern int cmyth_conn_connect_ring(cmyth_recorder_t rec, unsigned buflen);
 extern int cmyth_conn_check_block(cmyth_conn_t conn, unsigned long size);
 
 extern cmyth_recorder_t cmyth_conn_get_recorder_from_num(cmyth_conn_t conn,
-														 cmyth_rec_num_t num);
+							 int num);
 
 extern cmyth_recorder_t cmyth_conn_get_free_recorder(cmyth_conn_t conn);
 

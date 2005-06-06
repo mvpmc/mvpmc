@@ -691,9 +691,75 @@ cmyth_conn_check_block(cmyth_conn_t conn, unsigned long size)
  * Failure: -(errno)
  */
 cmyth_recorder_t
-cmyth_conn_get_recorder_from_num(cmyth_conn_t conn,
-								 cmyth_rec_num_t num)
+cmyth_conn_get_recorder_from_num(cmyth_conn_t conn, int id)
 {
+	int err, count;
+	int r;
+	long port;
+	char msg[256];
+	char reply[256];
+	cmyth_recorder_t rec = NULL;
+
+	if (!conn) {
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: no connection\n",
+			  __FUNCTION__);
+		return NULL;
+	}
+
+	pthread_mutex_lock(&mutex);
+
+	if ((rec=cmyth_recorder_create()) == NULL)
+		goto fail;
+
+	snprintf(msg, sizeof(msg), "GET_RECORDER_FROM_NUM[]:[]%d", id);
+
+	if ((err = cmyth_send_message(conn, msg)) < 0) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_send_message() failed (%d)\n",
+			  __FUNCTION__, err);
+		goto fail;
+	}
+
+	count = cmyth_rcv_length(conn);
+	if (count < 0) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_rcv_length() failed (%d)\n",
+			  __FUNCTION__, count);
+		goto fail;
+	}
+
+	if ((r=cmyth_rcv_string(conn, &err, reply, sizeof(reply)-1, count)) < 0) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_rcv_string() failed (%d)\n",
+			  __FUNCTION__, r);
+		goto fail;
+	}
+	count -= r;
+
+	if ((r=cmyth_rcv_long(conn, &err, &port, count)) < 0) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_rcv_long() failed (%d)\n",
+			  __FUNCTION__, r);
+		goto fail;
+	}
+
+	if (port == -1)
+		goto fail;
+
+	rec->rec_id = id;
+	rec->rec_server = strdup(reply);
+	rec->rec_port = port;
+
+	pthread_mutex_unlock(&mutex);
+
+	return rec;
+
+ fail:
+	if (rec)
+		cmyth_recorder_release(rec);
+
+	pthread_mutex_unlock(&mutex);
+
 	return NULL;
 }
 
