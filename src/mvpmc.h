@@ -77,6 +77,8 @@ struct playlist_struct {
 extern volatile video_callback_t *video_functions;
 extern video_callback_t file_functions, mythtv_functions;
 
+extern volatile int video_playing;
+
 extern char *mythtv_server;
 extern int mythtv_debug;
 extern volatile mythtv_state_t mythtv_state;

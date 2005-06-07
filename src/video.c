@@ -92,7 +92,7 @@ static unsigned char ac3buf[1024*32];
 static volatile int ac3len = 0, ac3more = 0;
 
 static volatile int video_reopen = 0;
-static volatile int video_playing = 0;
+volatile int video_playing = 0;
 
 static void disable_osd(void);
 
