@@ -386,36 +386,13 @@ root_callback(mvp_widget_t *widget, char key)
       cur_list = &clist_fg;
       cur_dir  = 1;
       break;
-   case MVPW_KEY_ONE:
-      incr_val = 1;      
-      break;
-   case MVPW_KEY_TWO:
-      incr_val = 2;      
-      break;
-   case MVPW_KEY_THREE:
-      incr_val = 3;      
-      break;
-   case MVPW_KEY_FOUR:
-      incr_val = 4;      
-      break;
-   case MVPW_KEY_FIVE:
-      incr_val = 5;      
-      break;
-   case MVPW_KEY_SIX:
-      incr_val = 6;      
-      break;
-   case MVPW_KEY_SEVEN:
-      incr_val = 7;      
-      break;
-   case MVPW_KEY_EIGHT:
-      incr_val = 8;      
-      break;
-   case MVPW_KEY_NINE:
-      incr_val = 9;      
-      break;
    case MVPW_KEY_ZERO:
       incr_val = 10;      
       break;
+   case MVPW_KEY_ONE ... MVPW_KEY_NINE:
+      incr_val = key - MVPW_KEY_ZERO;      
+      break;
+
    default:
       break;
    } //switch
