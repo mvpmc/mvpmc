@@ -1254,7 +1254,16 @@ static void rtv_guide_hilite_callback(mvp_widget_t *widget, char *item, void *ke
 
       mvpw_get_widget_info(rtv_episode_description, &winfo);      
       mvpw_set_text_str(rtv_episode_line[0], show->title);
-      pos += sprintf(strp, "%s; recorded %s from %d (%s)", show->duration_str, show->file_info->time_str_fmt2, show->tuning, show->tune_chan_name);
+
+      // For real replay's use the mpg file creation time for the start time.
+      // For DVArchive use the guides scheduled start time since the file creation time is screwed up.
+      // 
+      if  ( atoi(current_rtv_device->device.modelNumber) == 4999 ) {
+         pos += sprintf(strp, "%s; recorded %s from %d (%s)", show->duration_str, show->sch_st_tm_str2, show->tuning, show->tune_chan_name);
+      }
+      else {
+         pos += sprintf(strp, "%s; recorded %s from %d (%s)", show->duration_str, show->file_info->time_str_fmt2, show->tuning, show->tune_chan_name);
+      }
       mvpw_set_text_str(rtv_episode_line[1], strp);
 
       // Do show rating, movie stars, movie year

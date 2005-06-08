@@ -180,7 +180,8 @@ typedef struct rtv_show_export_t
    __u8                padding_after;      // minutes padding after show
    __u32               sch_start_time;     // Scheduled Time of the Show (TimeT format)
    __u32               sch_show_length;    // Scheduled Length of Show (minutes)
-   char               *sch_st_tm_str;      // Scheduled Time of the Show (String)
+   char               *sch_st_tm_str;      // Scheduled Time of the Show (Format 1)
+   char               *sch_st_tm_str2;     // Scheduled Time of the Show (Format 2) 
    __u32               status;
 } rtv_show_export_t;
 
@@ -356,11 +357,12 @@ extern rtv_device_t *rtv_get_device_struct(const char *ipaddr, int *new);
 extern int           rtv_free_devices(void);
 extern void          rtv_print_device_list(void);
 
-extern char         *rtv_format_ts_sec32_hms(__u32 ts, char *time_str);       //User passes in pre-alloc'd char buf
-extern char         *rtv_format_ts_ms32_min_sec_ms(__u32 ts, char *time_str); //User passes in pre-alloc'd char buf
+extern char         *rtv_format_ts_sec32_hms(__u32 ts, char *time_str);       // User passes in pre-alloc'd char buf
+extern char         *rtv_format_ts_ms32_min_sec_ms(__u32 ts, char *time_str); // User passes in pre-alloc'd char buf
 extern char         *rtv_format_datetime_ms64_1(__u64 ttk);                   // Returned string is malloc'd: user must free
 extern char         *rtv_format_datetime_ms64_2(__u64 ttk);                   // Returned string is malloc'd: user must free
 extern char         *rtv_format_datetime_sec32(__u32 t);                      // Returned string is malloc'd: user must free
+extern char         *rtv_format_datetime_sec32_2(__u32 t);                    // Returned string is malloc'd: user must free
 extern char         *rtv_sec_to_hr_mn_str(unsigned int seconds); // Returned string is malloc'd: user must free
 extern char         *rtv_format_nsec64(__u64 nsec);              // Returned string is malloc'd: user must free
 

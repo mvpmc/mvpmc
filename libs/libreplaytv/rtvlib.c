@@ -155,6 +155,20 @@ char *rtv_format_datetime_sec32(__u32 t)
 }
 
 //+*********************************************************************
+//  Name: rtv_format_datetime_sec32_2
+//        Convert 32 bit value (sec since Jan 1 1970) to date time string
+//+*********************************************************************
+char *rtv_format_datetime_sec32_2(__u32 t) 
+{
+   char      *result = malloc(256);
+   struct tm *tm;
+    
+   tm = localtime(&t);
+   strftime(result, 255, "%m/%d at %l:%M %p", tm);   
+   return result;
+}
+
+//+*********************************************************************
 //  Name: rtv_format_datetime_ms64_1
 //        Convert 64 bit value (mS since Jan 1 1970) to date time string
 //+*********************************************************************

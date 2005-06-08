@@ -710,12 +710,25 @@ static int parse_show(replay_show_t *show_rec, rtv_show_export_t *sh)
    sh->file_name = malloc(20);
    snprintf(sh->file_name, 19, "%lu.mpg", show_rec->show_id);
    sh->gop_count       = show_rec->GOP_count;
-   sh->duration_sec    = show_rec->seconds;
-   sh->duration_str    = rtv_sec_to_hr_mn_str(show_rec->seconds);
+
+   // The duration should be 1/2 the gop count. i.e: 2 gops per sec.
+   // DVArchive sometimes screws up the duration and returns 5400
+   // Check for this and set duration (seconds) to 1/2 gop is it seems to be screwed.
+   //
+   if ( (show_rec->seconds == 5400)  && 
+        ((show_rec->GOP_count > ((5400 * 2) + 10)) || (show_rec->GOP_count < ((5400 * 2) - 10)) )  ) {
+      sh->duration_sec = show_rec->GOP_count >> 1;
+      RTV_WARNLOG("DVArchive guide show entry duration hack: %lu\n", sh->duration_sec);
+   }
+   else {
+      sh->duration_sec = show_rec->seconds;
+   }
+   sh->duration_str    = rtv_sec_to_hr_mn_str(sh->duration_sec);
    sh->padding_before  = show_rec->beforepadding;
    sh->sch_start_time  = show_rec->programInfo.eventtime;
    sh->sch_show_length = show_rec->programInfo.minutes;
-   sh->sch_st_tm_str   = rtv_format_datetime_sec32(sh->sch_start_time);
+   sh->sch_st_tm_str   = rtv_format_datetime_sec32(sh->sch_start_time + 3);   //add 3 seconds to time
+   sh->sch_st_tm_str2  = rtv_format_datetime_sec32_2(sh->sch_start_time + 3); //add 3 seconds to time
 
    // If a shows GOP_count or seconds field is zero then the show has been deleted 
    // but is still in the guide.

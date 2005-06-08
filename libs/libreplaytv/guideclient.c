@@ -146,6 +146,7 @@ static void rtv_free_show(rtv_show_export_t *show)
       if ( show->genre       != NULL ) free(show->genre);
       if ( show->rating_extended != NULL ) free(show->rating_extended);
       if ( show->sch_st_tm_str   != NULL ) free(show->sch_st_tm_str);
+      if ( show->sch_st_tm_str2  != NULL ) free(show->sch_st_tm_str2);
       if ( show->duration_str    != NULL ) free(show->duration_str);
 
       if ( show->file_info != NULL ) rtv_free_file_info(show->file_info);
@@ -442,7 +443,8 @@ void rtv_print_show(const rtv_show_export_t *show, int num)
       RTV_PRT("  duration (seconds): %lu\n", show->duration_sec);
       RTV_PRT("  duration:           %s\n", show->duration_str);
       RTV_PRT("  sch start time:     %lu\n", show->sch_start_time);
-      RTV_PRT("  sch start time:     %s\n", show->sch_st_tm_str);
+      RTV_PRT("                      %s\n", show->sch_st_tm_str);
+      RTV_PRT("                      %s\n", show->sch_st_tm_str2);
       RTV_PRT("  sch len (minutes):  %lu\n", show->sch_show_length);
       RTV_PRT("  minutes padding before: %u minutes padding after: %u\n", show->padding_before, show->padding_after);
 
