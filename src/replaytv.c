@@ -1996,7 +1996,7 @@ void replaytv_osd_proginfo_update(mvp_widget_t *widget)
       mvpw_set_text_str(rtv_osd_show_title_widget, current_show_p->title);
       mvpw_expose(rtv_osd_show_title_widget);
       
-
+      pos[0] = '\0';
       if ( strcmp(current_show_p->episode, "") != 0 ) {
          pos += sprintf(pos, "%s", current_show_p->episode);
          if ( strcmp(current_show_p->description, "") != 0 ) {
