@@ -93,11 +93,19 @@ static volatile int changing_channel = 0;
 static pthread_t control_thread, wd_thread;
 
 #define MAX_TUNER	16
+struct livetv_proginfo {
+	int rec_id;
+	char *chan;
+	char *channame;
+};
 struct livetv_prog {
-	char *program;
+	char *title;
+	char *subtitle;
+	char *description;
+	char *start;
+	char *end;
 	int count;
-	int rec_id[MAX_TUNER];
-	char *chan[MAX_TUNER];
+	struct livetv_proginfo pi[MAX_TUNER];
 };
 static struct livetv_prog *livetv_list = NULL;
 static int livetv_count = 0;
@@ -159,8 +167,8 @@ livetv_compare(const void *a, const void *b)
 
 	x = ((const struct livetv_prog*)a);
 	y = ((const struct livetv_prog*)b);
-	X = atoi(x->chan[0]);
-	Y = atoi(y->chan[0]);
+	X = atoi(x->pi[0].chan);
+	Y = atoi(y->pi[0].chan);
 
 	if (X < Y)
 		return -1;
@@ -193,6 +201,27 @@ mythtv_show_widgets(void)
 		mvpw_show(mythtv_description);
 		mvpw_show(mythtv_channel);
 	}
+}
+
+static void
+mythtv_fullscreen(void)
+{
+	mvpw_hide(mythtv_browser);
+	mvpw_hide(mythtv_logo);
+	mvpw_hide(mythtv_channel);
+	mvpw_hide(mythtv_date);
+	mvpw_hide(mythtv_description);
+	mvpw_hide(mythtv_record);
+	mvpw_hide(shows_widget);
+	mvpw_hide(episodes_widget);
+	mvpw_hide(freespace_widget);
+
+	av_move(0, 0, 0);
+	mvpw_show(root);
+	mvpw_expose(root);
+	mvpw_focus(root);
+
+	printf("fullscreen video mode\n");
 }
 
 static int
@@ -400,22 +429,7 @@ hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 static void
 show_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
-	mvpw_hide(mythtv_logo);
-	mvpw_hide(mythtv_channel);
-	mvpw_hide(mythtv_date);
-	mvpw_hide(mythtv_description);
-	mvpw_hide(mythtv_record);
-	mvpw_hide(shows_widget);
-	mvpw_hide(episodes_widget);
-	mvpw_hide(freespace_widget);
-
-	mvpw_hide(widget);
-	av_move(0, 0, 0);
-	mvpw_show(root);
-	mvpw_expose(root);
-	mvpw_focus(root);
-
-	printf("fullscreen video mode\n");
+	mythtv_fullscreen();
 
 	if (cmyth_proginfo_compare(hilite_prog, current_prog) != 0) {
 		if (current)
@@ -1229,15 +1243,39 @@ mythtv_program(mvp_widget_t *widget)
 {
 	char *description, *program;
 	char *title, *subtitle;
-
+	cmyth_timestamp_t ts;
+	char start[256], end[256], str[256], *ptr, *chansign;
+		
 	if (current_prog) {
 		title = (char *) cmyth_proginfo_title(current_prog);
 		subtitle = (char *) cmyth_proginfo_subtitle(current_prog);
-
-		program = alloca(strlen(title) + strlen(subtitle) + 16);
-		sprintf(program, "%s - %s", title, subtitle);
-
-		description = (char *) cmyth_proginfo_description(current_prog);
+		
+		if (mythtv_livetv) {
+			chansign = (char*)cmyth_proginfo_chansign(current_prog);
+			
+			ts = cmyth_proginfo_start(current_prog);
+			cmyth_timestamp_to_string(start, ts);
+			ts = cmyth_proginfo_end(current_prog);
+			cmyth_timestamp_to_string(end, ts);
+		
+			ptr = strchr(start, 'T');
+			*ptr = '\0';
+			sprintf(str, "%5.5s - ", ptr+1);
+			ptr = strchr(end, 'T');
+			*ptr = '\0';
+			strncat(str, ptr+1,5);
+		
+			program = alloca(strlen(chansign) + strlen(str) +
+					 strlen(title) + strlen(subtitle) + 16);
+			sprintf(program, "[%s] %s %s - %s",
+				chansign, str, title, subtitle);
+		} else {					
+			program = alloca(strlen(title) +
+					 strlen(subtitle) + 16);
+			sprintf(program, "%s - %s", title, subtitle);
+		}
+		
+		description = (char *)cmyth_proginfo_description(current_prog);
 
 		mvpw_set_text_str(mythtv_osd_description, description);
 		mvpw_set_text_str(mythtv_osd_program, program);
@@ -1606,7 +1644,7 @@ mythtv_livetv_start(int tuner)
 {
 	double rate;
 	char *rb_file;
-	char *msg;
+	char *msg, buf[256];
 	int c;
 
 	if (playing_via_mythtv && file)
@@ -1650,6 +1688,13 @@ mythtv_livetv_start(int tuner)
 		if ((recorder=cmyth_conn_get_recorder_from_num(control,
 							       tuner)) == NULL) {
 			msg = "Tuner unavailable.";
+			goto err;
+		}
+		if(cmyth_recorder_is_recording(control, recorder) == 1) {
+			snprintf(buf, sizeof(buf),
+				 "Failed: tuner %d is busy.", tuner);
+			msg = buf;
+			cmyth_recorder_release(recorder);
 			goto err;
 		}
 	} else {
@@ -1932,28 +1977,28 @@ livetv_select_callback(mvp_widget_t *widget, char *item, void *key)
 	int i, prog = (int)key;
 	int id = -1;
 	int tuner_change = 1, tuner = 0;
-
-	printf("%s(): prog %d\n", __FUNCTION__, prog);
+	struct livetv_proginfo *pi;
 
 	if (mythtv_livetv) {
 		id = cmyth_recorder_get_recorder_id(recorder);
 		for (i=0; i<livetv_list[prog].count; i++) {
-			if (id == livetv_list[prog].rec_id[i]) {
+			pi = &livetv_list[prog].pi[i];
+			if (id == pi->rec_id) {
 				tuner_change = 0;
-				channame = strdup(livetv_list[prog].chan[i]);
+				channame = strdup(pi->chan);
 				break;
 			}
 		}
 	} else {
-		channame = strdup(livetv_list[prog].chan[0]);
-		tuner = livetv_list[prog].rec_id[0];
+		channame = strdup(livetv_list[prog].pi[0].chan);
+		tuner = livetv_list[prog].pi[0].rec_id;
 		tuner_change = 0;
 		printf("enable livetv tuner %d chan '%s'\n", tuner, channame);
 	}
 
 	if (tuner_change && (id != -1)) {
-		tuner = livetv_list[prog].rec_id[0];
-		channame = strdup(livetv_list[prog].chan[0]);
+		tuner = livetv_list[prog].pi[0].rec_id;
+		channame = strdup(livetv_list[prog].pi[0].chan);
 		printf("switch from tuner %d to %d\n", id, tuner);
 		mythtv_livetv_stop();
 	}
@@ -1994,6 +2039,8 @@ livetv_select_callback(mvp_widget_t *widget, char *item, void *key)
 	av_play();
 	video_play(root);
 
+	mythtv_fullscreen();
+
  err:
 	pthread_mutex_unlock(&myth_mutex);
 	busy_end();
@@ -2003,18 +2050,51 @@ livetv_select_callback(mvp_widget_t *widget, char *item, void *key)
 		free(channame);
 }
 
+static void
+livetv_hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
+{
+	int prog = (int)key;
+	char buf[256];
+
+	if (hilite) {
+		snprintf(buf, sizeof(buf), "%s %s",
+			 livetv_list[prog].pi[0].chan,
+			 livetv_list[prog].pi[0].channame);
+		mvpw_set_text_str(mythtv_channel, buf);
+		mvpw_expose(mythtv_channel);
+		snprintf(buf, sizeof(buf), "%s - %s",
+			 livetv_list[prog].start, livetv_list[prog].end);
+		mvpw_set_text_str(mythtv_date, buf);
+		mvpw_expose(mythtv_date);
+		mvpw_set_text_str(mythtv_description,
+				  livetv_list[prog].description);
+		mvpw_expose(mythtv_description);
+	} else {
+		mvpw_set_text_str(mythtv_channel, "");
+		mvpw_expose(mythtv_channel);
+		mvpw_set_text_str(mythtv_date, "");
+		mvpw_expose(mythtv_date);
+		mvpw_set_text_str(mythtv_description, "");
+		mvpw_expose(mythtv_description);
+	}
+}
+
 static int
 get_livetv_programs_rec(int id, struct livetv_prog **list, int *n, int *p)
 {
 	cmyth_proginfo_t next_prog, cur;
 	cmyth_recorder_t rec = recorder;
-	const char *title, *subtitle, *channame, *start;
-	int cur_id, i;
+	cmyth_timestamp_t ts;
+	const char *title, *subtitle, *channame, *start_channame, *chansign;
+	const char *description;
+	char start[256], end[256], *ptr;
+	int cur_id, i; 
 	int c = 0;
-	char buf[256];
-
+	struct livetv_proginfo *pi;
+	
 	cur_id = cmyth_recorder_get_recorder_id(recorder);
-
+	
+	
 	printf("Getting program listings for recorder %d [%d]\n", id, cur_id);
 
 	next_prog = cmyth_proginfo_create();
@@ -2029,11 +2109,13 @@ get_livetv_programs_rec(int id, struct livetv_prog **list, int *n, int *p)
 
 	cur = cmyth_proginfo_create();
 	cmyth_proginfo_hold(cur);
+	
 	if (cmyth_recorder_get_program_info(control, rec, cur) < 0) {
 		fprintf(stderr, "get program info failed!\n");
 		return -1;
 	}
-	start = (char *) cmyth_proginfo_channame(cur);
+	
+	start_channame = (char *) cmyth_proginfo_channame(cur);
 
 	do {
 		if (cmyth_recorder_get_next_program_info(control, rec, cur,
@@ -2044,26 +2126,56 @@ get_livetv_programs_rec(int id, struct livetv_prog **list, int *n, int *p)
 
 		title = (char *) cmyth_proginfo_title(next_prog);
 		subtitle = (char *) cmyth_proginfo_subtitle(next_prog);
+		description = (char *) cmyth_proginfo_description(next_prog);
 		channame = (char *) cmyth_proginfo_channame(next_prog);
-
-		snprintf(buf, sizeof(buf), "%s - %s", title, subtitle);
+		chansign = (char *) cmyth_proginfo_chansign(next_prog);
+						
+		ts = cmyth_proginfo_start(next_prog);
+		if (ts != NULL ) {
+			cmyth_timestamp_to_string(start, ts);
+			ts = cmyth_proginfo_end(next_prog);
+			cmyth_timestamp_to_string(end, ts);
+			ptr = strchr(start, 'T');
+			*ptr = '\0';
+			memmove(start, ptr+1, strlen(ptr+1)+1);
+			ptr = strchr(end, 'T');
+			*ptr = '\0';
+			memmove(end, ptr+1, strlen(ptr+1)+1);
+		}
 
 		cur = next_prog;
 
 		for (i=0; i<*p; i++) {
-			if (strcmp((*list)[i].program, buf) == 0) {
+			if ((strcmp((*list)[i].title, title) == 0) &&
+			    (strcmp((*list)[i].subtitle, subtitle) == 0) &&
+			    (strcmp((*list)[i].description, description) == 0) &&
+			    (strcmp((*list)[i].start, start) == 0) &&
+			    (strcmp((*list)[i].end, end) == 0)) {
 				if ((*list)[*p].count == MAX_TUNER)
 					goto next;
-				(*list)[i].chan[(*list)[*p].count] = strdup(channame);
-				(*list)[i].rec_id[(*list)[*p].count++] = id;
+				pi = &((*list)[i].pi[(*list)[*p].count]);
+				pi->chan = strdup(channame);
+				pi->channame = strdup(chansign);
+				pi->rec_id = id;
 				goto next;
 			}
 		}
 
-		(*list)[*p].program = strdup(buf);
+		(*list)[*p].title = strdup(title);
+		(*list)[*p].subtitle = strdup(subtitle);
+		(*list)[*p].description = strdup(description);
+		if (start)
+			(*list)[*p].start = strdup(start);
+		else
+			(*list)[*p].start = NULL;
+		if (end)
+			(*list)[*p].end = strdup(end);
+		else
+			(*list)[*p].end = NULL;
 		(*list)[*p].count = 1;
-		(*list)[*p].rec_id[0] = id;
-		(*list)[*p].chan[0] = strdup(channame);
+		(*list)[*p].pi[0].rec_id = id;
+		(*list)[*p].pi[0].chan = strdup(channame);
+		(*list)[*p].pi[0].channame = strdup(chansign);
 		(*p)++;
 		c++;
 
@@ -2072,15 +2184,10 @@ get_livetv_programs_rec(int id, struct livetv_prog **list, int *n, int *p)
 			*n = *n*2;
 			*list = realloc(*list, sizeof(**list)*(*n));
 		}
-	} while (strcmp(start, channame) != 0);
-
+	} while (strcmp(start_channame, channame) != 0);
 	if (cur_id != id) {
-		if (cmyth_recorder_done_ringbuf(control, rec) != 0) {
-			fprintf(stderr, "done ringbuf failed\n");
-		}
 		cmyth_recorder_release(rec);
 	}
-
 	cmyth_proginfo_release(next_prog);
 
 	printf("Found %d shows on recorder %d\n", c, id);
@@ -2097,9 +2204,15 @@ get_livetv_programs(void)
 
 	if (livetv_list) {
 		for (i=0; i<livetv_count; i++) {
-			free(livetv_list[i].program);
-			for (j=0; j<livetv_list[i].count; j++)
-				free(livetv_list[i].chan[j]);
+			free(livetv_list[i].title);
+			free(livetv_list[i].subtitle);
+			free(livetv_list[i].description);
+			free(livetv_list[i].start);
+			free(livetv_list[i].end);
+			for (j=0; j<livetv_list[i].count; j++) {
+				free(livetv_list[i].pi[j].chan);
+				free(livetv_list[i].pi[j].channame);
+			}
 		}
 		free(livetv_list);
 		livetv_count = 0;
@@ -2120,7 +2233,7 @@ get_livetv_programs(void)
 	mvpw_clear_menu(mythtv_browser);
 
 	item_attr.select = livetv_select_callback;
-	item_attr.hilite = NULL;
+	item_attr.hilite = livetv_hilite_callback;
 
 	p = 0;
 	found = 0;
@@ -2141,14 +2254,14 @@ get_livetv_programs(void)
 	mvpw_set_menu_title(mythtv_browser, buf);
 
 	qsort(list, p, sizeof(*list), livetv_compare);
-	for (j=0; j<p; j++) {
-		snprintf(buf, sizeof(buf), "%s: %s",
-			 list[j].chan[0], list[j].program);
-		mvpw_add_menu_item(mythtv_browser, buf, (void*)j, &item_attr);
-	}
-
 	livetv_list = list;
 	livetv_count = p;
+
+	for (j=0; j<p; j++) {
+		snprintf(buf, sizeof(buf), "%s: %s - %s",
+			 list[j].pi[0].chan, list[j].title, list[j].subtitle);
+		mvpw_add_menu_item(mythtv_browser, buf, (void*)j, &item_attr);
+	}
 
 	return 0;
 }
@@ -2177,6 +2290,10 @@ mythtv_livetv_menu(void)
 		mvpw_show(mythtv_browser);
 		mvpw_focus(mythtv_browser);
 	}
+
+	mvpw_show(mythtv_channel);
+	mvpw_show(mythtv_date);
+	mvpw_show(mythtv_description);
 
 	return failed;
 }

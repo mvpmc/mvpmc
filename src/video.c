@@ -547,6 +547,9 @@ video_callback(mvp_widget_t *widget, char key)
 					mythtv_livetv = 0;
 					running_mythtv = 0;
 				} else {
+					mvpw_show(mythtv_channel);
+					mvpw_show(mythtv_date);
+					mvpw_show(mythtv_description);
 					mvpw_show(mythtv_logo);
 					mvpw_show(mythtv_browser);
 					mvpw_focus(mythtv_browser);

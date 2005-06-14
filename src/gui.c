@@ -1086,6 +1086,9 @@ mythtv_key_callback(mvp_widget_t *widget, char key)
 		if (mythtv_state == MYTHTV_STATE_LIVETV) {
 			printf("return from livetv to myth main menu!\n");
 			mvpw_hide(mythtv_browser);
+			mvpw_hide(mythtv_channel);
+			mvpw_hide(mythtv_date);
+			mvpw_hide(mythtv_description);
 			mvpw_show(mythtv_logo);
 			mvpw_show(mythtv_menu);
 			mvpw_focus(mythtv_menu);
