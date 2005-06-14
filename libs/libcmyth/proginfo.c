@@ -1340,7 +1340,63 @@ cmyth_proginfo_length_sec(cmyth_proginfo_t prog)
 
 	return seconds;
 }
+/*
+ * cmyth_proginfo_start(cmyth_proginfo_t prog)
+ *
+ *
+ * Scope: PUBLIC
+ *
+ * Description
+ *
+ * Retrieves the 'start' timestamp from a program info structure.
+ * This indicates a programmes start time.
+ *
+ * The returned timestamp is returned held.  It should be released
+ * when no longer needed using cmyth_timestamp_release().
+ *
+ * Return Value:
+ *
+ * Success: A non-NULL cmyth_timestamp_t
+ *
+ * Failure: NULL
+ */
+cmyth_timestamp_t
+cmyth_proginfo_start(cmyth_proginfo_t prog)
+{
+	if (!prog) {
+		return NULL;
+	}
+	return cmyth_timestamp_hold(prog->proginfo_start_ts);
+}
 
+
+/*
+ * cmyth_proginfo_rec_end(cmyth_proginfo_t prog)
+ *
+ *
+ * Scope: PUBLIC
+ *
+ * Description
+ *
+ * Retrieves the 'end' timestamp from a program info structure.
+ * This tells when a recording started.
+ *
+ * The returned timestamp is returned held.  It should be released when no longer needed using cmyth_timestamp_release().
+ *
+ * Return Value:
+ *
+ * Success: A non-NULL cmyth_timestamp_t
+ *
+ * Failure: NULL
+ */
+cmyth_timestamp_t
+cmyth_proginfo_end(cmyth_proginfo_t prog)
+{
+	if (!prog) {
+		return NULL;
+	}
+	return cmyth_timestamp_hold(prog->proginfo_end_ts);
+}
 
 /*
  * cmyth_proginfo_rec_start(cmyth_proginfo_t prog)

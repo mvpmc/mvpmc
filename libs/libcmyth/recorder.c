@@ -1100,7 +1100,7 @@ cmyth_recorder_get_next_program_info(cmyth_conn_t control,
         int ret = -ENOSYS;
         char msg[256];
         char title[256], subtitle[256], desc[256], category[256],
-		starttime[256], endtime[256], callsign[256], iconpath[256],
+		callsign[256], iconpath[256],
 		channelname[256], chanid[256], seriesid[256], programid[256];
 	char date[256];
 	struct tm *tm;
@@ -1141,10 +1141,10 @@ cmyth_recorder_get_next_program_info(cmyth_conn_t control,
 				  desc, sizeof(desc), count);
 	count -= cmyth_rcv_string(control, &err,
 				  category, sizeof(category), count);
-	count -= cmyth_rcv_string(control, &err,
-				  starttime, sizeof(starttime), count);
-	count -= cmyth_rcv_string(control, &err,
-				  endtime, sizeof(endtime), count);
+	count -= cmyth_rcv_timestamp(control, &err,
+				  next_prog->proginfo_start_ts, count);
+	count -= cmyth_rcv_timestamp(control, &err,
+				  next_prog->proginfo_end_ts, count);
 	count -= cmyth_rcv_string(control, &err,
 				  callsign, sizeof(callsign), count);
 	count -= cmyth_rcv_string(control, &err,
@@ -1167,7 +1167,10 @@ cmyth_recorder_get_next_program_info(cmyth_conn_t control,
 
 	next_prog->proginfo_title = strdup(title);
 	next_prog->proginfo_subtitle = strdup(subtitle);
+	next_prog->proginfo_description = strdup(desc);
 	next_prog->proginfo_channame = strdup(channelname);
+	next_prog->proginfo_chansign = strdup(callsign);
+	
 	next_prog->proginfo_chanId = atoi(chanid);
 
 	ret = 0;

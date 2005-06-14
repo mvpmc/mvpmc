@@ -151,6 +151,8 @@ extern int cmyth_conn_get_free_recorder_count(cmyth_conn_t conn);
  */
 extern cmyth_recorder_t cmyth_recorder_create(void);
 
+extern cmyth_recorder_t cmyth_recorder_hold(cmyth_recorder_t p);
+
 extern void cmyth_recorder_release(cmyth_recorder_t p);
 
 extern int cmyth_recorder_request_block(cmyth_conn_t control,
@@ -451,6 +453,10 @@ extern int cmyth_proginfo_compare(cmyth_proginfo_t a, cmyth_proginfo_t b);
 extern int cmyth_proginfo_length_sec(cmyth_proginfo_t prog);
 
 extern int cmyth_proginfo_fill(cmyth_conn_t control, cmyth_proginfo_t prog);
+
+extern cmyth_timestamp_t cmyth_proginfo_start(cmyth_proginfo_t prog);
+
+extern cmyth_timestamp_t cmyth_proginfo_end(cmyth_proginfo_t prog);
 /*
  * -----------------------------------------------------------------
  * Program List Operations
