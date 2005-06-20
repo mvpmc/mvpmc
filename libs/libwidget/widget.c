@@ -38,7 +38,6 @@ static volatile int widget_count = 0;
 
 static mvp_widget_t *root;
 
-static volatile int modal_mode = 0;
 static volatile mvp_widget_t *modal_focus = NULL;
 static volatile mvp_widget_t *screensaver_widget = NULL;
 static void (*screensaver_callback)(mvp_widget_t*, int) = NULL;
@@ -137,22 +136,26 @@ raise_widget(mvp_widget_t *widget, mvp_widget_t *top)
 		widget->below = top;
 		widget->above = NULL;
 
-		if (mvpw_visible(widget)) {
-			GrSetFocus(widget->wid);
+		if (top) {
+			top->above = widget;
 		}
+
+		GrSetFocus(widget->wid);
 	}
 }
 
 static void
 lower_widget(mvp_widget_t *widget)
 {
-	if (widget->above)
-		widget->above->below = widget->below;
-	if (widget->below)
-		widget->below->above = widget->above;
+	if (widget && (widget != modal_focus)) {
+		if (widget->above)
+			widget->above->below = widget->below;
+		if (widget->below)
+			widget->below->above = widget->above;
 
-	widget->below = NULL;
-	widget->above = NULL;
+		widget->below = NULL;
+		widget->above = NULL;
+	}
 }
 
 mvp_widget_t*
@@ -225,18 +228,21 @@ mvpw_destroy(mvp_widget_t *widget)
 void
 mvpw_focus(mvp_widget_t *widget)
 {
-	if (mvpw_get_focus() == widget)
+	if ((mvpw_get_focus() == widget) &&
+	    !((widget->type == MVPW_DIALOG) &&
+	      (widget->data.dialog.modal == 1)))
 		return;
 
 	if (widget) {
 		if ((widget->type == MVPW_DIALOG) &&
 		    (widget->data.dialog.modal == 1)) {
-			raise_widget(widget, NULL);
+			raise_widget(widget, (mvp_widget_t*)modal_focus);
 			modal_focus = widget;
 		} else {
 			raise_widget(widget, NULL);
-			if ((widget != screensaver_widget) && (modal_mode))
-				raise_widget((mvp_widget_t*)modal_focus, NULL);
+			if ((widget != screensaver_widget) && (modal_focus)) {
+				raise_widget((mvp_widget_t*)modal_focus, widget);
+			}
 		}
 	}
 }
@@ -246,15 +252,12 @@ mvpw_show(mvp_widget_t *widget)
 {
 	mvp_widget_t *top;
 
-	if (mvpw_visible(widget))
-		return;
-
 	if (widget) {
 		if ((widget->type == MVPW_DIALOG) &&
 		    (widget->data.dialog.modal == 1)) {
 			top = mvpw_get_focus();
-			modal_mode = 1;
 			GrMapWindow(widget->wid);
+			mvpw_focus(widget);
 			raise_widget(widget, top);
 		} else {
 			GrMapWindow(widget->wid);
@@ -268,11 +271,15 @@ mvpw_hide(mvp_widget_t *widget)
 	mvp_widget_t *top;
 
 	if (widget) {
-		if ((widget->type == MVPW_DIALOG) &&
-		    (widget->data.dialog.modal == 1)) {
-			modal_mode = 0;
-			modal_focus = NULL;
+		if (widget == modal_focus) {
+			if ((widget->below->type == MVPW_DIALOG) &&
+			    (widget->below->data.dialog.modal == 1)) {
+				modal_focus = widget->below;
+			} else {
+				modal_focus = NULL;
+			}
 		}
+
 		GrUnmapWindow(widget->wid);
 		if ((top=widget->below))
 			widget->below->above = widget->above;
@@ -280,8 +287,13 @@ mvpw_hide(mvp_widget_t *widget)
 			top = widget->above;
 			widget->above->below = widget->below;
 		}
-		if ((widget->above == NULL) && top)
+
+		if (modal_focus) {
+			GrSetFocus(modal_focus->wid);
+		} else if ((widget->above == NULL) && top) {
 			GrSetFocus(top->wid);
+		}
+
 		widget->below = NULL;
 		widget->above = NULL;
 	}
@@ -738,8 +750,8 @@ void
 mvpw_raise(mvp_widget_t *widget)
 {
 	if (widget) {
-		if (modal_mode) {
-			if ((widget->type == MVPW_DIALOG) ||
+		if (modal_focus) {
+			if ((widget == modal_focus) ||
 			    (widget == screensaver_widget)) {
 				GrRaiseWindow(widget->wid);
 			}
