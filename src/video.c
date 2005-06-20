@@ -1111,8 +1111,13 @@ video_read_start(void *arg)
 #endif
 
 		if (video_reopen) {
-			if (video_functions->open() == 0)
+			if (video_functions->open() == 0) {
 				video_reopen = 0;
+			} else {
+				fprintf(stderr, "video open failed!\n");
+				video_playing = 0;
+				continue;
+			}
 			len = 0;
 			reset = 1;
 			set_aspect = 1;

@@ -149,7 +149,7 @@ sighandler(int sig)
 	 * Allow the child to do any exit processing before killing it.
 	 */
 	kill(child, sig);
-	usleep(5000);
+	usleep(1000*250);
 
 	kill(child, SIGKILL);
 	exit(sig);
@@ -287,9 +287,9 @@ main(int argc, char **argv)
 		switch (c) {
 		case 'a':
 			if (strcmp(optarg, "4:3") == 0) {
-				aspect = 0;
+				aspect = AV_ASPECT_4x3;
 			} else if (strcmp(optarg, "16:9") == 0) {
-				aspect = 1;
+				aspect = AV_ASPECT_16x9;
 			} else {
 				fprintf(stderr, "unknown aspect ratio '%s'\n",
 					optarg);

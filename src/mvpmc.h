@@ -224,8 +224,11 @@ set_osd_callback(int type, void (*callback)(mvp_widget_t*))
 
 	osd_widgets[i].callback = callback;
 
-	if ((! osd_widgets[i].visible) && callback)
+	if (!osd_widgets[i].visible) {
+		mvpw_set_timer(osd_widgets[i].widget, NULL, 1000);
+		mvpw_hide(osd_widgets[i].widget);
 		return 0;
+	}
 
 	mvpw_set_timer(osd_widgets[i].widget, callback, 1000);
 

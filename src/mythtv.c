@@ -76,13 +76,14 @@ static cmyth_proginfo_t pending_prog;
 static char *pathname = NULL;
 static volatile cmyth_recorder_t recorder;
 
+static volatile int current_livetv;
+
 volatile mythtv_state_t mythtv_state = MYTHTV_STATE_MAIN;
 
 static int show_count, episode_count;
 static volatile int list_all = 0;
 
 int running_mythtv = 0;
-int mythtv_live = 0;
 int mythtv_main_menu = 0;
 int mythtv_debug = 0;
 
@@ -117,7 +118,6 @@ static int mythtv_read(char*, int);
 static long long mythtv_seek(long long, int);
 static long long mythtv_size(void);
 static int livetv_open(void);
-static long long livetv_seek(long long, int);
 static long long livetv_size(void);
 
 static volatile int myth_seeking = 0;
@@ -142,7 +142,7 @@ static video_callback_t livetv_functions = {
 	.open      = livetv_open,
 	.read      = mythtv_read,
 	.read_dynb = NULL,
-	.seek      = NULL,
+	.seek      = mythtv_seek,
 	.size      = livetv_size,
 	.notify    = NULL,
 	.key       = NULL,
@@ -292,6 +292,8 @@ mythtv_shutdown(void)
 
 	mythtv_close();
 
+	mvpw_set_bg(root, MVPW_BLACK);
+
 	mvpw_hide(mythtv_browser);
 	mvpw_hide(mythtv_channel);
 	mvpw_hide(mythtv_date);
@@ -308,6 +310,7 @@ mythtv_shutdown(void)
 	mythtv_main_menu = 1;
 	reset_mythtv = 1;
 	close_mythtv = 0;
+	mythtv_state = MYTHTV_STATE_MAIN;
 
 	gui_error("MythTV connection lost!");
 }
@@ -462,6 +465,20 @@ show_select_callback(mvp_widget_t *widget, char *item, void *key)
 void
 mythtv_start_thumbnail(void)
 {
+	if (mythtv_state == MYTHTV_STATE_LIVETV) {
+		printf("trying to start livetv thumbnail...\n");
+		livetv_select_callback(NULL, NULL, (void*)current_livetv);
+
+		if (si.rows == 480)
+			av_move(475, si.rows-60, 4);
+		else
+			av_move(475, si.rows-113, 4);
+
+		printf("thumbnail video mode\n");
+
+		return;
+	}
+
 	if (cmyth_proginfo_compare(hilite_prog, current_prog) != 0) {
 		if (si.rows == 480)
 			av_move(475, si.rows-60, 4);
@@ -1160,16 +1177,25 @@ control_start(void *arg)
 			}
 
 			if ((len < 0) && cmyth_conn_hung(control)) {
+				fprintf(stderr, "%s(): connection hung\n",
+					__FUNCTION__);
 				len = 1;
 				continue;
 			}
 
 			/*
-			 * Require cmyth_file_request_block() fail twice
+			 * Other errors are fatal
 			 */
-			if ((len < 0) && (count++ == 0)) {
-				len = 1;
+			if (len < 0) {
+				break;
+			}
+
+			if ((len == 0) && (count++ < 1)) {
 				continue;
+			}
+
+			if (len == 0) {
+				break;
 			} else {
 				count = 0;
 			}
@@ -1202,6 +1228,13 @@ control_start(void *arg)
 		cmyth_conn_release(c);
 		if (!mythtv_livetv)
 			mythtv_close_file();
+
+		if ((len == -EPIPE) || (len == -ECONNRESET) ||
+		    (len == -EBADF)) {
+			mythtv_shutdown();
+			continue;
+		}
+
 	}
 
 	return NULL;
@@ -1415,6 +1448,7 @@ mythtv_open(void)
 {
 	char *host;
 	int port = 6543;
+	char buf[256];
 
 	if ((host=cmyth_proginfo_host(current_prog)) == NULL) {
 		fprintf(stderr, "unknown myth backend\n");
@@ -1429,8 +1463,7 @@ mythtv_open(void)
 	printf("connecting to mythtv (slave) backend %s\n", host);
 	if ((control_slave=cmyth_conn_connect_ctrl(host, port,
 						   1024)) == NULL) {
-		fprintf(stderr, "cannot connect to mythtv server %s\n",
-			host);
+		mythtv_shutdown();
 		return -1;
 	}
 
@@ -1460,26 +1493,39 @@ mythtv_seek(long long offset, int whence)
 	long long seek_pos = -1, size;
 	cmyth_file_t f = NULL;
 	cmyth_conn_t c = NULL;
+	cmyth_recorder_t r = NULL;
 
-	if ((c=cmyth_conn_hold(control_slave)) == NULL)
-		goto out;
-	if ((f=cmyth_file_hold(file)) == NULL)
-		goto out;
+	if (mythtv_livetv) {
+		if ((c=cmyth_conn_hold(control)) == NULL)
+			goto out;
+		if ((r=cmyth_recorder_hold(recorder)) == NULL)
+			goto out;
+	} else {
+		if ((c=cmyth_conn_hold(control_slave)) == NULL)
+			goto out;
+		if ((f=cmyth_file_hold(file)) == NULL)
+			goto out;
+	}
 
-	seek_pos = cmyth_file_seek(c, f, 0, SEEK_CUR);
+	if (mythtv_livetv)
+		seek_pos = cmyth_ringbuf_seek(c, r, 0, SEEK_CUR);
+	else
+		seek_pos = cmyth_file_seek(c, f, 0, SEEK_CUR);
 	if ((offset == 0) && (whence == SEEK_CUR)) {
 		goto out;
 	}
 
-	size = mythtv_size();
-	if (size < 0) {
-		fprintf(stderr, "seek failed, file size unknown\n");
-		goto out;
-	}
-	if (((size < offset) && (whence == SEEK_SET)) ||
-	    ((size < offset + seek_pos) && (whence == SEEK_CUR))) {
-		fprintf(stderr, "cannot seek past end of file\n");
-		goto out;
+	if (!mythtv_livetv) {
+		size = mythtv_size();
+		if (size < 0) {
+			fprintf(stderr, "seek failed, file size unknown\n");
+			goto out;
+		}
+		if (((size < offset) && (whence == SEEK_SET)) ||
+		    ((size < offset + seek_pos) && (whence == SEEK_CUR))) {
+			fprintf(stderr, "cannot seek past end of file\n");
+			goto out;
+		}
 	}
 
 	pthread_mutex_lock(&seek_mutex);
@@ -1492,10 +1538,18 @@ mythtv_seek(long long offset, int whence)
 		to.tv_sec = 0;
 		to.tv_usec = 10;
 		len = 0;
-		if (cmyth_file_select(f, &to) > 0) {
-			PRINTF("%s(): reading...\n", __FUNCTION__);
-			len = cmyth_file_get_block(f, buf, sizeof(buf));
-			PRINTF("%s(): read returned %d\n", __FUNCTION__, len);
+		if (mythtv_livetv) {
+			if (cmyth_ringbuf_select(r, &to) > 0) {
+				len = cmyth_ringbuf_get_block(r, buf, sizeof(buf));
+			}
+		} else {
+			if (cmyth_file_select(f, &to) > 0) {
+				PRINTF("%s(): reading...\n", __FUNCTION__);
+				len = cmyth_file_get_block(f, buf,
+							   sizeof(buf));
+				PRINTF("%s(): read returned %d\n",
+				       __FUNCTION__, len);
+			}
 		}
 
 		if (len < 0)
@@ -1514,13 +1568,21 @@ mythtv_seek(long long offset, int whence)
 		}
 	}
 
-	seek_pos = cmyth_file_seek(c, f, offset, whence);
+	if (mythtv_livetv)
+		seek_pos = cmyth_ringbuf_seek(c, r, offset, whence);
+	else
+		seek_pos = cmyth_file_seek(c, f, offset, whence);
+
+	PRINTF("%s(): pos %lld\n", __FUNCTION__, seek_pos);
 
 	pthread_mutex_unlock(&myth_mutex);
 	pthread_mutex_unlock(&seek_mutex);
 
  out:
-	cmyth_file_release(c, f);
+	if (mythtv_livetv)
+		cmyth_recorder_release(r);
+	else
+		cmyth_file_release(c, f);
 	cmyth_conn_release(c);
 
 	return seek_pos;
@@ -1640,12 +1702,12 @@ mythtv_size(void)
 }
 
 static int
-mythtv_livetv_start(int tuner)
+mythtv_livetv_start(int *tuner)
 {
 	double rate;
 	char *rb_file;
 	char *msg, buf[256];
-	int c;
+	int c, i, id = 0;
 
 	if (playing_via_mythtv && file)
 		mythtv_stop();
@@ -1683,18 +1745,22 @@ mythtv_livetv_start(int tuner)
 
 	printf("Found %d recorders\n", c);
 
-	if (tuner) {
-		printf("Looking for tuner %d\n", tuner);
-		if ((recorder=cmyth_conn_get_recorder_from_num(control,
-							       tuner)) == NULL) {
-			msg = "Tuner unavailable.";
-			goto err;
+	if (tuner[0]) {
+		for (i=0; i<MAX_TUNER && tuner[i]; i++) {
+			printf("Looking for tuner %d\n", tuner[i]);
+			if ((recorder=cmyth_conn_get_recorder_from_num(control,
+								       tuner[i])) == NULL) {
+				continue;
+			}
+			if(cmyth_recorder_is_recording(control, recorder) == 1) {
+				cmyth_recorder_release(recorder);
+				continue;
+			}
+			id = tuner[i];
+			break;
 		}
-		if(cmyth_recorder_is_recording(control, recorder) == 1) {
-			snprintf(buf, sizeof(buf),
-				 "Failed: tuner %d is busy.", tuner);
-			msg = buf;
-			cmyth_recorder_release(recorder);
+		if (id == 0) {
+			msg = "No tuner available for that show.";
 			goto err;
 		}
 	} else {
@@ -1768,7 +1834,6 @@ mythtv_livetv_start(int tuner)
 	add_osd_widget(mythtv_program_widget, OSD_PROGRAM, 1, NULL);
 	mvpw_hide(mythtv_description);
 	running_mythtv = 1;
-	mythtv_live = 1;
 
 	pthread_mutex_unlock(&myth_mutex);
 
@@ -1802,7 +1867,6 @@ mythtv_livetv_stop(void)
 		reset_mythtv = 1;
 	}
 
-	mythtv_live = 0;
 	mythtv_livetv = 0;
 
 	pthread_mutex_lock(&myth_mutex);
@@ -1919,6 +1983,9 @@ mythtv_atexit(void)
 {
 	printf("%s(): start exit processing...\n", __FUNCTION__);
 
+	pthread_mutex_lock(&seek_mutex);
+	pthread_mutex_lock(&myth_mutex);
+
 	if (mythtv_livetv) {
 		mythtv_livetv_stop();
 		mythtv_livetv = 0;
@@ -1940,21 +2007,20 @@ mythtv_program_runtime(void)
 }
 
 static long long
-livetv_seek(long long offset, int whence)
-{
-	return -1;
-}
-
-static long long
 livetv_size(void)
 {
 	long long seek_pos;
 
+	/*
+	 * XXX: How do we get the program size for live tv?
+	 */
+
 	pthread_mutex_lock(&myth_mutex);
 	seek_pos = cmyth_ringbuf_seek(control, recorder, 0, SEEK_CUR);
+	PRINTF("%s(): pos %lld\n", __FUNCTION__, seek_pos);
 	pthread_mutex_unlock(&myth_mutex);
 
-	return seek_pos;
+	return (seek_pos+(1024*1024*500));
 }
 
 static int
@@ -1976,7 +2042,7 @@ livetv_select_callback(mvp_widget_t *widget, char *item, void *key)
 	char *channame = NULL;
 	int i, prog = (int)key;
 	int id = -1;
-	int tuner_change = 1, tuner = 0;
+	int tuner_change = 1, tuner[MAX_TUNER] = { 0 };
 	struct livetv_proginfo *pi;
 
 	if (mythtv_livetv) {
@@ -1991,15 +2057,18 @@ livetv_select_callback(mvp_widget_t *widget, char *item, void *key)
 		}
 	} else {
 		channame = strdup(livetv_list[prog].pi[0].chan);
-		tuner = livetv_list[prog].pi[0].rec_id;
+		for (i=0; i<livetv_list[prog].count; i++)
+			tuner[i] = livetv_list[prog].pi[i].rec_id;
 		tuner_change = 0;
-		printf("enable livetv tuner %d chan '%s'\n", tuner, channame);
+		printf("enable livetv tuner %d chan '%s'\n",
+		       tuner[0], channame);
 	}
 
 	if (tuner_change && (id != -1)) {
-		tuner = livetv_list[prog].pi[0].rec_id;
+		for (i=0; i<livetv_list[prog].count; i++)
+			tuner[i] = livetv_list[prog].pi[i].rec_id;
 		channame = strdup(livetv_list[prog].pi[0].chan);
-		printf("switch from tuner %d to %d\n", id, tuner);
+		printf("switch from tuner %d to %d\n", id, tuner[0]);
 		mythtv_livetv_stop();
 	}
 
@@ -2012,8 +2081,9 @@ livetv_select_callback(mvp_widget_t *widget, char *item, void *key)
 			return;
 	}
 
-	printf("%s(): change channel '%s' '%s'\n",
-	       __FUNCTION__, channame, item);
+	if (item)
+		printf("%s(): change channel '%s' '%s'\n",
+		       __FUNCTION__, channame, item);
 
 	changing_channel = 1;
 
@@ -2039,7 +2109,8 @@ livetv_select_callback(mvp_widget_t *widget, char *item, void *key)
 	av_play();
 	video_play(root);
 
-	mythtv_fullscreen();
+	if (widget)
+		mythtv_fullscreen();
 
  err:
 	pthread_mutex_unlock(&myth_mutex);
@@ -2057,6 +2128,7 @@ livetv_hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 	char buf[256];
 
 	if (hilite) {
+		current_livetv = prog;
 		snprintf(buf, sizeof(buf), "%s %s",
 			 livetv_list[prog].pi[0].chan,
 			 livetv_list[prog].pi[0].channame);
