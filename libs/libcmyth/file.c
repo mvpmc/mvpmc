@@ -170,10 +170,16 @@ cmyth_file_release(cmyth_conn_t control, cmyth_file_t file)
 		goto fail;
 	}
 
-	count = cmyth_rcv_length(control);
-	if ((r=cmyth_rcv_long(control, &err, &c, count)) < 0) {
+	if ((count=cmyth_rcv_length(control)) < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_rcv_length() failed (%d)\n",
+			  __FUNCTION__, count);
+		err = count;
+		goto fail;
+	}
+	if ((r=cmyth_rcv_long(control, &err, &c, count)) < 0) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_rcv_long() failed (%d)\n",
 			  __FUNCTION__, r);
 		goto fail;
 	}
@@ -380,10 +386,16 @@ cmyth_file_request_block(cmyth_conn_t control, cmyth_file_t file,
 		goto out;
 	}
 
-	count = cmyth_rcv_length(control);
-	if ((r=cmyth_rcv_long(control, &err, &c, count)) < 0) {
+	if ((count=cmyth_rcv_length(control)) < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_rcv_length() failed (%d)\n",
+			  __FUNCTION__, count);
+		ret = count;
+		goto out;
+	}
+	if ((r=cmyth_rcv_long(control, &err, &c, count)) < 0) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_rcv_long() failed (%d)\n",
 			  __FUNCTION__, r);
 		ret = err;
 		goto out;
@@ -456,10 +468,16 @@ cmyth_file_seek(cmyth_conn_t control, cmyth_file_t file, long long offset,
 		goto out;
 	}
 
-	count = cmyth_rcv_length(control);
-	if ((r=cmyth_rcv_long_long(control, &err, &c, count)) < 0) {
+	if ((count=cmyth_rcv_length(control)) < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_rcv_length() failed (%d)\n",
+			  __FUNCTION__, count);
+		ret = count;
+		goto out;
+	}
+	if ((r=cmyth_rcv_long_long(control, &err, &c, count)) < 0) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_rcv_long_long() failed (%d)\n",
 			  __FUNCTION__, r);
 		ret = err;
 		goto out;
