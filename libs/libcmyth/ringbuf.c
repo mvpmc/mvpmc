@@ -449,8 +449,8 @@ cmyth_ringbuf_seek(cmyth_conn_t control, cmyth_recorder_t rec,
 	pthread_mutex_lock(&mutex);
 
 	snprintf(msg, sizeof(msg),
-		 "QUERY_RECORDER %ld[]:[]SEEK_RINGBUF[]:[]%ld[]:[]%ld[]:[]%d[]:[]%ld[]:[]%ld",
-		 ring->file_id,
+		 "QUERY_RECORDER %u[]:[]SEEK_RINGBUF[]:[]%ld[]:[]%ld[]:[]%d[]:[]%ld[]:[]%ld",
+		 rec->rec_id,
 		 (long)(offset >> 32),
 		 (long)(offset & 0xffffffff),
 		 whence,
