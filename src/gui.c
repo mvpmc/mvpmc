@@ -1815,6 +1815,7 @@ myth_menu_select_callback(mvp_widget_t *widget, char *item, void *key)
 	switch (which) {
 	case 0:
 		busy_start();
+		mythtv_state = MYTHTV_STATE_PROGRAMS;
 		if (mythtv_update(mythtv_browser) == 0) {
 			mvpw_show(mythtv_browser);
 
@@ -1822,12 +1823,14 @@ myth_menu_select_callback(mvp_widget_t *widget, char *item, void *key)
 			mvpw_focus(mythtv_browser);
 
 			mythtv_main_menu = 0;
-			mythtv_state = MYTHTV_STATE_PROGRAMS;
+		} else {
+			mythtv_state = MYTHTV_STATE_MAIN;
 		}
 		busy_end();
 		break;
 	case 1:
 		busy_start();
+		mythtv_state = MYTHTV_STATE_PENDING;
 		if (mythtv_pending(mythtv_browser) == 0) {
 			mvpw_show(mythtv_browser);
 
@@ -1835,18 +1838,21 @@ myth_menu_select_callback(mvp_widget_t *widget, char *item, void *key)
 			mvpw_focus(mythtv_browser);
 
 			mythtv_main_menu = 0;
-			mythtv_state = MYTHTV_STATE_PENDING;
+		} else {
+			mythtv_state = MYTHTV_STATE_MAIN;
 		}
 		busy_end();
 		break;
 	case 2:
 		busy_start();
+		mythtv_state = MYTHTV_STATE_LIVETV;
 		if (mythtv_livetv_menu() == 0) {
 			running_mythtv = 1;
 			mvpw_hide(mythtv_menu);
 
 			mythtv_main_menu = 0;
-			mythtv_state = MYTHTV_STATE_LIVETV;
+		} else {
+			mythtv_state = MYTHTV_STATE_MAIN;
 		}
 		busy_end();
 		break;

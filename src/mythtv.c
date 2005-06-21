@@ -522,6 +522,7 @@ load_episodes(void)
 
 	if ((err=cmyth_proglist_get_all_recorded(control, episode_plist)) < 0) {
 		fprintf(stderr, "get recorded failed, err %d\n", err);
+		mythtv_shutdown();
 		goto err;
 	}
 
@@ -766,9 +767,11 @@ mythtv_update(mvp_widget_t *widget)
 	mvpw_hide(mythtv_date);
 	mvpw_hide(mythtv_description);
 
-	mvpw_show(shows_widget);
-	mvpw_show(episodes_widget);
-	mvpw_show(freespace_widget);
+	if (mythtv_state != MYTHTV_STATE_MAIN) {
+		mvpw_show(shows_widget);
+		mvpw_show(episodes_widget);
+		mvpw_show(freespace_widget);
+	}
 
 	return 0;
 }
@@ -917,6 +920,7 @@ mythtv_pending(mvp_widget_t *widget)
 
 	if ((err=cmyth_proglist_get_all_pending(control, pending_plist)) < 0) {
 		fprintf(stderr, "get pending failed, err %d\n", err);
+		mythtv_shutdown();
 		ret = -1;
 		goto out;
 	}
@@ -1706,7 +1710,7 @@ mythtv_livetv_start(int *tuner)
 {
 	double rate;
 	char *rb_file;
-	char *msg, buf[256];
+	char *msg = NULL, buf[256];
 	int c, i, id = 0;
 
 	if (playing_via_mythtv && file)
@@ -1739,7 +1743,7 @@ mythtv_livetv_start(int *tuner)
 	}
 
 	if ((c=cmyth_conn_get_free_recorder_count(control)) < 0) {
-		msg = "No free recorders available.";
+		mythtv_shutdown();
 		goto err;
 	}
 
@@ -1843,7 +1847,8 @@ mythtv_livetv_start(int *tuner)
 	pthread_mutex_unlock(&myth_mutex);
 
 	mythtv_livetv = 0;
-	gui_error(msg);
+	if (msg)
+		gui_error(msg);
 
 	return -1;
 }
@@ -2299,7 +2304,8 @@ get_livetv_programs(void)
 
 	if ((c=cmyth_conn_get_free_recorder_count(control)) < 0) {
 		fprintf(stderr, "unable to get free recorder\n");
-		return -1;
+		mythtv_shutdown();
+		return -2;
 	}
 
 	mvpw_clear_menu(mythtv_browser);
@@ -2342,6 +2348,7 @@ int
 mythtv_livetv_menu(void)
 {
 	int failed = 0;
+	int err;
 
 	if (mythtv_verify() < 0)
 		return -1;
@@ -2349,9 +2356,10 @@ mythtv_livetv_menu(void)
 	printf("Displaying livetv programs\n");
 
 	pthread_mutex_lock(&myth_mutex);
-	if (get_livetv_programs() < 0) {
+	if ((err=get_livetv_programs()) < 0) {
 		if (!mythtv_livetv) {
-			gui_error("No tuners available for Live TV.");
+			if (err == -1)
+				gui_error("No tuners available for Live TV.");
 			failed = 1;
 		}
 	}
@@ -2361,11 +2369,11 @@ mythtv_livetv_menu(void)
 		mvpw_show(mythtv_logo);
 		mvpw_show(mythtv_browser);
 		mvpw_focus(mythtv_browser);
-	}
 
-	mvpw_show(mythtv_channel);
-	mvpw_show(mythtv_date);
-	mvpw_show(mythtv_description);
+		mvpw_show(mythtv_channel);
+		mvpw_show(mythtv_date);
+		mvpw_show(mythtv_description);
+	}
 
 	return failed;
 }
