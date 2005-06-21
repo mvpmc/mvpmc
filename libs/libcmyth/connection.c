@@ -951,10 +951,16 @@ cmyth_conn_get_free_recorder_count(cmyth_conn_t conn)
 		goto err;
 	}
 
-	count = cmyth_rcv_length(conn);
-	if ((r=cmyth_rcv_long(conn, &err, &c, count)) < 0) {
+	if ((count=cmyth_rcv_length(conn)) < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_rcv_length() failed (%d)\n",
+			  __FUNCTION__, count);
+		ret = count;
+		goto err;
+	}
+	if ((r=cmyth_rcv_long(conn, &err, &c, count)) < 0) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_rcv_long() failed (%d)\n",
 			  __FUNCTION__, r);
 		ret = err;
 		goto err;
