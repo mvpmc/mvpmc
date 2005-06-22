@@ -633,11 +633,11 @@ video_callback(mvp_widget_t *widget, char key)
 		break;
 	case MVPW_KEY_LEFT:
 		if (video_functions->seek) {
+			size = video_functions->size();
 			jump_target = -1;
 			jumping = 1;
 			pthread_kill(video_write_thread, SIGURG);
 			pthread_kill(audio_write_thread, SIGURG);
-			size = video_functions->size();
 			offset = video_functions->seek(0, SEEK_CUR);
 			jump_target = ((-size / 100.0) + offset);
 			pthread_cond_broadcast(&video_cond);
@@ -645,11 +645,11 @@ video_callback(mvp_widget_t *widget, char key)
 		break;
 	case MVPW_KEY_RIGHT:
 		if (video_functions->seek) {
+			size = video_functions->size();
 			jump_target = -1;
 			jumping = 1;
 			pthread_kill(video_write_thread, SIGURG);
 			pthread_kill(audio_write_thread, SIGURG);
-			size = video_functions->size();
 			offset = video_functions->seek(0, SEEK_CUR);
 			jump_target = ((size / 100.0) + offset);
 			pthread_cond_broadcast(&video_cond);
@@ -657,12 +657,12 @@ video_callback(mvp_widget_t *widget, char key)
 		}
 		break;
 	case MVPW_KEY_ZERO ... MVPW_KEY_NINE:
+		size = video_functions->size();
 		jump_target = -1;
 		jumping = 1;
 		pthread_kill(video_write_thread, SIGURG);
 		pthread_kill(audio_write_thread, SIGURG);
 		jump = key;
-		size = video_functions->size();
 		jump_target = size * (jump / 10.0);
 		pthread_cond_broadcast(&video_cond);
 		timed_osd(seek_osd_timeout*1000);

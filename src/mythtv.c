@@ -31,6 +31,7 @@
 #include <string.h>
 #include <pthread.h>
 #include <errno.h>
+#include <signal.h>
 
 #include <mvp_widget.h>
 #include <mvp_av.h>
@@ -90,6 +91,7 @@ int mythtv_debug = 0;
 static volatile int playing_via_mythtv = 0, reset_mythtv = 1;
 static volatile int close_mythtv = 0;
 static volatile int changing_channel = 0;
+static volatile int video_reading = 0;
 
 static pthread_t control_thread, wd_thread;
 
@@ -337,6 +339,8 @@ mythtv_close_file(void)
 	}
 
 	close_mythtv = 0;
+
+	pthread_kill(control_thread, SIGURG);
 }
 
 static void
@@ -448,7 +452,14 @@ show_select_callback(mvp_widget_t *widget, char *item, void *key)
 				video_functions = &file_functions;
 			else
 				video_functions = &mythtv_functions;
+		} else {
+			pthread_mutex_lock(&myth_mutex);
+			mythtv_close_file();
+			pthread_mutex_unlock(&myth_mutex);
 		}
+
+		while (video_reading)
+			;
 
 		if (current_prog)
 			cmyth_proginfo_release(current_prog);
@@ -486,6 +497,13 @@ mythtv_start_thumbnail(void)
 			av_move(475, si.rows-113, 4);
 
 		printf("thumbnail video mode\n");
+
+		pthread_mutex_lock(&myth_mutex);
+		mythtv_close_file();
+		pthread_mutex_unlock(&myth_mutex);
+
+		while (video_reading)
+			;
 
 		if (current_prog)
 			cmyth_proginfo_release(current_prog);
@@ -1089,6 +1107,16 @@ wd_start(void *arg)
 	return NULL;
 }
 
+static void
+sighandler(int sig)
+{
+	/*
+	 * The signal handler is here simply to allow the threads reading from
+	 * the mythbackend socket to be interrupted, and break out of the
+	 * system call they are in.
+	 */
+}
+
 static void*
 control_start(void *arg)
 {
@@ -1098,6 +1126,7 @@ control_start(void *arg)
 	pid_t pid;
 
 	pid = getpid();
+	signal(SIGURG, sighandler);
 
 	while (1) {
 		int count = 0;
@@ -1130,6 +1159,7 @@ control_start(void *arg)
 
 		audio_selected = 0;
 		audio_checks = 0;
+		video_reading = 1;
 
 		do {
 			if (seeking || jumping) {
@@ -1222,6 +1252,8 @@ control_start(void *arg)
 			 (playing_via_mythtv == 1) && (!close_mythtv));
 
 	end:
+		video_reading = 0;
+
 		printf("%s(): len %d playing_via_mythtv %d close_mythtv %d\n",
 		       __FUNCTION__, len, playing_via_mythtv, close_mythtv);
 
