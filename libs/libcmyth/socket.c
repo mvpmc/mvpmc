@@ -161,14 +161,14 @@ cmyth_rcv_length(cmyth_conn_t conn)
 		tv.tv_usec = 0;
 		FD_ZERO(&fds);
 		FD_SET(conn->conn_fd, &fds);
-		if (select(conn->conn_fd+1, &fds, NULL, NULL, &tv) == 0) {
+		if ((r=select(conn->conn_fd+1, &fds, NULL, NULL, &tv)) == 0) {
 			conn->conn_hang = 1;
 			continue;
-		} else {
+		} else if (r > 0) {
 			conn->conn_hang = 0;
+			r = read(conn->conn_fd, &buf[rtot], 8 - rtot);
 		}
-		r = read(conn->conn_fd, &buf[rtot], 8 - rtot);
-		if (r < 0) {
+		if (r <= 0) {
 			cmyth_dbg(CMYTH_DBG_ERROR, "%s: read() failed (%d)\n",
 					  __FUNCTION__, errno);
 			return -errno;
