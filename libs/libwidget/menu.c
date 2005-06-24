@@ -633,3 +633,56 @@ mvpw_menu_hilite_item(mvp_widget_t *widget, void *key)
 
 	return ret;
 }
+
+int
+mvpw_menu_get_item_attr(mvp_widget_t *widget, void *key,
+			mvpw_menu_item_attr_t *item_attr)
+{
+	int i;
+
+	if ((widget == NULL) || (item_attr == NULL))
+		return -1;
+
+	for (i=0; i<widget->data.menu.nitems; i++) {
+		if (key == widget->data.menu.items[i].key) {
+			item_attr->select = widget->data.menu.items[i].select;
+			item_attr->hilite = widget->data.menu.items[i].hilite;
+			item_attr->destroy = widget->data.menu.items[i].destroy;
+			item_attr->selectable = widget->data.menu.items[i].selectable;
+			item_attr->fg = widget->data.menu.items[i].fg;
+			item_attr->bg = widget->data.menu.items[i].bg;
+			item_attr->checkbox_fg = widget->data.menu.items[i].checkbox_fg;
+			return 0;
+		}
+	}
+
+	return -1;
+}
+
+int
+mvpw_menu_set_item_attr(mvp_widget_t *widget, void *key,
+			mvpw_menu_item_attr_t *item_attr)
+{
+	int i;
+
+	if ((widget == NULL) || (item_attr == NULL))
+		return -1;
+
+	for (i=0; i<widget->data.menu.nitems; i++) {
+		if (key == widget->data.menu.items[i].key) {
+			widget->data.menu.items[i].select = item_attr->select;
+			widget->data.menu.items[i].hilite = item_attr->hilite;
+			widget->data.menu.items[i].destroy =
+				item_attr->destroy;
+			widget->data.menu.items[i].selectable =
+				item_attr->selectable;
+			widget->data.menu.items[i].fg = item_attr->fg;
+			widget->data.menu.items[i].bg = item_attr->bg;
+			widget->data.menu.items[i].checkbox_fg =
+				item_attr->checkbox_fg;
+			return 0;
+		}
+	}
+
+	return -1;
+}

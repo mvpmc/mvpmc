@@ -158,6 +158,10 @@ extern void mvpw_clear_menu(mvp_widget_t *widget);
 extern int mvpw_delete_menu_item(mvp_widget_t *widget, void *key);
 extern void mvpw_check_menu_item(mvp_widget_t *widget, void *key, int checked);
 extern int mvpw_menu_hilite_item(mvp_widget_t *widget, void *key);
+extern int mvpw_menu_get_item_attr(mvp_widget_t *widget, void *key,
+				   mvpw_menu_item_attr_t *item_attr);
+extern int mvpw_menu_set_item_attr(mvp_widget_t *widget, void *key,
+				   mvpw_menu_item_attr_t *item_attr);
 
 /*
  * image widget
