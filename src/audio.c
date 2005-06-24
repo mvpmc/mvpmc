@@ -265,6 +265,8 @@ ogg_play(int afd)
 	audio_clear();
 	if(playlist)
 		playlist_next();
+	else
+		fd = -2;
 }
 
 /******************************************
@@ -557,6 +559,11 @@ audio_idle(void)
 {
 	int reset = 0;
 
+	if (fd == -2) {
+		mvpw_set_idle(NULL);
+		return;
+	}
+
 	if (fd == -1) {
 		if ((fd=open(current, O_RDONLY|O_LARGEFILE|O_NDELAY)) < 0)
 			return;
@@ -609,7 +616,7 @@ audio_idle(void)
 
  fail:
 	close(fd);
-	fd = -1;
+	fd = -2;
 }
 
 void
@@ -629,7 +636,6 @@ audio_clear(void)
 
 	if (oggfile != NULL) {
 		ov_clear(&vf);
-		fclose(oggfile);
 		oggfile = NULL;
 	}
 }
