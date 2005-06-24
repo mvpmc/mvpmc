@@ -2149,6 +2149,21 @@ livetv_select_callback(mvp_widget_t *widget, char *item, void *key)
 	if (widget)
 		mythtv_fullscreen();
 
+	/*
+	 * XXX: This needs to be themed
+	 */
+	i = 0;
+	while (mvpw_menu_set_item_attr(mythtv_browser, i, &item_attr) == 0) {
+		i++;
+	}
+	if (mvpw_menu_get_item_attr(mythtv_browser, key, &item_attr) == 0) {
+		uint32_t old_fg = item_attr.fg;
+		item_attr.fg = MVPW_GREEN;
+		mvpw_menu_set_item_attr(mythtv_browser, key, &item_attr);
+		item_attr.fg = old_fg;
+	}
+	mvpw_menu_hilite_item(mythtv_browser, key);
+
  err:
 	pthread_mutex_unlock(&myth_mutex);
 	busy_end();
