@@ -32,6 +32,9 @@
 
 #include "mvpmc.h"
 
+#include <id3.h>
+#include "display.h"
+
 static mvpw_menu_item_attr_t item_attr = {
 	.selectable = 1,
 	.fg = MVPW_BLACK,
@@ -328,6 +331,11 @@ static void playlist_change(playlist_t *next)
 
     if (playlist) {
       mvpw_menu_hilite_item(playlist_widget, playlist->key);
+
+      /*
+       * Send hilited m3u file name to display.
+       */
+      snprintf(display_message,DISPLAY_MESG_SIZE,"File:%s \n", playlist->filename);
     }
     free(current);
     current=NULL;
@@ -337,6 +345,53 @@ static void playlist_change(playlist_t *next)
   }
   printf("playlist: play item '%s', file '%s'\n",
 	 playlist->name, playlist->filename);
+
+  /*
+   * Find ID3 tag information for the selected
+   * MP3 file.
+   */
+  {
+    int rc = 0;
+
+    ID3 *info= create_ID3(NULL);
+
+    if (!(info = create_ID3(info))) 
+      {
+	printf("Create Failed\n");
+      }
+
+    if ((rc = parse_file_ID3(info, playlist->filename))) 
+      {
+	printf("File: %s\n", playlist->filename);
+	printf("MP3 ID3 Failed with code %d\n", rc);
+      } else {
+	if (info->mask & TITLE_TAG )
+	  printf("Title %s \n", info->title);
+	if (info->mask & ARTIST_TAG )
+	  printf("Artist %s \n", info->artist);
+	if (info->mask & ALBUM_TAG )
+	  printf("Album %s \n", info->album);
+	if (info->mask & YEAR_TAG )
+	  printf("Year %s \n", info->year);
+	if (info->mask & COMMENT_TAG )
+	  printf("Comment %s \n", info->comment);
+	if (info->mask & TRACK_TAG )
+	  printf("Track %s\n", info->track);
+	if (info->mask & GENRE_TAG )
+	  printf("Genre %s \n", info->genre);
+	printf("Version %s \n", info->version);
+      }
+
+    snprintf(display_message,DISPLAY_MESG_SIZE,"\nTitle:%s \nArtist:%s \nAlbum:%s \n", info->title, info->artist, info->album);
+
+    display_send(display_message);
+
+    if (destroy_ID3(info)) 
+      {
+	printf("Destroy Failed\n");
+      }
+  }
+
   current = strdup(playlist->filename);
   if (is_video(current)) {
 	mvpw_set_timer(root, video_play, 50);

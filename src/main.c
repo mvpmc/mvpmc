@@ -43,6 +43,8 @@
 #include "a52dec/a52.h"
 #include "a52dec/mm_accel.h"
 
+#include "display.h"
+
 char *mythtv_server = NULL;
 char *replaytv_server = NULL;
 
@@ -126,6 +128,7 @@ print_help(char *prog)
 
 	printf("\t-a aspect \taspect ratio (4:3 or 16:9)\n");
 	printf("\t-b path   \tpath to NFS mounted mythtv ringbuf directory\n");
+	printf("\t-d type   \ttype of local display (disable (default), IEE16x1, or IEE40x2)\n");
 	printf("\t-f font   \tfont file\n");
 	printf("\t-h        \tprint this help\n");
 	printf("\t-i dir    \tmvpmc image directory\n");
@@ -283,7 +286,7 @@ main(int argc, char **argv)
 
 	tzset();
 
-	while ((c=getopt(argc, argv, "a:b:f:hi:m:Mo:r:R:s:S:t:")) != -1) {
+	while ((c=getopt(argc, argv, "a:b:d:f:hi:m:Mo:r:R:s:S:t:")) != -1) {
 		switch (c) {
 		case 'a':
 			if (strcmp(optarg, "4:3") == 0) {
@@ -299,6 +302,20 @@ main(int argc, char **argv)
 			break;
 		case 'b':
 			mythtv_ringbuf = strdup(optarg);
+			break;
+		case 'd':
+			if (strcmp(optarg, "disable") == 0) {
+				display_type = DISPLAY_DISABLE;
+			} else if (strcmp(optarg, "IEE16x1") == 0) {
+				display_type = DISPLAY_IEE16X1;
+			} else if (strcmp(optarg, "IEE40x2") == 0) {
+				display_type = DISPLAY_IEE40X2;
+				fprintf(stderr, "The IEE40x2 local display is not fully supported yet! \n");
+			} else {
+				fprintf(stderr, "The local display type (%s) is not recognized!\n",optarg);
+				print_help(argv[0]);
+				exit(1);
+			}
 			break;
 		case 'h':
 			print_help(argv[0]);
@@ -502,6 +519,11 @@ main(int argc, char **argv)
 
 	if (gui_init(mythtv_server, replaytv_server) < 0) {
 		fprintf(stderr, "failed to initialize gui!\n");
+		exit(1);
+	}
+
+	if ((display_type != DISPLAY_DISABLE) && (display_init() < 0)) {
+		fprintf(stderr, "failed to initialize display driver!\n");
 		exit(1);
 	}
 

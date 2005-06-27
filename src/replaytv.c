@@ -46,6 +46,8 @@
 #include "mvpmc.h"
 #include "replaytv.h"
 
+#include "display.h"
+
 //+********************************************************************************************
 //
 // For hauppauge remote to character mappings see:
@@ -1253,6 +1255,13 @@ static void rtv_guide_hilite_callback(mvp_widget_t *widget, char *item, void *ke
       rtv_video_state.show_p = show;  //update the show pointer in the global struct.
 
       mvpw_get_widget_info(rtv_episode_description, &winfo);      
+
+      /*
+       * Send ReplayTV hilited title to display.
+       */
+      snprintf(display_message, sizeof(display_message), "File:%s\n", show->title);
+      display_send(display_message);
+
       mvpw_set_text_str(rtv_episode_line[0], show->title);
 
       // For real replay's use the mpg file creation time for the start time.
@@ -1445,6 +1454,12 @@ static void rtv_device_hilite_callback(mvp_widget_t *widget, char *item, void *k
          volinfo = malloc(sizeof(rtv_fs_volume_t));
          memset(volinfo, 0, sizeof(rtv_fs_volume_t)); 
       }
+
+      /*
+       * Send ReplayTV hilited device name to display.
+       */
+      snprintf(display_message, sizeof(display_message), "File:%s\n", rtv->device.name);
+      display_send(display_message);
 
       sprintf(strp, "Name:  %s", rtv->device.name);
       mvpw_set_text_str(rtv_device_descr.name, strp);

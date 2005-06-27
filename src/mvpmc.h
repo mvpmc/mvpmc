@@ -161,6 +161,7 @@ extern int mythtv_init(char*, int);
 extern void mythtv_atexit(void);
 extern int gui_init(char*, char*);
 extern int mw_init(char *server, char *replaytv);
+extern int display_init(void);
 
 extern void audio_clear(void);
 extern void video_clear(void);
@@ -189,6 +190,7 @@ extern void add_video_streams(mvp_widget_t*, mvpw_menu_item_attr_t*);
 extern void *video_read_start(void*);
 extern void *video_write_start(void*);
 extern void *audio_write_start(void*);
+extern void *display_thread(void*);
 
 extern void replaytv_back_to_mvp_main_menu(void);
 

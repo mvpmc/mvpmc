@@ -35,6 +35,7 @@
 #include <mvp_demux.h>
 
 #include "mvpmc.h"
+#include "display.h"
 
 static mvpw_menu_item_attr_t item_attr = {
 	.selectable = 1,
@@ -199,6 +200,13 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 
 		mvpw_set_text_str(fb_name, item);
 
+		/*
+		 * This code sends the currently playing file name to the display.
+		 */
+		snprintf(display_message, sizeof(display_message),
+			 "File:%s\n", item);
+		display_send(display_message);
+
 		audio_clear();
 		video_clear();
 
@@ -264,6 +272,13 @@ hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 		if (current_hilite)
 			free(current_hilite);
 		current_hilite = strdup(item);
+
+		/*
+		 * Send the currently hilighted text to the display.
+		 */
+		snprintf(display_message, sizeof(display_message),
+			 "File:%s\n", current_hilite);
+		display_send(display_message);
 	}
 }
 

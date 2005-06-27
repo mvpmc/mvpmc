@@ -39,6 +39,8 @@
 #include "replaytv.h"
 #include "colorlist.h"
 
+#include "display.h"
+
 volatile int running_replaytv = 0;
 volatile int mythtv_livetv = 0;
 
@@ -2102,24 +2104,45 @@ main_hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 		switch (k) {
 		case MM_SETTINGS:
 			mvpw_show(setup_image);
+			snprintf(display_message, sizeof(display_message),
+				 "File:%s\n", "Settings");
+			display_send(display_message);
 			break;
 		case MM_THEMES:
 			mvpw_show(setup_image);
+			snprintf(display_message, sizeof(display_message),
+				  "File:%s\n", "Themes");
+			display_send(display_message);
 			break;
 		case MM_FILESYSTEM:
 			mvpw_show(fb_image);
+			snprintf(display_message, sizeof(display_message),
+				  "File:%s\n", "File System");
+			display_send(display_message);
 			break;
 		case MM_MYTHTV:
 			mvpw_show(mythtv_image);
+			snprintf(display_message, sizeof(display_message),
+				  "File:%s\n", "MythTV");
+			display_send(display_message);
 			break;
 		case MM_REPLAYTV:
 			mvpw_show(replaytv_image);
+			snprintf(display_message, sizeof(display_message),
+				  "File:%s\n", "ReplayTV");
+			display_send(display_message);
 			break;
 		case MM_ABOUT:
 			mvpw_show(about_image);
+			snprintf(display_message, sizeof(display_message),
+				  "File:%s\n", "About");
+			display_send(display_message);
 			break;
 		case MM_EXIT:
 			mvpw_show(exit_image);
+			snprintf(display_message, sizeof(display_message),
+				  "File:%s\n", "Exit");
+			display_send(display_message);
 			break;
 		}
 	} else {
