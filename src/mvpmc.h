@@ -330,4 +330,14 @@ extern theme_t theme_list[];
 
 #define DEFAULT_FONT	"/etc/helvR10.fnt"
 
+typedef struct {
+	uint32_t livetv_current;
+	uint32_t pending_will_record;
+	uint32_t pending_conflict;
+	uint32_t pending_recording;
+	uint32_t pending_other;
+} mythtv_color_t;
+
+extern mythtv_color_t mythtv_colors;
+
 #endif /* MVPMC_H */

@@ -150,6 +150,14 @@ static video_callback_t livetv_functions = {
 	.key       = NULL,
 };
 
+mythtv_color_t mythtv_colors = {
+	.livetv_current		= MVPW_GREEN,
+	.pending_recording	= 0xff4fa5ff,
+	.pending_will_record	= MVPW_GREEN,
+	.pending_conflict	= MVPW_YELLOW,
+	.pending_other		= MVPW_LIGHTGREY,
+};
+
 static int
 string_compare(const void *a, const void *b)
 {
@@ -1004,56 +1012,50 @@ mythtv_pending(mvp_widget_t *widget)
 
 		switch (status) {
 		case RS_RECORDING:
-			item_attr.fg = mvpw_rgba(255,165,79,255);
+			item_attr.fg = mythtv_colors.pending_recording;
 			type = '1';
 			break;
 		case RS_WILL_RECORD:
-			item_attr.fg = MVPW_GREEN;
+			item_attr.fg = mythtv_colors.pending_will_record;
 			type = '1';
 			break;
 		case RS_CONFLICT:
-			item_attr.fg = MVPW_YELLOW;
+			item_attr.fg = mythtv_colors.pending_conflict;
 			type = 'C';
 			break;
 		case RS_DONT_RECORD:
-			item_attr.fg = MVPW_LIGHTGREY;
+			item_attr.fg = mythtv_colors.pending_other;
 			type = 'X';
 			break;
 		case RS_TOO_MANY_RECORDINGS:
-			item_attr.fg = MVPW_LIGHTGREY;
+			item_attr.fg = mythtv_colors.pending_other;
 			type = 'T';
 			break;
 		case RS_PREVIOUS_RECORDING:
-			item_attr.fg = MVPW_LIGHTGREY;
+			item_attr.fg = mythtv_colors.pending_other;
 			type = 'P';
 			break;
 		case RS_LATER_SHOWING:
-			item_attr.fg = MVPW_LIGHTGREY;
+			item_attr.fg = mythtv_colors.pending_other;
 			type = 'L';
 			break;
 		case RS_EARLIER_RECORDING:
-			item_attr.fg = MVPW_LIGHTGREY;
+			item_attr.fg = mythtv_colors.pending_other;
 			type = 'E';
 			break;
 		case RS_REPEAT:
-			item_attr.fg = MVPW_LIGHTGREY;
+			item_attr.fg = mythtv_colors.pending_other;
 			type = 'r';
 			break;
 		case RS_CURRENT_RECORDING:
-			item_attr.fg = MVPW_LIGHTGREY;
+			item_attr.fg = mythtv_colors.pending_other;
 			type = 'R';
 			break;
 		default:
-			item_attr.fg = MVPW_LIGHTGREY;
+			item_attr.fg = mythtv_colors.pending_other;
 			type = '?';
 			break;
 		}
-
-		/*
-		 * XXX: fix this
-		 */
-		if (item_attr.fg == item_attr.bg)
-			item_attr.bg = MVPW_BLACK;
 
 		ptr = strchr(start, '-');
 		month = atoi(++ptr);
@@ -1070,9 +1072,6 @@ mythtv_pending(mvp_widget_t *widget)
 
 		mvpw_add_menu_item(widget, buf, (void*)i, &item_attr);
 	}
-
-	item_attr.fg = MVPW_BLACK;
-	item_attr.bg = MVPW_LIGHTGREY;
 
  out:
 	pthread_mutex_unlock(&myth_mutex);
@@ -2149,16 +2148,13 @@ livetv_select_callback(mvp_widget_t *widget, char *item, void *key)
 	if (widget)
 		mythtv_fullscreen();
 
-	/*
-	 * XXX: This needs to be themed
-	 */
 	i = 0;
 	while (mvpw_menu_set_item_attr(mythtv_browser, i, &item_attr) == 0) {
 		i++;
 	}
 	if (mvpw_menu_get_item_attr(mythtv_browser, key, &item_attr) == 0) {
 		uint32_t old_fg = item_attr.fg;
-		item_attr.fg = MVPW_GREEN;
+		item_attr.fg = mythtv_colors.livetv_current;
 		mvpw_menu_set_item_attr(mythtv_browser, key, &item_attr);
 		item_attr.fg = old_fg;
 	}
@@ -2382,6 +2378,8 @@ get_livetv_programs(void)
 	livetv_list = list;
 	livetv_count = p;
 
+	item_attr.fg = mythtv_attr.fg;
+	item_attr.bg = mythtv_attr.bg;
 	for (j=0; j<p; j++) {
 		snprintf(buf, sizeof(buf), "%s: %s - %s",
 			 list[j].pi[0].chan, list[j].title, list[j].subtitle);

@@ -286,6 +286,17 @@
     <font>large</font>
   </widget>
 
+  <settings name="mythtv_livetv">
+    <color type="current">green</color>
+  </settings>
+
+  <settings name="mythtv_pending">
+    <color type="recording">burlywood</color>
+    <color type="will_record">green</color>
+    <color type="conflict">yellow</color>
+    <color type="other">gray50</color>
+  </settings>
+
   <!--
      - include user theme overrides
     -->

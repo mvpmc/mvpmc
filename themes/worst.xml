@@ -288,6 +288,17 @@
     <font>large</font>
   </widget>
 
+  <settings name="mythtv_livetv">
+    <color type="current">yellow</color>
+  </settings>
+
+  <settings name="mythtv_pending">
+    <color type="recording">blue</color>
+    <color type="will_record">purple</color>
+    <color type="conflict">brown</color>
+    <color type="other">gold</color>
+  </settings>
+
   <!--
      - include user theme overrides
     -->

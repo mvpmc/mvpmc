@@ -94,9 +94,11 @@ static theme_tag_t tags_widget[] = {
 };
 
 static int tag_settings_item(parser_data_t*, const char*, const char**, char*);
+static int tag_settings_color(parser_data_t*, const char*, const char**, char*);
 
 static theme_tag_t tags_settings[] = {
 	{ .tag = "item",	.vfunc = tag_settings_item },
+	{ .tag = "color",	.vfunc = tag_settings_color },
 	{ .tag = NULL }
 };
 
@@ -106,11 +108,17 @@ static int tag_settings_themes(parser_data_t*, const char*, const char**,
 			       char*);
 static int tag_settings_video(parser_data_t*, const char*, const char**,
 			      char*);
+static int tag_settings_mythtv_livetv(parser_data_t*, const char*,
+				      const char**, char*);
+static int tag_settings_mythtv_pending(parser_data_t*, const char*,
+				       const char**, char*);
 
 static theme_tag_t tag_settings_names[] = {
 	{ .tag = "screensaver",	.vfunc = tag_settings_screensaver },
 	{ .tag = "themes",	.vfunc = tag_settings_themes },
 	{ .tag = "video",	.vfunc = tag_settings_video },
+	{ .tag = "mythtv_livetv",	.vfunc = tag_settings_mythtv_livetv },
+	{ .tag = "mythtv_pending",	.vfunc = tag_settings_mythtv_pending },
 	{ .tag = NULL }
 };
 
@@ -569,6 +577,54 @@ tag_settings_video(parser_data_t *pdata, const char *el, const char **attr,
 }
 
 static int
+tag_settings_mythtv_livetv(parser_data_t *pdata, const char *el,
+			   const char **attr, char *value)
+{
+	unsigned int color;
+
+	if (find_color(value, &color) < 0) {
+		pdata->theme_err = "unknown color";
+		return -1;
+	}
+
+	if (strcasecmp(attr[1], "current") == 0) {
+		mythtv_colors.livetv_current = color;
+	} else {
+		pdata->theme_err = "unknown item";
+		return -1;
+	}
+
+	return 0;
+}
+
+static int
+tag_settings_mythtv_pending(parser_data_t *pdata, const char *el,
+			    const char **attr, char *value)
+{
+	unsigned int color;
+
+	if (find_color(value, &color) < 0) {
+		pdata->theme_err = "unknown color";
+		return -1;
+	}
+
+	if (strcasecmp(attr[1], "recording") == 0) {
+		mythtv_colors.pending_recording = color;
+	} else if (strcasecmp(attr[1], "will_record") == 0) {
+		mythtv_colors.pending_will_record = color;
+	} else if (strcasecmp(attr[1], "conflict") == 0) {
+		mythtv_colors.pending_conflict = color;
+	} else if (strcasecmp(attr[1], "other") == 0) {
+		mythtv_colors.pending_other = color;
+	} else {
+		pdata->theme_err = "unknown item";
+		return -1;
+	}
+
+	return 0;
+}
+
+static int
 tag_settings_item(parser_data_t *pdata, const char *el, const char **attr,
 		  char *value)
 {
@@ -581,6 +637,26 @@ tag_settings_item(parser_data_t *pdata, const char *el, const char **attr,
 	PRINTF("SETTINGS ITEM: '%s' '%s'\n", el, value);
 
 	if ((strcasecmp(attr[0], "name") != 0) || (attr[2] != NULL)) {
+		pdata->theme_err = "unknown attribute";
+		return -1;
+	}
+
+	return tag_settings_names[cur_attr].vfunc(pdata, el, attr, value);
+}
+
+static int
+tag_settings_color(parser_data_t *pdata, const char *el, const char **attr,
+		   char *value)
+{
+	char *tok;
+	int cur_attr = pdata->cur_attr;
+
+	if ((tok=strtok(value, " \t\r\n")) == NULL)
+		return -1;
+
+	PRINTF("SETTINGS COLOR: '%s' '%s'\n", el, value);
+
+	if ((strcasecmp(attr[0], "type") != 0) || (attr[2] != NULL)) {
 		pdata->theme_err = "unknown attribute";
 		return -1;
 	}
