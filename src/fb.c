@@ -37,6 +37,7 @@
 #include "mvpmc.h"
 #include "display.h"
 
+extern mvpw_menu_attr_t fb_attr;
 static mvpw_menu_item_attr_t item_attr = {
 	.selectable = 1,
 	.fg = MVPW_BLACK,
@@ -292,6 +293,8 @@ add_dirs(mvp_widget_t *fbw)
 
 	item_attr.select = select_callback;
 	item_attr.hilite = hilite_callback;
+	item_attr.fg = fb_attr.fg;
+	item_attr.bg = fb_attr.bg;
 	mvpw_add_menu_item(fbw, "../", 0, &item_attr);
 
 	memset(&gb, 0, sizeof(gb));
@@ -359,6 +362,8 @@ add_files(mvp_widget_t *fbw)
 
 	item_attr.select = select_callback;
 	item_attr.hilite = hilite_callback;
+	item_attr.fg = fb_attr.fg;
+	item_attr.bg = fb_attr.bg;
 
 	do_glob(fbw, wc);
 	do_glob(fbw, WC);

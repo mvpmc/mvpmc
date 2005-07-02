@@ -52,7 +52,7 @@ volatile int mythtv_livetv = 0;
 #define FONT_LARGE	1001
 #endif
 
-static mvpw_menu_attr_t fb_attr = {
+mvpw_menu_attr_t fb_attr = {
 	.font = FONT_STANDARD,
 	.fg = MVPW_BLACK,
 	.hilite_fg = MVPW_WHITE,
@@ -1243,7 +1243,6 @@ file_browser_init(void)
 	mvpw_set_menu_attr(file_browser, &fb_attr);
 
 	mvpw_set_menu_title(file_browser, "/");
-	mvpw_set_bg(file_browser, MVPW_LIGHTGREY);
 
 	mvpw_set_key(file_browser, fb_key_callback);
 
