@@ -144,6 +144,7 @@
 
   <widget type="menu" name="file_browser" copy="myth_browser">
     <color type="bg">white</color>
+    <color type="fg">blue</color>
     <color type="title_bg">orange</color>
     <color type="border">yellow</color>
     <style type="border_size">8</style>
@@ -297,6 +298,11 @@
     <color type="will_record">purple</color>
     <color type="conflict">brown</color>
     <color type="other">gold</color>
+  </settings>
+
+  <settings name="osd">
+    <item name="clock">on</item>
+    <item name="bitrate">off</item>
   </settings>
 
   <!--

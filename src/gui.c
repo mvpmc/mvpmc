@@ -704,6 +704,14 @@ enum {
 };
 
 osd_widget_t osd_widgets[MAX_OSD_WIDGETS];
+osd_settings_t osd_settings = {
+	.bitrate	= 1,
+	.clock		= 0,
+	.demux_info	= 0,
+	.progress	= 1,
+	.program	= 1,
+	.timecode	= 1,
+};
 
 void
 add_osd_widget(mvp_widget_t *widget, int type, int visible,
@@ -1042,6 +1050,13 @@ playlist_key_callback(mvp_widget_t *widget, char key)
 	case MVPW_KEY_PAUSE:
 		av_pause();
 		break;
+	case MVPW_KEY_FULL:
+		if (video_playing) {
+			mvpw_hide(widget);
+			mvpw_hide(fb_progress);
+			mvpw_focus(root);
+		}
+		break;
 	}
 }
 
@@ -1323,7 +1338,6 @@ playlist_init(void)
 	mvpw_set_menu_attr(playlist_widget, &fb_attr);
 
 	mvpw_set_menu_title(playlist_widget, "Playlist");
-	mvpw_set_bg(playlist_widget, MVPW_LIGHTGREY);
 
 	mvpw_set_key(playlist_widget, playlist_key_callback);
 
@@ -1354,9 +1368,28 @@ osd_select_callback(mvp_widget_t *widget, char *item, void *key)
 	osd_type_t type = (osd_type_t)key;
 	int on;
 
-	printf("OSD callback on '%s' %d\n", item, (int)key);
-
 	on = osd_widget_toggle(type);
+
+	switch ((int)key) {
+	case OSD_BITRATE:
+		osd_settings.bitrate = on;
+		break;
+	case OSD_CLOCK:
+		osd_settings.clock = on;
+		break;
+	case OSD_DEMUX:
+		osd_settings.demux_info = on;
+		break;
+	case OSD_PROGRESS:
+		osd_settings.progress = on;
+		break;
+	case OSD_PROGRAM:
+		osd_settings.program = on;
+		break;
+	case OSD_TIMECODE:
+		osd_settings.timecode = on;
+		break;
+	}
 
 	mvpw_check_menu_item(osd_menu, (void*)key, on);
 	mvpw_expose(osd_menu);
@@ -2316,7 +2349,7 @@ about_init(void)
 	splash_update("Creating about dialog");
 
 	h = (mvpw_font_height(about_attr.font) +
-	     (2 * 2)) * 9;
+	     (2 * 2)) * 10;
 	w = 500;
 
 	x = (si.cols - w) / 2;
@@ -2324,11 +2357,11 @@ about_init(void)
 
 	if (version[0] == '\0') {
 		snprintf(text, sizeof(text),
-			 "MediaMVP Media Center\n%s", buf);
+			 "MediaMVP Media Center\n%s\n%s", compile_time, buf);
 	} else {
 		snprintf(text, sizeof(text),
-			 "MediaMVP Media Center\nVersion %s\n%s",
-			 version, buf);
+			 "MediaMVP Media Center\nVersion %s\n%s\n%s",
+			 version, compile_time, buf);
 	}
 
 	about = mvpw_create_dialog(NULL, x, y, w, h,
@@ -2431,7 +2464,7 @@ osd_init(void)
 	mvpw_set_graph_attr(widget, &offset_graph_attr);
 	mvpw_show(widget);
 	offset_bar = widget;
-	add_osd_widget(contain, OSD_PROGRESS, 1, NULL);
+	add_osd_widget(contain, OSD_PROGRESS, osd_settings.progress, NULL);
 
 	mvpw_attach(mute_widget, contain, MVPW_DIR_DOWN);
 	mvpw_set_text_attr(mute_widget, &display_attr);
@@ -2444,7 +2477,7 @@ osd_init(void)
 	mvpw_set_text_attr(time_widget, &display_attr);
 	mvpw_set_text_str(time_widget, "");
 	mvpw_attach(contain, time_widget, MVPW_DIR_DOWN);
-	add_osd_widget(time_widget, OSD_TIMECODE, 1, NULL);
+	add_osd_widget(time_widget, OSD_TIMECODE, osd_settings.timecode, NULL);
 
 	bps_widget = mvpw_create_text(NULL, 0, 0, 100, h,
 				      display_attr.bg,
@@ -2453,7 +2486,7 @@ osd_init(void)
 	mvpw_set_text_attr(bps_widget, &display_attr);
 	mvpw_set_text_str(bps_widget, "");
 	mvpw_attach(time_widget, bps_widget, MVPW_DIR_RIGHT);
-	add_osd_widget(bps_widget, OSD_BITRATE, 1, NULL);
+	add_osd_widget(bps_widget, OSD_BITRATE, osd_settings.bitrate, NULL);
 
 	/*
 	 * myth OSD
@@ -2523,9 +2556,9 @@ osd_init(void)
 	mvpw_show(widget);
 	demux_audio = widget;
 	mvpw_attach(demux_video, demux_audio, MVPW_DIR_DOWN);
-	add_osd_widget(contain, OSD_DEMUX, 0, NULL);
+	add_osd_widget(contain, OSD_DEMUX, osd_settings.demux_info, NULL);
 
-	add_osd_widget(clock_widget, OSD_CLOCK, 0, NULL);
+	add_osd_widget(clock_widget, OSD_CLOCK, osd_settings.clock, NULL);
 
 	return 0;
 }
@@ -2694,12 +2727,18 @@ popup_init(void)
 	mvpw_add_menu_item(osd_menu, "Timecode", (void*)OSD_TIMECODE,
 			   &popup_item_attr);
 
-	mvpw_check_menu_item(osd_menu, (void*)OSD_BITRATE, 1);
-	mvpw_check_menu_item(osd_menu, (void*)OSD_CLOCK, 0);
-	mvpw_check_menu_item(osd_menu, (void*)OSD_DEMUX, 0);
-	mvpw_check_menu_item(osd_menu, (void*)OSD_PROGRESS, 1);
-	mvpw_check_menu_item(osd_menu, (void*)OSD_PROGRAM, 1);
-	mvpw_check_menu_item(osd_menu, (void*)OSD_TIMECODE, 1);
+	mvpw_check_menu_item(osd_menu, (void*)OSD_BITRATE,
+			     osd_settings.bitrate);
+	mvpw_check_menu_item(osd_menu, (void*)OSD_CLOCK,
+			     osd_settings.clock);
+	mvpw_check_menu_item(osd_menu, (void*)OSD_DEMUX,
+			     osd_settings.demux_info);
+	mvpw_check_menu_item(osd_menu, (void*)OSD_PROGRESS,
+			     osd_settings.progress);
+	mvpw_check_menu_item(osd_menu, (void*)OSD_PROGRAM,
+			     osd_settings.program);
+	mvpw_check_menu_item(osd_menu, (void*)OSD_TIMECODE,
+			     osd_settings.timecode);
 
 	/*
 	 * Brightness menu

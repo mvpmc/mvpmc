@@ -374,7 +374,8 @@ fb_update(mvp_widget_t *fb)
 {
 	video_functions = &file_functions;
 
-	add_osd_widget(fb_program_widget, OSD_PROGRAM, 1, NULL);
+	add_osd_widget(fb_program_widget, OSD_PROGRAM,
+		       osd_settings.program, NULL);
 
 	mvpw_show(root);
 	mvpw_expose(root);

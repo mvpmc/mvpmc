@@ -1881,7 +1881,7 @@ int replaytv_device_update(void)
    rtv_device_t      **sorted_device_ptr_list;   
    running_replaytv = 1;
 
-   add_osd_widget(rtv_osd_proginfo_widget, OSD_PROGRAM, 1, NULL);
+   add_osd_widget(rtv_osd_proginfo_widget, OSD_PROGRAM, osd_settings.program, NULL);
    screensaver_enable();
    
    mvpw_show(root);

@@ -112,13 +112,15 @@ static int tag_settings_mythtv_livetv(parser_data_t*, const char*,
 				      const char**, char*);
 static int tag_settings_mythtv_pending(parser_data_t*, const char*,
 				       const char**, char*);
+static int tag_settings_osd(parser_data_t*, const char*, const char**, char*);
 
 static theme_tag_t tag_settings_names[] = {
+	{ .tag = "mythtv_livetv",	.vfunc = tag_settings_mythtv_livetv },
+	{ .tag = "mythtv_pending",	.vfunc = tag_settings_mythtv_pending },
+	{ .tag = "osd",		.vfunc = tag_settings_osd },
 	{ .tag = "screensaver",	.vfunc = tag_settings_screensaver },
 	{ .tag = "themes",	.vfunc = tag_settings_themes },
 	{ .tag = "video",	.vfunc = tag_settings_video },
-	{ .tag = "mythtv_livetv",	.vfunc = tag_settings_mythtv_livetv },
-	{ .tag = "mythtv_pending",	.vfunc = tag_settings_mythtv_pending },
 	{ .tag = NULL }
 };
 
@@ -453,6 +455,41 @@ tag_settings_screensaver(parser_data_t *pdata, const char *el,
 
 		screensaver_default = to;
 		screensaver_timeout = to;
+	} else {
+		pdata->theme_err = "unknown item";
+		return -1;
+	}
+
+	return 0;
+}
+
+static int
+tag_settings_osd(parser_data_t *pdata, const char *el,
+		 const char **attr, char *value)
+{
+	int setting;
+
+	if (strcasecmp(value, "on") == 0) {
+		setting = 1;
+	} else if (strcasecmp(value, "off") == 0) {
+		setting = 0;
+	} else {
+		pdata->theme_err = "invalid value";
+		return -1;
+	}
+
+	if (strcasecmp(attr[1], "bitrate") == 0) {
+		osd_settings.bitrate = setting;
+	} else if (strcasecmp(attr[1], "clock") == 0) {
+		osd_settings.clock = setting;
+	} else if (strcasecmp(attr[1], "demux_info") == 0) {
+		osd_settings.demux_info = setting;
+	} else if (strcasecmp(attr[1], "progress") == 0) {
+		osd_settings.progress = setting;
+	} else if (strcasecmp(attr[1], "program") == 0) {
+		osd_settings.program = setting;
+	} else if (strcasecmp(attr[1], "timecode") == 0) {
+		osd_settings.timecode = setting;
 	} else {
 		pdata->theme_err = "unknown item";
 		return -1;

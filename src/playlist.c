@@ -22,6 +22,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include <fcntl.h>
 #include <string.h>
 #include <pthread.h>
@@ -35,6 +36,7 @@
 #include <id3.h>
 #include "display.h"
 
+extern mvpw_menu_attr_t fb_attr;
 static mvpw_menu_item_attr_t item_attr = {
 	.selectable = 1,
 	.fg = MVPW_BLACK,
@@ -62,6 +64,7 @@ static void select_callback(mvp_widget_t *widget, char *item, void *key)
   while (pl) {
     if (pl->key == key) {
       audio_clear();
+      video_clear();
       av_reset();
       playlist_change(pl);
       break;
@@ -77,6 +80,8 @@ static void playlist_init()
   if(in_init){
 	return;
   }
+  item_attr.fg = fb_attr.fg;
+  item_attr.bg = fb_attr.bg;
   in_init = 1;
   pthread_mutex_init(&mutex,NULL);
   in_init=0;
@@ -165,14 +170,17 @@ static int build_playlist_from_file(const char *filename)
   char *sep = NULL, *name = NULL;
   int seconds = -1;
   char *ptr;
+  ID3 *info;
+  char buf[128];
+  struct timeval start, end, delta;
 
   pthread_once(&init_control,playlist_init);
   pthread_mutex_lock(&mutex);
 
-  mvpw_set_menu_title(playlist_widget, filename);
   mvpw_clear_menu(playlist_widget);
 
   fprintf(stderr,"building playlist from file %s\n",filename);
+  gettimeofday(&start, NULL);
   if ((fd=open(filename, O_RDONLY)) < 0){
 	fprintf(stderr,"unable to open playlist file %s\n",filename);
 	pthread_mutex_unlock(&mutex);
@@ -270,12 +278,18 @@ static int build_playlist_from_file(const char *filename)
 	  sz = 0;
 	}
   }
+  snprintf(buf, sizeof(buf), "%s - %d files", filename, count-1);
+  mvpw_set_menu_title(playlist_widget, buf);
   if (name)
     free(name);
   playlist_head = playlist;
   free(fdbuf);
   close(fd);
   /*fprintf(stderr,"playlist parsing done, %d items\n",count);*/
+  gettimeofday(&end, NULL);
+  timersub(&end, &start, &delta);
+  fprintf(stderr, "playlist parsing took %d.%.2d seconds\n",
+	  delta.tv_sec, delta.tv_usec / 10000);
   pthread_mutex_unlock(&mutex);
   return(count);
 }
@@ -284,9 +298,7 @@ static void
 playlist_idle(void)
 {
   playlist_file_t playlist_type;
-
-  /* make sure we only get called once */
-  mvpw_set_idle(NULL);
+  static playlist_t *pl_item = NULL;
 
   if (playlist == NULL && current!=NULL) {
 	if(playlist_current){
@@ -311,6 +323,34 @@ playlist_idle(void)
 	  /* play first item */
 	  playlist_change(playlist);
 	}
+	pl_item = playlist;
+	mvpw_set_timer(playlist_widget, playlist_idle, 100);
+  } else {
+	  if (pl_item == NULL) {
+		  /* done parsing ID3 info */
+		  mvpw_set_timer(playlist_widget, NULL, 0);
+	  } else {
+		  ID3 *info;
+
+		  info = create_ID3(NULL);
+		  if (parse_file_ID3(info, pl_item->filename) == 0) {
+			  char artist[64], title[64], buf[128];
+			  char *p;
+
+			  snprintf(artist, sizeof(artist), info->artist);
+			  snprintf(title, sizeof(title), info->title);
+			  p = artist + strlen(artist) - 1;
+			  while (*p == ' ')
+				  *(p--) = '\0';
+			  snprintf(buf, sizeof(buf), "%s - %s", artist, title);
+
+			  mvpw_menu_change_item(playlist_widget,
+						pl_item->key, buf);
+		  }
+		  destroy_ID3(info);
+
+		  pl_item = pl_item->next;
+	  }
   }
 }
 

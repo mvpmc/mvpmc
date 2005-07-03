@@ -764,7 +764,8 @@ mythtv_update(mvp_widget_t *widget)
 
 	list_all = 0;
 
-	add_osd_widget(mythtv_program_widget, OSD_PROGRAM, 1, NULL);
+	add_osd_widget(mythtv_program_widget, OSD_PROGRAM,
+		       osd_settings.program, NULL);
 
 	mvpw_set_menu_title(widget, "MythTV");
 	mvpw_clear_menu(widget);
@@ -1216,22 +1217,29 @@ control_start(void *arg)
 				continue;
 			}
 
-			/*
-			 * Other errors are fatal
-			 */
-			if (len < 0) {
+			if ((len == -EPIPE) || (len == -ECONNRESET) ||
+			    (len == -EBADF)) {
+				fprintf(stderr,
+					"request block connection failed %d\n",
+					len);
 				break;
 			}
 
-			if ((len == 0) && (count++ < 1)) {
-				continue;
+			if (len <= 0) {
+				if (count++ > 1) {
+					fprintf(stderr,
+						"request block failed %d\n",
+						len);
+					break;
+				} else {
+					fprintf(stderr,
+						"request block failed\n");
+					len = 0;
+					continue;
+				}
 			}
 
-			if (len == 0) {
-				break;
-			} else {
-				count = 0;
-			}
+			count = 0;
 
 			/*
 			 * Force myth recordings to start with the numerically
@@ -1866,7 +1874,8 @@ mythtv_livetv_start(int *tuner)
 
 	// enable program info widget
 	//
-	add_osd_widget(mythtv_program_widget, OSD_PROGRAM, 1, NULL);
+	add_osd_widget(mythtv_program_widget, OSD_PROGRAM,
+		       osd_settings.program, NULL);
 	mvpw_hide(mythtv_description);
 	running_mythtv = 1;
 

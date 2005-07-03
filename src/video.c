@@ -204,6 +204,7 @@ video_subtitle_check(mvp_widget_t *widget)
 		mvpw_set_timer(root, video_subtitle_check, 1000);
 
 	if (! (mvpw_visible(file_browser) ||
+	       mvpw_visible(playlist_widget) ||
 	       mvpw_visible(mythtv_browser) ||
 	       mvpw_visible(mythtv_menu))) {
 		video_thumbnail(0);
@@ -575,6 +576,10 @@ video_callback(mvp_widget_t *widget, char key)
 		} else if (running_replaytv) {
 			video_playing = 0;
 			replaytv_back_from_video();
+		} else if (playlist) {
+			mvpw_show(fb_progress);
+			mvpw_show(playlist_widget);
+			mvpw_focus(playlist_widget);
 		} else {
 			mvpw_show(fb_progress);
 			mvpw_show(file_browser);
@@ -1022,7 +1027,8 @@ file_open(void)
 	audio_selected = 0;
 	audio_checks = 0;
 
-	audio_clear();
+	if (video_reopen == 1)
+		audio_clear();
 
 	close(fd);
 
@@ -1036,21 +1042,23 @@ file_open(void)
 	}
 	printf("opened %s\n", current);
 
-	av_set_audio_output(AV_AUDIO_MPEG);
-	fd_audio = av_audio_fd();
+	if (video_reopen == 1) {
+		av_set_audio_output(AV_AUDIO_MPEG);
+		fd_audio = av_audio_fd();
 
-	av_play();
+		av_play();
 
-	demux_reset(handle);
-	demux_attr_reset(handle);
-	demux_seek(handle);
+		demux_reset(handle);
+		demux_attr_reset(handle);
+		demux_seek(handle);
 
-	if (si.rows == 480)
-		av_move(475, si.rows-60, 4);
-	else
-		av_move(475, si.rows-113, 4);
+		if (si.rows == 480)
+			av_move(475, si.rows-60, 4);
+		else
+			av_move(475, si.rows-113, 4);
 	
-	av_play();
+		av_play();
+	}
 
 	zoomed = 0;
 	display_on = 0;
@@ -1152,6 +1160,11 @@ video_read_start(void *arg)
 				len = video_functions->read(inbuf, sizeof(inbuf_static));
 			}
 			n = 0;
+
+			if ((len == 0) && playlist) {
+				video_reopen = 2;
+				playlist_next();
+			}
 		}
 
 		if ( !video_playing ) {

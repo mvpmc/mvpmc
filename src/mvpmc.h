@@ -340,4 +340,15 @@ typedef struct {
 
 extern mythtv_color_t mythtv_colors;
 
+typedef struct {
+	int bitrate;
+	int clock;
+	int demux_info;
+	int progress;
+	int program;
+	int timecode;
+} osd_settings_t;
+
+extern osd_settings_t osd_settings;
+
 #endif /* MVPMC_H */
