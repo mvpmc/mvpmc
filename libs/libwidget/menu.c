@@ -686,3 +686,26 @@ mvpw_menu_set_item_attr(mvp_widget_t *widget, void *key,
 
 	return -1;
 }
+
+int
+mvpw_menu_change_item(mvp_widget_t *widget, void *key, char *label)
+{
+	int i;
+	char *old;
+
+	if ((widget == NULL) || (label == NULL))
+		return -1;
+
+	for (i=0; i<widget->data.menu.nitems; i++) {
+		if (key == widget->data.menu.items[i].key) {
+			old = widget->data.menu.items[i].label;
+			widget->data.menu.items[i].label = strdup(label);
+			free(old);
+			if (widget->data.menu.items[i].widget)
+				mvpw_set_text_str(widget->data.menu.items[i].widget, label);
+			return 0;
+		}
+	}
+
+	return -1;
+}

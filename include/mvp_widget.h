@@ -162,6 +162,7 @@ extern int mvpw_menu_get_item_attr(mvp_widget_t *widget, void *key,
 				   mvpw_menu_item_attr_t *item_attr);
 extern int mvpw_menu_set_item_attr(mvp_widget_t *widget, void *key,
 				   mvpw_menu_item_attr_t *item_attr);
+extern int mvpw_menu_change_item(mvp_widget_t *widget, void *key, char *label);
 
 /*
  * image widget
