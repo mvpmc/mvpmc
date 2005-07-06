@@ -1200,6 +1200,10 @@ control_start(void *arg)
 			pthread_mutex_lock(&myth_mutex);
 			pthread_mutex_unlock(&myth_mutex);
 
+			/*
+			 * If the user has paused playback, the request block
+			 * call will fail.
+			 */
 			if ((len < 0) && paused) {
 				printf("%s(): waiting to unpause...\n",
 				       __FUNCTION__);
@@ -1210,13 +1214,10 @@ control_start(void *arg)
 				continue;
 			}
 
-			if ((len < 0) && cmyth_conn_hung(control)) {
-				fprintf(stderr, "%s(): connection hung\n",
-					__FUNCTION__);
-				len = 1;
-				continue;
-			}
-
+			/*
+			 * The following errors mean that the myth connection
+			 * has been lost.
+			 */
 			if ((len == -EPIPE) || (len == -ECONNRESET) ||
 			    (len == -EBADF)) {
 				fprintf(stderr,
@@ -1225,8 +1226,12 @@ control_start(void *arg)
 				break;
 			}
 
+			/*
+			 * If the request block call returns another error,
+			 * then retry a few times before giving up.
+			 */
 			if (len <= 0) {
-				if (count++ > 1) {
+				if (count++ > 4) {
 					fprintf(stderr,
 						"request block failed %d\n",
 						len);
@@ -1234,7 +1239,7 @@ control_start(void *arg)
 				} else {
 					fprintf(stderr,
 						"request block failed\n");
-					len = 0;
+					len = 1;
 					continue;
 				}
 			}
