@@ -69,8 +69,9 @@ osd_surface_t*
 osd_create_surface(int w, int h)
 {
 	osd_surface_t *surface;
-	int ret, num = 0;
+	int num = 0;
 	int i;
+	int fd;
 
 	if (w == -1)
 		w = full_width;
@@ -84,6 +85,10 @@ osd_create_surface(int w, int h)
 			return NULL;
 		gfx_init();
 	}
+	if ((fd=open("/dev/stbgfx", O_RDWR)) < 0) {
+		printf("dev open failed!\n");
+		return NULL;
+	}
 
 	PRINTF("%s(): stbgfx %d\n", __FUNCTION__, stbgfx);
 
@@ -91,51 +96,32 @@ osd_create_surface(int w, int h)
 		return NULL;
 	memset(surface, 0, sizeof(*surface));
 
-	do {
-		ret = ioctl(stbgfx, GFX_FB_SET_OSD, &num);
-	} while ((ret != 0) && (num++ < 16));
-
-	if (ret != 0)
-		goto err;
-
-	if (ioctl(stbgfx, GFX_FB_OSD_SURFACE, &num) != 0)
-		goto err;
-
 	memset(&surface->sfc, 0, sizeof(surface->sfc));
 	surface->sfc.width = w;
 	surface->sfc.height = h;
 	surface->sfc.flags = 0x3f1533;
 	surface->sfc.unknown = 1;
-	if (ioctl(stbgfx, GFX_FB_SFC_ALLOC, &surface->sfc) != 0)
+	if (ioctl(fd, GFX_FB_SFC_ALLOC, &surface->sfc) != 0)
 		goto err;
 
 	memset(&surface->map, 0, sizeof(surface->map));
 	surface->map.map[0].unknown = surface->sfc.handle;
-	if (ioctl(stbgfx, GFX_FB_MAP, &surface->map) != 0)
+	if (ioctl(fd, GFX_FB_MAP, &surface->map) != 0)
 		goto err;
-
 	if ((surface->base[0]=mmap(NULL, surface->map.map[0].size,
-				   PROT_READ|PROT_WRITE, MAP_SHARED, stbgfx,
+				   PROT_READ|PROT_WRITE, MAP_SHARED, fd,
 				   surface->map.map[0].addr)) == MAP_FAILED)
 		goto err;
 	if ((surface->base[1]=mmap(NULL, surface->map.map[1].size,
-				   PROT_READ|PROT_WRITE, MAP_SHARED, stbgfx,
+				   PROT_READ|PROT_WRITE, MAP_SHARED, fd,
 				   surface->map.map[1].addr)) == MAP_FAILED)
 		goto err;
 	if ((surface->base[2]=mmap(NULL, surface->map.map[2].size,
-				   PROT_READ|PROT_WRITE, MAP_SHARED, stbgfx,
+				   PROT_READ|PROT_WRITE, MAP_SHARED, fd,
 				   surface->map.map[2].addr)) == MAP_FAILED)
 		goto err;
 
 	surface->display.num = num;
-	if ((ret=ioctl(stbgfx, GFX_FB_MOVE_DISPLAY, &surface->display)) != 0)
-		goto err;
-	PRINTF("Display width: %ld  height: %ld\n",
-	       surface->display.width, surface->display.height);
-
-	if ((ret=ioctl(stbgfx, GFX_FB_SET_DISPLAY, &surface->display)) != 0)
-		goto err;
-
 	PRINTF("surface 0x%.8x created of size %d x %d   [%d]\n",
 	       surface, w, h, surface->map.map[0].size);
 
@@ -144,6 +130,8 @@ osd_create_surface(int w, int h)
 		i++;
 	if (i < 128)
 		all[i] = surface;
+
+	surface->fd = fd;
 
 	return surface;
 
@@ -158,6 +146,7 @@ int
 osd_destroy_surface(osd_surface_t *surface)
 {
 	int i;
+	int fd = surface->fd;
 
 	i = 0;
 	while ((all[i] != surface) && (i < 128))
@@ -169,12 +158,8 @@ osd_destroy_surface(osd_surface_t *surface)
 		if (surface->base[i])
 			munmap(surface->base[i], surface->map.map[i].size);
 
-	if (ioctl(stbgfx, GFX_FB_SFC_FREE, &surface->sfc) != 0)
-		return -1;
-
 	free(surface);
-
-	PRINTF("surface destroyed\n");
+	close(fd);
 
 	return 0;
 }
@@ -183,11 +168,12 @@ void
 osd_display_surface(osd_surface_t *surface)
 {
 	unsigned long fb_descriptor[2];
+	int fd = surface->fd;
 
 	fb_descriptor[0] = surface->sfc.handle;
 	fb_descriptor[1] = 1;
 	
-	ioctl(stbgfx, GFX_FB_ATTACH, fb_descriptor);
+	ioctl(fd, GFX_FB_ATTACH, fb_descriptor);
 }
 
 void
