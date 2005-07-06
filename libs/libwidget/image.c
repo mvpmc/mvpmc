@@ -64,6 +64,8 @@ mvpw_set_image(mvp_widget_t *widget, char *file)
 	GR_WINDOW_ID pid;
 	GR_WINDOW_ID wid;
 	GR_WM_PROPERTIES props;
+	GR_SCREEN_INFO si;
+	int width, height;
 
 	if (widget->data.image.pid)
 		GrDestroyWindow(widget->data.image.pid);
@@ -76,14 +78,24 @@ mvpw_set_image(mvp_widget_t *widget, char *file)
 		return -1;
 
         GrGetImageInfo(iid, &iif);
-        pid = GrNewPixmap(iif.width, iif.height, NULL);
+	GrGetScreenInfo(&si);
+	if (iif.width > si.cols)
+		width = si.cols;
+	else
+		width = iif.width;
+	if (iif.height > si.cols)
+		height = si.rows;
+	else
+		height = iif.height;
+
+	pid = GrNewPixmap(width, height, NULL);
         gc = GrNewGC();
-        GrDrawImageToFit(pid, gc, 0, 0, iif.width, iif.height, iid);
+        GrDrawImageToFit(pid, gc, 0, 0, width, height, iid);
         GrDestroyGC(gc);
         GrFreeImage(iid);
 
         wid = GrNewWindowEx(GR_WM_PROPS_APPWINDOW|GR_WM_PROPS_NOAUTOMOVE, NULL,
-                            widget->wid, 0, 0, iif.width, iif.height,
+                            widget->wid, 0, 0, width, height,
 			    0xff00ff00);
 	GrSetBackgroundPixmap(wid, pid, GR_BACKGROUND_CENTER);
 
@@ -114,6 +126,19 @@ mvpw_get_image_info(char *file, mvpw_image_info_t *info)
 	info->height = iif.height;
 
         GrFreeImage(iid);
+
+	return 0;
+}
+
+int
+mvpw_image_destroy(mvp_widget_t *widget)
+{
+	if (widget->data.image.pid)
+		GrDestroyWindow(widget->data.image.pid);
+	if (widget->data.image.wid)
+		GrDestroyWindow(widget->data.image.wid);
+	widget->data.image.wid = 0;
+	widget->data.image.pid = 0;
 
 	return 0;
 }
