@@ -567,11 +567,7 @@ video_callback(mvp_widget_t *widget, char key)
 			mvpw_show(mythtv_menu);
 			mvpw_focus(mythtv_menu);
 		} else if (running_mythtv) {
-			mvpw_show(mythtv_logo);
-			mvpw_show(mythtv_channel);
-			mvpw_show(mythtv_date);
-			mvpw_show(mythtv_description);
-			mvpw_show(mythtv_browser);
+			mythtv_show_widgets();
 			mvpw_focus(mythtv_browser);
 		} else if (running_replaytv) {
 			video_playing = 0;
