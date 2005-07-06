@@ -1,8 +1,8 @@
-<mvpmctheme version="0" name="Default mvpmc Theme">
+<mvpmctheme version="0" name="ReplayTV mvpmc Theme">
   <!--
      - example mvpmc theme
      -
-     - This gives you something similar to the default interface.
+     - This gives you something similar to the ReplayTV interface.
      -
      - http://mvpmc.sourceforge.net/
      - $Id$
@@ -107,12 +107,12 @@
   <widget type="menu" name="myth_menu" copy="main_menu"></widget>
 
   <widget type="menu" name="myth_browser">
-    <color type="bg">black</color>
-    <color type="fg">white</color>
-    <color type="hilite_bg">gray30</color>
-    <color type="hilite_fg">white</color>
-    <color type="title_bg">green</color>
-    <color type="title_fg">black</color>
+    <color type="bg">midnightblue</color>
+    <color type="fg">seashell3</color>
+    <color type="hilite_bg">darkgoldenrod4</color>
+    <color type="hilite_fg">black</color>
+    <color type="title_bg">darkslategray</color>
+    <color type="title_fg">seashell3</color>
     <style type="hilite">square</style>
     <style type="border_size">0</style>
     <font>standard</font>
@@ -146,12 +146,12 @@
   </widget>
 
   <widget type="menu" name="myth_delete">
-    <color type="bg">black</color>
-    <color type="fg">white</color>
-    <color type="title_bg">green</color>
-    <color type="title_fg">black</color>
-    <color type="hilite_bg">gray30</color>
-    <color type="hilite_fg">white</color>
+    <color type="bg">midnightblue</color>
+    <color type="fg">seashell3</color>
+    <color type="hilite_bg">darkgoldenrod4</color>
+    <color type="hilite_fg">black</color>
+    <color type="title_bg">darkslategray</color>
+    <color type="title_fg">seashell3</color>
     <style type="hilite">square</style>
     <font>large</font>
   </widget>
