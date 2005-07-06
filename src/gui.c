@@ -55,6 +55,7 @@ volatile int mythtv_livetv = 0;
 mvpw_menu_attr_t fb_attr = {
 	.font = FONT_STANDARD,
 	.fg = MVPW_BLACK,
+	.bg = MVPW_LIGHTGREY,
 	.hilite_fg = MVPW_WHITE,
 	.hilite_bg = MVPW_DARKGREY2,
 	.title_fg = MVPW_WHITE,
@@ -860,6 +861,7 @@ static void
 iw_key_callback(mvp_widget_t *widget, char key)
 {
 	mvpw_hide(widget);
+	mvpw_image_destroy(widget);
 	mvpw_show(file_browser);
 	mvpw_focus(file_browser);
 }
@@ -1034,16 +1036,19 @@ playlist_key_callback(mvp_widget_t *widget, char key)
 		break;
 	case MVPW_KEY_SKIP:
 		audio_clear();
+		video_clear();
 		av_reset();
 		playlist_next();
 		break;
 	case MVPW_KEY_REPLAY:
 		audio_clear();
+		video_clear();
 		av_reset();
 		playlist_prev();
 		break;
 	case MVPW_KEY_STOP:
 		audio_clear();
+		video_clear();
 		av_reset();
 		playlist_stop();
 		break;
@@ -1051,6 +1056,7 @@ playlist_key_callback(mvp_widget_t *widget, char key)
 		av_pause();
 		break;
 	case MVPW_KEY_FULL:
+	case MVPW_KEY_PREV_CHAN:
 		if (video_playing) {
 			mvpw_hide(widget);
 			mvpw_hide(fb_progress);
@@ -2502,8 +2508,7 @@ osd_init(void)
 					mythtv_description_attr.border,
 					mythtv_description_attr.border_size);
 	mythtv_program_widget = contain;
-	h = mvpw_font_height(mythtv_program_attr.font) +
-		(2 * display_attr.margin);
+	h = mvpw_font_height(mythtv_program_attr.font) + (2 * 2);
 	widget = mvpw_create_text(contain, 0, 0, 400, h,
 				  mythtv_program_attr.bg,
 				  mythtv_program_attr.border,
