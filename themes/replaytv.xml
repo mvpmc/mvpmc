@@ -1,0 +1,318 @@
+<mvpmctheme version="0" name="Default mvpmc Theme">
+  <!--
+     - example mvpmc theme
+     -
+     - This gives you something similar to the default interface.
+     -
+     - http://mvpmc.sourceforge.net/
+     - $Id$
+    -->
+
+  <!--
+     - Load fonts (ignored under X11)
+    -->
+  <font name="standard">/etc/helvR10.fnt</font>
+  <font name="large">/etc/helvB18.pcf</font>
+
+  <!--
+     - include font overrides
+    -->
+  <sinclude>/tmp/font_override.xml</sinclude>
+
+  <!--
+     - include settings options
+    -->
+  <include>/usr/share/mvpmc/settings_2.xml</include>
+
+  <!--
+     - Graph widget settings
+    -->
+  <widget type="graph" name="busy_graph">
+    <color type="left">black</color>
+    <color type="right">red</color>
+    <style type="border_size">0</style>
+    <color type="bg">black</color>
+  </widget>
+
+  <widget type="graph" name="splash_graph">
+    <color type="left">black</color>
+    <color type="right">red</color>
+    <color type="border">gray60</color>
+    <style type="border_size">2</style>
+    <color type="bg">black</color>
+  </widget>
+
+  <widget type="graph" name="offset_graph">
+    <color type="bg" alpha="50%">black</color>
+    <color type="fg" alpha="50%">orange</color>
+  </widget>
+
+  <!--
+     - Text widget settings
+    -->
+  <widget type="text" name="splash">
+    <color type="bg">black</color>
+    <color type="fg">seashell3</color>
+    <font>large</font>
+  </widget>
+
+  <widget type="text" name="myth_info">
+    <color type="bg" alpha="0%">black</color>
+    <color type="fg">white</color>
+    <font>large</font>
+  </widget>
+
+  <widget type="text" name="myth_program">
+    <color type="bg" alpha="50%">black</color>
+    <color type="fg">cyan</color>
+    <font>standard</font>
+  </widget>
+
+  <widget type="text" name="myth_description">
+    <color type="bg" alpha="50%">black</color>
+    <color type="fg">white</color>
+    <font>standard</font>
+  </widget>
+
+  <widget type="text" name="description">
+    <color type="bg">black</color>
+    <color type="fg">white</color>
+    <font>standard</font>
+  </widget>
+
+  <widget type="text" name="display">
+    <color type="bg" alpha="50%">black</color>
+    <color type="fg">seashell3</color>
+    <font>standard</font>
+  </widget>
+
+  <widget type="text" name="busy_text">
+    <color type="bg">gray30</color>
+    <color type="fg">seashell3</color>
+    <font>large</font>
+  </widget>
+
+  <!--
+     - Menu widget settings
+    -->
+  <widget type="menu" name="main_menu">
+    <color type="bg">black</color>
+    <color type="fg">gray40</color>
+    <color type="hilite_bg">black</color>
+    <color type="hilite_fg">seashell3</color>
+    <style type="hilite">square</style>
+    <font>large</font>
+  </widget>
+
+  <widget type="menu" name="myth_menu" copy="main_menu"></widget>
+
+  <widget type="menu" name="myth_browser">
+    <color type="bg">black</color>
+    <color type="fg">white</color>
+    <color type="hilite_bg">gray30</color>
+    <color type="hilite_fg">white</color>
+    <color type="title_bg">green</color>
+    <color type="title_fg">black</color>
+    <style type="hilite">square</style>
+    <style type="border_size">0</style>
+    <font>standard</font>
+  </widget>
+
+  <widget type="menu" name="file_browser">
+    <color type="bg">midnightblue</color>
+    <color type="fg">seashell3</color>
+    <color type="hilite_bg">darkgoldenrod4</color>
+    <color type="hilite_fg">black</color>
+    <color type="title_bg">darkslategray</color>
+    <color type="title_fg">seashell3</color>
+    <style type="hilite">square</style>
+    <color type="border">black</color>
+    <style type="border_size">2</style>
+    <font>large</font>
+  </widget>
+
+  <widget type="menu" name="popup">
+    <color type="bg" alpha="50%">orange</color>
+    <color type="fg">black</color>
+    <color type="title_bg" alpha="50%">gray60</color>
+    <color type="title_fg">white</color>
+    <color type="hilite_bg" alpha="50%">white</color>
+    <color type="hilite_fg">black</color>
+    <color type="checkbox" alpha="50%">red</color>
+    <color type="border" alpha="50%">white</color>
+    <style type="border_size">2</style>
+    <style type="hilite">square</style>
+    <font>large</font>
+  </widget>
+
+  <widget type="menu" name="myth_delete">
+    <color type="bg">black</color>
+    <color type="fg">white</color>
+    <color type="title_bg">green</color>
+    <color type="title_fg">black</color>
+    <color type="hilite_bg">gray30</color>
+    <color type="hilite_fg">white</color>
+    <style type="hilite">square</style>
+    <font>large</font>
+  </widget>
+
+  <widget type="menu" name="settings">
+    <color type="bg">black</color>
+    <color type="fg">seashell3</color>
+    <color type="title_bg">darkslategray</color>
+    <color type="title_fg">seashell3</color>
+    <color type="hilite_bg">gray30</color>
+    <color type="hilite_fg">seashell3</color>
+    <style type="hilite">square</style>
+    <font>standard</font>
+  </widget>
+
+  <widget type="menu" name="themes">
+    <color type="bg">midnightblue</color>
+    <color type="fg">seashell3</color>
+    <color type="title_bg">darkslategray</color>
+    <color type="title_fg">seashell3</color>
+    <color type="hilite_bg">darkgoldenrod4</color>
+    <color type="hilite_fg">black</color>
+    <color type="checkbox">seashell3</color>
+    <color type="border">black</color>
+    <style type="border_size">2</style>
+    <style type="hilite">square</style>
+    <font>large</font>
+  </widget>
+
+  <!--
+     - Dialog widget settings
+    -->
+  <widget type="dialog" name="warning">
+    <color type="bg">gray30</color>
+    <color type="fg">seashell3</color>
+    <color type="title_bg">red</color>
+    <color type="title_fg">seashell3</color>
+    <color type="border">red</color>
+    <style type="border_size">3</style>
+    <font>large</font>
+  </widget>
+
+  <widget type="dialog" name="about">
+    <color type="bg">gray30</color>
+    <color type="fg">seashell3</color>
+    <color type="title_bg">blue</color>
+    <color type="title_fg">seashell3</color>
+    <color type="border">gray15</color>
+    <style type="border_size">5</style>
+    <font>large</font>
+  </widget>
+
+  <!--
+     - ReplayTV settings
+    -->
+  <widget type="menu" name="rtv_device_menu">
+    <color type="bg">midnightblue</color>
+    <color type="fg">seashell3</color>
+    <color type="hilite_bg">darkgoldenrod4</color>
+    <color type="hilite_fg">black</color>
+    <color type="title_bg">darkslategray</color>
+    <color type="title_fg">seashell3</color>
+    <style type="hilite">square</style>
+    <color type="border">black</color>
+    <style type="border_size">2</style>
+    <font>large</font>
+  </widget>
+
+  <widget type="menu" name="rtv_show_browser">
+    <color type="bg">midnightblue</color>
+    <color type="fg">seashell3</color>
+    <color type="hilite_bg">darkgoldenrod4</color>
+    <color type="hilite_fg">black</color>
+    <color type="title_bg">darkslategray</color>
+    <color type="title_fg">seashell3</color>
+    <style type="hilite">square</style>
+    <color type="border">black</color>
+    <style type="border_size">2</style>
+    <font>large</font>
+  </widget>
+
+  <widget type="menu" name="rtv_show_popup">
+    <color type="bg">midnightblue</color>
+    <color type="fg">seashell3</color>
+    <color type="hilite_bg">darkgoldenrod4</color>
+    <color type="hilite_fg">black</color>
+    <color type="title_bg">darkslategray</color>
+    <color type="title_fg">seashell3</color>
+    <style type="hilite">square</style>
+    <color type="border">gray38</color>
+    <style type="border_size">5</style>
+    <font>large</font>
+  </widget>
+
+  <widget type="graph" name="rtv_discspace_graph">
+    <color type="fg">orangered4</color>
+    <color type="bg">gray50</color>
+  </widget>
+
+  <widget type="text" name="rtv_discovery_splash">
+    <style type="border_size">0</style>
+    <color type="bg">black</color>
+    <color type="fg">seashell3</color>
+    <font>large</font>
+  </widget>
+
+  <widget type="text" name="rtv_device_description">
+    <color type="bg">black</color>
+    <color type="fg">seashell3</color>
+    <font>large</font>
+  </widget>
+
+  <widget type="text" name="rtv_episode_description">
+    <color type="bg">black</color>
+    <color type="fg">seashell3</color>
+    <font>large</font>
+  </widget>
+
+  <widget type="text" name="rtv_osd_show_title">
+    <color type="bg" alpha="100%">darkslategray</color>
+    <color type="fg">seashell3</color>
+    <font>large</font>
+  </widget>
+
+  <widget type="text" name="rtv_osd_show_description">
+    <color type="bg" alpha="35%">black</color>
+    <color type="fg">seashell3</color>
+    <font>large</font>
+  </widget>
+
+  <widget type="text" name="rtv_message_window">
+    <color type="bg">midnightblue</color>
+    <color type="fg">seashell3</color>
+    <font>large</font>
+    <style type="border_size">5</style>
+    <color type="border">gray50</color>
+  </widget>
+
+  <widget type="text" name="rtv_seek_osd">
+    <color type="bg" alpha="35%">black</color>
+    <color type="fg">seashell3</color>
+    <font>large</font>
+  </widget>
+
+  <settings name="mythtv_livetv">
+    <color type="current">green</color>
+  </settings>
+
+  <settings name="mythtv_pending">
+    <color type="recording">burlywood</color>
+    <color type="will_record">green</color>
+    <color type="conflict">yellow</color>
+    <color type="other">gray50</color>
+  </settings>
+
+
+
+  <!--
+     - include user theme overrides
+    -->
+  <sinclude>/tmp/user_override.xml</sinclude>
+
+</mvpmctheme>
+
