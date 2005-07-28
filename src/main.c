@@ -527,69 +527,6 @@ main(int argc, char **argv)
 		exit(1);
 	}
 
-#ifdef __UCLIBC__
-	/*
-	 * XXX: moving to uClibc seems to have exposed a problem...
-	 *
-	 * It appears that uClibc must make more use of malloc than glibc
-	 * (ie, uClibc probably frees memory when not needed).  This is
-	 * exposing a problem with memory exhaustion under linux where
-	 * mvpmc needs memory, and it will hang until linux decides to
-	 * flush some of its NFS pages.
-	 *
-	 * BTW, the heart of this problem is the linux buffer cache.  Since
-	 * all file systems use the buffer cache, and linux assumes that
-	 * the buffer cache is flushable, all hell breaks loose when you
-	 * have a ramdisk.  Essentially, Linux is waiting for something
-	 * that will never happen (the ramdisk to get flushed to backing
-	 * store).
-	 *
-	 * So, force the stack and the heap to grow, and leave a hole
-	 * in the heap for future calls to malloc().
-	 */
-	{
-#define HOLE_SIZE (1024*1024*1)
-		int page_size = getpagesize();
-		int i, n = 0;
-		char *ptr[HOLE_SIZE/page_size];
-		char *last = NULL, *guard;
-		char stack[1024*32];
-
-		for (i=0; i<HOLE_SIZE/page_size; i++) {
-			if ((ptr[i]=malloc(page_size)) != NULL) {
-				*(ptr[i]) = 0;
-				n++;
-				last = ptr[i];
-			}
-		}
-
-		for (i=1; i<1024; i++) {
-			guard = malloc(1024*i);
-			if ((unsigned int)guard < (unsigned int)last) {
-				if (guard)
-					free(guard);
-			} else {
-				break;
-			}
-		}
-		if (guard)
-			*guard = 0;
-
-		memset(stack, 0, sizeof(stack));
-
-		for (i=0; i<HOLE_SIZE/page_size; i++) {
-			if (ptr[i] != NULL)
-				free(ptr[i]);
-		}
-
-		if (guard)
-			printf("Created hole in heap of size %d bytes\n",
-			       n*page_size);
-		else
-			printf("Failed to create hole in heap\n");
-	}
-#endif /* __UCLIBC__ */
-
 	atexit(mythtv_atexit);
 
 	mvpw_set_idle(NULL);
