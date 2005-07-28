@@ -121,6 +121,7 @@ static long long mythtv_seek(long long, int);
 static long long mythtv_size(void);
 static int livetv_open(void);
 static long long livetv_size(void);
+static void livetv_select_callback(mvp_widget_t*, char*, void*);
 
 static volatile int myth_seeking = 0;
 
@@ -2279,19 +2280,24 @@ get_livetv_programs_rec(int id, struct livetv_prog **list, int *n, int *p)
 
 		cur = next_prog;
 
-		for (i=0; i<*p; i++) {
-			if ((strcmp((*list)[i].title, title) == 0) &&
-			    (strcmp((*list)[i].subtitle, subtitle) == 0) &&
-			    (strcmp((*list)[i].description, description) == 0) &&
-			    (strcmp((*list)[i].start, start) == 0) &&
-			    (strcmp((*list)[i].end, end) == 0)) {
-				if ((*list)[*p].count == MAX_TUNER)
+		/*
+		 * Search for duplicates only if the show has a title.
+		 */
+		if (title[0]) {
+			for (i=0; i<*p; i++) {
+				if ((strcmp((*list)[i].title, title) == 0) &&
+				    (strcmp((*list)[i].subtitle, subtitle) == 0) &&
+				    (strcmp((*list)[i].description, description) == 0) &&
+				    (strcmp((*list)[i].start, start) == 0) &&
+				    (strcmp((*list)[i].end, end) == 0)) {
+					if ((*list)[*p].count == MAX_TUNER)
+						goto next;
+					pi = &((*list)[i].pi[(*list)[*p].count]);
+					pi->chan = strdup(channame);
+					pi->channame = strdup(chansign);
+					pi->rec_id = id;
 					goto next;
-				pi = &((*list)[i].pi[(*list)[*p].count]);
-				pi->chan = strdup(channame);
-				pi->channame = strdup(chansign);
-				pi->rec_id = id;
-				goto next;
+				}
 			}
 		}
 
