@@ -85,6 +85,11 @@ do_expose(mvp_widget_t *widget, int val1, int val2)
 			ca += da;
 		}
 	} else {
+		if (w < widget->width) {
+			GrSetGCForeground(gc, widget->bg);
+			GrFillRect(widget->wid, gc, w, 0, widget->width-w-1,
+				   widget->height);
+		}
 		GrSetGCForeground(gc, widget->data.graph.fg);
 		GrFillRect(widget->wid, gc, 0, 0, w, widget->height);
 	}
