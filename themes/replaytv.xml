@@ -58,7 +58,7 @@
 
   <widget type="text" name="myth_info">
     <color type="bg" alpha="0%">black</color>
-    <color type="fg">white</color>
+    <color type="fg">seashell3</color>
     <font>large</font>
   </widget>
 
@@ -70,13 +70,13 @@
 
   <widget type="text" name="myth_description">
     <color type="bg" alpha="50%">black</color>
-    <color type="fg">white</color>
+    <color type="fg">seashell3</color>
     <font>standard</font>
   </widget>
 
   <widget type="text" name="description">
     <color type="bg">black</color>
-    <color type="fg">white</color>
+    <color type="fg">seashell3</color>
     <font>standard</font>
   </widget>
 
