@@ -279,6 +279,7 @@ struct cmyth_proginfo {
 	char *proginfo_host;
 	unsigned long proginfo_version;
 	cmyth_atomic_t refcount;
+	char *proginfo_timestretch; /* new in v18 */
 };
 
 struct cmyth_proglist {
