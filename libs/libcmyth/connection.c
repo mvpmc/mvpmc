@@ -860,12 +860,13 @@ cmyth_conn_get_free_recorder(cmyth_conn_t conn)
 
 int
 cmyth_conn_get_freespace(cmyth_conn_t control,
-			 unsigned int *total, unsigned int *used)
+			 long long *total, long long *used)
 {
 	int err, count, ret = 0;
 	int r;
 	char msg[256];
 	char reply[256];
+	long long lreply;
 
 	if (control == NULL)
 		return -EINVAL;
@@ -875,7 +876,10 @@ cmyth_conn_get_freespace(cmyth_conn_t control,
 
 	pthread_mutex_lock(&mutex);
 
-	snprintf(msg, sizeof(msg), "QUERY_FREESPACE");
+	if (control->conn_version >= 17)
+	    { snprintf(msg, sizeof(msg), "QUERY_FREE_SPACE"); }
+	else
+	    { snprintf(msg, sizeof(msg), "QUERY_FREESPACE"); }
 
 	if ((err = cmyth_send_message(control, msg)) < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
@@ -892,24 +896,48 @@ cmyth_conn_get_freespace(cmyth_conn_t control,
 		ret = count;
 		goto out;
 	}
-	if ((r=cmyth_rcv_string(control, &err, reply,
-				sizeof(reply)-1, count)) < 0) {
-		cmyth_dbg(CMYTH_DBG_ERROR,
-			  "%s: cmyth_rcv_string() failed (%d)\n",
-			  __FUNCTION__, err);
-		ret = err;
-		goto out;
+	
+	if (control->conn_version >= 17) {
+		if ((r=cmyth_rcv_long_long(control, &err, &lreply,
+					count)) < 0) {
+			cmyth_dbg(CMYTH_DBG_ERROR,
+				  "%s: cmyth_rcv_long_long() failed (%d)\n",
+				  __FUNCTION__, err);
+			ret = err;
+			goto out;
+		}
+		*total = lreply;
+		if ((r=cmyth_rcv_long_long(control, &err, &lreply,
+					count-r)) < 0) {
+			cmyth_dbg(CMYTH_DBG_ERROR,
+				  "%s: cmyth_rcv_long_long() failed (%d)\n",
+				  __FUNCTION__, err);
+			ret = err;
+			goto out;
+		}
+		*used = lreply;
 	}
-	*total = atoi(reply);
-	if ((r=cmyth_rcv_string(control, &err, reply,
-				sizeof(reply)-1, count-r)) < 0) {
-		cmyth_dbg(CMYTH_DBG_ERROR,
-			  "%s: cmyth_rcv_string() failed (%d)\n",
-			  __FUNCTION__, err);
-		ret = err;
-		goto out;
+	else
+	{
+		if ((r=cmyth_rcv_string(control, &err, reply,
+					sizeof(reply)-1, count)) < 0) {
+			cmyth_dbg(CMYTH_DBG_ERROR,
+				  "%s: cmyth_rcv_string() failed (%d)\n",
+				  __FUNCTION__, err);
+			ret = err;
+			goto out;
+		}
+		*total = atoi(reply);
+		if ((r=cmyth_rcv_string(control, &err, reply,
+					sizeof(reply)-1, count-r)) < 0) {
+			cmyth_dbg(CMYTH_DBG_ERROR,
+				  "%s: cmyth_rcv_string() failed (%d)\n",
+				  __FUNCTION__, err);
+			ret = err;
+			goto out;
+		}
+		*used = atoi(reply);
 	}
-	*used = atoi(reply);
 
  out:
 	pthread_mutex_unlock(&mutex);

@@ -138,7 +138,7 @@ extern cmyth_recorder_t cmyth_conn_get_recorder_from_num(cmyth_conn_t conn,
 extern cmyth_recorder_t cmyth_conn_get_free_recorder(cmyth_conn_t conn);
 
 extern int cmyth_conn_get_freespace(cmyth_conn_t control,
-				    unsigned int *total, unsigned int *used);
+				    long long *total, long long *used);
 
 extern int cmyth_conn_hung(cmyth_conn_t control);
 
