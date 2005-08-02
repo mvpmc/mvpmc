@@ -715,7 +715,7 @@ int
 mythtv_update(mvp_widget_t *widget)
 {
 	char buf[64];
-	int total, used;
+	long long total, used;
 
 	if (mythtv_livetv == 0) {
 		if (mythtv_recdir)
