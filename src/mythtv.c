@@ -2290,9 +2290,9 @@ get_livetv_programs_rec(int id, struct livetv_prog **list, int *n, int *p)
 				    (strcmp((*list)[i].description, description) == 0) &&
 				    (strcmp((*list)[i].start, start) == 0) &&
 				    (strcmp((*list)[i].end, end) == 0)) {
-					if ((*list)[*p].count == MAX_TUNER)
+					if ((*list)[i].count == MAX_TUNER)
 						goto next;
-					pi = &((*list)[i].pi[(*list)[*p].count]);
+					pi = &((*list)[i].pi[(*list)[i].count]);
 					pi->chan = strdup(channame);
 					pi->channame = strdup(chansign);
 					pi->rec_id = id;
@@ -2341,6 +2341,7 @@ get_livetv_programs(void)
 	struct livetv_prog *list;
 	char buf[256];
 	int i, j, c, n, p, found;
+	time_t t;
 
 	if (livetv_list) {
 		for (i=0; i<livetv_count; i++) {
@@ -2385,7 +2386,8 @@ get_livetv_programs(void)
 			break;
 	}
 
-	printf("Found %d programs on %d tuners\n", p, found);
+	t = time(NULL);
+	printf("Found %d programs on %d tuners at %s\n", p, found, ctime(&t));
 
 	if (p == 0)
 		return -1;
