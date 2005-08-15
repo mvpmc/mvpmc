@@ -396,8 +396,10 @@ hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 
 		ts = cmyth_proginfo_rec_start(hilite_prog);
 		cmyth_timestamp_to_string(start, ts);
+		cmyth_timestamp_release(ts);
 		ts = cmyth_proginfo_rec_end(hilite_prog);
 		cmyth_timestamp_to_string(end, ts);
+		cmyth_timestamp_release(ts);
 		
 		pathname = cmyth_proginfo_pathname(hilite_prog);
 
@@ -821,6 +823,10 @@ mythtv_back(mvp_widget_t *widget)
 
 	if ((mythtv_state == MYTHTV_STATE_PROGRAMS) ||
 	    (mythtv_state == MYTHTV_STATE_PENDING)) {
+		if (pending_plist) {
+			cmyth_proglist_release(pending_plist);
+			pending_plist = NULL;
+		}
 		return 0;
 	}
 
@@ -851,8 +857,10 @@ pending_hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 		channame = cmyth_proginfo_channame(pending_prog);
 		ts = cmyth_proginfo_rec_start(pending_prog);
 		cmyth_timestamp_to_string(start, ts);
+		cmyth_timestamp_release(ts);
 		ts = cmyth_proginfo_rec_end(pending_prog);
 		cmyth_timestamp_to_string(end, ts);
+		cmyth_timestamp_release(ts);
 
 		ptr = strchr(start, 'T');
 		*ptr = '\0';
@@ -928,6 +936,7 @@ mythtv_pending(mvp_widget_t *widget)
 	mvpw_set_text_str(mythtv_channel, "");
 	mvpw_set_text_str(mythtv_date, "");
 	mvpw_set_text_str(mythtv_description, "");
+	mvpw_set_text_str(mythtv_record, "");
 
 	mvpw_show(mythtv_channel);
 	mvpw_show(mythtv_date);
@@ -981,6 +990,9 @@ mythtv_pending(mvp_widget_t *widget)
 
 		te = cmyth_proginfo_rec_end(pending_prog);
 		cmyth_timestamp_to_string(end, te);
+
+		cmyth_timestamp_release(ts);
+		cmyth_timestamp_release(te);
 
 		status = cmyth_proginfo_rec_status(pending_prog);
 
@@ -1337,8 +1349,14 @@ mythtv_program(mvp_widget_t *widget)
 			
 			ts = cmyth_proginfo_start(current_prog);
 			cmyth_timestamp_to_string(start, ts);
+#if 0
+			cmyth_timestamp_release(ts);
+#endif
 			ts = cmyth_proginfo_end(current_prog);
 			cmyth_timestamp_to_string(end, ts);
+#if 0
+			cmyth_timestamp_release(ts);
+#endif
 		
 			ptr = strchr(start, 'T');
 			*ptr = '\0';
@@ -1421,10 +1439,13 @@ mythtv_proginfo(char *buf, int size)
 
 	ts = cmyth_proginfo_originalairdate(hilite_prog);
 	cmyth_timestamp_to_string(airdate, ts);
+	cmyth_timestamp_release(ts);
 	ts = cmyth_proginfo_rec_start(hilite_prog);
 	cmyth_timestamp_to_string(start, ts);
+	cmyth_timestamp_release(ts);
 	ts = cmyth_proginfo_rec_end(hilite_prog);
 	cmyth_timestamp_to_string(end, ts);
+	cmyth_timestamp_release(ts);
 
 	if ((ptr=strchr(airdate, 'T')) != NULL)
 		*ptr = '\0';
@@ -2268,8 +2289,10 @@ get_livetv_programs_rec(int id, struct livetv_prog **list, int *n, int *p)
 		ts = cmyth_proginfo_start(next_prog);
 		if (ts != NULL ) {
 			cmyth_timestamp_to_string(start, ts);
+			cmyth_timestamp_release(ts);
 			ts = cmyth_proginfo_end(next_prog);
 			cmyth_timestamp_to_string(end, ts);
+			cmyth_timestamp_release(ts);
 			ptr = strchr(start, 'T');
 			*ptr = '\0';
 			memmove(start, ptr+1, strlen(ptr+1)+1);

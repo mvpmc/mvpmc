@@ -91,7 +91,7 @@ cmyth_proglist_destroy(cmyth_proglist_t pl)
 		}
 		pl->proglist_list[i] = NULL;
 	}
-	pl->proglist_count = 0;
+	free(pl->proglist_list);
 	memset(pl, 0, sizeof(*pl));
 	free(pl);
 }

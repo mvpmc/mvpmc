@@ -104,6 +104,8 @@ cmyth_recorder_destroy(cmyth_recorder_t rec)
 	if (rec->rec_data) {
 		cmyth_conn_release(rec->rec_data);
 	}
+	memset(rec, 0, sizeof(rec));
+	free(rec);
 }
 
 /*
@@ -1172,6 +1174,9 @@ cmyth_recorder_get_next_program_info(cmyth_conn_t control,
 	next_prog->proginfo_chansign = strdup(callsign);
 	
 	next_prog->proginfo_chanId = atoi(chanid);
+
+	cmyth_timestamp_hold(next_prog->proginfo_start_ts);
+	cmyth_timestamp_hold(next_prog->proginfo_end_ts);
 
 	ret = 0;
  

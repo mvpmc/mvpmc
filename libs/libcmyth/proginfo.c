@@ -188,6 +188,9 @@ cmyth_proginfo_destroy(cmyth_proginfo_t p)
 	if (p->proginfo_unknown_0) {
 		free(p->proginfo_unknown_0);
 	}
+	if (p->proginfo_hostname) {
+		free(p->proginfo_hostname);
+	}
 	if (p->proginfo_rec_priority) {
 		free(p->proginfo_rec_priority);
 	}
@@ -196,6 +199,9 @@ cmyth_proginfo_destroy(cmyth_proginfo_t p)
 	}
 	if (p->proginfo_recgroup) {
 		free(p->proginfo_recgroup);
+	}
+	if (p->proginfo_chancommfree) {
+		free(p->proginfo_chancommfree);
 	}
 	if (p->proginfo_chan_output_filters) {
 		free(p->proginfo_chan_output_filters);
@@ -215,6 +221,9 @@ cmyth_proginfo_destroy(cmyth_proginfo_t p)
 	if (p->proginfo_host) {
 		free(p->proginfo_host);
 	}
+	if (p->proginfo_timestretch) {
+		free(p->proginfo_timestretch);
+	}
 	if (p->proginfo_lastmodified) {
 		cmyth_timestamp_release(p->proginfo_lastmodified);
 	}
@@ -224,9 +233,6 @@ cmyth_proginfo_destroy(cmyth_proginfo_t p)
 	if (p->proginfo_end_ts) {
 		cmyth_timestamp_release(p->proginfo_end_ts);
 	}
-	if (p->proginfo_hostname) {
-		free(p->proginfo_hostname);
-	}
 	if (p->proginfo_rec_start_ts) {
 		cmyth_timestamp_release(p->proginfo_rec_start_ts);
 	}
@@ -235,12 +241,6 @@ cmyth_proginfo_destroy(cmyth_proginfo_t p)
 	}
 	if (p->proginfo_originalairdate) {
 		cmyth_timestamp_release(p->proginfo_originalairdate);
-	}
-	if (p->proginfo_chancommfree) {
-		free(p->proginfo_chancommfree);
-	}
-	if (p->proginfo_timestretch) {
-		free(p->proginfo_timestretch);
 	}
 
 	memset(p, 0, sizeof(*p));
@@ -276,6 +276,12 @@ cmyth_proginfo_hold(cmyth_proginfo_t p)
 {
 	if (p) {
 		cmyth_atomic_inc(&p->refcount);
+		cmyth_timestamp_hold(p->proginfo_lastmodified);
+		cmyth_timestamp_hold(p->proginfo_start_ts);
+		cmyth_timestamp_hold(p->proginfo_end_ts);
+		cmyth_timestamp_hold(p->proginfo_rec_start_ts);
+		cmyth_timestamp_hold(p->proginfo_rec_end_ts);
+		cmyth_timestamp_hold(p->proginfo_originalairdate);
 	}
 	return p;
 }
