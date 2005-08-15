@@ -1,0 +1,1966 @@
+diff -ruN microwindows-0.91-orig/src/Configs/config.mvp microwindows-0.91/src/Configs/config.mvp
+--- microwindows-0.91-orig/src/Configs/config.mvp	1969-12-31 18:00:00.000000000 -0600
++++ microwindows-0.91/src/Configs/config.mvp	2005-08-12 20:42:55.000000000 -0500
+@@ -0,0 +1,382 @@
++####################################################################
++# Microwindows and Nano-X configuration file
++#
++# This package can be configured to run on Linux (MIPS, ARM, POWERPC or x86)
++# UNIX, ELKS, DJGPP, or RTEMS.
++# On Linux, we've got drivers for Linux 2.x framebuffers, X11, or,
++# svgalib for VGA hardware.
++# In addition, a gpm or direct serial mouse driver can be configured.
++# On ELKS, the bios screen driver and serial mouse driver are always used.
++#
++# Either Microwindows and/or Nano-X can be built.
++# Microwindows and Nano-X have several demos.
++#
++# For MSDOS makes, see mcmwin.mak and mcnanox.mak
++####################################################################
++
++####################################################################
++#
++# build target platform
++#
++# Valid ARCH values are:
++#
++# LINUX-NATIVE
++# LINUX-TCC
++# LINUX-ARM
++# LINUX-MIPS
++# LINUX-POWERPC (BIGENDIAN=Y)
++# LINUX-SPARC (BIGENDIAN=Y)
++# LINUX-SH
++# FREEBSD-X86
++# SOLARIS (BIGENDIAN=Y)
++# TRIMEDIA
++# RTEMS
++# DJGPP
++# ELKS
++#
++# note: ELKS can't build client/server nano-X, nor widget lib
++#
++####################################################################
++ARCH                     = LINUX-POWERPC
++BIGENDIAN                = Y
++ARMTOOLSPREFIX           = arm-linux-
++MIPSTOOLSPREFIX          = mipsel-linux-
++POWERPCTOOLSPREFIX       = $(CROSS)
++SHTOOLSPREFIX            = sh-linux-gnu
++RTEMSTOOLSPREFIX         = i386-rtemself-
++
++####################################################################
++#
++# Compiling options
++#
++####################################################################
++OPTIMIZE                 = Y
++DEBUG                    = Y
++VERBOSE                  = Y
++THREADSAFE               = Y
++GPROF                    = N
++
++####################################################################
++#
++# Libraries to build: microwin, nano-X, nanowidget, object frameworks
++#
++####################################################################
++MICROWIN                 = Y
++NANOX                    = Y
++SHAREDLIBS               = Y
++OBJFRAMEWORK             = N
++
++
++####################################################################
++#
++# Demos to build
++#
++####################################################################
++MICROWINDEMO             = Y
++NANOXDEMO                = Y
++
++####################################################################
++#
++# Applications to build
++#
++####################################################################
++NANOWM                   = Y
++
++####################################################################
++#
++# The pixeltype of the native hardware or underlying graphics library.
++# This definition defines the PIXELVAL to be 32, 16 or 8 bits wide.
++# If using Linux framebuffer, set to MWPF_TRUECOLOR0888, and use fbset.
++# It also enables GdArea/GrArea for this particular pixel packing format.
++#
++# define MWPF_PALETTE       /* pixel is packed 8 bits 1, 4 or 8 pal index*/
++# define MWPF_TRUECOLOR8888 /* pixel is packed 32 bits 8/8/8/8 truecolor w/alpha*/
++# define MWPF_TRUECOLOR0888 /* pixel is packed 32 bits 8/8/8 truecolor*/
++# define MWPF_TRUECOLOR888  /* pixel is packed 24 bits 8/8/8 truecolor*/
++# define MWPF_TRUECOLOR565  /* pixel is packed 16 bits 5/6/5 truecolor*/
++# define MWPF_TRUECOLOR555  /* pixel is packed 16 bits 5/5/5 truecolor*/
++# define MWPF_TRUECOLOR332  /* pixel is packed 8 bits 3/3/2 truecolor*/
++#
++####################################################################
++SCREEN_PIXTYPE           = MWPF_TRUECOLOR8888
++
++####################################################################
++#
++# NanoX: Put Y to the following line to link the nano-X application
++# with the server.  This is required for ELKS, if no network is present,
++# or for speed or debugging.  This affects the nano-X server only.
++#
++####################################################################
++LINK_APP_INTO_SERVER     = Y
++
++####################################################################
++# Shared memory support for Nano-X client/server protocol speedup
++####################################################################
++HAVE_SHAREDMEM_SUPPORT   = Y
++
++####################################################################
++#
++# File I/O support
++# Supporting either below drags in libc stdio, which may not be wanted
++#
++####################################################################
++HAVE_FILEIO              = Y
++
++####################################################################
++# BMP, GIF reading support
++####################################################################
++HAVE_BMP_SUPPORT         = Y
++HAVE_GIF_SUPPORT         = Y
++HAVE_PNM_SUPPORT         = Y
++HAVE_XPM_SUPPORT         = Y
++
++####################################################################
++# JPEG support through libjpeg, see README.txt in contrib/jpeg
++####################################################################
++HAVE_JPEG_SUPPORT        = Y
++INCJPEG                  = $(TOPLEVEL)/install/include
++LIBJPEG                  =  $(TOPLEVEL)/install/lib/libjpeg.a
++
++####################################################################
++# PNG support via libpng and libz
++####################################################################
++HAVE_PNG_SUPPORT         = Y
++INCPNG                   = $(TOPLEVEL)/install/include
++INCLIBZ                  = $(TOPLEVEL)/install/include
++LIBPNG                   = $(TOPLEVEL)/install/lib/libpng.a
++LIBZ                     = $(TOPLEVEL)/install/lib/libz.a
++
++####################################################################
++# TIFF support through libtiff
++####################################################################
++HAVE_TIFF_SUPPORT        = N
++INCTIFF                  = /usr/include
++LIBTIFF                  = /usr/lib/libtiff.a
++
++####################################################################
++# native .fnt loadable font support
++####################################################################
++HAVE_FNT_SUPPORT         = Y
++HAVE_FNTGZ_SUPPORT       = N
++FNT_FONT_DIR             = "fonts/bdf"
++
++####################################################################
++# T1 adobe type1 font support thru t1lib
++####################################################################
++HAVE_T1LIB_SUPPORT       = N
++INCT1LIB                 = /usr/include
++LIBT1LIB                 = /usr/lib/libt1.a
++
++####################################################################
++# TrueType font support thru FreeType 1.x
++####################################################################
++HAVE_FREETYPE_SUPPORT    = N
++INCFTLIB                 = /usr/include
++LIBFTLIB                 = /usr/lib/libttf.so
++FREETYPE_FONT_DIR        = "fonts/truetype"
++
++####################################################################
++# Support for many kinds of font thru FreeType 2.x
++# Must also set FREETYPE_FONT_DIR in the Freetype 1.x section
++####################################################################
++HAVE_FREETYPE_2_SUPPORT  = N
++INCFT2LIB                = /usr/include
++LIBFT2LIB                = /usr/lib/libfreetype.a
++
++####################################################################
++# PCF font support 
++# Selecting HAVE_PCFGZ_SUPPORT will allow you to directly read
++# .pcf.gz files, but it will add libz to the size of the server
++####################################################################
++HAVE_PCF_SUPPORT         = Y
++HAVE_PCFGZ_SUPPORT       = N
++PCF_FONT_DIR             = "fonts/pcf"
++
++####################################################################
++# Chinese Han Zi Ku loadable font support
++####################################################################
++HAVE_HZK_SUPPORT         = N
++HZK_FONT_DIR             = "fonts/chinese"
++
++####################################################################
++# Chinese BIG5 compiled in font support (big5font.c)
++####################################################################
++HAVE_BIG5_SUPPORT        = N
++
++####################################################################
++# Chinese GB2312 compiled in font support (gb2312font.c)
++####################################################################
++HAVE_GB2312_SUPPORT      = N
++
++####################################################################
++# Japanese JISX0213 compiled in font support (jisx0213-12x12.c)
++####################################################################
++HAVE_JISX0213_SUPPORT    = N
++
++####################################################################
++# Korean HANGUL font support (jo16x16.c)
++####################################################################
++HAVE_KSC5601_SUPPORT     = N
++
++####################################################################
++# Japanese EUC-JP support using loadable MGL font
++####################################################################
++HAVE_EUCJP_SUPPORT       = N
++EUCJP_FONT_DIR           = "fonts/japanese"
++
++####################################################################
++# Generate screen driver interface only with no fonts or clipping
++####################################################################
++NOFONTSORCLIPPING        = N
++
++####################################################################
++#
++# Window move algorithms for Microwindows
++# Change for tradeoff between cpu speed and looks
++# ERASEMOVE repaints only backgrounds while window dragging, quicker.
++# Otherwise an XOR redraw is used for window moves only after button up,
++# quickest (should set for ELKS)
++# UPDATEREGIONS paints in update clipping region only for better look and feel
++#
++####################################################################
++ERASEMOVE                = Y
++UPDATEREGIONS            = Y
++
++####################################################################
++#
++# Link with Gray Palette (valid only for 4bpp modes)
++#
++####################################################################
++GRAYPALETTE              = N
++
++####################################################################
++#
++# If the platform is running UNIX, Linux or RTEMS...
++#
++####################################################################
++ifneq ($(ARCH), ELKS)
++
++# X Window screen, mouse and kbd drivers
++X11                      = N
++
++ifeq ($(X11), Y)
++# startup screen width, height, (depth for palette mode only)
++SCREEN_WIDTH             = 640
++SCREEN_HEIGHT            = 480
++SCREEN_DEPTH             = 4
++
++# You may want to turn this on for XFree86 4.x or if your backing store
++# isn't functioning properly
++USE_EXPOSURE		 = Y
++
++else
++
++# framebuffer screen driver (linear and/or vga 4 planes)
++# set VTSWITCH to include virtual terminal switch code
++# set FBREVERSE to reverse bit orders in 1,2,4 bpp
++# set FBVGA=N for all systems without VGA hardware (for MIPS must=N)
++FRAMEBUFFER              = N
++FBVGA                    = N
++VTSWITCH                 = N
++FBREVERSE                = N
++MVPOSD                   = Y
++
++# set HAVETEXTMODE=Y for systems that can switch between text & graphics.
++# On a graphics-only embedded system, such as Osprey and Embedded
++# Planet boards, set HAVETEXTMODE=N
++HAVETEXTMODE             = N
++
++# svgalib screen driver
++VGALIB                   = N
++
++# direct VGA hardware access screen driver
++HWVGA                    = N
++
++####################################################################
++# Mouse drivers
++# GPMMOUSE	gpm mouse
++# SERMOUSE	serial Microsoft, PC, Logitech, PS/2 mice (/dev/psaux)
++# SUNMOUSE	Sun Workstation mouse (/dev/sunmouse)
++# NOMOUSE	no mouse driver
++#
++# Touchscreen drivers
++# IPAQMOUSE	Compaq iPAQ, Intel Assabet (/dev/h3600_tsraw)
++# ZAURUSMOUSE	Sharp Zaurus (/dev/sharp_ts)
++# TUXMOUSE	TuxScreen (/dev/ucb1x00-ts)
++# ADSMOUSE	Applied Data Systems GC+ (/dev/ts)
++# ADS7846MOUSE	        ADS7846 chip, PSI OMAP Innovator (/dev/innnovator_ts)
++# EPMOUSE	Embedded Planet (/dev/tpanel)
++# VHMOUSE	Vtech Helio (/dev/tpanel)
++# MTMOUSE	MicroTouch serial (/dev/ttyS1)
++# PSIONMOUSE	Psion 5 (/dev/touch_psion)
++# YOPYMOUSE	Yopy (/dev/yopy-ts)
++# HARRIERMOUSE	NEC Harrier (/dev/tpanel)
++####################################################################
++GPMMOUSE                 = N
++SERMOUSE                 = N
++SUNMOUSE                 = N
++NOMOUSE                  = Y
++IPAQMOUSE                = N
++ZAURUSMOUSE              = N
++TUXMOUSE                 = N
++ADSMOUSE                 = N
++ADS7846MOUSE             = N
++EPMOUSE                  = N
++VHMOUSE                  = N
++MTMOUSE                  = N
++PSIONMOUSE               = N
++YOPYMOUSE                = N
++HARRIERMOUSE             = N
++
++# keyboard or null kbd driver
++TTYKBD                   = N
++SCANKBD                  = N
++PIPEKBD                  = N
++IPAQKBD                  = N
++LIRCKBD                  = N
++IRMKBD                   = Y
++NOKBD                    = N
++
++endif
++
++####################################################################
++# Screen driver specific configuration
++# SA1100_LCD_LTLEND 4bpp driver with arm SA1100 LCD controller
++# INVERT4BPP 4bpp inverted pixel driver for VTech Helio
++####################################################################
++SA1100_LCD_LTLEND        = N
++INVERT4BPP               = N
++
++####################################################################
++#
++# If the platform is a RTEMS box ....
++#
++####################################################################
++ifeq ($(ARCH), RTEMS)
++
++# Location & BSP information of the RTEMS build
++RTEMS_BUILD              = /tools/build-i386-elf-rtems
++RTEMS_BSP                = pc386
++LINK_APP_INTO_SERVER     = Y
++
++endif
++
++endif
++
++####################################################################
++#
++# If the platform is an ELKS box ...
++#
++####################################################################
++ifeq ($(ARCH), ELKS)
++
++# Higher speed asm driver, c driver of hercules screen driver
++ASMVGADRIVER             = Y
++CVGADRIVER               = N
++HERCDRIVER               = N
++DBGDRIVER                = N
++
++# Mouse support
++SERMOUSE                 = Y
++
++endif
+diff -ruN microwindows-0.91-orig/src/Configs/config.mvposd microwindows-0.91/src/Configs/config.mvposd
+--- microwindows-0.91-orig/src/Configs/config.mvposd	1969-12-31 18:00:00.000000000 -0600
++++ microwindows-0.91/src/Configs/config.mvposd	2005-08-12 20:42:55.000000000 -0500
+@@ -0,0 +1,381 @@
++####################################################################
++# Microwindows and Nano-X configuration file
++#
++# This package can be configured to run on Linux (MIPS, ARM, POWERPC or x86)
++# UNIX, ELKS, DJGPP, or RTEMS.
++# On Linux, we've got drivers for Linux 2.x framebuffers, X11, or,
++# svgalib for VGA hardware.
++# In addition, a gpm or direct serial mouse driver can be configured.
++# On ELKS, the bios screen driver and serial mouse driver are always used.
++#
++# Either Microwindows and/or Nano-X can be built.
++# Microwindows and Nano-X have several demos.
++#
++# For MSDOS makes, see mcmwin.mak and mcnanox.mak
++####################################################################
++
++####################################################################
++#
++# build target platform
++#
++# Valid ARCH values are:
++#
++# LINUX-NATIVE
++# LINUX-TCC
++# LINUX-ARM
++# LINUX-MIPS
++# LINUX-POWERPC (BIGENDIAN=Y)
++# LINUX-SPARC (BIGENDIAN=Y)
++# LINUX-SH
++# FREEBSD-X86
++# SOLARIS (BIGENDIAN=Y)
++# TRIMEDIA
++# RTEMS
++# DJGPP
++# ELKS
++#
++# note: ELKS can't build client/server nano-X, nor widget lib
++#
++####################################################################
++ARCH                     = LINUX-POWERPC
++BIGENDIAN                = Y
++ARMTOOLSPREFIX           = arm-linux-
++MIPSTOOLSPREFIX          = mipsel-linux-
++POWERPCTOOLSPREFIX       = /opt/hardhat/devkit/ppc/405/bin/ppc_405-
++SHTOOLSPREFIX            = sh-linux-gnu
++RTEMSTOOLSPREFIX         = i386-rtemself-
++
++####################################################################
++#
++# Compiling options
++#
++####################################################################
++OPTIMIZE                 = Y
++DEBUG                    = Y
++VERBOSE                  = N
++THREADSAFE               = Y
++GPROF                    = N
++
++####################################################################
++#
++# Libraries to build: microwin, nano-X, nanowidget, object frameworks
++#
++####################################################################
++MICROWIN                 = Y
++NANOX                    = Y
++SHAREDLIBS               = N
++OBJFRAMEWORK             = N
++
++
++####################################################################
++#
++# Demos to build
++#
++####################################################################
++MICROWINDEMO             = Y
++NANOXDEMO                = Y
++
++####################################################################
++#
++# Applications to build
++#
++####################################################################
++NANOWM                   = Y
++
++####################################################################
++#
++# The pixeltype of the native hardware or underlying graphics library.
++# This definition defines the PIXELVAL to be 32, 16 or 8 bits wide.
++# If using Linux framebuffer, set to MWPF_TRUECOLOR0888, and use fbset.
++# It also enables GdArea/GrArea for this particular pixel packing format.
++#
++# define MWPF_PALETTE       /* pixel is packed 8 bits 1, 4 or 8 pal index*/
++# define MWPF_TRUECOLOR8888 /* pixel is packed 32 bits 8/8/8/8 truecolor w/alpha*/
++# define MWPF_TRUECOLOR0888 /* pixel is packed 32 bits 8/8/8 truecolor*/
++# define MWPF_TRUECOLOR888  /* pixel is packed 24 bits 8/8/8 truecolor*/
++# define MWPF_TRUECOLOR565  /* pixel is packed 16 bits 5/6/5 truecolor*/
++# define MWPF_TRUECOLOR555  /* pixel is packed 16 bits 5/5/5 truecolor*/
++# define MWPF_TRUECOLOR332  /* pixel is packed 8 bits 3/3/2 truecolor*/
++#
++####################################################################
++SCREEN_PIXTYPE           = MWPF_TRUECOLOR8888
++
++####################################################################
++#
++# NanoX: Put Y to the following line to link the nano-X application
++# with the server.  This is required for ELKS, if no network is present,
++# or for speed or debugging.  This affects the nano-X server only.
++#
++####################################################################
++LINK_APP_INTO_SERVER     = Y
++
++####################################################################
++# Shared memory support for Nano-X client/server protocol speedup
++####################################################################
++HAVE_SHAREDMEM_SUPPORT   = Y
++
++####################################################################
++#
++# File I/O support
++# Supporting either below drags in libc stdio, which may not be wanted
++#
++####################################################################
++HAVE_FILEIO              = Y
++
++####################################################################
++# BMP, GIF reading support
++####################################################################
++HAVE_BMP_SUPPORT         = Y
++HAVE_GIF_SUPPORT         = Y
++HAVE_PNM_SUPPORT         = Y
++HAVE_XPM_SUPPORT         = Y
++
++####################################################################
++# JPEG support through libjpeg, see README.txt in contrib/jpeg
++####################################################################
++HAVE_JPEG_SUPPORT        = N
++INCJPEG                  = .
++LIBJPEG                  = /usr/lib/libjpeg.a
++
++####################################################################
++# PNG support via libpng and libz
++####################################################################
++HAVE_PNG_SUPPORT         = N
++INCPNG                   = /usr/include
++LIBPNG                   = /usr/lib/libpng.a
++LIBZ                     = /usr/lib/libz.a
++
++####################################################################
++# TIFF support through libtiff
++####################################################################
++HAVE_TIFF_SUPPORT        = N
++INCTIFF                  = /usr/include
++LIBTIFF                  = /usr/lib/libtiff.a
++
++####################################################################
++# native .fnt loadable font support
++####################################################################
++HAVE_FNT_SUPPORT         = Y
++HAVE_FNTGZ_SUPPORT       = N
++FNT_FONT_DIR             = "fonts/bdf"
++
++####################################################################
++# T1 adobe type1 font support thru t1lib
++####################################################################
++HAVE_T1LIB_SUPPORT       = N
++INCT1LIB                 = /usr/include
++LIBT1LIB                 = /usr/lib/libt1.a
++
++####################################################################
++# TrueType font support thru FreeType 1.x
++####################################################################
++HAVE_FREETYPE_SUPPORT    = N
++INCFTLIB                 = /usr/include
++LIBFTLIB                 = /usr/lib/libttf.so
++FREETYPE_FONT_DIR        = "fonts/truetype"
++
++####################################################################
++# Support for many kinds of font thru FreeType 2.x
++# Must also set FREETYPE_FONT_DIR in the Freetype 1.x section
++####################################################################
++HAVE_FREETYPE_2_SUPPORT  = N
++INCFT2LIB                = /usr/include
++LIBFT2LIB                = /usr/lib/libfreetype.a
++
++####################################################################
++# PCF font support 
++# Selecting HAVE_PCFGZ_SUPPORT will allow you to directly read
++# .pcf.gz files, but it will add libz to the size of the server
++####################################################################
++HAVE_PCF_SUPPORT         = Y
++HAVE_PCFGZ_SUPPORT       = N
++PCF_FONT_DIR             = "fonts/pcf"
++
++####################################################################
++# Chinese Han Zi Ku loadable font support
++####################################################################
++HAVE_HZK_SUPPORT         = N
++HZK_FONT_DIR             = "fonts/chinese"
++
++####################################################################
++# Chinese BIG5 compiled in font support (big5font.c)
++####################################################################
++HAVE_BIG5_SUPPORT        = N
++
++####################################################################
++# Chinese GB2312 compiled in font support (gb2312font.c)
++####################################################################
++HAVE_GB2312_SUPPORT      = N
++
++####################################################################
++# Japanese JISX0213 compiled in font support (jisx0213-12x12.c)
++####################################################################
++HAVE_JISX0213_SUPPORT    = N
++
++####################################################################
++# Korean HANGUL font support (jo16x16.c)
++####################################################################
++HAVE_KSC5601_SUPPORT     = N
++
++####################################################################
++# Japanese EUC-JP support using loadable MGL font
++####################################################################
++HAVE_EUCJP_SUPPORT       = N
++EUCJP_FONT_DIR           = "fonts/japanese"
++
++####################################################################
++# Generate screen driver interface only with no fonts or clipping
++####################################################################
++NOFONTSORCLIPPING        = N
++
++####################################################################
++#
++# Window move algorithms for Microwindows
++# Change for tradeoff between cpu speed and looks
++# ERASEMOVE repaints only backgrounds while window dragging, quicker.
++# Otherwise an XOR redraw is used for window moves only after button up,
++# quickest (should set for ELKS)
++# UPDATEREGIONS paints in update clipping region only for better look and feel
++#
++####################################################################
++ERASEMOVE                = Y
++UPDATEREGIONS            = Y
++
++####################################################################
++#
++# Link with Gray Palette (valid only for 4bpp modes)
++#
++####################################################################
++GRAYPALETTE              = N
++
++####################################################################
++#
++# If the platform is running UNIX, Linux or RTEMS...
++#
++####################################################################
++ifneq ($(ARCH), ELKS)
++
++# X Window screen, mouse and kbd drivers
++X11                      = N
++
++ifeq ($(X11), Y)
++# startup screen width, height, (depth for palette mode only)
++SCREEN_WIDTH             = 640
++SCREEN_HEIGHT            = 480
++SCREEN_DEPTH             = 4
++
++# You may want to turn this on for XFree86 4.x or if your backing store
++# isn't functioning properly
++USE_EXPOSURE		 = Y
++
++else
++
++# framebuffer screen driver (linear and/or vga 4 planes)
++# set VTSWITCH to include virtual terminal switch code
++# set FBREVERSE to reverse bit orders in 1,2,4 bpp
++# set FBVGA=N for all systems without VGA hardware (for MIPS must=N)
++FRAMEBUFFER              = N
++FBVGA                    = N
++VTSWITCH                 = N
++FBREVERSE                = N
++MVPOSD                   = Y
++
++# set HAVETEXTMODE=Y for systems that can switch between text & graphics.
++# On a graphics-only embedded system, such as Osprey and Embedded
++# Planet boards, set HAVETEXTMODE=N
++HAVETEXTMODE             = N
++
++# svgalib screen driver
++VGALIB                   = N
++
++# direct VGA hardware access screen driver
++HWVGA                    = N
++
++####################################################################
++# Mouse drivers
++# GPMMOUSE	gpm mouse
++# SERMOUSE	serial Microsoft, PC, Logitech, PS/2 mice (/dev/psaux)
++# SUNMOUSE	Sun Workstation mouse (/dev/sunmouse)
++# NOMOUSE	no mouse driver
++#
++# Touchscreen drivers
++# IPAQMOUSE	Compaq iPAQ, Intel Assabet (/dev/h3600_tsraw)
++# ZAURUSMOUSE	Sharp Zaurus (/dev/sharp_ts)
++# TUXMOUSE	TuxScreen (/dev/ucb1x00-ts)
++# ADSMOUSE	Applied Data Systems GC+ (/dev/ts)
++# ADS7846MOUSE	        ADS7846 chip, PSI OMAP Innovator (/dev/innnovator_ts)
++# EPMOUSE	Embedded Planet (/dev/tpanel)
++# VHMOUSE	Vtech Helio (/dev/tpanel)
++# MTMOUSE	MicroTouch serial (/dev/ttyS1)
++# PSIONMOUSE	Psion 5 (/dev/touch_psion)
++# YOPYMOUSE	Yopy (/dev/yopy-ts)
++# HARRIERMOUSE	NEC Harrier (/dev/tpanel)
++####################################################################
++GPMMOUSE                 = N
++SERMOUSE                 = N
++SUNMOUSE                 = N
++NOMOUSE                  = Y
++IPAQMOUSE                = N
++ZAURUSMOUSE              = N
++TUXMOUSE                 = N
++ADSMOUSE                 = N
++ADS7846MOUSE             = N
++EPMOUSE                  = N
++VHMOUSE                  = N
++MTMOUSE                  = N
++PSIONMOUSE               = N
++YOPYMOUSE                = N
++HARRIERMOUSE             = N
++
++# keyboard or null kbd driver
++TTYKBD                   = N
++SCANKBD                  = N
++PIPEKBD                  = N
++IPAQKBD                  = N
++LIRCKBD                  = N
++IRMKBD                   = Y
++NOKBD                    = N
++
++endif
++
++####################################################################
++# Screen driver specific configuration
++# SA1100_LCD_LTLEND 4bpp driver with arm SA1100 LCD controller
++# INVERT4BPP 4bpp inverted pixel driver for VTech Helio
++####################################################################
++SA1100_LCD_LTLEND        = N
++INVERT4BPP               = N
++
++####################################################################
++#
++# If the platform is a RTEMS box ....
++#
++####################################################################
++ifeq ($(ARCH), RTEMS)
++
++# Location & BSP information of the RTEMS build
++RTEMS_BUILD              = /tools/build-i386-elf-rtems
++RTEMS_BSP                = pc386
++LINK_APP_INTO_SERVER     = Y
++
++endif
++
++endif
++
++####################################################################
++#
++# If the platform is an ELKS box ...
++#
++####################################################################
++ifeq ($(ARCH), ELKS)
++
++# Higher speed asm driver, c driver of hercules screen driver
++ASMVGADRIVER             = Y
++CVGADRIVER               = N
++HERCDRIVER               = N
++DBGDRIVER                = N
++
++# Mouse support
++SERMOUSE                 = Y
++
++endif
+diff -ruN microwindows-0.91-orig/src/Configs/config.mvp.x11 microwindows-0.91/src/Configs/config.mvp.x11
+--- microwindows-0.91-orig/src/Configs/config.mvp.x11	1969-12-31 18:00:00.000000000 -0600
++++ microwindows-0.91/src/Configs/config.mvp.x11	2005-08-12 20:42:55.000000000 -0500
+@@ -0,0 +1,380 @@
++####################################################################
++# Microwindows and Nano-X configuration file
++#
++# This package can be configured to run on Linux (MIPS, ARM, POWERPC or x86)
++# UNIX, ELKS, DJGPP, or RTEMS.
++# On Linux, we've got drivers for Linux 2.x framebuffers, X11, or,
++# svgalib for VGA hardware.
++# In addition, a gpm or direct serial mouse driver can be configured.
++# On ELKS, the bios screen driver and serial mouse driver are always used.
++#
++# Either Microwindows and/or Nano-X can be built.
++# Microwindows and Nano-X have several demos.
++#
++# For MSDOS makes, see mcmwin.mak and mcnanox.mak
++####################################################################
++
++####################################################################
++#
++# build target platform
++#
++# Valid ARCH values are:
++#
++# LINUX-NATIVE
++# LINUX-TCC
++# LINUX-ARM
++# LINUX-MIPS
++# LINUX-POWERPC (BIGENDIAN=Y)
++# LINUX-SPARC (BIGENDIAN=Y)
++# LINUX-SH
++# FREEBSD-X86
++# SOLARIS (BIGENDIAN=Y)
++# TRIMEDIA
++# RTEMS
++# DJGPP
++# ELKS
++#
++# note: ELKS can't build client/server nano-X, nor widget lib
++#
++####################################################################
++ARCH                     = LINUX-NATIVE
++BIGENDIAN                = N
++ARMTOOLSPREFIX           = arm-linux-
++MIPSTOOLSPREFIX          = mipsel-linux-
++POWERPCTOOLSPREFIX       = powerpc-linux-
++SHTOOLSPREFIX            = sh-linux-gnu
++RTEMSTOOLSPREFIX         = i386-rtemself-
++
++####################################################################
++#
++# Compiling options
++#
++####################################################################
++OPTIMIZE                 = Y
++DEBUG                    = Y
++VERBOSE                  = N
++THREADSAFE               = N
++GPROF                    = N
++
++####################################################################
++#
++# Libraries to build: microwin, nano-X, nanowidget, object frameworks
++#
++####################################################################
++MICROWIN                 = Y
++NANOX                    = Y
++SHAREDLIBS               = N
++OBJFRAMEWORK             = N
++
++
++####################################################################
++#
++# Demos to build
++#
++####################################################################
++MICROWINDEMO             = Y
++NANOXDEMO                = Y
++
++####################################################################
++#
++# Applications to build
++#
++####################################################################
++NANOWM                   = Y
++
++####################################################################
++#
++# The pixeltype of the native hardware or underlying graphics library.
++# This definition defines the PIXELVAL to be 32, 16 or 8 bits wide.
++# If using Linux framebuffer, set to MWPF_TRUECOLOR0888, and use fbset.
++# It also enables GdArea/GrArea for this particular pixel packing format.
++#
++# define MWPF_PALETTE       /* pixel is packed 8 bits 1, 4 or 8 pal index*/
++# define MWPF_TRUECOLOR8888 /* pixel is packed 32 bits 8/8/8/8 truecolor w/alpha*/
++# define MWPF_TRUECOLOR0888 /* pixel is packed 32 bits 8/8/8 truecolor*/
++# define MWPF_TRUECOLOR888  /* pixel is packed 24 bits 8/8/8 truecolor*/
++# define MWPF_TRUECOLOR565  /* pixel is packed 16 bits 5/6/5 truecolor*/
++# define MWPF_TRUECOLOR555  /* pixel is packed 16 bits 5/5/5 truecolor*/
++# define MWPF_TRUECOLOR332  /* pixel is packed 8 bits 3/3/2 truecolor*/
++#
++####################################################################
++SCREEN_PIXTYPE           = MWPF_TRUECOLOR0888
++
++####################################################################
++#
++# NanoX: Put Y to the following line to link the nano-X application
++# with the server.  This is required for ELKS, if no network is present,
++# or for speed or debugging.  This affects the nano-X server only.
++#
++####################################################################
++LINK_APP_INTO_SERVER     = Y
++
++####################################################################
++# Shared memory support for Nano-X client/server protocol speedup
++####################################################################
++HAVE_SHAREDMEM_SUPPORT   = N
++
++####################################################################
++#
++# File I/O support
++# Supporting either below drags in libc stdio, which may not be wanted
++#
++####################################################################
++HAVE_FILEIO              = Y
++
++####################################################################
++# BMP, GIF reading support
++####################################################################
++HAVE_BMP_SUPPORT         = Y
++HAVE_GIF_SUPPORT         = Y
++HAVE_PNM_SUPPORT         = Y
++HAVE_XPM_SUPPORT         = Y
++
++####################################################################
++# JPEG support through libjpeg, see README.txt in contrib/jpeg
++####################################################################
++HAVE_JPEG_SUPPORT        = Y
++INCJPEG                  = .
++LIBJPEG                  = /usr/lib/libjpeg.a
++
++####################################################################
++# PNG support via libpng and libz
++####################################################################
++HAVE_PNG_SUPPORT         = Y
++INCPNG                   = /usr/include
++INCLIBZ                   = /usr/include
++LIBPNG                   = /usr/lib/libpng.a
++LIBZ                     = /usr/lib/libz.a
++
++####################################################################
++# TIFF support through libtiff
++####################################################################
++HAVE_TIFF_SUPPORT        = N
++INCTIFF                  = /usr/include
++LIBTIFF                  = /usr/lib/libtiff.a
++
++####################################################################
++# native .fnt loadable font support
++####################################################################
++HAVE_FNT_SUPPORT         = Y
++HAVE_FNTGZ_SUPPORT       = N
++FNT_FONT_DIR             = "fonts/bdf"
++
++####################################################################
++# T1 adobe type1 font support thru t1lib
++####################################################################
++HAVE_T1LIB_SUPPORT       = N
++INCT1LIB                 = /usr/include
++LIBT1LIB                 = /usr/lib/libt1.a
++
++####################################################################
++# TrueType font support thru FreeType 1.x
++####################################################################
++HAVE_FREETYPE_SUPPORT    = N
++INCFTLIB                 = /usr/include
++LIBFTLIB                 = /usr/lib/libttf.so
++FREETYPE_FONT_DIR        = "fonts/truetype"
++
++####################################################################
++# Support for many kinds of font thru FreeType 2.x
++# Must also set FREETYPE_FONT_DIR in the Freetype 1.x section
++####################################################################
++HAVE_FREETYPE_2_SUPPORT  = N
++INCFT2LIB                = /usr/include
++LIBFT2LIB                = /usr/lib/libfreetype.a
++
++####################################################################
++# PCF font support 
++# Selecting HAVE_PCFGZ_SUPPORT will allow you to directly read
++# .pcf.gz files, but it will add libz to the size of the server
++####################################################################
++HAVE_PCF_SUPPORT         = N
++HAVE_PCFGZ_SUPPORT       = N
++PCF_FONT_DIR             = "fonts/pcf"
++
++####################################################################
++# Chinese Han Zi Ku loadable font support
++####################################################################
++HAVE_HZK_SUPPORT         = N
++HZK_FONT_DIR             = "fonts/chinese"
++
++####################################################################
++# Chinese BIG5 compiled in font support (big5font.c)
++####################################################################
++HAVE_BIG5_SUPPORT        = N
++
++####################################################################
++# Chinese GB2312 compiled in font support (gb2312font.c)
++####################################################################
++HAVE_GB2312_SUPPORT      = N
++
++####################################################################
++# Japanese JISX0213 compiled in font support (jisx0213-12x12.c)
++####################################################################
++HAVE_JISX0213_SUPPORT    = N
++
++####################################################################
++# Korean HANGUL font support (jo16x16.c)
++####################################################################
++HAVE_KSC5601_SUPPORT     = N
++
++####################################################################
++# Japanese EUC-JP support using loadable MGL font
++####################################################################
++HAVE_EUCJP_SUPPORT       = N
++EUCJP_FONT_DIR           = "fonts/japanese"
++
++####################################################################
++# Generate screen driver interface only with no fonts or clipping
++####################################################################
++NOFONTSORCLIPPING        = N
++
++####################################################################
++#
++# Window move algorithms for Microwindows
++# Change for tradeoff between cpu speed and looks
++# ERASEMOVE repaints only backgrounds while window dragging, quicker.
++# Otherwise an XOR redraw is used for window moves only after button up,
++# quickest (should set for ELKS)
++# UPDATEREGIONS paints in update clipping region only for better look and feel
++#
++####################################################################
++ERASEMOVE                = Y
++UPDATEREGIONS            = Y
++
++####################################################################
++#
++# Link with Gray Palette (valid only for 4bpp modes)
++#
++####################################################################
++GRAYPALETTE              = N
++
++####################################################################
++#
++# If the platform is running UNIX, Linux or RTEMS...
++#
++####################################################################
++ifneq ($(ARCH), ELKS)
++
++# X Window screen, mouse and kbd drivers
++X11                      = Y
++
++ifeq ($(X11), Y)
++# startup screen width, height, (depth for palette mode only)
++SCREEN_WIDTH             = 720
++SCREEN_HEIGHT            = 480
++SCREEN_DEPTH             = 4
++
++# You may want to turn this on for XFree86 4.x or if your backing store
++# isn't functioning properly
++USE_EXPOSURE		 = Y
++
++else
++
++# framebuffer screen driver (linear and/or vga 4 planes)
++# set VTSWITCH to include virtual terminal switch code
++# set FBREVERSE to reverse bit orders in 1,2,4 bpp
++# set FBVGA=N for all systems without VGA hardware (for MIPS must=N)
++FRAMEBUFFER              = Y
++FBVGA                    = Y
++VTSWITCH                 = Y
++FBREVERSE                = N
++
++# set HAVETEXTMODE=Y for systems that can switch between text & graphics.
++# On a graphics-only embedded system, such as Osprey and Embedded
++# Planet boards, set HAVETEXTMODE=N
++HAVETEXTMODE             = Y
++
++# svgalib screen driver
++VGALIB                   = N
++
++# direct VGA hardware access screen driver
++HWVGA                    = N
++
++####################################################################
++# Mouse drivers
++# GPMMOUSE	gpm mouse
++# SERMOUSE	serial Microsoft, PC, Logitech, PS/2 mice (/dev/psaux)
++# SUNMOUSE	Sun Workstation mouse (/dev/sunmouse)
++# NOMOUSE	no mouse driver
++#
++# Touchscreen drivers
++# IPAQMOUSE	Compaq iPAQ, Intel Assabet (/dev/h3600_tsraw)
++# ZAURUSMOUSE	Sharp Zaurus (/dev/sharp_ts)
++# TUXMOUSE	TuxScreen (/dev/ucb1x00-ts)
++# ADSMOUSE	Applied Data Systems GC+ (/dev/ts)
++# ADS7846MOUSE	        ADS7846 chip, PSI OMAP Innovator (/dev/innnovator_ts)
++# EPMOUSE	Embedded Planet (/dev/tpanel)
++# VHMOUSE	Vtech Helio (/dev/tpanel)
++# MTMOUSE	MicroTouch serial (/dev/ttyS1)
++# PSIONMOUSE	Psion 5 (/dev/touch_psion)
++# YOPYMOUSE	Yopy (/dev/yopy-ts)
++# HARRIERMOUSE	NEC Harrier (/dev/tpanel)
++####################################################################
++GPMMOUSE                 = Y
++SERMOUSE                 = N
++SUNMOUSE                 = N
++NOMOUSE                  = N
++IPAQMOUSE                = N
++ZAURUSMOUSE              = N
++TUXMOUSE                 = N
++ADSMOUSE                 = N
++ADS7846MOUSE             = N
++EPMOUSE                  = N
++VHMOUSE                  = N
++MTMOUSE                  = N
++PSIONMOUSE               = N
++YOPYMOUSE                = N
++HARRIERMOUSE             = N
++
++# keyboard or null kbd driver
++TTYKBD                   = N
++SCANKBD                  = Y
++PIPEKBD                  = N
++IPAQKBD                  = N
++LIRCKBD                  = N
++NOKBD                    = N
++
++endif
++
++####################################################################
++# Screen driver specific configuration
++# SA1100_LCD_LTLEND 4bpp driver with arm SA1100 LCD controller
++# INVERT4BPP 4bpp inverted pixel driver for VTech Helio
++####################################################################
++SA1100_LCD_LTLEND        = N
++INVERT4BPP               = N
++
++####################################################################
++#
++# If the platform is a RTEMS box ....
++#
++####################################################################
++ifeq ($(ARCH), RTEMS)
++
++# Location & BSP information of the RTEMS build
++RTEMS_BUILD              = /tools/build-i386-elf-rtems
++RTEMS_BSP                = pc386
++LINK_APP_INTO_SERVER     = Y
++
++endif
++
++endif
++
++####################################################################
++#
++# If the platform is an ELKS box ...
++#
++####################################################################
++ifeq ($(ARCH), ELKS)
++
++# Higher speed asm driver, c driver of hercules screen driver
++ASMVGADRIVER             = Y
++CVGADRIVER               = N
++HERCDRIVER               = N
++DBGDRIVER                = N
++
++# Mouse support
++SERMOUSE                 = Y
++
++endif
+diff -ruN microwindows-0.91-orig/src/drivers/kbd_irm.c microwindows-0.91/src/drivers/kbd_irm.c
+--- microwindows-0.91-orig/src/drivers/kbd_irm.c	1969-12-31 18:00:00.000000000 -0600
++++ microwindows-0.91/src/drivers/kbd_irm.c	2005-08-12 20:42:55.000000000 -0500
+@@ -0,0 +1,265 @@
++/*
++ * Copyright (c) 1999 Greg Haerr <greg@censoft.com>
++ * Copyright (c) 1991 David I. Bell
++ * Permission is granted to use, distribute, or modify this source,
++ * provided that this copyright notice remains intact.
++ *
++ * Hauppauge MediaMVP /dev/rawir IR Remote Keyboard Driver by erl
++ */
++#include <sys/types.h>
++#include <fcntl.h>
++#include <unistd.h>
++#include <errno.h>
++#include <termios.h>
++#include <stdio.h>
++#include "device.h"
++
++/*
++ * buttons for new and old remote
++ */
++#define	ZERO_BUTTON		 0
++#define	ONE_BUTTON		 1
++#define	TWO_BUTTON		 2
++#define	THREE_BUTTON		 3
++#define	FOUR_BUTTON		 4
++#define	FIVE_BUTTON		 5
++#define	SIX_BUTTON		 6
++#define	SEVEN_BUTTON		 7
++#define	EIGHT_BUTTON		 8
++#define	NINE_BUTTON		 9
++#define	RED_BUTTON		11
++#define	BLANK_BUTTON		12
++#define	MENU_BUTTON		13
++#define	MUTE_BUTTON		15
++#define	VOL_UP_BUTTON		16
++#define	VOL_DOWN_BUTTON		17
++#define	SKIP_BUTTON		30
++#define	EXIT_BUTTON		31
++#define	REPLAY_BUTTON		36
++#define	OK_BUTTON		37
++#define	BLUE_BUTTON		41
++#define	GREEN_BUTTON		46
++#define	PAUSE_BUTTON		48
++#define	REW_BUTTON		50
++#define	FF_BUTTON		52
++#define	PLAY_BUTTON		53
++#define	STOP_BUTTON		54
++#define	REC_BUTTON		55
++#define	YELLOW_BUTTON		56
++#define	GO_BUTTON		59
++#define	FULL_BUTTON		60
++#define	POWER_BUTTON		61
++
++/*
++ * buttons which need to be remapped
++ */
++#define	UP_BUTTON		20
++#define	DOWN_BUTTON		21
++#define	CHAN_UP_BUTTON		32
++#define	CHAN_DOWN_BUTTON	33
++#define	RIGHT_BUTTON		23
++#define	LEFT_BUTTON		22
++
++/*
++ * buttons only on new remote
++ */
++#define	VIDEOS_BUTTON		24
++#define	MUSIC_BUTTON		25
++#define	PICTURES_BUTTON		26
++#define	GUIDE_BUTTON		27
++#define	TV_BUTTON		28
++#define	RADIO_BUTTON		101
++#define	ASTERISK_BUTTON		10
++#define	POUND_BUTTON		14
++#define	PREV_CHAN_BUTTON	18
++
++#define	KEYBOARD	"/dev/rawir"	/* keyboard associated with screen*/
++
++static int  IRM_Open(KBDDEVICE *pkd);
++static void IRM_Close(void);
++static void IRM_GetModifierInfo(MWKEYMOD *modifiers, MWKEYMOD *curmodifiers);
++static int  IRM_Read(MWKEY *kbuf, MWKEYMOD *modifiers, MWSCANCODE *scancode);
++
++KBDDEVICE kbddev = {
++	IRM_Open,
++	IRM_Close,
++	IRM_GetModifierInfo,
++	IRM_Read,
++	NULL
++};
++
++static	int		fd;		/* file descriptor for keyboard */
++
++/*
++ * Open the keyboard.
++ * This is real simple, we just use a special file handle
++ * that allows non-blocking I/O, and put the terminal into
++ * character mode.
++ */
++static int
++IRM_Open(KBDDEVICE *pkd)
++{
++	fd = open(KEYBOARD, O_RDONLY | O_NONBLOCK);
++	if (fd < 0)
++		return -1;
++
++	return fd;
++
++}
++
++/*
++ * Close the keyboard.
++ * This resets the terminal modes.
++ */
++static void
++IRM_Close(void)
++{
++	close(fd);
++	fd = -1;
++}
++
++/*
++ * Return the possible modifiers for the keyboard.
++ */
++static  void
++IRM_GetModifierInfo(MWKEYMOD *modifiers, MWKEYMOD *curmodifiers)
++{
++	*modifiers = 0;			/* no modifiers available */
++}
++
++/*
++ * This reads one keystroke from the keyboard, and the current state of
++ * the mode keys (ALT, SHIFT, CTRL).  Returns -1 on error, 0 if no data
++ * is ready, and 1 if data was read.  This is a non-blocking call.
++ */
++static int
++IRM_Read(MWKEY *buf, MWKEYMOD *modifiers, MWSCANCODE *scancode)
++{
++	unsigned short	in;
++	int cc;			/* characters read */
++	MWKEY key;
++
++	*modifiers = 0;			/* no modifiers yet */
++	cc = read(fd, &in, sizeof(in));
++	if ((cc < 0) && (errno != EINTR) && (errno != EAGAIN)) {
++		perror("kbd");
++		return -1;
++	}
++	if (cc == sizeof(in)) {
++		/*
++		 * Old remote has upper bytes 0x00
++		 * New remote has upper bytes 0x01 (except power button)
++		 */
++		if ((in & 0xFE00) == 0) {
++			key = in & 0xff;
++			switch(key) {
++				case POWER_BUTTON:
++				case GO_BUTTON:
++				case ZERO_BUTTON:
++				case ONE_BUTTON:
++				case TWO_BUTTON:
++				case THREE_BUTTON:
++				case FOUR_BUTTON:
++				case FIVE_BUTTON:
++				case SIX_BUTTON:
++				case SEVEN_BUTTON:
++				case EIGHT_BUTTON:
++				case NINE_BUTTON:
++				case EXIT_BUTTON:
++				case MENU_BUTTON:
++				case RED_BUTTON:
++				case GREEN_BUTTON:
++				case YELLOW_BUTTON:
++				case BLUE_BUTTON:
++				case MUTE_BUTTON:
++				case FULL_BUTTON:
++				case REW_BUTTON:
++				case PLAY_BUTTON:
++				case FF_BUTTON:
++				case REC_BUTTON:
++				case STOP_BUTTON:
++				case PAUSE_BUTTON:
++				case REPLAY_BUTTON:
++				case SKIP_BUTTON:
++				case OK_BUTTON:
++				case ASTERISK_BUTTON:
++				case POUND_BUTTON:
++				case PREV_CHAN_BUTTON:
++					*buf = key;
++					break;
++				/*
++				 * Volume up/down are shared with right/left
++				 * on the old remote.
++				 */
++				case RIGHT_BUTTON:
++					if (in & 0xff00)
++						*buf = VOL_UP_BUTTON;
++					else
++						*buf = key;
++					break;
++				case LEFT_BUTTON:
++					if (in & 0xff00)
++						*buf = VOL_DOWN_BUTTON;
++					else
++						*buf = key;
++					break;
++				case VOL_UP_BUTTON:
++					if (in & 0xff00)
++						*buf = RIGHT_BUTTON;
++					else
++						*buf = key;
++					break;
++				case VOL_DOWN_BUTTON:
++					if (in & 0xff00)
++						*buf = LEFT_BUTTON;
++					else
++						*buf = key;
++					break;
++				/*
++				 * The blank button on the old remote and
++				 * the radio button on the new are the same.
++				 */
++				case BLANK_BUTTON:
++					if (in & 0xff00)
++						*buf = RADIO_BUTTON;
++					else
++						*buf = key;
++					break;
++				/*
++				 * Remap UP and DOWN so the new and old
++				 * remotes match.
++				 */
++				case UP_BUTTON:
++					if (in & 0xff00)
++						*buf = CHAN_UP_BUTTON;
++					else
++						*buf = key;
++					break;
++				case DOWN_BUTTON:
++					if (in & 0xff00)
++						*buf = CHAN_DOWN_BUTTON;
++					else
++						*buf = key;
++					break;
++				case CHAN_UP_BUTTON:
++					if (in & 0xff00)
++						*buf = UP_BUTTON;
++					else
++						*buf = key;
++					break;
++				case CHAN_DOWN_BUTTON:
++					if (in & 0xff00)
++						*buf = DOWN_BUTTON;
++					else
++						*buf = key;
++					break;
++				default:
++					fprintf(stderr,
++						"unknown button: %d\n", in);
++					return 0;
++			}
++			return 1;
++		}
++	}
++	return 0;
++}
+diff -ruN microwindows-0.91-orig/src/drivers/Makefile.orig microwindows-0.91/src/drivers/Makefile.orig
+--- microwindows-0.91-orig/src/drivers/Makefile.orig	1969-12-31 18:00:00.000000000 -0600
++++ microwindows-0.91/src/drivers/Makefile.orig	2003-09-09 22:19:44.000000000 -0500
+@@ -0,0 +1,26 @@
++##############################################################################
++# Microwindows template Makefile
++# Copyright (c) 2000 Martin Jolicoeur, Greg Haerr
++# Portions Copyright (c) 2002 by Koninklijke Philips Electronics N.V.
++##############################################################################
++
++ifndef MW_DIR_SRC
++MW_DIR_SRC := $(CURDIR)/..
++endif
++MW_DIR_RELATIVE := drivers/
++include $(MW_DIR_SRC)/Path.rules
++include $(CONFIG)
++
++############################# targets section ################################
++
++# If you want to create a library with the objects files, define the name here
++LIBNAME = libmwdrivers.a
++#LIBNAMESO = libmwdrivers.so
++
++OBJS := $(MW_DIR_OBJ)/drivers/obsolete.o
++
++######################### Makefile.rules section #############################
++
++include $(MW_DIR_SRC)/Makefile.rules
++
++######################## Tools targets section ###############################
+diff -ruN microwindows-0.91-orig/src/drivers/Makefile.rej microwindows-0.91/src/drivers/Makefile.rej
+--- microwindows-0.91-orig/src/drivers/Makefile.rej	1969-12-31 18:00:00.000000000 -0600
++++ microwindows-0.91/src/drivers/Makefile.rej	2005-08-12 20:42:55.000000000 -0500
+@@ -0,0 +1,38 @@
++***************
++*** 23,28 ****
++  ifneq ($(ARCH), ELKS)
++  ifneq ($(ARCH), DJGPP)
++  
++  ifeq ($(EM8400), Y)
++  OBJS += scr_em84xx.o genfont.o genmem.o
++  endif
++--- 23,32 ----
++  ifneq ($(ARCH), ELKS)
++  ifneq ($(ARCH), DJGPP)
++  
+++ ifeq ($(MVPOSD), Y)
+++ OBJS += scr_mvposd.o genfont.o genmem.o
+++ endif
+++ 
++  ifeq ($(EM8400), Y)
++  OBJS += scr_em84xx.o genfont.o genmem.o
++  endif
++***************
++*** 192,197 ****
++  #
++  ifneq ($(PIPEKBD), Y)
++  
++  ifeq ($(TTYKBD), Y)
++  OBJS += kbd_tty.o
++  endif
++--- 196,205 ----
++  #
++  ifneq ($(PIPEKBD), Y)
++  
+++ ifeq ($(IRMKBD), Y)
+++ OBJS += kbd_irm.o
+++ endif
+++ 
++  ifeq ($(TTYKBD), Y)
++  OBJS += kbd_tty.o
++  endif
+diff -ruN microwindows-0.91-orig/src/drivers/Objects.rules microwindows-0.91/src/drivers/Objects.rules
+--- microwindows-0.91-orig/src/drivers/Objects.rules	2004-05-18 14:09:39.000000000 -0500
++++ microwindows-0.91/src/drivers/Objects.rules	2005-08-12 21:06:21.000000000 -0500
+@@ -13,6 +13,18 @@
+ ifneq ($(ARCH), ELKS)
+ ifneq ($(ARCH), DJGPP)
+ 
++ifeq ($(MVPOSD), Y)
++MW_CORE_OBJS += \
++	$(MW_DIR_OBJ)/drivers/scr_mvposd.o \
++	$(MW_DIR_OBJ)/drivers/genfont.o \
++	$(MW_DIR_OBJ)/drivers/genmem.o
++endif
++
++ifeq ($(IRMKBD), Y)
++MW_CORE_OBJS += \
++	$(MW_DIR_OBJ)/drivers/kbd_irm.o
++endif
++
+ ifeq ($(EM8400), Y)
+ MW_CORE_OBJS += \
+ 	$(MW_DIR_OBJ)/drivers/scr_em84xx.o \
+diff -ruN microwindows-0.91-orig/src/drivers/scr_mvposd.c microwindows-0.91/src/drivers/scr_mvposd.c
+--- microwindows-0.91-orig/src/drivers/scr_mvposd.c	1969-12-31 18:00:00.000000000 -0600
++++ microwindows-0.91/src/drivers/scr_mvposd.c	2005-08-12 20:42:55.000000000 -0500
+@@ -0,0 +1,369 @@
++/*
++ * MediaMVP On Screen Display Screen Driver
++ *
++ * Jon Gettler <gettler@acm.org>
++ */
++/*#define NDEBUG*/
++#include <assert.h>
++#include <stdio.h>
++#include "device.h"
++#include "fb.h"
++#include "genmem.h"
++#include "genfont.h"
++
++#include "mvp_osd.h"
++
++#if 0
++#define PRINTF(x...) printf(x)
++#else
++#define PRINTF(x...)
++#endif
++
++#define MAXLINELEN	800	/* max line byte/pixel length*/
++
++/* specific driver entry points*/
++static PSD  OSD_open(PSD psd);
++static void OSD_close(PSD psd);
++static void OSD_getscreeninfo(PSD psd,PMWSCREENINFO psi);
++static void OSD_setpalette(PSD psd,int first,int count,MWPALENTRY *pal);
++static void OSD_drawpixel(PSD psd,MWCOORD x, MWCOORD y, MWPIXELVAL c);
++static MWPIXELVAL OSD_readpixel(PSD psd,MWCOORD x, MWCOORD y);
++static void OSD_drawhline(PSD psd,MWCOORD x1, MWCOORD x2, MWCOORD y, MWPIXELVAL c);
++static void OSD_drawvline(PSD psd,MWCOORD x, MWCOORD y1, MWCOORD y2, MWPIXELVAL c);
++static void OSD_fillrect(PSD psd,MWCOORD x1, MWCOORD y1, MWCOORD x2,
++		MWCOORD y2, MWPIXELVAL c);
++static void OSD_blit(PSD dstpsd, MWCOORD dstx, MWCOORD dsty, MWCOORD w,
++		MWCOORD h, PSD srcpsd, MWCOORD srcx, MWCOORD srcy, long op);
++static void OSD_preselect(PSD psd);
++static void OSD_drawarea(PSD psd, driver_gc_t * gc, int op);
++static MWBOOL OSD_mapmemgc(PSD mempsd, MWCOORD w, MWCOORD h, int planes,
++			   int bpp, int linelen, int size,void *addr);
++static void OSD_freememgc(PSD mempsd);
++
++SCREENDEVICE	scrdev = {
++	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, NULL,
++	OSD_open,
++	OSD_close,
++	OSD_getscreeninfo,
++	OSD_setpalette,
++	OSD_drawpixel,
++	OSD_readpixel,
++	OSD_drawhline,
++	OSD_drawvline,
++	OSD_fillrect,
++	gen_fonts,
++	OSD_blit,
++	OSD_preselect,
++	OSD_drawarea,
++	NULL,			/* SetIOPermissions*/
++	gen_allocatememgc,
++	OSD_mapmemgc,
++	OSD_freememgc,
++	NULL,			/* StretchBlit subdriver*/
++	NULL			/* SetPortrait*/
++};
++
++extern int gr_mode;	/* temp kluge*/
++
++#if 0
++static osd_surface_t *surface = NULL;
++#endif
++
++/*
++ * XXX: displace the drawing surface so the entire window can be seen on a TV
++ *      this is temporary, so the microwindows tests are fully visable
++ */
++#define XDISPLACE	0
++#define YDISPLACE	0
++
++static int
++osd_init(PSD psd, int w, int h)
++{
++	osd_surface_t *surface;
++	int width, height;
++#if 1
++	char buf[2048];
++	memset(buf, 0, sizeof(buf));
++#endif
++
++	if ((surface=osd_create_surface(w, h)) == NULL) {
++		return -1;
++	}
++	if (osd_get_surface_size(surface, &width, &height) < 0)
++		return -1;
++
++	psd->xres = psd->xvirtres = width;
++	psd->yres = psd->yvirtres = height;
++	psd->linelen = psd->xres;
++
++	psd->ncolors = (1 << 24);
++	psd->planes = 1;
++	psd->bpp = 32;
++	psd->pixtype = MWPF_TRUECOLOR8888;
++	psd->flags = PSF_SCREEN | PSF_HAVEBLIT | PSF_MEMORY;
++	psd->size = 0;
++	psd->portrait = MWPORTRAIT_NONE;
++
++	psd->addr = (void*)surface;
++
++	PRINTF("created surface %d,%d at 0x%.8x\n", w, h, surface);
++#if 0
++	osd_fill_rect(surface, 100, 100, 200, 200, osd_rgba(255, 0, 0, 255));
++#endif
++
++	return 0;
++}
++
++static PSD
++OSD_open(PSD psd)
++{
++	osd_surface_t *surface;
++#if 1
++	char buf[2048];
++	memset(buf, 0, sizeof(buf));
++#endif
++
++	if (osd_init(psd, -1, -1) < 0)
++		return NULL;
++
++	surface = (osd_surface_t*)psd->addr;
++
++	osd_display_surface(surface);
++#if 0
++	sleep(2);
++#endif
++
++	PRINTF("OSD: display created and displayed\n");
++
++	return psd;
++}
++
++static void
++OSD_close(PSD psd)
++{
++	osd_surface_t *surface = (osd_surface_t*)psd->addr;
++
++	if (surface) {
++		osd_destroy_surface(surface);
++
++		PRINTF("OSD: %p closed\n", surface);
++	}
++
++	surface = NULL;
++}
++
++static void
++OSD_getscreeninfo(PSD psd,PMWSCREENINFO psi)
++{
++	osd_surface_t *surface = (osd_surface_t*)psd->addr;
++
++	psi->rows = psd->yvirtres;
++	psi->cols = psd->xvirtres;
++	psi->planes = psd->planes;
++	psi->bpp = psd->bpp;
++	psi->ncolors = psd->ncolors;
++	psi->fonts = NUMBER_FONTS;
++	psi->portrait = MWPORTRAIT_NONE;
++	psi->fbdriver = FALSE;	/* not running fb driver, no direct map*/
++	psi->pixtype = psd->pixtype;
++	psi->rmask = 0xff0000;
++	psi->gmask = 0x00ff00;
++	psi->bmask = 0x0000ff;
++
++	psi->xdpcm = 27;	/* assumes screen width of 24 cm*/
++	psi->ydpcm = 27;	/* assumes screen height of 18 cm*/
++}
++
++static void
++OSD_setpalette(PSD psd,int first,int count,MWPALENTRY *pal)
++{
++	osd_surface_t *surface = (osd_surface_t*)psd->addr;
++
++	PRINTF("OSD: setpalette, first %d, count %d\n", first, count);
++}
++
++static void
++OSD_drawpixel(PSD psd,MWCOORD x, MWCOORD y, MWPIXELVAL c)
++{
++	osd_surface_t *surface = (osd_surface_t*)psd->addr;
++
++	PRINTF("OSD: draw pixel %d,%d color 0x%.8x\n", x, y, c);
++	PRINTF("OSD: sfc 0x%.8x draw pixel %d,%d color 0x%.8x\n", surface, x, y, c);
++
++	x += XDISPLACE;
++	y += YDISPLACE;
++
++#if 1
++	c |= 0xff000000;
++#endif
++
++	osd_draw_pixel(surface, x, y, c);
++}
++
++static MWPIXELVAL
++OSD_readpixel(PSD psd,MWCOORD x, MWCOORD y)
++{
++	osd_surface_t *surface = (osd_surface_t*)psd->addr;
++
++	PRINTF("OSD: readpixel %d,%d\n", x, y);
++
++	return 0;
++}
++
++static void
++OSD_drawhline(PSD psd,MWCOORD x1, MWCOORD x2, MWCOORD y, MWPIXELVAL c)
++{
++	osd_surface_t *surface = (osd_surface_t*)psd->addr;
++
++	PRINTF("OSD: drawhline %d %d %d color 0x%.8x\n", x1, x2, y, c);
++
++	x1 += XDISPLACE;
++	x2 += XDISPLACE;
++	y += YDISPLACE;
++
++#if 0
++	/*
++	 * XXX: microwindows doesn't always set the alpha channel...
++	 */
++	c |= 0xff000000;
++#endif
++
++	osd_draw_horz_line(surface, x1, x2, y, c);
++}
++
++static void
++OSD_drawvline(PSD psd,MWCOORD x, MWCOORD y1, MWCOORD y2, MWPIXELVAL c)
++{
++	osd_surface_t *surface = (osd_surface_t*)psd->addr;
++
++	PRINTF("OSD: drawvline %d %d %d color 0x%.8x\n", x, y1, y2, c);
++
++	x += XDISPLACE;
++	y1 += YDISPLACE;
++	y2 += YDISPLACE;
++
++	osd_draw_vert_line(surface, x, y1, y2, c);
++}
++
++static void
++OSD_fillrect(PSD psd,MWCOORD x1, MWCOORD y1, MWCOORD x2, MWCOORD y2, MWPIXELVAL c)
++{
++	osd_surface_t *surface = (osd_surface_t*)psd->addr;
++	int w, h;
++
++	PRINTF("OSD: fillrect %d,%d %d,%d color 0x%.8x\n", x1, y1, x2, y2, c);
++
++	x1 += XDISPLACE;
++	x2 += XDISPLACE;
++	y1 += YDISPLACE;
++	y2 += YDISPLACE;
++
++	w = x2 - x1 + 1;
++	h = y2 - y1 + 1;
++
++	osd_fill_rect(surface, x1, y1, w, h, c);
++}
++
++/* only screen-to-screen blit implemented, op ignored*/
++/* FIXME*/
++static void
++OSD_blit(PSD dstpsd, MWCOORD dstx, MWCOORD dsty, MWCOORD w, MWCOORD h,
++	 PSD srcpsd, MWCOORD srcx, MWCOORD srcy, long op)
++{
++	osd_surface_t *dstsfc = (osd_surface_t*)dstpsd->addr;
++	osd_surface_t *srcsfc = (osd_surface_t*)srcpsd->addr;
++
++	if (op == MWMODE_NOOP)
++		return;
++	if(!(srcpsd->flags & PSF_SCREEN) || !(dstpsd->flags & PSF_SCREEN))
++		return;
++
++	PRINTF("%s(): line %d\n", __FUNCTION__, __LINE__);
++
++	PRINTF("blit dst 0x%.8x src 0x%.8x  %d,%d to %d,%d  wh %d %d\n",
++	       dstsfc, srcsfc, srcx, srcy, dstx, dsty, w, h);
++
++#if 0
++	dstx -= 300;
++	dsty -= 300;
++#endif
++
++	osd_blit(dstsfc, dstx, dsty, srcsfc, srcx, srcy, w, h);
++}
++
++static void
++OSD_drawarea(PSD psd, driver_gc_t * gc, int op)
++{
++	PRINTF("%s(): line %d\n", __FUNCTION__, __LINE__);
++}
++
++static void
++OSD_preselect(PSD psd)
++{
++	osd_surface_t *surface = (osd_surface_t*)psd->addr;
++
++	PRINTF("%s(): line %d\n", __FUNCTION__, __LINE__);
++
++#if 0
++	sleep(2);
++	osd_display_surface(surface);
++#endif
++}
++
++MWBOOL
++OSD_mapmemgc(PSD mempsd,MWCOORD w,MWCOORD h,int planes,int bpp,int linelen,
++	     int size,void *addr)
++{
++	osd_surface_t *surface;
++#if 1
++	char buf[2048];
++	memset(buf, 0, sizeof(buf));
++#endif
++
++	if (osd_init(mempsd, w, h) < 0)
++		return 0;
++	surface = (osd_surface_t*)mempsd->addr;
++#if 0
++	osd_display_surface(surface);
++	sleep(2);
++#endif
++
++	return 1;
++}
++
++static void
++OSD_freememgc(PSD mempsd)
++{
++	assert(mempsd->flags & PSF_MEMORY);
++
++	/* note: mempsd->addr must be freed elsewhere*/
++	OSD_close(mempsd);
++
++	free(mempsd);
++}
++
++#if 0
++static int fade = 100;
++/* experimental palette animation*/
++void
++setfadelevel(PSD psd, int f)
++{
++	int 		i;
++	extern MWPALENTRY gr_palette[256];
++	MWPALENTRY local_palette[256];
++
++	if(psd->pixtype != MWPF_PALETTE)
++		return;
++
++	fade = f;
++	if(fade > 100)
++		fade = 100;
++	for(i=0; i<256; ++i) {
++
++		local_palette[i].r = (gr_palette[i].r * fade / 100);
++		local_palette[i].g = (gr_palette[i].g * fade / 100);
++		local_palette[i].b = (gr_palette[i].b * fade / 100);
++	}
++   SVGA_setpalette( psd, 0,256,local_palette );
++}
++#endif
+diff -ruN microwindows-0.91-orig/src/engine/Makefile.orig microwindows-0.91/src/engine/Makefile.orig
+--- microwindows-0.91-orig/src/engine/Makefile.orig	1969-12-31 18:00:00.000000000 -0600
++++ microwindows-0.91/src/engine/Makefile.orig	2003-09-09 22:19:45.000000000 -0500
+@@ -0,0 +1,27 @@
++##############################################################################
++# Microwindows template Makefile
++# Copyright (c) 2000 Martin Jolicoeur, Greg Haerr
++# Portions Copyright (c) 2002 Koninklijke Philips Electronics N.V.
++##############################################################################
++
++ifndef MW_DIR_SRC
++MW_DIR_SRC := $(CURDIR)/..
++endif
++MW_DIR_RELATIVE := engine/
++include $(MW_DIR_SRC)/Path.rules
++include $(CONFIG)
++
++############################# targets section ################################
++
++# If you want to create a library with the objects files, define the name here
++LIBNAME = libmwengine.a
++#LIBNAMESO = libmwengine.so
++
++OBJS := $(MW_DIR_OBJ)/engine/obsolete.o
++
++
++######################### Makefile.rules section #############################
++
++include $(MW_DIR_SRC)/Makefile.rules
++
++######################## Tools targets section ###############################
+diff -ruN microwindows-0.91-orig/src/fonts/Makefile.orig microwindows-0.91/src/fonts/Makefile.orig
+--- microwindows-0.91-orig/src/fonts/Makefile.orig	1969-12-31 18:00:00.000000000 -0600
++++ microwindows-0.91/src/fonts/Makefile.orig	2003-09-11 21:09:54.000000000 -0500
+@@ -0,0 +1,40 @@
++##############################################################################
++# Microwindows template Makefile
++# Copyright (c) 2000 Martin Jolicoeur, Greg Haerr
++##############################################################################
++
++ifndef MW_DIR_SRC
++MW_DIR_SRC := $(CURDIR)/..
++endif
++MW_DIR_RELATIVE := fonts/
++include $(MW_DIR_SRC)/Path.rules
++include $(CONFIG)
++
++############################# targets section ################################
++
++# If you want to create a library with the objects files, define the name here
++LIBNAME = libmwfonts.a
++#LIBNAMESO = libmwfonts.so
++
++OBJS := $(MW_DIR_OBJ)/fonts/obsolete.o
++
++######################### Makefile.rules section #############################
++
++include $(MW_DIR_SRC)/Makefile.rules
++
++######################## Tools targets section ###############################
++
++.PHONY: realclean
++
++realclean: clean
++ifeq ($(MW_DIR_OBJ),$(MW_DIR_SRC))
++	$(RM) \
++		$(MW_DIR_OBJ)/fonts/helvB10.c \
++		$(MW_DIR_OBJ)/fonts/helvB12.c \
++		$(MW_DIR_OBJ)/fonts/helvR10.c \
++		$(MW_DIR_OBJ)/fonts/timBI18.c \
++		$(MW_DIR_OBJ)/fonts/X5x7.c \
++		$(MW_DIR_OBJ)/fonts/X6x13.c
++endif
++
++
