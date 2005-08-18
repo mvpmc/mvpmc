@@ -1349,14 +1349,10 @@ mythtv_program(mvp_widget_t *widget)
 			
 			ts = cmyth_proginfo_start(current_prog);
 			cmyth_timestamp_to_string(start, ts);
-#if 0
 			cmyth_timestamp_release(ts);
-#endif
 			ts = cmyth_proginfo_end(current_prog);
 			cmyth_timestamp_to_string(end, ts);
-#if 0
 			cmyth_timestamp_release(ts);
-#endif
 		
 			ptr = strchr(start, 'T');
 			*ptr = '\0';
