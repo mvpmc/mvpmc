@@ -276,12 +276,6 @@ cmyth_proginfo_hold(cmyth_proginfo_t p)
 {
 	if (p) {
 		cmyth_atomic_inc(&p->refcount);
-		cmyth_timestamp_hold(p->proginfo_lastmodified);
-		cmyth_timestamp_hold(p->proginfo_start_ts);
-		cmyth_timestamp_hold(p->proginfo_end_ts);
-		cmyth_timestamp_hold(p->proginfo_rec_start_ts);
-		cmyth_timestamp_hold(p->proginfo_rec_end_ts);
-		cmyth_timestamp_hold(p->proginfo_originalairdate);
 	}
 	return p;
 }
