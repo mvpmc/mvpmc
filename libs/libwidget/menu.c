@@ -339,6 +339,7 @@ mvpw_add_menu_item(mvp_widget_t *widget, char *label, void *key,
 		     realloc(widget->data.menu.items,
 			     sizeof(*widget->data.menu.items)*sz)) == NULL)
 			return -1;
+		memset(widget->data.menu.items+widget->data.menu.nitems,0, 32);
 
 		widget->data.menu.max_items = sz;
 	}
@@ -508,6 +509,8 @@ mvpw_set_menu_title(mvp_widget_t *widget, char *title)
 		.fg = widget->data.menu.title_fg,
 	};
 
+	if (widget->data.menu.title)
+		free(widget->data.menu.title);
 	widget->data.menu.title = strdup(title);
 
 	GrGetFontInfo(widget->data.menu.font, &finfo);
