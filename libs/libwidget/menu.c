@@ -571,11 +571,14 @@ mvpw_clear_menu(mvp_widget_t *widget)
 	void *key;
 
 	for (i=0; i<widget->data.menu.nitems; i++) {
+		str = widget->data.menu.items[i].label;
 		if (widget->data.menu.items[i].destroy) {
-			str = widget->data.menu.items[i].label;
 			key = widget->data.menu.items[i].key;
 			widget->data.menu.items[i].destroy(widget, str, key);
 		}
+		if (str)
+			free(str);
+		widget->data.menu.items[i].label = NULL;
 		if (widget->data.menu.items[i].widget) {
 			mvpw_set_text_str(widget->data.menu.items[i].widget,
 					  "");
