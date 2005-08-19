@@ -591,6 +591,7 @@ add_episodes(mvp_widget_t *widget, char *item, int load)
 	const char *title, *subtitle;
 	int count, i, n = 0, episodes = 0;
 	char buf[256];
+	char *prog;
 
 	busy_start();
 
@@ -603,6 +604,7 @@ add_episodes(mvp_widget_t *widget, char *item, int load)
 	item_attr.fg = mythtv_attr.fg;
 	item_attr.bg = mythtv_attr.bg;
 
+	prog = strdup(item);
 	mvpw_clear_menu(widget);
 
 	if (load)
@@ -616,7 +618,7 @@ add_episodes(mvp_widget_t *widget, char *item, int load)
 		if (episode_prog)
 			cmyth_proginfo_release(episode_prog);
 
-		if (strcmp(item, "All - Newest first") == 0)
+		if (strcmp(prog, "All - Newest first") == 0)
 			episode_prog = cmyth_proglist_get_item(episode_plist,
 							       count-i-1);
 		else
@@ -626,7 +628,7 @@ add_episodes(mvp_widget_t *widget, char *item, int load)
 		title = cmyth_proginfo_title(episode_prog);
 		subtitle = cmyth_proginfo_subtitle(episode_prog);
 
-		if (strcmp(title, item) == 0) {
+		if (strcmp(title, prog) == 0) {
 			list_all = 0;
 			if ((strcmp(subtitle, " ") == 0) ||
 			    (subtitle[0] == '\0'))
@@ -634,14 +636,14 @@ add_episodes(mvp_widget_t *widget, char *item, int load)
 			mvpw_add_menu_item(widget, subtitle, (void*)n,
 					   &item_attr);
 			episodes++;
-		} else if (strcmp(item, "All - Oldest first") == 0) {
+		} else if (strcmp(prog, "All - Oldest first") == 0) {
 			list_all = 1;
 			snprintf(full, sizeof(full), "%s - %s",
 				 title, subtitle);
 			mvpw_add_menu_item(widget, full, (void*)n,
 					   &item_attr);
 			episodes++;
-		} else if (strcmp(item, "All - Newest first") == 0) {
+		} else if (strcmp(prog, "All - Newest first") == 0) {
 			list_all = 2;
 			snprintf(full, sizeof(full), "%s - %s",
 				 title, subtitle);
@@ -652,10 +654,11 @@ add_episodes(mvp_widget_t *widget, char *item, int load)
 		n++;
 	}
 
-	snprintf(buf, sizeof(buf), "%s - %d episode", item, episodes);
+	snprintf(buf, sizeof(buf), "%s - %d episode", prog, episodes);
 	if (episodes > 1)
 		strcat(buf, "s");
 	mvpw_set_menu_title(widget, buf);
+	free(prog);
 
 	pthread_mutex_unlock(&myth_mutex);
 
