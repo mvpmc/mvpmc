@@ -182,17 +182,17 @@ cmyth_proglist_get_item(cmyth_proglist_t pl, int index)
 {
 	if (!pl) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: NULL program list\n",
-					__FUNCTION__);
+			  __FUNCTION__);
 		return NULL;
 	}
 	if (!pl->proglist_list) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: NULL list\n",
-					__FUNCTION__);
+			  __FUNCTION__);
 		return NULL;
 	}
 	if ((index < 0) || (index >= pl->proglist_count)) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: index %d out of range\n",
-					__FUNCTION__, index);
+			  __FUNCTION__, index);
 		return NULL;
 	}
 	cmyth_proginfo_hold(pl->proglist_list[index]);
@@ -219,7 +219,8 @@ int
 cmyth_proglist_get_count(cmyth_proglist_t pl)
 {
 	if (!pl) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: NULL program list\n", __FUNCTION__);
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: NULL program list\n",
+			  __FUNCTION__);
 		return -EINVAL;
 	}
 	return pl->proglist_count;
@@ -227,8 +228,8 @@ cmyth_proglist_get_count(cmyth_proglist_t pl)
 
 /*
  * cmyth_proglist_get_list(cmyth_conn_t conn,
- *							   cmyth_proglist_t proglist,
- *							   char *msg, char *func)
+ *                         cmyth_proglist_t proglist,
+ *                         char *msg, char *func)
  * 
  * Scope: PRIVATE (static)
  *
@@ -246,8 +247,8 @@ cmyth_proglist_get_count(cmyth_proglist_t pl)
  */
 static int
 cmyth_proglist_get_list(cmyth_conn_t conn,
-							cmyth_proglist_t proglist,
-							char *msg, const char *func)
+			cmyth_proglist_t proglist,
+			char *msg, const char *func)
 {
 	int err = 0;
 	int count;
@@ -265,15 +266,17 @@ cmyth_proglist_get_list(cmyth_conn_t conn,
 	pthread_mutex_lock(&mutex);
 
 	if ((err = cmyth_send_message(conn, msg)) < 0) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_send_message() failed (%d)\n",
-				  func, err);
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_send_message() failed (%d)\n",
+			  func, err);
 		ret = err;
 		goto out;
 	}
 	count = cmyth_rcv_length(conn);
 	if (count < 0) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_rcv_length() failed (%d)\n",
-				  func, count);
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_rcv_length() failed (%d)\n",
+			  func, count);
 		ret = count;
 		goto out;
 	}
@@ -290,19 +293,21 @@ cmyth_proglist_get_list(cmyth_conn_t conn,
 		count -= r;
 	}
 	if (cmyth_rcv_proglist(conn, &err, proglist, count) != count) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_rcv_proglist() < count\n",
-				  func);
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_rcv_proglist() < count\n",
+			  func);
 	}
 	if (err) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_rcv_proglist() failed (%d)\n",
-				  func, err);
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_rcv_proglist() failed (%d)\n",
+			  func, err);
 		ret = -1 * err;
 		goto out;
 	}
 
 	ret = 0;
 
- out:
+    out:
 	pthread_mutex_unlock(&mutex);
 
 	return ret;
@@ -329,10 +334,10 @@ cmyth_proglist_get_list(cmyth_conn_t conn,
  */
 int
 cmyth_proglist_get_all_recorded(cmyth_conn_t control,
-							 cmyth_proglist_t proglist)
+				cmyth_proglist_t proglist)
 {
 	return cmyth_proglist_get_list(control, proglist,
-									   "QUERY_RECORDINGS Play", __FUNCTION__);
+				       "QUERY_RECORDINGS Play", __FUNCTION__);
 }
 
 /*
@@ -356,10 +361,10 @@ cmyth_proglist_get_all_recorded(cmyth_conn_t control,
  */
 int
 cmyth_proglist_get_all_pending(cmyth_conn_t control,
-							cmyth_proglist_t proglist)
+			       cmyth_proglist_t proglist)
 {
 	return cmyth_proglist_get_list(control, proglist,
-									   "QUERY_GETALLPENDING", __FUNCTION__);
+				       "QUERY_GETALLPENDING", __FUNCTION__);
 }
 
 /*
@@ -383,10 +388,10 @@ cmyth_proglist_get_all_pending(cmyth_conn_t control,
  */
 int
 cmyth_proglist_get_all_scheduled(cmyth_conn_t control,
-							  cmyth_proglist_t proglist)
+				 cmyth_proglist_t proglist)
 {
 	return cmyth_proglist_get_list(control, proglist,
-									   "QUERY_GETALLSCHEDULED", __FUNCTION__);
+				       "QUERY_GETALLSCHEDULED", __FUNCTION__);
 }
 
 /*
@@ -410,9 +415,8 @@ cmyth_proglist_get_all_scheduled(cmyth_conn_t control,
  */
 int
 cmyth_proglist_get_conflicting(cmyth_conn_t control,
-							cmyth_proglist_t proglist)
+			       cmyth_proglist_t proglist)
 {
 	return cmyth_proglist_get_list(control, proglist,
-									   "QUERY_GETCONFLICTING", __FUNCTION__);
+				       "QUERY_GETCONFLICTING", __FUNCTION__);
 }
-

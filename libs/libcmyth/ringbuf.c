@@ -228,7 +228,7 @@ cmyth_ringbuf_setup(cmyth_conn_t control, cmyth_recorder_t rec)
 	}
 
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s: url is: '%s'\n",
-			  __FUNCTION__, url);
+		  __FUNCTION__, url);
 	path = url;
 	if (strncmp(url, service, sizeof(service) - 1) == 0) {
 		/*
@@ -273,7 +273,7 @@ cmyth_ringbuf_setup(cmyth_conn_t control, cmyth_recorder_t rec)
 
 	ret = 0;
 
- out:
+    out:
 	pthread_mutex_unlock(&mutex);
 
 	return ret;
@@ -308,7 +308,8 @@ cmyth_ringbuf_get_block(cmyth_recorder_t rec, char *buf, unsigned long len)
 	tv.tv_usec = 0;
 	FD_ZERO(&fds);
 	FD_SET(rec->rec_ring->conn_data->conn_fd, &fds);
-	if (select(rec->rec_ring->conn_data->conn_fd+1, NULL, &fds, NULL, &tv) == 0) {
+	if (select(rec->rec_ring->conn_data->conn_fd+1,
+		   NULL, &fds, NULL, &tv) == 0) {
 		rec->rec_ring->conn_data->conn_hang = 1;
 		return 0;
 	} else {
@@ -359,7 +360,7 @@ cmyth_ringbuf_select(cmyth_recorder_t rec, struct timeval *timeout)
  */
 int
 cmyth_ringbuf_request_block(cmyth_conn_t control, cmyth_recorder_t rec,
-			 unsigned long len)
+			    unsigned long len)
 {
 	int err, count;
 	int r;
@@ -398,15 +399,15 @@ cmyth_ringbuf_request_block(cmyth_conn_t control, cmyth_recorder_t rec,
 	rec->rec_ring->file_pos += c;
 	ret = c;
 
- out:
+    out:
 	pthread_mutex_unlock(&mutex);
 
 	return ret;
 }
 
 /*
- * cmyth_ringbuf_seek(cmyth_ringbuf_t control, cmyth_ringbuf_t file, long long offset,
- *                 int whence)
+ * cmyth_ringbuf_seek(cmyth_ringbuf_t control,
+ *                    cmyth_ringbuf_t file, long long offset, int whence)
  * 
  * Scope: PUBLIC
  *
@@ -488,7 +489,7 @@ cmyth_ringbuf_seek(cmyth_conn_t control, cmyth_recorder_t rec,
 
 	ret = ring->file_pos;
 
- out:
+    out:
 	pthread_mutex_unlock(&mutex);
 	
 	return ret;

@@ -37,7 +37,7 @@
 #define __check_num(num)	(strspn((num), __SIGNED) == strlen((num)))
 #define __check_unum(num)	(strspn((num), __UNSIGNED) == strlen((num)))
 
- /*
+/*
  * cmyth_send_message(cmyth_conn_t conn, char *request)
  * 
  * Scope: PRIVATE (mapped to __cmyth_send_message)
@@ -74,11 +74,13 @@ cmyth_send_message(cmyth_conn_t conn, char *request)
 	fd_set fds;
 
 	if (!conn) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: no connection\n", __FUNCTION__);
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: no connection\n",
+			  __FUNCTION__);
 		return -EBADF;
 	}
 	if (conn->conn_fd < 0) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: not connected\n", __FUNCTION__);
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: not connected\n",
+			  __FUNCTION__);
 		return -EBADF;
 	}
 	if (!request) {
@@ -88,13 +90,14 @@ cmyth_send_message(cmyth_conn_t conn, char *request)
 	reqlen = strlen(request);
 	msg = malloc(9 + reqlen);
 	if (!msg) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cannot allocate message buffer\n",
-				  __FUNCTION__);
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cannot allocate message buffer\n",
+			  __FUNCTION__);
 		return -ENOMEM;
 	}
 	sprintf(msg, "%-8d%s", reqlen, request);
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s: sending message '%s'\n",
-				__FUNCTION__, msg);
+		  __FUNCTION__, msg);
 	reqlen += 8;
 	do {
 		tv.tv_sec = 10;
@@ -110,7 +113,7 @@ cmyth_send_message(cmyth_conn_t conn, char *request)
 		w = write(conn->conn_fd, msg + written, reqlen - written);
 		if (w < 0) {
 			cmyth_dbg(CMYTH_DBG_ERROR, "%s: write() failed (%d)\n",
-					  __FUNCTION__, errno);
+				  __FUNCTION__, errno);
 			free(msg);
 			return -errno;
 		}
@@ -148,11 +151,13 @@ cmyth_rcv_length(cmyth_conn_t conn)
 	fd_set fds;
 
 	if (!conn) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: no connection\n", __FUNCTION__);
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: no connection\n",
+			  __FUNCTION__);
 		return -EBADF;
 	}
 	if (conn->conn_fd < 0) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: not connected\n", __FUNCTION__);
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: not connected\n",
+			  __FUNCTION__);
 		return -EBADF;
 	}
 	buf[8] ='\0';
@@ -170,19 +175,19 @@ cmyth_rcv_length(cmyth_conn_t conn)
 		}
 		if (r <= 0) {
 			cmyth_dbg(CMYTH_DBG_ERROR, "%s: read() failed (%d)\n",
-					  __FUNCTION__, errno);
+				  __FUNCTION__, errno);
 			return -errno;
 		}
 		if (r == 0) {
 			cmyth_dbg(CMYTH_DBG_ERROR, "%s: read() failed (%d)\n",
-					  __FUNCTION__, errno);
+				  __FUNCTION__, errno);
 			return -EBADF;
 		}
 		rtot += r;
 	} while (rtot < 8);
 	ret = atoi(buf);
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s: buffer is '%s' ret = %d\n",
-			  __FUNCTION__, buf, ret);
+		  __FUNCTION__, buf, ret);
 	return ret;
 }
 
@@ -212,12 +217,13 @@ cmyth_conn_refill(cmyth_conn_t conn, int len)
 	fd_set fds;
 
 	if (!conn) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: no connection\n", __FUNCTION__);
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: no connection\n",
+			  __FUNCTION__);
 		return -EINVAL;
 	}
 	if (!conn->conn_buf) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: connection has no buffer\n",
-				  __FUNCTION__);
+			  __FUNCTION__);
 		return -EINVAL;
 	}
 	if (len > conn->conn_buflen) {
@@ -238,8 +244,9 @@ cmyth_conn_refill(cmyth_conn_t conn, int len)
 		}
 		if (r <= 0) {
 			if (total == 0) {
-				cmyth_dbg(CMYTH_DBG_ERROR, "%s: read failed (%d)\n",
-						  __FUNCTION__, errno);
+				cmyth_dbg(CMYTH_DBG_ERROR,
+					  "%s: read failed (%d)\n",
+					  __FUNCTION__, errno);
 				return -1 * errno;
 			}
 			/*
@@ -300,22 +307,26 @@ cmyth_rcv_string(cmyth_conn_t conn, int *err, char *buf, int buflen, int count)
 	}
 
 	if (!conn) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: no connection\n", __FUNCTION__);
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: no connection\n",
+			  __FUNCTION__);
 		*err = EBADF;
 		return 0;
 	}
 	if (conn->conn_fd < 0) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: not connected\n", __FUNCTION__);
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: not connected\n",
+			  __FUNCTION__);
 		*err = EBADF;
 		return 0;
 	}
 	if (!conn->conn_buf) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: no connection buffer\n", __FUNCTION__);
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: no connection buffer\n",
+			  __FUNCTION__);
 		*err = EBADF;
 		return 0;
 	}
 	if (!buf) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: no output buffer\n", __FUNCTION__);
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: no output buffer\n",
+			  __FUNCTION__);
 		*err = EBADF;
 		return 0;
 	}
@@ -323,9 +334,9 @@ cmyth_rcv_string(cmyth_conn_t conn, int *err, char *buf, int buflen, int count)
 	while (1) {
 		if (consumed >= count) {
 			/*
-			 * We have consumed all the characters we were asked to from
-			 * the stream.  Force a refill on the next call, and return
-			 * 'consumed'.
+			 * We have consumed all the characters we were
+			 * asked to from the stream.  Force a refill
+			 * on the next call, and return 'consumed'.
 			 */
 			conn->conn_pos = conn->conn_len = 0;
 			if (buflen > placed) {
@@ -336,8 +347,8 @@ cmyth_rcv_string(cmyth_conn_t conn, int *err, char *buf, int buflen, int count)
 
 		if (conn->conn_pos >= conn->conn_len) {
 			/*
-			 * We have run out of (or never had any) bytes from the
-			 * connection.  Refill the buffer.
+			 * We have run out of (or never had any) bytes
+			 * from the connection.  Refill the buffer.
 			 */
 			*err = cmyth_conn_refill(conn, count - consumed);
 			if (*err < 0) {
@@ -348,8 +359,8 @@ cmyth_rcv_string(cmyth_conn_t conn, int *err, char *buf, int buflen, int count)
 
 		if (conn->conn_buf[conn->conn_pos] == *state) {
 			/*
-			 * We matched the next (possibly first) step of a separator,
-			 * advance to the next.
+			 * We matched the next (possibly first) step
+			 * of a separator, advance to the next.
 			 */
 			if ((state == separator) && (placed < buflen)) {
 				sep_start = &buf[placed];
@@ -366,7 +377,8 @@ cmyth_rcv_string(cmyth_conn_t conn, int *err, char *buf, int buflen, int count)
 
 		if (placed < buflen) {
 			/*
-			 * This character goes in the output buffer, put it there.
+			 * This character goes in the output buffer,
+			 * put it there.
 			 */
 			buf[placed++] = conn->conn_buf[conn->conn_pos];
 		}
@@ -375,9 +387,10 @@ cmyth_rcv_string(cmyth_conn_t conn, int *err, char *buf, int buflen, int count)
 
 		if (*state == '\0') {
 			/*
-			 * Reached the end of a separator, terminate the returned
-			 * buffer at the beginning of the separator (if it fell
-			 * within the buffer) and return.
+			 * Reached the end of a separator, terminate
+			 * the returned buffer at the beginning of the
+			 * separator (if it fell within the buffer)
+			 * and return.
 			 */
 			if (sep_start) {
 				*sep_start = '\0';
@@ -388,7 +401,7 @@ cmyth_rcv_string(cmyth_conn_t conn, int *err, char *buf, int buflen, int count)
 		}
 	}
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s: string received '%s'\n",
-				__FUNCTION__, buf);
+		  __FUNCTION__, buf);
 	return consumed;
 }
 
@@ -428,7 +441,7 @@ cmyth_rcv_string(cmyth_conn_t conn, int *err, char *buf, int buflen, int count)
  */
 int
 cmyth_rcv_ulong(cmyth_conn_t conn, int *err, unsigned long *buf,
-					 int count)
+		int count)
 {
 	char num[32];
 	char *num_p = num;
@@ -449,14 +462,16 @@ cmyth_rcv_ulong(cmyth_conn_t conn, int *err, unsigned long *buf,
 	*err = 0;
 	consumed = cmyth_rcv_string(conn, err, num, sizeof(num), count);
 	if (*err) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_rcv_string() failed (%d)\n",
-				  __FUNCTION__, consumed);
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_rcv_string() failed (%d)\n",
+			  __FUNCTION__, consumed);
 		return consumed;
 	}
 	while (*num_p) {
 		if (!isdigit(*num_p)) {
-			cmyth_dbg(CMYTH_DBG_ERROR, "%s: received illegal integer: '%s'\n",
-					  __FUNCTION__, num);
+			cmyth_dbg(CMYTH_DBG_ERROR,
+				  "%s: received illegal integer: '%s'\n",
+				  __FUNCTION__, num);
 			*err = EINVAL;
 			return consumed;
 		}
@@ -533,8 +548,9 @@ cmyth_rcv_long(cmyth_conn_t conn, int *err, long *buf, int count)
 	*err = 0;
 	consumed = cmyth_rcv_string(conn, err, num, sizeof(num), count);
 	if (*err) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_rcv_string() failed (%d)\n",
-				  __FUNCTION__, consumed);
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_rcv_string() failed (%d)\n",
+			  __FUNCTION__, consumed);
 		return consumed;
 	}
 	if (*num_p && (*num_p == '-')) {
@@ -543,8 +559,9 @@ cmyth_rcv_long(cmyth_conn_t conn, int *err, long *buf, int count)
 	}
 	while (*num_p) {
 		if (!isdigit(*num_p)) {
-			cmyth_dbg(CMYTH_DBG_ERROR, "%s: received illegal integer: '%s'\n",
-					  __FUNCTION__, num);
+			cmyth_dbg(CMYTH_DBG_ERROR,
+				  "%s: received illegal integer: '%s'\n",
+				  __FUNCTION__, num);
 			*err = EINVAL;
 			return consumed;
 		}
@@ -555,8 +572,9 @@ cmyth_rcv_long(cmyth_conn_t conn, int *err, long *buf, int count)
 		 * an absolute value limit, sign will be applied later).
 		 */
 		if (val > limit) {
-			cmyth_dbg(CMYTH_DBG_ERROR, "%s: long long out of range: '%s'\n",
-					  __FUNCTION__, num);
+			cmyth_dbg(CMYTH_DBG_ERROR,
+				  "%s: long long out of range: '%s'\n",
+				  __FUNCTION__, num);
 			*err = ERANGE;
 			return consumed;
 		}
@@ -601,7 +619,7 @@ cmyth_rcv_okay(cmyth_conn_t conn, char *ok)
 	len = cmyth_rcv_length(conn);
 	if (len < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_rcv_length() failed\n",
-				  __FUNCTION__);
+			  __FUNCTION__);
 		return len;
 	}
 	if (!ok) {
@@ -610,12 +628,13 @@ cmyth_rcv_okay(cmyth_conn_t conn, char *ok)
 	consumed = cmyth_rcv_string(conn, &err, buf, sizeof(buf), len);
 	if (err) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_rcv_string() failed\n",
-				  __FUNCTION__);
+			  __FUNCTION__);
 		return -err;
 	}
 	if (consumed < len) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: did not consume everything %d < %d\n",
-				  __FUNCTION__, consumed, len);
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: did not consume everything %d < %d\n",
+			  __FUNCTION__, consumed, len);
 	}
 	return (strcmp(buf, ok) == 0);
 }
@@ -653,13 +672,13 @@ cmyth_rcv_version(cmyth_conn_t conn, unsigned long *vers)
 	len = cmyth_rcv_length(conn);
 	if (len < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_rcv_length() failed\n",
-				  __FUNCTION__);
+			  __FUNCTION__);
 		return len;
 	}
 	consumed = cmyth_rcv_string(conn, &err, buf, sizeof(buf), len);
 	if (err) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_rcv_string() failed\n",
-				  __FUNCTION__);
+			  __FUNCTION__);
 		return -err;
 	}
 	len -= consumed;
@@ -670,8 +689,9 @@ cmyth_rcv_version(cmyth_conn_t conn, unsigned long *vers)
 	 */
 	consumed = cmyth_rcv_ulong(conn, &err, vers, len);
 	if (consumed < len) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: did not consume everything %d < %d\n",
-				  __FUNCTION__, consumed, len);
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: did not consume everything %d < %d\n",
+			  __FUNCTION__, consumed, len);
 	}
 	return -err;
 }
@@ -724,13 +744,14 @@ cmyth_rcv_byte(cmyth_conn_t conn, int *err, char *buf, int count)
 	}
 	consumed = cmyth_rcv_long(conn, err, &val, count);
 	if (*err) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_rcv_long() failed (%d)\n",
-				  __FUNCTION__, consumed);
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_rcv_long() failed (%d)\n",
+			  __FUNCTION__, consumed);
 		return consumed;
 	}
 	if ((val > 127) || (val < -128)) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: value doesn't fit: '%lld'\n",
-				  __FUNCTION__, val);
+			  __FUNCTION__, val);
 		*err = ERANGE;
 		return consumed;
 	}
@@ -786,13 +807,14 @@ cmyth_rcv_short(cmyth_conn_t conn, int *err, short *buf, int count)
 	}
 	consumed = cmyth_rcv_long(conn, err, &val, count);
 	if (*err) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_rcv_long() failed (%d)\n",
-				  __FUNCTION__, consumed);
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_rcv_long() failed (%d)\n",
+			  __FUNCTION__, consumed);
 		return consumed;
 	}
 	if ((val > 32767) || (val < -32768)) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: value doesn't fit: '%lld'\n",
-				  __FUNCTION__, val);
+			  __FUNCTION__, val);
 		*err = ERANGE;
 		return consumed;
 	}
@@ -920,13 +942,14 @@ cmyth_rcv_ubyte(cmyth_conn_t conn, int *err, unsigned char *buf, int count)
 	}
 	consumed = cmyth_rcv_ulong(conn, err, &val, count);
 	if (*err) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_rcv_ulong() failed (%d)\n",
-				  __FUNCTION__, consumed);
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_rcv_ulong() failed (%d)\n",
+			  __FUNCTION__, consumed);
 		return consumed;
 	}
 	if (val > 255) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: value doesn't fit: '%llu'\n",
-				  __FUNCTION__, val);
+			  __FUNCTION__, val);
 		*err = ERANGE;
 		return consumed;
 	}
@@ -985,13 +1008,14 @@ cmyth_rcv_ushort(cmyth_conn_t conn, int *err, unsigned short *buf, int count)
 	}
 	consumed = cmyth_rcv_ulong(conn, err, &val, count);
 	if (*err) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_rcv_ulong() failed (%d)\n",
-				  __FUNCTION__, consumed);
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_rcv_ulong() failed (%d)\n",
+			  __FUNCTION__, consumed);
 		return consumed;
 	}
 	if (val > 65535) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: value doesn't fit: '%llu'\n",
-				  __FUNCTION__, val);
+			  __FUNCTION__, val);
 		*err = ERANGE;
 		return consumed;
 	}
@@ -1111,7 +1135,7 @@ cmyth_rcv_ulong_long(cmyth_conn_t conn, int *err,
  */
 int
 cmyth_rcv_timestamp(cmyth_conn_t conn, int *err, cmyth_timestamp_t buf,
-					int count)
+		    int count)
 {
 	int consumed;
 	char tbuf[CMYTH_TIMESTAMP_LEN + 1];
@@ -1126,10 +1150,12 @@ cmyth_rcv_timestamp(cmyth_conn_t conn, int *err, cmyth_timestamp_t buf,
 	}
 	*err = 0;
 	tbuf[CMYTH_TIMESTAMP_LEN] = '\0';
-	consumed = cmyth_rcv_string(conn, err, tbuf, CMYTH_TIMESTAMP_LEN, count);
+	consumed = cmyth_rcv_string(conn, err, tbuf,
+				    CMYTH_TIMESTAMP_LEN, count);
 	if (*err) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_rcv_string() failed (%d)\n",
-				  __FUNCTION__, *err);
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_rcv_string() failed (%d)\n",
+			  __FUNCTION__, *err);
 		return consumed;
 	}
 
@@ -1142,8 +1168,8 @@ cmyth_rcv_timestamp(cmyth_conn_t conn, int *err, cmyth_timestamp_t buf,
 	*err = -1 * cmyth_timestamp_from_string(buf, tbuf);
 	if (*err) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
-				  "%s: cmyth_timestamp_from_string() failed (%d)\n",
-				  __FUNCTION__, *err);
+			  "%s: cmyth_timestamp_from_string() failed (%d)\n",
+			  __FUNCTION__, *err);
 	}
 	return consumed;
 }
@@ -1184,7 +1210,7 @@ cmyth_rcv_timestamp(cmyth_conn_t conn, int *err, cmyth_timestamp_t buf,
  */
 int
 cmyth_rcv_datetime(cmyth_conn_t conn, int *err, cmyth_timestamp_t buf,
-					int count)
+		   int count)
 {
 	int consumed;
 	char tbuf[CMYTH_LONG_LEN + 1];
@@ -1201,15 +1227,16 @@ cmyth_rcv_datetime(cmyth_conn_t conn, int *err, cmyth_timestamp_t buf,
 	tbuf[CMYTH_TIMESTAMP_LEN] = '\0';
 	consumed = cmyth_rcv_string(conn, err, tbuf, CMYTH_LONG_LEN, count);
 	if (*err) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_rcv_string() failed (%d)\n",
-				  __FUNCTION__, *err);
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_rcv_string() failed (%d)\n",
+			  __FUNCTION__, *err);
 		return consumed;
 	}
 	*err = -1 * cmyth_datetime_from_string(buf, tbuf);
 	if (*err) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
-				  "%s: cmyth_datetime_from_string() failed (%d)\n",
-				  __FUNCTION__, *err);
+			  "%s: cmyth_datetime_from_string() failed (%d)\n",
+			  __FUNCTION__, *err);
 	}
 	return consumed;
 }
@@ -1231,7 +1258,7 @@ cmyth_proginfo_parse_url(cmyth_proginfo_t p)
 		return;
 	}
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s: url is: '%s'\n",
-			  __FUNCTION__, p->proginfo_url);
+		  __FUNCTION__, p->proginfo_url);
 	path = p->proginfo_url;
 	if (strncmp(p->proginfo_url, service, sizeof(service) - 1) == 0) {
 		/*
@@ -1242,8 +1269,8 @@ cmyth_proginfo_parse_url(cmyth_proginfo_t p)
 		port = strchr(host, ':');
 		if (!port) {
 			/*
-			 * This does not seem to be a proper URL, so just assume
-			 * it is a filename, and get out.
+			 * This does not seem to be a proper URL, so
+			 * just assume it is a filename, and get out.
 			 */
 			goto out;
 		}
@@ -1251,14 +1278,14 @@ cmyth_proginfo_parse_url(cmyth_proginfo_t p)
 		path = strchr(port, '/');
 		if (!path) {
 			/*
-			 * This does not seem to be a proper URL, so just assume
-			 * it is a filename, and get out.
+			 * This does not seem to be a proper URL, so
+			 * just assume it is a filename, and get out.
 			 */
 			goto out;
 		}
 	}
 
- out:
+    out:
 	if (host && port) {
 		char tmp = *(port - 1);
 		*(port - 1) = '\0';
@@ -1315,7 +1342,7 @@ cmyth_proginfo_parse_url(cmyth_proginfo_t p)
  */
 int
 cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
-				   int count)
+		   int count)
 {
 	int consumed;
 	int total = 0;
@@ -1330,12 +1357,13 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 	tmp_str[sizeof(tmp_str) - 1] = '\0';
 
 	buf->proginfo_version = conn->conn_version;
-	cmyth_dbg(CMYTH_DBG_INFO, "%s: VERSION IS %ld\n", __FUNCTION__, buf->proginfo_version);
+	cmyth_dbg(CMYTH_DBG_INFO, "%s: VERSION IS %ld\n",
+		  __FUNCTION__, buf->proginfo_version);
 	/*
 	 * Get proginfo_title (string)
 	 */
 	consumed = cmyth_rcv_string(conn, err,
-								tmp_str, sizeof(tmp_str) - 1, count);
+				    tmp_str, sizeof(tmp_str) - 1, count);
 	count -= consumed;
 	total += consumed;
 	if (*err) {
@@ -1350,7 +1378,7 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 	 * Get proginfo_subtitle (string)
 	 */
 	consumed = cmyth_rcv_string(conn, err,
-								tmp_str, sizeof(tmp_str) - 1, count);
+				    tmp_str, sizeof(tmp_str) - 1, count);
 	count -= consumed;
 	total += consumed;
 	if (*err) {
@@ -1365,7 +1393,7 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 	 * Get proginfo_description (string)
 	 */
 	consumed = cmyth_rcv_string(conn, err,
-								tmp_str, sizeof(tmp_str) - 1, count);
+				    tmp_str, sizeof(tmp_str) - 1, count);
 	count -= consumed;
 	total += consumed;
 	if (*err) {
@@ -1380,7 +1408,7 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 	 * Get proginfo_category (string)
 	 */
 	consumed = cmyth_rcv_string(conn, err,
-								tmp_str, sizeof(tmp_str) - 1, count);
+				    tmp_str, sizeof(tmp_str) - 1, count);
 	count -= consumed;
 	total += consumed;
 	if (*err) {
@@ -1406,7 +1434,7 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 	 * Get proginfo_chanstr (string)
 	 */
 	consumed = cmyth_rcv_string(conn, err,
-								tmp_str, sizeof(tmp_str) - 1, count);
+				    tmp_str, sizeof(tmp_str) - 1, count);
 	count -= consumed;
 	total += consumed;
 	if (*err) {
@@ -1421,7 +1449,7 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 	 * Get proginfo_chansign (string)
 	 */
 	consumed = cmyth_rcv_string(conn, err,
-								tmp_str, sizeof(tmp_str) - 1, count);
+				    tmp_str, sizeof(tmp_str) - 1, count);
 	count -= consumed;
 	total += consumed;
 	if (*err) {
@@ -1437,14 +1465,14 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 	 * (string) Version 8.
 	 */
 	consumed = cmyth_rcv_string(conn, err,
-								tmp_str, sizeof(tmp_str) - 1, count);
+				    tmp_str, sizeof(tmp_str) - 1, count);
 	count -= consumed;
 	total += consumed;
 	if (*err) {
 		failed = "cmyth_rcv_string";
 		goto fail;
 	}
-/* FIXME: doesn't seem to match the dump? */
+	/* FIXME: doesn't seem to match the dump? */
 	cmyth_dbg(CMYTH_DBG_INFO, "%s: GOT TO ICON/NAME\n", __FUNCTION__);
 	if (buf->proginfo_chanicon)
 		free(buf->proginfo_chanicon);
@@ -1457,7 +1485,8 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 		 * compatibility.
 		 */
 		sprintf(tmp_str,
-				"%s %s", buf->proginfo_chanstr, buf->proginfo_chansign);
+			"%s %s", buf->proginfo_chanstr,
+			buf->proginfo_chansign);
 		buf->proginfo_channame = strdup(tmp_str);
 	} else { /* Assume version 1 */
 		buf->proginfo_channame = strdup(tmp_str);
@@ -1468,7 +1497,7 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 	 * Get proginfo_url (string)
 	 */
 	consumed = cmyth_rcv_string(conn, err,
-								tmp_str, sizeof(tmp_str) - 1, count);
+				    tmp_str, sizeof(tmp_str) - 1, count);
 	count -= consumed;
 	total += consumed;
 	if (*err) {
@@ -1482,7 +1511,8 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 	/*
 	 * Get proginfo_Length (long_long)
 	 */
-	consumed = cmyth_rcv_long_long(conn, err, &buf->proginfo_Length, count);
+	consumed = cmyth_rcv_long_long(conn, err,
+				       &buf->proginfo_Length, count);
 	count -= consumed;
 	total += consumed;
 	if (*err) {
@@ -1495,10 +1525,12 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 	 */
 	cmyth_dbg(CMYTH_DBG_INFO, "%s: GOT TO START_TS\n", __FUNCTION__);
 	if (buf->proginfo_version >= 14) {
-		consumed = cmyth_rcv_datetime(conn, err, buf->proginfo_start_ts, count);
-		}
+		consumed = cmyth_rcv_datetime(conn, err,
+					      buf->proginfo_start_ts, count);
+	}
 	else {
-		consumed = cmyth_rcv_timestamp(conn, err, buf->proginfo_start_ts, count);
+		consumed = cmyth_rcv_timestamp(conn, err,
+					       buf->proginfo_start_ts, count);
 	}	
 	count -= consumed;
 	total += consumed;
@@ -1512,10 +1544,12 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 	 */
 	cmyth_dbg(CMYTH_DBG_INFO, "%s: GOT TO END_TS\n", __FUNCTION__);
 	if (buf->proginfo_version >= 14) {
-		consumed = cmyth_rcv_datetime(conn, err, buf->proginfo_end_ts, count);
-		}
+		consumed = cmyth_rcv_datetime(conn, err,
+					      buf->proginfo_end_ts, count);
+	}
 	else {
-		consumed = cmyth_rcv_timestamp(conn, err, buf->proginfo_end_ts, count);
+		consumed = cmyth_rcv_timestamp(conn, err,
+					       buf->proginfo_end_ts, count);
 	}	
 	count -= consumed;
 	total += consumed;
@@ -1529,7 +1563,8 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 	 */
 	if (buf->proginfo_version >= 8) {
 		consumed = cmyth_rcv_string(conn, err,
-									tmp_str, sizeof(tmp_str) - 1, count);
+					    tmp_str, sizeof(tmp_str) - 1,
+					    count);
 		count -= consumed;
 		total += consumed;
 		if (*err) {
@@ -1540,7 +1575,8 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 			free(buf->proginfo_unknown_0);
 		buf->proginfo_unknown_0 = strdup(tmp_str);
 	} else { /* Assume version 1 */
-		consumed = cmyth_rcv_ulong(conn, err, &buf->proginfo_conflicting, count);
+		consumed = cmyth_rcv_ulong(conn, err,
+					   &buf->proginfo_conflicting, count);
 		count -= consumed;
 		total += consumed;
 		if (*err) {
@@ -1575,7 +1611,7 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 	 * Get proginfo_hostname (string)
 	 */
 	consumed = cmyth_rcv_string(conn, err,
-								tmp_str, sizeof(tmp_str) - 1, count);
+				    tmp_str, sizeof(tmp_str) - 1, count);
 	count -= consumed;
 	total += consumed;
 	if (*err) {
@@ -1623,7 +1659,7 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 	 * Get proginfo_rec_priority (long)
 	 */
 	consumed = cmyth_rcv_string(conn, err,
-								tmp_str, sizeof(tmp_str) - 1, count);
+				    tmp_str, sizeof(tmp_str) - 1, count);
 	count -= consumed;
 	total += consumed;
 	if (*err) {
@@ -1682,7 +1718,8 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 		/*
 		 * Get proginfo_unknown_1 (long)
 		 */
-		consumed = cmyth_rcv_ulong(conn, err, &buf->proginfo_unknown_1, count);
+		consumed = cmyth_rcv_ulong(conn, err,
+					   &buf->proginfo_unknown_1, count);
 		count -= consumed;
 		total += consumed;
 		if (*err) {
@@ -1695,10 +1732,14 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 	 * Get proginfo_rec_start_ts (timestamp)
 	 */
 	if (buf->proginfo_version >= 14) {
-		consumed = cmyth_rcv_datetime(conn, err, buf->proginfo_rec_start_ts, count);
-		}
+		consumed = cmyth_rcv_datetime(conn, err,
+					      buf->proginfo_rec_start_ts,
+					      count);
+	}
 	else {
-		consumed = cmyth_rcv_timestamp(conn, err, buf->proginfo_rec_start_ts, count);
+		consumed = cmyth_rcv_timestamp(conn, err,
+					       buf->proginfo_rec_start_ts,
+					       count);
 	}	
 
 	count -= consumed;
@@ -1712,10 +1753,13 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 	 * Get proginfo_rec_end_ts (timestamp)
 	 */
 	if (buf->proginfo_version >= 14) {
-		consumed = cmyth_rcv_datetime(conn, err, buf->proginfo_rec_end_ts, count);
-		}
+		consumed = cmyth_rcv_datetime(conn, err,
+					      buf->proginfo_rec_end_ts, count);
+	}
 	else {
-		consumed = cmyth_rcv_timestamp(conn, err, buf->proginfo_rec_end_ts, count);
+		consumed = cmyth_rcv_timestamp(conn, err,
+					       buf->proginfo_rec_end_ts,
+					       count);
 	}	
 	
 	count -= consumed;
@@ -1739,7 +1783,8 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 	/*
 	 * Get proginfo_program_flags (long)
 	 */
-	consumed = cmyth_rcv_long(conn, err, &buf->proginfo_program_flags, count);
+	consumed = cmyth_rcv_long(conn, err, &buf->proginfo_program_flags,
+				  count);
 	count -= consumed;
 	total += consumed;
 	if (*err) {
@@ -1752,7 +1797,8 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 		 * Get proginfo_recgroup (string)
 		 */
 		consumed = cmyth_rcv_string(conn, err,
-									tmp_str, sizeof(tmp_str) - 1, count);
+					    tmp_str, sizeof(tmp_str) - 1,
+					    count);
 		count -= consumed;
 		total += consumed;
 		if (*err) {
@@ -1769,7 +1815,8 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 		 * Get proginfo_chancommfree (string)
 		 */
 		consumed = cmyth_rcv_string(conn, err,
-									tmp_str, sizeof(tmp_str) - 1, count);
+					    tmp_str, sizeof(tmp_str) - 1,
+					    count);
 		count -= consumed;
 		total += consumed;
 		if (*err) {
@@ -1786,7 +1833,8 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 		 * Get proginfo_chan_output_filters (string)
 		 */
 		consumed = cmyth_rcv_string(conn, err,
-									tmp_str, sizeof(tmp_str) - 1, count);
+					    tmp_str, sizeof(tmp_str) - 1,
+					    count);
 		count -= consumed;
 		total += consumed;
 		if (*err) {
@@ -1803,7 +1851,8 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 		 * Get proginfo_seriesid (string)
 		 */
 		consumed = cmyth_rcv_string(conn, err,
-									tmp_str, sizeof(tmp_str) - 1, count);
+					    tmp_str, sizeof(tmp_str) - 1,
+					    count);
 		count -= consumed;
 		total += consumed;
 		if (*err) {
@@ -1837,10 +1886,16 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 		 * Get lastmodified (string)
 		 */
 		if (buf->proginfo_version >= 14) {
-			consumed = cmyth_rcv_datetime(conn, err, buf->proginfo_lastmodified, count);
-			}
+			consumed =
+				cmyth_rcv_datetime(conn, err,
+						   buf->proginfo_lastmodified,
+						   count);
+		}
 		else {
-			consumed = cmyth_rcv_timestamp(conn, err, buf->proginfo_lastmodified, count);
+			consumed =
+				cmyth_rcv_timestamp(conn, err,
+						    buf->proginfo_lastmodified,
+						    count);
 		}	
 		count -= consumed;
 		total += consumed;
@@ -1872,10 +1927,16 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 		 * Get original_air_date (string)
 		 */
 		if (buf->proginfo_version >= 14) {
-			consumed = cmyth_rcv_datetime(conn, err, buf->proginfo_originalairdate, count);
-			}
+			consumed =
+				cmyth_rcv_datetime(conn, err,
+						   buf->proginfo_originalairdate,
+						   count);
+		}
 		else {
-			consumed = cmyth_rcv_timestamp(conn, err, buf->proginfo_originalairdate, count);
+			consumed =
+				cmyth_rcv_timestamp(conn, err,
+						    buf->proginfo_originalairdate,
+						    count);
 		}	
 		count -= consumed;
 		total += consumed;
@@ -1886,7 +1947,8 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 	}
 
 	if (buf->proginfo_version >= 15) {
-		consumed = cmyth_rcv_ulong(conn, err, &buf->proginfo_hasairdate,count);
+		consumed = cmyth_rcv_ulong(conn, err,
+					   &buf->proginfo_hasairdate, count);
 		count -= consumed;
 		total += consumed;
 		if (*err) {
@@ -1918,9 +1980,9 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 	cmyth_proginfo_parse_url(buf);
 	return total;
 
- fail:
+    fail:
 	cmyth_dbg(CMYTH_DBG_ERROR, "%s: %s() failed (%d)\n",
-			  __FUNCTION__, failed, *err);
+		  __FUNCTION__, failed, *err);
 	return total;
 }
 
@@ -1965,7 +2027,7 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
  */
 int
 cmyth_rcv_chaninfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
-				   int count)
+		   int count)
 {
 	int consumed;
 	int total = 0;
@@ -2042,7 +2104,8 @@ cmyth_rcv_chaninfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 	/*
 	 * Get proginfo_start_ts (timestamp)
 	 */
-	consumed = cmyth_rcv_timestamp(conn, err, buf->proginfo_start_ts, count);
+	consumed = cmyth_rcv_timestamp(conn, err,
+				       buf->proginfo_start_ts, count);
 	count -= consumed;
 	total += consumed;
 	if (*err) {
@@ -2182,9 +2245,9 @@ cmyth_rcv_chaninfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 
 	return total;
 
- fail:
+    fail:
 	cmyth_dbg(CMYTH_DBG_ERROR, "%s: %s() failed (%d)\n",
-			  __FUNCTION__, failed, *err);
+		  __FUNCTION__, failed, *err);
 	return total;
 }
 
@@ -2220,7 +2283,7 @@ cmyth_rcv_chaninfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
  */
 int
 cmyth_rcv_proglist(cmyth_conn_t conn, int *err, cmyth_proglist_t buf,
-				   int count)
+		   int count)
 {
 	int tmp_err;
 	int consumed = 0;
@@ -2245,8 +2308,9 @@ cmyth_rcv_proglist(cmyth_conn_t conn, int *err, cmyth_proglist_t buf,
 	r = cmyth_rcv_long(conn, err, &buf->proglist_count, count);
 	consumed += r;
 	if (*err) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_rcv_long() failed (%d)\n",
-				  __FUNCTION__, *err);
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_rcv_long() failed (%d)\n",
+			  __FUNCTION__, *err);
 		return consumed;
 	}
 	count -= r;
@@ -2254,7 +2318,7 @@ cmyth_rcv_proglist(cmyth_conn_t conn, int *err, cmyth_proglist_t buf,
 	buf->proglist_list = malloc(c * sizeof(cmyth_proginfo_t));
 	if (!buf->proglist_list) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: malloc() failed for list\n",
-				  __FUNCTION__);
+			  __FUNCTION__);
 		*err = ENOMEM;
 		return consumed;
 	}
@@ -2262,8 +2326,9 @@ cmyth_rcv_proglist(cmyth_conn_t conn, int *err, cmyth_proglist_t buf,
 	for (i = 0; i < c; ++i) {
 		pi = cmyth_proginfo_create();
 		if (!pi) {
-			cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_proginfo_create() failed\n",
-					  __FUNCTION__);
+			cmyth_dbg(CMYTH_DBG_ERROR,
+				  "%s: cmyth_proginfo_create() failed\n",
+				  __FUNCTION__);
 			*err = ENOMEM;
 			break;
 		}
@@ -2272,8 +2337,9 @@ cmyth_rcv_proglist(cmyth_conn_t conn, int *err, cmyth_proglist_t buf,
 		count -= r;
 		if (*err) {
 			cmyth_proginfo_release(pi);
-			cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_rcv_long() failed (%d)\n",
-					  __FUNCTION__, *err);
+			cmyth_dbg(CMYTH_DBG_ERROR,
+				  "%s: cmyth_rcv_long() failed (%d)\n",
+				  __FUNCTION__, *err);
 			break;
 		}
 		buf->proglist_list[i] = pi;
@@ -2315,7 +2381,7 @@ cmyth_rcv_proglist(cmyth_conn_t conn, int *err, cmyth_proglist_t buf,
  */
 int
 cmyth_rcv_keyframe(cmyth_conn_t conn, int *err, cmyth_keyframe_t buf,
-				   int count)
+		   int count)
 {
 	int tmp_err;
 
@@ -2363,7 +2429,7 @@ cmyth_rcv_keyframe(cmyth_conn_t conn, int *err, cmyth_keyframe_t buf,
  */
 int
 cmyth_rcv_freespace(cmyth_conn_t conn, int *err, cmyth_freespace_t buf,
-					int count)
+		    int count)
 {
 	int tmp_err;
 
@@ -2412,7 +2478,7 @@ cmyth_rcv_freespace(cmyth_conn_t conn, int *err, cmyth_freespace_t buf,
  */
 int
 cmyth_rcv_recorder(cmyth_conn_t conn, int *err, cmyth_recorder_t buf,
-				   int count)
+		   int count)
 {
 	int tmp_err;
 
@@ -2511,7 +2577,8 @@ cmyth_rcv_data(cmyth_conn_t conn, int *err, unsigned char *buf, int count)
 	}
 	err = 0;
 	if (!conn) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: no connection\n", __FUNCTION__);
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: no connection\n",
+			  __FUNCTION__);
 		*err = EINVAL;
 		return 0;
 	}
@@ -2530,8 +2597,9 @@ cmyth_rcv_data(cmyth_conn_t conn, int *err, unsigned char *buf, int count)
 		r = read(conn->conn_fd, p, count);
 		if (r < 0) {
 			if (total == 0) {
-				cmyth_dbg(CMYTH_DBG_ERROR, "%s: read failed (%d)\n",
-						  __FUNCTION__, errno);
+				cmyth_dbg(CMYTH_DBG_ERROR,
+					  "%s: read failed (%d)\n",
+					  __FUNCTION__, errno);
 				*err = -1 * errno;
 				return 0;
 			}

@@ -220,8 +220,9 @@ cmyth_connect(char *server, unsigned short port, unsigned buflen, int window)
 	 */
 	host = gethostbyname(server);
 	if (!host) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cannot resolve hostname '%s'\n",
-				  __FUNCTION__, server);
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cannot resolve hostname '%s'\n",
+			  __FUNCTION__, server);
 		return NULL;
 	}
 	if (host->h_addrtype != AF_INET) {
@@ -230,7 +231,7 @@ cmyth_connect(char *server, unsigned short port, unsigned buflen, int window)
 		 * branch out...
 		 */
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: no AF_INET address for '%s'\n",
-				  __FUNCTION__, server);
+			  __FUNCTION__, server);
 		return NULL;
 	}
 	addr.sin_family = host->h_addrtype;
@@ -248,23 +249,23 @@ cmyth_connect(char *server, unsigned short port, unsigned buflen, int window)
 			   (void*)&window_size, sizeof(window_size));
 	if (fd < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cannot create socket (%d)\n",
-				  __FUNCTION__, errno);
+			  __FUNCTION__, errno);
 		return NULL;
 	}
 
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s: connecting to %d.%d.%d.%d\n",
-			  __FUNCTION__,
-			  (ntohl(addr.sin_addr.s_addr) & 0xFF000000) >> 24,
-			  (ntohl(addr.sin_addr.s_addr) & 0x00FF0000) >> 16,
-			  (ntohl(addr.sin_addr.s_addr) & 0x0000FF00) >>  8,
-			  (ntohl(addr.sin_addr.s_addr) & 0x000000FF));
+		  __FUNCTION__,
+		  (ntohl(addr.sin_addr.s_addr) & 0xFF000000) >> 24,
+		  (ntohl(addr.sin_addr.s_addr) & 0x00FF0000) >> 16,
+		  (ntohl(addr.sin_addr.s_addr) & 0x0000FF00) >>  8,
+		  (ntohl(addr.sin_addr.s_addr) & 0x000000FF));
 	old_sighandler = signal(SIGALRM, sighandler);
 	old_alarm = alarm(5);
 	my_fd = fd;
 	if (connect(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
-				  "%s: connect failed on port %d to '%s' (%d)\n",
-				  __FUNCTION__, port, server, errno);
+			  "%s: connect failed on port %d to '%s' (%d)\n",
+			  __FUNCTION__, port, server, errno);
 		close(fd);
 		printf("connect failed!\n");
 		signal(SIGALRM, old_sighandler);
@@ -276,9 +277,9 @@ cmyth_connect(char *server, unsigned short port, unsigned buflen, int window)
 	alarm(old_alarm);
 
 	if ((my_hostname[0] == '\0') &&
-		(gethostname(my_hostname, sizeof(my_hostname)) < 0)) {
+	    (gethostname(my_hostname, sizeof(my_hostname)) < 0)) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: gethostname failed (%d)\n",
-				  __FUNCTION__, errno);
+			  __FUNCTION__, errno);
 		goto shut;
 	}
 
@@ -288,14 +289,15 @@ cmyth_connect(char *server, unsigned short port, unsigned buflen, int window)
 	 */
 	buf = malloc(buflen * sizeof(unsigned char));
 	if (!buf) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s:- malloc(%d) failed allocating buf\n",
-				  __FUNCTION__, buflen * sizeof(unsigned char *));
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s:- malloc(%d) failed allocating buf\n",
+			  __FUNCTION__, buflen * sizeof(unsigned char *));
 		goto shut;
 	}
 	ret = cmyth_conn_create();
 	if (!ret) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_conn_create() failed\n",
-				  __FUNCTION__);
+			  __FUNCTION__);
 		goto shut;
 	}
 	ret->conn_fd = fd;
@@ -306,7 +308,7 @@ cmyth_connect(char *server, unsigned short port, unsigned buflen, int window)
 	ret->conn_version = 8;
 	return ret;
 
- shut:
+    shut:
 	if (buf) {
 		free(buf);
 	}
@@ -344,11 +346,12 @@ cmyth_conn_connect_ctrl(char *server, unsigned short port, unsigned buflen)
 	unsigned long tmp_ver;
 	int attempt = 0;
 
-top:
+    top:
 	conn = cmyth_connect(server, port, buflen, 1);
 	if (!conn) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_connect(%s, %d, %d) failed\n",
-				  __FUNCTION__, server, port, buflen);
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_connect(%s, %d, %d) failed\n",
+			  __FUNCTION__, server, port, buflen);
 		return NULL;
 	}
 
@@ -361,22 +364,25 @@ top:
 	conn->conn_version = tmp_ver;
 	sprintf(announcement, "MYTH_PROTO_VERSION %ld", conn->conn_version);
 	if (cmyth_send_message(conn, announcement) < 0) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_send_message('%s') failed\n",
-				  __FUNCTION__, announcement);
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_send_message('%s') failed\n",
+			  __FUNCTION__, announcement);
 		goto shut;
 	}
 	if (cmyth_rcv_version(conn, &tmp_ver) < 0) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_rcv_version() failed\n",
-				  __FUNCTION__);
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_rcv_version() failed\n",
+			  __FUNCTION__);
 		goto shut;
 	}
-	cmyth_dbg(CMYTH_DBG_ERROR, "%s: asked for version %ld, got version %ld\n",
-				  __FUNCTION__, conn->conn_version, tmp_ver);
+	cmyth_dbg(CMYTH_DBG_ERROR,
+		  "%s: asked for version %ld, got version %ld\n",
+		  __FUNCTION__, conn->conn_version, tmp_ver);
 	if (conn->conn_version != tmp_ver) {
 		if (attempt == 1) {
 			cmyth_dbg(CMYTH_DBG_ERROR,
-				"%s: failed to connect with any version\n",
-			 	__FUNCTION__);
+				  "%s: failed to connect with any version\n",
+				  __FUNCTION__);
 			goto shut;
 		}
 		attempt = 1;
@@ -384,24 +390,25 @@ top:
 		goto top;
 	}
 	printf("%s: agreed on Version %ld protocol\n",
-		   __FUNCTION__, conn->conn_version);
+	       __FUNCTION__, conn->conn_version);
 	cmyth_dbg(CMYTH_DBG_ERROR, "%s: agreed on Version %ld protocol\n",
-			  __FUNCTION__, conn->conn_version);
+		  __FUNCTION__, conn->conn_version);
 
 	sprintf(announcement, "ANN Playback %s 0", my_hostname);
 	if (cmyth_send_message(conn, announcement) < 0) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_send_message('%s') failed\n",
-				  __FUNCTION__, announcement);
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_send_message('%s') failed\n",
+			  __FUNCTION__, announcement);
 		goto shut;
 	}
 	if (cmyth_rcv_okay(conn, "OK") < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_rcv_okay() failed\n",
-				  __FUNCTION__);
+			  __FUNCTION__);
 		goto shut;
 	}
 	return conn;
 
- shut:
+    shut:
 	cmyth_conn_release(conn);
 	return NULL;
 }
@@ -444,81 +451,88 @@ cmyth_conn_connect_file(cmyth_proginfo_t prog, unsigned buflen)
 		goto shut;
 	}
 	if (!prog->proginfo_host) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: prog host is NULL\n", __FUNCTION__);
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: prog host is NULL\n",
+			  __FUNCTION__);
 		goto shut;
 	}
 	if (!prog->proginfo_pathname) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: prog has no pathname in it\n",
-				  __FUNCTION__);
+			  __FUNCTION__);
 		goto shut;
 	}
 	ret = cmyth_file_create();
 	if (!ret) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_file_create() failed\n",
-				  __FUNCTION__);
+			  __FUNCTION__);
 		goto shut;
 	}
-	conn = cmyth_connect(prog->proginfo_host, prog->proginfo_port, buflen, 0);
+	conn = cmyth_connect(prog->proginfo_host, prog->proginfo_port,
+			     buflen, 0);
 	if (!conn) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_connect(%s, %d, %d) failed\n",
-				  __FUNCTION__, prog->proginfo_host, prog->proginfo_port,
-				  buflen);
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_connect(%s, %d, %d) failed\n",
+			  __FUNCTION__,
+			  prog->proginfo_host, prog->proginfo_port, buflen);
 		goto shut;
 	}
 	ann_size += strlen(prog->proginfo_pathname) + strlen(my_hostname);
 	announcement = malloc(ann_size);
 	if (!announcement) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: malloc(%d) failed for announcement\n",
-				  __FUNCTION__, ann_size);
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: malloc(%d) failed for announcement\n",
+			  __FUNCTION__, ann_size);
 		goto shut;
 	}
 	sprintf(announcement, "ANN FileTransfer %s[]:[]%s",
-			my_hostname, prog->proginfo_pathname);
+		my_hostname, prog->proginfo_pathname);
 	if (cmyth_send_message(conn, announcement) < 0) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_send_message('%s') failed\n",
-				  __FUNCTION__, announcement);
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_send_message('%s') failed\n",
+			  __FUNCTION__, announcement);
 		goto shut;
 	}
 	ret->file_data = conn;
 	count = cmyth_rcv_length(conn);
 	if (count < 0) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_rcv_length() failed (%d)\n",
-				  __FUNCTION__, count);
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_rcv_length() failed (%d)\n",
+			  __FUNCTION__, count);
 		goto shut;
 	}
 	reply[sizeof(reply) - 1] = '\0';
 	r = cmyth_rcv_string(conn, &err, reply, sizeof(reply) - 1, count); 
 	if (err != 0) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_rcv_string() failed (%d)\n",
-				  __FUNCTION__, err);
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_rcv_string() failed (%d)\n",
+			  __FUNCTION__, err);
 		goto shut;
 	}
 	if (strcmp(reply, "OK") != 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: reply ('%s') is not 'OK'\n",
-				  __FUNCTION__, reply);
+			  __FUNCTION__, reply);
 		goto shut;
 	}
 	count -= r;
 	r = cmyth_rcv_long(conn, &err, &ret->file_id, count);
 	if (err) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
-				  "%s: (id) cmyth_rcv_long() failed (%d)\n",
-				  __FUNCTION__, err);
+			  "%s: (id) cmyth_rcv_long() failed (%d)\n",
+			  __FUNCTION__, err);
 		goto shut;
 	}
 	count -= r;
 	r = cmyth_rcv_long_long(conn, &err, &ret->file_length, count);
 	if (err) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
-				  "%s: (length) cmyth_rcv_longlong() failed (%d)\n",
-				  __FUNCTION__, err);
+			  "%s: (length) cmyth_rcv_longlong() failed (%d)\n",
+			  __FUNCTION__, err);
 		goto shut;
 	}
 	count -= r;
 	free(announcement);
 	return ret;
 
- shut:
+    shut:
 	if (announcement) {
 		free(announcement);
 	}
@@ -569,37 +583,40 @@ cmyth_conn_connect_ring(cmyth_recorder_t rec, unsigned buflen)
 
 	conn = cmyth_connect(server, port, buflen, 0);
 	if (!conn) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_connect(%s, %d, %d) failed\n",
-				  __FUNCTION__, server, port, buflen);
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_connect(%s, %d, %d) failed\n",
+			  __FUNCTION__, server, port, buflen);
 		return -1;
 	}
 
 	ann_size += CMYTH_LONG_LEN + strlen(my_hostname);
 	announcement = malloc(ann_size);
 	if (!announcement) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: malloc(%d) failed for announcement\n",
-				  __FUNCTION__, ann_size);
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: malloc(%d) failed for announcement\n",
+			  __FUNCTION__, ann_size);
 		goto shut;
 	}
 	sprintf(announcement,
-			"ANN RingBuffer %s %d", my_hostname, rec->rec_id);
+		"ANN RingBuffer %s %d", my_hostname, rec->rec_id);
 	if (cmyth_send_message(conn, announcement) < 0) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_send_message('%s') failed\n",
-				  __FUNCTION__, announcement);
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_send_message('%s') failed\n",
+			  __FUNCTION__, announcement);
 		free(announcement);
 		goto shut;
 	}
 	free(announcement);
 	if (cmyth_rcv_okay(conn, "OK") < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_rcv_okay() failed\n",
-				  __FUNCTION__);
+			  __FUNCTION__);
 		goto shut;
 	}
 
         rec->rec_ring->conn_data = conn;
 	return 0;
 
- shut:
+    shut:
 	cmyth_conn_release(conn);
 	return -1;
 }
@@ -638,7 +655,7 @@ cmyth_conn_check_block(cmyth_conn_t conn, unsigned long size)
 	FD_SET(conn->conn_fd, &check);
 	if (select(conn->conn_fd + 1, &check, NULL, NULL, &timeout) < 0) {
 		cmyth_dbg(CMYTH_DBG_DEBUG, "%s: select failed (%d)\n",
-				  __FUNCTION__, errno);
+			  __FUNCTION__, errno);
 		return -(errno);
 	}
 	if (FD_ISSET(conn->conn_fd, &check)) {
@@ -657,12 +674,14 @@ cmyth_conn_check_block(cmyth_conn_t conn, unsigned long size)
 			/*
 			 * This block has been sent, return TRUE.
 			 */
-			cmyth_dbg(CMYTH_DBG_DEBUG, "%s: block finished (%d bytes)\n",
-					  __FUNCTION__, sent);
+			cmyth_dbg(CMYTH_DBG_DEBUG,
+				  "%s: block finished (%d bytes)\n",
+				  __FUNCTION__, sent);
 			return 1;
 		} else {
-			cmyth_dbg(CMYTH_DBG_ERROR, "%s: block finished short (%d bytes)\n",
-					  __FUNCTION__, sent);
+			cmyth_dbg(CMYTH_DBG_ERROR,
+				  "%s: block finished short (%d bytes)\n",
+				  __FUNCTION__, sent);
 			return -ECANCELED;
 		}
 	}
@@ -728,7 +747,8 @@ cmyth_conn_get_recorder_from_num(cmyth_conn_t conn, int id)
 		goto fail;
 	}
 
-	if ((r=cmyth_rcv_string(conn, &err, reply, sizeof(reply)-1, count)) < 0) {
+	if ((r=cmyth_rcv_string(conn, &err,
+				reply, sizeof(reply)-1, count)) < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_rcv_string() failed (%d)\n",
 			  __FUNCTION__, r);
@@ -754,7 +774,7 @@ cmyth_conn_get_recorder_from_num(cmyth_conn_t conn, int id)
 
 	return rec;
 
- fail:
+    fail:
 	if (rec)
 		cmyth_recorder_release(rec);
 
@@ -824,7 +844,8 @@ cmyth_conn_get_free_recorder(cmyth_conn_t conn)
 		goto fail;
 	}
 	count -= r;
-	if ((r=cmyth_rcv_string(conn, &err, reply, sizeof(reply)-1, count)) < 0) {
+	if ((r=cmyth_rcv_string(conn, &err,
+				reply, sizeof(reply)-1, count)) < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_rcv_string() failed (%d)\n",
 			  __FUNCTION__, r);
@@ -849,7 +870,7 @@ cmyth_conn_get_free_recorder(cmyth_conn_t conn)
 
 	return rec;
 
- fail:
+    fail:
 	if (rec)
 		cmyth_recorder_release(rec);
 
@@ -877,9 +898,9 @@ cmyth_conn_get_freespace(cmyth_conn_t control,
 	pthread_mutex_lock(&mutex);
 
 	if (control->conn_version >= 17)
-	    { snprintf(msg, sizeof(msg), "QUERY_FREE_SPACE"); }
+		{ snprintf(msg, sizeof(msg), "QUERY_FREE_SPACE"); }
 	else
-	    { snprintf(msg, sizeof(msg), "QUERY_FREESPACE"); }
+		{ snprintf(msg, sizeof(msg), "QUERY_FREESPACE"); }
 
 	if ((err = cmyth_send_message(control, msg)) < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
@@ -899,7 +920,7 @@ cmyth_conn_get_freespace(cmyth_conn_t control,
 	
 	if (control->conn_version >= 17) {
 		if ((r=cmyth_rcv_long_long(control, &err, &lreply,
-					count)) < 0) {
+					   count)) < 0) {
 			cmyth_dbg(CMYTH_DBG_ERROR,
 				  "%s: cmyth_rcv_long_long() failed (%d)\n",
 				  __FUNCTION__, err);
@@ -908,7 +929,7 @@ cmyth_conn_get_freespace(cmyth_conn_t control,
 		}
 		*total = lreply;
 		if ((r=cmyth_rcv_long_long(control, &err, &lreply,
-					count-r)) < 0) {
+					   count-r)) < 0) {
 			cmyth_dbg(CMYTH_DBG_ERROR,
 				  "%s: cmyth_rcv_long_long() failed (%d)\n",
 				  __FUNCTION__, err);
@@ -918,28 +939,29 @@ cmyth_conn_get_freespace(cmyth_conn_t control,
 		*used = lreply;
 	}
 	else
-	{
-		if ((r=cmyth_rcv_string(control, &err, reply,
-					sizeof(reply)-1, count)) < 0) {
-			cmyth_dbg(CMYTH_DBG_ERROR,
-				  "%s: cmyth_rcv_string() failed (%d)\n",
-				  __FUNCTION__, err);
-			ret = err;
-			goto out;
+		{
+			if ((r=cmyth_rcv_string(control, &err, reply,
+						sizeof(reply)-1, count)) < 0) {
+				cmyth_dbg(CMYTH_DBG_ERROR,
+					  "%s: cmyth_rcv_string() failed (%d)\n",
+					  __FUNCTION__, err);
+				ret = err;
+				goto out;
+			}
+			*total = atoi(reply);
+			if ((r=cmyth_rcv_string(control, &err, reply,
+						sizeof(reply)-1,
+						count-r)) < 0) {
+				cmyth_dbg(CMYTH_DBG_ERROR,
+					  "%s: cmyth_rcv_string() failed (%d)\n",
+					  __FUNCTION__, err);
+				ret = err;
+				goto out;
+			}
+			*used = atoi(reply);
 		}
-		*total = atoi(reply);
-		if ((r=cmyth_rcv_string(control, &err, reply,
-					sizeof(reply)-1, count-r)) < 0) {
-			cmyth_dbg(CMYTH_DBG_ERROR,
-				  "%s: cmyth_rcv_string() failed (%d)\n",
-				  __FUNCTION__, err);
-			ret = err;
-			goto out;
-		}
-		*used = atoi(reply);
-	}
 
- out:
+    out:
 	pthread_mutex_unlock(&mutex);
 
 	return ret;
@@ -996,7 +1018,7 @@ cmyth_conn_get_free_recorder_count(cmyth_conn_t conn)
 
 	ret = c;
 
- err:
+    err:
 	pthread_mutex_unlock(&mutex);
 
 	return ret;

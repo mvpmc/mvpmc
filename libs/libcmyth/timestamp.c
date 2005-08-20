@@ -191,7 +191,8 @@ cmyth_timestamp_from_string(cmyth_timestamp_t ts, char *str)
 		return -EINVAL;
 	}
 	if (!ts) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: NULL timestamp\n", __FUNCTION__);
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: NULL timestamp\n",
+			  __FUNCTION__);
 		return -EINVAL;
 	}
 	if (strlen(str) != CMYTH_TIMESTAMP_LEN) {
@@ -208,13 +209,13 @@ cmyth_timestamp_from_string(cmyth_timestamp_t ts, char *str)
 	    ((str[4] != '-') || (str[7] != '-') || (str[10] != 'T') ||
 	     (str[13] != ':') || (str[16] != ':'))) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: string is badly formed '%s'\n",
-				  __FUNCTION__, str);
+			  __FUNCTION__, str);
 		return -EINVAL;
 	}
 	if ((datetime == 0) &&
 	    ((str[4] != '-') || (str[7] != '-'))) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: string is badly formed '%s'\n",
-				  __FUNCTION__, str);
+			  __FUNCTION__, str);
 		return -EINVAL;
 	}
 
@@ -222,6 +223,11 @@ cmyth_timestamp_from_string(cmyth_timestamp_t ts, char *str)
 	 * XXX: Do not zero out the structure, since that will change the
 	 *      reference count.  This should be fixed by creating new
 	 *      timestamps each time.
+	 *
+	 *      This is actually going to be fixed soon by using the newly
+	 *      created reference counted memory allocator and getting the
+	 *      reference count out of the timestamp structure.  This will
+	 *      allow the memset() to go back in.
 	 */
 #if 0
 	memset(ts, 0, sizeof(*ts));
@@ -234,10 +240,13 @@ cmyth_timestamp_from_string(cmyth_timestamp_t ts, char *str)
 		str[13] = '\0';
 		str[16] = '\0';
 	}
-	for (i = 0; i < (datetime ? CMYTH_TIMESTAMP_LEN : CMYTH_DATESTAMP_LEN); ++i) {
+	for (i = 0;
+	     i < (datetime ? CMYTH_TIMESTAMP_LEN : CMYTH_DATESTAMP_LEN);
+	     ++i) {
 		if (str[i] && !isdigit(str[i])) {
-			cmyth_dbg(CMYTH_DBG_ERROR, "%s: expected numeral at '%s'[%d]\n",
-					  __FUNCTION__, str, i);
+			cmyth_dbg(CMYTH_DBG_ERROR,
+				  "%s: expected numeral at '%s'[%d]\n",
+				  __FUNCTION__, str, i);
 			return -EINVAL;
 		}
 	}
@@ -245,13 +254,13 @@ cmyth_timestamp_from_string(cmyth_timestamp_t ts, char *str)
 	ts->timestamp_month = atoi(MM);
 	if (ts->timestamp_month > 12) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: month value too big'%s'\n",
-				  __FUNCTION__, str);
+			  __FUNCTION__, str);
 		return -EINVAL;
 	}
 	ts->timestamp_day = atoi(dd);
 	if (ts->timestamp_day > 31) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: day value too big'%s'\n",
-				  __FUNCTION__, str);
+			  __FUNCTION__, str);
 		return -EINVAL;
 	}
 
@@ -261,19 +270,19 @@ cmyth_timestamp_from_string(cmyth_timestamp_t ts, char *str)
 	ts->timestamp_hour = atoi(hh);
 	if (ts->timestamp_hour > 23) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: hour value too big'%s'\n",
-				  __FUNCTION__, str);
+			  __FUNCTION__, str);
 		return -EINVAL;
 	}
 	ts->timestamp_minute = atoi(mm);
 	if (ts->timestamp_minute > 59) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: minute value too big'%s'\n",
-				  __FUNCTION__, str);
+			  __FUNCTION__, str);
 		return -EINVAL;
 	}
 	ts->timestamp_second = atoi(ss);
 	if (ts->timestamp_second > 59) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: second value too big'%s'\n",
-				  __FUNCTION__, str);
+			  __FUNCTION__, str);
 		return -EINVAL;
 	}
 	return 0;
@@ -309,7 +318,8 @@ cmyth_datetime_from_string(cmyth_timestamp_t ts, char *str)
 		return -EINVAL;
 	}
 	if (!ts) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: NULL timestamp\n", __FUNCTION__);
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: NULL timestamp\n",
+			  __FUNCTION__);
 		return -EINVAL;
 	}
 
@@ -398,22 +408,22 @@ cmyth_timestamp_to_string(char *str, cmyth_timestamp_t ts)
 {
 	if (!str) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: NULL output string provided\n",
-				  __FUNCTION__);
+			  __FUNCTION__);
 		return -EINVAL;
 	}
 	if (!ts) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: NULL timestamp provided\n",
-				  __FUNCTION__);
+			  __FUNCTION__);
 		return -EINVAL;
 	}
 	sprintf(str,
-			"%4.4ld-%2.2ld-%2.2ldT%2.2ld:%2.2ld:%2.2ld",
-			ts->timestamp_year,
-			ts->timestamp_month,
-			ts->timestamp_day,
-			ts->timestamp_hour,
-			ts->timestamp_minute,
-			ts->timestamp_second);
+		"%4.4ld-%2.2ld-%2.2ldT%2.2ld:%2.2ld:%2.2ld",
+		ts->timestamp_year,
+		ts->timestamp_month,
+		ts->timestamp_day,
+		ts->timestamp_hour,
+		ts->timestamp_minute,
+		ts->timestamp_second);
 	return 0;
 }
 
@@ -444,12 +454,12 @@ cmyth_datetime_to_string(char *str, cmyth_timestamp_t ts)
 
 	if (!str) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: NULL output string provided\n",
-				  __FUNCTION__);
+			  __FUNCTION__);
 		return -EINVAL;
 	}
 	if (!ts) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: NULL timestamp provided\n",
-				  __FUNCTION__);
+			  __FUNCTION__);
 		return -EINVAL;
 	}
 
@@ -463,13 +473,13 @@ cmyth_datetime_to_string(char *str, cmyth_timestamp_t ts)
 	tm_datetime.tm_isdst = ts->timestamp_isdst;
 	t_datetime = mktime(&tm_datetime);
 	sprintf(str,
-			"%4.4ld-%2.2ld-%2.2ldT%2.2ld:%2.2ld:%2.2ld",
-			ts->timestamp_year,
-			ts->timestamp_month,
-			ts->timestamp_day,
-			ts->timestamp_hour,
-			ts->timestamp_minute,
-			ts->timestamp_second);
+		"%4.4ld-%2.2ld-%2.2ldT%2.2ld:%2.2ld:%2.2ld",
+		ts->timestamp_year,
+		ts->timestamp_month,
+		ts->timestamp_day,
+		ts->timestamp_hour,
+		ts->timestamp_minute,
+		ts->timestamp_second);
 	cmyth_dbg(CMYTH_DBG_ERROR, "original timestamp string: %s \n",str);
 	sprintf(str,"%lu",(unsigned long) t_datetime);
 	cmyth_dbg(CMYTH_DBG_ERROR, "time in seconds: %s \n",str);
@@ -526,10 +536,14 @@ cmyth_timestamp_compare(cmyth_timestamp_t ts1, cmyth_timestamp_t ts2)
 		return (ts1->timestamp_hour > ts2->timestamp_hour) ? 1 : -1;
 	}
 	if (ts1->timestamp_minute != ts2->timestamp_minute) {
-		return (ts1->timestamp_minute > ts2->timestamp_minute) ? 1 : -1;
+		return (ts1->timestamp_minute > ts2->timestamp_minute) 
+			? 1
+			: -1;
 	}
 	if (ts1->timestamp_second != ts2->timestamp_second) {
-		return (ts1->timestamp_second > ts2->timestamp_second) ? 1 : -1;
+		return (ts1->timestamp_second > ts2->timestamp_second)
+			? 1
+			: -1;
 	}
 	return 0;
 }

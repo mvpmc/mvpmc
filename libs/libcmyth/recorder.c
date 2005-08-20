@@ -194,8 +194,8 @@ cmyth_recorder_release(cmyth_recorder_t p)
  */
 int
 cmyth_recorder_request_block(cmyth_conn_t control,
-							 cmyth_recorder_t rec,
-							 unsigned len)
+			     cmyth_recorder_t rec,
+			     unsigned len)
 {
 	return -ENOSYS;
 }
@@ -254,7 +254,7 @@ cmyth_recorder_is_recording(cmyth_conn_t control, cmyth_recorder_t rec)
 
 	ret = c;
 
- out:
+    out:
 	pthread_mutex_unlock(&mutex);
 
 	return ret;
@@ -280,8 +280,8 @@ cmyth_recorder_is_recording(cmyth_conn_t control, cmyth_recorder_t rec)
  */
 int
 cmyth_recorder_get_framerate(cmyth_conn_t control,
-							 cmyth_recorder_t rec,
-							 double *rate)
+			     cmyth_recorder_t rec,
+			     double *rate)
 {
 	int err, count;
 	int r;
@@ -321,7 +321,7 @@ cmyth_recorder_get_framerate(cmyth_conn_t control,
 	*rate = atof(reply);
 	ret = 0;
 
- out:
+    out:
 	pthread_mutex_unlock(&mutex);
 
 	return ret;
@@ -393,8 +393,8 @@ cmyth_recorder_get_free_space(cmyth_conn_t control, cmyth_recorder_t rec)
  */
 long long
 cmyth_recorder_get_keyframe_pos(cmyth_conn_t control,
-								cmyth_recorder_t rec,
-								unsigned long keynum)
+				cmyth_recorder_t rec,
+				unsigned long keynum)
 {
 	return (long long)-ENOSYS;
 }
@@ -422,9 +422,9 @@ cmyth_recorder_get_keyframe_pos(cmyth_conn_t control,
  */
 int
 cmyth_recorder_fill_position_map(cmyth_conn_t control,
-								 cmyth_recorder_t rec,
-								 unsigned long start,
-								 unsigned long end)
+				 cmyth_recorder_t rec,
+				 unsigned long start,
+				 unsigned long end)
 {
 	return -ENOSYS;
 }
@@ -451,8 +451,8 @@ cmyth_recorder_fill_position_map(cmyth_conn_t control,
  */
 int
 cmyth_recorder_get_recording(cmyth_conn_t control,
-							 cmyth_recorder_t rec,
-							 cmyth_proginfo_t proginfo)
+			     cmyth_recorder_t rec,
+			     cmyth_proginfo_t proginfo)
 {
 	return -ENOSYS;
 }
@@ -520,7 +520,7 @@ cmyth_recorder_frontend_ready(cmyth_conn_t control, cmyth_recorder_t rec)
  */
 int
 cmyth_recorder_cancel_next_recording(cmyth_conn_t control,
-									 cmyth_recorder_t rec)
+				     cmyth_recorder_t rec)
 {
 	return -ENOSYS;
 }
@@ -568,7 +568,7 @@ cmyth_recorder_pause(cmyth_conn_t control, cmyth_recorder_t rec)
 
 	ret = 0;
 
- err:
+    err:
 	pthread_mutex_unlock(&mutex);
 
 	return ret;
@@ -592,7 +592,7 @@ cmyth_recorder_pause(cmyth_conn_t control, cmyth_recorder_t rec)
  */
 int
 cmyth_recorder_finish_recording(cmyth_conn_t control,
-								cmyth_recorder_t rec)
+				cmyth_recorder_t rec)
 {
 	return -ENOSYS;
 }
@@ -618,7 +618,7 @@ cmyth_recorder_finish_recording(cmyth_conn_t control,
  */
 int
 cmyth_recorder_toggle_channel_favorite(cmyth_conn_t control,
-									   cmyth_recorder_t rec)
+				       cmyth_recorder_t rec)
 {
 	return -ENOSYS;
 }
@@ -655,8 +655,8 @@ cmyth_recorder_toggle_channel_favorite(cmyth_conn_t control,
  */
 int
 cmyth_recorder_change_channel(cmyth_conn_t control,
-							  cmyth_recorder_t rec,
-							  cmyth_channeldir_t direction)
+			      cmyth_recorder_t rec,
+			      cmyth_channeldir_t direction)
 {
 	int err;
 	int ret = -1;
@@ -692,7 +692,7 @@ cmyth_recorder_change_channel(cmyth_conn_t control,
 
 	ret = 0;
 
- fail:
+    fail:
 	pthread_mutex_unlock(&mutex);
 
 	return ret;
@@ -758,7 +758,7 @@ cmyth_recorder_set_channel(cmyth_conn_t control, cmyth_recorder_t rec,
 
 	ret = 0;
 
- fail:
+    fail:
 	pthread_mutex_unlock(&mutex);
 
 	return ret;
@@ -793,8 +793,8 @@ cmyth_recorder_set_channel(cmyth_conn_t control, cmyth_recorder_t rec,
  */
 int
 cmyth_recorder_change_color(cmyth_conn_t control,
-							cmyth_recorder_t rec,
-							cmyth_adjdir_t direction)
+			    cmyth_recorder_t rec,
+			    cmyth_adjdir_t direction)
 {
 	return -ENOSYS;
 }
@@ -828,8 +828,8 @@ cmyth_recorder_change_color(cmyth_conn_t control,
  */
 int
 cmyth_recorder_change_brightness(cmyth_conn_t control,
-								 cmyth_recorder_t rec,
-								 cmyth_adjdir_t direction)
+				 cmyth_recorder_t rec,
+				 cmyth_adjdir_t direction)
 {
 	return -ENOSYS;
 }
@@ -862,8 +862,8 @@ cmyth_recorder_change_brightness(cmyth_conn_t control,
  */
 int
 cmyth_recorder_change_contrast(cmyth_conn_t control,
-							   cmyth_recorder_t rec,
-							   cmyth_adjdir_t direction)
+			       cmyth_recorder_t rec,
+			       cmyth_adjdir_t direction)
 {
 	return -ENOSYS;
 }
@@ -897,8 +897,8 @@ cmyth_recorder_change_contrast(cmyth_conn_t control,
  */
 int
 cmyth_recorder_change_hue(cmyth_conn_t control,
-						  cmyth_recorder_t rec,
-						  cmyth_adjdir_t direction)
+			  cmyth_recorder_t rec,
+			  cmyth_adjdir_t direction)
 {
 	return -ENOSYS;
 }
@@ -958,7 +958,7 @@ cmyth_recorder_check_channel(cmyth_conn_t control,
 
 	ret = 0;
 
- fail:
+    fail:
 	pthread_mutex_unlock(&mutex);
 
 	return ret;
@@ -985,15 +985,15 @@ cmyth_recorder_check_channel(cmyth_conn_t control,
  */
 int
 cmyth_recorder_check_channel_prefix(cmyth_conn_t control,
-									cmyth_recorder_t rec,
-									char *channame)
+				    cmyth_recorder_t rec,
+				    char *channame)
 {
 	return -ENOSYS;
 }
 
 /*
  * cmyth_recorder_get_program_info(cmyth_conn_t control,
- *						           cmyth_recorder_t rec,
+ *                                 cmyth_recorder_t rec,
  *                                 cmyth_proginfo_t proginfo)
  *
  * Scope: PUBLIC
@@ -1052,7 +1052,7 @@ cmyth_recorder_get_program_info(cmyth_conn_t control,
 
 	ret = 0;
  
- out:
+    out:
 	pthread_mutex_unlock(&mutex);
 
 	return ret;
@@ -1075,11 +1075,11 @@ cmyth_recorder_get_program_info(cmyth_conn_t control,
  * following values:
  *
  *     BROWSE_DIRECTION_SAME        - Stay in the same place
- *	   BROWSE_DIRECTION_UP          - Move up one slot (down one channel)
- *	   BROWSE_DIRECTION_DOWN        - Move down one slot (up one channel)
- *	   BROWSE_DIRECTION_LEFT        - Move left one slot (down one time slot)
- *	   BROWSE_DIRECTION_RIGHT       - Move right one slot (up one time slot)
- *	   BROWSE_DIRECTION_FAVORITE    - Move to the next favorite slot
+ *     BROWSE_DIRECTION_UP          - Move up one slot (down one channel)
+ *     BROWSE_DIRECTION_DOWN        - Move down one slot (up one channel)
+ *     BROWSE_DIRECTION_LEFT        - Move left one slot (down one time slot)
+ *     BROWSE_DIRECTION_RIGHT       - Move right one slot (up one time slot)
+ *     BROWSE_DIRECTION_FAVORITE    - Move to the next favorite slot
  *
  * The program information will be used to fill out 'proginfo'.
  *
@@ -1123,7 +1123,8 @@ cmyth_recorder_get_next_program_info(cmyth_conn_t control,
 		 tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec);
 
         snprintf(msg, sizeof(msg), "QUERY_RECORDER %d[]:[]GET_NEXT_PROGRAM_INFO[]:[]%s[]:[]%ld[]:[]%i[]:[]%s",
-                 rec->rec_id, cur_prog->proginfo_channame, cur_prog->proginfo_chanId, direction, date);
+                 rec->rec_id, cur_prog->proginfo_channame,
+		 cur_prog->proginfo_chanId, direction, date);
 
         if ((err=cmyth_send_message(control, msg)) < 0) {
                 cmyth_dbg(CMYTH_DBG_ERROR,
@@ -1144,9 +1145,9 @@ cmyth_recorder_get_next_program_info(cmyth_conn_t control,
 	count -= cmyth_rcv_string(control, &err,
 				  category, sizeof(category), count);
 	count -= cmyth_rcv_timestamp(control, &err,
-				  next_prog->proginfo_start_ts, count);
+				     next_prog->proginfo_start_ts, count);
 	count -= cmyth_rcv_timestamp(control, &err,
-				  next_prog->proginfo_end_ts, count);
+				     next_prog->proginfo_end_ts, count);
 	count -= cmyth_rcv_string(control, &err,
 				  callsign, sizeof(callsign), count);
 	count -= cmyth_rcv_string(control, &err,
@@ -1180,15 +1181,14 @@ cmyth_recorder_get_next_program_info(cmyth_conn_t control,
 
 	ret = 0;
  
- out:
+    out:
         pthread_mutex_unlock(&mutex);
 
         return ret;
 }
 
 /*
- * cmyth_recorder_get_input_name(cmyth_conn_t control,
- *								 cmyth_recorder_t rec)
+ * cmyth_recorder_get_input_name(cmyth_conn_t control, cmyth_recorder_t rec)
  *
  * Scope: PUBLIC
  *
@@ -1213,16 +1213,16 @@ cmyth_recorder_get_next_program_info(cmyth_conn_t control,
  */
 int
 cmyth_recorder_get_input_name(cmyth_conn_t control,
-							  cmyth_recorder_t rec,
-							  char *name,
-						      unsigned len)
+			      cmyth_recorder_t rec,
+			      char *name,
+			      unsigned len)
 {
 	return -ENOSYS;
 }
 
 /*
  * cmyth_recorder_seek(cmyth_conn_t control,
- *					   cmyth_recorder_t rec,
+ *                     cmyth_recorder_t rec,
  *                     long long pos,
  *                     cmyth_whence_t whence,
  *                     long long curpos)
@@ -1254,10 +1254,10 @@ cmyth_recorder_get_input_name(cmyth_conn_t control,
  */
 long long
 cmyth_recorder_seek(cmyth_conn_t control,
-					cmyth_recorder_t rec,
+		    cmyth_recorder_t rec,
                     long long pos,
-					cmyth_whence_t whence,
-					long long curpos)
+		    cmyth_whence_t whence,
+		    long long curpos)
 
 {
 	return (long long) -ENOSYS;
@@ -1282,7 +1282,7 @@ cmyth_recorder_seek(cmyth_conn_t control,
  */
 int
 cmyth_recorder_spawn_livetv(cmyth_conn_t control,
-							cmyth_recorder_t rec)
+			    cmyth_recorder_t rec)
 {
 	int err;
 	int ret = -1;
@@ -1315,7 +1315,7 @@ cmyth_recorder_spawn_livetv(cmyth_conn_t control,
 
 	ret = 0;
 
- fail:
+    fail:
 	pthread_mutex_unlock(&mutex);
 
 	return ret;
@@ -1355,7 +1355,7 @@ cmyth_recorder_stop_livetv(cmyth_conn_t control, cmyth_recorder_t rec)
 
 	ret = 0;
 
- fail:
+    fail:
 	pthread_mutex_unlock(&mutex);
 
 	return ret;
@@ -1395,7 +1395,7 @@ cmyth_recorder_done_ringbuf(cmyth_conn_t control, cmyth_recorder_t rec)
 
 	ret = 0;
 
- fail:
+    fail:
 	pthread_mutex_unlock(&mutex);
 
 	return ret;
@@ -1420,7 +1420,7 @@ cmyth_recorder_done_ringbuf(cmyth_conn_t control, cmyth_recorder_t rec)
  */
 int
 cmyth_recorder_start_stream(cmyth_conn_t control,
-							cmyth_recorder_t rec)
+			    cmyth_recorder_t rec)
 {
 	return -ENOSYS;
 }
@@ -1444,7 +1444,7 @@ cmyth_recorder_start_stream(cmyth_conn_t control,
  */
 int
 cmyth_recorder_end_stream(cmyth_conn_t control,
-						  cmyth_recorder_t rec)
+			  cmyth_recorder_t rec)
 {
 	return -ENOSYS;
 }

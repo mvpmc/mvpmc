@@ -166,8 +166,8 @@ cmyth_keyframe_release(cmyth_keyframe_t p)
  */
 void
 cmyth_keyframe_fill(cmyth_keyframe_t kf,
-					unsigned long keynum,
-					unsigned long long pos)
+		    unsigned long keynum,
+		    unsigned long long pos)
 {
 	if (!kf) {
 		return;

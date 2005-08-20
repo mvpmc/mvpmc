@@ -193,7 +193,7 @@ cmyth_file_release(cmyth_conn_t control, cmyth_file_t file)
 
 	return 0;
 
- fail:
+    fail:
 	cmyth_atomic_inc(&file->refcount);
 
 	pthread_mutex_unlock(&mutex);
@@ -404,7 +404,7 @@ cmyth_file_request_block(cmyth_conn_t control, cmyth_file_t file,
 	file->file_pos += c;
 	ret = c;
 
- out:
+    out:
 	pthread_mutex_unlock(&mutex);
 
 	return ret;
@@ -497,7 +497,7 @@ cmyth_file_seek(cmyth_conn_t control, cmyth_file_t file, long long offset,
 
 	ret = file->file_pos;
 
- out:
+    out:
 	pthread_mutex_unlock(&mutex);
 	
 	return ret;

@@ -172,9 +172,9 @@ cmyth_rec_num_release(cmyth_rec_num_t p)
  */
 void
 cmyth_rec_num_fill(cmyth_rec_num_t rn,
-				   char *host,
-				   unsigned short port,
-				   unsigned id)
+		   char *host,
+		   unsigned short port,
+		   unsigned id)
 {
 	if (!rn) {
 		return;

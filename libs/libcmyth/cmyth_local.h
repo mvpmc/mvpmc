@@ -51,31 +51,31 @@ typedef	unsigned cmyth_atomic_t;
 static inline unsigned
 __cmyth_atomic_increment(cmyth_atomic_t *ref)
 {
-    cmyth_atomic_t __val;
+	cmyth_atomic_t __val;
 #if defined __i386__ || defined __i486__ || defined __i586__ || defined __i686__
 	asm volatile (".byte 0xf0, 0x0f, 0xc1, 0x02" /*lock; xaddl %eax, (%edx) */
-	     : "=a" (__val)
-	     : "0" (1), "m" (*ref), "d" (ref)
-	     : "memory");
+		      : "=a" (__val)
+		      : "0" (1), "m" (*ref), "d" (ref)
+		      : "memory");
 	/* on the x86 __val is the pre-increment value, so normalize it. */
 	++__val;
 #elif defined __powerpc__
 	asm volatile ("1:	lwarx   %0,0,%1\n"
-		"	addic.   %0,%0,1\n"
-		"	dcbt    %0,%1\n"
-		"	stwcx.  %0,0,%1\n"
-		"	bne-    1b\n"
-		"	isync\n"
-		: "=&r" (__val)
-		: "r" (ref)
-		: "cc", "memory");
+		      "	addic.   %0,%0,1\n"
+		      "	dcbt    %0,%1\n"
+		      "	stwcx.  %0,0,%1\n"
+		      "	bne-    1b\n"
+		      "	isync\n"
+		      : "=&r" (__val)
+		      : "r" (ref)
+		      : "cc", "memory");
 #else
 	/*
 	 * Don't know how to atomic increment for a generic architecture
 	 * so punt and just increment the value.
 	 */
 #warning unknown architecture, atomic increment is not...
-    __val = ++(*ref);
+	__val = ++(*ref);
 #endif
 	return __val;
 }
@@ -83,39 +83,39 @@ __cmyth_atomic_increment(cmyth_atomic_t *ref)
 static inline unsigned
 __cmyth_atomic_decrement(cmyth_atomic_t *ref)
 {
-    cmyth_atomic_t __val;
+	cmyth_atomic_t __val;
 #if defined __i386__ || defined __i486__ || defined __i586__ || defined __i686__
 	/*
-     * This opcode exists as a .byte instead of as a mnemonic for the
-     * benefit of SCO OpenServer 5.  The system assembler (which is
-     * essentially required on this target) can't assemble xaddl in
-     * COFF mode.
+	 * This opcode exists as a .byte instead of as a mnemonic for the
+	 * benefit of SCO OpenServer 5.  The system assembler (which is
+	 * essentially required on this target) can't assemble xaddl in
+	 * COFF mode.
 	 */
-     asm volatile (".byte 0xf0, 0x0f, 0xc1, 0x02" /*lock; xaddl %eax, (%edx) */
-	    : "=a" (__val)
-	    : "0" (-1), "m" (*ref), "d" (ref)
-	    : "memory");
+	asm volatile (".byte 0xf0, 0x0f, 0xc1, 0x02" /*lock; xaddl %eax, (%edx) */
+		      : "=a" (__val)
+		      : "0" (-1), "m" (*ref), "d" (ref)
+		      : "memory");
 	/* __val is the pre-decrement value, so normalize it */
 	--__val;
 #elif defined __powerpc__
 	asm volatile ("1:	lwarx   %0,0,%1\n"
-		"	addic.   %0,%0,-1\n"
-		"	dcbt    %0,%1\n"
-		"	stwcx.  %0,0,%1\n"
-		"	bne-    1b\n"
-		"	isync\n"
-		: "=&r" (__val)
-		: "r" (ref)
-		: "cc", "memory");
+		      "	addic.   %0,%0,-1\n"
+		      "	dcbt    %0,%1\n"
+		      "	stwcx.  %0,0,%1\n"
+		      "	bne-    1b\n"
+		      "	isync\n"
+		      : "=&r" (__val)
+		      : "r" (ref)
+		      : "cc", "memory");
 #elif defined __sparcv9__
 	cmyth_atomic_t __newval, __oldval = (*ref);
 	do
-	  {
-	    __newval = __oldval - 1;
-	    __asm__ ("cas	[%4], %2, %0"
-		     : "=r" (__oldval), "=m" (*ref)
-		     : "r" (__oldval), "m" (*ref), "r"((ref)), "0" (__newval));
-	  }
+		{
+			__newval = __oldval - 1;
+			__asm__ ("cas	[%4], %2, %0"
+				 : "=r" (__oldval), "=m" (*ref)
+				 : "r" (__oldval), "m" (*ref), "r"((ref)), "0" (__newval));
+		}
 	while (__newval != __oldval);
 	/*  The value for __val is in '__oldval' */
 	__val = __oldval;
@@ -125,7 +125,7 @@ __cmyth_atomic_decrement(cmyth_atomic_t *ref)
 	 * so punt and just decrement the value.
 	 */
 #warning unknown architecture, atomic deccrement is not...
-    __val = --(*ref);
+	__val = --(*ref);
 #endif
 	return __val;
 }
@@ -317,9 +317,9 @@ extern int cmyth_rcv_length(cmyth_conn_t conn);
 
 #define cmyth_rcv_string __cmyth_rcv_string
 extern int cmyth_rcv_string(cmyth_conn_t conn,
-							int *err,
-							char *buf, int buflen,
-							int count);
+			    int *err,
+			    char *buf, int buflen,
+			    int count);
 
 #define cmyth_rcv_okay __cmyth_rcv_okay
 extern int cmyth_rcv_okay(cmyth_conn_t conn, char *ok);
@@ -338,72 +338,72 @@ extern int cmyth_rcv_long(cmyth_conn_t conn, int *err, long *buf, int count);
 
 #define cmyth_rcv_long_long __cmyth_rcv_long_long
 extern int cmyth_rcv_long_long(cmyth_conn_t conn, int *err, long long *buf,
-							   int count);
+			       int count);
 
 #define cmyth_rcv_ubyte __cmyth_rcv_ubyte
 extern int cmyth_rcv_ubyte(cmyth_conn_t conn, int *err, unsigned char *buf,
-						   int count);
+			   int count);
 
 #define cmyth_rcv_ushort __cmyth_rcv_ushort
 extern int cmyth_rcv_ushort(cmyth_conn_t conn, int *err, unsigned short *buf,
-							int count);
+			    int count);
 
 #define cmyth_rcv_ulong __cmyth_rcv_ulong
 extern int cmyth_rcv_ulong(cmyth_conn_t conn, int *err, unsigned long *buf,
-						   int count);
+			   int count);
 
 #define cmyth_rcv_ulong_long __cmyth_rcv_ulong_long
 extern int cmyth_rcv_ulong_long(cmyth_conn_t conn,
-								int *err,
-								unsigned long long *buf,
-								int count);
+				int *err,
+				unsigned long long *buf,
+				int count);
 
 #define cmyth_rcv_data __cmyth_rcv_data
 extern int cmyth_rcv_data(cmyth_conn_t conn, int *err, unsigned char *buf,
-						  int count);
+			  int count);
 
 #define cmyth_rcv_timestamp __cmyth_rcv_timestamp
 extern int cmyth_rcv_timestamp(cmyth_conn_t conn, int *err,
-							   cmyth_timestamp_t buf,
-							   int count);
+			       cmyth_timestamp_t buf,
+			       int count);
 #define cmyth_rcv_datetime __cmyth_rcv_datetime
 extern int cmyth_rcv_datetime(cmyth_conn_t conn, int *err,
-							   cmyth_timestamp_t buf,
-							   int count);
+			      cmyth_timestamp_t buf,
+			      int count);
 
 #define cmyth_rcv_proginfo __cmyth_rcv_proginfo
 extern int cmyth_rcv_proginfo(cmyth_conn_t conn, int *err,
-							  cmyth_proginfo_t buf,
-							  int count);
+			      cmyth_proginfo_t buf,
+			      int count);
 
 #define cmyth_rcv_chaninfo __cmyth_rcv_chaninfo
 extern int cmyth_rcv_chaninfo(cmyth_conn_t conn, int *err,
-							  cmyth_proginfo_t buf,
-							  int count);
+			      cmyth_proginfo_t buf,
+			      int count);
 
 #define cmyth_rcv_proglist __cmyth_rcv_proglist
 extern int cmyth_rcv_proglist(cmyth_conn_t conn, int *err,
-							  cmyth_proglist_t buf,
-							  int count);
+			      cmyth_proglist_t buf,
+			      int count);
 
 #define cmyth_rcv_keyframe __cmyth_rcv_keyframe
 extern int cmyth_rcv_keyframe(cmyth_conn_t conn, int *err,
-							  cmyth_keyframe_t buf,
-							  int count);
+			      cmyth_keyframe_t buf,
+			      int count);
 
 #define cmyth_rcv_freespace __cmyth_rcv_freespace
 extern int cmyth_rcv_freespace(cmyth_conn_t conn, int *err,
-							   cmyth_freespace_t buf,
-							   int count);
+			       cmyth_freespace_t buf,
+			       int count);
 
 #define cmyth_rcv_recorder __cmyth_rcv_recorder
 extern int cmyth_rcv_recorder(cmyth_conn_t conn, int *err,
-							  cmyth_recorder_t buf,
-							  int count);
+			      cmyth_recorder_t buf,
+			      int count);
 
 #define cmyth_rcv_ringbuf __cmyth_rcv_ringbuf
 extern int cmyth_rcv_ringbuf(cmyth_conn_t conn, int *err, cmyth_ringbuf_t buf,
-							 int count);
+			     int count);
 
 /*
  * From proginfo.c
