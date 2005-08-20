@@ -289,6 +289,18 @@ struct cmyth_proglist {
 };
 
 /*
+ * Private functions in  alloc.c
+ */
+#define cmyth_allocate __cmyth_allocate
+extern void *cmyth_allocate(size_t len);
+
+#define cmyth_alloc_set_destroy __cmyth_alloc_set_destroy
+extern void cmyth_alloc_set_destroy(void *block, void (*func)(void *p));
+
+#define cmyth_alloc_strdup __cmyth_alloc_strdup
+extern char *cmyth_alloc_strdup(char *str);
+
+/*
  * Private funtions in debug.c
  */
 #define cmyth_dbg __cmyth_dbg
