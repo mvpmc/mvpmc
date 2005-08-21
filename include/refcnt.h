@@ -2,7 +2,10 @@
 #define __REFCNT_H
 
 #define refcnt_allocate __cmyth_allocate
-extern void *ref_allocate(size_t len);
+extern void *refcnt_allocate(size_t len);
+
+#define refcnt_reallocate __cmyth_reallocate
+extern void *refcnt_reallocate(void *p, size_t len);
 
 #define refcnt_set_destroy __cmyth_alloc_set_destroy
 extern void refcnt_set_destroy(void *block, void (*func)(void *p));
