@@ -501,7 +501,7 @@ extern int cmyth_proglist_get_count(cmyth_proglist_t pl);
  */
 extern cmyth_file_t cmyth_file_hold(cmyth_file_t p);
 
-extern int cmyth_file_release(cmyth_file_t file);
+extern int cmyth_file_release(cmyth_conn_t control, cmyth_file_t file);
 
 extern cmyth_conn_t cmyth_file_data(cmyth_file_t file);
 
@@ -512,9 +512,10 @@ extern unsigned long long cmyth_file_length(cmyth_file_t file);
 extern int cmyth_file_get_block(cmyth_file_t file, char *buf,
 				unsigned long len);
 
-extern int cmyth_file_request_block(cmyth_file_t file, unsigned long len);
+extern int cmyth_file_request_block(cmyth_conn_t control, cmyth_file_t file,
+				    unsigned long len);
 
-extern long long cmyth_file_seek(cmyth_file_t file,
+extern long long cmyth_file_seek(cmyth_conn_t control, cmyth_file_t file,
 				 long long offset, int whence);
 
 extern int cmyth_file_select(cmyth_file_t file, struct timeval *timeout);
