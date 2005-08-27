@@ -713,6 +713,7 @@ add_shows(mvp_widget_t *widget)
 		mvpw_add_menu_item(widget, titles[i], (void*)n+2, &item_attr);
 
 	cmyth_proglist_release(episode_plist);
+	episode_plist = NULL;
 	pthread_mutex_unlock(&myth_mutex);
 }
 
