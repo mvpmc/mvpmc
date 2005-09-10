@@ -323,7 +323,14 @@ cmyth_datetime_from_string(cmyth_timestamp_t ts, char *str)
 		return -EINVAL;
 	}
 
+	/*
+	 * XXX: Do not zero out the structure, since that will change the
+	 *      reference count.  This should be fixed by creating new
+	 *      timestamps each time.
+	 */
+#if 0
 	memset(ts, 0, sizeof(*ts));
+#endif
 
 	isecs=atoi(str);
 	t_datetime = isecs;
