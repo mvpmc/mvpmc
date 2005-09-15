@@ -59,7 +59,7 @@ a52_state_t *a52_state;
 static int disable_adjust=0;
 static int disable_dynrng=0;
 static float gain = 1;
-static char ac3_buf[AC3_SIZE];
+static unsigned char ac3_buf[AC3_SIZE];
 static volatile char *ac3_end;
 static int ac3_size = AC3_SIZE;
 static volatile int ac3_head = 0, ac3_tail = AC3_SIZE - 1;
@@ -74,15 +74,16 @@ typedef enum {
 
 static audio_file_t audio_type;
 
-#define BUFFSIZE 128
+#define BUFFSIZE 12000
 
 void audio_play(mvp_widget_t *widget);
+static void wav_play(int, int, unsigned short, unsigned short, unsigned short);
 
-static int quantised_next_input_sample = 0;
-static int last_sample_in_buffer = 0;
-static int next_output_sample = 0;
-static float next_input_sample = 0;
-static float wav_file_to_input_frequency_ratio = 1;
+static unsigned long quantised_next_input_sample = 0;
+static unsigned long last_sample_in_buffer = 0;
+static unsigned long next_output_sample = 0;
+static unsigned long next_input_sample = 0;
+static unsigned wav_file_to_input_frequency_ratio = 1;
 static int chunk_size = 0;
 
 static int align;
@@ -95,6 +96,32 @@ static int ac3_freespace(void);
 #define min(X, Y)  ((X) < (Y) ? (X) : (Y))
 
 int audio_output_mode = AUD_OUTPUT_STEREO;
+
+#ifdef DEBUG_LOG_SOUND
+static inline void logwrite (char *fn, int result, int fd, int size, unsigned char *data)
+{
+  int lfd;
+  struct {
+    int ssize;
+    struct timeval tv;
+    int result;
+    int fd;
+    int size;
+  } lhdr;
+
+  lfd = open(fn, O_CREAT|O_APPEND|O_WRONLY, 0666);
+  if (lfd >= 0) {
+    lhdr.ssize = sizeof(lhdr);
+    gettimeofday(&lhdr.tv, NULL);
+    lhdr.result = result;
+    lhdr.fd = fd;
+    lhdr.size = size;
+    write(lfd, &lhdr, sizeof(lhdr));
+    write(lfd, data, result);
+    close(lfd);
+  }
+}
+#endif
 
 static inline uint16_t
 convert(int32_t j)
@@ -144,65 +171,6 @@ find_chunk(int fd,char searchid[5])
 	}
 
 	return size;
-}
-
-static void
-wav_play(int fd, int afd, unsigned short align, unsigned short channels,
-	 unsigned short bps)
-{
-	unsigned char *wav_buffer;
-	unsigned char pcm_buffer[BUFFSIZE][4];
-	int n;
-	int input_ptr;
-	int iloop;
-	int sample_value = 0;
-
-	wav_buffer = alloca(align * BUFFSIZE * 2);
-	n = read(fd, wav_buffer, min((align * BUFFSIZE), chunk_size));
-
-	/*
-	 * while we have data in the buffer
-	 */
-	last_sample_in_buffer += (n / align);
-	while (quantised_next_input_sample < last_sample_in_buffer) {
-		input_ptr = (quantised_next_input_sample % BUFFSIZE) * align;;
-
-		for(iloop = 0;iloop<channels;iloop++) {
-			if(bps == 1) {
-				sample_value = wav_buffer[input_ptr + iloop] << 8;
-			} else {
-				sample_value = (wav_buffer[input_ptr + (iloop * bps) + bps - 1 ] <<8 ) + wav_buffer[input_ptr + (iloop * bps) + bps - 2 ];
-				//convert signed to unsigned value
-				if (sample_value >= (1 << 15))
-					sample_value -= (1 << 16);
-				sample_value += (1<<15);
-			}
-			pcm_buffer[next_output_sample][0+(iloop<<1)] =
-				(sample_value >> 8);
-			pcm_buffer[next_output_sample][1+(iloop<<1)] =
-				(sample_value );
-		}
-
-		/*
-		 * if mono wav file set the right channel to be the same as
-		 * the left
-		 */
-		if(channels == 1) {
-			pcm_buffer[next_output_sample][2] =
-				pcm_buffer[next_output_sample][0];
-			pcm_buffer[next_output_sample][3] =
-				pcm_buffer[next_output_sample][1];
-		}
-
-		next_output_sample ++;
-		if(next_output_sample == BUFFSIZE) {
-			write(afd, pcm_buffer, (next_output_sample *4));
-			next_output_sample = 0;
-		}
-
-		next_input_sample += wav_file_to_input_frequency_ratio;
-		quantised_next_input_sample = next_input_sample;
-	}
 }
 
 static void
@@ -406,6 +374,7 @@ audio_player(int reset)
 
 		switch (audio_type) {
 		case AUDIO_FILE_WAV:
+			empty_ac3();
 			quantised_next_input_sample = 0;
 			last_sample_in_buffer = 0;
 			next_output_sample = 0;
@@ -499,10 +468,11 @@ get_audio_type(char *path)
 static int
 wav_setup(void)
 {
-	int rate, format;
-	char buf[BSIZE];
+	int rate, format, bwidth, bsample;
+	unsigned char buf[BSIZE];
 
-	read(fd, buf, 12);
+	if (read(fd, buf, 12) != 12)
+		return -1;
 	if (buf[0] != 'R' || buf[1] != 'I' || buf[2] != 'F' ||
 	    buf[3] != 'F' || buf[8] != 'W' || buf[9] != 'A' ||
 	    buf[10] != 'V' || buf[11] != 'E') {
@@ -510,11 +480,14 @@ wav_setup(void)
 	}
 
 	chunk_size = find_chunk(fd, "fmt ");
-	read(fd, buf, chunk_size);
-	rate = buf[4] + (buf[5] << 8) + (buf[6] << 16) + (buf[7] << 24);
-	align = buf[12] + (buf[13] << 8);
-	channels = buf[2] + (buf[3] << 8);
+	if (read(fd, buf, chunk_size) != chunk_size)
+		return -1;
 	format = buf[0] + (buf[1] << 8);
+	channels = buf[2] + (buf[3] << 8);
+	rate = buf[4] + (buf[5] << 8) + (buf[6] << 16) + (buf[7] << 24);
+	bwidth = buf[8] + (buf[9] << 8) + (buf[10] << 16) + (buf[11] << 24);
+	align = buf[12] + (buf[13] << 8);
+	bsample = buf[14] + (buf[15] << 8);
 	bps = align / channels;
 
 	if (format != 1) {
@@ -522,8 +495,8 @@ wav_setup(void)
 		return -1;
 	}
 
-	printf("WAVE file rate %d align %d channels %d\n",
-	       rate, align, channels);
+	printf("WAVE file rate %d bandwidth %d align %d bits/sample %d channels %d\n",
+	       rate, bwidth, align, bsample, channels);
 
 	av_set_audio_output(AV_AUDIO_PCM);
 	if (av_set_pcm_param(rate, 1, 2, 0, 16) < 0)
@@ -685,8 +658,9 @@ ac3_add(uint16_t *buf, int len)
 	assert((size1 + size2) == len);
 
 	memcpy(ac3_buf+ac3_head, buf, size1);
-	if (size2)
-		memcpy(ac3_buf, buf+size1, size2);
+	if (size2) {
+		memcpy(ac3_buf, ((unsigned char *)buf)+size1, size2);
+	}
 
 	ac3_head = end;
 
@@ -738,6 +712,9 @@ ac3_flush(void)
 
 	if (size1 > 0) {
 		n = write(fd_audio, ac3_buf+ac3_tail+1, size1);
+#ifdef DEBUG_LOG_SOUND
+		logwrite("/video/output.ac3", n, fd_audio, size1, ac3_buf+ac3_tail+1);
+#endif
 		if (n < 0)
 			return 0;
 		if (n != size1) {
@@ -748,6 +725,9 @@ ac3_flush(void)
 	}
 	if (size2 > 0) {
 		n = write(fd_audio, ac3_buf, size2);
+#ifdef DEBUG_LOG_SOUND
+		logwrite("/video/output.ac3", n, fd_audio, size2, ac3_buf);
+#endif
 		if (n < 0)
 			size2 = 0;
 		else
@@ -761,6 +741,79 @@ ac3_flush(void)
 
  empty:
 	return 0;
+}
+
+static void
+wav_play(int fd, int afd, unsigned short align, unsigned short channels,
+	 unsigned short bps)
+{
+	unsigned char *wav_buffer;
+	unsigned char pcm_buffer[BUFFSIZE][4];
+	int n;
+	int input_ptr;
+	int iloop;
+	int sample_value = 0;
+
+	ac3_flush();
+
+	if (ac3_freespace() < (BUFFSIZE*align)) {
+		mvpw_set_idle(NULL);
+		mvpw_set_timer(root, audio_play, 100);
+		return;
+	}
+
+	wav_buffer = alloca(align * BUFFSIZE);
+	n = read(fd, wav_buffer, min((align * BUFFSIZE), chunk_size));
+
+	/*
+	 * while we have data in the buffer
+	 */
+	last_sample_in_buffer += (n / align);
+	while (quantised_next_input_sample < last_sample_in_buffer) {
+		input_ptr = (quantised_next_input_sample % BUFFSIZE) * align;
+		for (iloop = 0;iloop<channels;iloop++) {
+			if (bps == 1) {
+				sample_value = wav_buffer[input_ptr + iloop] << 8;
+			} else {
+				sample_value = (wav_buffer[input_ptr + (iloop * bps) + bps - 1 ] <<8 ) + wav_buffer[input_ptr + (iloop * bps) + bps - 2 ];
+				//convert signed to unsigned value
+				if (sample_value >= (1 << 15))
+					sample_value -= (1 << 16);
+				sample_value += (1<<15);
+			}
+			pcm_buffer[next_output_sample][0+(iloop<<1)] =
+				(sample_value >> 8) & 0xFF;
+			pcm_buffer[next_output_sample][1+(iloop<<1)] =
+				sample_value & 0xFF;
+		}
+
+		/*
+		 * if mono wav file set the right channel to be the same as
+		 * the left
+		 */
+		if (channels == 1) {
+			pcm_buffer[next_output_sample][2] =
+				pcm_buffer[next_output_sample][0];
+			pcm_buffer[next_output_sample][3] =
+				pcm_buffer[next_output_sample][1];
+		}
+
+		next_output_sample ++;
+		if (next_output_sample == BUFFSIZE) {
+			ac3_add((uint16_t *)pcm_buffer, BUFFSIZE*align);
+			next_output_sample = 0;
+		}
+
+		next_input_sample += wav_file_to_input_frequency_ratio;
+		quantised_next_input_sample = next_input_sample;
+	}
+
+	if (next_output_sample != 0) {
+		ac3_add((uint16_t *)pcm_buffer, next_output_sample * align);
+		next_output_sample = 0;
+	}
+
+	ac3_flush();
 }
 
 int a52_decode_data (uint8_t * start, uint8_t * end, int reset)
