@@ -600,6 +600,9 @@ static mvp_widget_t *busy_widget;
 static mvp_widget_t *busy_graph;
 static mvp_widget_t *themes_menu;
 
+mvp_widget_t *wss_16_9_image;
+mvp_widget_t *wss_4_3_image;
+
 static mvp_widget_t *ct_text_box;
 static mvp_widget_t *ct_fg_box;
 static mvp_widget_t *ct_bg_box;
@@ -797,6 +800,8 @@ mythtv_menu_callback(mvp_widget_t *widget, char key)
 		mvpw_hide(shows_widget);
 		mvpw_hide(episodes_widget);
 		mvpw_hide(freespace_widget);
+		mvpw_hide(wss_16_9_image);
+		mvpw_show(wss_4_3_image);
 
 		switch_gui_state(MVPMC_STATE_NONE);
 		mvpw_show(mythtv_image);
@@ -1563,7 +1568,7 @@ sub_settings_select_callback(mvp_widget_t *widget, char *item, void *key)
 			printf("set output to %s\n", item);
 	}
 
-	if ((strcmp(item, "4:3") == 0) || (strcmp(item, "16:9") == 0)) {
+	if ((strcmp(item, "4:3 (Letterboxed Widescreen)") == 0) || (strcmp(item, "4:3 (Widescreen Centre-Cut-Out)") == 0) || (strcmp(item, "16:9 (Full-Height / Automatic)") == 0)) {
 		if (av_set_aspect((int)key) < 0)
 			printf("set aspect to %s failed\n", item);
 		else
@@ -1646,10 +1651,13 @@ settings_hilite_callback(mvp_widget_t *widget, char *item, void *key,
 		case SETTINGS_FLICKER:
 			break;
 		case SETTINGS_ASPECT:
-			mvpw_add_menu_item(sub_settings, "4:3",
+			mvpw_add_menu_item(sub_settings, "4:3 (Letterboxed Widescreen)",
 					   (void*)AV_ASPECT_4x3,
 					   &sub_settings_item_attr);
-			mvpw_add_menu_item(sub_settings, "16:9",
+			mvpw_add_menu_item(sub_settings, "4:3 (Widescreen Centre-Cut-Out)",
+					   (void*)AV_ASPECT_4x3_CCO,
+					   &sub_settings_item_attr);
+			mvpw_add_menu_item(sub_settings, "16:9 (Full-Height / Automatic)",
 					   (void*)AV_ASPECT_16x9,
 					   &sub_settings_item_attr);
 			mvpw_menu_hilite_item(sub_settings,
@@ -2239,6 +2247,42 @@ main_menu_init(char *server, char *replaytv)
 	mythtv_image = mvpw_create_image(NULL, 50, 25, iid.width, iid.height,
 					 MVPW_BLACK, 0, 0);
 	mvpw_set_image(mythtv_image, file);
+
+	// WSS Images - Added by Dave
+	splash_update("Creating WSS images");
+
+	snprintf(file, sizeof(file), "%s/wss-16x9.png", imagedir);
+	//	printf("\n\n** About to get 16x9 image\n");
+
+	if (mvpw_get_image_info(file, &iid) < 0) {
+	        printf("***** get_image_info failed\n");
+		return -1;
+	}
+
+	//        printf("** About to create 16x9 image\n");
+	wss_16_9_image = mvpw_create_image(NULL, 0, 6, iid.width, iid.height,
+					 MVPW_BLACK, 0, 0);
+
+	//        printf("** About to set 16x9 image\n");
+	mvpw_set_image(wss_16_9_image, file);
+
+	snprintf(file, sizeof(file), "%s/wss-4x3.png", imagedir);
+
+	//	printf("\n** About to get 4x3 image\n");
+	if (mvpw_get_image_info(file, &iid) < 0) {
+	        printf("***** get_image_info failed");
+		return -1;
+	}
+
+	//	printf("** About to create 4x3 image\n");
+	wss_4_3_image = mvpw_create_image(NULL, 0, 6, iid.width, iid.height,
+					 MVPW_BLACK, 0, 0);
+
+	//	printf("** About to set 4x3 image\n");
+	mvpw_set_image(wss_4_3_image, file);
+
+	// End WSS Images
+
 
 	splash_update("Creating ReplayTV image");
 

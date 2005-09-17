@@ -49,7 +49,8 @@ enum {
 
 typedef enum {
 	AV_ASPECT_4x3 = 0,
-	AV_ASPECT_16x9 = 1,
+	AV_ASPECT_4x3_CCO = 2,
+	AV_ASPECT_16x9 = 1
 } av_aspect_t;
 
 typedef enum {

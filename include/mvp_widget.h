@@ -316,6 +316,7 @@ mvpw_get_rgba(unsigned long c, unsigned char *r, unsigned char *g,
 #define MVPW_KEY_BLUE	'b'
 #define MVPW_KEY_GREEN	'g'
 #define MVPW_KEY_YELLOW 'y'
+#define MVPW_KEY_RED    'r'
 #define MVPW_KEY_MUTE	'Q'
 #define MVPW_KEY_BLANK	' '
 #define MVPW_KEY_FULL	'L'

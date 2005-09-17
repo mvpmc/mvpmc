@@ -745,6 +745,19 @@ video_callback(mvp_widget_t *widget, char key)
 		printf("POST SYNC: a 0x%llx 0x%llx  v 0x%llx 0x%llx\n",
 		       async.stc, async.pts, vsync.stc, vsync.pts);
 		break;
+/*
+	case MVPW_KEY_RED:
+	        printf("Showing 4x3 widget\n");
+		mvpw_hide(wss_16_9_image);
+		mvpw_show(wss_4_3_image);
+	        break;
+
+	case MVPW_KEY_GREEN:
+	        printf("Showing 16x9 widget\n");
+		mvpw_hide(wss_4_3_image);
+		mvpw_show(wss_16_9_image);
+	        break;
+*/
 	default:
 		PRINTF("button %d\n", key);
 		break;
@@ -1109,6 +1122,7 @@ video_read_start(void *arg)
 	demux_attr_t *attr;
 	video_info_t *vi;
 	int set_aspect = 1;
+	int current_aspect = 0;
 	char *inbuf;
 
 	pthread_mutex_lock(&mutex);
@@ -1259,15 +1273,52 @@ video_read_start(void *arg)
 			av_set_audio_output(audio_output);
 		}
 
-		if (set_aspect) {
+		if(vi->aspect != current_aspect || set_aspect) {
+		  printf("Aspect: %d\n", vi->aspect);
+		  if (vi->aspect != 0) {
 			if (vi->aspect == 3) {
-				av_set_video_aspect(1);
-				printf("video aspect ratio: 16:9\n");
+			        printf("Source video aspect ratio: 16:9\n");
+			        switch (av_get_aspect()) {
+				case AV_ASPECT_16x9:
+				     printf("Setting output to 16:9 Full Height Anamorphic with 16:9 WSS Widget\n");
+				     av_set_video_aspect(7);     // 16:9 full-height anamorphic output
+				     mvpw_hide(wss_4_3_image);
+				     mvpw_show(wss_16_9_image);
+				     break;
+
+				case AV_ASPECT_4x3_CCO:
+				     printf("Setting output to 4:3 Centre-Cut-Out\n");
+				     av_set_video_aspect(0);    // 4:3 Centre-cut-out output
+				     break;
+
+				case AV_ASPECT_4x3:
+				default:
+				     printf("Setting output to 16:9 Letterbox in 4:3 Raster\n");
+				     av_set_video_aspect(1);    // 16:9 Letterbox in a 4:3 Raster output
+				     av_move(0, 59, 0);
+				     break;
+				}
+
 			} else {
-				av_set_video_aspect(0);
-				printf("video aspect ratio: 4:3\n");
+			        printf("Source video aspect ratio: 4:3\n");
+				switch (av_get_aspect()) {
+				case AV_ASPECT_16x9:
+				     printf("Setting output to 4:3 Full Height with 4:3 WSS Widget\n");
+				     av_set_video_aspect(0);     // 16:9 full-height anamorphic output
+				     mvpw_hide(wss_16_9_image);
+				     mvpw_show(wss_4_3_image);
+				     break;
+				default:
+				     printf("Setting output to 4:3\n");
+				     av_set_video_aspect(0);
+				     break;
+				}
 			}
+			current_aspect = vi->aspect;
 			set_aspect = 0;
+		  } else {
+		    printf("Video aspect reported as ZERO - not changing setting\n");
+		  }
 		}
 	} //while
 

@@ -129,7 +129,7 @@ print_help(char *prog)
 {
 	printf("Usage: %s <options>\n", prog);
 
-	printf("\t-a aspect \taspect ratio (4:3 or 16:9)\n");
+	printf("\t-a aspect \taspect ratio (4:3, 4:3cco or 16:9)\n");
 	printf("\t-b path   \tpath to NFS mounted mythtv ringbuf directory\n");
 	printf("\t-d type   \ttype of local display (disable (default), IEE16x1, or IEE40x2)\n");
 	printf("\t-f font   \tfont file\n");
@@ -295,7 +295,9 @@ main(int argc, char **argv)
 	while ((c=getopt(argc, argv, "a:b:d:f:hi:m:Mo:r:R:s:S:t:")) != -1) {
 		switch (c) {
 		case 'a':
-			if (strcmp(optarg, "4:3") == 0) {
+			if (strcmp(optarg, "4:3cco") == 0) {
+				aspect = AV_ASPECT_4x3_CCO;
+			} else if (strcmp(optarg, "4:3") == 0) {
 				aspect = AV_ASPECT_4x3;
 			} else if (strcmp(optarg, "16:9") == 0) {
 				aspect = AV_ASPECT_16x9;

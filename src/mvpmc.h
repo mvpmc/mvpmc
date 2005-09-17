@@ -110,6 +110,9 @@ extern mvp_widget_t *offset_bar;
 extern mvp_widget_t *bps_widget;
 extern mvp_widget_t *spu_widget;
 
+extern mvp_widget_t *wss_16_9_image;
+extern mvp_widget_t *wss_4_3_image;
+
 extern mvp_widget_t *episodes_widget;
 extern mvp_widget_t *shows_widget;
 extern mvp_widget_t *freespace_widget;
