@@ -195,9 +195,16 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 
 		mvpw_expose(widget);
 	} else {
+		switch_hw_state(MVPMC_STATE_FILEBROWSER);
+
 		if (current)
 			free(current);
 		current = strdup(path);
+
+		video_functions = &file_functions;
+
+		add_osd_widget(fb_program_widget, OSD_PROGRAM,
+			       osd_settings.program, NULL);
 
 		mvpw_set_text_str(fb_name, item);
 
@@ -372,11 +379,6 @@ add_files(mvp_widget_t *fbw)
 int
 fb_update(mvp_widget_t *fb)
 {
-	video_functions = &file_functions;
-
-	add_osd_widget(fb_program_widget, OSD_PROGRAM,
-		       osd_settings.program, NULL);
-
 	mvpw_show(root);
 	mvpw_expose(root);
 
@@ -397,4 +399,19 @@ fb_program(mvp_widget_t *widget)
 	/*
 	 * Nothing to do here...
 	 */
+}
+
+void
+fb_exit(void)
+{
+	if (current) {
+		free(current);
+		current = NULL;
+	}
+	mvpw_set_idle(NULL);
+	mvpw_set_timer(root, NULL, 0);
+	mvpw_hide(fb_progress);
+
+	audio_clear();
+	video_clear();
 }

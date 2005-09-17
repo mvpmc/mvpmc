@@ -584,7 +584,7 @@ mvp_widget_t *iw;
 static mvp_widget_t *splash;
 static mvp_widget_t *splash_title;
 static mvp_widget_t *splash_graph;
-static mvp_widget_t *main_menu;
+mvp_widget_t *main_menu;
 static mvp_widget_t *mvpmc_logo;
 static mvp_widget_t *settings;
 static mvp_widget_t *sub_settings;
@@ -798,8 +798,7 @@ mythtv_menu_callback(mvp_widget_t *widget, char key)
 		mvpw_hide(episodes_widget);
 		mvpw_hide(freespace_widget);
 
-		mythtv_cleanup();
-
+		switch_gui_state(MVPMC_STATE_NONE);
 		mvpw_show(mythtv_image);
 		mvpw_show(main_menu);
 		mvpw_show(mvpmc_logo);
@@ -823,12 +822,7 @@ mythtv_menu_callback(mvp_widget_t *widget, char key)
 	}
 
 	if (key == MVPW_KEY_STOP) {
-		if (mythtv_livetv) {
-			mythtv_livetv_stop();
-			mythtv_livetv = 0;
-		} else {
-			mythtv_stop();
-		}
+		mythtv_exit();
 	}
 
 	switch (key) {
@@ -851,6 +845,7 @@ mythtv_menu_callback(mvp_widget_t *widget, char key)
 void
 replaytv_back_to_mvp_main_menu(void) {
 	replaytv_hide_device_menu();
+	switch_gui_state(MVPMC_STATE_NONE);
 	mvpw_show(replaytv_image);
 	mvpw_show(main_menu);
 	mvpw_show(mvpmc_logo);
@@ -885,6 +880,7 @@ sub_settings_key_callback(mvp_widget_t *widget, char key)
 		mvpw_hide(settings);
 		mvpw_hide(sub_settings);
 
+		switch_gui_state(MVPMC_STATE_NONE);
 		mvpw_show(main_menu);
 		mvpw_show(mvpmc_logo);
 		mvpw_show(setup_image);
@@ -915,6 +911,7 @@ settings_key_callback(mvp_widget_t *widget, char key)
 		mvpw_hide(settings);
 		mvpw_hide(sub_settings);
 
+		switch_gui_state(MVPMC_STATE_NONE);
 		mvpw_show(main_menu);
 		mvpw_show(mvpmc_logo);
 		mvpw_show(setup_image);
@@ -934,6 +931,7 @@ themes_key_callback(mvp_widget_t *widget, char key)
 	case MVPW_KEY_EXIT:
 		mvpw_hide(widget);
 
+		switch_gui_state(MVPMC_STATE_NONE);
 		mvpw_show(main_menu);
 		mvpw_show(mvpmc_logo);
 		mvpw_show(setup_image);
@@ -972,29 +970,14 @@ fb_key_callback(mvp_widget_t *widget, char key)
 		mvpw_hide(iw);
 		mvpw_hide(fb_progress);
 
+		switch_gui_state(MVPMC_STATE_NONE);
 		mvpw_show(main_menu);
 		mvpw_show(mvpmc_logo);
 		mvpw_show(fb_image);
 		mvpw_focus(main_menu);
-
-		mvpw_set_idle(NULL);
-		mvpw_set_timer(root, NULL, 0);
-		mvpw_set_timer(fb_progress, NULL, 0);
-
-		audio_clear();
-		video_clear();
 		break;
 	case MVPW_KEY_STOP:
-		if (current) {
-			free(current);
-			current = NULL;
-		}
-		mvpw_set_idle(NULL);
-		mvpw_set_timer(root, NULL, 0);
-		mvpw_hide(fb_progress);
-
-		audio_clear();
-		video_clear();
+		fb_exit();
 		break;
 	case MVPW_KEY_FULL:
 	case MVPW_KEY_PREV_CHAN:
@@ -1506,6 +1489,7 @@ colortest_callback(mvp_widget_t *widget, char key)
 		mvpw_hide(ct_text_box);
 		mvpw_set_key(root, root_callback);
 		mvpw_set_bg(root, MVPW_BLACK);
+		switch_gui_state(MVPMC_STATE_NONE);
 		mvpw_show(mvpmc_logo);
 		mvpw_show(settings);
 		mvpw_show(sub_settings);
@@ -2077,6 +2061,7 @@ main_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mvpw_hide(mvpmc_logo);
 		mvpw_hide(fb_image);
 
+		switch_gui_state(MVPMC_STATE_FILEBROWSER);
 		fb_update(file_browser);
 
 		mvpw_show(file_browser);
@@ -2101,6 +2086,7 @@ main_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mvpw_hide(mvpmc_logo);
 		mvpw_hide(mythtv_image);
 
+		switch_gui_state(MVPMC_STATE_MYTHTV);
 		mvpw_show(mythtv_logo);
 		mvpw_show(mythtv_menu);
 		mvpw_focus(mythtv_menu);
@@ -2113,6 +2099,8 @@ main_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mvpw_hide(replaytv_image);
 		mvpw_hide(fb_image);
 
+		switch_gui_state(MVPMC_STATE_REPLAYTV);
+		switch_hw_state(MVPMC_STATE_NONE);
 		replaytv_device_update();
 		replaytv_show_device_menu();
 		break;

@@ -115,7 +115,7 @@ video_callback_t file_functions = {
 	.key       = NULL,
 };
 
-volatile video_callback_t *video_functions = &file_functions;
+volatile video_callback_t *video_functions = NULL;
 
 void video_play(mvp_widget_t *widget);
 
@@ -198,6 +198,8 @@ video_subtitle_display(mvp_widget_t *widget)
 void
 video_subtitle_check(mvp_widget_t *widget)
 {
+	extern mvp_widget_t *main_menu;
+
 	if (demux_spu_get_id(handle) >= 0)
 		mvpw_set_timer(root, video_subtitle_display, 250);
 	else
@@ -206,6 +208,7 @@ video_subtitle_check(mvp_widget_t *widget)
 	if (! (mvpw_visible(file_browser) ||
 	       mvpw_visible(playlist_widget) ||
 	       mvpw_visible(mythtv_browser) ||
+	       mvpw_visible(main_menu) ||
 	       mvpw_visible(mythtv_menu))) {
 		video_thumbnail(0);
 	}
@@ -496,12 +499,20 @@ enable_osd(void)
 	set_osd_callback(OSD_BITRATE, video_bitrate);
 	set_osd_callback(OSD_CLOCK, video_clock);
 	set_osd_callback(OSD_DEMUX, video_demux);
-	if (running_mythtv)
+	switch (hw_state) {
+	case MVPMC_STATE_MYTHTV:
 		set_osd_callback(OSD_PROGRAM, mythtv_program);
-	else if (running_replaytv)
+		break;
+	case MVPMC_STATE_REPLAYTV:
 		set_osd_callback(OSD_PROGRAM, replaytv_osd_proginfo_update);
-	else
+		break;
+	case MVPMC_STATE_FILEBROWSER:
 		set_osd_callback(OSD_PROGRAM, fb_program);
+		break;
+	default:
+		set_osd_callback(OSD_PROGRAM, NULL);
+		break;
+	}
 }
 
 void
@@ -541,45 +552,59 @@ video_callback(mvp_widget_t *widget, char key)
 		mvpw_hide(zoom_widget);
 		display_on = 0;
 		zoomed = 0;
-		if (mythtv_livetv == 1) {
-			if (mythtv_state == MYTHTV_STATE_LIVETV) {
-				if (mvpw_visible(mythtv_browser)) {
-					mythtv_livetv_stop();
-					mythtv_livetv = 0;
-					running_mythtv = 0;
-				} else {
-					mvpw_show(mythtv_channel);
-					mvpw_show(mythtv_date);
-					mvpw_show(mythtv_description);
+		switch (gui_state) {
+		case MVPMC_STATE_NONE:
+			/*
+			 * XXX: redisplay the main menu?
+			 */
+			break;
+		case MVPMC_STATE_MYTHTV:
+			if (mythtv_livetv == 1) {
+				if (mythtv_state == MYTHTV_STATE_LIVETV) {
+					if (mvpw_visible(mythtv_browser)) {
+						mythtv_livetv_stop();
+						mythtv_livetv = 0;
+						running_mythtv = 0;
+					} else {
+						mvpw_show(mythtv_channel);
+						mvpw_show(mythtv_date);
+						mvpw_show(mythtv_description);
+						mvpw_show(mythtv_logo);
+						mvpw_show(mythtv_browser);
+						mvpw_focus(mythtv_browser);
+						video_thumbnail(1);
+					}
+				} else if (mythtv_state == MYTHTV_STATE_MAIN) {
 					mvpw_show(mythtv_logo);
-					mvpw_show(mythtv_browser);
-					mvpw_focus(mythtv_browser);
-					video_thumbnail(1);
+					mvpw_show(mythtv_menu);
+				} else {
+					mythtv_show_widgets();
 				}
-			} else if (mythtv_state == MYTHTV_STATE_MAIN) {
+			} else if (mythtv_main_menu) {
 				mvpw_show(mythtv_logo);
 				mvpw_show(mythtv_menu);
-			} else {
+				mvpw_focus(mythtv_menu);
+			} else if (running_mythtv) {
+				printf("%s(): %d\n", __FUNCTION__, __LINE__);
 				mythtv_show_widgets();
+				mvpw_focus(mythtv_browser);
 			}
-		} else if (mythtv_main_menu) {
-			mvpw_show(mythtv_logo);
-			mvpw_show(mythtv_menu);
-			mvpw_focus(mythtv_menu);
-		} else if (running_mythtv) {
-			mythtv_show_widgets();
-			mvpw_focus(mythtv_browser);
-		} else if (running_replaytv) {
+			break;
+		case MVPMC_STATE_REPLAYTV:
 			video_playing = 0;
 			replaytv_back_from_video();
-		} else if (playlist) {
-			mvpw_show(fb_progress);
-			mvpw_show(playlist_widget);
-			mvpw_focus(playlist_widget);
-		} else {
-			mvpw_show(fb_progress);
-			mvpw_show(file_browser);
-			mvpw_focus(file_browser);
+			break;
+		case MVPMC_STATE_FILEBROWSER:
+			if (playlist) {
+				mvpw_show(fb_progress);
+				mvpw_show(playlist_widget);
+				mvpw_focus(playlist_widget);
+			} else {
+				mvpw_show(fb_progress);
+				mvpw_show(file_browser);
+				mvpw_focus(file_browser);
+			}
+			break;
 		}
 		mvpw_expose(root);
 		break;

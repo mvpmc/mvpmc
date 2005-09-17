@@ -447,6 +447,14 @@ hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 static void
 show_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
+	switch_hw_state(MVPMC_STATE_MYTHTV);
+
+	if (mythtv_recdir) {
+		video_functions = &file_functions;
+	} else {
+		video_functions = &mythtv_functions;
+	}
+
 	mythtv_fullscreen();
 
 	if (cmyth_proginfo_compare(hilite_prog, current_prog) != 0) {
@@ -459,10 +467,6 @@ show_select_callback(mvp_widget_t *widget, char *item, void *key)
 		if (mythtv_livetv) {
 			mythtv_livetv_stop();
 			running_mythtv = 1;
-			if (mythtv_recdir)
-				video_functions = &file_functions;
-			else
-				video_functions = &mythtv_functions;
 		} else {
 			pthread_mutex_lock(&myth_mutex);
 			mythtv_close_file();
@@ -487,6 +491,14 @@ show_select_callback(mvp_widget_t *widget, char *item, void *key)
 void
 mythtv_start_thumbnail(void)
 {
+	switch_hw_state(MVPMC_STATE_MYTHTV);
+
+	if (mythtv_recdir) {
+		video_functions = &file_functions;
+	} else {
+		video_functions = &mythtv_functions;
+	}
+
 	if (mythtv_state == MYTHTV_STATE_LIVETV) {
 		printf("trying to start livetv thumbnail...\n");
 		livetv_select_callback(NULL, NULL, (void*)current_livetv);
@@ -722,13 +734,6 @@ mythtv_update(mvp_widget_t *widget)
 {
 	char buf[64];
 	long long total, used;
-
-	if (mythtv_livetv == 0) {
-		if (mythtv_recdir)
-			video_functions = &file_functions;
-		else
-			video_functions = &mythtv_functions;
-	}
 
 	running_mythtv = 1;
 
@@ -2117,6 +2122,14 @@ livetv_select_callback(mvp_widget_t *widget, char *item, void *key)
 	int tuner_change = 1, tuner[MAX_TUNER] = { 0 };
 	struct livetv_proginfo *pi;
 
+	switch_hw_state(MVPMC_STATE_MYTHTV);
+
+	if (mythtv_recdir)
+		video_functions = &file_functions;
+	else
+		video_functions = &livetv_functions;
+
+
 	if (mythtv_livetv) {
 		id = cmyth_recorder_get_recorder_id(recorder);
 		for (i=0; i<livetv_list[prog].count; i++) {
@@ -2466,4 +2479,15 @@ mythtv_livetv_menu(void)
 	}
 
 	return failed;
+}
+
+void
+mythtv_exit(void)
+{
+	if (mythtv_livetv) {
+		mythtv_livetv_stop();
+		mythtv_livetv = 0;
+	} else {
+		mythtv_stop();
+	}
 }

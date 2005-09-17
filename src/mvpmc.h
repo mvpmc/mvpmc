@@ -25,6 +25,13 @@
 #define VIDEO_BUFF_SIZE	(1024*96)
 
 typedef enum {
+	MVPMC_STATE_NONE = 1,
+	MVPMC_STATE_MYTHTV,
+	MVPMC_STATE_FILEBROWSER,
+	MVPMC_STATE_REPLAYTV,
+} mvpmc_state_t;
+
+typedef enum {
 	MYTHTV_STATE_MAIN,
 	MYTHTV_STATE_PENDING,
 	MYTHTV_STATE_PROGRAMS,
@@ -350,5 +357,14 @@ typedef struct {
 } osd_settings_t;
 
 extern osd_settings_t osd_settings;
+
+extern void switch_state(mvpmc_state_t new);
+
+extern void fb_exit(void);
+extern void mythtv_exit(void);
+extern void replaytv_exit(void);
+
+extern mvpmc_state_t hw_state;
+extern mvpmc_state_t gui_state;
 
 #endif /* MVPMC_H */

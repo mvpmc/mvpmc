@@ -1416,6 +1416,10 @@ static void rtv_update_show_browser(rtv_device_t *rtv)
 
    // Bind in the video callback functions
    //
+   /*
+    * XXX: Where does this move to?  It might have to move to allow files
+    *      from other parts of mvpmc to continue playing.
+    */
    video_functions = &replaytv_functions;
 
    mvpw_show(rtv_show_browser);
@@ -2223,4 +2227,12 @@ int replay_gui_init(void)
    mvpw_raise(rtv_device_menu);
 	mvpw_raise(rtv_show_popup);
    return(0);
+}
+
+void replaytv_exit(void)
+{
+	/*
+	 * XXX: This needs to shut down replaytv if playback is started from
+	 *      some other piece of mvpmc.
+	 */
 }

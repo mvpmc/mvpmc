@@ -77,6 +77,9 @@ int (*DEMUX_WRITE_VIDEO)(demux_handle_t*, int);
 static char *data = NULL;
 static int data_len = 0;
 
+mvpmc_state_t hw_state = MVPMC_STATE_NONE;
+mvpmc_state_t gui_state = MVPMC_STATE_NONE;
+
 static int
 buffer_put(demux_handle_t *handle, char *buf, int len)
 {
@@ -275,6 +278,9 @@ main(int argc, char **argv)
 	uint32_t accel = MM_ACCEL_DJBFFT;
 	char *theme_file = NULL;
 	struct stat sb;
+#ifndef MVPMC_HOST
+	unsigned long start = (unsigned long)sbrk(0);
+#endif
 
 	if (argc > 32) {
 		fprintf(stderr, "too many arguments\n");
@@ -512,6 +518,48 @@ main(int argc, char **argv)
 		}
 	}
 
+#ifndef MVPMC_HOST
+	/*
+	 * Allocate a bunch of pages followed by a guard page to ensure
+	 * that mvpmc doesn't get sluggish after running for a while.
+	 */
+	{
+#define NPAGES	1024
+		unsigned long heap = (unsigned long)sbrk(0);
+		char *pages[NPAGES], *buffer;
+		int i, sz, k;
+
+		sz = getpagesize();
+		printf("approximate heap size %ld\n", heap-start);
+		for (i=0; i<NPAGES; i++) {
+			if ((pages[i]=malloc(sz)) != NULL) {
+				memset(pages[i], 0, sz);
+				k++;
+			} else {
+				if (i == 0) {
+					fprintf(stderr, "out of memory!\n");
+					exit(1);
+				} else {
+					printf("Stealing guard page\n");
+					buffer = pages[i-1];
+					pages[i-1] = NULL;
+					k--;
+					break;
+				}
+			}
+		}
+		printf("Allocated %d heap bytes\n", sz*k);
+		if (!buffer && ((buffer=malloc(sz)) != NULL)) {
+			memset(buffer, 0, sz);
+			printf("Allocated guard page\n");
+		}
+		for (i=0; i<k; i++) {
+			if (pages[i])
+				free(pages[i]);
+		}
+	}
+#endif /* !MVPMC_HOST */
+
 	pthread_create(&video_read_thread, &thread_attr_small,
 		       video_read_start, NULL);
 	pthread_create(&video_write_thread, &thread_attr_small,
@@ -542,4 +590,54 @@ re_exec(void)
 	 * exiting will allow the parent to do another fork()...
 	 */
 	exit(0);
+}
+
+void
+switch_hw_state(mvpmc_state_t new)
+{
+	if (new == hw_state)
+		return;
+
+	printf("%s(): changing from %d to %d\n", __FUNCTION__, hw_state, new);
+
+	switch (hw_state) {
+	MVPMC_STATE_NONE:
+		break;
+	MVPMC_STATE_FILEBROWSER:
+		fb_exit();
+		break;
+	MVPMC_STATE_MYTHTV:
+		mythtv_exit();
+		break;
+	MVPMC_STATE_REPLAYTV:
+		replaytv_exit();
+		break;
+	}
+
+	hw_state = new;
+}
+
+void
+switch_gui_state(mvpmc_state_t new)
+{
+	if (new == gui_state)
+		return;
+
+	printf("%s(): changing from %d to %d\n", __FUNCTION__, gui_state, new);
+
+	switch (gui_state) {
+	MVPMC_STATE_NONE:
+		break;
+	MVPMC_STATE_FILEBROWSER:
+		fb_exit();
+		break;
+	MVPMC_STATE_MYTHTV:
+		mythtv_exit();
+		break;
+	MVPMC_STATE_REPLAYTV:
+		replaytv_exit();
+		break;
+	}
+
+	gui_state = new;
 }
