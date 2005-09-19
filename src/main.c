@@ -603,15 +603,15 @@ switch_hw_state(mvpmc_state_t new)
 	printf("%s(): changing from %d to %d\n", __FUNCTION__, hw_state, new);
 
 	switch (hw_state) {
-	MVPMC_STATE_NONE:
+	case MVPMC_STATE_NONE:
 		break;
-	MVPMC_STATE_FILEBROWSER:
+	case MVPMC_STATE_FILEBROWSER:
 		fb_exit();
 		break;
-	MVPMC_STATE_MYTHTV:
+	case MVPMC_STATE_MYTHTV:
 		mythtv_exit();
 		break;
-	MVPMC_STATE_REPLAYTV:
+	case MVPMC_STATE_REPLAYTV:
 		replaytv_exit();
 		break;
 	}
@@ -626,20 +626,6 @@ switch_gui_state(mvpmc_state_t new)
 		return;
 
 	printf("%s(): changing from %d to %d\n", __FUNCTION__, gui_state, new);
-
-	switch (gui_state) {
-	MVPMC_STATE_NONE:
-		break;
-	MVPMC_STATE_FILEBROWSER:
-		fb_exit();
-		break;
-	MVPMC_STATE_MYTHTV:
-		mythtv_exit();
-		break;
-	MVPMC_STATE_REPLAYTV:
-		replaytv_exit();
-		break;
-	}
 
 	gui_state = new;
 }
