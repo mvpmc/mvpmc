@@ -412,6 +412,7 @@ fb_exit(void)
 	mvpw_set_timer(root, NULL, 0);
 	mvpw_hide(fb_progress);
 
+	playlist_clear();
 	audio_clear();
 	video_clear();
 }
