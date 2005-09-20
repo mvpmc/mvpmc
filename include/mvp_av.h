@@ -36,16 +36,16 @@ typedef enum {
 	AV_MODE_UNKNOWN,
 } av_mode_t;
 
-enum {
+typedef enum {
 	AV_OUTPUT_SCART = 0,
 	AV_OUTPUT_COMPOSITE = 1,
 	AV_OUTPUT_SVIDEO = 2,
-};
+} av_video_output_t;
 
-enum {
+typedef enum {
 	AUD_OUTPUT_PASSTHRU = 0,
 	AUD_OUTPUT_STEREO = 1,
-};
+} av_passthru_t;
 
 typedef enum {
 	AV_ASPECT_4x3 = 0,
