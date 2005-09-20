@@ -764,7 +764,6 @@ osd_widget_toggle(int type)
 }
 
 static void settings_select_callback(mvp_widget_t*, char*, void*);
-static void sub_settings_select_callback(mvp_widget_t*, char*, void*);
 
 static void
 splash_update(char *str)
@@ -1367,21 +1366,33 @@ osd_select_callback(mvp_widget_t *widget, char *item, void *key)
 	switch ((int)key) {
 	case OSD_BITRATE:
 		osd_settings.bitrate = on;
+		config->osd_bitrate = on;
+		config->bitmask |= CONFIG_OSD_BITRATE;
 		break;
 	case OSD_CLOCK:
 		osd_settings.clock = on;
+		config->osd_clock = on;
+		config->bitmask |= CONFIG_OSD_CLOCK;
 		break;
 	case OSD_DEMUX:
 		osd_settings.demux_info = on;
+		config->osd_demux_info = on;
+		config->bitmask |= CONFIG_OSD_DEMUX_INFO;
 		break;
 	case OSD_PROGRESS:
 		osd_settings.progress = on;
+		config->osd_progress = on;
+		config->bitmask |= CONFIG_OSD_PROGRESS;
 		break;
 	case OSD_PROGRAM:
 		osd_settings.program = on;
+		config->osd_program = on;
+		config->bitmask |= CONFIG_OSD_PROGRAM;
 		break;
 	case OSD_TIMECODE:
 		osd_settings.timecode = on;
+		config->osd_timecode = on;
+		config->bitmask |= CONFIG_OSD_TIMECODE;
 		break;
 	}
 
@@ -1408,6 +1419,7 @@ bright_select_callback(mvp_widget_t *widget, char *item, void *key)
 	} else {
 		root_color = 0;
 	}
+	config->bitmask |= CONFIG_BRIGHTNESS;
 
 	mvpw_set_bg(root, root_color);
 }
@@ -1552,38 +1564,51 @@ run_colortest(void)
 }
 
 static void
-sub_settings_select_callback(mvp_widget_t *widget, char *item, void *key)
+settings_callback_mode(mvp_widget_t *widget, char *item, void *key)
 {
-	if ((strcmp(item, "PAL") == 0) || (strcmp(item, "NTSC") == 0)) {
-		if (av_set_mode((int)key) < 0)
-			printf("set mode to %s failed\n", item);
-		else
-			printf("set mode to %s\n", item);
-	}
+	if (av_set_mode((int)key) < 0)
+		printf("set mode to %s failed\n", item);
+	else
+		printf("set mode to %s\n", item);
 
-	if ((strcmp(item, "Composite") == 0) || (strcmp(item, "S-Video") == 0)) {
-		if (av_set_output((int)key) < 0)
-			printf("set output to %s failed\n", item);
-		else
-			printf("set output to %s\n", item);
-	}
+	config->av_mode = (av_mode_t)key;
+	config->bitmask |= CONFIG_MODE;
+}
 
-	if ((strcmp(item, "4:3 (Letterboxed Widescreen)") == 0) || (strcmp(item, "4:3 (Widescreen Centre-Cut-Out)") == 0) || (strcmp(item, "16:9 (Full-Height / Automatic)") == 0)) {
-		if (av_set_aspect((int)key) < 0)
-			printf("set aspect to %s failed\n", item);
-		else
-			printf("set aspect to %s\n", item);
-	}
+static void
+settings_callback_video(mvp_widget_t *widget, char *item, void *key)
+{
+	if (av_set_output((int)key) < 0)
+		printf("set output to %s failed\n", item);
+	else
+		printf("set output to %s\n", item);
 
-	if ((strcmp(item, "off") == 0) ||
-	    (strstr(item, "minute") != 0) ||
-	    (strstr(item, "second") != 0)) {
-		screensaver_timeout = (int)key;
-		printf("screensaver timeout changed to %d\n",
-		       screensaver_timeout);
-		mvpw_set_screensaver(screensaver, screensaver_timeout,
-				     screensaver_event);
-	}
+	config->av_video_output = (av_video_output_t)key;
+	config->bitmask |= CONFIG_VIDEO_OUTPUT;
+}
+
+static void
+settings_callback_aspect(mvp_widget_t *widget, char *item, void *key)
+{
+	if (av_set_aspect((int)key) < 0)
+		printf("set aspect to %s failed\n", item);
+	else
+		printf("set aspect to %s\n", item);
+
+	config->av_aspect = (int)key;
+	config->bitmask |= CONFIG_ASPECT;
+}
+
+static void
+settings_callback_screensaver(mvp_widget_t *widget, char *item, void *key)
+{
+	screensaver_timeout = (int)key;
+	printf("screensaver timeout changed to %d\n", screensaver_timeout);
+	mvpw_set_screensaver(screensaver, screensaver_timeout,
+			     screensaver_event);
+
+	config->screensaver_timeout = screensaver_timeout;
+	config->bitmask |= CONFIG_SCREENSAVER;
 }
 
 static void
@@ -1626,9 +1651,9 @@ settings_hilite_callback(mvp_widget_t *widget, char *item, void *key,
 	if (hilite) {
 		mvpw_clear_menu(sub_settings);
 		sub_settings_item_attr.hilite = sub_settings_hilite_callback;
-		sub_settings_item_attr.select = sub_settings_select_callback;
 		switch ((int)key) {
 		case SETTINGS_MODE:
+			sub_settings_item_attr.select = settings_callback_mode;
 			mvpw_add_menu_item(sub_settings, "PAL",
 					   (void*)AV_MODE_PAL,
 					   &sub_settings_item_attr);
@@ -1639,6 +1664,7 @@ settings_hilite_callback(mvp_widget_t *widget, char *item, void *key,
 					      (void*)av_get_mode());
 			break;
 		case SETTINGS_OUTPUT:
+			sub_settings_item_attr.select = settings_callback_video;
 			mvpw_add_menu_item(sub_settings, "Composite",
 					   (void*)AV_OUTPUT_COMPOSITE,
 					   &sub_settings_item_attr);
@@ -1651,6 +1677,7 @@ settings_hilite_callback(mvp_widget_t *widget, char *item, void *key,
 		case SETTINGS_FLICKER:
 			break;
 		case SETTINGS_ASPECT:
+			sub_settings_item_attr.select = settings_callback_aspect;
 			mvpw_add_menu_item(sub_settings, "4:3 (Letterboxed Widescreen)",
 					   (void*)AV_ASPECT_4x3,
 					   &sub_settings_item_attr);
@@ -1664,6 +1691,7 @@ settings_hilite_callback(mvp_widget_t *widget, char *item, void *key,
 					      (void*)av_get_aspect());
 			break;
 		case SETTINGS_SCREENSAVER:
+			sub_settings_item_attr.select = settings_callback_screensaver;
 			snprintf(buf, sizeof(buf), "%d seconds",
 				 screensaver_default);
 			mvpw_add_menu_item(sub_settings, "off",
@@ -1756,9 +1784,6 @@ settings_init(void)
 			   (void*)SETTINGS_SCREENSAVER, &settings_item_attr);
 	mvpw_add_menu_item(settings, "ColorTest",
 			   (void*)SETTINGS_COLORTEST, &settings_item_attr);
-
-	sub_settings_item_attr.hilite = sub_settings_hilite_callback;
-	sub_settings_item_attr.select = sub_settings_select_callback;
 
 	/*
 	 * Init colottest

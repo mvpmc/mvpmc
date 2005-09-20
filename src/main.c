@@ -31,6 +31,8 @@
 #include <fcntl.h>
 #include <time.h>
 #include <sys/stat.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
 
 #include <mvp_widget.h>
 #include <mvp_av.h>
@@ -79,6 +81,9 @@ static int data_len = 0;
 
 mvpmc_state_t hw_state = MVPMC_STATE_NONE;
 mvpmc_state_t gui_state = MVPMC_STATE_NONE;
+
+config_t *config;
+static int shmid;
 
 static int
 buffer_put(demux_handle_t *handle, char *buf, int len)
@@ -158,6 +163,8 @@ sighandler(int sig)
 	usleep(1000*250);
 
 	kill(child, SIGKILL);
+	if (shmctl(shmid, IPC_RMID, NULL) != 0)
+		perror("shmctl()");
 	exit(sig);
 }
 
@@ -400,6 +407,37 @@ main(int argc, char **argv)
 		}
 	}
 
+	/*
+	 * Allocate a shared memory region so that config options can
+	 * survive a crash or restart.
+	 */
+	if ((shmid=shmget(IPC_PRIVATE, sizeof(config_t), IPC_CREAT)) == -1) {
+		perror("shmget()");
+		exit(1);
+	}
+	if ((config=(config_t*)shmat(shmid, NULL, 0)) == (config_t*)-1) {
+		perror("shmat()");
+	}
+
+	/*
+	 * Initialize the config options to what was passed in on the
+	 * command line.
+	 */
+	memset(config, 0, sizeof(*config));
+	config->magic = CONFIG_MAGIC;
+	config->av_audio_output = audio_output_mode;
+	config->screensaver_timeout = screensaver_timeout;
+	config->av_mode = mode;
+	config->av_aspect = aspect;
+	config->av_video_output = output;
+	config->osd_bitrate = osd_settings.bitrate;
+	config->osd_clock = osd_settings.clock;
+	config->osd_demux_info = osd_settings.demux_info;
+	config->osd_program = osd_settings.program;
+	config->osd_progress = osd_settings.progress;
+	config->osd_timecode = osd_settings.timecode;
+	config->brightness = root_color;
+
 #ifndef MVPMC_HOST
 	theme_parse(MASTER_THEME);
 #endif
@@ -428,6 +466,11 @@ main(int argc, char **argv)
 	spawn_child();
 #endif
 
+	if (config->magic != CONFIG_MAGIC) {
+		fprintf(stderr, "invalid config area!\n");
+		exit(1);
+	}
+
 	signal(SIGPIPE, SIG_IGN);
 
 	if ((stat(DEFAULT_THEME, &sb) == 0) && (sb.st_size > 0)) {
@@ -443,6 +486,35 @@ main(int argc, char **argv)
 	if (theme_file)
 		theme_parse(theme_file);
 #endif
+
+	/*
+	 * Allow the config shared memory region data to override
+	 * the defaults, the command line and the theme file.
+	 */
+	if (config->bitmask & CONFIG_SCREENSAVER)
+		screensaver_timeout = config->screensaver_timeout;
+	if (config->bitmask & CONFIG_MODE)
+		mode = config->av_mode;
+	if (config->bitmask & CONFIG_AUDIO_OUTPUT)
+		audio_output_mode = config->av_audio_output;
+	if (config->bitmask & CONFIG_VIDEO_OUTPUT)
+		output = config->av_video_output;
+	if (config->bitmask & CONFIG_ASPECT)
+		aspect = config->av_aspect;
+	if (config->bitmask & CONFIG_OSD_BITRATE)
+		osd_settings.bitrate = config->osd_bitrate;
+	if (config->bitmask & CONFIG_OSD_CLOCK)
+		osd_settings.clock = config->osd_clock;
+	if (config->bitmask & CONFIG_OSD_DEMUX_INFO)
+		osd_settings.demux_info = config->osd_demux_info;
+	if (config->bitmask & CONFIG_OSD_PROGRESS)
+		osd_settings.progress = config->osd_progress;
+	if (config->bitmask & CONFIG_OSD_PROGRAM)
+		osd_settings.program = config->osd_program;
+	if (config->bitmask & CONFIG_OSD_TIMECODE)
+		osd_settings.timecode = config->osd_timecode;
+	if (config->bitmask & CONFIG_BRIGHTNESS)
+		root_color = config->brightness;
 
 	if (font)
 		fontid = mvpw_load_font(font);

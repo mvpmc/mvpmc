@@ -95,7 +95,7 @@ static int ac3_freespace(void);
 
 #define min(X, Y)  ((X) < (Y) ? (X) : (Y))
 
-int audio_output_mode = AUD_OUTPUT_STEREO;
+av_passthru_t audio_output_mode = AUD_OUTPUT_STEREO;
 
 #ifdef DEBUG_LOG_SOUND
 static inline void logwrite (char *fn, int result, int fd, int size, unsigned char *data)

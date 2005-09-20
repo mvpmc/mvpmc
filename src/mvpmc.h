@@ -294,7 +294,7 @@ extern void playlist_stop(void);
 extern void subtitle_switch_stream(mvp_widget_t*, int);
 extern void add_subtitle_streams(mvp_widget_t*, mvpw_menu_item_attr_t*);
 
-extern int audio_output_mode;
+extern av_passthru_t audio_output_mode;
 
 extern void busy_start(void);
 extern void busy_end(void);
@@ -369,5 +369,44 @@ extern void replaytv_exit(void);
 
 extern mvpmc_state_t hw_state;
 extern mvpmc_state_t gui_state;
+
+/*
+ * The config_t structure will hold all the user settings that can survive
+ * a crash or restart.  Eventually, this data will be written to flash or
+ * a file so that it can survive a reboot.
+ */
+typedef struct {
+	uint32_t		magic;
+	uint32_t		bitmask;
+	int			screensaver_timeout;
+	av_mode_t		av_mode;
+	av_passthru_t		av_audio_output;
+	av_video_output_t	av_video_output;
+	av_aspect_t		av_aspect;
+	int			osd_bitrate;
+	int			osd_clock;
+	int			osd_demux_info;
+	int			osd_progress;
+	int			osd_program;
+	int			osd_timecode;
+	int			brightness;
+} config_t;
+
+extern config_t *config;
+
+#define CONFIG_MAGIC		0x434f4e46
+
+#define CONFIG_SCREENSAVER	0x0001
+#define CONFIG_MODE		0x0002
+#define CONFIG_AUDIO_OUTPUT	0x0004
+#define CONFIG_VIDEO_OUTPUT	0x0008
+#define CONFIG_ASPECT		0x0010
+#define CONFIG_OSD_BITRATE	0x0020
+#define CONFIG_OSD_CLOCK	0x0040
+#define CONFIG_OSD_DEMUX_INFO	0x0080
+#define CONFIG_OSD_PROGRESS	0x0100
+#define CONFIG_OSD_PROGRAM	0x0200
+#define CONFIG_OSD_TIMECODE	0x0400
+#define CONFIG_BRIGHTNESS	0x0800
 
 #endif /* MVPMC_H */
