@@ -117,7 +117,9 @@ extern int av_mute(void);
 extern int av_reset(void);
 extern int av_reset_stc(void);
 extern int get_video_sync(pts_sync_data_t *p);
+extern int get_audio_sync(pts_sync_data_t *p);
 extern int av_current_stc(av_stc_t *stc);
+extern int av_delay_video(int usec);
 
 extern av_mode_t av_get_mode(void);
 extern int av_get_output(void);

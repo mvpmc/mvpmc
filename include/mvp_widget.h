@@ -178,6 +178,7 @@ extern mvp_widget_t* mvpw_create_image(mvp_widget_t *parent,
 				       int border_size);
 extern int mvpw_set_image(mvp_widget_t *widget, char *file);
 extern int mvpw_get_image_info(char *file, mvpw_image_info_t *data);
+extern int mvpw_image_destroy(mvp_widget_t *widget);
 
 /*
  * graph widget
