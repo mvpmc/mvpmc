@@ -33,6 +33,8 @@
 #include <string.h>
 #include <assert.h>
 #include <sys/time.h>
+#include <pthread.h>
+#include <signal.h>
 
 #include <mvp_widget.h>
 #include <mvp_av.h>
@@ -64,6 +66,8 @@ static volatile char *ac3_end;
 static int ac3_size = AC3_SIZE;
 static volatile int ac3_head = 0, ac3_tail = AC3_SIZE - 1;
 
+pthread_cond_t audio_cond = PTHREAD_COND_INITIALIZER;
+
 typedef enum {
 	AUDIO_FILE_UNKNOWN,
 	AUDIO_FILE_MP3,
@@ -77,7 +81,7 @@ static audio_file_t audio_type;
 #define BUFFSIZE 12000
 
 void audio_play(mvp_widget_t *widget);
-static void wav_play(int, int, unsigned short, unsigned short, unsigned short);
+static int wav_play(int, int, unsigned short, unsigned short, unsigned short);
 
 static unsigned long quantised_next_input_sample = 0;
 static unsigned long last_sample_in_buffer = 0;
@@ -96,6 +100,9 @@ static int ac3_freespace(void);
 #define min(X, Y)  ((X) < (Y) ? (X) : (Y))
 
 av_passthru_t audio_output_mode = AUD_OUTPUT_STEREO;
+
+volatile int audio_playing = 0;
+volatile int audio_stop = 0;
 
 #ifdef DEBUG_LOG_SOUND
 static inline void logwrite (char *fn, int result, int fd, int size, unsigned char *data)
@@ -173,7 +180,7 @@ find_chunk(int fd,char searchid[5])
 	return size;
 }
 
-static void
+static int
 ogg_play(int afd)
 {
 	static int do_read = 1;
@@ -184,7 +191,7 @@ ogg_play(int afd)
 		pos = 0;
 		len = 0;
 		do_read = 1;
-		return;
+		return -1;
 	}
 
  retry:
@@ -219,22 +226,15 @@ ogg_play(int afd)
 	 * We shouldn't have any problem filling up the hardware audio buffer,
 	 * so keep processing the file until we're forced to block.
 	 */
-	goto retry;
+	return 0;
 
  full:
 	do_read = 0;
-
-	mvpw_set_idle(NULL);
-	mvpw_set_timer(root, audio_play, 100);
-
-	return;
+	usleep(1000);
+	return 0;
 
  next:
-	audio_clear();
-	if(playlist)
-		playlist_next();
-	else
-		fd = -2;
+	return -1;
 }
 
 /******************************************
@@ -242,7 +242,7 @@ ogg_play(int afd)
  * 5.1 to 2 channels.
  ******************************************
  */
-static void
+static int
 ac3_play(int afd)
 {
 	static char buf[BSIZE];
@@ -254,7 +254,7 @@ ac3_play(int afd)
 		ac3more = 0;
 		ac3len = 0;
 		printf("playing AC3 file\n");
-		return;
+		return -1;
 	}
 
 	if (ac3more == -1)
@@ -270,17 +270,15 @@ ac3_play(int afd)
 	pcm_decoded = 1;
 
 	if (ac3more != 0) {
-		mvpw_set_idle(NULL);
-		mvpw_set_timer(root, audio_play, 100);
+		usleep(1000);
+		return 0;
 	}
 	else if(ac3len==0){
 		/* fprintf(stderr,"ac3 file finished\n"); */
-		mvpw_set_idle(NULL);
-		audio_clear();
-		if(playlist){
-			playlist_next();
-		}
+		return -1;
 	}
+
+	return 0;
 }
 
 /******************************************
@@ -288,7 +286,7 @@ ac3_play(int afd)
  * through spdif output.
  ******************************************
  */
-static void
+static int
 ac3_spdif_play(int afd)
 {
         static char buf[BSIZE];
@@ -299,24 +297,18 @@ ac3_spdif_play(int afd)
         if (afd < 0) {
                 n = 0;
                 nput = 0;
-                return;
+                return -1;
         }
 
         len = read(fd, buf+n, BSIZE-n);
         n += len;
         if(n==0 && nput==0){
                 /* fprintf(stderr,"ac3 file finished\n"); */
-                mvpw_set_idle(NULL);
-                audio_clear();
-                if(playlist){
-                        playlist_next();
-                }
-                return;
+                return -1;
         }
         if ((tot=write(afd, buf+nput, n-nput)) == 0) {
-                mvpw_set_idle(NULL);
-                mvpw_set_timer(root, audio_play, 100);
-                return;
+		usleep(1000);
+                return 0;
         }
         nput += tot;
 
@@ -324,9 +316,11 @@ ac3_spdif_play(int afd)
                 n = 0;
                 nput = 0;
         }
+
+	return 0;
 }
 
-static void
+static int
 mp3_play(int afd)
 {
 	static char buf[BSIZE];
@@ -336,24 +330,22 @@ mp3_play(int afd)
 	if (afd < 0) {
 		n = 0;
 		nput = 0;
-		return;
+		return -1;
 	}
 
-	len = read(fd, buf+n, BSIZE-n);
+	if ((len=read(fd, buf+n, BSIZE-n)) == 0) {
+		usleep(1000);
+	}
+	if (len < 0)
+		return -1;
 	n += len;
 	if(n==0 && nput==0){
 		/* fprintf(stderr,"mp3 file finished\n"); */
-		mvpw_set_idle(NULL);
-		audio_clear();
-		if(playlist){
-			playlist_next();
-		}
-		return;
+		return -1;
 	}
 	if ((tot=write(afd, buf+nput, n-nput)) == 0) {
-		mvpw_set_idle(NULL);
-		mvpw_set_timer(root, audio_play, 100);
-		return;
+		usleep(1000);
+		return 0;
 	}
 	nput += tot;
 
@@ -361,50 +353,14 @@ mp3_play(int afd)
 		n = 0;
 		nput = 0;
 	}
+
+	return 0;
 }
 
 static int
-audio_player(int reset)
+audio_player(int reset, int afd)
 {
-	static int n = 0, nput = 0, afd = 0;
-
-	if (reset) {
-		n = 0;
-		nput = 0;
-
-		switch (audio_type) {
-		case AUDIO_FILE_WAV:
-			empty_ac3();
-			quantised_next_input_sample = 0;
-			last_sample_in_buffer = 0;
-			next_output_sample = 0;
-			next_input_sample = 0;
-			break;
-		case AUDIO_FILE_AC3:
-			if (audio_output_mode == AUD_OUTPUT_STEREO) {
-				/*
-				 * downmixing from 5.1 to 2 channels
-				 */
-				ac3_play(-1);
-			} else {
-				/*
-				 * AC3 pass through out the SPDIF / TOSLINK
-				 */
-				ac3_spdif_play(-1);
-			}
-			break;
-		case AUDIO_FILE_OGG:
-			ogg_play(-1);
-			break;
-		case AUDIO_FILE_MP3:
-			mp3_play(-1);
-			break;
-		default:
-			break;
-		}
-
-		afd = av_audio_fd();
-	}
+	int ret = -1;
 
 	switch (audio_type) {
 	case AUDIO_FILE_AC3:
@@ -412,29 +368,28 @@ audio_player(int reset)
 			/*
 			 * downmixing from 5.1 to 2 channels
 			 */
-			ac3_play(afd);
+			ret = ac3_play(afd);
 		} else {
 			/*
 			 * AC3 pass through out the SPDIF / TOSLINK
 			 */
-			ac3_spdif_play(afd);
+			ret = ac3_spdif_play(afd);
 		}
 		break;
 	case AUDIO_FILE_WAV:
-		wav_play(fd, afd, align, channels, bps);
+		ret = wav_play(fd, afd, align, channels, bps);
 		break;
 	case AUDIO_FILE_MP3:
-		mp3_play(afd);
+		ret = mp3_play(afd);
 		break;
 	case AUDIO_FILE_OGG:
-		ogg_play(afd);
+		ret = ogg_play(afd);
 		break;
 	default:
-		mvpw_set_idle(NULL);
 		break;
 	}
 
-	return 0;
+	return ret;
 }
 
 static int
@@ -527,76 +482,10 @@ ogg_setup(void)
 	return 0;
 }
 
-static void
-audio_idle(void)
-{
-	int reset = 0;
-
-	if (fd == -2) {
-		mvpw_set_idle(NULL);
-		return;
-	}
-
-	if (fd == -1) {
-		if ((fd=open(current, O_RDONLY|O_LARGEFILE|O_NDELAY)) < 0)
-			return;
-
-		switch ((audio_type=get_audio_type(current))) {
-		case AUDIO_FILE_MP3:
-			av_set_audio_output(AV_AUDIO_MPEG);
-			av_set_audio_type(0);
-			break;
-		case AUDIO_FILE_OGG:
-			if (ogg_setup() < 0)
-				goto fail;
-			break;
-		case AUDIO_FILE_AC3:
-			if (audio_output_mode == AUD_OUTPUT_STEREO) {
-				/*
-				 * downmixing from 5.1 to 2 channels
-				 */
-				av_set_audio_output(AV_AUDIO_PCM);
-			} else {
-				/*
-				 * AC3 pass through out the SPDIF / TOSLINK
-				 */
-				if (av_set_audio_output(AV_AUDIO_AC3) < 0) {
-					/* revert to downmixing */
-					av_set_audio_output(AV_AUDIO_PCM);
-					audio_output_mode = AUD_OUTPUT_STEREO;
-				}
-			}
-			break;
-		case AUDIO_FILE_WAV:
-			if (wav_setup() < 0)
-				goto fail;
-			break;
-		case AUDIO_FILE_UNKNOWN:
-			mvpw_set_idle(NULL);
-			return;
-			break;
-		}
-
-		av_play();
-
-		reset = 1;
-	}
-
-	if (audio_player(reset) < 0)
-		mvpw_set_idle(NULL);
-
-	return;
-
- fail:
-	close(fd);
-	fd = -2;
-}
-
 void
 audio_play(mvp_widget_t *widget)
 {
-	mvpw_set_idle(audio_idle);
-	mvpw_set_timer(root, NULL, 0);
+	pthread_cond_signal(&audio_cond);
 }
 
 void
@@ -743,7 +632,7 @@ ac3_flush(void)
 	return 0;
 }
 
-static void
+static int
 wav_play(int fd, int afd, unsigned short align, unsigned short channels,
 	 unsigned short bps)
 {
@@ -753,17 +642,21 @@ wav_play(int fd, int afd, unsigned short align, unsigned short channels,
 	int input_ptr;
 	int iloop;
 	int sample_value = 0;
+	int empty = 0;
 
-	ac3_flush();
+	if (ac3_flush() == 0)
+		empty = 1;
 
 	if (ac3_freespace() < (BUFFSIZE*align)) {
-		mvpw_set_idle(NULL);
-		mvpw_set_timer(root, audio_play, 100);
-		return;
+		usleep(1000);
+		return 0;
 	}
 
 	wav_buffer = alloca(align * BUFFSIZE);
 	n = read(fd, wav_buffer, min((align * BUFFSIZE), chunk_size));
+
+	if ((n == 0) && empty)
+		return 1;
 
 	/*
 	 * while we have data in the buffer
@@ -814,6 +707,8 @@ wav_play(int fd, int afd, unsigned short align, unsigned short channels,
 	}
 
 	ac3_flush();
+
+	return 0;
 }
 
 int a52_decode_data (uint8_t * start, uint8_t * end, int reset)
@@ -918,4 +813,149 @@ int a52_decode_data (uint8_t * start, uint8_t * end, int reset)
 	ac3_flush();
 
 	return 0;
+}
+
+static void
+sighandler(int sig)
+{
+}
+
+static int
+audio_init(void)
+{
+	if ((fd=open(current, O_RDONLY|O_LARGEFILE|O_NDELAY)) < 0)
+		goto fail;
+
+	switch ((audio_type=get_audio_type(current))) {
+	case AUDIO_FILE_MP3:
+		av_set_audio_output(AV_AUDIO_MPEG);
+		av_set_audio_type(0);
+		break;
+	case AUDIO_FILE_OGG:
+		if (ogg_setup() < 0)
+			goto fail;
+		break;
+	case AUDIO_FILE_AC3:
+		if (audio_output_mode == AUD_OUTPUT_STEREO) {
+			/*
+			 * downmixing from 5.1 to 2 channels
+			 */
+			av_set_audio_output(AV_AUDIO_PCM);
+		} else {
+			/*
+			 * AC3 pass through out the SPDIF / TOSLINK
+			 */
+			if (av_set_audio_output(AV_AUDIO_AC3) < 0) {
+				/* revert to downmixing */
+				av_set_audio_output(AV_AUDIO_PCM);
+				audio_output_mode = AUD_OUTPUT_STEREO;
+			}
+		}
+		break;
+	case AUDIO_FILE_WAV:
+		if (wav_setup() < 0)
+			goto fail;
+		break;
+	case AUDIO_FILE_UNKNOWN:
+		goto fail;
+		break;
+	}
+
+	av_play();
+
+	switch (audio_type) {
+	case AUDIO_FILE_WAV:
+		empty_ac3();
+		quantised_next_input_sample = 0;
+		last_sample_in_buffer = 0;
+		next_output_sample = 0;
+		next_input_sample = 0;
+		break;
+	case AUDIO_FILE_AC3:
+		if (audio_output_mode == AUD_OUTPUT_STEREO) {
+			/*
+			 * downmixing from 5.1 to 2 channels
+			 */
+			ac3_play(-1);
+		} else {
+			/*
+			 * AC3 pass through out the SPDIF / TOSLINK
+			 */
+			ac3_spdif_play(-1);
+		}
+		break;
+	case AUDIO_FILE_OGG:
+		ogg_play(-1);
+		break;
+	case AUDIO_FILE_MP3:
+		mp3_play(-1);
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+
+ fail:
+	return -1;
+}
+
+/*
+ * audio_start() - audio playback thread
+ */
+void*
+audio_start(void *arg)
+{
+	sigset_t sigs;
+	pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+	int afd;
+	int done;
+
+	signal(SIGURG, sighandler);
+	sigemptyset(&sigs);
+	sigaddset(&sigs, SIGURG);
+	pthread_sigmask(SIG_UNBLOCK, &sigs, NULL);
+
+	printf("audio thread started (pid %d)\n", getpid());
+
+	pthread_mutex_lock(&mutex);
+
+	while (1) {
+		audio_playing = 0;
+		audio_stop = 0;
+
+		pthread_cond_wait(&audio_cond, &mutex);
+
+	repeat:
+		printf("Starting to play audio file '%s'\n", current);
+
+		if (audio_init() != 0)
+			goto fail;
+
+		afd = av_audio_fd();
+
+		audio_playing = 1;
+		audio_stop = 0;
+
+		while (((done=audio_player(0, afd)) == 0) &&
+		       current && !audio_stop)
+			;
+
+		if (!audio_stop && playlist) {
+			close(fd);
+			playlist_next();
+			if (playlist) {
+				printf("next song on playlist\n");
+				goto repeat;
+			}
+		}
+
+	fail:
+		printf("Done with audio file\n");
+
+		close(fd);
+		audio_clear();
+	}
+
+	return NULL;
 }

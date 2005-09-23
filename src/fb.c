@@ -29,6 +29,8 @@
 #include <fcntl.h>
 #include <string.h>
 #include <time.h>
+#include <signal.h>
+#include <pthread.h>
 
 #include <mvp_widget.h>
 #include <mvp_av.h>
@@ -199,6 +201,13 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 
 		if (current)
 			free(current);
+		current = NULL;
+		audio_stop = 1;
+		pthread_kill(audio_thread, SIGURG);
+
+		while (audio_playing)
+			usleep(1000);
+
 		current = strdup(path);
 
 		video_functions = &file_functions;
@@ -404,15 +413,16 @@ fb_program(mvp_widget_t *widget)
 void
 fb_exit(void)
 {
+	audio_stop = 1;
+	pthread_kill(audio_thread, SIGURG);
+
 	if (current) {
 		free(current);
 		current = NULL;
 	}
-	mvpw_set_idle(NULL);
-	mvpw_set_timer(root, NULL, 0);
 	mvpw_hide(fb_progress);
 
-	playlist_clear();
 	audio_clear();
 	video_clear();
+	av_stop();
 }

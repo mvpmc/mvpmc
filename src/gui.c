@@ -24,6 +24,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <pthread.h>
+#include <signal.h>
 
 #ifndef MVPMC_HOST
 #include <sys/reboot.h>
@@ -1022,22 +1023,31 @@ playlist_key_callback(mvp_widget_t *widget, char key)
 		mvpw_focus(file_browser);
 		break;
 	case MVPW_KEY_SKIP:
+		audio_stop = 1;
+		pthread_kill(audio_thread, SIGURG);
+		while (audio_playing && audio_stop) {
+			audio_play(NULL);
+			usleep(1000);
+		}
 		audio_clear();
 		video_clear();
 		av_reset();
 		playlist_next();
 		break;
 	case MVPW_KEY_REPLAY:
+		audio_stop = 1;
+		pthread_kill(audio_thread, SIGURG);
+		while (audio_playing && audio_stop) {
+			audio_play(NULL);
+			usleep(1000);
+		}
 		audio_clear();
 		video_clear();
 		av_reset();
 		playlist_prev();
 		break;
 	case MVPW_KEY_STOP:
-		audio_clear();
-		video_clear();
-		av_reset();
-		playlist_stop();
+		fb_exit();
 		break;
 	case MVPW_KEY_PAUSE:
 		av_pause();

@@ -66,6 +66,7 @@ extern a52_state_t *a52_state;
 static pthread_t video_read_thread;
 pthread_t video_write_thread;
 pthread_t audio_write_thread;
+pthread_t audio_thread;
 pthread_attr_t thread_attr, thread_attr_small;
 
 static pid_t child;
@@ -417,6 +418,7 @@ main(int argc, char **argv)
 	}
 	if ((config=(config_t*)shmat(shmid, NULL, 0)) == (config_t*)-1) {
 		perror("shmat()");
+		exit(1);
 	}
 
 	/*
@@ -638,6 +640,8 @@ main(int argc, char **argv)
 		       video_read_start, NULL);
 	pthread_create(&video_write_thread, &thread_attr_small,
 		       video_write_start, NULL);
+	pthread_create(&audio_thread, &thread_attr_small,
+		       audio_start, NULL);
 
 	if (gui_init(mythtv_server, replaytv_server) < 0) {
 		fprintf(stderr, "failed to initialize gui!\n");

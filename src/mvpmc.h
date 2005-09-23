@@ -160,6 +160,8 @@ extern int fd;
 extern volatile int seeking;
 extern volatile int jumping;
 extern volatile int paused;
+extern volatile int audio_playing;
+extern volatile int audio_stop;
 
 extern int video_init(void);
 extern void audio_play(mvp_widget_t*);
@@ -201,6 +203,7 @@ extern void *video_read_start(void*);
 extern void *video_write_start(void*);
 extern void *audio_write_start(void*);
 extern void *display_thread(void*);
+extern void* audio_start(void *arg);
 
 extern void replaytv_back_to_mvp_main_menu(void);
 
@@ -212,6 +215,7 @@ extern void gui_error(char*);
 
 extern pthread_t video_write_thread;
 extern pthread_t audio_write_thread;
+extern pthread_t audio_thread;
 extern pthread_attr_t thread_attr, thread_attr_small;
 
 extern pthread_cond_t video_cond;

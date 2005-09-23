@@ -26,6 +26,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <pthread.h>
+#include <signal.h>
 
 #include <mvp_widget.h>
 #include <mvp_av.h>
@@ -63,10 +64,16 @@ static void select_callback(mvp_widget_t *widget, char *item, void *key)
 
   while (pl) {
     if (pl->key == key) {
+      audio_stop = 1;
+      pthread_kill(audio_thread, SIGURG);
+      while (audio_playing)
+        usleep(1000);
       audio_clear();
       video_clear();
       av_reset();
       playlist_change(pl);
+      audio_play(NULL);
+      mvpw_show(fb_progress);
       break;
     }
     pl = pl->next;
@@ -314,7 +321,6 @@ playlist_idle(void)
 	  }
 	  break;
 	case PLAYLIST_FILE_UNKNOWN:
-	  mvpw_set_idle(NULL);
 	  return;
 	  break;
 	}
@@ -357,8 +363,7 @@ playlist_idle(void)
 void
 playlist_play(mvp_widget_t *widget)
 {
-	mvpw_set_idle(playlist_idle);
-	mvpw_set_timer(root, NULL, 0);
+	playlist_idle();
 }
 
 static void playlist_change(playlist_t *next)
@@ -366,7 +371,6 @@ static void playlist_change(playlist_t *next)
   if(!playlist){
 	return;
   }
-  if (current){
     playlist = next;
 
     if (playlist) {
@@ -377,14 +381,14 @@ static void playlist_change(playlist_t *next)
        */
       snprintf(display_message,DISPLAY_MESG_SIZE,"File:%s \n", playlist->filename);
     }
+  if(current)
     free(current);
     current=NULL;
     if(!playlist){
       return;
     }
-  }
-  printf("playlist: play item '%s', file '%s'\n",
-	 playlist->name, playlist->filename);
+  printf("playlist: play item '%s', file '%s' key %d\n",
+	 playlist->name, playlist->filename, (int)playlist->key);
 
   /*
    * Find ID3 tag information for the selected
@@ -436,7 +440,7 @@ static void playlist_change(playlist_t *next)
   if (is_video(current)) {
 	mvpw_set_timer(root, video_play, 50);
   } else if (is_audio(current)) {
-	mvpw_set_timer(root, audio_play, 50);
+	audio_play(NULL);
   } else if (is_image(current)) {
 	mvpw_set_image(iw, current);
 	mvpw_lower(iw);
