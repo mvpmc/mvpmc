@@ -223,6 +223,7 @@ int rtv_discover(unsigned int timeout_ms, rtv_device_list_t **device_list)
        case 0:
           // Timeout
           done = 1;
+          RTV_DBGLOG(RTVLOG_DSCVR, "%s: Timeout...\n", __FUNCTION__);
           break;
        case -1:
           // Error
@@ -340,6 +341,7 @@ int rtv_discover(unsigned int timeout_ms, rtv_device_list_t **device_list)
       child_count--;
    }
    *device_list = &rtv_devices;
+   fflush(NULL);
    return(0);
    
 error:
@@ -352,5 +354,6 @@ error:
       child_count--;
    }
    *device_list = NULL;
+   fflush(NULL);
    return(-errno_sav);
 }

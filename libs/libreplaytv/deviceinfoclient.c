@@ -166,24 +166,30 @@ static int get_deviceinfo_callback(unsigned char *buf, size_t len,  void *info)
 static int parse_version_info( rtv_device_info_t *devinfo )
 {
    if ( strncmp(devinfo->modelNumber, "4999", 4) == 0 ) {
-      // Dvarchive. Set it up as a 5K device
+      // Dvarchive.
       //
-      devinfo->version.vintage = RTV_DEVICE_5K;
-      devinfo->version.major   = 5;
-      devinfo->version.minor   = 1;
-      devinfo->version.build   = 999; //use build 999 to designate Dvarchive
+      if ( rtv_globals.rtv_emulate_mode == RTV_DEVICE_4K ) {
+         devinfo->version.vintage = RTV_DEVICE_4K;
+         devinfo->version.major   = 4;
+         devinfo->version.minor   = 3;
+         devinfo->version.build   = 999; //use build 999 to designate Dvarchive
+      }
+      else {
+         devinfo->version.vintage = RTV_DEVICE_5K;
+         devinfo->version.major   = 5;
+         devinfo->version.minor   = 1;
+         devinfo->version.build   = 999; //use build 999 to designate Dvarchive
+      }
       return(0);
    }
 
-   if ( strlen(devinfo->versionStr) != 9 ) {
-      RTV_ERRLOG("Unknown RTV SW Version String: %s\n", devinfo->versionStr);
-      return(-1);
-   } 
-   if ( (strncmp(devinfo->versionStr, "520", 3) == 0) ) {
+   if ( (strncmp(devinfo->modelNumber, "4", 1) == 0) ) {
+      // 4K's don't seem to report a version string
+      //
       devinfo->version.vintage = RTV_DEVICE_4K;
-      devinfo->version.major   = devinfo->versionStr[3] - '0';
-      devinfo->version.minor   = devinfo->versionStr[4] - '0';
-      devinfo->version.build   = atoi(devinfo->versionStr+5);
+      devinfo->version.major   = 4;
+      devinfo->version.minor   = 3;
+      devinfo->version.build   = 111;
    }
    else if ( (strncmp(devinfo->versionStr, "530", 3) == 0) ) {
       devinfo->version.vintage = RTV_DEVICE_5K;
@@ -192,7 +198,9 @@ static int parse_version_info( rtv_device_info_t *devinfo )
       devinfo->version.build   = atoi(devinfo->versionStr+5);
    }
    else {
-      RTV_ERRLOG("Unsupported RTV SW Version String: %s\n", devinfo->versionStr);
+      RTV_ERRLOG("Unsupported RTV SW Version\n");
+      rtv_print_device_info(devinfo);
+      fflush(NULL);
       return(-1);
    }
    

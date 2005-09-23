@@ -56,7 +56,6 @@ typedef          __int64   __s64;
 #      error "__BYTE_ORDER MUST BE DEFINED!!!!"
 #   endif
 #endif
-
 extern int  split_lines(char * src, char *** pdst);
 
 
@@ -127,7 +126,7 @@ inline static void rtv_log(const char *format, ...)
 #define RTVLOG_EVTFILE_V2    (rtv_globals.rtv_debug & 0x00000200)
 #define RTVLOG_EVTFILE_V3    (rtv_globals.rtv_debug & 0x00000400)
 #define RTVLOG_NDX           (rtv_globals.rtv_debug & 0x00001000)
-#define RTVLOG_NETDUMP       (rtv_globals.rtv_debug & 0x10000000)
+#define RTVLOG_NETDUMP       (rtv_globals.rtv_debug & 0x00002000)
 
 //#define RTV_PRT(fmt, args...)  rtv_log(fmt, ## args)
 #define RTV_PRT(fmt, args...) fprintf(stdout, fmt, ## args) 

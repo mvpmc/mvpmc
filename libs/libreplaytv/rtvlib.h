@@ -351,6 +351,7 @@ extern rtv_device_list_t rtv_devices;
 extern int           rtv_init_lib(void);
 extern void          rtv_set_dbgmask(__u32 mask);
 extern __u32         rtv_get_dbgmask(void);
+extern int           rtv_set_mode(char *mode);
 extern void          rtv_set_32k_chunks_to_merge(int chunks);
 extern int           rtv_route_logs(char *filename);
 extern rtv_device_t *rtv_get_device_struct(const char *ipaddr, int *new);

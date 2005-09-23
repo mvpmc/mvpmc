@@ -64,6 +64,20 @@
 
 
 //+***********************************************
+//    logging / debugging
+//+***********************************************
+#define LOGINFO	(rtv_debug & 0x00010000)
+#define LOGTRC		(rtv_debug & 0x00020000)
+
+#define RTV_PRT(fmt, args...) fprintf(stdout, fmt, ## args) 
+
+#define RTV_ERRLOG(fmt, args...) RTV_PRT("rtvgui:ERROR: " fmt, ## args)
+#define RTV_WARNLOG(fmt, args...) RTV_PRT("rtvgui:WARN: " fmt, ## args)
+#define RTV_DBGLOG(flag, fmt, args...) \
+          if (flag) { RTV_PRT("rtvgui:DBG:" fmt, ## args); }
+
+
+//+***********************************************
 //    externals 
 //+***********************************************
 extern pthread_t       video_write_thread;
@@ -201,6 +215,9 @@ video_callback_t replaytv_functions = {
 //+***********************************************
 //    locals
 //+***********************************************
+
+// debug level
+static int rtv_debug = 0;
 
 // replaytv menu level
 static volatile rtv_menu_level_t  rtv_level = RTV_NO_MENU;
@@ -717,6 +734,7 @@ static int rtv_video_key(char key)
    int   cur_secs, comm_break_sec;
    char  timestamp_str[20];
 
+   RTV_DBGLOG(LOGTRC, "%s: Enter: key=%d\n", __FUNCTION__, key);
 	switch (key) {
 	case MVPW_KEY_ZERO ... MVPW_KEY_NINE:
       if ( !(rtv_video_state.processing_jump_input) ) {
@@ -1033,6 +1051,7 @@ static void play_show(const rtv_show_export_t *show, int start_gop)
    int                  start_time_ms;
    rtv_ndx_30_record_t  ndx30_rec;
 
+   RTV_DBGLOG(LOGTRC, "%s: Enter\n", __FUNCTION__);
    devinfo = (rtv_device_info_t*)&(current_rtv_device->device); //cast to override volatile warning
 
    mvpw_hide(rtv_show_browser);
@@ -1592,6 +1611,7 @@ static void rtv_device_menu_callback(mvp_widget_t *widget, char key)
 //
 static int rtv_back_to_device_menu(mvp_widget_t *widget)
 {
+   RTV_DBGLOG(LOGTRC, "%s: Enter\n", __FUNCTION__);
    mvpw_hide(rtv_show_browser);
    mvpw_hide(rtv_episode_description);
    mvpw_show(rtv_device_menu);
@@ -1631,6 +1651,7 @@ static void delete_show_from_guide( unsigned int show_idx )
    mvp_widget_t *wp;
    int rc;
 
+   RTV_DBGLOG(LOGTRC, "%s: Enter\n", __FUNCTION__);
    wp = show_message_window(NULL, "Deleting Show.  \nPlease Wait...  \n");
 
    // delete the show
@@ -1848,11 +1869,18 @@ int replaytv_init(char *init_str)
          else if ( strcmp(cur, "debug") == 0 ) {
             unsigned int dbgmask = strtoul((val), NULL, 16);
             rtv_set_dbgmask(dbgmask);
+            rtv_debug = dbgmask;
          }
          else if ( strcmp(cur, "logfile") == 0 ) {
             int rc; 
             if ( (rc = rtv_route_logs(val)) != 0 ) {
                printf("***ERROR: RTV: Failed to open logfile: %s\n", val);
+            }
+         }
+         else if ( strcmp(cur, "mode") == 0 ) {
+            int rc; 
+            if ( (rc = rtv_set_mode(val)) != 0 ) {
+               printf("***ERROR: RTV: Failed to set mode: %s\n", val);
             }
          }
          else {
@@ -1885,6 +1913,8 @@ int replaytv_device_update(void)
    rtv_device_t      **sorted_device_ptr_list;   
    running_replaytv = 1;
 
+   RTV_DBGLOG(LOGTRC, "%s: Enter\n", __FUNCTION__);
+   switch_hw_state(MVPMC_STATE_REPLAYTV);
    add_osd_widget(rtv_osd_proginfo_widget, OSD_PROGRAM, osd_settings.program, NULL);
    screensaver_enable();
    
@@ -1968,6 +1998,7 @@ int replaytv_device_update(void)
 //
 int replaytv_show_device_menu(void)
 {
+   RTV_DBGLOG(LOGTRC, "%s: Enter\n", __FUNCTION__);
    mvpw_show(rtv_menu_bg);
    mvpw_show(rtv_device_menu);
    mvpw_focus(rtv_device_menu);
@@ -1978,6 +2009,7 @@ int replaytv_show_device_menu(void)
 //
 int replaytv_hide_device_menu(void)
 {
+   RTV_DBGLOG(LOGTRC, "%s: Enter\n", __FUNCTION__);
    mvpw_hide(rtv_menu_bg);
    mvpw_hide(rtv_device_menu);
    mvpw_hide(rtv_device_descr.container);
@@ -1988,6 +2020,7 @@ int replaytv_hide_device_menu(void)
 //
 void replaytv_back_from_video(void)
 {
+   RTV_DBGLOG(LOGTRC, "%s: Enter\n", __FUNCTION__);
    video_stop_play();
    rtv_abort_read();
    video_clear();                //kick video.c
@@ -2005,7 +2038,8 @@ void replaytv_back_from_video(void)
 void replaytv_osd_proginfo_update(mvp_widget_t *widget)
 {  
    static const rtv_show_export_t *current_show_p = NULL;
-
+   
+   RTV_DBGLOG(LOGTRC, "%s: Enter\n", __FUNCTION__);
    if ( current_show_p != rtv_video_state.show_p ) {
       char descr[512];
       char *pos = descr;
@@ -2231,6 +2265,7 @@ int replay_gui_init(void)
 
 void replaytv_exit(void)
 {
+   RTV_DBGLOG(LOGTRC, "%s: Enter\n", __FUNCTION__);
 	/*
 	 * XXX: This needs to shut down replaytv if playback is started from
 	 *      some other piece of mvpmc.

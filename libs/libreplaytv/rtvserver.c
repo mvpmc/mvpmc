@@ -87,9 +87,11 @@ static int make_get_guide_resp( char *buf, int bufsz )
    char  bodylenstr[20];
    
    if ( rtv_globals.rtv_emulate_mode == RTV_DEVICE_4K ) {
+      RTV_DBGLOG(RTVLOG_DSCVR, "%s:----------Build 4K guide\n", __FUNCTION__);
       sslen = build_v1_bogus_snapshot(&ss);
    }
    else {
+      RTV_DBGLOG(RTVLOG_DSCVR, "%s:----------Build 5K guide\n", __FUNCTION__);
       sslen = build_v2_bogus_snapshot(&ss);
    }
    RTV_DBGLOG(RTVLOG_DSCVR, "%s:----------guide_sz=%d\n", __FUNCTION__, sslen);

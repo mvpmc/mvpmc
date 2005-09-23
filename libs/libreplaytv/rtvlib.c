@@ -107,6 +107,18 @@ __u32 rtv_get_dbgmask(void)
 }
 
 
+// rtv_set_mode
+//
+int rtv_set_mode(char *mode)
+{
+   if ( mode != NULL ) {
+      if ( mode[0] == '4' ) {
+         rtv_globals.rtv_emulate_mode = RTV_DEVICE_4K;
+      }
+   }
+   return(0);
+}
+
 // Time formatting api's
 //
 
