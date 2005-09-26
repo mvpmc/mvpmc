@@ -298,9 +298,13 @@ mvpw_add_menu_item(mvp_widget_t *widget, char *label, void *key,
 		.wrap = 0,
 		.justify = MVPW_TEXT_LEFT,
 		.margin = 4,
-		.font = widget->data.menu.font,
-		.fg = widget->data.menu.fg,
 	};
+
+	if (widget == NULL)
+		return -1;
+
+	attr.font = widget->data.menu.font;
+	attr.fg = widget->data.menu.fg;
 
 	if (widget->data.menu.nitems == 0) {
 		if ((widget->data.menu.items=
@@ -541,6 +545,9 @@ mvpw_set_menu_attr(mvp_widget_t *widget, mvpw_menu_attr_t *attr)
 {
 	int i;
 
+	if (widget == NULL)
+		return;
+
 	widget->data.menu.font = attr->font;
 	widget->data.menu.fg = attr->fg;
 	widget->data.menu.bg = attr->bg;
@@ -564,11 +571,34 @@ mvpw_set_menu_attr(mvp_widget_t *widget, mvpw_menu_attr_t *attr)
 }
 
 void
+mvpw_get_menu_attr(mvp_widget_t *widget, mvpw_menu_attr_t *attr)
+{
+	if (widget == NULL)
+		return;
+
+	attr->font = widget->data.menu.font;
+	attr->fg = widget->data.menu.fg;
+	attr->bg = widget->data.menu.bg;
+	attr->hilite_fg = widget->data.menu.hilite_fg;
+	attr->hilite_bg = widget->data.menu.hilite_bg;
+	attr->title_fg = widget->data.menu.title_fg;
+	attr->title_bg = widget->data.menu.title_bg;
+	attr->title_justify = widget->data.menu.title_justify;
+	attr->checkboxes = widget->data.menu.checkboxes;
+	attr->rounded = widget->data.menu.rounded;
+	attr->border_size = widget->border_size;
+	attr->border = widget->border_color;
+}
+
+void
 mvpw_clear_menu(mvp_widget_t *widget)
 {
 	int i;
 	char *str;
 	void *key;
+
+	if (widget == NULL)
+		return;
 
 	for (i=0; i<widget->data.menu.nitems; i++) {
 		str = widget->data.menu.items[i].label;
@@ -624,6 +654,9 @@ mvpw_menu_hilite_item(mvp_widget_t *widget, void *key)
 	void *k;
 	int i;
 	int ret = -1;
+
+	if (widget == NULL)
+		return -1;
 
 	for (i=0; i<widget->data.menu.nitems; i++) {
 		item = widget->data.menu.items + i;
