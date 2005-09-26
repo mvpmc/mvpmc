@@ -132,11 +132,12 @@ extern void cmyth_conn_release(cmyth_conn_t p);
 
 extern cmyth_conn_t cmyth_conn_connect_ctrl(char *server,
 					    unsigned short port,
-					    unsigned buflen);
+					    unsigned buflen, int tcp_rcvbuf);
 
 extern cmyth_file_t cmyth_conn_connect_file(cmyth_proginfo_t prog,
-					    unsigned buflen);
-extern int cmyth_conn_connect_ring(cmyth_recorder_t rec, unsigned buflen);
+					    unsigned buflen, int tcp_rcvbuf);
+extern int cmyth_conn_connect_ring(cmyth_recorder_t rec, unsigned buflen,
+				   int tcp_rcvbuf);
 
 extern int cmyth_conn_check_block(cmyth_conn_t conn, unsigned long size);
 

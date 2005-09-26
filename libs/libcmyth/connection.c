@@ -203,7 +203,8 @@ sighandler(int sig)
 }
 
 static cmyth_conn_t
-cmyth_connect(char *server, unsigned short port, unsigned buflen, int window)
+cmyth_connect(char *server, unsigned short port, unsigned buflen,
+	      int tcp_rcvbuf)
 {
 	cmyth_conn_t ret = NULL;
 	struct hostent *host;
@@ -212,7 +213,6 @@ cmyth_connect(char *server, unsigned short port, unsigned buflen, int window)
 	int fd;
 	void (*old_sighandler)(int);
 	int old_alarm;
-	int window_size = 4096;
 
 	/*
 	 * First try to establish the connection with the server.
@@ -244,9 +244,9 @@ cmyth_connect(char *server, unsigned short port, unsigned buflen, int window)
 	 * otherwise we risk the connection hanging.  Oddly, setting this
 	 * on the data sockets causes stuttering during playback.
 	 */
-	if (window)
+	if (tcp_rcvbuf > 0)
 		setsockopt(fd, SOL_SOCKET, SO_RCVBUF,
-			   (void*)&window_size, sizeof(window_size));
+			   (void*)&tcp_rcvbuf, sizeof(tcp_rcvbuf));
 	if (fd < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cannot create socket (%d)\n",
 			  __FUNCTION__, errno);
@@ -339,7 +339,8 @@ cmyth_connect(char *server, unsigned short port, unsigned buflen, int window)
  * Failure: NULL cmyth_conn_t
  */
 cmyth_conn_t
-cmyth_conn_connect_ctrl(char *server, unsigned short port, unsigned buflen)
+cmyth_conn_connect_ctrl(char *server, unsigned short port, unsigned buflen,
+			int tcp_rcvbuf)
 {
 	cmyth_conn_t conn;
 	char announcement[256];
@@ -347,7 +348,7 @@ cmyth_conn_connect_ctrl(char *server, unsigned short port, unsigned buflen)
 	int attempt = 0;
 
     top:
-	conn = cmyth_connect(server, port, buflen, 1);
+	conn = cmyth_connect(server, port, buflen, tcp_rcvbuf);
 	if (!conn) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_connect(%s, %d, %d) failed\n",
@@ -435,7 +436,7 @@ cmyth_conn_connect_ctrl(char *server, unsigned short port, unsigned buflen)
  * Failure: NULL cmyth_file_t
  */
 cmyth_file_t
-cmyth_conn_connect_file(cmyth_proginfo_t prog, unsigned buflen)
+cmyth_conn_connect_file(cmyth_proginfo_t prog, unsigned buflen, int tcp_rcvbuf)
 {
 	cmyth_conn_t conn = NULL;
 	char *announcement = NULL;
@@ -467,7 +468,7 @@ cmyth_conn_connect_file(cmyth_proginfo_t prog, unsigned buflen)
 		goto shut;
 	}
 	conn = cmyth_connect(prog->proginfo_host, prog->proginfo_port,
-			     buflen, 0);
+			     buflen, tcp_rcvbuf);
 	if (!conn) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_connect(%s, %d, %d) failed\n",
@@ -565,7 +566,7 @@ cmyth_conn_connect_file(cmyth_proginfo_t prog, unsigned buflen)
  * Failure: NULL cmyth_conn_t
  */
 int
-cmyth_conn_connect_ring(cmyth_recorder_t rec, unsigned buflen)
+cmyth_conn_connect_ring(cmyth_recorder_t rec, unsigned buflen, int tcp_rcvbuf)
 {
 	cmyth_conn_t conn;
 	char *announcement;
@@ -581,7 +582,7 @@ cmyth_conn_connect_ring(cmyth_recorder_t rec, unsigned buflen)
 	server = rec->rec_server;
 	port = rec->rec_port;
 
-	conn = cmyth_connect(server, port, buflen, 0);
+	conn = cmyth_connect(server, port, buflen, tcp_rcvbuf);
 	if (!conn) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_connect(%s, %d, %d) failed\n",
