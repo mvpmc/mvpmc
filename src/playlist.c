@@ -177,7 +177,6 @@ static int build_playlist_from_file(const char *filename)
   char *sep = NULL, *name = NULL;
   int seconds = -1;
   char *ptr;
-  ID3 *info;
   char buf[128];
   struct timeval start, end, delta;
 
@@ -285,7 +284,7 @@ static int build_playlist_from_file(const char *filename)
 	  sz = 0;
 	}
   }
-  snprintf(buf, sizeof(buf), "%s - %d files", filename, count-1);
+  snprintf(buf, sizeof(buf), "%s - %d files", filename, count);
   mvpw_set_menu_title(playlist_widget, buf);
   if (name)
     free(name);
@@ -295,14 +294,14 @@ static int build_playlist_from_file(const char *filename)
   /*fprintf(stderr,"playlist parsing done, %d items\n",count);*/
   gettimeofday(&end, NULL);
   timersub(&end, &start, &delta);
-  fprintf(stderr, "playlist parsing took %d.%.2d seconds\n",
+  fprintf(stderr, "playlist parsing took %ld.%.2ld seconds\n",
 	  delta.tv_sec, delta.tv_usec / 10000);
   pthread_mutex_unlock(&mutex);
   return(count);
 }
 
 static void
-playlist_idle(void)
+playlist_idle(mvp_widget_t *widget)
 {
   playlist_file_t playlist_type;
   static playlist_t *pl_item = NULL;
@@ -363,7 +362,7 @@ playlist_idle(void)
 void
 playlist_play(mvp_widget_t *widget)
 {
-	playlist_idle();
+	playlist_idle(NULL);
 }
 
 static void playlist_change(playlist_t *next)

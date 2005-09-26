@@ -1032,7 +1032,7 @@ static void* thread_read_start(void *arg)
 
    // Stream the file
    //
-   get_mpeg_file(current_rtv_device, (char*)arg, rtv_video_state.pos & ~(0x7FFFull), 0);
+   get_mpeg_file((rtv_device_t*)current_rtv_device, (char*)arg, rtv_video_state.pos & ~(0x7FFFull), 0);
    pthread_exit(NULL);
    return NULL;
 }

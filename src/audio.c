@@ -194,7 +194,6 @@ ogg_play(int afd)
 		return -1;
 	}
 
- retry:
 	if (do_read) {
 		ret = ov_read(&vf, pcmout, sizeof(pcmout), &current_section);
 		pos = 0;
