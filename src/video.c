@@ -261,6 +261,8 @@ video_clear(void)
 	pthread_cond_broadcast(&video_cond);
 
 	mvpw_set_bg(root, MVPW_BLACK);
+	mvpw_hide(wss_16_9_image);
+	mvpw_hide(wss_4_3_image);
 }
 
 void
@@ -469,7 +471,7 @@ seek_by(int seconds)
 	PRINTF("%d bps, currently %lld + %d\n",
 	       seek_bps, seek_start_pos, delta);
 
-	gettimeofday(&seek_timeval, NULL);
+	gettimeofday((struct timeval*)&seek_timeval, NULL);
 	seek_attempts = 16;
 	seeking = 1;
 	

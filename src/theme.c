@@ -332,6 +332,7 @@ tag_widget_color(parser_data_t *pdata, const char *el, const char **attr,
 		switch (theme_attr[cur_attr].type) {
 		case WIDGET_MENU:
 			color = &theme_attr[cur_attr].attr.menu->checkbox_fg;
+			theme_attr[cur_attr].attr.menu->checkboxes = 1;
 			break;
 		default:
 			return -1;
@@ -1103,7 +1104,7 @@ end(void *data, const char *el)
 	if (udata && udata->value) {
 		PRINTF("value '%s'\n", udata->value);
 		if (udata->func(pdata, udata->tag,
-				udata->attr, udata->value) < 0)
+				(const char**)udata->attr, udata->value) < 0)
 			theme_fail(pdata);
 		free(udata->value);
 	}

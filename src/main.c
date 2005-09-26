@@ -412,6 +412,7 @@ main(int argc, char **argv)
 	 * Allocate a shared memory region so that config options can
 	 * survive a crash or restart.
 	 */
+#ifndef MVPMC_HOST
 	if ((shmid=shmget(IPC_PRIVATE, sizeof(config_t), IPC_CREAT)) == -1) {
 		perror("shmget()");
 		exit(1);
@@ -420,6 +421,12 @@ main(int argc, char **argv)
 		perror("shmat()");
 		exit(1);
 	}
+#else
+	if ((config=(config_t*)malloc(sizeof(config_t))) == NULL) {
+		perror("malloc()");
+		exit(1);
+	}
+#endif
 
 	/*
 	 * Initialize the config options to what was passed in on the
@@ -438,7 +445,7 @@ main(int argc, char **argv)
 	config->osd_program = osd_settings.program;
 	config->osd_progress = osd_settings.progress;
 	config->osd_timecode = osd_settings.timecode;
-	config->brightness = root_color;
+	config->brightness = root_bright;
 
 #ifndef MVPMC_HOST
 	theme_parse(MASTER_THEME);
@@ -516,7 +523,11 @@ main(int argc, char **argv)
 	if (config->bitmask & CONFIG_OSD_TIMECODE)
 		osd_settings.timecode = config->osd_timecode;
 	if (config->bitmask & CONFIG_BRIGHTNESS)
-		root_color = config->brightness;
+		root_bright = config->brightness;
+	if (config->bitmask & CONFIG_MYTHTV_CONTROL)
+		mythtv_tcp_control = config->mythtv_tcp_control;
+	if (config->bitmask & CONFIG_MYTHTV_PROGRAM)
+		mythtv_tcp_program = config->mythtv_tcp_program;
 
 	if (font)
 		fontid = mvpw_load_font(font);
@@ -602,8 +613,8 @@ main(int argc, char **argv)
 	{
 #define NPAGES	1024
 		unsigned long heap = (unsigned long)sbrk(0);
-		char *pages[NPAGES], *buffer;
-		int i, sz, k;
+		char *pages[NPAGES], *buffer = NULL;
+		int i, sz, k = 0;
 
 		sz = getpagesize();
 		printf("approximate heap size %ld\n", heap-start);
@@ -648,10 +659,12 @@ main(int argc, char **argv)
 		exit(1);
 	}
 
-	if ((display_type != DISPLAY_DISABLE) && (display_init() < 0)) {
+#ifndef MVPMC_HOST
+	if (display_init() < 0) {
 		fprintf(stderr, "failed to initialize display driver!\n");
 		exit(1);
 	}
+#endif
 
 	atexit(mythtv_atexit);
 

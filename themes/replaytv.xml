@@ -157,14 +157,16 @@
   </widget>
 
   <widget type="menu" name="settings">
-    <color type="bg">black</color>
+    <color type="bg">midnightblue</color>
     <color type="fg">seashell3</color>
+    <color type="hilite_bg">darkgoldenrod4</color>
+    <color type="hilite_fg">black</color>
     <color type="title_bg">darkslategray</color>
     <color type="title_fg">seashell3</color>
-    <color type="hilite_bg">gray30</color>
-    <color type="hilite_fg">seashell3</color>
+    <color type="checkbox">seashell3</color>
     <style type="hilite">square</style>
-    <font>standard</font>
+    <style type="border_size">0</style>
+    <font>large</font>
   </widget>
 
   <widget type="menu" name="themes">
@@ -201,6 +203,15 @@
     <color type="title_fg">seashell3</color>
     <color type="border">gray15</color>
     <style type="border_size">5</style>
+    <font>large</font>
+  </widget>
+
+  <widget type="dialog" name="settings_dialog">
+    <color type="bg">midnightblue</color>
+    <color type="fg">seashell3</color>
+    <color type="title_bg">darkslategray</color>
+    <color type="title_fg">seashell3</color>
+    <style type="border_size">0</style>
     <font>large</font>
   </widget>
 

@@ -68,12 +68,34 @@ mvpw_menu_attr_t fb_attr = {
 static mvpw_menu_attr_t settings_attr = {
 	.font = FONT_STANDARD,
 	.fg = MVPW_BLACK,
+	.bg = MVPW_LIGHTGREY,
 	.hilite_fg = MVPW_WHITE,
 	.hilite_bg = MVPW_DARKGREY2,
 	.title_fg = MVPW_WHITE,
 	.title_bg = MVPW_BLUE,
 	.border_size = 2,
 	.border = MVPW_DARKGREY2,
+	.checkbox_fg = MVPW_GREEN,
+};
+
+static mvpw_dialog_attr_t settings_dialog_attr = {
+	.font = FONT_STANDARD,
+	.fg = MVPW_WHITE,
+	.bg = MVPW_DARKGREY,
+	.title_fg = MVPW_BLACK,
+	.title_bg = MVPW_WHITE,
+	.modal = 0,
+	.border_size = 0,
+};
+
+static mvpw_dialog_attr_t bright_dialog_attr = {
+	.font = FONT_STANDARD,
+	.fg = MVPW_WHITE,
+	.bg = MVPW_DARKGREY,
+	.title_fg = MVPW_BLACK,
+	.title_bg = MVPW_WHITE,
+	.modal = 0,
+	.border_size = 0,
 };
 
 static mvpw_menu_attr_t themes_attr = {
@@ -166,13 +188,6 @@ static mvpw_menu_item_attr_t themes_item_attr = {
 	.selectable = 1,
 	.fg = MVPW_GREEN,
 	.bg = MVPW_BLACK,
-	.checkbox_fg = MVPW_GREEN,
-};
-
-static mvpw_menu_item_attr_t sub_settings_item_attr = {
-	.selectable = 1,
-	.fg = MVPW_BLACK,
-	.bg = MVPW_LIGHTGREY,
 	.checkbox_fg = MVPW_GREEN,
 };
 
@@ -485,6 +500,12 @@ theme_attr_t theme_attr[] = {
 	{ .name = "busy_text",
 	  .type = WIDGET_TEXT,
 	  .attr.text = &busy_text_attr },
+	{ .name = "demux_audio",
+	  .type = WIDGET_GRAPH,
+	  .attr.graph = &demux_audio_graph_attr },
+	{ .name = "demux_video",
+	  .type = WIDGET_GRAPH,
+	  .attr.graph = &demux_video_graph_attr },
 	{ .name = "description",
 	  .type = WIDGET_TEXT,
 	  .attr.text = &description_attr },
@@ -524,6 +545,9 @@ theme_attr_t theme_attr[] = {
 	{ .name = "settings",
 	  .type = WIDGET_MENU,
 	  .attr.menu = &settings_attr },
+	{ .name = "settings_dialog",
+	  .type = WIDGET_DIALOG,
+	  .attr.dialog = &settings_dialog_attr },
 	{ .name = "splash",
 	  .type = WIDGET_TEXT,
 	  .attr.text = &splash_attr },
@@ -588,7 +612,15 @@ static mvp_widget_t *splash_graph;
 mvp_widget_t *main_menu;
 static mvp_widget_t *mvpmc_logo;
 static mvp_widget_t *settings;
+static mvp_widget_t *settings_av;
+static mvp_widget_t *settings_osd;
+static mvp_widget_t *settings_mythtv;
+static mvp_widget_t *settings_mythtv_control;
+static mvp_widget_t *settings_mythtv_program;
+static mvp_widget_t *settings_check;
+static mvp_widget_t *settings_nocheck;
 static mvp_widget_t *sub_settings;
+static mvp_widget_t *screensaver_dialog;
 static mvp_widget_t *about;
 static mvp_widget_t *setup_image;
 static mvp_widget_t *fb_image;
@@ -639,6 +671,7 @@ mvp_widget_t *video_stream_menu;
 mvp_widget_t *subtitle_stream_menu;
 mvp_widget_t *osd_menu;
 mvp_widget_t *bright_menu;
+mvp_widget_t *bright_dialog;
 
 mvp_widget_t *mythtv_program_widget;
 mvp_widget_t *mythtv_osd_program;
@@ -688,7 +721,6 @@ enum {
 	MM_ABOUT,
 	MM_SETTINGS,
 	MM_REPLAYTV,
-	MM_THEMES,
 };
 
 enum {
@@ -700,6 +732,35 @@ enum {
 	SETTINGS_COLORTEST,
 };
 
+typedef enum {
+	SETTINGS_MAIN_THEMES = 1,
+	SETTINGS_MAIN_COLORTEST,
+	SETTINGS_MAIN_AV,
+	SETTINGS_MAIN_SCREENSAVER,
+	SETTINGS_MAIN_DISPLAY,
+	SETTINGS_MAIN_MYTHTV,
+	SETTINGS_MAIN_OSD,
+} settings_main_t;
+
+typedef enum {
+	SETTINGS_AV_TV_MODE = 1,
+	SETTINGS_AV_VIDEO_OUTPUT,
+	SETTINGS_AV_AUDIO_OUTPUT,
+	SETTINGS_AV_ASPECT,
+} settings_av_t;
+
+typedef enum {
+	SETTINGS_MYTHTV_IP = 1,
+	SETTINGS_MYTHTV_TCP_PROGRAM,
+	SETTINGS_MYTHTV_TCP_CONTROL,
+} settings_mythtv_t;
+
+enum {
+	SETTINGS_OSD_BRIGHTNESS = 1,
+	SETTINGS_OSD_COLOR,
+};
+
+
 enum {
 	MENU_AUDIO_STREAM,
 	MENU_VIDEO_STREAM,
@@ -707,6 +768,8 @@ enum {
 	MENU_OSD,
 	MENU_BRIGHT,
 };
+
+static void settings_display_mode_callback(mvp_widget_t*, char*, void*);
 
 osd_widget_t osd_widgets[MAX_OSD_WIDGETS];
 osd_settings_t osd_settings = {
@@ -764,8 +827,6 @@ osd_widget_toggle(int type)
 	return on;
 }
 
-static void settings_select_callback(mvp_widget_t*, char*, void*);
-
 static void
 splash_update(char *str)
 {
@@ -800,8 +861,6 @@ mythtv_menu_callback(mvp_widget_t *widget, char key)
 		mvpw_hide(shows_widget);
 		mvpw_hide(episodes_widget);
 		mvpw_hide(freespace_widget);
-		mvpw_hide(wss_16_9_image);
-		mvpw_show(wss_4_3_image);
 
 		switch_gui_state(MVPMC_STATE_NONE);
 		mvpw_show(mythtv_image);
@@ -879,53 +938,139 @@ mythtv_info_key_callback(mvp_widget_t *widget, char key)
 }
 
 static void
-sub_settings_key_callback(mvp_widget_t *widget, char key)
+settings_key_callback(mvp_widget_t *widget, char key)
 {
-	if (key == MVPW_KEY_EXIT) {
-		mvpw_hide(settings);
-		mvpw_hide(sub_settings);
-
-		switch_gui_state(MVPMC_STATE_NONE);
+	switch (key) {
+	case MVPW_KEY_EXIT:
+		mvpw_hide(widget);
 		mvpw_show(main_menu);
 		mvpw_show(mvpmc_logo);
 		mvpw_show(setup_image);
-
 		mvpw_focus(main_menu);
-	}
-
-	if ((key == MVPW_KEY_LEFT) || (key == MVPW_KEY_VOL_DOWN)) {
-		/*
-		 * XXX: fix this
-		 */
-		settings_attr.hilite_bg = MVPW_BLUE;
-		mvpw_set_menu_attr(settings, &settings_attr);
-
-		settings_attr.hilite_bg = MVPW_DARKGREY;
-		mvpw_set_menu_attr(sub_settings, &settings_attr);
-
-		mvpw_expose(settings);
-		mvpw_expose(sub_settings);
-		mvpw_focus(settings);
+		break;
 	}
 }
 
 static void
-settings_key_callback(mvp_widget_t *widget, char key)
+settings_screensaver_key_callback(mvp_widget_t *widget, char key)
 {
-	if (key == MVPW_KEY_EXIT) {
-		mvpw_hide(settings);
-		mvpw_hide(sub_settings);
+	char buf[16];
 
-		switch_gui_state(MVPMC_STATE_NONE);
-		mvpw_show(main_menu);
-		mvpw_show(mvpmc_logo);
-		mvpw_show(setup_image);
-
-		mvpw_focus(main_menu);
+	switch (key) {
+	case MVPW_KEY_EXIT:
+		mvpw_hide(widget);
+		mvpw_show(settings);
+		mvpw_focus(settings);
+		break;
+	case MVPW_KEY_UP:
+		screensaver_timeout += 60;
+		break;
+	case MVPW_KEY_DOWN:
+		screensaver_timeout -= 60;
+		break;
 	}
 
-	if ((key == MVPW_KEY_RIGHT) || (key == MVPW_KEY_VOL_UP)) {
-		settings_select_callback(NULL, NULL, NULL);
+	if ((key == MVPW_KEY_UP) || (key == MVPW_KEY_DOWN)) {
+		if (screensaver_timeout < 0)
+			screensaver_timeout = 0;
+		printf("change screensaver timeout to %d\n",
+		       screensaver_timeout);
+		snprintf(buf, sizeof(buf), "%.2d:%.2d:%.2d",
+			 screensaver_timeout/3600,
+			 screensaver_timeout/60, screensaver_timeout%60);
+		mvpw_set_dialog_text(screensaver_dialog, buf);
+		mvpw_set_screensaver(screensaver, screensaver_timeout,
+				     screensaver_event);
+		config->screensaver_timeout = screensaver_timeout;
+		config->bitmask |= CONFIG_SCREENSAVER;
+	}
+}
+
+static void
+settings_mythtv_control_key_callback(mvp_widget_t *widget, char key)
+{
+	char buf[16];
+
+	switch (key) {
+	case MVPW_KEY_EXIT:
+		mvpw_hide(widget);
+		mvpw_show(settings_mythtv);
+		mvpw_focus(settings_mythtv);
+		break;
+	case MVPW_KEY_UP:
+		mythtv_tcp_control += 4096;
+		break;
+	case MVPW_KEY_DOWN:
+		mythtv_tcp_control -= 4096;
+		break;
+	}
+
+	if ((key == MVPW_KEY_UP) || (key == MVPW_KEY_DOWN)) {
+		if (mythtv_tcp_control < 0)
+			mythtv_tcp_control = 0;
+		snprintf(buf, sizeof(buf), "%d", mythtv_tcp_control);
+		mvpw_set_dialog_text(settings_mythtv_control, buf);
+		if (config->mythtv_tcp_control != mythtv_tcp_control) {
+			mythtv_test_exit();
+			config->mythtv_tcp_control = mythtv_tcp_control;
+			config->bitmask |= CONFIG_MYTHTV_CONTROL;
+		}
+	}
+}
+
+static void
+settings_mythtv_program_key_callback(mvp_widget_t *widget, char key)
+{
+	char buf[16];
+
+	switch (key) {
+	case MVPW_KEY_EXIT:
+		mvpw_hide(widget);
+		mvpw_show(settings_mythtv);
+		mvpw_focus(settings_mythtv);
+		break;
+	case MVPW_KEY_UP:
+		mythtv_tcp_program += 4096;
+		break;
+	case MVPW_KEY_DOWN:
+		mythtv_tcp_program -= 4096;
+		break;
+	}
+
+	if ((key == MVPW_KEY_UP) || (key == MVPW_KEY_DOWN)) {
+		if (mythtv_tcp_program < 0)
+			mythtv_tcp_program = 0;
+		snprintf(buf, sizeof(buf), "%d", mythtv_tcp_program);
+		mvpw_set_dialog_text(settings_mythtv_program, buf);
+		if (config->mythtv_tcp_program != mythtv_tcp_program) {
+			mythtv_test_exit();
+			config->mythtv_tcp_program = mythtv_tcp_program;
+			config->bitmask |= CONFIG_MYTHTV_PROGRAM;
+		}
+	}
+}
+
+static void
+settings_item_key_callback(mvp_widget_t *widget, char key)
+{
+	switch (key) {
+	case MVPW_KEY_EXIT:
+		mvpw_hide(widget);
+		mvpw_show(settings);
+		mvpw_focus(settings);
+		break;
+	}
+}
+
+static void
+settings_av_key_callback(mvp_widget_t *widget, char key)
+{
+	switch (key) {
+	case MVPW_KEY_EXIT:
+		mvpw_hide(widget);
+		mvpw_show(settings_av);
+		mvpw_focus(settings_av);
+		break;
 	}
 }
 
@@ -936,12 +1081,8 @@ themes_key_callback(mvp_widget_t *widget, char key)
 	case MVPW_KEY_EXIT:
 		mvpw_hide(widget);
 
-		switch_gui_state(MVPMC_STATE_NONE);
-		mvpw_show(main_menu);
-		mvpw_show(mvpmc_logo);
-		mvpw_show(setup_image);
-
-		mvpw_focus(main_menu);
+		mvpw_show(settings);
+		mvpw_focus(settings);
 		break;
 	}
 }
@@ -1406,8 +1547,7 @@ osd_select_callback(mvp_widget_t *widget, char *item, void *key)
 		break;
 	}
 
-	mvpw_check_menu_item(osd_menu, (void*)key, on);
-	mvpw_expose(osd_menu);
+	mvpw_check_menu_item(widget, (void*)key, on);
 }
 
 static void
@@ -1432,6 +1572,38 @@ bright_select_callback(mvp_widget_t *widget, char *item, void *key)
 	config->bitmask |= CONFIG_BRIGHTNESS;
 
 	mvpw_set_bg(root, root_color);
+}
+
+static void
+bright_key_callback(mvp_widget_t *widget, char key)
+{
+	char buf[16];
+
+	switch (key) {
+	case MVPW_KEY_EXIT:
+		mvpw_hide(widget);
+		return;
+		break;
+	case MVPW_KEY_UP:
+		root_bright++;
+		break;
+	case MVPW_KEY_DOWN:
+		root_bright--;
+		break;
+	}
+
+	snprintf(buf, sizeof(buf), "%d", root_bright);
+	mvpw_set_dialog_text(bright_dialog, buf);
+	if (root_bright > 0)
+		root_color = mvpw_color_alpha(MVPW_WHITE, root_bright*4);
+	else if (root_bright < 0)
+		root_color = mvpw_color_alpha(MVPW_BLACK, root_bright*-4);
+	else
+		root_color = 0;
+	mvpw_set_bg(root, root_color);
+
+	config->brightness = root_bright;
+	config->bitmask |= CONFIG_BRIGHTNESS;
 }
 
 static void
@@ -1463,8 +1635,8 @@ popup_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mvpw_focus(osd_menu);
 		break;
 	case MENU_BRIGHT:
-		mvpw_show(bright_menu);
-		mvpw_focus(bright_menu);
+		mvpw_show(bright_dialog);
+		mvpw_focus(bright_dialog);
 		break;
 	}
 }
@@ -1574,226 +1746,486 @@ run_colortest(void)
 }
 
 static void
-settings_callback_mode(mvp_widget_t *widget, char *item, void *key)
+settings_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
-	if (av_set_mode((int)key) < 0)
-		printf("set mode to %s failed\n", item);
-	else
-		printf("set mode to %s\n", item);
+	char buf[16];
+
+	mvpw_hide(widget);
+
+	switch ((settings_main_t)key) {
+	case SETTINGS_MAIN_THEMES:
+		mvpw_show(themes_menu);
+		mvpw_focus(themes_menu);
+		break;
+	case SETTINGS_MAIN_COLORTEST:
+		run_colortest();
+		break;
+	case SETTINGS_MAIN_AV:
+		mvpw_show(settings_av);
+		mvpw_focus(settings_av);
+		break;
+	case SETTINGS_MAIN_SCREENSAVER:
+		snprintf(buf, sizeof(buf), "%.2d:%.2d:%.2d",
+			 screensaver_timeout/3600,
+			 screensaver_timeout/60, screensaver_timeout%60);
+		mvpw_set_dialog_text(screensaver_dialog, buf);
+		mvpw_show(screensaver_dialog);
+		mvpw_focus(screensaver_dialog);
+		break;
+	case SETTINGS_MAIN_DISPLAY:
+		mvpw_get_menu_attr(settings_check, &settings_attr);
+		settings_item_attr.select = settings_display_mode_callback;
+		mvpw_set_menu_attr(settings_check, &settings_attr);
+
+		mvpw_clear_menu(settings_check);
+		mvpw_set_key(settings_check, settings_item_key_callback);
+		mvpw_set_menu_title(settings_check, "IEE Display");
+		mvpw_add_menu_item(settings_check, "Off",
+				   (void*)DISPLAY_DISABLE,
+				   &settings_item_attr);
+		mvpw_add_menu_item(settings_check, "16x1",
+				   (void*)DISPLAY_IEE16X1,
+				   &settings_item_attr);
+		mvpw_add_menu_item(settings_check, "40x2",
+				   (void*)DISPLAY_IEE40X2,
+				   &settings_item_attr);
+
+		mvpw_check_menu_item(settings_check, (void*)display_type, 1);
+
+		mvpw_show(settings_check);
+		mvpw_focus(settings_check);
+		break;
+	case SETTINGS_MAIN_MYTHTV:
+		mvpw_show(settings_mythtv);
+		mvpw_focus(settings_mythtv);
+		break;
+	case SETTINGS_MAIN_OSD:
+		mvpw_show(settings_osd);
+		mvpw_focus(settings_osd);
+		break;
+	}
+}
+
+static void
+mythtv_select_callback(mvp_widget_t *widget, char *item, void *key)
+{
+	char buf[16];
+
+	mvpw_hide(widget);
+
+	switch ((settings_mythtv_t)key) {
+	case SETTINGS_MYTHTV_IP:
+		/*
+		 * XXX: what to do here...?
+		 */
+		mvpw_show(widget);
+		mvpw_focus(widget);
+		break;
+	case SETTINGS_MYTHTV_TCP_PROGRAM:
+		snprintf(buf, sizeof(buf), "%d", mythtv_tcp_program);
+		mvpw_set_dialog_text(settings_mythtv_program, buf);
+		mvpw_show(settings_mythtv_program);
+		mvpw_focus(settings_mythtv_program);
+		break;
+	case SETTINGS_MYTHTV_TCP_CONTROL:
+		snprintf(buf, sizeof(buf), "%d", mythtv_tcp_control);
+		mvpw_set_dialog_text(settings_mythtv_control, buf);
+		mvpw_show(settings_mythtv_control);
+		mvpw_focus(settings_mythtv_control);
+		break;
+	}
+}
+
+static void
+settings_av_mode_callback(mvp_widget_t *widget, char *item, void *key)
+{
+	if ((av_mode_t)key == av_get_mode())
+		return;
+	if (((av_mode_t)key != AV_MODE_NTSC) &&
+	    ((av_mode_t)key != AV_MODE_PAL))
+		return;
+
+	mvpw_check_menu_item(settings_check, (void*)av_get_mode(), 0);
+	mvpw_check_menu_item(settings_check, key, 1);
+	av_set_mode((av_mode_t)key);
 
 	config->av_mode = (av_mode_t)key;
 	config->bitmask |= CONFIG_MODE;
 }
 
 static void
-settings_callback_video(mvp_widget_t *widget, char *item, void *key)
+settings_av_aspect_callback(mvp_widget_t *widget, char *item, void *key)
 {
-	if (av_set_output((int)key) < 0)
-		printf("set output to %s failed\n", item);
-	else
-		printf("set output to %s\n", item);
+	if ((av_aspect_t)key == av_get_aspect())
+		return;
+	if (((av_aspect_t)key != AV_ASPECT_4x3) &&
+	    ((av_aspect_t)key != AV_ASPECT_4x3_CCO) &&
+	    ((av_aspect_t)key != AV_ASPECT_16x9))
+		return;
 
-	config->av_video_output = (av_video_output_t)key;
-	config->bitmask |= CONFIG_VIDEO_OUTPUT;
-}
-
-static void
-settings_callback_aspect(mvp_widget_t *widget, char *item, void *key)
-{
-	if (av_set_aspect((int)key) < 0)
-		printf("set aspect to %s failed\n", item);
-	else
-		printf("set aspect to %s\n", item);
+	mvpw_check_menu_item(settings_check, (void*)av_get_aspect(), 0);
+	mvpw_check_menu_item(settings_check, key, 1);
+	av_set_aspect((av_aspect_t)key);
 
 	config->av_aspect = (int)key;
 	config->bitmask |= CONFIG_ASPECT;
 }
 
 static void
-settings_callback_screensaver(mvp_widget_t *widget, char *item, void *key)
+settings_av_audio_callback(mvp_widget_t *widget, char *item, void *key)
 {
-	screensaver_timeout = (int)key;
-	printf("screensaver timeout changed to %d\n", screensaver_timeout);
-	mvpw_set_screensaver(screensaver, screensaver_timeout,
-			     screensaver_event);
-
-	config->screensaver_timeout = screensaver_timeout;
-	config->bitmask |= CONFIG_SCREENSAVER;
-}
-
-static void
-sub_settings_hilite_callback(mvp_widget_t *widget, char *item, void *key,
-			     int hilite)
-{
-}
-
-static void
-settings_select_callback(mvp_widget_t *widget, char *item, void *key)
-{
-	if ( (int)key == SETTINGS_COLORTEST ) {
-		mvpw_hide(settings);
-		mvpw_hide(sub_settings);
-		run_colortest();
+	if ((av_passthru_t)key == audio_output_mode)
 		return;
-	}
+	if (((av_passthru_t)key != AUD_OUTPUT_STEREO) &&
+	    ((av_passthru_t)key != AUD_OUTPUT_PASSTHRU))
+		return;
 
-	/*
-	 * XXX: fix this
-	 */
-	settings_attr.hilite_bg = MVPW_BLUE;
-	mvpw_set_menu_attr(sub_settings, &settings_attr);
-
-	settings_attr.hilite_bg = MVPW_DARKGREY;
-	mvpw_set_menu_attr(settings, &settings_attr);
-
-	mvpw_expose(settings);
-	mvpw_expose(sub_settings);
-
-	mvpw_focus(sub_settings);
+	mvpw_check_menu_item(settings_check, (void*)audio_output_mode, 0);
+	mvpw_check_menu_item(settings_check, key, 1);
+	audio_output_mode = (av_passthru_t)key;
 }
 
 static void
-settings_hilite_callback(mvp_widget_t *widget, char *item, void *key,
-			 int hilite)
+settings_av_video_callback(mvp_widget_t *widget, char *item, void *key)
 {
-	char buf[256];
+	if ((av_video_output_t)key == av_get_output())
+		return;
+	if (((av_video_output_t)key != AV_OUTPUT_COMPOSITE) &&
+	    ((av_video_output_t)key != AV_OUTPUT_SVIDEO))
+		return;
 
-	if (hilite) {
-		mvpw_clear_menu(sub_settings);
-		sub_settings_item_attr.hilite = sub_settings_hilite_callback;
-		switch ((int)key) {
-		case SETTINGS_MODE:
-			sub_settings_item_attr.select = settings_callback_mode;
-			mvpw_add_menu_item(sub_settings, "PAL",
-					   (void*)AV_MODE_PAL,
-					   &sub_settings_item_attr);
-			mvpw_add_menu_item(sub_settings, "NTSC",
-					   (void*)AV_MODE_NTSC,
-					   &sub_settings_item_attr);
-			mvpw_menu_hilite_item(sub_settings,
-					      (void*)av_get_mode());
-			break;
-		case SETTINGS_OUTPUT:
-			sub_settings_item_attr.select = settings_callback_video;
-			mvpw_add_menu_item(sub_settings, "Composite",
-					   (void*)AV_OUTPUT_COMPOSITE,
-					   &sub_settings_item_attr);
-			mvpw_add_menu_item(sub_settings, "S-Video",
-					   (void*)AV_OUTPUT_SVIDEO,
-					   &sub_settings_item_attr);
-			mvpw_menu_hilite_item(sub_settings,
-					      (void*)av_get_output());
-			break;
-		case SETTINGS_FLICKER:
-			break;
-		case SETTINGS_ASPECT:
-			sub_settings_item_attr.select = settings_callback_aspect;
-			mvpw_add_menu_item(sub_settings, "4:3 (Letterboxed Widescreen)",
-					   (void*)AV_ASPECT_4x3,
-					   &sub_settings_item_attr);
-			mvpw_add_menu_item(sub_settings, "4:3 (Widescreen Centre-Cut-Out)",
-					   (void*)AV_ASPECT_4x3_CCO,
-					   &sub_settings_item_attr);
-			mvpw_add_menu_item(sub_settings, "16:9 (Full-Height / Automatic)",
-					   (void*)AV_ASPECT_16x9,
-					   &sub_settings_item_attr);
-			mvpw_menu_hilite_item(sub_settings,
-					      (void*)av_get_aspect());
-			break;
-		case SETTINGS_SCREENSAVER:
-			sub_settings_item_attr.select = settings_callback_screensaver;
-			snprintf(buf, sizeof(buf), "%d seconds",
-				 screensaver_default);
-			mvpw_add_menu_item(sub_settings, "off",
-					   (void*)0,
-					   &sub_settings_item_attr);
-			if ((screensaver_default > 0) &&
-			    (screensaver_default < 60)) {
-				mvpw_add_menu_item(sub_settings, buf,
-						   (void*)screensaver_default,
-						   &sub_settings_item_attr);
-			}
-			mvpw_add_menu_item(sub_settings, "1 minute",
-					   (void*)60,
-					   &sub_settings_item_attr);
-			if ((screensaver_default > 60) &&
-			    (screensaver_default < 300)) {
-				mvpw_add_menu_item(sub_settings, buf,
-						   (void*)screensaver_default,
-						   &sub_settings_item_attr);
-			}
-			mvpw_add_menu_item(sub_settings, "5 minutes",
-					   (void*)300,
-					   &sub_settings_item_attr);
-			if ((screensaver_default > 300)) {
-				mvpw_add_menu_item(sub_settings, buf,
-						   (void*)screensaver_default,
-						   &sub_settings_item_attr);
-			}
-			mvpw_menu_hilite_item(sub_settings,
-					      (void*)screensaver_timeout);
-			break;
-		}
-	} else {
+	mvpw_check_menu_item(settings_check, (void*)av_get_output(), 0);
+	mvpw_check_menu_item(settings_check, key, 1);
+	av_set_output((av_video_output_t)key);
+
+	config->av_video_output = (av_video_output_t)key;
+	config->bitmask |= CONFIG_VIDEO_OUTPUT;
+}
+
+static void
+settings_av_select_callback(mvp_widget_t *widget, char *item, void *key)
+{
+	mvpw_hide(widget);
+	mvpw_clear_menu(settings_check);
+
+	mvpw_set_key(settings_check, settings_av_key_callback);
+
+	switch ((settings_av_t)key) {
+	case SETTINGS_AV_TV_MODE:
+		mvpw_get_menu_attr(settings_check, &settings_attr);
+		settings_item_attr.select = settings_av_mode_callback;
+		mvpw_set_menu_attr(settings_check, &settings_attr);
+
+		mvpw_set_menu_title(settings_check, "TV Mode");
+		mvpw_add_menu_item(settings_check, "NTSC",
+				   (void*)AV_MODE_NTSC,
+				   &settings_item_attr);
+		mvpw_add_menu_item(settings_check, "PAL",
+				   (void*)AV_MODE_PAL,
+				   &settings_item_attr);
+
+		mvpw_check_menu_item(settings_check, (void*)av_get_mode(), 1);
+		break;
+	case SETTINGS_AV_ASPECT:
+		mvpw_get_menu_attr(settings_check, &settings_attr);
+		settings_item_attr.select = settings_av_aspect_callback;
+		mvpw_set_menu_attr(settings_check, &settings_attr);
+
+		mvpw_set_menu_title(settings_check, "Aspect Ratio");
+		mvpw_add_menu_item(settings_check,
+				   "4:3 (Letterboxed Widescreen)",
+				   (void*)AV_ASPECT_4x3,
+				   &settings_item_attr);
+		mvpw_add_menu_item(settings_check,
+				   "4:3 (Widescreen Centre-Cut-Out)",
+				   (void*)AV_ASPECT_4x3_CCO,
+				   &settings_item_attr);
+		mvpw_add_menu_item(settings_check,
+				   "16:9 (Full-Height / Automatic)",
+				   (void*)AV_ASPECT_16x9,
+				   &settings_item_attr);
+
+		mvpw_check_menu_item(settings_check,
+				     (void*)av_get_aspect(), 1);
+		break;
+	case SETTINGS_AV_AUDIO_OUTPUT:
+		mvpw_get_menu_attr(settings_check, &settings_attr);
+		settings_item_attr.select = settings_av_audio_callback;
+		mvpw_set_menu_attr(settings_check, &settings_attr);
+
+		mvpw_set_menu_title(settings_check, "Audio Output");
+		mvpw_add_menu_item(settings_check, "Stereo",
+				   (void*)AUD_OUTPUT_STEREO,
+				   &settings_item_attr);
+		mvpw_add_menu_item(settings_check, "SPDIF Passthru",
+				   (void*)AUD_OUTPUT_PASSTHRU,
+				   &settings_item_attr);
+
+		mvpw_check_menu_item(settings_check,
+				     (void*)audio_output_mode, 1);
+		break;
+	case SETTINGS_AV_VIDEO_OUTPUT:
+		mvpw_get_menu_attr(settings_check, &settings_attr);
+		settings_item_attr.select = settings_av_video_callback;
+		mvpw_set_menu_attr(settings_check, &settings_attr);
+
+		mvpw_set_menu_title(settings_check, "Video Output");
+		mvpw_add_menu_item(settings_check, "Composite",
+				   (void*)AV_OUTPUT_COMPOSITE,
+				   &settings_item_attr);
+		mvpw_add_menu_item(settings_check, "S-Video",
+				   (void*)AV_OUTPUT_SVIDEO,
+				   &settings_item_attr);
+
+		mvpw_check_menu_item(settings_check,
+				     (void*)av_get_output(), 1);
+		break;
 	}
+
+	mvpw_show(settings_check);
+	mvpw_focus(settings_check);
+}
+
+static void
+settings_display_mode_callback(mvp_widget_t *widget, char *item, void *key)
+{
+	if ((int)key == display_type)
+		return;
+	if (((int)key != DISPLAY_DISABLE) &&
+	    ((int)key != DISPLAY_IEE16X1) &&
+	    ((int)key != DISPLAY_IEE40X2))
+		return;
+
+	mvpw_check_menu_item(settings_check, (void*)display_type, 0);
+	mvpw_check_menu_item(settings_check, key, 1);
+	audio_output_mode = (int)key;
 }
 
 static int
 settings_init(void)
 {
-	int i, x, y, w, h, num_cols, num_rows, bufpos;
-	char buf[255];
+	int x, y, w, h;
 
-	splash_update("Creating settings");
+	splash_update("Creating settings menus");
 
-	h = mvpw_font_height(description_attr.font) +
-		(2 * description_attr.margin);
-	w = (si.cols - 100) / 2;
+	h = 6 * (mvpw_font_height(settings_attr.font) + 8);
+	w = (si.cols - 250);
 
-	x = 50;
-	y = (si.rows / 2) - (h * 2);
+	x = (si.cols - w) / 2;
+	y = (si.rows - h) / 2;
 
 	/*
-	 * XXX: fix this
+	 * main settings menu
 	 */
-
-	settings = mvpw_create_menu(NULL, x, y, w, h*5,
+	settings = mvpw_create_menu(NULL, x, y, w, h,
 				    settings_attr.bg, settings_attr.border,
 				    settings_attr.border_size);
-
-	settings_attr.hilite_bg = MVPW_BLUE;
-	mvpw_set_key(settings, settings_key_callback);
+	settings_attr.checkboxes = 0;
 	mvpw_set_menu_attr(settings, &settings_attr);
+	mvpw_set_menu_title(settings, "Settings");
+	mvpw_set_key(settings, settings_key_callback);
 
-	mvpw_set_bg(settings, MVPW_LIGHTGREY);
+	settings_item_attr.fg = settings_attr.fg;
+	settings_item_attr.bg = settings_attr.bg;
+	if (settings_attr.checkbox_fg)
+		settings_item_attr.checkbox_fg = settings_attr.checkbox_fg;
 
-	settings_attr.hilite_bg = MVPW_DARKGREY;
-	x += w;
-	sub_settings = mvpw_create_menu(NULL, x, y, w, h*5,
+	settings_item_attr.hilite = NULL;
+	settings_item_attr.select = settings_select_callback;
+
+	mvpw_add_menu_item(settings, "Audio/Video",
+			   (void*)SETTINGS_MAIN_AV, &settings_item_attr);
+#ifndef MVPMC_HOST
+	mvpw_add_menu_item(settings, "IEE Display",
+			   (void*)SETTINGS_MAIN_DISPLAY, &settings_item_attr);
+#endif
+	mvpw_add_menu_item(settings, "MythTV",
+			   (void*)SETTINGS_MAIN_MYTHTV, &settings_item_attr);
+	mvpw_add_menu_item(settings, "On-Screen-Display",
+			   (void*)SETTINGS_MAIN_OSD, &settings_item_attr);
+	mvpw_add_menu_item(settings, "Screensaver",
+			   (void*)SETTINGS_MAIN_SCREENSAVER,
+			   &settings_item_attr);
+	mvpw_add_menu_item(settings, "Test Color Combinations",
+			   (void*)SETTINGS_MAIN_COLORTEST,
+			   &settings_item_attr);
+	mvpw_add_menu_item(settings, "Themes",
+			   (void*)SETTINGS_MAIN_THEMES, &settings_item_attr);
+
+	/*
+	 * av settings menu
+	 */
+	settings_av = mvpw_create_menu(NULL, x, y, w, h,
+				       settings_attr.bg, settings_attr.border,
+				       settings_attr.border_size);
+	settings_attr.checkboxes = 0;
+	mvpw_set_menu_attr(settings_av, &settings_attr);
+	mvpw_set_menu_title(settings_av, "Audio/Video Settings");
+	mvpw_set_key(settings_av, settings_item_key_callback);
+
+	settings_item_attr.hilite = NULL;
+	settings_item_attr.select = settings_av_select_callback;
+
+	mvpw_add_menu_item(settings_av, "Audio Output",
+			   (void*)SETTINGS_AV_AUDIO_OUTPUT,
+			   &settings_item_attr);
+	mvpw_add_menu_item(settings_av, "TV Aspect Ratio",
+			   (void*)SETTINGS_AV_ASPECT, &settings_item_attr);
+	mvpw_add_menu_item(settings_av, "TV Mode",
+			   (void*)SETTINGS_AV_TV_MODE, &settings_item_attr);
+#if 0
+	mvpw_add_menu_item(settings_av, "Flicker Control",
+			   (void*)SETTINGS_AV_FLICKER, &settings_item_attr);
+#endif
+	mvpw_add_menu_item(settings_av, "Video Output",
+			   (void*)SETTINGS_AV_VIDEO_OUTPUT,
+			   &settings_item_attr);
+
+	/*
+	 * osd settings menu
+	 */
+	settings_osd = mvpw_create_menu(NULL, x, y, w, h,
 					settings_attr.bg, settings_attr.border,
 					settings_attr.border_size);
-	mvpw_set_key(sub_settings, sub_settings_key_callback);
-	mvpw_set_menu_attr(sub_settings, &settings_attr);
-	mvpw_set_bg(sub_settings, MVPW_LIGHTGREY);
+	settings_attr.checkboxes = 1;
+	mvpw_set_menu_attr(settings_osd, &settings_attr);
+	mvpw_set_menu_title(settings_osd, "OSD Settings");
+	mvpw_set_key(settings_osd, settings_item_key_callback);
 
-	mvpw_attach(settings, sub_settings, MVPW_DIR_RIGHT);
+	settings_item_attr.hilite = NULL;
+	settings_item_attr.select = osd_select_callback;
 
-	settings_item_attr.hilite = settings_hilite_callback;
-	settings_item_attr.select = settings_select_callback;
-	mvpw_add_menu_item(settings, "TV Mode",
-			   (void*)SETTINGS_MODE, &settings_item_attr);
-	mvpw_add_menu_item(settings, "Output",
-			   (void*)SETTINGS_OUTPUT, &settings_item_attr);
+	mvpw_add_menu_item(settings_osd, "Bitrate",
+			   (void*)OSD_BITRATE, &settings_item_attr);
+	mvpw_add_menu_item(settings_osd, "Clock",
+			   (void*)OSD_CLOCK, &settings_item_attr);
+	mvpw_add_menu_item(settings_osd, "Demux Info",
+			   (void*)OSD_DEMUX, &settings_item_attr);
+	mvpw_add_menu_item(settings_osd, "Program Info",
+			   (void*)OSD_PROGRAM, &settings_item_attr);
+	mvpw_add_menu_item(settings_osd, "Progress",
+			   (void*)OSD_PROGRESS, &settings_item_attr);
+	mvpw_add_menu_item(settings_osd, "Timecode",
+			   (void*)OSD_TIMECODE, &settings_item_attr);
+
+	mvpw_check_menu_item(settings_osd, (void*)OSD_BITRATE,
+			     osd_settings.bitrate);
+	mvpw_check_menu_item(settings_osd, (void*)OSD_CLOCK,
+			     osd_settings.clock);
+	mvpw_check_menu_item(settings_osd, (void*)OSD_DEMUX,
+			     osd_settings.demux_info);
+	mvpw_check_menu_item(settings_osd, (void*)OSD_PROGRESS,
+			     osd_settings.progress);
+	mvpw_check_menu_item(settings_osd, (void*)OSD_PROGRAM,
+			     osd_settings.program);
+	mvpw_check_menu_item(settings_osd, (void*)OSD_TIMECODE,
+			     osd_settings.timecode);
+
+	/*
+	 * mythtv settings menu
+	 */
+	settings_mythtv = mvpw_create_menu(NULL, x, y, w, h,
+					   settings_attr.bg,
+					   settings_attr.border,
+					   settings_attr.border_size);
+	settings_attr.checkboxes = 0;
+	mvpw_set_menu_attr(settings_mythtv, &settings_attr);
+	mvpw_set_menu_title(settings_mythtv, "MythTV Settings");
+	mvpw_set_key(settings_mythtv, settings_item_key_callback);
+
+	settings_item_attr.hilite = NULL;
+	settings_item_attr.select = mythtv_select_callback;
+
 #if 0
-	mvpw_add_menu_item(settings, "Flicker Control",
-			   (void*)SETTINGS_FLICKER, &settings_item_attr);
+	mvpw_add_menu_item(settings_mythtv,
+			   "MythTV IP Address",
+			   (void*)SETTINGS_MYTHTV_IP, &settings_item_attr);
 #endif
-	mvpw_add_menu_item(settings, "Aspect Ratio",
-			   (void*)SETTINGS_ASPECT, &settings_item_attr);
-	mvpw_add_menu_item(settings, "Screensaver Timeout",
-			   (void*)SETTINGS_SCREENSAVER, &settings_item_attr);
-	mvpw_add_menu_item(settings, "ColorTest",
-			   (void*)SETTINGS_COLORTEST, &settings_item_attr);
+	mvpw_add_menu_item(settings_mythtv,
+			   "Control TCP Receive Buffer",
+			   (void*)SETTINGS_MYTHTV_TCP_CONTROL,
+			   &settings_item_attr);
+	mvpw_add_menu_item(settings_mythtv,
+			   "Program TCP Receive Buffer",
+			   (void*)SETTINGS_MYTHTV_TCP_PROGRAM,
+			   &settings_item_attr);
+
+	/*
+	 * settings menu with checkboxes
+	 */
+	settings_check = mvpw_create_menu(NULL, x, y, w, h,
+					  settings_attr.bg,
+					  settings_attr.border,
+					  settings_attr.border_size);
+	settings_attr.checkboxes = 1;
+	settings_item_attr.hilite = NULL;
+	settings_item_attr.select = NULL;
+	mvpw_set_menu_attr(settings_check, &settings_attr);
+
+	/*
+	 * settings menu without checkboxes
+	 */
+	settings_nocheck = mvpw_create_menu(NULL, x, y, w, h,
+					    settings_attr.bg,
+					    settings_attr.border,
+					    settings_attr.border_size);
+	settings_attr.checkboxes = 0;
+	settings_item_attr.hilite = NULL;
+	settings_item_attr.select = NULL;
+	mvpw_set_menu_attr(settings_nocheck, &settings_attr);
+
+	/*
+	 * screensaver widgets
+	 */
+	h = 2 * (mvpw_font_height(settings_dialog_attr.font) + 8);
+	screensaver_dialog = mvpw_create_dialog(NULL, x, y, w, h,
+						settings_dialog_attr.bg,
+						settings_dialog_attr.border,
+						settings_dialog_attr.border_size);
+	mvpw_set_dialog_attr(screensaver_dialog, &settings_dialog_attr);
+	mvpw_set_key(screensaver_dialog, settings_screensaver_key_callback);
+	mvpw_set_dialog_title(screensaver_dialog, "Screensaver Timeout");
+	mvpw_set_dialog_text(screensaver_dialog, "");
+
+	/*
+	 * mythtv widgets
+	 */
+	h = 2 * (mvpw_font_height(settings_dialog_attr.font) + 8);
+	settings_mythtv_control = mvpw_create_dialog(NULL, x, y, w, h,
+						settings_dialog_attr.bg,
+						settings_dialog_attr.border,
+						settings_dialog_attr.border_size);
+	mvpw_set_dialog_attr(settings_mythtv_control,
+			     &settings_dialog_attr);
+	mvpw_set_key(settings_mythtv_control,
+		     settings_mythtv_control_key_callback);
+	mvpw_set_dialog_title(settings_mythtv_control,
+			      "MythTV Control TCP Receiver Buffer");
+	mvpw_set_dialog_text(settings_mythtv_control, "");
+
+	h = 2 * (mvpw_font_height(settings_dialog_attr.font) + 8);
+	settings_mythtv_program = mvpw_create_dialog(NULL, x, y, w, h,
+						settings_dialog_attr.bg,
+						settings_dialog_attr.border,
+						settings_dialog_attr.border_size);
+	mvpw_set_dialog_attr(settings_mythtv_program,
+			     &settings_dialog_attr);
+	mvpw_set_key(settings_mythtv_program,
+		     settings_mythtv_program_key_callback);
+	mvpw_set_dialog_title(settings_mythtv_program,
+			      "MythTV Program TCP Receiver Buffer");
+	mvpw_set_dialog_text(settings_mythtv_program, "");
+
+	return 0;
+}
+
+static int
+colortest_init(void)
+{
+	int i, w, h, num_cols, num_rows, bufpos;
+	char buf[255];
+
+	splash_update("Creating colortest");
 
 	/*
 	 * Init colottest
@@ -2114,12 +2546,6 @@ main_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mvpw_hide(main_menu);
 		mvpw_hide(setup_image);
 
-		settings_attr.hilite_bg = MVPW_BLUE;
-		mvpw_set_menu_attr(settings, &settings_attr);
-
-		settings_attr.hilite_bg = MVPW_DARKGREY;
-		mvpw_set_menu_attr(sub_settings, &settings_attr);
-
 		mvpw_show(settings);
 		mvpw_show(sub_settings);
 		mvpw_focus(settings);
@@ -2147,13 +2573,6 @@ main_select_callback(mvp_widget_t *widget, char *item, void *key)
 		replaytv_device_update();
 		replaytv_show_device_menu();
 		break;
-	case MM_THEMES:
-		mvpw_hide(main_menu);
-		mvpw_hide(setup_image);
-
-		mvpw_show(themes_menu);
-		mvpw_focus(themes_menu);
-		break;
 	case MM_ABOUT:
 		mvpw_show(about);
 		mvpw_focus(about);
@@ -2175,12 +2594,6 @@ main_hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 			mvpw_show(setup_image);
 			snprintf(display_message, sizeof(display_message),
 				 "File:%s\n", "Settings");
-			display_send(display_message);
-			break;
-		case MM_THEMES:
-			mvpw_show(setup_image);
-			snprintf(display_message, sizeof(display_message),
-				  "File:%s\n", "Themes");
 			display_send(display_message);
 			break;
 		case MM_FILESYSTEM:
@@ -2217,9 +2630,6 @@ main_hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 	} else {
 		switch (k) {
 		case MM_SETTINGS:
-			mvpw_hide(setup_image);
-			break;
-		case MM_THEMES:
 			mvpw_hide(setup_image);
 			break;
 		case MM_FILESYSTEM:
@@ -2389,9 +2799,6 @@ main_menu_init(char *server, char *replaytv)
 			   (void*)MM_FILESYSTEM, &item_attr);
 	mvpw_add_menu_item(main_menu, "Settings",
 			   (void*)MM_SETTINGS, &item_attr);
-	if (theme_count > 1)
-		mvpw_add_menu_item(main_menu, "Themes",
-				   (void*)MM_THEMES, &item_attr);
 	mvpw_add_menu_item(main_menu, "About",
 			   (void*)MM_ABOUT, &item_attr);
 #ifdef MVPMC_HOST
@@ -2703,6 +3110,7 @@ int
 popup_init(void)
 {
 	int x, y, w, h;
+	char buf[16];
 
 	h = 8 * (mvpw_font_height(popup_attr.font) + 8);
 	w = mvpw_font_width(popup_attr.font, "On Screen Display") * 1.5;
@@ -2833,6 +3241,19 @@ popup_init(void)
 	mvpw_add_menu_item(bright_menu, "+3", (void*)3, &popup_item_attr);
 
 	mvpw_check_menu_item(bright_menu, (void*)0, 1);
+
+	h = 2 * (mvpw_font_height(bright_dialog_attr.font) + 8);
+	x = (si.cols - w) / 2;
+	y = si.rows - (h * 2);
+	bright_dialog = mvpw_create_dialog(NULL, x, y, w, h,
+						bright_dialog_attr.bg,
+						bright_dialog_attr.border,
+						bright_dialog_attr.border_size);
+	mvpw_set_dialog_attr(bright_dialog, &bright_dialog_attr);
+	mvpw_set_key(bright_dialog, bright_key_callback);
+	mvpw_set_dialog_title(bright_dialog, "Brightness");
+	snprintf(buf, sizeof(buf), "%d", root_bright);
+	mvpw_set_dialog_text(bright_dialog, buf);
 
 	return 0;
 }
@@ -3077,6 +3498,7 @@ gui_init(char *server, char *replaytv)
 		return -1;
 	file_browser_init();
 	settings_init();
+	colortest_init();
 	themes_init();
 	about_init();
 	image_init();

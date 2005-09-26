@@ -84,6 +84,7 @@ volatile mythtv_state_t mythtv_state = MYTHTV_STATE_MAIN;
 static int show_count, episode_count;
 static volatile int list_all = 0;
 
+int playing_file = 0;
 int running_mythtv = 0;
 int mythtv_main_menu = 0;
 int mythtv_debug = 0;
@@ -131,6 +132,9 @@ char *recdir_token = NULL;
 char *test_path = NULL;
 FILE *test_file;
 
+int mythtv_tcp_control = 4096;
+int mythtv_tcp_program = 0;
+
 static video_callback_t mythtv_functions = {
 	.open      = mythtv_open,
 	.read      = mythtv_read,
@@ -156,7 +160,7 @@ mythtv_color_t mythtv_colors = {
 	.pending_recording	= 0xff4fa5ff,
 	.pending_will_record	= MVPW_GREEN,
 	.pending_conflict	= MVPW_YELLOW,
-	.pending_other		= MVPW_LIGHTGREY,
+	.pending_other		= MVPW_BLACK,
 };
 
 static int
@@ -348,6 +352,7 @@ mythtv_close_file(void)
 	}
 
 	close_mythtv = 0;
+	playing_file = 0;
 
 	pthread_kill(control_thread, SIGURG);
 }
@@ -378,7 +383,7 @@ hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 		title = cmyth_proginfo_title(hilite_prog);
 		subtitle = cmyth_proginfo_subtitle(hilite_prog);
 		if (channame) {
-			mvpw_set_text_str(mythtv_channel, channame);
+			mvpw_set_text_str(mythtv_channel, (char*)channame);
 		} else {
 			printf("program channel name not found!\n");
 			mvpw_set_text_str(mythtv_channel, "");
@@ -387,7 +392,7 @@ hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 
 		description = cmyth_proginfo_description(hilite_prog);
 		if (description) {
-			mvpw_set_text_str(mythtv_description, description);
+			mvpw_set_text_str(mythtv_description, (char*)description);
 		} else {
 			printf("program description not found!\n");
 			mvpw_set_text_str(mythtv_description, "");
@@ -401,7 +406,7 @@ hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 		cmyth_timestamp_to_string(end, ts);
 		cmyth_timestamp_release(ts);
 		
-		pathname = cmyth_proginfo_pathname(hilite_prog);
+		pathname = (char*)cmyth_proginfo_pathname(hilite_prog);
 
 		if (hilite_path)
 			free(hilite_path);
@@ -645,7 +650,7 @@ add_episodes(mvp_widget_t *widget, char *item, int load)
 			if ((strcmp(subtitle, " ") == 0) ||
 			    (subtitle[0] == '\0'))
 				subtitle = "<no subtitle>";
-			mvpw_add_menu_item(widget, subtitle, (void*)n,
+			mvpw_add_menu_item(widget, (char*)subtitle, (void*)n,
 					   &item_attr);
 			episodes++;
 		} else if (strcmp(prog, "All - Oldest first") == 0) {
@@ -707,7 +712,7 @@ add_shows(mvp_widget_t *widget)
 			if (strcmp(title, titles[j]) == 0)
 				break;
 		if (j == n) {
-			titles[n] = title;
+			titles[n] = (char*)title;
 			n++;
 		}
 		cmyth_proginfo_release(prog);
@@ -862,8 +867,8 @@ pending_hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 		pending_prog = cmyth_proglist_get_item(pending_plist, n);
 
 		status = cmyth_proginfo_rec_status(pending_prog);
-		description = cmyth_proginfo_description(pending_prog);
-		channame = cmyth_proginfo_channame(pending_prog);
+		description = (char*)cmyth_proginfo_description(pending_prog);
+		channame = (char*)cmyth_proginfo_channame(pending_prog);
 		ts = cmyth_proginfo_rec_start(pending_prog);
 		cmyth_timestamp_to_string(start, ts);
 		cmyth_timestamp_release(ts);
@@ -929,10 +934,11 @@ pending_hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 int
 mythtv_pending(mvp_widget_t *widget)
 {
-	int err, i, count, ret = 0;
+	int err, i, count, ret = 0, days = 0, last_day = 0, displayed = 0;
 	char *title, *subtitle;
-	time_t t, rec_t;
+	time_t t, rec_t, last_t = 0;
 	struct tm *tm, rec_tm;
+	char buf[64];
 
 	if (mythtv_verify() < 0)
 		return -1;
@@ -952,7 +958,9 @@ mythtv_pending(mvp_widget_t *widget)
 	mvpw_show(mythtv_description);
 	mvpw_show(mythtv_record);
 
-	mvpw_set_menu_title(widget, "Recording Schedule");
+	snprintf(buf, sizeof(buf), "Recording Schedule - %d day%s",
+		 days, (days == 1) ? "" : "s");
+	mvpw_set_menu_title(widget, buf);
 	mvpw_clear_menu(widget);
 
 	if (pending_plist)
@@ -991,8 +999,8 @@ mythtv_pending(mvp_widget_t *widget)
 			cmyth_proginfo_release(pending_prog);
 
 		pending_prog = cmyth_proglist_get_item(pending_plist, i);
-		title = cmyth_proginfo_title(pending_prog);
-		subtitle = cmyth_proginfo_subtitle(pending_prog);
+		title = (char*)cmyth_proginfo_title(pending_prog);
+		subtitle = (char*)cmyth_proginfo_subtitle(pending_prog);
 
 		ts = cmyth_proginfo_rec_start(pending_prog);
 		cmyth_timestamp_to_string(start, ts);
@@ -1089,13 +1097,37 @@ mythtv_pending(mvp_widget_t *widget)
 		ptr = strchr(ptr, ':');
 		minute = atoi(++ptr);
 
+		rec_tm.tm_year = year - 1900;
+		rec_tm.tm_mon = month - 1;
+		rec_tm.tm_mday = day;
+		rec_tm.tm_hour = hour;
+		rec_tm.tm_min = minute;
+		rec_tm.tm_sec = 0;
+		rec_tm.tm_wday = 0;
+		rec_tm.tm_yday = 0;
+		rec_tm.tm_isdst = -1;
+
+		rec_t = mktime(&rec_tm);
+
 		snprintf(buf, sizeof(buf),
 			 "%.2d/%.2d  %.2d:%.2d   %c   %s  -  %s",
 			 month, day, hour, minute, type, title, subtitle);
 
 		mvpw_add_menu_item(widget, buf, (void*)i, &item_attr);
+
+		if ((rec_t > last_t) && (rec_tm.tm_mday != last_day)) {
+			days++;
+			last_day = rec_tm.tm_mday;
+			last_t = rec_t;
+		}
+
+		displayed++;
 	}
 
+	snprintf(buf, sizeof(buf),
+		 "Recording Schedule - %d shows over %d day%s",
+		 displayed, days, (days == 1) ? "" : "s");
+	mvpw_set_menu_title(widget, buf);
  out:
 	pthread_mutex_unlock(&myth_mutex);
 
@@ -1325,7 +1357,8 @@ mythtv_init(char *server_name, int portnum)
 	if (portnum > 0)
 		port = portnum;
 
-	if ((control=cmyth_conn_connect_ctrl(server, port, 16*1024)) == NULL) {
+	if ((control=cmyth_conn_connect_ctrl(server, port, 16*1024,
+					     mythtv_tcp_control)) == NULL) {
 		fprintf(stderr, "cannot connect to mythtv server %s\n",
 			server);
 		return -1;
@@ -1523,7 +1556,6 @@ mythtv_open(void)
 {
 	char *host;
 	int port = 6543;
-	char buf[256];
 
 	if ((host=cmyth_proginfo_host(current_prog)) == NULL) {
 		fprintf(stderr, "unknown myth backend\n");
@@ -1536,16 +1568,16 @@ mythtv_open(void)
 		cmyth_conn_release(c);
 	}
 	printf("connecting to mythtv (slave) backend %s\n", host);
-	if ((control_slave=cmyth_conn_connect_ctrl(host, port,
-						   1024)) == NULL) {
+	if ((control_slave=cmyth_conn_connect_ctrl(host, port, 1024,
+						   mythtv_tcp_control)) == NULL) {
 		mythtv_shutdown();
 		return -1;
 	}
 
 	playing_via_mythtv = 1;
 
-	if ((file=cmyth_conn_connect_file(current_prog,
-					  BSIZE)) == NULL) {
+	if ((file=cmyth_conn_connect_file(current_prog, BSIZE,
+					  mythtv_tcp_program)) == NULL) {
 		video_clear();
 		mvpw_set_idle(NULL);
 		mvpw_set_timer(root, NULL, 0);
@@ -1554,6 +1586,8 @@ mythtv_open(void)
 	}
 
 	printf("starting mythtv file transfer\n");
+
+	playing_file = 1;
 
 	pthread_cond_signal(&cond);
 
@@ -1781,7 +1815,7 @@ mythtv_livetv_start(int *tuner)
 {
 	double rate;
 	char *rb_file;
-	char *msg = NULL, buf[256];
+	char *msg = NULL;
 	int c, i, id = 0;
 
 	if (playing_via_mythtv && file)
@@ -1850,7 +1884,8 @@ mythtv_livetv_start(int *tuner)
 		goto err;
 	}
 
-	if (cmyth_conn_connect_ring(recorder, 16*1024) != 0) {
+	if (cmyth_conn_connect_ring(recorder, 16*1024,
+				    mythtv_tcp_program) != 0) {
 		msg = "Cannot connect to mythtv ringbuffer.";
 		goto err;
 	}
@@ -2108,6 +2143,8 @@ livetv_open(void)
 		printf("starting mythtv live tv transfer\n");
 	}
 
+	playing_file = 1;
+
 	pthread_cond_signal(&cond);
 
 	return 0;
@@ -2198,7 +2235,7 @@ livetv_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mythtv_fullscreen();
 
 	i = 0;
-	while (mvpw_menu_set_item_attr(mythtv_browser, i, &item_attr) == 0) {
+	while (mvpw_menu_set_item_attr(mythtv_browser, (void*)i, &item_attr) == 0) {
 		i++;
 	}
 	if (mvpw_menu_get_item_attr(mythtv_browser, key, &item_attr) == 0) {
@@ -2490,4 +2527,11 @@ mythtv_exit(void)
 	} else {
 		mythtv_stop();
 	}
+}
+
+void
+mythtv_test_exit(void)
+{
+	if (!playing_file)
+		mythtv_close();
 }

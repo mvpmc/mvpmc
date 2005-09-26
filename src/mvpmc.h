@@ -139,6 +139,7 @@ extern mvp_widget_t *fb_time;
 extern mvp_widget_t *fb_size;
 
 extern uint32_t root_color;
+extern int root_bright;
 
 extern char *current;
 extern char *mythtv_recdir;
@@ -153,6 +154,8 @@ extern mvpw_screen_info_t si;
 
 extern int running_mythtv;
 extern int mythtv_main_menu;
+extern int mythtv_tcp_control;
+extern int mythtv_tcp_program;
 
 extern int fd_audio, fd_video;
 extern int fd;
@@ -183,8 +186,11 @@ extern void video_stop_play(void);
 extern int mythtv_back(mvp_widget_t*);
 extern int fb_update(mvp_widget_t*);
 extern int mythtv_update(mvp_widget_t*);
+extern int mythtv_livetv_menu(void);
+extern int mythtv_program_runtime(void);
 
 extern void video_callback(mvp_widget_t*, char);
+extern void video_thumbnail(int on);
 
 extern void mythtv_show_widgets(void);
 extern void mythtv_program(mvp_widget_t *widget);
@@ -291,6 +297,7 @@ extern int mythtv_forget(void);
 extern int mythtv_proginfo(char *buf, int size);
 extern void mythtv_start_thumbnail(void);
 extern int mythtv_pending(mvp_widget_t *widget);
+extern void mythtv_test_exit(void);
 
 extern void playlist_prev(void);
 extern void playlist_stop(void);
@@ -365,7 +372,8 @@ typedef struct {
 
 extern osd_settings_t osd_settings;
 
-extern void switch_state(mvpmc_state_t new);
+extern void switch_hw_state(mvpmc_state_t new);
+extern void switch_gui_state(mvpmc_state_t new);
 
 extern void fb_exit(void);
 extern void mythtv_exit(void);
@@ -394,6 +402,8 @@ typedef struct {
 	int			osd_program;
 	int			osd_timecode;
 	int			brightness;
+	int			mythtv_tcp_control;
+	int			mythtv_tcp_program;
 } config_t;
 
 extern config_t *config;
@@ -412,5 +422,7 @@ extern config_t *config;
 #define CONFIG_OSD_PROGRAM	0x0200
 #define CONFIG_OSD_TIMECODE	0x0400
 #define CONFIG_BRIGHTNESS	0x0800
+#define CONFIG_MYTHTV_CONTROL	0x1000
+#define CONFIG_MYTHTV_PROGRAM	0x2000
 
 #endif /* MVPMC_H */
