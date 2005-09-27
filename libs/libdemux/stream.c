@@ -591,7 +591,7 @@ parse_spu_frame(demux_handle_t *handle, unsigned char *buf, int len)
 			handle->spu[id].data_size = data_size;
 			handle->spu[id].len = len - header;
 			handle->spu[id].buf = malloc(size);
-			PRINTF("malloc 1: 0x%.8x\n", handle->spu[id].buf);
+			PRINTF("malloc 1: 0x%p\n", handle->spu[id].buf);
 			memset(handle->spu[id].buf, 0, size);
 			memcpy(handle->spu[id].buf, buf, len-header);
 			PRINTF("memcpy: off %d len %d\n", 0,
@@ -730,7 +730,7 @@ parse_spu_frame(demux_handle_t *handle, unsigned char *buf, int len)
 		end = 3;
 
 	if (handle->spu[id].item[0].data) {
-		PRINTF("free 2: 0x%.8x\n", handle->spu[id].item[0].data);
+		PRINTF("free 2: 0x%p\n", handle->spu[id].item[0].data);
 		free(handle->spu[id].item[0].data);
 		handle->spu[id].item[0].data = NULL;
 	}
@@ -744,7 +744,7 @@ parse_spu_frame(demux_handle_t *handle, unsigned char *buf, int len)
 
 	PRINTF("sizes: %d %d\n", handle->spu[id].size, data_size);
 	handle->spu[id].item[i].data = malloc(data_size);
-	PRINTF("malloc 2: 0x%.8x\n", handle->spu[id].item[i].data);
+	PRINTF("malloc 2: 0x%p\n", handle->spu[id].item[i].data);
 	memcpy(handle->spu[id].item[i].data, buf, data_size);
 
 	handle->spu[id].item[i].size = data_size;
@@ -762,7 +762,7 @@ parse_spu_frame(demux_handle_t *handle, unsigned char *buf, int len)
 	PRINTF("spu stream %d item %d\n", id, i);
 
 	if (handle->spu[id].buf) {
-		PRINTF("free 1: 0x%.8x\n", handle->spu[id].buf);
+		PRINTF("free 1: 0x%p\n", handle->spu[id].buf);
 		free(handle->spu[id].buf);
 		handle->spu[id].buf = NULL;
 	}
@@ -805,7 +805,7 @@ parse_ac3_frame(demux_handle_t *handle, unsigned char *buf, int len)
 	register_stream(handle->audio, id + 128, STREAM_AC3);
 	handle->attr.audio.type = AUDIO_MODE_AC3;
 
-	PRINTF("AC3 stream %d len %d size %d\n", id, len, size);
+	PRINTF("AC3 stream %d len %d\n", id, len);
 
 	offset = buf[2] + 7;
 
@@ -854,7 +854,7 @@ parse_pcm_frame(demux_handle_t *handle, unsigned char *buf, int len)
 	register_stream(handle->audio, id + 160, STREAM_PCM);
 	handle->attr.audio.type = AUDIO_MODE_PCM;
 
-	PRINTF("PCM stream %d len %d size %d\n", id, len, size);
+	PRINTF("PCM stream %d len %d\n", id, len);
 
 	offset = buf[2] + 7;
 
@@ -1096,7 +1096,7 @@ parse_frame(demux_handle_t *handle, unsigned char *buf, int len, int type)
 			ret += (len-ret);
 		}
 		break;
-	case video_stream_0 ... video_stream_7:
+	case video_stream_0 ... video_stream_F:
 		PRINTF("found video stream, stream %p\n", handle->video);
 
 		register_stream(handle->video, type, STREAM_MPEG);
@@ -1189,7 +1189,7 @@ parse_frame(demux_handle_t *handle, unsigned char *buf, int len, int type)
 			ret += m;
 		}
 		break;
-	case audio_stream_0 ... audio_stream_7:
+	case audio_stream_0 ... audio_stream_F:
 		PRINTF("found audio stream\n");
 
 		register_stream(handle->audio, type, STREAM_MPEG);

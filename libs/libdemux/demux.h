@@ -80,6 +80,14 @@ struct demux_handle_s {
 #define audio_stream_5			0xc5
 #define audio_stream_6			0xc6
 #define audio_stream_7			0xc7
+#define audio_stream_8			0xc8
+#define audio_stream_9			0xc9
+#define audio_stream_A			0xcA
+#define audio_stream_B			0xcB
+#define audio_stream_C			0xcC
+#define audio_stream_D			0xcD
+#define audio_stream_E			0xcE
+#define audio_stream_F			0xcF
 
 #define video_stream_0			0xe0
 #define video_stream_1			0xe1
@@ -89,6 +97,14 @@ struct demux_handle_s {
 #define video_stream_5			0xe5
 #define video_stream_6			0xe6
 #define video_stream_7			0xe7
+#define video_stream_8			0xe8
+#define video_stream_9			0xe9
+#define video_stream_A			0xeA
+#define video_stream_B			0xeB
+#define video_stream_C			0xeC
+#define video_stream_D			0xeD
+#define video_stream_E			0xeE
+#define video_stream_F			0xeF
 
 #define UNKNOWN		0
 #define MPEG1		1
