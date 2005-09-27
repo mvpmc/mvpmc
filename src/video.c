@@ -36,6 +36,7 @@
 #include <mvp_demux.h>
 #include <mvp_widget.h>
 #include <mvp_av.h>
+#include <ts_demux.h>
 
 #include "mvpmc.h"
 #include "replaytv.h"
@@ -56,7 +57,8 @@ struct timeval      done_tv;
 
 #define SEEK_FUDGE	2
 
-static char inbuf_static[VIDEO_BUFF_SIZE];
+static char inbuf_static[VIDEO_BUFF_SIZE * 3 / 2];
+static char tsbuf_static[VIDEO_BUFF_SIZE]; 
 
 pthread_cond_t video_cond = PTHREAD_COND_INITIALIZER;
 static sem_t   write_threads_idle_sem;
@@ -85,6 +87,7 @@ static int display_on = 0, display_on_alt = 0;
 
 int fd_audio, fd_video;
 demux_handle_t *handle;
+ts_demux_handle_t *tshandle;
 
 static stream_type_t audio_output = STREAM_MPEG;
 
@@ -1085,6 +1088,7 @@ file_open(void)
 		av_play();
 
 		demux_reset(handle);
+		ts_demux_reset(tshandle);
 		demux_attr_reset(handle);
 		demux_seek(handle);
 
@@ -1125,8 +1129,10 @@ video_read_start(void *arg)
 	video_info_t *vi;
 	int set_aspect = 1;
 	int current_aspect = 0;
-	char *inbuf;
-
+	char *inbuf = inbuf_static;
+	char *tsbuf;
+	int tslen;
+	int tsmode = TS_MODE_UNKNOWN;
 	pthread_mutex_lock(&mutex);
 
 	printf("mpeg read thread started (pid %d)\n", getpid());
@@ -1136,6 +1142,7 @@ video_read_start(void *arg)
 		sent_idle_notify = 0;
 		while (!video_playing) {
 			demux_reset(handle);
+			ts_demux_reset(tshandle);
 			demux_seek(handle);
 			if ( !(sent_idle_notify) ) {
 				if ( video_functions->notify != NULL ) {
@@ -1158,6 +1165,7 @@ video_read_start(void *arg)
 		if (video_reopen) {
 			if (video_functions->open() == 0) {
 				video_reopen = 0;
+                                tsmode = TS_MODE_UNKNOWN;
 			} else {
 				fprintf(stderr, "video open failed!\n");
 				video_playing = 0;
@@ -1170,6 +1178,7 @@ video_read_start(void *arg)
 
 		if ((seeking && reset) || jumping) {
 			demux_reset(handle);
+			ts_demux_reset(tshandle);
 			demux_seek(handle);
 			av_reset();
 			if (seeking)
@@ -1189,13 +1198,33 @@ video_read_start(void *arg)
 		}
 
 		if (len == 0) {
+
 			if ( video_functions->read_dynb != NULL ){
-				len = video_functions->read_dynb(&inbuf, VIDEO_BUFF_SIZE);
+				tslen = video_functions->read_dynb(&tsbuf, VIDEO_BUFF_SIZE);
 			}
 			else {
-				inbuf = inbuf_static;
-				len = video_functions->read(inbuf, sizeof(inbuf_static));
+				tsbuf = tsbuf_static;
+				tslen = video_functions->read(tsbuf, sizeof(tsbuf_static));
 			}
+			inbuf = inbuf_static;
+
+			if (tsmode == TS_MODE_UNKNOWN) {
+			  if (tslen > 0) {
+                            tsmode = ts_demux_is_ts(tshandle, tsbuf, tslen);
+			    printf("auto detection transport stream returned %d\n", tsmode);
+                          }
+			} else if (tsmode == TS_MODE_NO) {
+			  len = tslen;
+			} else {
+			  len = ts_demux_transform(tshandle, tsbuf, tslen, inbuf, sizeof(inbuf_static));			
+			  int resyncs = ts_demux_resync_count(tshandle);
+			  if (resyncs > 50) {
+			    printf("resync count = %d, switch back to unknown mode\n", resyncs);
+			    tsmode = TS_MODE_UNKNOWN;
+			    ts_demux_reset(tshandle);
+			  }
+			}
+
 			n = 0;
 
 			if ((len == 0) && playlist) {
@@ -1232,7 +1261,10 @@ video_read_start(void *arg)
 		}
 		continue;
 #else
-		ret = DEMUX_PUT(handle, inbuf+n, len-n);
+		if (tsmode == TS_MODE_YES)
+		  ret = DEMUX_PUT(handle, inbuf+n, len-n);
+		else
+		  ret = DEMUX_PUT(handle, tsbuf+n, len-n);
 #endif
 
 		if ((ret <= 0) && (!seeking)) {

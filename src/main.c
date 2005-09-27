@@ -38,6 +38,7 @@
 #include <mvp_av.h>
 #include <mvp_demux.h>
 #include <mvp_osd.h>
+#include <ts_demux.h>
 
 #include "mvpmc.h"
 #include "replaytv.h"
@@ -52,6 +53,7 @@ char *replaytv_server = NULL;
 
 int fontid;
 extern demux_handle_t *handle;
+extern ts_demux_handle_t *tshandle;
 
 char *mythtv_recdir = NULL;
 char *mythtv_ringbuf = NULL;
@@ -577,6 +579,12 @@ main(int argc, char **argv)
 		fprintf(stderr, "failed to initialize demuxer\n");
 		exit(1);
 	}
+
+        if ((tshandle=ts_demux_init()) == NULL) {
+                fprintf(stderr, "failed to initialize TS demuxer\n");
+                exit(1);
+        }
+
 	demux_set_display_size(handle, width, height);
 
 	video_init();
