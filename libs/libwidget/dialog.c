@@ -172,7 +172,7 @@ mvpw_set_dialog_text(mvp_widget_t *widget, char *text)
 	if ((widget == NULL) || (text == NULL))
 		return -1;
 
-	if (widget->data.dialog.title_widget)
+	if (widget->data.dialog.text_widget)
 		mvpw_set_text_str(widget->data.dialog.text_widget, text);
 
 	return 0;
