@@ -43,7 +43,7 @@ static volatile mvp_widget_t *screensaver_widget = NULL;
 static void (*screensaver_callback)(mvp_widget_t*, int) = NULL;
 
 static void (*idle)(void);
-static void (*keystroke_callback)(void);
+static void (*keystroke_callback)(char);
 
 static mvp_widget_t*
 find_widget(GR_WINDOW_ID wid)
@@ -545,7 +545,7 @@ keystroke(GR_EVENT_KEYSTROKE *key)
 	mvp_widget_t *widget;
 
 	if (keystroke_callback)
-		keystroke_callback();
+		keystroke_callback(key->ch);
 
 	if ((widget=find_widget(key->wid)) == NULL)
 		return;
@@ -686,14 +686,20 @@ mvpw_event_loop(void)
 int
 mvpw_init(void)
 {
+	GR_SCREEN_INFO si;
+
 	if (GrOpen() < 0)
 		return -1;
+
+	GrGetScreenInfo(&si);
 
 	root = malloc(sizeof(*root));
 	memset(root, 0, sizeof(*root));
 
 	root->type = MVPW_ROOT;
 	root->wid = GR_ROOT_WINDOW_ID;
+	root->width = si.cols;
+	root->height = si.rows;
 	add_widget(root);
 
 	GrSetWindowBackgroundColor(GR_ROOT_WINDOW_ID, 0);
@@ -784,7 +790,7 @@ mvpw_visible(const mvp_widget_t *widget)
 }
 
 int
-mvpw_keystroke_callback(void (*callback)(void))
+mvpw_keystroke_callback(void (*callback)(char))
 {
 	keystroke_callback = callback;
 
@@ -824,4 +830,24 @@ mvpw_reparent(mvp_widget_t *child, mvp_widget_t *parent)
 		parent = root;
 
 	GrReparentWindow(child->wid, parent->wid, 0, 0);
+}
+
+int
+mvpw_read_area(mvp_widget_t *widget, int x, int y, int w, int h,
+	       unsigned long *pixels)
+{
+	if ((widget == NULL) || (pixels == NULL))
+		return -1;
+	if ((x < 0) || (x >= widget->width))
+		return -1;
+	if ((y < 0) || (y >= widget->height))
+		return -1;
+	if ((w < 0) || (w > widget->width))
+		return -1;
+	if ((h < 0) || (h > widget->height))
+		return -1;
+
+	GrReadArea(widget->wid, x, y, w, h, pixels);
+
+	return 0;
 }

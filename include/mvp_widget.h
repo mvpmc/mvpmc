@@ -75,10 +75,12 @@ extern void mvpw_set_key(mvp_widget_t *widget,
 			 void (*callback)(mvp_widget_t*, char));
 extern void mvpw_destroy(mvp_widget_t *widget);
 extern int mvpw_visible(const mvp_widget_t *widget);
-extern int mvpw_keystroke_callback(void (*callback)(void));
+extern int mvpw_keystroke_callback(void (*callback)(char));
 extern int mvpw_set_screensaver(mvp_widget_t *widget, int seconds,
 				void (*callback)(mvp_widget_t*, int));
 extern void mvpw_reparent(mvp_widget_t *child, mvp_widget_t *parent);
+extern int mvpw_read_area(mvp_widget_t *widget, int x, int y, int w, int h,
+			  unsigned long *pixels);
 
 /*
  * container widget
