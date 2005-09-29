@@ -25,6 +25,7 @@
 #include <string.h>
 #include <pthread.h>
 #include <signal.h>
+#include <fcntl.h>
 
 #ifndef MVPMC_HOST
 #include <sys/reboot.h>
@@ -41,6 +42,7 @@
 #include "colorlist.h"
 
 #include "display.h"
+#include "bmp.h"
 
 volatile int running_replaytv = 0;
 volatile int mythtv_livetv = 0;
@@ -3474,6 +3476,86 @@ busy_init(void)
 	pthread_create(&busy_thread, &thread_attr_small, busy_loop, NULL);
 }
 
+static void
+capture_screenshot(void)
+{
+	bmp_file_t bmp;
+	mvpw_widget_info_t info;
+	unsigned long *pixels;
+	unsigned char *buf;
+	int w, h;
+	int fd, len;
+	int i, j;
+	unsigned long filesize, data_offset;
+
+	mvpw_get_widget_info(root, &info);
+
+	memset(&bmp, 0, sizeof(bmp));
+
+	bmp.fheader.magic[0] = 'B';
+	bmp.fheader.magic[1] = 'M';
+
+	data_offset = sizeof(bmp);
+	filesize = data_offset + ((info.w * info.h) * 3);
+
+	bmp.fheader.size = le_long(filesize);
+	bmp.fheader.offset = le_long(data_offset);
+	bmp.iheader.size = le_long(sizeof(bmp_image_header_t));
+	bmp.iheader.width = le_long(info.w);
+	bmp.iheader.height = le_long(info.h);
+	bmp.iheader.planes = le_short(1);
+	bmp.iheader.bitcount = le_short(24);
+	bmp.iheader.compression = 0;
+	bmp.iheader.size_image = 0;
+	bmp.iheader.xppm = 0;
+	bmp.iheader.yppm = 0;
+	bmp.iheader.used = 0;
+	bmp.iheader.important = 0;
+
+	fd = open(screen_capture_file, O_CREAT|O_TRUNC|O_WRONLY, 0644);
+	write(fd, &bmp, sizeof(bmp));
+
+	w = info.w;
+	h = info.h;
+
+	len = sizeof(*pixels)*w;
+	pixels = malloc(len);
+	memset(pixels, 0, len);
+
+	buf = malloc(w*3);
+
+	printf("taking screenshot\n");
+	for (i=h-1; i>=0; i--) {
+		if (mvpw_read_area(root, 0, i, w, 1, pixels) == 0) {
+			for (j=0; j<w; j++) {
+				unsigned char *c = (unsigned char*)(pixels+j);
+
+				buf[(j*3)+0] = c[3];
+				buf[(j*3)+1] = c[2];
+				buf[(j*3)+2] = c[1];
+			}
+		} else {
+			printf("screenshot error!\n");
+			break;
+		}
+		write(fd, buf, w*3);
+	}
+	printf("done with screenshot\n");
+
+	close(fd);
+	free(pixels);
+	free(buf);
+}
+
+static void
+key_callback(char c)
+{
+	if (c == MVPW_KEY_GREEN) {
+		if (screen_capture_file)
+			capture_screenshot();
+	}
+}
+
 int
 gui_init(char *server, char *replaytv)
 {
@@ -3527,6 +3609,8 @@ gui_init(char *server, char *replaytv)
 	mvpw_lower(root);
 
 	mvpw_focus(main_menu);
+
+	mvpw_keystroke_callback(key_callback);
 
 	return 0;
 }

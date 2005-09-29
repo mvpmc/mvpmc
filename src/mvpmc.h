@@ -425,4 +425,6 @@ extern config_t *config;
 #define CONFIG_MYTHTV_CONTROL	0x1000
 #define CONFIG_MYTHTV_PROGRAM	0x2000
 
+extern char *screen_capture_file;
+
 #endif /* MVPMC_H */

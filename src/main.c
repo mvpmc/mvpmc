@@ -88,6 +88,8 @@ mvpmc_state_t gui_state = MVPMC_STATE_NONE;
 config_t *config;
 static int shmid;
 
+char *screen_capture_file = NULL;
+
 static int
 buffer_put(demux_handle_t *handle, char *buf, int len)
 {
@@ -139,6 +141,7 @@ print_help(char *prog)
 
 	printf("\t-a aspect \taspect ratio (4:3, 4:3cco or 16:9)\n");
 	printf("\t-b path   \tpath to NFS mounted mythtv ringbuf directory\n");
+	printf("\t-C file   \tbitmap file to use for screen captures\n");
 	printf("\t-d type   \ttype of local display (disable (default), IEE16x1, or IEE40x2)\n");
 	printf("\t-f font   \tfont file\n");
 	printf("\t-h        \tprint this help\n");
@@ -302,7 +305,7 @@ main(int argc, char **argv)
 
 	tzset();
 
-	while ((c=getopt(argc, argv, "a:b:d:f:hi:m:Mo:r:R:s:S:t:")) != -1) {
+	while ((c=getopt(argc, argv, "a:b:C:d:f:hi:m:Mo:r:R:s:S:t:")) != -1) {
 		switch (c) {
 		case 'a':
 			if (strcmp(optarg, "4:3cco") == 0) {
@@ -320,6 +323,9 @@ main(int argc, char **argv)
 			break;
 		case 'b':
 			mythtv_ringbuf = strdup(optarg);
+			break;
+		case 'C':
+			screen_capture_file = strdup(optarg);
 			break;
 		case 'd':
 			if (strcmp(optarg, "disable") == 0) {
