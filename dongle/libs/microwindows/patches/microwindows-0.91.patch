@@ -1729,7 +1729,7 @@ diff -ruN microwindows-0.91-orig/src/drivers/scr_mvposd.c microwindows-0.91/src/
 +
 +	PRINTF("OSD: readpixel %d,%d\n", x, y);
 +
-+	return 0;
++	return osd_read_pixel(surface, x, y);
 +}
 +
 +static void
