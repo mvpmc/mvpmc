@@ -41,6 +41,7 @@
 #include "replaytv.h"
 #include "colorlist.h"
 
+#include "mclient.h"
 #include "display.h"
 #include "bmp.h"
 
@@ -318,6 +319,17 @@ static mvpw_dialog_attr_t about_attr = {
 	.border_size = 2,
 };
 
+static mvpw_dialog_attr_t mclient_attr = {
+	.font = FONT_LARGE,
+	.fg = MVPW_WHITE,
+	.bg = MVPW_DARKGREY,
+	.title_fg = MVPW_WHITE,
+	.title_bg = MVPW_DARKGREY,
+	.modal = 1,
+	.border = MVPW_BLUE,
+	.border_size = 2,
+};
+
 static mvpw_graph_attr_t offset_graph_attr = {
 	.min = 0,
 	.max = 100,
@@ -496,6 +508,9 @@ theme_attr_t theme_attr[] = {
 	{ .name = "about",
 	  .type = WIDGET_DIALOG,
 	  .attr.dialog = &about_attr },
+	{ .name = "mclient",
+	  .type = WIDGET_DIALOG,
+	  .attr.dialog = &mclient_attr },
 	{ .name = "busy_graph",
 	  .type = WIDGET_GRAPH,
 	  .attr.graph = &busy_graph_attr },
@@ -624,6 +639,7 @@ static mvp_widget_t *settings_nocheck;
 static mvp_widget_t *sub_settings;
 static mvp_widget_t *screensaver_dialog;
 static mvp_widget_t *about;
+mvp_widget_t *mclient;
 static mvp_widget_t *setup_image;
 static mvp_widget_t *fb_image;
 static mvp_widget_t *mythtv_image;
@@ -723,6 +739,7 @@ enum {
 	MM_ABOUT,
 	MM_SETTINGS,
 	MM_REPLAYTV,
+	MM_MCLIENT,
 };
 
 enum {
@@ -1386,6 +1403,27 @@ popup_key_callback(mvp_widget_t *widget, char key)
 			mvpw_show(popup_menu);
 			mvpw_focus(popup_menu);
 		}
+	}
+}
+
+static void
+mclient_key_callback(mvp_widget_t *widget, char key)
+{
+        if(key == MVPW_KEY_EXIT)
+	{
+	        mvpw_hide(widget);
+		/*
+		 * Give up the mclient GUI.
+                 * We will turn off the audio later when the user
+                 * selects another source.
+		 */
+                switch_gui_state(MVPMC_STATE_NONE);
+
+                mvpw_set_timer(widget, NULL, 0);
+        }
+	else
+	{
+                curses2ir(key);
 	}
 }
 
@@ -2579,6 +2617,13 @@ main_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mvpw_show(about);
 		mvpw_focus(about);
 		break;
+	case MM_MCLIENT:
+		mvpw_show(mclient);
+		mvpw_focus(mclient);
+
+                switch_gui_state(MVPMC_STATE_MCLIENT);
+                mvpw_set_timer(mclient, mclient_idle_callback, 100);
+		break;
 	}
 }
 
@@ -2616,6 +2661,12 @@ main_hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 				  "File:%s\n", "ReplayTV");
 			display_send(display_message);
 			break;
+		case MM_MCLIENT:
+			mvpw_show(fb_image);
+			snprintf(display_message, sizeof(display_message),
+				  "File:%s\n", "Music Client");
+			display_send(display_message);
+			break;
 		case MM_ABOUT:
 			mvpw_show(about_image);
 			snprintf(display_message, sizeof(display_message),
@@ -2642,6 +2693,9 @@ main_hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 			break;
 		case MM_REPLAYTV:
 			mvpw_hide(replaytv_image);
+			break;
+		case MM_MCLIENT:
+			mvpw_hide(fb_image);
 			break;
 		case MM_ABOUT:
 			mvpw_hide(about_image);
@@ -2803,6 +2857,9 @@ main_menu_init(char *server, char *replaytv)
 			   (void*)MM_SETTINGS, &item_attr);
 	mvpw_add_menu_item(main_menu, "About",
 			   (void*)MM_ABOUT, &item_attr);
+	if (mclient_type == MCLIENT)
+		mvpw_add_menu_item(main_menu, "Music Client",
+				   (void*)MM_MCLIENT, &item_attr);
 #ifdef MVPMC_HOST
 	mvpw_add_menu_item(main_menu, "Exit",
 			   (void*)MM_EXIT, &item_attr);
@@ -2810,7 +2867,6 @@ main_menu_init(char *server, char *replaytv)
 	mvpw_add_menu_item(main_menu, "Reboot",
 			   (void*)MM_EXIT, &item_attr);
 #endif
-
 	mvpw_set_key(main_menu, main_menu_callback);
 
 	return 0;
@@ -2856,6 +2912,44 @@ about_init(void)
 	mvpw_set_dialog_text(about, text);
 
 	mvpw_set_key(about, warn_key_callback);
+
+	return 0;
+}
+
+static int
+mclient_init(void)
+{
+	int h, w, x, y;
+	char text[256];
+
+	splash_update("Creating mclient dialog");
+
+
+	h = (mvpw_font_height(mclient_attr.font) +
+	     (2 * 2)) * 8;
+	w = 500;
+
+	x = (si.cols - w) / 2;
+	y = (si.rows - h) / 2;
+
+	/*
+	 * Print default thread, if properly working, the
+	 * error message will be over written by the mclient
+	 * thread.
+	 */
+	snprintf(text, sizeof(text),
+			 "Music Client\nError:\nUninitialized");
+
+	mclient = mvpw_create_dialog(NULL, x, y, w, h,
+				   mclient_attr.bg,
+				   mclient_attr.border, mclient_attr.border_size);
+
+	mvpw_set_dialog_attr(mclient, &mclient_attr);
+
+	mvpw_set_dialog_title(mclient, "MClient");
+	mvpw_set_dialog_text(mclient, text);
+
+	mvpw_set_key(mclient, mclient_key_callback);
 
 	return 0;
 }
@@ -3288,6 +3382,7 @@ screensaver_event(mvp_widget_t *widget, int activate)
 		mvpw_show(mvpmc_logo);
 		mvpw_show(screensaver);
 		mvpw_focus(screensaver);
+		mvpw_raise(screensaver);
 		screensaver_timer(widget);
 	} else {
 		mvpw_set_timer(screensaver, NULL, 0);
@@ -3591,6 +3686,7 @@ gui_init(char *server, char *replaytv)
 	busy_init();
 	warn_init();
 	screensaver_init();
+	mclient_init();
 
 	mvpw_destroy(splash);
 	mvpw_destroy(splash_graph);

@@ -64,8 +64,6 @@ static struct sockaddr_in sain, from_sain, client_sain;
 
 static struct utsname myname;
 
-static struct hostent *hptr;
-
 static char accum_message[DISPLAY_MESG_SIZE];
 static char last_message[DISPLAY_MESG_SIZE];
 
@@ -91,6 +89,8 @@ struct display_struct_type {
   struct display_struct_sub_type pFile;
   struct display_struct_sub_type nFile;
   struct display_struct_sub_type Message;
+  struct display_struct_sub_type Line1;
+  struct display_struct_sub_type Line2;
   int Dimmer_Event;
   int display_busy;
   unsigned int long Interval;
@@ -225,6 +225,8 @@ display_progress(mvp_widget_t *widget)
 void
 display_send(char *msg)
 {
+  struct hostent *hptr;
+
   if (display_type == DISPLAY_DISABLE)
     return;
 
@@ -295,6 +297,8 @@ display_send(char *msg)
  ******************************/
 void* display_thread(void *arg)
 {
+  struct hostent *hptr;
+
   int char_pos;
 
   /*
@@ -597,6 +601,8 @@ void* display_thread(void *arg)
       display_struct.rTime.Ready = 0;
       display_struct.Progress.Ready = 0;
       display_struct.File.Ready = 0;
+      display_struct.Line1.Ready = 0;
+      display_struct.Line2.Ready = 0;
       ///      display_struct.pFile.Ready = 0; //Need history
       ///      display_struct.nFile.Ready = 0; //Need history
       display_struct.Message.Ready = 0;
@@ -659,6 +665,20 @@ void* display_thread(void *arg)
 	      strcpy(display_struct.Message.String, (strstr(accum_message_ptr,":") + 1));
 	      display_struct.Message.Ready = 1;
 	      ///	      printf("Found Message: %s\n", display_struct.Message.String);
+	    }
+
+	  if((accum_message_ptr = strstr(accum_message, "Line1:")) != 0)
+	    {
+	      strcpy(display_struct.Line1.String, (strstr(accum_message_ptr,":") + 1));
+	      display_struct.Line1.Ready = 1;
+	      ///	      printf("Found Line1: %s\n", display_struct.Line1.String);
+	    }
+
+	  if((accum_message_ptr = strstr(accum_message, "Line2:")) != 0)
+	    {
+	      strcpy(display_struct.Line2.String, (strstr(accum_message_ptr,":") + 1));
+	      display_struct.Line2.Ready = 1;
+	      ///	      printf("Found Line2: %s\n", display_struct.Line2.String);
 	    }
 
 	  /*
@@ -1334,6 +1354,62 @@ display_iee_40x2()
 
 
   /*
+   * Format "Line1 & Line2" message.
+   *
+   * Assume Lines 1 & 2 will always be done together and that Line2 will be
+   * done last, so use Lin2 flags to trigger update.
+   */
+  if((display_struct.Line2.Ready == 1) && (display_struct.display_busy == 0))
+    {
+      /*
+       * Busy out the display and up the message priority.
+       */
+      display_struct.display_busy = 1;
+      display_struct.Line2.Ready = 2;
+
+      /*
+       * We will probably never scroll as the format from the server is
+       * a 40 char string.
+       */
+      display_struct.Line2.Scroll = 0;
+
+      /*
+       * Setup to display string.
+       */
+      sprintf(display_server_message, "%c%c%c%c%-40.40s%-38.38s", 
+              DISPLAY_IEE_CLR, DISPLAY_IEE_CURINV, DISPLAY_IEE_POSITION,DISPLAY_IEE_POS_0_0,
+              display_struct.Line1.String, display_struct.Line2.String);
+    }
+  else
+    {
+      if(display_struct.Line2.Ready == 2)
+	{
+	  sprintf(last_message, "%c%-40.40s", DISPLAY_IEE_CR, display_struct.Line1.String);
+	  display_struct.Line2.Scroll = 0;
+	      
+	  /*
+	   * Either decrement event counter or if we are done with the events, 
+	   * release control of the display.
+	   */
+	  if(display_struct.Line2.Event > 0)
+	    {
+	      display_struct.Line2.Event--;
+	    }
+	  else
+	    {
+	      /*
+	       * Un-busy the display and release the message priority.
+	       */
+	      display_struct.display_busy = 0;
+	      display_struct.Line2.Ready = 0;
+	      display_struct.Interval = DISPLAY_NORMAL_INTERVAL;
+	      display_struct.Line2.Event = 0;
+	    }
+	}
+    }
+
+
+  /*
    * If we are in a busy state and no one is updating the display, assume
    * new data from the client interrupted us and start displaying any new 
    * data that is marked ready.
@@ -1351,6 +1427,8 @@ display_iee_40x2()
      (display_struct.pFile.Ready != 2) &&
      (display_struct.nFile.Ready != 2) &&
      (display_struct.Message.Ready != 2) &&
+     (display_struct.Line1.Ready != 2) &&
+     (display_struct.Line2.Ready != 2) &&
      (display_struct.display_busy == 1)
      )
     {
@@ -1384,6 +1462,8 @@ display_iee_40x2()
 void
 display_iee_16x1()
 {
+
+  char total_line1_and_line2[100];
 
 #if 0
   printf("READY/SCROLL Busy:%d Mes:%d/%d Title:%d/%d art:%d/%d alb:%d/%d file:%d/%d/%s time:%d/0\n",
@@ -1954,6 +2034,95 @@ display_iee_16x1()
 
 
   /*
+   * Format "Line1 & Line2" message.
+   *
+   * Assume Lines 1 & 2 will always be done together and that Line2 will be
+   * done last, so use Lin2 flags to trigger update.
+   */
+  if((display_struct.Line2.Ready == 1) && (display_struct.display_busy == 0))
+    {
+      /*
+       * Busy out the display and up the File priority.
+       */
+      display_struct.display_busy = 1;
+      display_struct.Line2.Ready = 2;
+      display_struct.Interval = DISPLAY_SCROLL_INTERVAL;
+
+      /*
+       * Use TOTAL Message length to calculate number
+       * of times to scroll.
+       */
+      sprintf(total_line1_and_line2, "%40.40s%40.40s", display_struct.Line1.String, display_struct.Line2.String);
+      display_struct.Line2.Scroll = strlen(total_line1_and_line2);
+      display_struct.Line2.Event = 10;
+      display_struct.Dimmer_Event = DIMMER_EVENT_WAIT;
+
+      /*
+       * If the string fits the display, don't scroll.
+       */
+      if((display_struct.Line2.Scroll <= DISPLAY_IEE16X1_WIDTH) && (display_struct.Line2.Scroll != 0))
+        {
+          /*
+           * String fits display, don't scroll.
+           */
+          display_struct.Line2.Scroll = 0;
+        }
+
+      /*
+       * Setup to display string.
+       */
+      snprintf(display_server_message, 18, "%c%-16.16s", DISPLAY_IEE_CR, total_line1_and_line2);
+    }
+  else
+    {
+      if(display_struct.Line2.Ready == 2)
+	{
+	  if(display_struct.Line2.Scroll > 0)
+            {
+	      int starting_char;
+
+	      starting_char = strlen(total_line1_and_line2) - display_struct.Line2.Scroll;
+	      /*
+	       * Copy only what can be shown on the display.
+	       */
+	      snprintf(display_server_message, 18, "%c%-16.16s", DISPLAY_IEE_CR, &total_line1_and_line2[starting_char]);
+
+	      display_struct.Line2.Scroll--;
+
+              /*
+               * Switch to faster scrolling interval.
+               */
+              display_struct.Interval = DISPLAY_SCROLL_INTERVAL;
+	    }
+	  else
+	    {
+	      snprintf(last_message, 18, "%c%-16.16s", DISPLAY_IEE_CR, display_struct.Line2.String);
+	      display_struct.Line2.Scroll = 0;
+		
+              /*
+               * Either decrement event counter or if we are done with the events, 
+               * release control of the display.
+               */
+              if(display_struct.Line2.Event > 0)
+                {
+                  display_struct.Line2.Event--;
+                }
+              else
+                {
+		  /*
+		   * Un-busy the display and release the album priority.
+		   */
+		  display_struct.display_busy = 0;
+		  display_struct.Line2.Ready = 0;
+		  display_struct.Interval = DISPLAY_NORMAL_INTERVAL;
+		  display_struct.Line2.Event = 0;
+		}
+	    }
+	}
+    }
+
+
+  /*
    * If we are in a busy state and no one is updating the display, assume
    * new data from the client interrupted us and start displaying any new 
    * data that is marked ready.
@@ -1971,6 +2140,8 @@ display_iee_16x1()
      (display_struct.pFile.Ready != 2) &&
      (display_struct.nFile.Ready != 2) &&
      (display_struct.Message.Ready != 2) &&
+     (display_struct.Line1.Ready != 2) &&
+     (display_struct.Line2.Ready != 2) &&
      (display_struct.display_busy == 1)
      )
     {

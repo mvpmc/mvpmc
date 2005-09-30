@@ -47,9 +47,11 @@
 #include "a52dec/mm_accel.h"
 
 #include "display.h"
+#include "mclient.h"
 
 char *mythtv_server = NULL;
 char *replaytv_server = NULL;
+char *mclient_server = NULL;
 
 int fontid;
 extern demux_handle_t *handle;
@@ -154,6 +156,7 @@ print_help(char *prog)
 	printf("\t-r path   \tpath to NFS mounted mythtv recordings\n");
 	printf("\t-R server \treplaytv server IP address\n");
 	printf("\t-t file   \tXML theme file\n");
+	printf("\t-c server \tslimdevices musicClient server IP address\n");
 }
 
 /*
@@ -295,6 +298,13 @@ main(int argc, char **argv)
 	unsigned long start = (unsigned long)sbrk(0);
 #endif
 
+	/*
+	 * Initialize to a known state before
+	 * eval command line.
+	 */
+	display_type = DISPLAY_DISABLE;
+	mclient_type = MCLIENT_DISABLE;
+
 	if (argc > 32) {
 		fprintf(stderr, "too many arguments\n");
 		exit(1);
@@ -305,7 +315,7 @@ main(int argc, char **argv)
 
 	tzset();
 
-	while ((c=getopt(argc, argv, "a:b:C:d:f:hi:m:Mo:r:R:s:S:t:")) != -1) {
+	while ((c=getopt(argc, argv, "a:b:C:c:d:f:hi:m:Mo:r:R:s:S:t:")) != -1) {
 		switch (c) {
 		case 'a':
 			if (strcmp(optarg, "4:3cco") == 0) {
@@ -334,7 +344,6 @@ main(int argc, char **argv)
 				display_type = DISPLAY_IEE16X1;
 			} else if (strcmp(optarg, "IEE40x2") == 0) {
 				display_type = DISPLAY_IEE40X2;
-				fprintf(stderr, "The IEE40x2 local display is not fully supported yet! \n");
 			} else {
 				fprintf(stderr, "The local display type (%s) is not recognized!\n",optarg);
 				print_help(argv[0]);
@@ -408,6 +417,10 @@ main(int argc, char **argv)
 				perror(theme_file);
 				exit(1);
 			}
+			break;
+		case 'c':
+			mclient_type = MCLIENT;
+			mclient_server = strdup(optarg);
 			break;
 		default:
 			print_help(argv[0]);
@@ -680,6 +693,11 @@ main(int argc, char **argv)
 	}
 #endif
 
+	if ((mclient_type == MCLIENT) && (music_client() < 0)) {
+		fprintf(stderr, "failed to start up music client!\n");
+		exit(1);
+	}
+
 	atexit(mythtv_atexit);
 
 	mvpw_set_idle(NULL);
@@ -716,6 +734,9 @@ switch_hw_state(mvpmc_state_t new)
 		break;
 	case MVPMC_STATE_REPLAYTV:
 		replaytv_exit();
+		break;
+	case MVPMC_STATE_MCLIENT:
+		mclient_exit();
 		break;
 	}
 

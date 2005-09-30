@@ -610,6 +610,8 @@ video_callback(mvp_widget_t *widget, char key)
 				mvpw_focus(file_browser);
 			}
 			break;
+		case MVPMC_STATE_MCLIENT:
+			break;
 		}
 		mvpw_expose(root);
 		break;
