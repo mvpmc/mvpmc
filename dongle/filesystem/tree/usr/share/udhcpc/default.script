@@ -3,5 +3,7 @@
 cat <<EOF > /etc/udhcpc.config
 DONGLE=$boot_file
 SERVER=${siaddr:-$serverid}
+IP=$ip
+HNAME=$hostname
 EOF
 
