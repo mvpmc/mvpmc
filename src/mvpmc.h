@@ -226,6 +226,7 @@ extern pthread_t audio_thread;
 extern pthread_attr_t thread_attr, thread_attr_small;
 
 extern pthread_cond_t video_cond;
+extern pthread_cond_t mclient_cond;
 
 extern void add_osd_widget(mvp_widget_t *widget, int type, int visible,
 			   void (*callback)(mvp_widget_t*));

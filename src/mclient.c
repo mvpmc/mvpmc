@@ -78,6 +78,7 @@ int mclient_type;
 int mclient_socket;
 
 static pthread_t mclient_loop_thread_handle;
+pthread_cond_t mclient_cond = PTHREAD_COND_INITIALIZER;
 
 typedef struct {
   char type;
@@ -879,9 +880,11 @@ void *
 mclient_loop_thread(void *arg)
 {
   int s;
+  pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
   fd_set read_fds;
   FD_ZERO(&read_fds);
+  pthread_mutex_lock(&mutex);
 
   for(;;)
     {
@@ -988,6 +991,8 @@ mclient_loop_thread(void *arg)
            */
            free(outbuf);
            free(recvbuf);
+	} else {
+		pthread_cond_wait(&mclient_cond, &mutex);
 	}
     }
 }
@@ -1094,7 +1099,6 @@ void
 mclient_exit(void)
 {
         audio_clear();
-        video_clear();
         av_stop();
 }
 

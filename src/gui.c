@@ -2622,6 +2622,7 @@ main_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mvpw_focus(mclient);
 
                 switch_gui_state(MVPMC_STATE_MCLIENT);
+		pthread_cond_broadcast(&mclient_cond);
                 mvpw_set_timer(mclient, mclient_idle_callback, 100);
 		break;
 	}
