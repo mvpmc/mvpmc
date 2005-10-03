@@ -775,7 +775,37 @@ static int rtv_video_key(char key)
 	case MVPW_KEY_REWIND:
       get_current_vid_time(&cur_secs);
       printf("-->%s: handle: key='%c'  ct=%d\n", __FUNCTION__, key, cur_secs);
-      if      ( key == MVPW_KEY_REPLAY ) { 
+
+      // Jump X minutes backwards
+      //
+      if ( rtv_video_state.processing_jump_input ) {
+         int tmp = atoi(&(seek_str[1]));
+
+         if ( key == MVPW_KEY_REPLAY ) {
+            // minutes
+            //
+            if ( tmp > 99 ) {
+               //treat  1st digit as hours
+               tmp = ((tmp / 100) * 60) + (tmp % 100);
+            }
+            jumpto_secs = tmp * 60;
+         }
+         else {
+            // seconds
+            //
+            jumpto_secs = tmp;
+         }
+
+         jumpto_secs = cur_secs - jumpto_secs;
+         if ( (jumpto_secs) < 0 ) {
+            jumpto_secs = 0;
+         }
+         sprintf(seek_str, " -%01d:%02d <<", (cur_secs-jumpto_secs) / 60, (cur_secs-jumpto_secs) % 60);
+         rtv_video_state.processing_jump_input = 0;
+      }
+      // Jump back 8 or 3 seconds
+      //
+      else if ( key == MVPW_KEY_REPLAY ) { 
          jumpto_secs = cur_secs -  8;
          sprintf(seek_str, " -08 <<");
       }
@@ -789,7 +819,30 @@ static int rtv_video_key(char key)
 	case MVPW_KEY_SKIP:
       get_current_vid_time(&cur_secs);
       printf("-->%s: handle: key='%c'  ct=%d\n", __FUNCTION__, key, cur_secs);
-      if ( find_commercial_break( 1, cur_secs, cur_secs + 28, &comm_break_sec) == 0 ) {
+
+      // Jump X minutes forward
+      //
+      if ( rtv_video_state.processing_jump_input ) {
+         int tmp = atoi(&(seek_str[1]));
+         if ( tmp > 99 ) {
+            //treat  1st digit as hours
+            tmp = ((tmp / 100) * 60) + (tmp % 100);
+         }
+         jumpto_secs = tmp * 60;
+
+         if ( find_commercial_break( 1, cur_secs, cur_secs + jumpto_secs, &comm_break_sec) == 0 ) {
+            jumpto_secs = comm_break_sec - 2;
+            sprintf(seek_str, " +%01d:%02d >>[CB]", (comm_break_sec-cur_secs-2) / 60, (comm_break_sec-cur_secs-2) % 60);
+         }
+         else {
+            jumpto_secs = cur_secs + jumpto_secs; 
+            sprintf(seek_str, " +%01d:%02d >>", (jumpto_secs-cur_secs) / 60, (jumpto_secs-cur_secs) % 60);
+         }
+         rtv_video_state.processing_jump_input = 0;
+      }
+      // 28 sec FF skip
+      //
+      else if ( find_commercial_break( 1, cur_secs, cur_secs + 28, &comm_break_sec) == 0 ) {
          jumpto_secs = comm_break_sec - 2;
          sprintf(seek_str, " +%02d >>[CB]", comm_break_sec - cur_secs - 2);
       }
@@ -797,6 +850,7 @@ static int rtv_video_key(char key)
          jumpto_secs = cur_secs + 28; 
          sprintf(seek_str, " +28 >>");
       }
+
       jump = 1; 
       rc   = 1;
       break;
