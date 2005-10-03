@@ -60,7 +60,7 @@ Bool addRRE = False;
 Bool addCoRRE = False;
 Bool addHextile = False;
 #else
-Bool addCopyRect = True;
+Bool addCopyRect = False;		/* XXX: doesn't work on the mvp */
 Bool addRRE = True;
 Bool addCoRRE = True;
 Bool addHextile = True;

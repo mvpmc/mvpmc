@@ -107,7 +107,29 @@ mvpw_set_surface(mvp_widget_t *widget, char *image, int x, int y, int width, int
         GR_GC_ID gc;
 	gc=GrNewGC();
 
+#ifdef MVPMC_HOST
 	GrArea(widget->data.surface.wid, gc, x, y, width, height, image, widget->data.surface.pixtype);
+#else
+	/*
+	 * XXX: GrArea() appears to be broken on the mvp
+	 */
+        MWPIXELVAL c;
+	int i, j, k;
+	int r, g, b;
+	GrSetGCBackground(gc, 0);
+	for(i=0 ; i < width ; i++){
+		for(j=0 ; j < height ; j++) {
+			k = ((i * height) + j) * sizeof(MWPIXELVAL);
+			memcpy(&c, image + k, sizeof(MWPIXELVAL));
+			r = (c & 0xff0000) >> 16;
+			g = (c & 0x00ff00) >> 8;
+			b = (c & 0x0000ff) >> 0;
+			c = 0xff000000 | (r) | (g << 8) | (b << 16);
+			GrSetGCForeground(gc, c);
+			GrPoint(widget->data.surface.wid, gc, j+x, i+y);
+		}
+	}
+#endif
 	GrDestroyGC(gc);
 	return 0;
 }
