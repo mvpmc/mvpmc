@@ -24,12 +24,15 @@ typedef enum rtv_ndx_version_t
    RTV_NDX_30      = 30,
 } rtv_ndx_version_t;
 
+
 typedef struct rtv_ndx_info_t 
 {
    rtv_ndx_version_t         ver;                 //ndx file version
    unsigned int              file_sz;             //file size
    unsigned int              hdr_sz;              //file header size
    unsigned int              rec_sz;              //record size
+   unsigned int              max_time_ms;         //timestamp for last ndx record.
+   __u64                     base_time;           //timestamp for first ndx rec. (4K only)
    int                       num_rec_in_file;     //number of records in file
    int                       rec_cnt_to_load;     //number of records to load into memory
    int                       start_rec_num;       //starting record number for block in memory
@@ -38,5 +41,21 @@ typedef struct rtv_ndx_info_t
    const rtv_device_info_t  *device;
    char                      filename[NDX_MAX_PATHNAME_LEN];
 } rtv_ndx_info_t;
+
+
+#define RTV_NUM_SEC_PER_SLICE (6 * 60)
+
+typedef struct rtv_4k_ndx_slice_t {
+   __u32 start_ms;
+   int start_rec;
+   int num_recs;
+} rtv_4k_ndx_slice_t;
+
+typedef struct rtv_4k_ndx_slice_list_t
+{
+   unsigned int        num_slices;
+   int                 sec_per_slice;
+   rtv_4k_ndx_slice_t *slice;      //array of ndx slices
+} rtv_4k_ndx_slice_list_t;
 
 #endif

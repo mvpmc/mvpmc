@@ -876,6 +876,10 @@ static int rtv_video_key(char key)
    if ( jump == 1 ) {
       int                 rtn;
       rtv_ndx_30_record_t ndx30_rec;
+      rtv_ndx_22_record_t ndx22_rec;
+      rtv_device_info_t   *devinfo;
+   
+      devinfo = (rtv_device_info_t*)&(current_rtv_device->device); //cast to override volatile warning
 
       mvpw_set_text_str(rtv_seek_osd_widget[0], seek_str);
       timestamp_str[0] = ' ';
@@ -888,16 +892,27 @@ static int rtv_video_key(char key)
       rtv_video_state.seek_info.osd_countdown = 6; //3 seconds
       mvpw_set_timer(rtv_seek_osd_widget[0], seek_osd_timer_callback, 500);
 
-      rtn = rtv_get_ndx30_rec(jumpto_secs * 1000, &ndx30_rec);
-      if ( rtn != 0 ) {
-         printf("***ERROR: %s: failed to get NDX record. rc=%d\n", __FUNCTION__, rtn);
-         return(rtn);
+
+      if ( devinfo->version.vintage == RTV_DEVICE_5K ) {
+
+         rtn = rtv_get_ndx30_rec(jumpto_secs * 1000, &ndx30_rec);
+         if ( rtn != 0 ) {
+            printf("***ERROR: %s: failed to get NDX record. rc=%d\n", __FUNCTION__, rtn);
+            return(rtn);
+         }
+         rtv_video_state.pos = ndx30_rec.filepos_iframe;  
+      }
+      else if ( devinfo->version.vintage == RTV_DEVICE_4K ) {
+
+         rtn = rtv_get_ndx22_rec(jumpto_secs * 1000, &ndx22_rec);
+         if ( rtn != 0 ) {
+            printf("***ERROR: %s: failed to get NDX record. rc=%d\n", __FUNCTION__, rtn);
+            return(rtn);
+         }
+         rtv_video_state.pos = ndx22_rec.stream_position + ndx22_rec.video_offset;  
       }
 
-      // Jump to the new spot
-      // 
-      rtv_video_state.pos = ndx30_rec.filepos_iframe;
-      
+
       // Stop streaming
       //
       av_video_blank(); //Need to call this first or may get artifacts
@@ -1050,6 +1065,7 @@ static void play_show(const rtv_show_export_t *show, int start_gop)
    rtv_http_resp_data_t file_data;
    int                  start_time_ms;
    rtv_ndx_30_record_t  ndx30_rec;
+   rtv_ndx_22_record_t  ndx22_rec;
 
    RTV_DBGLOG(LOGTRC, "%s: Enter\n", __FUNCTION__);
    devinfo = (rtv_device_info_t*)&(current_rtv_device->device); //cast to override volatile warning
@@ -1169,6 +1185,21 @@ static void play_show(const rtv_show_export_t *show, int start_gop)
    }
 evt_file_done:
 
+   if ( devinfo->version.vintage == RTV_DEVICE_4K ) {
+      rc = rtv_parse_4k_ndx_file( &(rtv_video_state.comm_blks));
+      if ( rc != 0 ) {
+         char buf[128];
+         printf("ERROR: 4K NDX file read failed\n");
+         snprintf(buf, sizeof(buf), "ERROR: 4K NDX read failed.");
+         gui_error(buf);
+         goto ndx_4k_done;
+      }
+      printf("\n>>>Commercial Block List<<<\n");
+      rtv_print_comm_blks(&(rtv_video_state.comm_blks.blocks[0]), rtv_video_state.comm_blks.num_blocks);
+  }
+ndx_4k_done:
+ 
+
 
    // Each GOP is 1/2 second.
    // Set play start time to GOP - 10sec.
@@ -1180,16 +1211,35 @@ evt_file_done:
       start_time_ms = (start_gop - 20) * 500;
    }
 
-   rc = rtv_get_ndx30_rec(start_time_ms, &ndx30_rec);
-   if ( rc != 0 ) {
-      printf("***ERROR: %s: failed to get NDX record. rc=%d\n", __FUNCTION__, rc);
-      rtv_video_state.pos = 0;
+   if ( devinfo->version.vintage == RTV_DEVICE_5K ) {
+      rc = rtv_get_ndx30_rec(start_time_ms, &ndx30_rec);
+      if ( rc != 0 ) {
+         printf("***ERROR: %s: failed to get NDX record. rc=%d\n", __FUNCTION__, rc);
+         rtv_video_state.pos = 0;
+      }
+      else {
+         rtv_video_state.pos = ndx30_rec.filepos_iframe;
+      }
+      rtv_video_state.chunk_offset = rtv_video_state.pos % 0x7FFF; //offset within 32K chunk
+   
+   }
+   else if ( devinfo->version.vintage == RTV_DEVICE_4K ) {
+      rc = rtv_get_ndx22_rec(start_time_ms, &ndx22_rec);
+      if ( rc != 0 ) {
+         printf("***ERROR: %s: failed to get NDX record. rc=%d\n", __FUNCTION__, rc);
+         rtv_video_state.chunk_offset = 0;
+         rtv_video_state.pos          = 0;
+      }
+      else {
+         rtv_video_state.chunk_offset = ndx22_rec.stream_position; //aligned on 3k boundries
+         rtv_video_state.pos          = rtv_video_state.chunk_offset + ndx22_rec.video_offset;
+      }
    }
    else {
-      rtv_video_state.pos = ndx30_rec.filepos_iframe;
+      printf("%s: line=%d: somethings screwed bad\n", __FUNCTION__, __LINE__);
+      return;
    }
-   rtv_video_state.chunk_offset = rtv_video_state.pos % 0x7FFF; //offset within 32K chunk
-   
+
    // Play the show
    //
    printf("Playing file: %s\n", show->file_name);  

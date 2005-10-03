@@ -23,8 +23,10 @@
 
 
 static const rtv_ndx_30_record_t zero_time_ndx30_rec = { 0ULL, 0ULL, 0, 0 };
+static const rtv_ndx_22_record_t zero_time_ndx22_rec = { 0, 0, 0, 0, 0, 0, 0, 0, 0ULL, 0ULL};
 
-static rtv_ndx_info_t ndx_info;
+static rtv_4k_ndx_slice_list_t ndx_slice_list = { .num_slices = 0, .sec_per_slice = RTV_NUM_SEC_PER_SLICE, .slice = NULL }; //4K only
+static rtv_ndx_info_t          ndx_info;
 
 //+*********************************************************************
 //  Name: 
@@ -101,6 +103,7 @@ int rtv_open_ndx_file(const rtv_device_info_t    *devinfo,
          RTV_WARNLOG("ndx file size not consistant with record size\n\n");
       }
       ndx_info.num_rec_in_file = (fileinfo.size - sizeof(rtv_ndx_30_header_t)) / sizeof(rtv_ndx_30_record_t);
+      ndx_info.max_time_ms     = (ndx_info.num_rec_in_file / 2) * 1000; 
       if ( ndx_info.rec_cnt_to_load > ndx_info.num_rec_in_file ) {
          ndx_info.rec_cnt_to_load = ndx_info.num_rec_in_file;
       }
@@ -116,7 +119,6 @@ int rtv_open_ndx_file(const rtv_device_info_t    *devinfo,
       if ( ndx_info.rec_cnt_to_load > ndx_info.num_rec_in_file ) {
          ndx_info.rec_cnt_to_load = ndx_info.num_rec_in_file;
       }
-      rc = -ENOTSUP; // We don't support RTV 4K ndx files.
    }
    else {
       RTV_ERRLOG("Invalid ndx file version: %d %d\n", file_data.data_start[0], file_data.data_start[1]);
@@ -152,8 +154,6 @@ int rtv_close_ndx_file( void )
 //+*********************************************************************
 int rtv_get_ndx30_rec(unsigned int time_ms, rtv_ndx_30_record_t *rec)
 {
-   unsigned int         max_time_ms = (ndx_info.num_rec_in_file / 2) * 1000; //length of show 
-
    unsigned int         rd_sz, rd_pos;
    int                  rc;
    int                  rec_no, start_rec;
@@ -165,11 +165,11 @@ int rtv_get_ndx30_rec(unsigned int time_ms, rtv_ndx_30_record_t *rec)
       return(-ENOTSUP);
    }
    
-   if ( (max_time_ms < 10000) ) { //10 sec
+   if ( (ndx_info.max_time_ms < 10000) ) { //10 sec
       time_ms = 0;
    }
-   else if ( time_ms > (max_time_ms - 3000) ) {
-      time_ms = max_time_ms - 3000;
+   else if ( time_ms > (ndx_info.max_time_ms - 3000) ) {
+      time_ms = ndx_info.max_time_ms - 3000;
    }
    RTV_DBGLOG(RTVLOG_NDX, "-->%s: time_ms=%u\n", __FUNCTION__, time_ms);
    
@@ -251,3 +251,309 @@ int rtv_get_ndx30_rec(unsigned int time_ms, rtv_ndx_30_record_t *rec)
    }
    return(0);
 }
+
+
+//+*********************************************************************
+//  Name: rtv_get_ndx22_rec
+//  returns 0 for success. Returns record in rec
+//
+//+*********************************************************************
+int rtv_get_ndx22_rec(unsigned int time_ms, rtv_ndx_22_record_t *rec)
+{
+   unsigned int         rd_sz, rd_pos;
+   int                  rc;
+   int                  rec_no, start_rec;
+   int                  slice_idx;
+   rtv_ndx_22_record_t *ndx_recs;
+   rtv_ndx_22_record_t  tmp_rec;
+   
+   if ( ndx_info.ver != RTV_NDX_22 ) {
+      RTV_ERRLOG("%s: invalid ndx version: %d\n", __FUNCTION__, ndx_info.ver);
+      return(-ENOTSUP);
+   }
+   
+   if ( (ndx_info.max_time_ms < 10000) ) { //10 sec
+      time_ms = 0;
+   }
+   else if ( time_ms > (ndx_info.max_time_ms - 3000) ) {
+      time_ms = ndx_info.max_time_ms - 3000;
+   }
+   RTV_DBGLOG(RTVLOG_NDX, "-->%s: time_ms=%u\n", __FUNCTION__, time_ms);
+   
+   if ( time_ms == 0 ) {
+      memcpy(rec, &zero_time_ndx22_rec, sizeof(rtv_ndx_22_record_t));
+      if ( RTVLOG_INFO ) {
+         rtv_print_22_ndx_rec("JumpToZero  ", 0, rec);
+      }
+      return(0);
+   }
+
+//   tmp_calc64 = (__u64)time_ms * (__u64)ndx_info.num_rec_in_file;
+//   printf("tmp_calc %llu\n", tmp_calc64);
+//   rec_no = ((__u64)tmp_calc64) / ndx_info.max_time_ms;
+//   printf("tmp_calc: rec: %d: timems=%u maxtimems=%u recinfile=%d\n", rec_no, time_ms, ndx_info.max_time_ms, ndx_info.num_rec_in_file);
+
+   slice_idx = (time_ms / 1000) / RTV_NUM_SEC_PER_SLICE;
+   if ( RTVLOG_NDX ) {
+      char startstr[30], jumpstr[30];
+      
+      rtv_format_ts_ms32_min_sec_ms(ndx_slice_list.slice[slice_idx].start_ms, startstr);
+      rtv_format_ts_ms32_min_sec_ms(time_ms, jumpstr);
+      RTV_PRT("NDX-Slice: jmpto=%s  idx=%d  starttime=%s startrec=%d numrec=%d\n", 
+              jumpstr, slice_idx, startstr, ndx_slice_list.slice[slice_idx].start_rec, ndx_slice_list.slice[slice_idx].num_recs);
+   }
+
+   // Check if we need to load a new ndx slice.
+   // If so make the record we are looking for 25% of the way into the block.
+   //
+   if ( (ndx_info.recs_in_mem == 0)                              ||
+        (ndx_slice_list.slice[slice_idx].start_rec != ndx_info.start_rec_num) ) {
+      
+      if ( ndx_info.recs_in_mem ) {
+         free(ndx_info.file_chunk.buf); //free current cached records
+         ndx_info.recs_in_mem = 0;
+      }
+
+      start_rec = ndx_slice_list.slice[slice_idx].start_rec;
+      RTV_DBGLOG(RTVLOG_NDX, "NDX: loadchunk: start=%d cnt=%d end=%d, rif=%d\n", 
+                 start_rec, ndx_slice_list.slice[slice_idx].num_recs, start_rec+ndx_slice_list.slice[slice_idx].num_recs-1, ndx_info.num_rec_in_file);
+
+      rd_pos = (start_rec * ndx_info.rec_sz) + ndx_info.hdr_sz;
+      rd_sz  = ndx_info.rec_sz * ndx_slice_list.slice[slice_idx].num_recs;
+      if ( (rd_pos + rd_sz) > ndx_info.file_sz ) {
+         rd_sz = ndx_info.file_sz - rd_pos; //truncate read to not go past EOF
+         RTV_ERRLOG("%s: SW BUG: bad ndx record calculation\n", __FUNCTION__);
+      }
+
+      rc = rtv_read_file(ndx_info.device, ndx_info.filename, rd_pos, rd_sz, &(ndx_info.file_chunk));
+      if ( rc != 0 ) {
+         RTV_ERRLOG("%s: NDX file chunk read failed\n", __FUNCTION__);
+         return(rc);
+      }
+      ndx_info.start_rec_num = start_rec;
+      ndx_info.recs_in_mem   = rd_sz / ndx_info.rec_sz;
+
+      if ( RTVLOG_INFO ) {
+         ndx_recs = (rtv_ndx_22_record_t*)ndx_info.file_chunk.data_start;
+         memcpy(&tmp_rec, &(ndx_recs[0]), sizeof(rtv_ndx_22_record_t));
+         rtv_convert_22_ndx_rec(&tmp_rec);
+         rtv_print_22_ndx_rec("LoadStartRec", ndx_info.start_rec_num, &tmp_rec);
+         memcpy(&tmp_rec, &(ndx_recs[ndx_info.recs_in_mem-1]), sizeof(rtv_ndx_22_record_t));
+         rtv_convert_22_ndx_rec(&tmp_rec);
+         rtv_print_22_ndx_rec("LoadEndRec  ", ndx_info.start_rec_num + ndx_info.recs_in_mem - 1, &tmp_rec);
+      }
+   }
+   
+   // Get the ndx rec from cache & return to the caller
+   //
+   ndx_recs = (rtv_ndx_22_record_t*)ndx_info.file_chunk.data_start;
+   
+   rec_no = (((time_ms / 1000) - (slice_idx * RTV_NUM_SEC_PER_SLICE)) * ndx_slice_list.slice[slice_idx].num_recs) / RTV_NUM_SEC_PER_SLICE;
+   
+   if ( (rec_no < (ndx_info.start_rec_num+1) ) || 
+        (rec_no >= (ndx_info.start_rec_num + ndx_info.recs_in_mem)) ) {
+      RTV_ERRLOG("%s: NDX processing SW BUG: rec=%d start=%d cnt=%d\n", __FUNCTION__, rec_no, ndx_info.start_rec_num, ndx_info.recs_in_mem);
+      return(-ESPIPE);
+   }
+
+   memcpy(rec, &(ndx_recs[rec_no]), sizeof(rtv_ndx_22_record_t));
+   rtv_convert_22_ndx_rec(rec);
+
+   // Should check for the RTV 4K video offset race condition problem.
+   // I didn't see any issues with the sample 4k ndx/mpg sent to me so
+   // I'm not gona bother with it for now.
+   //
+
+   if ( RTVLOG_INFO ) {
+      rtv_print_22_ndx_rec("JumpTo      ", rec_no+ndx_info.start_rec_num, rec);
+   }
+   return(0);
+}
+
+
+//+***********************************************************************************************
+//  Name: rtv_parse_4k_ndx_file
+//  Processes RTV 4K ndx file records and builds list of chapter segments.
+//+***********************************************************************************************
+int rtv_parse_4k_ndx_file(rtv_comm_blks_t *commercials)
+{
+   const unsigned int chunk_sz        = 32768;
+   unsigned int       pos             = sizeof(rtv_ndx_22_header_t);
+   int                rec_num         = 0;
+   __u32              comm_start_ms   = 0;
+   int                in_commercial   = 0;
+   int                num_blocks      = 0;
+   rtv_prog_seg_t    *comm_blk_recs   = NULL;
+   int                slice_base_time = 0;
+   int                current_slice   = 0;
+
+   int                   rc;
+   unsigned int          x;
+   rtv_ndx_22_record_t  *rec;
+   rtv_http_resp_data_t  file_data;
+
+
+
+   RTV_DBGLOG(RTVLOG_NDX, "%s: ndx_fn=%s size=%d\n",  __FUNCTION__, ndx_info.filename, ndx_info.file_sz);
+   commercials->num_blocks = 0;
+
+   // Free the slice list if it has been used
+   //
+   if ( ndx_slice_list.slice != NULL ) {
+      free(ndx_slice_list.slice);
+      ndx_slice_list.slice      = NULL;
+      ndx_slice_list.num_slices = 0;
+   }
+
+   while ( pos < ndx_info.file_sz ) {
+
+      unsigned int bytes_to_read;
+      int          ts_msec;
+
+      if ( (ndx_info.file_sz - pos) < chunk_sz ) {
+         bytes_to_read = ndx_info.file_sz - pos;
+      }
+      else {
+         bytes_to_read = chunk_sz;
+      }
+
+      rc = rtv_read_file(ndx_info.device, ndx_info.filename, pos, bytes_to_read, &file_data);
+      RTV_DBGLOG(RTVLOG_NDX, "%s: Read: pos=%d, count=%d\n",  __FUNCTION__, pos, bytes_to_read);
+      if ( rc != 0 ) {
+         RTV_ERRLOG("%s: ndx file read failed: pos=%d, count=%d, rc=%d\n", __FUNCTION__, pos, bytes_to_read, rc);
+         return(rc);
+      }
+
+      rec = (rtv_ndx_22_record_t*)file_data.data_start;
+      for ( x=0; x < bytes_to_read / sizeof(rtv_ndx_22_record_t); x++ ) {
+ 
+         //rtv_print_22_ndx_rec("DUMP ", rec_num, &(rec[x]));
+         if ( rec_num == 0 ) {
+            ndx_info.base_time = rec[x].timestamp;
+
+            ndx_slice_list.slice = (rtv_4k_ndx_slice_t*)malloc(sizeof(rtv_4k_ndx_slice_t));
+            ndx_slice_list.slice[0].start_ms  = 0;
+            ndx_slice_list.slice[0].start_rec = 0;
+            slice_base_time                   = 0;
+            current_slice                     = 0;
+           
+            rtv_print_22_ndx_rec("FIRST", rec_num, &(rec[x]));
+         }
+         else if ( rec_num == (ndx_info.num_rec_in_file - 1) ) {
+            ndx_info.max_time_ms = (rec[x].timestamp - ndx_info.base_time) / 1000000;
+            rtv_print_22_ndx_rec("LAST ", rec_num, &(rec[x]));
+         }
+         
+         // Build the slice list
+         //
+         ts_msec = (rec[x].timestamp - ndx_info.base_time) / 1000000;
+         if ( (ts_msec/1000) >= (slice_base_time + RTV_NUM_SEC_PER_SLICE) ) {
+            ndx_slice_list.slice[current_slice].num_recs = rec_num - ndx_slice_list.slice[current_slice].start_rec + 1;
+            current_slice++;
+
+             ndx_slice_list.slice = (rtv_4k_ndx_slice_t*)realloc(ndx_slice_list.slice, sizeof(rtv_4k_ndx_slice_t) * (current_slice+1));
+            slice_base_time += RTV_NUM_SEC_PER_SLICE;
+            ndx_slice_list.slice[current_slice].start_ms  = ts_msec;
+            ndx_slice_list.slice[current_slice].start_rec = rec_num;
+         }
+         
+         // Parse commercial segments
+         //
+         if (rec[x].commercial_flag & 0x1) {
+            if (!in_commercial) {
+               comm_start_ms = (rec[x].timestamp - ndx_info.base_time) / 1000000;
+               if ( !(rec[x].commercial_flag & 0x02) )
+                  RTV_WARNLOG("%s: start of commercial without 0x02 flag: 0x%02x\n", __FUNCTION__, rec[x].commercial_flag);
+               in_commercial = 1;
+            }
+         } else if (in_commercial) {
+            if( num_blocks == 0 ) {
+               comm_blk_recs = (rtv_prog_seg_t*)malloc(sizeof(rtv_prog_seg_t));
+            } else {
+               comm_blk_recs = (rtv_prog_seg_t*)realloc(comm_blk_recs, sizeof(rtv_prog_seg_t) * (num_blocks+1));
+            }
+
+            comm_blk_recs[num_blocks].start = comm_start_ms;
+            comm_blk_recs[num_blocks].stop  = (rec[x].timestamp - ndx_info.base_time) / 1000000;
+            num_blocks++;
+            in_commercial = 0;
+         }
+ 
+         rec_num++;
+      }
+      
+
+      pos += bytes_to_read;
+      free(file_data.buf);
+    }
+
+   ndx_slice_list.slice[current_slice].num_recs = rec_num - ndx_slice_list.slice[current_slice].start_rec + 1;
+   ndx_slice_list.num_slices = current_slice + 1;
+
+   if ( RTVLOG_NDX ) {
+      char tstr[30];
+
+      RTV_PRT("RTV 4K NDX slices\n");
+      RTV_PRT("Slice   StartTime   StartRec   NumRec\n");
+      RTV_PRT("-------------------------------------\n");
+      for ( x = 0; x < ndx_slice_list.num_slices; x++ ) {
+         rtv_format_ts_ms32_min_sec_ms(ndx_slice_list.slice[x].start_ms, tstr);
+         RTV_PRT(" %02d   %12s  %5d    %5d\n", x, tstr, ndx_slice_list.slice[x].start_rec, ndx_slice_list.slice[x].num_recs);
+      }
+   }
+
+   commercials->num_blocks = num_blocks;
+   commercials->blocks     = comm_blk_recs;
+   return(0);
+}
+
+
+//+*********************************************************************
+//  Name: rtv_print_30_ndx_rec
+//
+//+*********************************************************************
+void rtv_print_30_ndx_rec(char *tag, int rec_no, rtv_ndx_30_record_t *rec)
+{
+   char *ts;
+
+   ts = rtv_format_nsec64(rec->timestamp);
+   if ( tag != NULL ) {
+      RTV_PRT("NDXREC: %s: rec_no=%05d ts=%s fpos_iframe=0x%010llx(%011llu) iframe_size=%lu\n", 
+             tag, rec_no, ts, rec->filepos_iframe, rec->filepos_iframe, rec->iframe_size);
+   }
+   else {
+      RTV_PRT("NDXREC: rec_no=%05d ts=%s fpos_iframe=0x%010llx(%011llu) iframe_size=%lu\n", 
+             rec_no, ts, rec->filepos_iframe, rec->filepos_iframe, rec->iframe_size);
+   }
+   free(ts);
+   return;
+}
+
+
+//+*********************************************************************
+//  Name: rtv_print_22_ndx_rec
+//
+//+*********************************************************************
+void rtv_print_22_ndx_rec(char *tag, int rec_no, rtv_ndx_22_record_t *rec)
+{
+   char *ts;
+
+   ts = rtv_format_nsec64(rec->timestamp - ndx_info.base_time);
+   if ( tag != NULL ) {
+      RTV_PRT("NDXREC: %s: rec_no=%05d ts=%s stream_pos=0x%010llx(%011llu) video_offset=0x%06x(%06u) audio_offset=0x%06lx(%06lu)\n", 
+             tag, rec_no, ts, 
+             rec->stream_position, rec->stream_position,
+             rec->video_offset, rec->video_offset, 
+             rec->audio_offset, rec->audio_offset);
+   }
+   else {
+      RTV_PRT("NDXREC: rec_no=%05d ts=%s stream_pos=0x%010llx(%011llu) video_offset=0x%06x(%06u) audio_offset=0x%06lx(%06lu)\n", 
+             rec_no, ts, 
+             rec->stream_position, rec->stream_position,
+             rec->video_offset, rec->video_offset, 
+             rec->audio_offset, rec->audio_offset);
+   }
+   free(ts);
+   return;
+}
+

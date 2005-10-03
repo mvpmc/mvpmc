@@ -370,6 +370,7 @@ extern char         *rtv_format_nsec64(__u64 nsec);              // Returned str
 extern int           rtv_crypt_test(void);
 extern void          rtv_convert_22_ndx_rec(rtv_ndx_22_record_t *rec);
 extern void          rtv_convert_30_ndx_rec(rtv_ndx_30_record_t *rec);
+extern void          rtv_print_22_ndx_rec(char *tag, int rec_no, rtv_ndx_22_record_t *rec);
 extern void          rtv_print_30_ndx_rec(char *tag, int rec_no, rtv_ndx_30_record_t *rec);
 extern void          rtv_convert_evt_rec(rtv_evt_record_t *rec);
 extern void          rtv_hex_dump(char *tag, unsigned long address, unsigned char *buf, size_t sz, int ascii_decode_bool);
@@ -414,6 +415,9 @@ extern int rtv_open_ndx_file(const rtv_device_info_t    *devinfo,
                              unsigned int                cache_sz );
 extern int rtv_close_ndx_file(void);
 extern int rtv_get_ndx30_rec(unsigned int time_ms, rtv_ndx_30_record_t *rec);
+extern int rtv_get_ndx22_rec(unsigned int time_ms, rtv_ndx_22_record_t *rec);
+
+extern int rtv_parse_4k_ndx_file(rtv_comm_blks_t *commercials);
 
 extern int  rtv_parse_evt_file( rtv_chapter_mark_parms_t evtfile_parms, rtv_comm_blks_t *commercials);
 extern void rtv_print_comm_blks(const rtv_prog_seg_t *block, int num_blocks);

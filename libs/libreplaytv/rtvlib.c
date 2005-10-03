@@ -298,8 +298,8 @@ char *rtv_sec_to_hr_mn_str(unsigned int seconds)
 int rtv_init_lib(void) 
 {
    struct utsname     myname;
-   int                bogus_fd, len, errno_sav;
-   struct sockaddr_in ssdp_addr, local_addr;
+   struct sockaddr_in local_addr;
+   struct hostent    *hptr;
 
    rtv_globals.rtv_emulate_mode = RTV_DEVICE_5K;
    rtv_globals.merge_chunk_sz   = 3;                // 3 - 32K chunks
@@ -318,27 +318,21 @@ int rtv_init_lib(void)
    //
    if ( uname(&myname) < 0 ) {
       RTV_ERRLOG("%s: Unable to determine local Hostname\n", __FUNCTION__);
+      return(-1);
    }
-   else {
-      strncpy(local_hostname, myname.nodename, 254);
-   }
+   strncpy(local_hostname, myname.nodename, 254);
+
    
-   bzero(&ssdp_addr, sizeof(ssdp_addr));
-   ssdp_addr.sin_family = AF_INET;
-   ssdp_addr.sin_port   = htons(1900);
-   inet_aton("239.255.255.250", &(ssdp_addr.sin_addr));
-   bogus_fd = socket(AF_INET, SOCK_DGRAM, 0);
-   if ( (connect(bogus_fd, (struct sockaddr*)&ssdp_addr, sizeof(ssdp_addr))) != 0 ) {
-      errno_sav = errno;
-      RTV_ERRLOG("%s: Unable to determine local IP address: %d==>%s\n", __FUNCTION__, errno_sav, strerror(errno_sav));
+   if((hptr = gethostbyname( myname.nodename )) == NULL)
+   {
+      RTV_ERRLOG("%s: Unable to determine local IP address: h_errno=%d\n", __FUNCTION__, h_errno);
+      return(-1);
    }
-   else {
-      len = sizeof(local_addr);
-      getsockname(bogus_fd, (struct sockaddr*)&local_addr, &len);
-      inet_ntop(AF_INET, &(local_addr.sin_addr), local_ip_address, INET_ADDRSTRLEN);  
-      RTV_PRT("rtv: ipaddress: %s   hostname: %s\n", local_ip_address, local_hostname);
-   }
-   close(bogus_fd);
+
+   memcpy(&local_addr.sin_addr.s_addr, *hptr->h_addr_list, sizeof( struct in_addr));
+   inet_ntop(AF_INET, &(local_addr.sin_addr), local_ip_address, INET_ADDRSTRLEN);  
+   RTV_PRT("rtv: ipaddress: %s   hostname: %s\n", local_ip_address, local_hostname);
+
    return(0);
 }
 
@@ -372,26 +366,6 @@ void rtv_convert_evt_rec(rtv_evt_record_t *rec)
    rec->data_type   = ntohl(rec->data_type);
    rec->audiopower  = ntohl(rec->audiopower);
    rec->blacklevel  = ntohl(rec->blacklevel);
-   return;
-}
-
-
-// rtv_print_30_ndx_rec()
-//
-void rtv_print_30_ndx_rec(char *tag, int rec_no, rtv_ndx_30_record_t *rec)
-{
-   char *ts;
-
-   ts = rtv_format_nsec64(rec->timestamp);
-   if ( tag != NULL ) {
-      printf("NDXREC: %s: rec_no=%05d ts=%s fpos_iframe=0x%010llx(%011llu) iframe_size=%lu\n", 
-             tag, rec_no, ts, rec->filepos_iframe, rec->filepos_iframe, rec->iframe_size);
-   }
-   else {
-      printf("NDXREC: rec_no=%05d ts=%s fpos_iframe=0x%010llx(%011llu) iframe_size=%lu\n", 
-             rec_no, ts, rec->filepos_iframe, rec->filepos_iframe, rec->iframe_size);
-   }
-   free(ts);
    return;
 }
 
