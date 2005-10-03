@@ -257,9 +257,26 @@ int rtv_get_ndx30_rec(unsigned int time_ms, rtv_ndx_30_record_t *rec)
 //  Name: rtv_get_ndx22_rec
 //  returns 0 for success. Returns record in rec
 //
+//  Description:
+//  RTV 4K's don't dump an ndx record exactly every 1/2 second 
+//  like 5K's do. 
+//  So the algorithm we use to find where to jump is:
+//  During init build an ndx record slice array that contains ndx
+//  record pointers for every X seconds.
+//  This gives us a starting point to know the start & end record number
+//  for a X second block of records. eg: a 4 minute block.
+//  When jumping, calculate the slice then interpolate a record within
+//  the slice for the time we want to jump to.
+//  Finally, starting at the record we calculated, read it and do a linear 
+//  search for our timestamp.
+//  Using this method we shouldn't be off by more than 10 or so records 
+//  when jumping.
+//
 //+*********************************************************************
 int rtv_get_ndx22_rec(unsigned int time_ms, rtv_ndx_22_record_t *rec)
 {
+   int max_srch_cnt = 10;
+
    unsigned int         rd_sz, rd_pos;
    int                  rc;
    int                  rec_no, start_rec;
@@ -287,11 +304,6 @@ int rtv_get_ndx22_rec(unsigned int time_ms, rtv_ndx_22_record_t *rec)
       }
       return(0);
    }
-
-//   tmp_calc64 = (__u64)time_ms * (__u64)ndx_info.num_rec_in_file;
-//   printf("tmp_calc %llu\n", tmp_calc64);
-//   rec_no = ((__u64)tmp_calc64) / ndx_info.max_time_ms;
-//   printf("tmp_calc: rec: %d: timems=%u maxtimems=%u recinfile=%d\n", rec_no, time_ms, ndx_info.max_time_ms, ndx_info.num_rec_in_file);
 
    slice_idx = (time_ms / 1000) / RTV_NUM_SEC_PER_SLICE;
    if ( RTVLOG_NDX ) {
@@ -344,20 +356,41 @@ int rtv_get_ndx22_rec(unsigned int time_ms, rtv_ndx_22_record_t *rec)
       }
    }
    
-   // Get the ndx rec from cache & return to the caller
+   // Do a linear interpolation guestimate for the record number.
    //
    ndx_recs = (rtv_ndx_22_record_t*)ndx_info.file_chunk.data_start;
    
    rec_no = (((time_ms / 1000) - (slice_idx * RTV_NUM_SEC_PER_SLICE)) * ndx_slice_list.slice[slice_idx].num_recs) / RTV_NUM_SEC_PER_SLICE;
    
-   if ( (rec_no < (ndx_info.start_rec_num+1) ) || 
-        (rec_no >= (ndx_info.start_rec_num + ndx_info.recs_in_mem)) ) {
+   if ( (rec_no < 0 ) || 
+        (rec_no >= ndx_info.recs_in_mem) ) {
       RTV_ERRLOG("%s: NDX processing SW BUG: rec=%d start=%d cnt=%d\n", __FUNCTION__, rec_no, ndx_info.start_rec_num, ndx_info.recs_in_mem);
       return(-ESPIPE);
    }
 
+   // Track down the timestamp with a linear search.
+   //
    memcpy(rec, &(ndx_recs[rec_no]), sizeof(rtv_ndx_22_record_t));
    rtv_convert_22_ndx_rec(rec);
+   if ( ((rec->timestamp - ndx_info.base_time) / 1000000000) > (time_ms / 1000) ) {
+      while ( (max_srch_cnt--) && (rec_no-- >= 0) ) {
+         memcpy(rec, &(ndx_recs[rec_no]), sizeof(rtv_ndx_22_record_t));
+         rtv_convert_22_ndx_rec(rec);
+         if ( ((rec->timestamp - ndx_info.base_time) / 1000000000) <= (time_ms / 1000) ) {
+            break;
+         }
+      }
+   }
+   else if ( ((rec->timestamp - ndx_info.base_time) / 1000000000) < (time_ms / 1000) ) {
+      while ( (max_srch_cnt--) && (rec_no++ < ndx_slice_list.slice[slice_idx].num_recs) ) {
+         memcpy(rec, &(ndx_recs[rec_no]), sizeof(rtv_ndx_22_record_t));
+         rtv_convert_22_ndx_rec(rec);
+         if ( ((rec->timestamp - ndx_info.base_time) / 1000000000) >= (time_ms / 1000) ) {
+            break;
+         }
+      }
+   }
+
 
    // Should check for the RTV 4K video offset race condition problem.
    // I didn't see any issues with the sample 4k ndx/mpg sent to me so
