@@ -41,6 +41,8 @@ typedef struct {
 typedef struct {
 	int rows;
 	int cols;
+	int bpp;
+	int pixtype;
 } mvpw_screen_info_t;
 
 extern int mvpw_init(void);
@@ -78,6 +80,9 @@ extern int mvpw_visible(const mvp_widget_t *widget);
 extern int mvpw_keystroke_callback(void (*callback)(char));
 extern int mvpw_set_screensaver(mvp_widget_t *widget, int seconds,
 				void (*callback)(mvp_widget_t*, int));
+extern void mvpw_set_fdinput(mvp_widget_t *widget,
+			 void (*callback)(mvp_widget_t*, int));
+extern int mvpw_fdinput_callback(void (*callback)(void));
 extern void mvpw_reparent(mvp_widget_t *child, mvp_widget_t *parent);
 extern int mvpw_read_area(mvp_widget_t *widget, int x, int y, int w, int h,
 			  unsigned long *pixels);
@@ -253,6 +258,26 @@ extern int mvpw_set_dialog_attr(mvp_widget_t *widget,
 				mvpw_dialog_attr_t *attr);
 extern int mvpw_set_dialog_title(mvp_widget_t *widget, char *title);
 extern int mvpw_set_dialog_text(mvp_widget_t *widget, char *text);
+
+/*
+ * surface widget
+ */
+typedef struct {
+	int 		pixtype;
+	int		wid;
+	uint32_t	foreground;
+	int 		fd;
+} mvpw_surface_attr_t;
+
+extern mvp_widget_t* mvpw_create_surface(mvp_widget_t *parent,
+					int x, int y, int w, int h,
+					uint32_t bg, uint32_t border_color,
+					int border_size, int new_pixmap);
+extern int mvpw_get_surface_attr(mvp_widget_t *widget, mvpw_surface_attr_t *surface);
+extern int mvpw_set_surface_attr(mvp_widget_t *widget, mvpw_surface_attr_t *surface);
+extern int mvpw_set_surface(mvp_widget_t *widget, char *image, int x, int y, int width, int height);
+extern int mvpw_copy_area(mvp_widget_t *widget, int x, int y, int srcwid, int srcx, int srcy, int width, int height);
+extern int mvpw_fill_rect(mvp_widget_t *widget, int x, int y, int w, int h, uint32_t* color);
 
 /*
  * common colors

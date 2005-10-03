@@ -44,6 +44,7 @@ static void (*screensaver_callback)(mvp_widget_t*, int) = NULL;
 
 static void (*idle)(void);
 static void (*keystroke_callback)(char);
+static void (*fdinput_callback)(void);
 
 static mvp_widget_t*
 find_widget(GR_WINDOW_ID wid)
@@ -57,6 +58,23 @@ find_widget(GR_WINDOW_ID wid)
 		ptr = ptr->next;
 
 	if (ptr && ptr->widget && (ptr->widget->wid == wid))
+		return ptr->widget;
+
+	return NULL;
+}
+
+static mvp_widget_t*
+find_widget_fd(GR_WINDOW_ID wid, int fd)
+{
+	struct widget_list *ptr;
+	int h = wid % HASH_BINS;
+
+	ptr = hash[h];
+
+	while (ptr && ptr->widget && (ptr->widget->type != MVPW_SURFACE))
+		ptr = ptr->next;
+	
+	if (ptr && ptr->widget && (ptr->widget->data.surface.fd == fd))
 		return ptr->widget;
 
 	return NULL;
@@ -302,8 +320,15 @@ mvpw_hide(mvp_widget_t *widget)
 void
 mvpw_expose(const mvp_widget_t *widget)
 {
-	if (widget)
-		GrClearArea(widget->wid, 0, 0, 0, 0, 1);
+	if (widget) {
+		if (widget->type == MVPW_SURFACE) {
+			if(widget->wid != widget->data.surface.wid) {
+				GrClearArea(widget->wid, 0, 0, 0, 0, 1);
+			}
+		} else {
+			GrClearArea(widget->wid, 0, 0, 0, 0, 1);
+		}
+	}
 }
 
 int
@@ -557,6 +582,25 @@ keystroke(GR_EVENT_KEYSTROKE *key)
 }
 
 static void
+fdinput(GR_EVENT_FDINPUT *fdinput)
+{
+	mvp_widget_t *widget;
+	GR_WINDOW_ID wid;	
+
+	if (fdinput_callback)
+		fdinput_callback();
+
+	wid = GrGetFocus();
+	if ((widget=find_widget_fd(wid, fdinput->fd)) == NULL)
+		return;
+
+	if (widget->callback_fdinput)
+		widget->callback_fdinput(widget, fdinput->fd);
+	if (widget->fdinput)
+		widget->fdinput(widget, fdinput->fd);
+}
+
+static void
 timer(GR_EVENT_TIMER *timer)
 {
 	mvp_widget_t *widget;
@@ -639,6 +683,9 @@ mvpw_event_flush(void)
 		case GR_EVENT_TYPE_SCREENSAVER:
 			screensaver(&event.screensaver);
 			break;
+		case GR_EVENT_TYPE_FDINPUT:
+			fdinput(&event.fdinput);
+			break;
 		case GR_EVENT_TYPE_NONE:
 			return 0;
 			break;
@@ -670,6 +717,9 @@ mvpw_event_loop(void)
 			break;
 		case GR_EVENT_TYPE_SCREENSAVER:
 			screensaver(&event.screensaver);
+			break;
+		case GR_EVENT_TYPE_FDINPUT:
+			fdinput(&event.fdinput);
 			break;
 		case GR_EVENT_TYPE_NONE:
 			if (idle)
@@ -705,7 +755,7 @@ mvpw_init(void)
 	GrSetWindowBackgroundColor(GR_ROOT_WINDOW_ID, 0);
 
 	root->event_mask = GR_EVENT_MASK_KEY_DOWN | GR_EVENT_MASK_TIMER |
-		GR_EVENT_MASK_SCREENSAVER;
+		GR_EVENT_MASK_SCREENSAVER | GR_EVENT_MASK_FDINPUT;
 	GrSelectEvents(GR_ROOT_WINDOW_ID, root->event_mask);
 
 	return 0;
@@ -729,6 +779,8 @@ mvpw_get_screen_info(mvpw_screen_info_t *info)
 
 	info->cols = si.cols;
 	info->rows = si.rows;
+	info->bpp  = si.bpp;
+	info->pixtype = si.pixtype;
 }
 
 mvp_widget_t*
@@ -819,6 +871,23 @@ mvpw_set_screensaver(mvp_widget_t *widget, int seconds,
 
 	screensaver_widget = widget;
 	screensaver_callback = callback;
+
+	return 0;
+}
+
+void
+mvpw_set_fdinput(mvp_widget_t *widget, void (*callback)(mvp_widget_t*, int))
+{
+	widget->event_mask |= GR_EVENT_MASK_FDINPUT;
+        GrSelectEvents(widget->wid, widget->event_mask);
+
+        widget->callback_fdinput = callback;
+}	
+
+int
+mvpw_fdinput_callback(void (*callback)(void))
+{
+	fdinput_callback = callback;
 
 	return 0;
 }

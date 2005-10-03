@@ -35,6 +35,7 @@ typedef enum {
 	MVPW_CHECKBOX,
 	MVPW_BITMAP,
 	MVPW_DIALOG,
+	MVPW_SURFACE,
 } mvpw_id_t;
 
 typedef struct {
@@ -133,6 +134,13 @@ typedef struct {
 	mvp_widget_t	*image_widget;
 } mvpw_dialog_t;
 
+typedef struct {
+	int		pixtype;
+	int		wid;
+	MWPIXELVAL	foreground;
+	int		fd;
+} mvpw_surface_t;
+
 struct mvp_widget_s {
 	mvpw_id_t	 type;
 	GR_WINDOW_ID	 wid;
@@ -158,11 +166,13 @@ struct mvp_widget_s {
 	void (*expose)(mvp_widget_t*);
 	void (*key)(mvp_widget_t*, char);
 	void (*timer)(mvp_widget_t*);
+	void (*fdinput)(mvp_widget_t*, int);
 
 	void (*callback_destroy)(mvp_widget_t*);
 	void (*callback_expose)(mvp_widget_t*);
 	void (*callback_key)(mvp_widget_t*, char);
 	void (*callback_timer)(mvp_widget_t*);
+	void (*callback_fdinput)(mvp_widget_t*, int);
 
 	union {
 		mvpw_text_t		text;
@@ -173,6 +183,7 @@ struct mvp_widget_s {
 		mvpw_checkbox_t		checkbox;
 		mvpw_bitmap_t		bitmap;
 		mvpw_dialog_t		dialog;
+		mvpw_surface_t		surface;
 	} data;
 };
 
