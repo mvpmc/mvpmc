@@ -45,6 +45,9 @@
 #include "display.h"
 #include "bmp.h"
 
+#include <vncviewer.h>
+#include <nano-X.h>
+
 volatile int running_replaytv = 0;
 volatile int mythtv_livetv = 0;
 
@@ -712,6 +715,8 @@ mvp_widget_t *fb_size;
 mvp_widget_t *fb_offset_widget;
 mvp_widget_t *fb_offset_bar;
 
+mvp_widget_t *vnc_widget;
+
 static int screensaver_enabled = 0;
 volatile int screensaver_timeout = 60;
 volatile int screensaver_default = -1;
@@ -737,6 +742,7 @@ enum {
 	MM_MYTHTV,
 	MM_FILESYSTEM,
 	MM_ABOUT,
+	MM_VNC,
 	MM_SETTINGS,
 	MM_REPLAYTV,
 	MM_MCLIENT,
@@ -1425,6 +1431,45 @@ mclient_key_callback(mvp_widget_t *widget, char key)
 	{
                 curses2ir(key);
 	}
+}
+
+static void
+vnc_key_callback(mvp_widget_t *widget, char key)
+{
+printf("key=%i\n",key);
+	if( key==MVPW_KEY_EXIT || key==MVPW_KEY_POWER) {
+       		GrUnregisterInput(rfbsock);
+	        close(rfbsock);
+		mvpw_destroy(widget);
+        	
+		mvpw_show(main_menu);
+        	mvpw_show(mvpmc_logo);
+        	mvpw_focus(main_menu);
+		screensaver_enable();
+	} else {
+printf("keymap %i = %ld\n", key, kmap[key & 0x7f]);
+//		SendKeyEvent(kmap[key & 0x7f], -1);
+		SendKeyEvent(kmap[(int)key], -1);
+		SendIncrementalFramebufferUpdateRequest();
+	}
+}
+
+static void
+vnc_fdinput_callback(mvp_widget_t *widget, int fd)
+{
+//printf("fdinput callback\n");
+	if (!HandleRFBServerMessage()) {
+		printf("Error updating screen\n");
+		vnc_key_callback(widget, MVPW_KEY_EXIT);	
+        }
+	mvpw_expose(widget);
+}
+
+static void
+vnc_timer_callback(mvp_widget_t *widget)
+{
+//printf("timer callback\n");
+	SendIncrementalFramebufferUpdateRequest();
 }
 
 static int
@@ -2558,7 +2603,8 @@ static void
 main_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
 	int k = (int)key;
-
+	mvpw_surface_attr_t surface;
+	
 	switch (k) {
 	case MM_EXIT:
 #ifndef MVPMC_HOST
@@ -2625,6 +2671,71 @@ main_select_callback(mvp_widget_t *widget, char *item, void *key)
 		pthread_cond_broadcast(&mclient_cond);
                 mvpw_set_timer(mclient, mclient_idle_callback, 100);
 		break;
+	case MM_VNC:
+	        printf("Connecting to %s %i\n", vnc_server, vnc_port);
+
+	        if (!ConnectToRFBServer(vnc_server, vnc_port)) return;
+	        if (!InitialiseRFBConnection(rfbsock)) return;
+		myFormat.bitsPerPixel = si.bpp;
+		myFormat.depth = si.bpp;
+#ifdef MVPMC_HOST
+		myFormat.bigEndian = 0;
+#else
+		myFormat.bigEndian = 1;
+#endif
+		myFormat.trueColour = (myFormat.depth == 8 && !useBGR233) ? 0 : 1;
+		if (myFormat.trueColour) {
+			printf("TrueColour - %i bpp\n", si.bpp);
+			switch (si.bpp) {
+			case 8:
+				myFormat.redMax = myFormat.greenMax = 7;
+				myFormat.blueMax = 3;
+				myFormat.redShift = 0;
+				myFormat.greenShift = 3;
+				myFormat.blueShift = 6;
+				break;
+			case 16:
+				myFormat.redMax = myFormat.blueMax = 31;
+				myFormat.greenMax = 63;
+				myFormat.redShift = 11;
+				myFormat.greenShift = 5;
+				myFormat.blueShift = 0;
+				break;
+			default:
+				myFormat.redMax = myFormat.greenMax = myFormat.blueMax = 255;
+				myFormat.redShift = 16;
+				myFormat.greenShift = 8;
+				myFormat.blueShift = 0;
+				break;
+			}
+		}
+	        if (!SetFormatAndEncodings()) return;
+
+		printf("Connection Successful\n");
+
+#ifdef MVPMC_HOST
+		vnc_widget = mvpw_create_surface(NULL, 0, 0, si.cols, si.rows, 0, 0, 0, True);
+#else
+		vnc_widget = mvpw_create_surface(NULL, 30, 30, si.cols - 60, si.rows - 60, 0, 0, 0, False);
+		//vnc_widget = mvpw_create_surface(NULL, 60, 60, 200, 200, 0, 0, 0, True);
+#endif
+		screensaver_disable();
+		mvpw_set_key(vnc_widget, vnc_key_callback);
+		
+		mvpw_get_surface_attr(vnc_widget, &surface);
+		surface.fd = rfbsock;
+		mvpw_set_surface_attr(vnc_widget, &surface);
+		mvpw_set_fdinput(vnc_widget, vnc_fdinput_callback);	
+		GrRegisterInput(rfbsock); /* register the RFB socket */
+		mvpw_set_timer(vnc_widget, vnc_timer_callback, 100);
+		
+		mvpw_hide(mvpmc_logo);
+		mvpw_hide(main_menu);
+		mvpw_show(vnc_widget);
+		mvpw_focus(vnc_widget);	
+
+		canvas = surface.wid;
+		break;
 	}
 }
 
@@ -2667,6 +2778,8 @@ main_hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 			snprintf(display_message, sizeof(display_message),
 				  "File:%s\n", "Music Client");
 			display_send(display_message);
+			break;
+		case MM_VNC:
 			break;
 		case MM_ABOUT:
 			mvpw_show(about_image);
@@ -2716,6 +2829,7 @@ main_menu_init(char *server, char *replaytv)
 	char file[128];
 	int w;
 	int i, theme_count = 0;
+	extern size_t strnlen(const char*, size_t);
 
 	for (i=0; i<THEME_MAX; i++) {
 		if (theme_list[i].path != NULL) {
@@ -2861,6 +2975,9 @@ main_menu_init(char *server, char *replaytv)
 	if (mclient_type == MCLIENT)
 		mvpw_add_menu_item(main_menu, "Music Client",
 				   (void*)MM_MCLIENT, &item_attr);
+	if (strnlen(vnc_server, 254))
+		mvpw_add_menu_item(main_menu, "VNC",
+			   (void*)MM_VNC, &item_attr);
 #ifdef MVPMC_HOST
 	mvpw_add_menu_item(main_menu, "Exit",
 			   (void*)MM_EXIT, &item_attr);
@@ -2883,7 +3000,7 @@ about_init(void)
 		"Audio: mp3, ogg, wav, ac3\n"
 		"Video: mpeg1, mpeg2\n"
 		"Images: bmp, gif, png, jpeg\n"
-		"Servers: MythTV, ReplayTV, NFS, CIFS\n";
+		"Servers: MythTV, ReplayTV, NFS, CIFS, VNC\n";
 
 	splash_update("Creating about dialog");
 

@@ -49,9 +49,14 @@
 #include "display.h"
 #include "mclient.h"
 
+#define VNC_SERVERPORT (5900)    /* Offset to VNC server for regular connections */
+
 char *mythtv_server = NULL;
 char *replaytv_server = NULL;
 char *mclient_server = NULL;
+
+char vnc_server[256];
+int vnc_port = 0;
 
 int fontid;
 extern demux_handle_t *handle;
@@ -155,6 +160,7 @@ print_help(char *prog)
 	printf("\t-S seconds\tscreensaver timeout in seconds (0 - disable)\n");
 	printf("\t-r path   \tpath to NFS mounted mythtv recordings\n");
 	printf("\t-R server \treplaytv server IP address\n");
+	printf("\t-D display\tVNC server IP address[:display]\n");
 	printf("\t-t file   \tXML theme file\n");
 	printf("\t-c server \tslimdevices musicClient server IP address\n");
 }
@@ -315,7 +321,7 @@ main(int argc, char **argv)
 
 	tzset();
 
-	while ((c=getopt(argc, argv, "a:b:C:c:d:f:hi:m:Mo:r:R:s:S:t:")) != -1) {
+	while ((c=getopt(argc, argv, "a:b:C:c:d:D:f:hi:m:Mo:r:R:s:S:t:")) != -1) {
 		switch (c) {
 		case 'a':
 			if (strcmp(optarg, "4:3cco") == 0) {
@@ -400,6 +406,16 @@ main(int argc, char **argv)
 		case 's':
 			mythtv_server = strdup(optarg);
 			break;
+		case 'D':
+			if (sscanf(optarg, "%[^:]:%d", vnc_server, &vnc_port) != 2) {
+				printf("Incorrectly formatted VNC server '%s'\n", optarg);
+				print_help(argv[0]);
+				exit(1);
+			}
+
+			if (vnc_port < 100)
+				vnc_port += VNC_SERVERPORT;
+			break;	
 		case 'S':
 			i = atoi(optarg);
 			if ((i < 0) || (i > 3600)) {
@@ -605,6 +621,9 @@ main(int argc, char **argv)
         }
 
 	demux_set_display_size(handle, width, height);
+
+	if (mythtv_server)
+		mythtv_init(mythtv_server, -1);
 
 	video_init();
 

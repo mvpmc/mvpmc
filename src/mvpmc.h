@@ -131,13 +131,13 @@ extern mvp_widget_t *demux_audio;
 extern mvp_widget_t *playlist_widget;
 
 extern mvp_widget_t *fb_program_widget;
-
 extern mvp_widget_t *fb_progress;
 extern mvp_widget_t *fb_offset_widget;
 extern mvp_widget_t *fb_offset_bar;
 extern mvp_widget_t *fb_name;
 extern mvp_widget_t *fb_time;
 extern mvp_widget_t *fb_size;
+extern mvp_widget_t *vnc_widget;
 
 extern uint32_t root_color;
 extern int root_bright;
@@ -274,6 +274,9 @@ extern volatile int screensaver_timeout;
 extern volatile int screensaver_default;
 
 extern volatile int mythtv_livetv;
+
+extern char vnc_server[256];
+extern int vnc_port;
 
 extern char compile_time[], version[];
 

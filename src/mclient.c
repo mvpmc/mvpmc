@@ -176,7 +176,7 @@ void * recvbuf;
 
 int playmode = 3;
 
-int debug = 0;
+static int debug = 0;
 
 /*
  * Default is to enable the display.
