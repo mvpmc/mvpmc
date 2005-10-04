@@ -611,6 +611,11 @@ video_callback(mvp_widget_t *widget, char key)
 			}
 			break;
 		case MVPMC_STATE_MCLIENT:
+			/*
+			 * No code is necessary here because:
+			 * - The key is already trapped / processed in gui.c/mclient_key_callback.
+			 * - And the mclient show / focus is in gui.c/main_select_callback.
+			 */
 			break;
 		}
 		mvpw_expose(root);
