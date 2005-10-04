@@ -323,7 +323,7 @@ static mvpw_dialog_attr_t about_attr = {
 };
 
 static mvpw_dialog_attr_t mclient_attr = {
-	.font = FONT_LARGE,
+	.font = FONT_STANDARD,
 	.fg = MVPW_WHITE,
 	.bg = MVPW_DARKGREY,
 	.title_fg = MVPW_WHITE,
