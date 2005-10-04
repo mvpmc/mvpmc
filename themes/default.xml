@@ -186,6 +186,16 @@
     <font>large</font>
   </widget>
 
+  <widget type="dialog" name="mclient">
+    <color type="bg">gray30</color>
+    <color type="fg">white</color>
+    <color type="title_bg">blue</color>
+    <color type="title_fg">white</color>
+    <color type="border">blue</color>
+    <style type="border_size">2</style>
+    <font>large</font>
+  </widget>
+
   <widget type="dialog" name="settings_dialog">
     <color type="bg">gray30</color>
     <color type="fg">white</color>

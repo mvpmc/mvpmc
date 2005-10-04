@@ -209,6 +209,16 @@
     <font>large</font>
   </widget>
 
+  <widget type="dialog" name="mclient">
+    <color type="bg">yellow</color>
+    <color type="fg">black</color>
+    <color type="title_bg">beige</color>
+    <color type="title_fg">black</color>
+    <color type="border">green</color>
+    <style type="border_size">2</style>
+    <font>large</font>
+  </widget>
+
   <!--
      - ReplayTV settings
     -->
