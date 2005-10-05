@@ -341,12 +341,16 @@ unsigned long curses2ir(int key) {
     case MVPW_KEY_FFWD: ir = 0x7689a05f; break; /* fwd */
     case MVPW_KEY_OK: ir = 0x768910ef; break; /* play */
     case MVPW_KEY_PLAY: ir = 0x768910ef; break; /* play */
-    case MVPW_KEY_MENU: ir = 0x76897887; break; /* now_playing */
-    case MVPW_KEY_YELLOW: debug = !debug; break; /* toggle debug mode */
-    case MVPW_KEY_REPLAY: ir = 0x768938c7; break; /* repeat */
-    case MVPW_KEY_RED: ir = 0x768958a7; break; /* search */
-    case MVPW_KEY_GREEN: ir = 0x7689609f; break; /* add */
-    case MVPW_KEY_BLUE: ir = 0x7689d827; break; /* shuffle */
+    case MVPW_KEY_MENU: ir = 0x76897887; break; /* jump to now playing menu */
+    case MVPW_KEY_REPLAY: ir = 0x768938c7; break; /* cycle through repeat modes */
+    case MVPW_KEY_RED: ir = 0x768958a7; break; /* jump to search menu */
+    case MVPW_KEY_GREEN: ir = 0x7689609f; break; /* add, NOTE: if held = zap */
+    case MVPW_KEY_BLUE: ir = 0x7689d827; break; /* cycle through shuffle modes */
+
+   /*
+    * JVC remote control codes.
+    */
+    case MVPW_KEY_STOP: ir = 0x0000f7c2; break; /* stop */
 
    /*
     * Special keys we can process here.
@@ -358,13 +362,8 @@ unsigned long curses2ir(int key) {
           mvpw_hide(mute_widget);
        break;
 
-/// This doesn't work, prob because 2 key presses so close look like a glitch to the server.
-/// Also, you need to do the rew then the pause.
-    case MVPW_KEY_STOP:
-       ir = 0x768920df; /* pause */
-       send_ir(mclient_socket, 0xff , ir, 16);
-       ir = 0x7689c03f; /* rew */
-       break;
+    case MVPW_KEY_YELLOW: debug = !debug; break; /* toggle debug mode */
+
 
       /*
        * Keys that may not make sense for mvpmc.
@@ -889,7 +888,7 @@ mclient_loop_thread(void *arg)
   for(;;)
     {
       /*
-       * Check when we get "turned on".
+       * Check when we get "turned on" (grab the GUI).
        */
       if(gui_state == MVPMC_STATE_MCLIENT)
 	{
@@ -900,7 +899,7 @@ mclient_loop_thread(void *arg)
 	  if(debug) printf("mclient:Initializing mclient\n");
 
 	  /*
-	   * Grab the audio HW.
+	   * Grab the audio hardware.
 	   */
 	  switch_hw_state(MVPMC_STATE_MCLIENT);
 
@@ -919,7 +918,11 @@ mclient_loop_thread(void *arg)
 	  av_set_audio_type(0);
 	  av_play();
 
-	  while(gui_state == MVPMC_STATE_MCLIENT)
+         /*
+          * Stay in loop processing server's audio data
+          * until we give up the audio hardware.
+          */
+           while(hw_state == MVPMC_STATE_MCLIENT)
 	    {
 
 	      struct timeval mclient_tv;
@@ -960,26 +963,7 @@ mclient_loop_thread(void *arg)
 	       * key press or if we have exited out of the music client.
 	       */
 	      send_mpeg_data(s, recvbuf);
-
-	      /*
-	       * Check when we get "turned off".
-	       */
-/// Don't think we need this
-///	      local_mclient_active = query_mclient_active();
 	    }
-
-	  /*
-	   * In case we are only waiting until we are in the music
-	   * client menu (i.e. skiping everything above) lets give
-	   * up the processor for a bit before we check again if
-	   * we are in the music client menu.
-	   */
-	  {
-	    struct timespec req, rem;
-	    req.tv_sec = 0;
-	    req.tv_nsec = (1000000 * 100); /// 100ms delay (1/10 of a second)
-	    (void) nanosleep(&req, &rem);
-	  }
 
 	  /*
 	   * Done, we got "turned off", so close the connection.
