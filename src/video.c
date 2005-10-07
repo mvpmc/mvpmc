@@ -1321,6 +1321,10 @@ video_read_start(void *arg)
 			        printf("Source video aspect ratio: 16:9\n");
 			        switch (av_get_aspect()) {
 				case AV_ASPECT_16x9:
+				     printf("Setting output to 16:9\n");
+				     av_set_video_aspect(1);
+				     break;
+				case AV_ASPECT_16x9_AUTO:
 				     printf("Setting output to 16:9 Full Height Anamorphic with 16:9 WSS Widget\n");
 				     av_set_video_aspect(7);     // 16:9 full-height anamorphic output
 				     mvpw_hide(wss_4_3_image);
@@ -1344,6 +1348,10 @@ video_read_start(void *arg)
 			        printf("Source video aspect ratio: 4:3\n");
 				switch (av_get_aspect()) {
 				case AV_ASPECT_16x9:
+				     printf("Setting output to 16:9\n");
+				     av_set_video_aspect(1);
+				     break;
+				case AV_ASPECT_16x9_AUTO:
 				     printf("Setting output to 4:3 Full Height with 4:3 WSS Widget\n");
 				     av_set_video_aspect(0);     // 16:9 full-height anamorphic output
 				     mvpw_hide(wss_16_9_image);

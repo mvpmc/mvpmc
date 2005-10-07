@@ -250,15 +250,15 @@ int
 av_set_aspect(av_aspect_t ratio)
 {
   	if ((ratio != AV_ASPECT_4x3) && (ratio != AV_ASPECT_16x9) &&
-	    (ratio != AV_ASPECT_4x3_CCO))
+	    (ratio != AV_ASPECT_4x3_CCO) && (ratio != AV_ASPECT_16x9_AUTO))
 		return -1;
 
-	if ( ratio == AV_ASPECT_16x9) {
-	  if (ioctl(fd_video, AV_SET_VID_RATIO, ratio) < 0)
-	        return -1;
+	if ((ratio == AV_ASPECT_16x9) || (ratio == AV_ASPECT_16x9_AUTO)) {
+		if (ioctl(fd_video, AV_SET_VID_RATIO, AV_ASPECT_16x9) < 0)
+			return -1;
 	} else {
-	  if (ioctl(fd_video, AV_SET_VID_RATIO, AV_ASPECT_4x3) < 0)
-	        return -1;
+		if (ioctl(fd_video, AV_SET_VID_RATIO, AV_ASPECT_4x3) < 0)
+			return -1;
 	}
 
 	aspect = ratio;

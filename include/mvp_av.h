@@ -31,9 +31,9 @@ typedef enum {
 } av_demux_mode_t;
 
 typedef enum {
-	AV_MODE_NTSC,
-	AV_MODE_PAL,
-	AV_MODE_UNKNOWN,
+	AV_MODE_NTSC = 0,
+	AV_MODE_PAL = 1,
+	AV_MODE_UNKNOWN = 2,
 } av_mode_t;
 
 typedef enum {
@@ -50,7 +50,8 @@ typedef enum {
 typedef enum {
 	AV_ASPECT_4x3 = 0,
 	AV_ASPECT_4x3_CCO = 2,
-	AV_ASPECT_16x9 = 1
+	AV_ASPECT_16x9 = 1,
+	AV_ASPECT_16x9_AUTO = 3
 } av_aspect_t;
 
 typedef enum {
@@ -62,7 +63,7 @@ typedef enum {
 } av_audio_stream_t;
 
 typedef enum {
-	AV_AUDIO_MPEG,
+	AV_AUDIO_MPEG = 0,
 	AV_AUDIO_PCM,
 	AV_AUDIO_AC3
 } av_audio_output_t;
