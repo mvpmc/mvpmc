@@ -42,6 +42,7 @@
 
 #include "mvpmc.h"
 #include "replaytv.h"
+#include "config.h"
 
 #include "a52dec/a52.h"
 #include "a52dec/mm_accel.h"
@@ -95,6 +96,8 @@ mvpmc_state_t gui_state = MVPMC_STATE_NONE;
 config_t *config;
 static int shmid;
 
+char *config_file = NULL;
+
 char *screen_capture_file = NULL;
 
 static int
@@ -146,11 +149,12 @@ print_help(char *prog)
 {
 	printf("Usage: %s <options>\n", prog);
 
-	printf("\t-a aspect \taspect ratio (4:3, 4:3cco or 16:9)\n");
+	printf("\t-a aspect \taspect ratio (4:3, 4:3cco, 16:9, 16:9auto)\n");
 	printf("\t-b path   \tpath to NFS mounted mythtv ringbuf directory\n");
 	printf("\t-C file   \tbitmap file to use for screen captures\n");
 	printf("\t-d type   \ttype of local display (disable (default), IEE16x1, or IEE40x2)\n");
 	printf("\t-f font   \tfont file\n");
+	printf("\t-F file   \tconfig file\n");
 	printf("\t-h        \tprint this help\n");
 	printf("\t-i dir    \tmvpmc image directory\n");
 	printf("\t-m mode   \toutput mode (ntsc or pal)\n");
@@ -321,7 +325,52 @@ main(int argc, char **argv)
 
 	tzset();
 
-	while ((c=getopt(argc, argv, "a:b:C:c:d:D:f:hi:m:Mo:r:R:s:S:t:")) != -1) {
+	/*
+	 * Allocate a shared memory region so that config options can
+	 * survive a crash or restart.
+	 */
+#ifndef MVPMC_HOST
+	if ((shmid=shmget(IPC_PRIVATE, sizeof(config_t), IPC_CREAT)) == -1) {
+		perror("shmget()");
+		exit(1);
+	}
+	if ((config=(config_t*)shmat(shmid, NULL, 0)) == (config_t*)-1) {
+		perror("shmat()");
+		exit(1);
+	}
+#else
+	if ((config=(config_t*)malloc(sizeof(config_t))) == NULL) {
+		perror("malloc()");
+		exit(1);
+	}
+#endif
+	memset(config, 0, sizeof(*config));
+	config->magic = CONFIG_MAGIC;
+
+	/*
+	 * Initialize the config options to the defaults.
+	 */
+	config->screensaver_timeout = screensaver_timeout;
+	config->osd_bitrate = osd_settings.bitrate;
+	config->osd_clock = osd_settings.clock;
+	config->osd_demux_info = osd_settings.demux_info;
+	config->osd_program = osd_settings.program;
+	config->osd_progress = osd_settings.progress;
+	config->osd_timecode = osd_settings.timecode;
+	config->brightness = root_bright;
+	config->mythtv_tcp_control = mythtv_tcp_control;
+	config->mythtv_tcp_program = mythtv_tcp_program;
+	config->av_audio_output = AUD_OUTPUT_STEREO;
+	config->av_video_output = AV_OUTPUT_COMPOSITE;
+	config->av_aspect = AV_ASPECT_4x3;
+	config->av_mode = AV_MODE_PAL;
+
+	/*
+	 * Parse the command line options.  These settings must override
+	 * the settings from all other sources.
+	 */
+	while ((c=getopt(argc, argv,
+			 "a:b:C:c:d:D:f:F:hi:m:Mo:r:R:s:S:t:")) != -1) {
 		switch (c) {
 		case 'a':
 			if (strcmp(optarg, "4:3cco") == 0) {
@@ -330,12 +379,16 @@ main(int argc, char **argv)
 				aspect = AV_ASPECT_4x3;
 			} else if (strcmp(optarg, "16:9") == 0) {
 				aspect = AV_ASPECT_16x9;
+			} else if (strcmp(optarg, "16:9auto") == 0) {
+				aspect = AV_ASPECT_16x9_AUTO;
 			} else {
 				fprintf(stderr, "unknown aspect ratio '%s'\n",
 					optarg);
 				print_help(argv[0]);
 				exit(1);
 			}
+			config->bitmask |= CONFIG_ASPECT;
+			config->av_aspect = aspect;
 			break;
 		case 'b':
 			mythtv_ringbuf = strdup(optarg);
@@ -366,6 +419,9 @@ main(int argc, char **argv)
 		case 'f':
 			font = strdup(optarg);
 			break;
+		case 'F':
+			config_file = strdup(optarg);
+			break;
 		case 'm':
 			if (strcasecmp(optarg, "pal") == 0) {
 				mode = AV_MODE_PAL;
@@ -376,6 +432,8 @@ main(int argc, char **argv)
 				print_help(argv[0]);
 				exit(1);
 			}
+			config->bitmask |= CONFIG_MODE;
+			config->av_mode = mode;
 			break;
 		case 'M':
 			mythtv_debug = 1;
@@ -383,12 +441,20 @@ main(int argc, char **argv)
 		case 'o':
 			if (strcasecmp(optarg, "svideo") == 0) {
 				output = AV_OUTPUT_SVIDEO;
+				config->av_video_output = output;
+				config->bitmask |= CONFIG_VIDEO_OUTPUT;
 			} else if (strcasecmp(optarg, "composite") == 0) {
 				output = AV_OUTPUT_COMPOSITE;
+				config->av_video_output = output;
+				config->bitmask |= CONFIG_VIDEO_OUTPUT;
 			} else if (strcasecmp(optarg, "stereo") == 0) {
 				audio_output_mode = AUD_OUTPUT_STEREO;
+				config->av_audio_output = audio_output_mode;
+				config->bitmask |= CONFIG_AUDIO_OUTPUT;
 			} else if (strcasecmp(optarg, "passthru") == 0) {
 				audio_output_mode = AUD_OUTPUT_PASSTHRU;
+				config->av_audio_output = audio_output_mode;
+				config->bitmask |= CONFIG_AUDIO_OUTPUT;
 			} else {
 				fprintf(stderr, "unknown output '%s'\n",
 					optarg);
@@ -426,6 +492,8 @@ main(int argc, char **argv)
 			}
 			screensaver_default = i;
 			screensaver_timeout = i;
+			config->screensaver_timeout = screensaver_timeout;
+			config->bitmask |= CONFIG_SCREENSAVER;
 			break;
 		case 't':
 			theme_file = strdup(optarg);
@@ -444,45 +512,6 @@ main(int argc, char **argv)
 			break;
 		}
 	}
-
-	/*
-	 * Allocate a shared memory region so that config options can
-	 * survive a crash or restart.
-	 */
-#ifndef MVPMC_HOST
-	if ((shmid=shmget(IPC_PRIVATE, sizeof(config_t), IPC_CREAT)) == -1) {
-		perror("shmget()");
-		exit(1);
-	}
-	if ((config=(config_t*)shmat(shmid, NULL, 0)) == (config_t*)-1) {
-		perror("shmat()");
-		exit(1);
-	}
-#else
-	if ((config=(config_t*)malloc(sizeof(config_t))) == NULL) {
-		perror("malloc()");
-		exit(1);
-	}
-#endif
-
-	/*
-	 * Initialize the config options to what was passed in on the
-	 * command line.
-	 */
-	memset(config, 0, sizeof(*config));
-	config->magic = CONFIG_MAGIC;
-	config->av_audio_output = audio_output_mode;
-	config->screensaver_timeout = screensaver_timeout;
-	config->av_mode = mode;
-	config->av_aspect = aspect;
-	config->av_video_output = output;
-	config->osd_bitrate = osd_settings.bitrate;
-	config->osd_clock = osd_settings.clock;
-	config->osd_demux_info = osd_settings.demux_info;
-	config->osd_program = osd_settings.program;
-	config->osd_progress = osd_settings.progress;
-	config->osd_timecode = osd_settings.timecode;
-	config->brightness = root_bright;
 
 #ifndef MVPMC_HOST
 	theme_parse(MASTER_THEME);
@@ -507,6 +536,13 @@ main(int argc, char **argv)
 			return -1;
 #endif
 	}
+
+	/*
+	 * Load the settings from the config file, without allowing them to
+	 * override the command line settings.
+	 */
+	if (config_file)
+		load_config_file(config_file, 0);
 
 #ifndef MVPMC_HOST
 	spawn_child();
@@ -533,39 +569,6 @@ main(int argc, char **argv)
 		theme_parse(theme_file);
 #endif
 
-	/*
-	 * Allow the config shared memory region data to override
-	 * the defaults, the command line and the theme file.
-	 */
-	if (config->bitmask & CONFIG_SCREENSAVER)
-		screensaver_timeout = config->screensaver_timeout;
-	if (config->bitmask & CONFIG_MODE)
-		mode = config->av_mode;
-	if (config->bitmask & CONFIG_AUDIO_OUTPUT)
-		audio_output_mode = config->av_audio_output;
-	if (config->bitmask & CONFIG_VIDEO_OUTPUT)
-		output = config->av_video_output;
-	if (config->bitmask & CONFIG_ASPECT)
-		aspect = config->av_aspect;
-	if (config->bitmask & CONFIG_OSD_BITRATE)
-		osd_settings.bitrate = config->osd_bitrate;
-	if (config->bitmask & CONFIG_OSD_CLOCK)
-		osd_settings.clock = config->osd_clock;
-	if (config->bitmask & CONFIG_OSD_DEMUX_INFO)
-		osd_settings.demux_info = config->osd_demux_info;
-	if (config->bitmask & CONFIG_OSD_PROGRESS)
-		osd_settings.progress = config->osd_progress;
-	if (config->bitmask & CONFIG_OSD_PROGRAM)
-		osd_settings.program = config->osd_program;
-	if (config->bitmask & CONFIG_OSD_TIMECODE)
-		osd_settings.timecode = config->osd_timecode;
-	if (config->bitmask & CONFIG_BRIGHTNESS)
-		root_bright = config->brightness;
-	if (config->bitmask & CONFIG_MYTHTV_CONTROL)
-		mythtv_tcp_control = config->mythtv_tcp_control;
-	if (config->bitmask & CONFIG_MYTHTV_PROGRAM)
-		mythtv_tcp_program = config->mythtv_tcp_program;
-
 	if (font)
 		fontid = mvpw_load_font(font);
 
@@ -574,6 +577,11 @@ main(int argc, char **argv)
 		exit(1);
 	}
    
+	/*
+	 * Update the config settings from the shared memory region.
+	 */
+	set_config();
+
 	if (rtv_init_str) {
 		replaytv_init(rtv_init_str);
 	}
@@ -604,10 +612,10 @@ main(int argc, char **argv)
 
 	a52_state = a52_init (accel);
 
-	if (aspect != -1)
+	if (!(config->bitmask & CONFIG_ASPECT) && (aspect != -1))
 		av_set_aspect(aspect);
 
-	if (output != -1)
+	if (!(config->bitmask & CONFIG_VIDEO_OUTPUT) && (output != -1))
 		av_set_output(output);
 
 	if ((handle=demux_init(1024*1024*2.5)) == NULL) {

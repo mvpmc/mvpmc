@@ -38,6 +38,7 @@
 #include <mvp_osd.h>
 
 #include "mvpmc.h"
+#include "config.h"
 #include "replaytv.h"
 #include "colorlist.h"
 
@@ -359,7 +360,7 @@ static mvpw_text_attr_t busy_text_attr = {
 
 static mvpw_graph_attr_t splash_graph_attr = {
 	.min = 0,
-	.max = 18,
+	.max = 20,
 	.fg = mvpw_color_alpha(MVPW_RED, 0x80),
 	.gradient = 1,
 	.left = MVPW_BLACK,
@@ -765,6 +766,7 @@ typedef enum {
 	SETTINGS_MAIN_DISPLAY,
 	SETTINGS_MAIN_MYTHTV,
 	SETTINGS_MAIN_OSD,
+	SETTINGS_MAIN_SAVE,
 } settings_main_t;
 
 typedef enum {
@@ -980,6 +982,7 @@ static void
 settings_screensaver_key_callback(mvp_widget_t *widget, char key)
 {
 	char buf[16];
+	int change = 0;
 
 	switch (key) {
 	case MVPW_KEY_EXIT:
@@ -988,18 +991,20 @@ settings_screensaver_key_callback(mvp_widget_t *widget, char key)
 		mvpw_focus(settings);
 		break;
 	case MVPW_KEY_UP:
+	case MVPW_KEY_RIGHT:
 		screensaver_timeout += 60;
+		change = 1;
 		break;
 	case MVPW_KEY_DOWN:
+	case MVPW_KEY_LEFT:
 		screensaver_timeout -= 60;
+		change = 1;
 		break;
 	}
 
-	if ((key == MVPW_KEY_UP) || (key == MVPW_KEY_DOWN)) {
+	if (change) {
 		if (screensaver_timeout < 0)
 			screensaver_timeout = 0;
-		printf("change screensaver timeout to %d\n",
-		       screensaver_timeout);
 		snprintf(buf, sizeof(buf), "%.2d:%.2d:%.2d",
 			 screensaver_timeout/3600,
 			 screensaver_timeout/60, screensaver_timeout%60);
@@ -1015,6 +1020,7 @@ static void
 settings_mythtv_control_key_callback(mvp_widget_t *widget, char key)
 {
 	char buf[16];
+	int change = 0;
 
 	switch (key) {
 	case MVPW_KEY_EXIT:
@@ -1023,14 +1029,18 @@ settings_mythtv_control_key_callback(mvp_widget_t *widget, char key)
 		mvpw_focus(settings_mythtv);
 		break;
 	case MVPW_KEY_UP:
+	case MVPW_KEY_RIGHT:
 		mythtv_tcp_control += 4096;
+		change = 1;
 		break;
 	case MVPW_KEY_DOWN:
+	case MVPW_KEY_LEFT:
 		mythtv_tcp_control -= 4096;
+		change = 1;
 		break;
 	}
 
-	if ((key == MVPW_KEY_UP) || (key == MVPW_KEY_DOWN)) {
+	if (change) {
 		if (mythtv_tcp_control < 0)
 			mythtv_tcp_control = 0;
 		snprintf(buf, sizeof(buf), "%d", mythtv_tcp_control);
@@ -1047,6 +1057,7 @@ static void
 settings_mythtv_program_key_callback(mvp_widget_t *widget, char key)
 {
 	char buf[16];
+	int change = 0;
 
 	switch (key) {
 	case MVPW_KEY_EXIT:
@@ -1055,14 +1066,18 @@ settings_mythtv_program_key_callback(mvp_widget_t *widget, char key)
 		mvpw_focus(settings_mythtv);
 		break;
 	case MVPW_KEY_UP:
+	case MVPW_KEY_RIGHT:
 		mythtv_tcp_program += 4096;
+		change = 1;
 		break;
 	case MVPW_KEY_DOWN:
+	case MVPW_KEY_LEFT:
 		mythtv_tcp_program -= 4096;
+		change = 1;
 		break;
 	}
 
-	if ((key == MVPW_KEY_UP) || (key == MVPW_KEY_DOWN)) {
+	if (change) {
 		if (mythtv_tcp_program < 0)
 			mythtv_tcp_program = 0;
 		snprintf(buf, sizeof(buf), "%d", mythtv_tcp_program);
@@ -1663,6 +1678,7 @@ static void
 bright_key_callback(mvp_widget_t *widget, char key)
 {
 	char buf[16];
+	int change = 0;
 
 	switch (key) {
 	case MVPW_KEY_EXIT:
@@ -1670,25 +1686,33 @@ bright_key_callback(mvp_widget_t *widget, char key)
 		return;
 		break;
 	case MVPW_KEY_UP:
+	case MVPW_KEY_RIGHT:
 		root_bright++;
+		change = 1;
 		break;
 	case MVPW_KEY_DOWN:
+	case MVPW_KEY_LEFT:
 		root_bright--;
+		change = 1;
 		break;
 	}
 
-	snprintf(buf, sizeof(buf), "%d", root_bright);
-	mvpw_set_dialog_text(bright_dialog, buf);
-	if (root_bright > 0)
-		root_color = mvpw_color_alpha(MVPW_WHITE, root_bright*4);
-	else if (root_bright < 0)
-		root_color = mvpw_color_alpha(MVPW_BLACK, root_bright*-4);
-	else
-		root_color = 0;
-	mvpw_set_bg(root, root_color);
+	if (change) {
+		snprintf(buf, sizeof(buf), "%d", root_bright);
+		mvpw_set_dialog_text(bright_dialog, buf);
+		if (root_bright > 0)
+			root_color = mvpw_color_alpha(MVPW_WHITE,
+						      root_bright*4);
+		else if (root_bright < 0)
+			root_color = mvpw_color_alpha(MVPW_BLACK,
+						      root_bright*-4);
+		else
+			root_color = 0;
+		mvpw_set_bg(root, root_color);
 
-	config->brightness = root_bright;
-	config->bitmask |= CONFIG_BRIGHTNESS;
+		config->brightness = root_bright;
+		config->bitmask |= CONFIG_BRIGHTNESS;
+	}
 }
 
 static void
@@ -1888,6 +1912,14 @@ settings_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mvpw_show(settings_osd);
 		mvpw_focus(settings_osd);
 		break;
+	case SETTINGS_MAIN_SAVE:
+		mvpw_show(widget);
+		mvpw_focus(widget);
+		if (save_config_file(config_file) == 0)
+			gui_mesg("Info", "Config file save succeeded.");
+		else
+			gui_error("Config file save failed.");
+		break;
 	}
 }
 
@@ -1945,6 +1977,7 @@ settings_av_aspect_callback(mvp_widget_t *widget, char *item, void *key)
 		return;
 	if (((av_aspect_t)key != AV_ASPECT_4x3) &&
 	    ((av_aspect_t)key != AV_ASPECT_4x3_CCO) &&
+	    ((av_aspect_t)key != AV_ASPECT_16x9_AUTO) &&
 	    ((av_aspect_t)key != AV_ASPECT_16x9))
 		return;
 
@@ -1968,6 +2001,7 @@ settings_av_audio_callback(mvp_widget_t *widget, char *item, void *key)
 	mvpw_check_menu_item(settings_check, (void*)audio_output_mode, 0);
 	mvpw_check_menu_item(settings_check, key, 1);
 	audio_output_mode = (av_passthru_t)key;
+	config->bitmask |= CONFIG_AUDIO_OUTPUT;
 }
 
 static void
@@ -2026,8 +2060,12 @@ settings_av_select_callback(mvp_widget_t *widget, char *item, void *key)
 				   (void*)AV_ASPECT_4x3_CCO,
 				   &settings_item_attr);
 		mvpw_add_menu_item(settings_check,
-				   "16:9 (Full-Height / Automatic)",
+				   "16:9",
 				   (void*)AV_ASPECT_16x9,
+				   &settings_item_attr);
+		mvpw_add_menu_item(settings_check,
+				   "16:9 (Full-Height / Automatic)",
+				   (void*)AV_ASPECT_16x9_AUTO,
 				   &settings_item_attr);
 
 		mvpw_check_menu_item(settings_check,
@@ -2083,7 +2121,7 @@ settings_display_mode_callback(mvp_widget_t *widget, char *item, void *key)
 
 	mvpw_check_menu_item(settings_check, (void*)display_type, 0);
 	mvpw_check_menu_item(settings_check, key, 1);
-	audio_output_mode = (int)key;
+	display_type = (int)key;
 }
 
 static int
@@ -2136,6 +2174,10 @@ settings_init(void)
 			   &settings_item_attr);
 	mvpw_add_menu_item(settings, "Themes",
 			   (void*)SETTINGS_MAIN_THEMES, &settings_item_attr);
+	if (config_file)
+		mvpw_add_menu_item(settings, "Save Settings",
+				   (void*)SETTINGS_MAIN_SAVE,
+				   &settings_item_attr);
 
 	/*
 	 * av settings menu
@@ -3000,7 +3042,7 @@ about_init(void)
 		"Audio: mp3, ogg, wav, ac3\n"
 		"Video: mpeg1, mpeg2\n"
 		"Images: bmp, gif, png, jpeg\n"
-		"Servers: MythTV, ReplayTV, NFS, CIFS, VNC\n";
+		"Servers: MythTV, ReplayTV, NFS, CIFS, VNC, SlimServer\n";
 
 	splash_update("Creating about dialog");
 
@@ -3550,10 +3592,12 @@ screensaver_init(void)
 }
 
 void
-gui_error(char *msg)
+gui_mesg(char *title, char *msg)
 {
 	char *key = "\n\nPress any key to continue.";
 	char *buf;
+
+	mvpw_set_dialog_title(warn_widget, title);
 
 	fprintf(stderr, "%s\n", msg);
 
@@ -3566,6 +3610,12 @@ gui_error(char *msg)
 	mvpw_show(warn_widget);
 
 	mvpw_event_flush();
+}
+
+void
+gui_error(char *msg)
+{
+	gui_mesg("Warning", msg);
 }
 
 void
