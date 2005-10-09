@@ -266,6 +266,7 @@ video_clear(void)
 	audio_type = 0;
 	pthread_kill(video_write_thread, SIGURG);
 	pthread_kill(audio_write_thread, SIGURG);
+
 	sem_getvalue(&write_threads_idle_sem, &cnt);
 	while ( cnt != 2 ) {
 		sleep(0);

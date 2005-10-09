@@ -111,6 +111,7 @@ typedef struct rtv_device_info_t
    char                 *udn;    
    rtv_device_version_t  version;      //Software version info. (built from versionStr)
    int                   autodiscovered;
+   int                   dva_serve_guide_pending;
    __u32                 status;
 } rtv_device_info_t;
 
@@ -351,12 +352,14 @@ extern rtv_device_list_t rtv_devices;
 extern int           rtv_init_lib(void);
 extern void          rtv_set_dbgmask(__u32 mask);
 extern __u32         rtv_get_dbgmask(void);
-extern int           rtv_set_mode(char *mode);
+extern int           rtv_set_discover_options(int timeout, int maxnum_rtv, rtv_vintage_t dva_mode);
 extern void          rtv_set_32k_chunks_to_merge(int chunks);
 extern int           rtv_route_logs(char *filename);
 extern rtv_device_t *rtv_get_device_struct(const char *ipaddr, int *new);
 extern int           rtv_free_devices(void);
 extern void          rtv_print_device_list(void);
+
+extern int           rtv_halt_discovery_server(void);
 
 extern char         *rtv_format_ts_sec32_hms(__u32 ts, char *time_str);       // User passes in pre-alloc'd char buf
 extern char         *rtv_format_ts_ms32_min_sec_ms(__u32 ts, char *time_str); // User passes in pre-alloc'd char buf

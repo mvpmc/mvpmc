@@ -92,6 +92,8 @@ extern rtv_idns_t rtv_idns;
 //+********************************************************************
 typedef struct rtv_globals_t
 {
+   int              discover_tmo;     // RTV discovery timeout
+   int              max_num_rtv;      // Max number of RTV to attempt to discover
    int              rtv_emulate_mode; // Kick dvarchive into 4K or 5K mode
    int              merge_chunk_sz;   // Number or 32K file chunks to merge
    FILE            *log_fd;           // Where to set logs

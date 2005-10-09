@@ -954,6 +954,7 @@ mythtv_menu_callback(mvp_widget_t *widget, char key)
 
 void
 replaytv_back_to_mvp_main_menu(void) {
+   rtv_halt_discovery_server();
 	replaytv_hide_device_menu();
 	switch_gui_state(MVPMC_STATE_NONE);
 	mvpw_show(replaytv_image);

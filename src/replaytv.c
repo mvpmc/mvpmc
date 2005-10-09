@@ -234,9 +234,6 @@ static volatile int message_window_done;
 // state of currently playing file
 static rtv_selected_show_state_t rtv_video_state;
 
-// set true when ssdp discovery is performed 
-static int rtvs_discovered = 0;
-
 // number of static addresses passed at cmdline 
 static int num_cmdline_ipaddrs = 0;
 
@@ -1659,7 +1656,7 @@ static void rtv_device_select_callback(mvp_widget_t *widget, char *item, void *k
    
    // We have to do SSDP (discovery) on DVArchive to put it into RTV 4K/5K mode
    //
-   if ( (atoi(rtv->device.modelNumber) == 4999) && (rtvs_discovered == 0) ) {
+   if ( (atoi(rtv->device.modelNumber) == 4999) && (rtv->device.autodiscovered == 0) ) {
       printf("\n\n*****\n");
       printf("DVArchive server IP address can not be statically configured.\n");
       printf("Use mvpmc \"-R discover\" option\n");
@@ -1929,6 +1926,10 @@ int replaytv_init(char *init_str)
 {
    char *cur = init_str;
    
+   int           max_num_rtv  = 0;
+   int           discover_tmo = 6;
+   rtv_vintage_t dva_mode     = RTV_DEVICE_5K;
+
    static int rtv_initialized = 0;
    if ( rtv_initialized == 1 ) {
       return(0);
@@ -1982,10 +1983,15 @@ int replaytv_init(char *init_str)
             }
          }
          else if ( strcmp(cur, "mode") == 0 ) {
-            int rc; 
-            if ( (rc = rtv_set_mode(val)) != 0 ) {
-               printf("***ERROR: RTV: Failed to set mode: %s\n", val);
+            if ( val[0] == '4' ) {
+               dva_mode = RTV_DEVICE_4K;
             }
+         }
+         else if ( strcmp(cur, "dtmo") == 0 ) {
+            discover_tmo = strtoul((val), NULL, 10);
+         }
+         else if ( strcmp(cur, "mrtv") == 0 ) {
+            max_num_rtv = strtoul((val), NULL, 10);
          }
          else {
             printf("***ERROR: RTV: Invalid option: %s\n", cur);
@@ -1994,6 +2000,10 @@ int replaytv_init(char *init_str)
          cur = next_cur;
       } //while
    }
+
+   // Set the rtv discover parms
+   //
+   rtv_set_discover_options(discover_tmo, max_num_rtv, dva_mode);
 
    // Init the video state structure
    //
@@ -2051,9 +2061,8 @@ int replaytv_device_update(void)
    //
    if ( num_cmdline_ipaddrs == 0 ) {
       rtv_free_devices();
-      rc = rtv_discover(4000, &rtv_list);
+      rc = rtv_discover(0, &rtv_list);
       if ( rc == 0 ) {
-         rtvs_discovered = 1;
          rtv_print_device_list();
       }
       else {
@@ -2080,7 +2089,7 @@ int replaytv_device_update(void)
    rtv_device_menu_item_attr.hilite = rtv_device_hilite_callback;
    for ( idx=0; idx < rtv_devices.num_rtvs; idx++ ) {
       if ( sorted_device_ptr_list[idx]->device.name != NULL ) {
-         if ( (atoi(sorted_device_ptr_list[idx]->device.modelNumber) == 4999) && (rtvs_discovered == 0) ) {
+         if ( (atoi(sorted_device_ptr_list[idx]->device.modelNumber) == 4999) && (sorted_device_ptr_list[idx]->device.autodiscovered == 0) ) {
             // DVarchive must be discovered to kick it into 5K mode
             //
             char name[80];

@@ -107,14 +107,18 @@ __u32 rtv_get_dbgmask(void)
 }
 
 
-// rtv_set_mode
+//  rtv_set_discover_options
 //
-int rtv_set_mode(char *mode)
+int rtv_set_discover_options(int timeout, int maxnum_rtv, rtv_vintage_t dva_mode)
 {
-   if ( mode != NULL ) {
-      if ( mode[0] == '4' ) {
-         rtv_globals.rtv_emulate_mode = RTV_DEVICE_4K;
-      }
+   rtv_globals.discover_tmo     = timeout;
+   rtv_globals.max_num_rtv      = maxnum_rtv;
+   rtv_globals.rtv_emulate_mode = dva_mode;
+   if ( maxnum_rtv ) {
+      RTV_PRT("rtv: discover options: timeout=%d dva_mode=%s max_num_rtv=%d\n", timeout, ((dva_mode==RTV_DEVICE_4K) ? "4K" : "5K"), maxnum_rtv);
+   }
+   else {
+      RTV_PRT("rtv: discover options: timeout=%d dva_mode=%s\n", timeout, ((dva_mode==RTV_DEVICE_4K) ? "4K" : "5K"));
    }
    return(0);
 }
@@ -301,6 +305,8 @@ int rtv_init_lib(void)
    struct sockaddr_in local_addr;
    struct hostent    *hptr;
 
+   rtv_globals.discover_tmo     = 6;
+   rtv_globals.max_num_rtv      = 0;
    rtv_globals.rtv_emulate_mode = RTV_DEVICE_5K;
    rtv_globals.merge_chunk_sz   = 3;                // 3 - 32K chunks
    rtv_globals.log_fd           = stdout;

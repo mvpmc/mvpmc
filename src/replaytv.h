@@ -32,4 +32,6 @@ extern int  replaytv_show_device_menu(void);
 extern void replaytv_back_from_video(void);
 extern void replaytv_osd_proginfo_update(mvp_widget_t *widget);
 
+extern int rtv_halt_discovery_server(void);
+
 #endif /* REPLAYTV_H */

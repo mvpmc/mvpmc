@@ -36,7 +36,7 @@ CPPFLAGS=$(BIGFILE) $(LARGEFILE_SUPPORT) $(PLATFORM_SUPPORT)
 CFLAGS=$(WARN_ME_HARDER) $(OPTIMIZE) $(DEBUG) -I../../install/include -I./MD5
 LDFLAGS=-L. -L../../install/lib -static
 
-LDLIBS=-lreplaytv -lexpat
+LDLIBS=-lreplaytv -lexpat -lpthread
 
 RTVSHELL_PROG=rtv_shell
 MPGTOOL_PROG=rtvmpgtool
@@ -60,7 +60,6 @@ LIBOBJS=			\
 	sleep.o			\
 	deviceinfoclient.o	\
 	discovery.o	\
-	rtvserver.o	\
 	guideparser.o	\
 	evtfileparser.o	\
 	ndxclient.o	\
