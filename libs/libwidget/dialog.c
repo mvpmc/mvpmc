@@ -85,9 +85,10 @@ mvpw_set_dialog_attr(mvp_widget_t *widget, mvpw_dialog_attr_t *attr)
 
 	text_attr.font = attr->font;
 	text_attr.fg = attr->title_fg;
+	text_attr.margin = widget->data.dialog.margin;
 
 	GrGetFontInfo(attr->font, &finfo);
-	h = finfo.height + (2 * 2);
+	h = finfo.height + (2 * text_attr.margin);
 	w = widget->width;
 	title = mvpw_create_text(widget, 0, 0, w, h, attr->title_bg,
 				 widget->border_color, widget->border_size);
@@ -124,6 +125,7 @@ mvpw_set_dialog_attr(mvp_widget_t *widget, mvpw_dialog_attr_t *attr)
 	widget->data.dialog.title_bg = attr->title_bg;
 	widget->data.dialog.modal = attr->modal;
 	widget->data.dialog.font = attr->font;
+	widget->data.dialog.margin = attr->margin;
 
 	widget->data.dialog.title_widget = title;
 	widget->data.dialog.text_widget = text;

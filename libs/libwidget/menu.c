@@ -305,6 +305,7 @@ mvpw_add_menu_item(mvp_widget_t *widget, char *label, void *key,
 
 	attr.font = widget->data.menu.font;
 	attr.fg = widget->data.menu.fg;
+	attr.margin = widget->data.menu.margin;
 
 	if (widget->data.menu.nitems == 0) {
 		if ((widget->data.menu.items=
@@ -516,6 +517,7 @@ mvpw_set_menu_title(mvp_widget_t *widget, char *title)
 	if (widget->data.menu.title)
 		free(widget->data.menu.title);
 	widget->data.menu.title = strdup(title);
+	attr.margin = widget->data.menu.margin;
 
 	GrGetFontInfo(widget->data.menu.font, &finfo);
 
@@ -558,6 +560,7 @@ mvpw_set_menu_attr(mvp_widget_t *widget, mvpw_menu_attr_t *attr)
 	widget->data.menu.title_justify = attr->title_justify;
 	widget->data.menu.checkboxes = attr->checkboxes;
 	widget->data.menu.rounded = attr->rounded;
+	widget->data.menu.margin = attr->margin;
 
 	if (widget->border_color != attr->border) {
 		GrSetWindowBorderColor(widget->wid, attr->border);
@@ -588,6 +591,7 @@ mvpw_get_menu_attr(mvp_widget_t *widget, mvpw_menu_attr_t *attr)
 	attr->rounded = widget->data.menu.rounded;
 	attr->border_size = widget->border_size;
 	attr->border = widget->border_color;
+	attr->margin = widget->data.menu.margin;
 }
 
 void

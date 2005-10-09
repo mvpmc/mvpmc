@@ -75,6 +75,7 @@ typedef struct {
 	int		 rows;
 	int		 checkboxes;
 	int		 rounded;
+	int		 margin;
 
 	mvp_widget_t	*title_widget;
 	mvp_widget_t	*container_widget;
@@ -132,6 +133,7 @@ typedef struct {
 	mvp_widget_t	*title_widget;
 	mvp_widget_t	*text_widget;
 	mvp_widget_t	*image_widget;
+	int		 margin;
 } mvpw_dialog_t;
 
 typedef struct {

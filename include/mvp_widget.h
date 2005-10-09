@@ -141,6 +141,7 @@ typedef struct {
 	int	 	checkboxes;
 	int	 	rounded;
 	int	 	border_size;
+	int	 	margin;
 } mvpw_menu_attr_t;
 
 typedef struct {
@@ -248,6 +249,7 @@ typedef struct {
 	char 		*image;
 	int 		modal;
 	int	 	font;
+	int	 	margin;
 } mvpw_dialog_attr_t;
 
 extern mvp_widget_t* mvpw_create_dialog(mvp_widget_t *parent,
