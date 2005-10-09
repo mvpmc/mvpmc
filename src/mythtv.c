@@ -1852,7 +1852,7 @@ mythtv_livetv_start(int *tuner)
 		goto err;
 	}
 
-	printf("Found %d recorders\n", c);
+	printf("Found %d free recorders\n", c);
 
 	if (tuner[0]) {
 		for (i=0; i<MAX_TUNER && tuner[i]; i++) {
@@ -2156,8 +2156,10 @@ livetv_select_callback(mvp_widget_t *widget, char *item, void *key)
 	char *channame = NULL;
 	int i, prog = (int)key;
 	int id = -1;
-	int tuner_change = 1, tuner[MAX_TUNER] = { 0 };
+	int tuner_change = 1, tuner[MAX_TUNER];
 	struct livetv_proginfo *pi;
+
+	memset(tuner, 0, sizeof(tuner));
 
 	switch_hw_state(MVPMC_STATE_MYTHTV);
 
@@ -2179,11 +2181,12 @@ livetv_select_callback(mvp_widget_t *widget, char *item, void *key)
 		}
 	} else {
 		channame = strdup(livetv_list[prog].pi[0].chan);
-		for (i=0; i<livetv_list[prog].count; i++)
+		for (i=0; i<livetv_list[prog].count; i++) {
 			tuner[i] = livetv_list[prog].pi[i].rec_id;
+			printf("enable livetv tuner %d chan '%s'\n",
+			       tuner[i], channame);
+		}
 		tuner_change = 0;
-		printf("enable livetv tuner %d chan '%s'\n",
-		       tuner[0], channame);
 	}
 
 	if (tuner_change && (id != -1)) {
@@ -2295,7 +2298,7 @@ get_livetv_programs_rec(int id, struct livetv_prog **list, int *n, int *p)
 	const char *description;
 	char start[256], end[256], *ptr;
 	int cur_id, i; 
-	int c = 0;
+	int c = 0, unique = 0;
 	struct livetv_proginfo *pi;
 	
 	cur_id = cmyth_recorder_get_recorder_id(recorder);
@@ -2352,6 +2355,7 @@ get_livetv_programs_rec(int id, struct livetv_prog **list, int *n, int *p)
 		}
 
 		cur = next_prog;
+		c++;
 
 		/*
 		 * Search for duplicates only if the show has a title.
@@ -2390,7 +2394,7 @@ get_livetv_programs_rec(int id, struct livetv_prog **list, int *n, int *p)
 		(*list)[*p].pi[0].chan = strdup(channame);
 		(*list)[*p].pi[0].channame = strdup(chansign);
 		(*p)++;
-		c++;
+		unique++;
 
 	next:
 		if (*p == *n) {
@@ -2403,7 +2407,7 @@ get_livetv_programs_rec(int id, struct livetv_prog **list, int *n, int *p)
 	}
 	cmyth_proginfo_release(next_prog);
 
-	printf("Found %d shows on recorder %d\n", c, id);
+	printf("Found %d shows on recorder %d (%d unique)\n", c, id, unique);
 
 	return c;
 }
