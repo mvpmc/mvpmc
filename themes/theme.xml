@@ -17,7 +17,7 @@
   <settings name="themes">
     <item name="default">/usr/share/mvpmc/default.xml</item>
     <item name="alternate">/usr/share/mvpmc/replaytv.xml</item>
-    <item name="alternate">/usr/share/mvpmc/worst.xml</item>
+    <item name="alternate">/usr/share/mvpmc/orange.xml</item>
     <item name="alternate">/usr/share/mvpmc/none.xml</item>
     <item name="directory">/tmp/themes</item>
   </settings>

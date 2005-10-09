@@ -41,6 +41,8 @@
 #define PRINTF(x...)
 #endif
 
+static char* theme_name(char *file);
+
 theme_t theme_list[THEME_MAX+1];
 
 typedef struct {
@@ -503,9 +505,13 @@ static int
 add_theme_file(parser_data_t *pdata, char *file)
 {
 	int i;
+	char *name;
+
+	name = theme_name(file);
 
 	for (i=0; i<THEME_MAX; i++) {
 		if (theme_list[i].path == NULL) {
+			theme_list[i].name = name;
 			theme_list[i].path = strdup(file);
 			return 0;
 		}
@@ -1132,10 +1138,6 @@ theme_parse(char *file)
 	char *base;
 	extern char *basename(char*);
 
-	/*
-	 * XXX: add a mode to validate the file and get the name?
-	 */
-
 	if ((f=fopen(file, "r")) == NULL) {
 		perror(file);
 		exit(1);
@@ -1170,4 +1172,91 @@ theme_parse(char *file)
 	fclose(f);
 
 	return 0;
+}
+
+static void XMLCALL
+value_name(void *data, const char *el, int len)
+{
+}
+
+static void XMLCALL
+start_name(void *data, const char *el, const char **attr)
+{
+	int i;
+	parser_data_t *pdata = (parser_data_t*)data;
+
+	PRINTF("<%s", el);
+	for (i=0; attr[i]; i+=2)
+		PRINTF(" %s='%s'", attr[i], attr[i+1]);
+	PRINTF(">\n");
+
+	switch (pdata->depth) {
+	case 0:
+		if (strcasecmp(el, "mvpmctheme") != 0)
+			return;
+		pdata->name = NULL;
+		for (i=0; attr[i]; i+=2) {
+			if (strcasecmp(attr[i], "name") == 0)
+				pdata->name = strdup(attr[i+1]);
+		}
+		break;
+	default:
+		break;
+	}
+
+	pdata->depth++;
+}
+
+static void XMLCALL
+end_name(void *data, const char *el)
+{
+	parser_data_t *pdata = (parser_data_t*)data;
+
+	pdata->depth--;
+}
+
+static char*
+theme_name(char *file)
+{
+	FILE *f;
+	int len, done = 0;
+	char buf[1024];
+	parser_data_t pdata;
+	char *base;
+	extern char *basename(char*);
+
+	if ((f=fopen(file, "r")) == NULL) {
+		perror(file);
+		exit(1);
+	}
+
+	pdata.p = XML_ParserCreate(NULL);
+	if (pdata.p) {
+		pdata.data = NULL;
+		pdata.cur = NULL;
+		pdata.theme_err = NULL;
+		pdata.depth = 0;
+		pdata.cur_attr = -1;
+		pdata.cur_type = -1;
+		if ((base=basename(file)) == NULL) {
+			fprintf(stderr, "bad file '%s'\n", file);
+			exit(1);
+		}
+		pdata.name = strdup(base);
+		XML_SetElementHandler(pdata.p, start_name, end_name);
+		XML_SetCharacterDataHandler(pdata.p, value_name);
+		XML_SetUserData(pdata.p, (void*)&pdata);
+	}
+
+	while (1) {
+		len = fread(buf, 1, sizeof(buf), f);
+		done = feof(f);
+		XML_Parse(pdata.p, buf, len, done);
+		if (done)
+			break;
+	}
+
+	fclose(f);
+
+	return pdata.name;
 }

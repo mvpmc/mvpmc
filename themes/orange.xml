@@ -1,8 +1,6 @@
-<mvpmctheme version="0" name="Default">
+<mvpmctheme version="0" name="Big Orange">
   <!--
-     - example mvpmc theme
-     -
-     - This gives you something similar to the default interface.
+     - It's football time in Tennessee!
      -
      - http://mvpmc.sourceforge.net/
      - $Id$
@@ -11,7 +9,7 @@
   <!--
      - Load fonts (ignored under X11)
     -->
-  <font name="standard">/etc/helvR10.fnt</font>
+  <font name="standard">/etc/helvB14.pcf</font>
   <font name="large">/etc/helvB18.pcf</font>
 
   <!--
@@ -22,49 +20,57 @@
   <!--
      - include settings options
     -->
-  <include>/usr/share/mvpmc/settings_2.xml</include>
+  <include>/usr/share/mvpmc/settings_1.xml</include>
 
   <!--
      - Graph widget settings
     -->
   <widget type="graph" name="busy_graph">
     <color type="left">black</color>
-    <color type="right">red</color>
+    <color type="right">orange3</color>
     <style type="border_size">0</style>
     <color type="bg">black</color>
   </widget>
 
   <widget type="graph" name="splash_graph">
     <color type="left">black</color>
-    <color type="right">red</color>
-    <color type="border">gray60</color>
-    <style type="border_size">2</style>
+    <color type="right">orange3</color>
     <color type="bg">black</color>
+    <style type="border_size">2</style>
+    <color type="border">gray40</color>
   </widget>
 
   <widget type="graph" name="offset_graph">
     <color type="bg" alpha="50%">black</color>
-    <color type="fg" alpha="50%">orange</color>
+    <color type="fg" alpha="50%">orange3</color>
   </widget>
+
+  <widget type="graph" name="demux_audio">
+    <color type="fg" alpha="50%">orange3</color>
+    <style type="border_size">0</style>
+    <color type="bg" alpha="50%">black</color>
+  </widget>
+
+  <widget type="graph" name="demux_video" copy="demux_audio"></widget>
 
   <!--
      - Text widget settings
     -->
   <widget type="text" name="splash">
     <color type="bg">black</color>
-    <color type="fg">green</color>
+    <color type="fg">orange3</color>
     <font>large</font>
   </widget>
 
   <widget type="text" name="myth_info">
     <color type="bg" alpha="0%">black</color>
     <color type="fg">white</color>
-    <font>large</font>
+    <font>standard</font>
   </widget>
 
   <widget type="text" name="myth_program">
     <color type="bg" alpha="50%">black</color>
-    <color type="fg">cyan</color>
+    <color type="fg">orange3</color>
     <font>standard</font>
   </widget>
 
@@ -97,11 +103,11 @@
     -->
   <widget type="menu" name="main_menu">
     <color type="bg">black</color>
-    <color type="fg">white</color>
-    <color type="hilite_bg">white</color>
-    <color type="hilite_fg">black</color>
-    <style type="hilite">rounded</style>
-    <font>large</font>
+    <color type="fg">gray40</color>
+    <color type="hilite_bg">black</color>
+    <color type="hilite_fg">orange3</color>
+    <style type="hilite">square</style>
+    <font>standard</font>
   </widget>
 
   <widget type="menu" name="myth_menu" copy="main_menu"></widget>
@@ -111,15 +117,15 @@
     <color type="fg">white</color>
     <color type="hilite_bg">gray30</color>
     <color type="hilite_fg">white</color>
-    <color type="title_bg">green</color>
-    <color type="title_fg">black</color>
+    <color type="title_bg">orange3</color>
+    <color type="title_fg">white</color>
     <style type="hilite">square</style>
     <style type="border_size">0</style>
     <font>standard</font>
   </widget>
 
   <widget type="menu" name="file_browser" copy="myth_browser">
-    <color type="title_bg">blue</color>
+    <color type="title_bg">orange3</color>
     <color type="title_fg">white</color>
   </widget>
 
@@ -134,31 +140,31 @@
     <color type="border" alpha="50%">white</color>
     <style type="border_size">2</style>
     <style type="hilite">square</style>
-    <font>large</font>
+    <font>standard</font>
   </widget>
 
   <widget type="menu" name="myth_delete">
     <color type="bg">black</color>
     <color type="fg">white</color>
-    <color type="title_bg">green</color>
-    <color type="title_fg">black</color>
+    <color type="title_bg">orange3</color>
+    <color type="title_fg">white</color>
     <color type="hilite_bg">gray30</color>
     <color type="hilite_fg">white</color>
     <style type="hilite">square</style>
-    <font>large</font>
+    <font>standard</font>
   </widget>
 
   <widget type="menu" name="themes">
     <color type="bg">gray60</color>
     <color type="fg">black</color>
-    <color type="title_bg">green</color>
+    <color type="title_bg">orange3</color>
     <color type="title_fg">black</color>
     <color type="hilite_bg">gray30</color>
     <color type="hilite_fg">white</color>
-    <color type="checkbox">red</color>
+    <color type="checkbox">orange3</color>
     <style type="border_size">0</style>
     <style type="hilite">square</style>
-    <font>large</font>
+    <font>standard</font>
   </widget>
 
   <widget type="menu" name="settings" copy="themes"></widget>
@@ -179,30 +185,28 @@
   <widget type="dialog" name="about">
     <color type="bg">gray30</color>
     <color type="fg">white</color>
-    <color type="title_bg">blue</color>
+    <color type="title_bg">orange3</color>
     <color type="title_fg">white</color>
-    <color type="border">blue</color>
-    <style type="border_size">2</style>
+    <style type="border_size">0</style>
     <font>large</font>
   </widget>
 
   <widget type="dialog" name="mclient">
     <color type="bg">gray30</color>
     <color type="fg">white</color>
-    <color type="title_bg">blue</color>
+    <color type="title_bg">orange3</color>
     <color type="title_fg">white</color>
-    <color type="border">blue</color>
-    <style type="border_size">2</style>
-    <font>large</font>
+    <style type="border_size">0</style>
+    <font>standard</font>
   </widget>
 
   <widget type="dialog" name="settings_dialog">
     <color type="bg">gray30</color>
     <color type="fg">white</color>
-    <color type="title_bg">green</color>
+    <color type="title_bg">orange3</color>
     <color type="title_fg">black</color>
     <style type="border_size">0</style>
-    <font>large</font>
+    <font>standard</font>
   </widget>
 
   <!--
@@ -213,12 +217,12 @@
     <color type="fg">black</color>
     <color type="hilite_bg">gray30</color>
     <color type="hilite_fg">white</color>
-    <color type="title_bg">midnightblue</color>
+    <color type="title_bg">orange3</color>
     <color type="title_fg">white</color>
     <style type="hilite">square</style>
     <color type="border">gray38</color>
     <style type="border_size">2</style>
-    <font>large</font>
+    <font>standard</font>
   </widget>
 
   <widget type="menu" name="rtv_show_browser">
@@ -226,12 +230,12 @@
     <color type="fg">black</color>
     <color type="hilite_bg">gray30</color>
     <color type="hilite_fg">white</color>
-    <color type="title_bg">midnightblue</color>
+    <color type="title_bg">orange3</color>
     <color type="title_fg">white</color>
     <style type="hilite">square</style>
     <color type="border">gray38</color>
     <style type="border_size">2</style>
-    <font>large</font>
+    <font>standard</font>
   </widget>
 
   <widget type="menu" name="rtv_show_popup">
@@ -239,12 +243,12 @@
     <color type="fg">green</color>
     <color type="hilite_bg">white</color>
     <color type="hilite_fg">black</color>
-    <color type="title_bg">midnightblue</color>
+    <color type="title_bg">orange3</color>
     <color type="title_fg">white</color>
     <style type="hilite">square</style>
     <color type="border">green</color>
     <style type="border_size">2</style>
-    <font>large</font>
+    <font>standard</font>
   </widget>
 
   <widget type="graph" name="rtv_discspace_graph">
@@ -254,46 +258,48 @@
 
   <widget type="text" name="rtv_discovery_splash">
     <color type="bg">black</color>
-    <color type="fg">green</color>
+    <color type="fg">orange3</color>
+    <color type="border">orange3</color>
+    <style type="border_size">2</style>
     <font>large</font>
   </widget>
 
   <widget type="text" name="rtv_device_description">
     <color type="bg">black</color>
     <color type="fg">lightcyan4</color>
-    <font>large</font>
+    <font>standard</font>
   </widget>
 
   <widget type="text" name="rtv_episode_description">
     <color type="bg">black</color>
     <color type="fg">lightcyan4</color>
-    <font>large</font>
+    <font>standard</font>
   </widget>
 
   <widget type="text" name="rtv_osd_show_title">
     <color type="bg" alpha="50%">black</color>
     <color type="fg">cyan</color>
-    <font>large</font>
+    <font>standard</font>
   </widget>
 
   <widget type="text" name="rtv_osd_show_description">
     <color type="bg" alpha="50%">black</color>
     <color type="fg">snow2</color>
-    <font>large</font>
+    <font>standard</font>
   </widget>
 
   <widget type="text" name="rtv_message_window">
     <color type="bg">gray50</color>
     <color type="fg">white</color>
-    <font>large</font>
-    <color type="border">midnightblue</color>
+    <font>standard</font>
+    <color type="border">orange3</color>
     <style type="border_size">4</style>
   </widget>
 
   <widget type="text" name="rtv_seek_osd">
     <color type="bg" alpha="50%">black</color>
     <color type="fg">snow2</color>
-    <font>large</font>
+    <font>standard</font>
   </widget>
 
   <settings name="mythtv_livetv">
