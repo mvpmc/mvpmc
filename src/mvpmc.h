@@ -170,6 +170,7 @@ extern volatile int audio_stop;
 extern int video_init(void);
 extern void audio_play(mvp_widget_t*);
 extern void video_play(mvp_widget_t*);
+extern void video_set_root(void);
 extern void playlist_play(mvp_widget_t*);
 extern void playlist_next();
 
@@ -390,4 +391,6 @@ extern mvpmc_state_t gui_state;
 
 extern char *screen_capture_file;
 
+extern mvp_widget_t *ct_text_box;
+extern mvp_widget_t *settings;
 #endif /* MVPMC_H */

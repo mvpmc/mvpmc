@@ -60,6 +60,8 @@ volatile int mythtv_livetv = 0;
 #define FONT_LARGE	1001
 #endif
 
+#define FONT_HEIGHT(x)	(mvpw_font_height(x.font) + (2 * x.margin))
+
 mvpw_menu_attr_t fb_attr = {
 	.font = FONT_STANDARD,
 	.fg = MVPW_BLACK,
@@ -70,6 +72,7 @@ mvpw_menu_attr_t fb_attr = {
 	.title_bg = MVPW_BLUE,
 	.border_size = 2,
 	.border = MVPW_DARKGREY2,
+	.margin = 4,
 };
 
 static mvpw_menu_attr_t settings_attr = {
@@ -83,6 +86,7 @@ static mvpw_menu_attr_t settings_attr = {
 	.border_size = 2,
 	.border = MVPW_DARKGREY2,
 	.checkbox_fg = MVPW_GREEN,
+	.margin = 4,
 };
 
 static mvpw_dialog_attr_t settings_dialog_attr = {
@@ -93,6 +97,7 @@ static mvpw_dialog_attr_t settings_dialog_attr = {
 	.title_bg = MVPW_WHITE,
 	.modal = 0,
 	.border_size = 0,
+	.margin = 4,
 };
 
 static mvpw_dialog_attr_t bright_dialog_attr = {
@@ -103,6 +108,7 @@ static mvpw_dialog_attr_t bright_dialog_attr = {
 	.title_bg = MVPW_WHITE,
 	.modal = 0,
 	.border_size = 0,
+	.margin = 4,
 };
 
 static mvpw_menu_attr_t themes_attr = {
@@ -117,6 +123,7 @@ static mvpw_menu_attr_t themes_attr = {
 	.border = MVPW_DARKGREY2,
 	.checkbox_fg = MVPW_GREEN,
 	.checkboxes = 1,
+	.margin = 4,
 };
 
 mvpw_menu_attr_t mythtv_attr = {
@@ -129,6 +136,7 @@ mvpw_menu_attr_t mythtv_attr = {
 	.title_bg = MVPW_BLUE,
 	.border_size = 2,
 	.border = MVPW_DARKGREY2,
+	.margin = 4,
 };
 
 static mvpw_menu_attr_t attr = {
@@ -142,6 +150,7 @@ static mvpw_menu_attr_t attr = {
 	.rounded = 1,
 	.border_size = 0,
 	.border = MVPW_BLACK,
+	.margin = 4,
 };
 
 static mvpw_menu_attr_t myth_main_attr = {
@@ -155,6 +164,7 @@ static mvpw_menu_attr_t myth_main_attr = {
 	.border = MVPW_WHITE,
 	.border_size = 0,
 	.rounded = 1,
+	.margin = 4,
 };
 
 static mvpw_menu_item_attr_t popup_item_attr = {
@@ -208,6 +218,7 @@ static mvpw_menu_attr_t popup_attr = {
 	.title_bg = mvpw_color_alpha(MVPW_DARKGREY, 0x80),
 	.border = MVPW_WHITE,
 	.border_size = 0,
+	.margin = 4,
 };
 
 static mvpw_menu_attr_t mythtv_popup_attr = {
@@ -219,6 +230,7 @@ static mvpw_menu_attr_t mythtv_popup_attr = {
 	.title_bg = MVPW_LIGHTGREY,
 	.border = MVPW_DARKGREY2,
 	.border_size = 2,
+	.margin = 4,
 };
 
 static mvpw_text_attr_t mythtv_info_attr = {
@@ -310,6 +322,7 @@ static mvpw_dialog_attr_t warn_attr = {
 	.modal = 1,
 	.border = MVPW_RED,
 	.border_size = 4,
+	.margin = 4,
 };
 
 static mvpw_dialog_attr_t about_attr = {
@@ -321,6 +334,7 @@ static mvpw_dialog_attr_t about_attr = {
 	.modal = 1,
 	.border = MVPW_BLUE,
 	.border_size = 2,
+	.margin = 4,
 };
 
 static mvpw_dialog_attr_t mclient_attr = {
@@ -332,6 +346,7 @@ static mvpw_dialog_attr_t mclient_attr = {
 	.modal = 1,
 	.border = MVPW_BLUE,
 	.border_size = 2,
+	.margin = 4,
 };
 
 static mvpw_graph_attr_t offset_graph_attr = {
@@ -361,7 +376,7 @@ static mvpw_text_attr_t busy_text_attr = {
 static mvpw_graph_attr_t splash_graph_attr = {
 	.min = 0,
 	.max = 20,
-	.fg = mvpw_color_alpha(MVPW_RED, 0x80),
+	.bg = MVPW_BLACK,
 	.gradient = 1,
 	.left = MVPW_BLACK,
 	.right = MVPW_RED,
@@ -394,6 +409,7 @@ mvpw_menu_attr_t  rtv_device_menu_attr = {
 	.title_fg = MVPW_WHITE,
 	.title_bg = MVPW_MIDNIGHTBLUE,
    .rounded = 0,
+	.margin = 4,
 };
 
 // device menu attributes
@@ -405,6 +421,7 @@ mvpw_menu_attr_t  rtv_show_browser_menu_attr = {
 	.title_fg = MVPW_WHITE,
 	.title_bg = MVPW_MIDNIGHTBLUE,
    .rounded = 0,
+	.margin = 4,
 };
 
 // show browser popup window menu attributes
@@ -416,6 +433,7 @@ mvpw_menu_attr_t rtv_show_popup_attr = {
 	.title_fg = MVPW_WHITE,
 	.title_bg = MVPW_MIDNIGHTBLUE,
    .rounded = 0,
+	.margin = 4,
 };
 
 mvpw_graph_attr_t rtv_discspace_graph_attr = {
@@ -632,7 +650,7 @@ static mvp_widget_t *splash_title;
 static mvp_widget_t *splash_graph;
 mvp_widget_t *main_menu;
 static mvp_widget_t *mvpmc_logo;
-static mvp_widget_t *settings;
+mvp_widget_t *settings;
 static mvp_widget_t *settings_av;
 static mvp_widget_t *settings_osd;
 static mvp_widget_t *settings_mythtv;
@@ -658,7 +676,7 @@ static mvp_widget_t *themes_menu;
 mvp_widget_t *wss_16_9_image;
 mvp_widget_t *wss_4_3_image;
 
-static mvp_widget_t *ct_text_box;
+mvp_widget_t *ct_text_box;
 static mvp_widget_t *ct_fg_box;
 static mvp_widget_t *ct_bg_box;
 
@@ -906,6 +924,7 @@ mythtv_menu_callback(mvp_widget_t *widget, char key)
 			mvpw_focus(root);
 
 			av_move(0, 0, 0);
+			video_set_root();
 
 			if (mythtv_livetv == 2)
 				mythtv_livetv = 1;
@@ -1131,14 +1150,17 @@ static void
 themes_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
 	char buf[256];
+	char *path;
 
 	memset(buf, 0, sizeof(buf));
 	readlink(DEFAULT_THEME, buf, sizeof(buf));
 
-	if (strcmp(buf, item) != 0) {
+	path = theme_list[(int)key].path;
+
+	if (strcmp(buf, path) != 0) {
 		printf("switch to theme '%s'\n", item);
 		unlink(DEFAULT_THEME);
-		if (symlink(item, DEFAULT_THEME) != 0) {
+		if (symlink(path, DEFAULT_THEME) != 0) {
 			symlink(buf, DEFAULT_THEME);
 			fprintf(stderr, "switch failed!\n");
 			return;
@@ -1173,6 +1195,7 @@ fb_key_callback(mvp_widget_t *widget, char key)
 			mvpw_focus(root);
 
 			av_move(0, 0, 0);
+			video_set_root();
 
 			if (mythtv_livetv == 2)
 				mythtv_livetv = 1;
@@ -1238,6 +1261,7 @@ playlist_key_callback(mvp_widget_t *widget, char key)
 		if (video_playing) {
 			mvpw_hide(widget);
 			mvpw_hide(fb_progress);
+			video_set_root();
 			mvpw_focus(root);
 		}
 		break;
@@ -1352,6 +1376,7 @@ mythtv_key_callback(mvp_widget_t *widget, char key)
 			mvpw_focus(root);
 
 			av_move(0, 0, 0);
+			video_set_root();
 
 			if (mythtv_livetv == 2)
 				mythtv_livetv = 1;
@@ -1505,7 +1530,7 @@ file_browser_init(void)
 
 	mvpw_set_key(file_browser, fb_key_callback);
 
-	h = mvpw_font_height(display_attr.font) + (2 * display_attr.margin);
+	h = FONT_HEIGHT(display_attr);
 	w = 300;
 
 	contain = mvpw_create_container(NULL, 50, 80,
@@ -1663,9 +1688,9 @@ bright_select_callback(mvp_widget_t *widget, char *item, void *key)
 	mvpw_check_menu_item(bright_menu, (void*)root_bright, 1);
 
 	if (level > 0) {
-		root_color = mvpw_color_alpha(MVPW_WHITE, level*16);
+		root_color = mvpw_color_alpha(MVPW_WHITE, level*4);
 	} else if (level < 0) {
-		root_color = mvpw_color_alpha(MVPW_BLACK, level*-16);
+		root_color = mvpw_color_alpha(MVPW_BLACK, level*-4);
 	} else {
 		root_color = 0;
 	}
@@ -1787,6 +1812,7 @@ colortest_callback(mvp_widget_t *widget, char key)
 {
 	static int	cur_dir = 1;
 	static int *cur_idx = &ct_globals.fg_idx;
+	int tmp;
 
 	int  incr_val = 1;
 	int  jmp;
@@ -1832,8 +1858,16 @@ colortest_callback(mvp_widget_t *widget, char key)
 	case MVPW_KEY_ONE ... MVPW_KEY_NINE:
 		incr_val = key - MVPW_KEY_ZERO;		 
 		break;
+	case MVPW_KEY_OK:
+		tmp = ct_globals.bg_idx;
+		ct_globals.bg_idx = ct_globals.fg_idx;
+		ct_globals.fg_idx = tmp;
+		colortest_draw(ct_globals.fg_idx, ct_globals.bg_idx);
+		return;
+		break;
 
 	default:
+		return;
 		break;
 	} //switch
 
@@ -2131,7 +2165,7 @@ settings_init(void)
 
 	splash_update("Creating settings menus");
 
-	h = 6 * (mvpw_font_height(settings_attr.font) + 8);
+	h = 6 * FONT_HEIGHT(settings_attr);
 	w = (si.cols - 250);
 
 	x = (si.cols - w) / 2;
@@ -2304,7 +2338,7 @@ settings_init(void)
 	/*
 	 * screensaver widgets
 	 */
-	h = 2 * (mvpw_font_height(settings_dialog_attr.font) + 8);
+	h = 2 * FONT_HEIGHT(settings_dialog_attr);
 	screensaver_dialog = mvpw_create_dialog(NULL, x, y, w, h,
 						settings_dialog_attr.bg,
 						settings_dialog_attr.border,
@@ -2317,7 +2351,7 @@ settings_init(void)
 	/*
 	 * mythtv widgets
 	 */
-	h = 2 * (mvpw_font_height(settings_dialog_attr.font) + 8);
+	h = 2 * FONT_HEIGHT(settings_dialog_attr);
 	settings_mythtv_control = mvpw_create_dialog(NULL, x, y, w, h,
 						settings_dialog_attr.bg,
 						settings_dialog_attr.border,
@@ -2327,10 +2361,10 @@ settings_init(void)
 	mvpw_set_key(settings_mythtv_control,
 		     settings_mythtv_control_key_callback);
 	mvpw_set_dialog_title(settings_mythtv_control,
-			      "MythTV Control TCP Receiver Buffer");
+			      "MythTV Control TCP Receive Buffer");
 	mvpw_set_dialog_text(settings_mythtv_control, "");
 
-	h = 2 * (mvpw_font_height(settings_dialog_attr.font) + 8);
+	h = 2 * FONT_HEIGHT(settings_dialog_attr);
 	settings_mythtv_program = mvpw_create_dialog(NULL, x, y, w, h,
 						settings_dialog_attr.bg,
 						settings_dialog_attr.border,
@@ -2340,7 +2374,7 @@ settings_init(void)
 	mvpw_set_key(settings_mythtv_program,
 		     settings_mythtv_program_key_callback);
 	mvpw_set_dialog_title(settings_mythtv_program,
-			      "MythTV Program TCP Receiver Buffer");
+			      "MythTV Program TCP Receive Buffer");
 	mvpw_set_dialog_text(settings_mythtv_program, "");
 
 	return 0;
@@ -2360,10 +2394,14 @@ colortest_init(void)
 	ct_globals.fg_idx	 = find_color_idx("SNOW");
 	ct_globals.bg_idx	 = find_color_idx("BLACK");
 
-	ct_fg_box = mvpw_create_text(NULL, 100, 300, 500, 50, MVPW_BLACK, 0, 0);	
+	h = 1 * FONT_HEIGHT(ct_fgbg_box_attr);
+	w = mvpw_font_width(ct_fgbg_box_attr.font,
+			    "BG: 255: FFFFFF: LIGHTGOLDENRODYELLOW");
+
+	ct_fg_box = mvpw_create_text(NULL, 40, 250, w, h, MVPW_BLACK, 0, 0);
 	mvpw_set_text_attr(ct_fg_box, &ct_fgbg_box_attr);
 
-	ct_bg_box = mvpw_create_text(NULL, 100, 350, 500, 50, MVPW_BLACK, 0, 0);	
+	ct_bg_box = mvpw_create_text(NULL, 40, 250+h, w, h, MVPW_BLACK, 0, 0);
 	mvpw_set_text_attr(ct_bg_box, &ct_fgbg_box_attr);
 
 	num_cols = 16;
@@ -2380,7 +2418,8 @@ colortest_init(void)
 		buf[bufpos++] = i+32;
 	}
 	buf[bufpos] = '\0';
-	ct_text_box = mvpw_create_text(NULL, 0, 0, w, h, MVPW_BLACK, 0, 0);	
+	ct_text_box = mvpw_create_text(NULL, 0, 0, w, h, MVPW_BLACK, 0, 0);
+
 	mvpw_set_text_str(ct_text_box, buf);
 
 	return 0;
@@ -2395,7 +2434,7 @@ themes_init(void)
 
 	splash_update("Creating themes");
 
-	h = 6 * (mvpw_font_height(themes_attr.font) + 8);
+	h = 6 * FONT_HEIGHT(themes_attr);
 	w = (si.cols - 250);
 
 	x = (si.cols - w) / 2;
@@ -2421,8 +2460,12 @@ themes_init(void)
 			break;
 		memset(buf, 0, sizeof(buf));
 		readlink(DEFAULT_THEME, buf, sizeof(buf));
-		mvpw_add_menu_item(themes_menu, theme_list[i].path,
-				   (void*)i, &themes_item_attr);
+		if (theme_list[i].name)
+			mvpw_add_menu_item(themes_menu, theme_list[i].name,
+					   (void*)i, &themes_item_attr);
+		else
+			mvpw_add_menu_item(themes_menu, theme_list[i].path,
+					   (void*)i, &themes_item_attr);
 		if (strcmp(buf, theme_list[i].path) == 0) {
 			mvpw_check_menu_item(themes_menu, (void*)i, 1);
 		} else {
@@ -2533,8 +2576,7 @@ myth_browser_init(void)
 
 	mvpw_set_menu_attr(mythtv_browser, &mythtv_attr);
 
-	h = mvpw_font_height(description_attr.font) +
-		(2 * description_attr.margin);
+	h = FONT_HEIGHT(description_attr);
 
 	mythtv_channel = mvpw_create_text(NULL, 0, 0, 350, h,
 					  description_attr.bg,
@@ -2595,7 +2637,7 @@ myth_browser_init(void)
 	 * mythtv popup menu
 	 */
 	w = 400;
-	h = 5 * (mvpw_font_height(mythtv_popup_attr.font) + 8);
+	h = 5 * FONT_HEIGHT(mythtv_popup_attr);
 	x = (si.cols - w) / 2;
 	y = (si.rows - h) / 2;
 
@@ -2716,8 +2758,15 @@ main_select_callback(mvp_widget_t *widget, char *item, void *key)
 	case MM_VNC:
 	        printf("Connecting to %s %i\n", vnc_server, vnc_port);
 
-	        if (!ConnectToRFBServer(vnc_server, vnc_port)) return;
-	        if (!InitialiseRFBConnection(rfbsock)) return;
+	        if (!ConnectToRFBServer(vnc_server, vnc_port) ||
+		    !InitialiseRFBConnection(rfbsock)) {
+			char buf[256];
+			snprintf(buf, sizeof(buf),
+				 "Unable to connect to VNC at %s:%i",
+				 vnc_server, vnc_port);
+			gui_error(buf);
+			return;
+		}
 		myFormat.bitsPerPixel = si.bpp;
 		myFormat.depth = si.bpp;
 #ifdef MVPMC_HOST
@@ -3046,8 +3095,7 @@ about_init(void)
 
 	splash_update("Creating about dialog");
 
-	h = (mvpw_font_height(about_attr.font) +
-	     (2 * 2)) * 10;
+	h = 10 * FONT_HEIGHT(about_attr);
 	w = 500;
 
 	x = (si.cols - w) / 2;
@@ -3085,8 +3133,7 @@ mclient_init(void)
 	splash_update("Creating mclient dialog");
 
 
-	h = (mvpw_font_height(mclient_attr.font) +
-	     (2 * 2)) * 8;
+	h = 8 * FONT_HEIGHT(mclient_attr);
 	w = 500;
 
 	x = (si.cols - w) / 2;
@@ -3133,8 +3180,7 @@ osd_init(void)
 
 	splash_update("Creating OSD");
 
-	h = mvpw_font_height(display_attr.font) +
-		(2 * display_attr.margin);
+	h = FONT_HEIGHT(display_attr);
 	w = mvpw_font_width(display_attr.font, " 000% ");
 
 	/*
@@ -3229,16 +3275,15 @@ osd_init(void)
 	 */
 	x = si.cols - 475;
 	y = si.rows - 125;
-	h = mvpw_font_height(mythtv_program_attr.font) +
-		(mvpw_font_height(mythtv_description_attr.font) * 3) +
-		(2 * display_attr.margin);
+	h = FONT_HEIGHT(mythtv_program_attr) +
+		(3 * FONT_HEIGHT(mythtv_description_attr));
 	contain = mvpw_create_container(NULL, x, y,
 					400, h,
 					mythtv_description_attr.bg,
 					mythtv_description_attr.border,
 					mythtv_description_attr.border_size);
 	mythtv_program_widget = contain;
-	h = mvpw_font_height(mythtv_program_attr.font) + (2 * 2);
+	h = FONT_HEIGHT(mythtv_program_attr);
 	widget = mvpw_create_text(contain, 0, 0, 400, h,
 				  mythtv_program_attr.bg,
 				  mythtv_program_attr.border,
@@ -3247,8 +3292,7 @@ osd_init(void)
 	mvpw_set_text_str(widget, "");
 	mvpw_show(widget);
 	mythtv_osd_program = widget;
-	h = (mvpw_font_height(mythtv_description_attr.font) * 3) +
-		(2 * display_attr.margin);
+	h = 3 * FONT_HEIGHT(mythtv_description_attr);
 	widget = mvpw_create_text(contain, 0, 0, 400, h,
 				  mythtv_description_attr.bg,
 				  mythtv_description_attr.border,
@@ -3262,8 +3306,7 @@ osd_init(void)
 	/*
 	 * file browser OSD
 	 */
-	h = mvpw_font_height(description_attr.font) +
-		(2 * display_attr.margin);
+	h = FONT_HEIGHT(description_attr);
 	fb_program_widget = mvpw_create_text(NULL, x, y, 400, h*3,
 					     description_attr.bg,
 					     description_attr.border,
@@ -3321,8 +3364,7 @@ mw_init(char *server, char *replaytv)
 		snprintf(buf, sizeof(buf), "MediaMVP Media Center\n%s",
 			 compile_time);
 
-	h = (mvpw_font_height(splash_attr.font) +
-	     (2 * splash_attr.margin)) * 3;
+	h = 3 * FONT_HEIGHT(splash_attr);
 	w = mvpw_font_width(splash_attr.font, buf) + 8;
 	w = 400;
 
@@ -3336,7 +3378,7 @@ mw_init(char *server, char *replaytv)
 	mvpw_set_text_attr(splash_title, &splash_attr);
 	y += h;
 	h *= 2;
-	h = (mvpw_font_height(splash_attr.font) + (2 * splash_attr.margin));
+	h = FONT_HEIGHT(splash_attr);
 	splash = mvpw_create_text(NULL, x, y, w, h, splash_attr.bg,
 				  splash_attr.border, splash_attr.border_size);
 	mvpw_set_text_attr(splash, &splash_attr);
@@ -3346,7 +3388,9 @@ mw_init(char *server, char *replaytv)
 	y += (h*2);
 
 	splash_graph = mvpw_create_graph(NULL, x, y, w, h,
-					 MVPW_BLACK, MVPW_LIGHTGREY, 2);
+					 splash_graph_attr.bg,
+					 splash_graph_attr.border,
+					 splash_graph_attr.border_size);
 	mvpw_set_graph_attr(splash_graph, &splash_graph_attr);
 
 	mvpw_set_graph_current(splash_graph, 0);
@@ -3368,7 +3412,7 @@ popup_init(void)
 	int x, y, w, h;
 	char buf[16];
 
-	h = 8 * (mvpw_font_height(popup_attr.font) + 8);
+	h = 8 * FONT_HEIGHT(popup_attr);
 	w = mvpw_font_width(popup_attr.font, "On Screen Display") * 1.5;
 	x = (si.cols - w) / 2;
 	y = (si.rows - h) / 2;
@@ -3498,7 +3542,7 @@ popup_init(void)
 
 	mvpw_check_menu_item(bright_menu, (void*)0, 1);
 
-	h = 2 * (mvpw_font_height(bright_dialog_attr.font) + 8);
+	h = 2 * FONT_HEIGHT(bright_dialog_attr);
 	x = (si.cols - w) / 2;
 	y = si.rows - (h * 2);
 	bright_dialog = mvpw_create_dialog(NULL, x, y, w, h,
@@ -3632,8 +3676,7 @@ warn_init(void)
 
 	snprintf(file, sizeof(file), "%s/warning.png", imagedir);
 
-	h = (mvpw_font_height(warn_attr.font) +
-	     (2 * 2)) * 6;
+	h = 6 * FONT_HEIGHT(warn_attr);
 	w = 400;
 
 	x = (si.cols - w) / 2;
@@ -3708,8 +3751,7 @@ busy_init(void)
 	int h, w, x, y;
 	mvp_widget_t *text, *graph;
 
-	h = (mvpw_font_height(busy_text_attr.font) +
-	     (2 * 2)) * 2;
+	h = 2 * FONT_HEIGHT(busy_text_attr);
 	w = 200;
 
 	x = (si.cols - w) / 2;

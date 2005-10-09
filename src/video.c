@@ -212,6 +212,8 @@ video_subtitle_check(mvp_widget_t *widget)
 	       mvpw_visible(playlist_widget) ||
 	       mvpw_visible(mythtv_browser) ||
 	       mvpw_visible(main_menu) ||
+	       mvpw_visible(settings) ||
+	       mvpw_visible(ct_text_box) ||
 	       mvpw_visible(mythtv_menu))) {
 		video_thumbnail(0);
 	}
@@ -224,6 +226,19 @@ int video_init(void)
 }
 
 void
+video_set_root(void)
+{
+	if (root_bright > 0)
+		root_color = mvpw_color_alpha(MVPW_WHITE, root_bright*4);
+	else if (root_bright < 0)
+		root_color = mvpw_color_alpha(MVPW_BLACK, root_bright*-4);
+	else
+		root_color = 0;
+
+	mvpw_set_bg(root, root_color);
+}
+
+void
 video_play(mvp_widget_t *widget)
 {
 	mvpw_set_idle(NULL);
@@ -233,7 +248,7 @@ video_play(mvp_widget_t *widget)
 	else
 		mvpw_set_timer(root, video_subtitle_display, 250);
 
-	mvpw_set_bg(root, root_color);
+	video_set_root();
 
 	video_reopen = 1;
 	video_playing = 1;
@@ -1433,6 +1448,8 @@ seek_disable_osd(mvp_widget_t *widget)
 	if (!display_on) {
 		disable_osd();
 	}
+
+	mvpw_expose(root);
 }
 
 static void
