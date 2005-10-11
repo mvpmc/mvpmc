@@ -713,7 +713,7 @@ static int parse_show(replay_show_t *show_rec, rtv_show_export_t *sh)
 
    // The duration should be 1/2 the gop count. i.e: 2 gops per sec.
    // DVArchive sometimes screws up the duration and returns 5400
-   // Check for this and set duration (seconds) to 1/2 gop is it seems to be screwed.
+   // Check for this and set duration (seconds) to 1/2 gop if it seems to be screwed.
    //
    if ( (show_rec->seconds == 5400)  && 
         ((show_rec->GOP_count > ((5400 * 2) + 10)) || (show_rec->GOP_count < ((5400 * 2) - 10)) )  ) {
@@ -731,7 +731,8 @@ static int parse_show(replay_show_t *show_rec, rtv_show_export_t *sh)
    sh->sch_st_tm_str2  = rtv_format_datetime_sec32_2(sh->sch_start_time + 3); //add 3 seconds to time
 
    // If a shows GOP_count or seconds field is zero then the show has been deleted 
-   // but is still in the guide.
+   // but is still in the guide or it's a "less than 1 minute" show due to a RTV 
+   // reset when recording started.
    //
    if ( (show_rec->GOP_count == 0) || (show_rec->seconds == 0) ) {
       sh->unavailable = 1;

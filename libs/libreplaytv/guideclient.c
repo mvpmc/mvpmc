@@ -149,7 +149,10 @@ static void rtv_free_show(rtv_show_export_t *show)
       if ( show->sch_st_tm_str2  != NULL ) free(show->sch_st_tm_str2);
       if ( show->duration_str    != NULL ) free(show->duration_str);
 
-      if ( show->file_info != NULL ) rtv_free_file_info(show->file_info);
+      if ( show->file_info != NULL ) {
+         rtv_free_file_info(show->file_info);
+         free(show->file_info);
+      }
    }
 }
 
@@ -240,9 +243,12 @@ static int update_shows_file_info( const rtv_device_info_t  *device,
        rtv_fs_file_t *fileinfo;
        char           path[255];
 
-       // Don't attempt to stat the the mpg file if the show has been deleted.
+       // Don't attempt to stat the the mpg file if the show has been deleted or is corrupted.
        //
        if ( guide->rec_show_list[x].unavailable ) {
+          fileinfo = malloc(sizeof(rtv_fs_file_t));
+          memset(fileinfo, 0, sizeof(rtv_fs_file_t));
+          guide->rec_show_list[x].file_info = fileinfo;
           continue;
        } 
 
@@ -253,7 +259,7 @@ static int update_shows_file_info( const rtv_device_info_t  *device,
        if ( rc != 0 ) {
           RTV_ERRLOG("%s: rtv_get_file_info failed: %s: %d=>%s\n", __FUNCTION__, path, rc, strerror(abs(rc)));
           RTV_ERRLOG("%s: Marking show as unavailable.\n", __FUNCTION__);
-          memset(fileinfo, 0, sizeof(fileinfo));
+          memset(fileinfo, 0, sizeof(rtv_fs_file_t));
           guide->rec_show_list[x].unavailable = 1;
        }
        guide->rec_show_list[x].file_info = fileinfo;
