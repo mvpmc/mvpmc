@@ -858,3 +858,34 @@ av_deactivate(void)
 
 	return 0;
 }
+
+int
+av_get_volume(void)
+{
+	unsigned int volume;
+
+	if (ioctl(fd_audio, AV_GET_AUD_VOLUME, &volume) < 0)
+		return -1;
+
+	volume = volume & 0xff;
+
+	return AV_VOLUME_MAX - (int)volume;
+}
+
+int
+av_set_volume(int volume)
+{
+	unsigned long vol, v;
+
+	if ((volume < AV_VOLUME_MIN) || (volume > AV_VOLUME_MAX))
+		return -1;
+
+	v = AV_VOLUME_MAX - volume;
+
+	vol = (v << 24) | (v << 16) | (v << 8) | v;
+
+	if (ioctl(fd_audio, AV_SET_AUD_VOLUME, &vol) < 0)
+		return -1;
+
+	return 0;
+}

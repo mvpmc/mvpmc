@@ -238,3 +238,18 @@ av_delay_video(int usec)
 {
 	return 0;
 }
+
+int
+av_get_volume(void)
+{
+	return AV_VOLUME_MAX;
+}
+
+int
+av_set_volume(int volume)
+{
+	if ((volume < AV_VOLUME_MIN) || (volume > AV_VOLUME_MAX))
+		return -1;
+	else
+		return 0;
+}

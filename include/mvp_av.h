@@ -153,4 +153,10 @@ extern int av_get_state(av_state_t *state);
 
 extern int av_deactivate(void);
 
+extern int av_get_volume(void);
+extern int av_set_volume(int volume);
+
+#define AV_VOLUME_MAX	255
+#define AV_VOLUME_MIN	0
+
 #endif /* MVP_AV_H */
