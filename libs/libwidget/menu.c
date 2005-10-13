@@ -498,6 +498,22 @@ mvpw_delete_menu_item(mvp_widget_t *widget, void *key)
 	return count;
 }
 
+char*
+mvpw_get_menu_item(mvp_widget_t *widget, void *key)
+{
+	void *k;
+	int i;
+
+	for (i=0; i<widget->data.menu.nitems; i++) {
+		k = widget->data.menu.items[i].key;
+		if (k == key) {
+			return widget->data.menu.items[i].label;
+		}
+	}
+
+	return NULL;
+}
+
 int
 mvpw_set_menu_title(mvp_widget_t *widget, char *title)
 {

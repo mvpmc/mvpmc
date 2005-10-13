@@ -165,6 +165,7 @@ extern int mvpw_add_menu_item(mvp_widget_t *widget, char *label, void *key,
 			      mvpw_menu_item_attr_t *item_attr);
 extern void mvpw_clear_menu(mvp_widget_t *widget);
 extern int mvpw_delete_menu_item(mvp_widget_t *widget, void *key);
+extern char* mvpw_get_menu_item(mvp_widget_t *widget, void *key);
 extern void mvpw_check_menu_item(mvp_widget_t *widget, void *key, int checked);
 extern int mvpw_menu_hilite_item(mvp_widget_t *widget, void *key);
 extern int mvpw_menu_get_item_attr(mvp_widget_t *widget, void *key,
