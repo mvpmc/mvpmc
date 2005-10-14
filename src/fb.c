@@ -55,6 +55,9 @@ static void add_files(mvp_widget_t*);
 char *current = NULL;
 char *current_hilite = NULL;
 
+static int file_count = 0;
+static int dir_count = 0;
+
 int
 is_video(char *item)
 {
@@ -316,6 +319,7 @@ add_dirs(mvp_widget_t *fbw)
 	memset(&gb, 0, sizeof(gb));
 	snprintf(pattern, sizeof(pattern), "%s/*", cwd);
 
+	dir_count = 1;
 	if (glob(pattern, GLOB_ONLYDIR, NULL, &gb) == 0) {
 		i = 0;
 		while (gb.gl_pathv[i]) {
@@ -328,7 +332,7 @@ add_dirs(mvp_widget_t *fbw)
 				sprintf(buf, ptr);
 				strcat(buf, "/");
 				mvpw_add_menu_item(fbw, buf,
-						   (void*)(uint32_t)sb.st_ino,
+						   (void*)dir_count++,
 						   &item_attr);
 			}
 			i++;
@@ -336,10 +340,10 @@ add_dirs(mvp_widget_t *fbw)
 	}
 }
 
-static void
+static int
 do_glob(mvp_widget_t *fbw, char *wc[])
 {
-	int w, i;
+	int w, i = 0;
 	struct stat64 sb;
 	glob_t gb;
 	char pattern[1024], *ptr;
@@ -357,13 +361,16 @@ do_glob(mvp_widget_t *fbw, char *wc[])
 				else
 					ptr++;
 				mvpw_add_menu_item(fbw, ptr,
-						   (void*)(uint32_t)sb.st_ino,
+						   (void*)(dir_count+
+							   file_count++),
 						   &item_attr);
 				i++;
 			}
 		}
 		w++;
 	}
+
+	return i;
 }
 
 static void
@@ -381,6 +388,7 @@ add_files(mvp_widget_t *fbw)
 	item_attr.fg = fb_attr.fg;
 	item_attr.bg = fb_attr.bg;
 
+	file_count = 0;
 	do_glob(fbw, wc);
 	do_glob(fbw, WC);
 }
@@ -425,4 +433,67 @@ fb_exit(void)
 	audio_clear();
 	video_clear();
 	av_stop();
+}
+
+void
+fb_shuffle(void)
+{
+	char **item, *tmp;
+	int i, j, k, n;
+
+	if (file_count == 0) {
+		gui_error("No files exist in this directory.");
+		return;
+	}
+
+	printf("start shuffle playback...\n");
+
+	if (file_count > 256)
+		n = 256;
+	else
+		n = file_count;
+
+	item = alloca(sizeof(char*)*n);
+
+	j = 0;
+	for (i=0; i<n; i++) {
+		tmp = mvpw_get_menu_item(file_browser, (void*)(i+dir_count));
+		if (is_audio(tmp)) {
+			item[j++] = tmp;
+		}
+	}
+	n = j;
+
+	if (n == 0) {
+		gui_error("No audio files exist in this directory.");
+		return;
+	}
+
+	if (n > 1) {
+		for (i=0; i<1024; i++) {
+			j = rand() % n;
+			k = rand() % n;
+			tmp = item[k];
+			item[k] = item[j];
+			item[j] = tmp;
+		}
+	}
+
+	printf("created shuffle playlist of %d songs\n", n);
+
+	switch_hw_state(MVPMC_STATE_FILEBROWSER);
+	video_functions = &file_functions;
+
+	playlist_clear();
+
+	mvpw_show(playlist_widget);
+	mvpw_focus(playlist_widget);
+
+	playlist_create(item, n, cwd);
+
+	mvpw_show(fb_progress);
+	mvpw_set_timer(fb_progress, fb_osd_update, 500);
+	playlist_play(NULL);
+
+	printf("shuffle playlist created\n");
 }

@@ -82,6 +82,8 @@ struct playlist_struct {
   struct playlist_struct *prev;
 };
 
+extern void playlist_create(char **item, int n, char *cwd);
+
 extern volatile video_callback_t *video_functions;
 extern video_callback_t file_functions, mythtv_functions;
 
@@ -141,6 +143,7 @@ extern mvp_widget_t *vnc_widget;
 
 extern uint32_t root_color;
 extern int root_bright;
+extern int volume;
 
 extern char *current;
 extern char *mythtv_recdir;
@@ -198,6 +201,7 @@ extern void mythtv_show_widgets(void);
 extern void mythtv_program(mvp_widget_t *widget);
 
 extern void fb_program(mvp_widget_t *widget);
+extern void fb_shuffle(void);
 
 extern void re_exec(void);
 extern void power_toggle(void);
@@ -393,4 +397,6 @@ extern char *screen_capture_file;
 
 extern mvp_widget_t *ct_text_box;
 extern mvp_widget_t *settings;
+
+extern unsigned short viewport_edges[4];
 #endif /* MVPMC_H */

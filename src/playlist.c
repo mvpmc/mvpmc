@@ -478,3 +478,40 @@ void playlist_clear(void)
   free_playlist();
 }
 
+void playlist_create(char **item, int n, char *cwd)
+{
+	int i;
+	playlist_t *pl_head, *pl_prev, *pl;
+
+	pthread_once(&init_control,playlist_init);
+	pthread_mutex_lock(&mutex);
+
+	mvpw_clear_menu(playlist_widget);
+
+	pl_head = pl_prev = NULL;
+	for (i=0; i<n; i++) {
+		pl = (playlist_t*)malloc(sizeof(playlist_t));
+		memset(pl, 0, sizeof(*pl));
+		if (pl_head == NULL)
+			pl_head = pl;
+		pl->filename = malloc(strlen(item[i])+strlen(cwd)+2);
+		snprintf(pl->filename,
+			 strlen(item[i])+strlen(cwd)+2,
+			 "%s/%s", cwd, item[i]);
+		pl->key = (void*)i;
+		pl->next = NULL;
+		pl->prev = pl_prev;
+		if (pl_prev)
+			pl_prev->next = pl;
+		pl_prev = pl;
+		mvpw_add_menu_item(playlist_widget, item[i],
+				   pl->key, &item_attr);
+	}
+
+	playlist_head = pl_head;
+	playlist = pl_head;
+	mvpw_set_menu_title(playlist_widget, "Shuffle Play");
+	pthread_mutex_unlock(&mutex);
+
+	playlist_change(playlist);
+}

@@ -22,10 +22,6 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-typedef unsigned short u16;
-typedef unsigned long u32;
-typedef unsigned char u8;
-
 #define CONFIG_MAGIC		0x434f4e46
 
 /*
@@ -45,6 +41,8 @@ typedef unsigned char u8;
 #define CONFIG_BRIGHTNESS	0x0800
 #define CONFIG_MYTHTV_CONTROL	0x1000
 #define CONFIG_MYTHTV_PROGRAM	0x2000
+#define CONFIG_VOLUME		0x4000
+#define CONFIG_VIEWPORT		0x8000
 
 /*
  * The config_t structure will hold all the user settings that can survive
@@ -68,6 +66,8 @@ typedef struct {
 	int			brightness;
 	int			mythtv_tcp_control;
 	int			mythtv_tcp_program;
+	int			volume;
+	unsigned short		viewport[4];
 } config_t;
 
 extern config_t *config;
@@ -89,6 +89,8 @@ extern config_t *config;
 #define CONFIG_ITEM_BRIGHTNESS		0x000c
 #define CONFIG_ITEM_MYTHTV_CONTROL	0x000d
 #define CONFIG_ITEM_MYTHTV_PROGRAM	0x000e
+#define CONFIG_ITEM_VOLUME		0x000f
+#define CONFIG_ITEM_VIEWPORT		0x0010
 
 /*
  * The flags in config_list_t

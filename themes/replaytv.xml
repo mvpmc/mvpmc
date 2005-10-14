@@ -183,6 +183,18 @@
     <font>large</font>
   </widget>
 
+  <widget type="menu" name="fb_popup">
+    <color type="bg">seashell3</color>
+    <color type="fg">midnightblue</color>
+    <color type="title_bg">black</color>
+    <color type="title_fg">white</color>
+    <color type="hilite_bg">darkgoldenrod4</color>
+    <color type="hilite_fg">black</color>
+    <style type="border_size">0</style>
+    <style type="hilite">square</style>
+    <font>large</font>
+  </widget>
+
   <!--
      - Dialog widget settings
     -->

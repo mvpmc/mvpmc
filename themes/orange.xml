@@ -169,6 +169,18 @@
 
   <widget type="menu" name="settings" copy="themes"></widget>
 
+  <widget type="menu" name="fb_popup">
+    <color type="bg">orange3</color>
+    <color type="fg">black</color>
+    <color type="title_bg">gray60</color>
+    <color type="title_fg">white</color>
+    <color type="hilite_bg">white</color>
+    <color type="hilite_fg">black</color>
+    <style type="border_size">0</style>
+    <style type="hilite">square</style>
+    <font>large</font>
+  </widget>
+
   <!--
      - Dialog widget settings
     -->
@@ -207,6 +219,15 @@
     <color type="title_fg">black</color>
     <style type="border_size">0</style>
     <font>standard</font>
+  </widget>
+
+  <widget type="dialog" name="video_dialog">
+    <color type="bg">gray30</color>
+    <color type="fg">white</color>
+    <color type="title_bg">orange3</color>
+    <color type="title_fg">black</color>
+    <style type="border_size">0</style>
+    <font>large</font>
   </widget>
 
   <!--

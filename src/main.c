@@ -100,6 +100,8 @@ char *config_file = NULL;
 
 char *screen_capture_file = NULL;
 
+static void atexit_handler(void);
+
 static int
 buffer_put(demux_handle_t *handle, char *buf, int len)
 {
@@ -548,6 +550,8 @@ main(int argc, char **argv)
 	spawn_child();
 #endif
 
+	srand(getpid());
+
 	if (config->magic != CONFIG_MAGIC) {
 		fprintf(stderr, "invalid config area!\n");
 		exit(1);
@@ -609,6 +613,8 @@ main(int argc, char **argv)
 	fd_video = av_video_fd();
 	av_attach_fb();
 	av_play();
+
+	av_set_volume(volume);
 
 	a52_state = a52_init (accel);
 
@@ -722,7 +728,7 @@ main(int argc, char **argv)
 		exit(1);
 	}
 
-	atexit(mythtv_atexit);
+	atexit(atexit_handler);
 
 	mvpw_set_idle(NULL);
 	mvpw_event_loop();
@@ -776,4 +782,26 @@ switch_gui_state(mvpmc_state_t new)
 	printf("%s(): changing from %d to %d\n", __FUNCTION__, gui_state, new);
 
 	gui_state = new;
+}
+
+void
+atexit_handler(void)
+{
+	printf("%s(): state %d\n", __FUNCTION__, hw_state);
+
+	switch (hw_state) {
+	case MVPMC_STATE_NONE:
+		break;
+	case MVPMC_STATE_FILEBROWSER:
+		break;
+	case MVPMC_STATE_MYTHTV:
+		mythtv_atexit();
+		break;
+	case MVPMC_STATE_REPLAYTV:
+		break;
+	case MVPMC_STATE_MCLIENT:
+		break;
+	}
+
+	printf("%s(): exiting...\n", __FUNCTION__);
 }

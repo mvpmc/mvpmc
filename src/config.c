@@ -217,95 +217,37 @@ add_item(config_list_t *list, int type)
 	int len;
 	void *ptr;
 
+#define ITEM_FIXED(x, y) \
+	case CONFIG_ITEM_##x:\
+		if ((config->bitmask & CONFIG_##x) == 0)\
+			return 0;\
+		len = sizeof(config->y);\
+		ptr = (void*)&config->y;\
+		break;
+
 	switch (type) {
-	case CONFIG_ITEM_SCREENSAVER:
-		if ((config->bitmask & CONFIG_SCREENSAVER) == 0)
-			return 0;
-		len = sizeof(config->screensaver_timeout);
-		ptr = (void*)&config->screensaver_timeout;
-		break;
-	case CONFIG_ITEM_MODE:
-		if ((config->bitmask & CONFIG_MODE) == 0)
-			return 0;
-		len = sizeof(config->av_mode);
-		ptr = (void*)&config->av_mode;
-		break;
-	case CONFIG_ITEM_AUDIO_OUTPUT:
-		if ((config->bitmask & CONFIG_AUDIO_OUTPUT) == 0)
-			return 0;
-		len = sizeof(config->av_audio_output);
-		ptr = (void*)&config->av_audio_output;
-		break;
-	case CONFIG_ITEM_VIDEO_OUTPUT:
-		if ((config->bitmask & CONFIG_VIDEO_OUTPUT) == 0)
-			return 0;
-		len = sizeof(config->av_video_output);
-		ptr = (void*)&config->av_video_output;
-		break;
-	case CONFIG_ITEM_ASPECT:
-		if ((config->bitmask & CONFIG_ASPECT) == 0)
-			return 0;
-		len = sizeof(config->av_aspect);
-		ptr = (void*)&config->av_aspect;
-		break;
-	case CONFIG_ITEM_OSD_BITRATE:
-		if ((config->bitmask & CONFIG_OSD_BITRATE) == 0)
-			return 0;
-		len = sizeof(config->osd_bitrate);
-		ptr = (void*)&config->osd_bitrate;
-		break;
-	case CONFIG_ITEM_OSD_CLOCK:
-		if ((config->bitmask & CONFIG_OSD_CLOCK) == 0)
-			return 0;
-		len = sizeof(config->osd_clock);
-		ptr = (void*)&config->osd_clock;
-		break;
-	case CONFIG_ITEM_OSD_DEMUX_INFO:
-		if ((config->bitmask & CONFIG_OSD_DEMUX_INFO) == 0)
-			return 0;
-		len = sizeof(config->osd_demux_info);
-		ptr = (void*)&config->osd_demux_info;
-		break;
-	case CONFIG_ITEM_OSD_PROGRAM:
-		if ((config->bitmask & CONFIG_OSD_PROGRAM) == 0)
-			return 0;
-		len = sizeof(config->osd_program);
-		ptr = (void*)&config->osd_program;
-		break;
-	case CONFIG_ITEM_OSD_PROGRESS:
-		if ((config->bitmask & CONFIG_OSD_PROGRESS) == 0)
-			return 0;
-		len = sizeof(config->osd_progress);
-		ptr = (void*)&config->osd_progress;
-		break;
-	case CONFIG_ITEM_OSD_TIMECODE:
-		if ((config->bitmask & CONFIG_OSD_TIMECODE) == 0)
-			return 0;
-		len = sizeof(config->osd_timecode);
-		ptr = (void*)&config->osd_timecode;
-		break;
-	case CONFIG_ITEM_BRIGHTNESS:
-		if ((config->bitmask & CONFIG_BRIGHTNESS) == 0)
-			return 0;
-		len = sizeof(config->brightness);
-		ptr = (void*)&config->brightness;
-		break;
-	case CONFIG_ITEM_MYTHTV_CONTROL:
-		if ((config->bitmask & CONFIG_MYTHTV_CONTROL) == 0)
-			return 0;
-		len = sizeof(config->mythtv_tcp_control);
-		ptr = (void*)&config->mythtv_tcp_control;
-		break;
-	case CONFIG_ITEM_MYTHTV_PROGRAM:
-		if ((config->bitmask & CONFIG_MYTHTV_PROGRAM) == 0)
-			return 0;
-		len = sizeof(config->mythtv_tcp_program);
-		ptr = (void*)&config->mythtv_tcp_program;
-		break;
+		ITEM_FIXED(SCREENSAVER, screensaver_timeout);
+		ITEM_FIXED(MODE, av_mode);
+		ITEM_FIXED(AUDIO_OUTPUT, av_audio_output);
+		ITEM_FIXED(VIDEO_OUTPUT, av_video_output);
+		ITEM_FIXED(ASPECT, av_aspect);
+		ITEM_FIXED(OSD_BITRATE, osd_bitrate);
+		ITEM_FIXED(OSD_CLOCK, osd_clock);
+		ITEM_FIXED(OSD_DEMUX_INFO, osd_demux_info);
+		ITEM_FIXED(OSD_PROGRAM, osd_program);
+		ITEM_FIXED(OSD_PROGRESS, osd_progress);
+		ITEM_FIXED(OSD_TIMECODE, osd_timecode);
+		ITEM_FIXED(BRIGHTNESS, brightness);
+		ITEM_FIXED(MYTHTV_CONTROL, mythtv_tcp_control);
+		ITEM_FIXED(MYTHTV_PROGRAM, mythtv_tcp_program);
+		ITEM_FIXED(VOLUME, volume);
+		ITEM_FIXED(VIEWPORT, viewport);
 	default:
 		goto err;
 		break;
 	}
+
+#undef ITEM_FIXED
 
 	if ((item=(config_item_t*)malloc(sizeof(*item)+len)) == NULL)
 		return -1;
@@ -333,142 +275,40 @@ get_item(config_item_t *item, int override)
 {
 	int len;
 
+#define ITEM_FIXED(x, y) \
+	case CONFIG_ITEM_##x: \
+		len = sizeof(config->y); \
+		if (len != item->buflen) \
+			return -1; \
+		if (!(config->bitmask & CONFIG_##x) || override) { \
+			memcpy((void*)&config->y, item->buf, len); \
+			config->bitmask |= CONFIG_##x; \
+		} \
+		break;
+
 	switch (item->type) {
-	case CONFIG_ITEM_SCREENSAVER:
-		len = sizeof(config->screensaver_timeout);
-		if (len != item->buflen)
-			return -1;
-		if (!(config->bitmask & CONFIG_SCREENSAVER) || override) {
-			memcpy((void*)&config->screensaver_timeout,
-			       item->buf, len);
-			config->bitmask |= CONFIG_SCREENSAVER;
-		}
-		break;
-	case CONFIG_ITEM_MODE:
-		len = sizeof(config->av_mode);
-		if (len != item->buflen)
-			return -1;
-		if (!(config->bitmask & CONFIG_MODE) || override) {
-			memcpy((void*)&config->av_mode, item->buf, len);
-			config->bitmask |= CONFIG_MODE;
-		}
-		break;
-	case CONFIG_ITEM_AUDIO_OUTPUT:
-		len = sizeof(config->av_audio_output);
-		if (len != item->buflen)
-			return -1;
-		if (!(config->bitmask & CONFIG_AUDIO_OUTPUT) || override) {
-			memcpy((void*)&config->av_audio_output,
-			       item->buf, len);
-			config->bitmask |= CONFIG_AUDIO_OUTPUT;
-		}
-		break;
-	case CONFIG_ITEM_VIDEO_OUTPUT:
-		len = sizeof(config->av_video_output);
-		if (len != item->buflen)
-			return -1;
-		if (!(config->bitmask & CONFIG_VIDEO_OUTPUT) || override) {
-			memcpy((void*)&config->av_video_output,
-			       item->buf, len);
-			config->bitmask |= CONFIG_VIDEO_OUTPUT;
-		}
-		break;
-	case CONFIG_ITEM_ASPECT:
-		len = sizeof(config->av_aspect);
-		if (len != item->buflen)
-			return -1;
-		if (!(config->bitmask & CONFIG_ASPECT) || override) {
-			memcpy((void*)&config->av_aspect, item->buf, len);
-			config->bitmask |= CONFIG_ASPECT;
-		}
-		break;
-	case CONFIG_ITEM_OSD_BITRATE:
-		len = sizeof(config->osd_bitrate);
-		if (len != item->buflen)
-			return -1;
-		if (!(config->bitmask & CONFIG_OSD_BITRATE) || override) {
-			memcpy((void*)&config->osd_bitrate, item->buf, len);
-			config->bitmask |= CONFIG_OSD_BITRATE;
-		}
-		break;
-	case CONFIG_ITEM_OSD_CLOCK:
-		len = sizeof(config->osd_clock);
-		if (len != item->buflen)
-			return -1;
-		if (!(config->bitmask & CONFIG_OSD_CLOCK) || override) {
-			memcpy((void*)&config->osd_clock, item->buf, len);
-			config->bitmask |= CONFIG_OSD_CLOCK;
-		}
-		break;
-	case CONFIG_ITEM_OSD_DEMUX_INFO:
-		len = sizeof(config->osd_demux_info);
-		if (len != item->buflen)
-			return -1;
-		if (!(config->bitmask & CONFIG_OSD_DEMUX_INFO) || override) {
-			memcpy((void*)&config->osd_demux_info, item->buf, len);
-			config->bitmask |= CONFIG_OSD_DEMUX_INFO;
-		}
-		break;
-	case CONFIG_ITEM_OSD_PROGRAM:
-		len = sizeof(config->osd_program);
-		if (len != item->buflen)
-			return -1;
-		if (!(config->bitmask & CONFIG_OSD_PROGRAM) || override) {
-			memcpy((void*)&config->osd_program, item->buf, len);
-			config->bitmask |= CONFIG_OSD_PROGRAM;
-		}
-		break;
-	case CONFIG_ITEM_OSD_PROGRESS:
-		len = sizeof(config->osd_progress);
-		if (len != item->buflen)
-			return -1;
-		if (!(config->bitmask & CONFIG_OSD_PROGRESS) || override) {
-			memcpy((void*)&config->osd_progress, item->buf, len);
-			config->bitmask |= CONFIG_OSD_PROGRESS;
-		}
-		break;
-	case CONFIG_ITEM_OSD_TIMECODE:
-		len = sizeof(config->osd_timecode);
-		if (len != item->buflen)
-			return -1;
-		if (!(config->bitmask & CONFIG_OSD_TIMECODE) || override) {
-			memcpy((void*)&config->osd_timecode, item->buf, len);
-			config->bitmask |= CONFIG_OSD_TIMECODE;
-		}
-		break;
-	case CONFIG_ITEM_BRIGHTNESS:
-		len = sizeof(config->brightness);
-		if (len != item->buflen)
-			return -1;
-		if (!(config->bitmask & CONFIG_BRIGHTNESS) || override) {
-			memcpy((void*)&config->brightness, item->buf, len);
-			config->bitmask |= CONFIG_BRIGHTNESS;
-		}
-		break;
-	case CONFIG_ITEM_MYTHTV_CONTROL:
-		len = sizeof(config->mythtv_tcp_control);
-		if (len != item->buflen)
-			return -1;
-		if (!(config->bitmask & CONFIG_MYTHTV_CONTROL) || override) {
-			memcpy((void*)&config->mythtv_tcp_control,
-			       item->buf, len);
-			config->bitmask |= CONFIG_MYTHTV_CONTROL;
-		}
-		break;
-	case CONFIG_ITEM_MYTHTV_PROGRAM:
-		len = sizeof(config->mythtv_tcp_program);
-		if (len != item->buflen)
-			return -1;
-		if (!(config->bitmask & CONFIG_MYTHTV_PROGRAM) || override) {
-			memcpy((void*)&config->mythtv_tcp_program,
-			       item->buf, len);
-			config->bitmask |= CONFIG_MYTHTV_PROGRAM;
-		}
-		break;
+		ITEM_FIXED(SCREENSAVER, screensaver_timeout);
+		ITEM_FIXED(MODE, av_mode);
+		ITEM_FIXED(AUDIO_OUTPUT, av_audio_output);
+		ITEM_FIXED(VIDEO_OUTPUT, av_video_output);
+		ITEM_FIXED(ASPECT, av_aspect);
+		ITEM_FIXED(OSD_BITRATE, osd_bitrate);
+		ITEM_FIXED(OSD_CLOCK, osd_clock);
+		ITEM_FIXED(OSD_DEMUX_INFO, osd_demux_info);
+		ITEM_FIXED(OSD_PROGRAM, osd_program);
+		ITEM_FIXED(OSD_PROGRESS, osd_progress);
+		ITEM_FIXED(OSD_TIMECODE, osd_timecode);
+		ITEM_FIXED(BRIGHTNESS, brightness);
+		ITEM_FIXED(MYTHTV_CONTROL, mythtv_tcp_control);
+		ITEM_FIXED(MYTHTV_PROGRAM, mythtv_tcp_program);
+		ITEM_FIXED(VOLUME, volume);
+		ITEM_FIXED(VIEWPORT, viewport);
 	default:
 		return -1;
 		break;
 	}
+
+#undef ITEM_FIXED
 
 	return 0;
 }
@@ -514,6 +354,10 @@ save_config_file(char *file)
 	if (add_item(list, CONFIG_ITEM_MYTHTV_CONTROL) < 0)
 		goto err;
 	if (add_item(list, CONFIG_ITEM_MYTHTV_PROGRAM) < 0)
+		goto err;
+	if (add_item(list, CONFIG_ITEM_VOLUME) < 0)
+		goto err;
+	if (add_item(list, CONFIG_ITEM_VIEWPORT) < 0)
 		goto err;
 
 	list->crc = 0;
@@ -595,6 +439,11 @@ set_config(void)
 		mythtv_tcp_control = config->mythtv_tcp_control;
 	if (config->bitmask & CONFIG_MYTHTV_PROGRAM)
 		mythtv_tcp_program = config->mythtv_tcp_program;
+	if (config->bitmask & CONFIG_VOLUME)
+		volume = config->volume;
+	if (config->bitmask & CONFIG_VIEWPORT)
+		memcpy(viewport_edges, config->viewport,
+		       sizeof(viewport_edges));
 }
 
 int
