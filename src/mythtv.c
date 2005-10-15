@@ -1815,7 +1815,7 @@ mythtv_livetv_start(int *tuner)
 {
 	double rate;
 	char *rb_file;
-	char *msg = NULL;
+	char *msg = NULL, buf[128], t[16];
 	int c, i, id = 0;
 
 	if (playing_via_mythtv && file)
@@ -1855,8 +1855,11 @@ mythtv_livetv_start(int *tuner)
 	printf("Found %d free recorders\n", c);
 
 	if (tuner[0]) {
+		snprintf(buf, sizeof(buf), "All tuners unavailable: ");
 		for (i=0; i<MAX_TUNER && tuner[i]; i++) {
 			printf("Looking for tuner %d\n", tuner[i]);
+			snprintf(t, sizeof(t), " %d", tuner[i]);
+			strcat(buf, t);
 			if ((recorder=cmyth_conn_get_recorder_from_num(control,
 								       tuner[i])) == NULL) {
 				continue;
@@ -1869,10 +1872,11 @@ mythtv_livetv_start(int *tuner)
 			break;
 		}
 		if (id == 0) {
-			msg = "No tuner available for that show.";
+			msg = buf;
 			goto err;
 		}
 	} else {
+		printf("Looking for any free recorder\n");
 		if ((recorder=cmyth_conn_get_free_recorder(control)) == NULL) {
 			msg = "Failed to get free recorder.";
 			goto err;
@@ -2538,4 +2542,83 @@ mythtv_test_exit(void)
 {
 	if (!playing_file)
 		mythtv_close();
+}
+
+int
+mythtv_proginfo_livetv(char *buf, int size)
+{
+	snprintf(buf, size,
+		 "Title: %s\n"
+		 "Subtitle: %s\n"
+		 "Description: %s\n"
+		 "Start: %s\n"
+		 "End: %s\n",
+		 livetv_list[current_livetv].title,
+		 livetv_list[current_livetv].subtitle,
+		 livetv_list[current_livetv].description,
+		 livetv_list[current_livetv].start,
+		 livetv_list[current_livetv].end);
+
+	return 0;
+}
+
+int
+mythtv_livetv_tuners(int *tuners)
+{
+	int i, n;
+
+	n = livetv_list[current_livetv].count;
+
+	for (i=0; i<n; i++)
+		tuners[i] = livetv_list[current_livetv].pi[i].rec_id;
+
+	return n;
+}
+
+void
+mythtv_livetv_select(int which)
+{
+	int rec_id = livetv_list[current_livetv].pi[which].rec_id;
+	int tuner[2] = { rec_id, 0 };
+	char *channame = strdup(livetv_list[current_livetv].pi[which].chan);
+
+	printf("starting liveTV on tuner %d channel %s index %d\n",
+	       rec_id, channame, current_livetv);
+
+	if (mythtv_livetv_start(tuner) != 0) {
+		printf("livetv failed\n");
+	} else {
+		printf("livetv active, changing to channel %s\n", channame);
+
+		changing_channel = 1;
+
+		busy_start();
+		pthread_mutex_lock(&myth_mutex);
+
+		if (cmyth_recorder_pause(control, recorder) < 0) {
+			fprintf(stderr, "channel change (pause) failed\n");
+			goto err;
+		}
+
+		if (cmyth_recorder_set_channel(control, recorder, channame) < 0) {
+			fprintf(stderr, "channel change failed!\n");
+			goto err;
+		}
+
+		if (current_prog)
+			cmyth_recorder_get_program_info(control, recorder,
+							current_prog);
+
+		demux_reset(handle);
+		demux_attr_reset(handle);
+		av_play();
+		video_play(root);
+
+	err:
+		pthread_mutex_unlock(&myth_mutex);
+		busy_end();
+		changing_channel = 0;
+	}
+
+	free(channame);
 }
