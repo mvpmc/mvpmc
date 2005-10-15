@@ -2373,7 +2373,7 @@ get_livetv_programs_rec(int id, struct livetv_prog **list, int *n, int *p)
 				    (strcmp((*list)[i].end, end) == 0)) {
 					if ((*list)[i].count == MAX_TUNER)
 						goto next;
-					pi = &((*list)[i].pi[(*list)[i].count]);
+					pi = &((*list)[i].pi[(*list)[i].count++]);
 					pi->chan = strdup(channame);
 					pi->channame = strdup(chansign);
 					pi->rec_id = id;
