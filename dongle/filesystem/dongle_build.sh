@@ -45,7 +45,9 @@ make_dongle() {
 	KERN=$1
 	RD=$2
 
-	CROSS=bin/powerpc-405-linux-gnu-
+	if [ "$CROSS" == "" ] ; then
+	    CROSS=bin/powerpc-405-linux-gnu-
+	fi
 	OBJCOPY=${CROSS}objcopy
 	LD=${CROSS}ld
 
