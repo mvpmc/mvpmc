@@ -2460,15 +2460,14 @@ get_livetv_programs(void)
 
 	p = 0;
 	found = 0;
-	for (i=0; (i<MAX_TUNER) && (found<c+1); i++) {
+	for (i=0; i<MAX_TUNER; i++) {
 		if (get_livetv_programs_rec(i+1, &list, &n, &p) != -1)
 			found++;
-		if (found == c+1)
-			break;
 	}
 
 	t = time(NULL);
-	printf("Found %d programs on %d tuners at %s\n", p, found, ctime(&t));
+	printf("Found %d programs on %d tuners (%d free) at %s\n",
+	       p, found, c, ctime(&t));
 
 	if (p == 0)
 		return -1;
