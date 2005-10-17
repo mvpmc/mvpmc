@@ -62,6 +62,12 @@
 
 #include "display.h"
 
+/*
+ * Added to obtain MAC address.
+ */
+#include <net/if.h>
+#include <sys/ioctl.h>
+
 #define SERVER_PORT    3483
 #define CLIENT_PORT    34443
 
@@ -97,7 +103,7 @@ typedef struct {
   char bits; /* 16 for JVC */
   /* optimizer wants to put two bytes here */
   unsigned long code;
-  char macaddr[6];
+  char mac_addr[6];
 } __attribute__((packed)) send_ir_struct; /* be smarter than the optimizer */
 
 typedef struct {
@@ -116,7 +122,7 @@ typedef struct {
   unsigned short wptr;
   unsigned short rptr;
   unsigned short seq;
-  char reserved2[6];
+  char mac_addr [6];
 } packet_ack;
 
 typedef struct {
@@ -201,6 +207,12 @@ struct timeval uptime; /* time we started */
 
 void mclient_audio_play(mvp_widget_t *widget);
 
+/*
+ * Need the MAC to uniquely identify this mvpmc box to
+ * mclient server.
+ */
+unsigned char *mac_address_ptr;
+struct ifreq ifr;
 
 ring_buf* ring_buf_create(int size)
 {
@@ -240,6 +252,8 @@ void send_discovery(int s) {
   pkt[2] = 1;
   pkt[3] = 0x11;
 
+  memcpy(&pkt[12], mac_address_ptr, 6);
+
   if(debug) printf("mclient: Sending discovery request.\n");
 
   send_packet(s, pkt, sizeof(pkt));
@@ -258,11 +272,15 @@ void send_ack(int s, unsigned short seq)
   pkt.rptr = htons(outbuf->tail >> 1);
 
   pkt.seq = htons(seq);
+
+  memcpy(pkt.mac_addr, mac_address_ptr, 6);
+
   if(debug)
     {
       printf("\nmclient:pkt.wptr:%8.8d pkt.rptr:%8.8d handle:%d\n", pkt.wptr, pkt.rptr, s);
       printf("=> sending ack for %d\n", seq); 
     }
+
   send_packet(s, (void*)&pkt, sizeof(request_data_struct));
 }
 
@@ -274,6 +292,8 @@ void say_hello(int s) {
   pkt[0] = 'h';
   pkt[1] = 1;
   pkt[2] = 0x11;
+
+  memcpy(&pkt[12], mac_address_ptr, 6);
 
   send_packet(s, pkt, sizeof(pkt));
 }
@@ -306,6 +326,7 @@ void send_ir(int s, char codeset, unsigned long code, int bits) {
   pkt.codeset = codeset;
   pkt.bits = (char)bits;
   pkt.code = htonl(code);
+  memcpy(pkt.mac_addr, mac_address_ptr, 6);
 
   if(debug) printf("=> sending IR code %lu at tick %lu (%lu usec)\n",
 		   code, ticks, usecs);
@@ -321,7 +342,7 @@ unsigned long curses2ir(int key) {
     {
     case MVPW_KEY_ZERO: ir = 0x76899867; break;
     case MVPW_KEY_ONE: ir = 0x7689f00f; break;
-    case MVPW_KEY_TWO: ir = 0x7689f00f; break;
+    case MVPW_KEY_TWO: ir = 0x768908f7; break;
     case MVPW_KEY_THREE: ir = 0x76898877; break;
     case MVPW_KEY_FOUR: ir = 0x768948b7; break;
     case MVPW_KEY_FIVE: ir = 0x7689c837; break;
@@ -1038,6 +1059,13 @@ mclient_server_connect(void)
   struct sockaddr_in my_addr;
 
   s = socket(AF_INET, SOCK_DGRAM, 0);
+
+ /*
+  * Get the MAC address for the first ethernet port.
+  */
+  strcpy(ifr.ifr_name,"eth0");
+  ioctl(s,SIOCGIFHWADDR, &ifr);
+  mac_address_ptr = ifr.ifr_hwaddr.sa_data;
 
   if(s == -1)
     {

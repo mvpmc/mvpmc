@@ -76,7 +76,6 @@ mvpw_set_dialog_attr(mvp_widget_t *widget, mvpw_dialog_attr_t *attr)
 	int h, w;
 	mvpw_text_attr_t text_attr = {
 		.wrap = 1,
-		.justify = MVPW_TEXT_CENTER,
 		.margin = 4,
 	};
 
@@ -85,6 +84,7 @@ mvpw_set_dialog_attr(mvp_widget_t *widget, mvpw_dialog_attr_t *attr)
 
 	text_attr.font = attr->font;
 	text_attr.fg = attr->title_fg;
+	text_attr.justify = attr->justify_title;
 	text_attr.margin = widget->data.dialog.margin;
 
 	GrGetFontInfo(attr->font, &finfo);
@@ -114,6 +114,7 @@ mvpw_set_dialog_attr(mvp_widget_t *widget, mvpw_dialog_attr_t *attr)
 	h = widget->height - title->height;
 	w = widget->width - w;
 	text_attr.fg = attr->fg;
+	text_attr.justify = attr->justify_body;
 	text = mvpw_create_text(widget, 0, 0, w, h, widget->bg,
 				widget->border_color, 0);
 	if (text == NULL)

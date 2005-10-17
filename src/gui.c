@@ -111,6 +111,8 @@ static mvpw_dialog_attr_t settings_dialog_attr = {
 	.modal = 0,
 	.border_size = 0,
 	.margin = 4,
+	.justify_title = MVPW_TEXT_CENTER,
+	.justify_body = MVPW_TEXT_CENTER,
 };
 
 static mvpw_dialog_attr_t video_dialog_attr = {
@@ -122,6 +124,8 @@ static mvpw_dialog_attr_t video_dialog_attr = {
 	.modal = 0,
 	.border_size = 0,
 	.margin = 4,
+	.justify_title = MVPW_TEXT_CENTER,
+	.justify_body = MVPW_TEXT_CENTER,
 };
 
 static mvpw_menu_attr_t themes_attr = {
@@ -353,6 +357,8 @@ static mvpw_dialog_attr_t warn_attr = {
 	.border = MVPW_RED,
 	.border_size = 4,
 	.margin = 4,
+	.justify_title = MVPW_TEXT_CENTER,
+	.justify_body = MVPW_TEXT_CENTER,
 };
 
 static mvpw_dialog_attr_t about_attr = {
@@ -365,6 +371,8 @@ static mvpw_dialog_attr_t about_attr = {
 	.border = MVPW_BLUE,
 	.border_size = 2,
 	.margin = 4,
+	.justify_title = MVPW_TEXT_CENTER,
+	.justify_body = MVPW_TEXT_CENTER,
 };
 
 static mvpw_dialog_attr_t mclient_attr = {
@@ -377,6 +385,8 @@ static mvpw_dialog_attr_t mclient_attr = {
 	.border = MVPW_BLUE,
 	.border_size = 2,
 	.margin = 4,
+	.justify_title = MVPW_TEXT_CENTER,
+	.justify_body = MVPW_TEXT_LEFT,
 };
 
 static mvpw_graph_attr_t offset_graph_attr = {
@@ -3517,8 +3527,8 @@ mclient_init(void)
 	splash_update("Creating mclient dialog");
 
 
-	h = 8 * FONT_HEIGHT(mclient_attr);
-	w = 500;
+	h = 4 * FONT_HEIGHT(mclient_attr);
+	w = 400;
 
 	x = (si.cols - w) / 2;
 	y = (si.rows - h) / 2;

@@ -251,6 +251,8 @@ typedef struct {
 	int 		modal;
 	int	 	font;
 	int	 	margin;
+	int	 	justify_title;
+	int	 	justify_body;
 } mvpw_dialog_attr_t;
 
 extern mvp_widget_t* mvpw_create_dialog(mvp_widget_t *parent,
