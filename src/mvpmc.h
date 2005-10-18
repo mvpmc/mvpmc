@@ -310,7 +310,7 @@ extern void mythtv_start_thumbnail(void);
 extern int mythtv_pending(mvp_widget_t *widget);
 extern void mythtv_test_exit(void);
 extern int mythtv_proginfo_livetv(char *buf, int size);
-extern int mythtv_livetv_tuners(int*);
+extern int mythtv_livetv_tuners(int*, int*);
 extern void mythtv_livetv_select(int);
 
 extern void playlist_prev(void);

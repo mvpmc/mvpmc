@@ -1243,6 +1243,8 @@ themes_select_callback(mvp_widget_t *widget, char *item, void *key)
 			fprintf(stderr, "switch failed!\n");
 			return;
 		}
+		config->bitmask |= CONFIG_THEME;
+		strncpy(config->theme, path, sizeof(config->theme));
 		exit(1);
 	}
 }
@@ -1490,8 +1492,8 @@ mythtv_key_callback(mvp_widget_t *widget, char key)
 
 	if ((key == MVPW_KEY_MENU) &&
 	    (mythtv_state == MYTHTV_STATE_LIVETV)) {
-		int tuners[16];
-		int i, count = mythtv_livetv_tuners(tuners);
+		int tuners[16], busy[16];
+		int i, count = mythtv_livetv_tuners(tuners, busy);
 		char buf[32];
 		printf("mythtv popup menu\n");
 		mvpw_set_menu_title(mythtv_popup, "LiveTV Menu");
@@ -1499,12 +1501,20 @@ mythtv_key_callback(mvp_widget_t *widget, char key)
 		mythtv_popup_item_attr.select = mythtv_popup_select_callback;
 		mythtv_popup_item_attr.fg = mythtv_popup_attr.fg;
 		mythtv_popup_item_attr.bg = mythtv_popup_attr.bg;
+		mythtv_popup_item_attr.selectable = 1;
 		mvpw_add_menu_item(mythtv_popup, "Show Info",
 				   (void*)MYTHTV_POPUP_LIVE_INFO,
 				   &mythtv_popup_item_attr);
 		for (i=0; i<count; i++) {
-			snprintf(buf, sizeof(buf), "Watch on tuner %d",
-				 tuners[i]);
+			if (busy[i]) {
+				snprintf(buf, sizeof(buf),
+					 "Tuner %d is busy", tuners[i]);
+				mythtv_popup_item_attr.selectable = 0;
+			} else {
+				snprintf(buf, sizeof(buf),
+					 "Watch on tuner %d", tuners[i]);
+				mythtv_popup_item_attr.selectable = 1;
+			}
 			mvpw_add_menu_item(mythtv_popup, buf,
 					   (void*)(MYTHTV_POPUP_TUNER+i),
 					   &mythtv_popup_item_attr);
@@ -2326,7 +2336,7 @@ settings_av_select_callback(mvp_widget_t *widget, char *item, void *key)
 		settings_item_attr.select = settings_av_aspect_callback;
 		mvpw_set_menu_attr(settings_check, &settings_attr);
 
-		mvpw_set_menu_title(settings_check, "Aspect Ratio");
+		mvpw_set_menu_title(settings_check, "TV Aspect Ratio");
 		mvpw_add_menu_item(settings_check,
 				   "4:3 (Letterboxed Widescreen)",
 				   (void*)AV_ASPECT_4x3,
@@ -2454,12 +2464,12 @@ settings_init(void)
 	mvpw_add_menu_item(settings, "Themes",
 			   (void*)SETTINGS_MAIN_THEMES, &settings_item_attr);
 	if (config_file)
-		mvpw_add_menu_item(settings, "Save Settings",
-				   (void*)SETTINGS_MAIN_SAVE,
-				   &settings_item_attr);
-	if (config_file)
 		mvpw_add_menu_item(settings, "Viewport",
 				   (void*)SETTINGS_MAIN_VIEWPORT,
+				   &settings_item_attr);
+	if (config_file)
+		mvpw_add_menu_item(settings, "Save Settings",
+				   (void*)SETTINGS_MAIN_SAVE,
 				   &settings_item_attr);
 
 	/*

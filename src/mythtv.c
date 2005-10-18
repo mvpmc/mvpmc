@@ -99,6 +99,7 @@ static pthread_t control_thread, wd_thread;
 #define MAX_TUNER	16
 struct livetv_proginfo {
 	int rec_id;
+	int busy;
 	char *chan;
 	char *channame;
 };
@@ -990,9 +991,10 @@ mythtv_pending(mvp_widget_t *widget)
 		cmyth_timestamp_t ts, te;
 		cmyth_proginfo_rec_status_t status;
 		int year, month, day, hour, minute;
-		char type;
+		long card_id;
+		char *type;
 		char start[256], end[256];
-		char buf[256];
+		char buf[256], card[16];
 		char *ptr;
 
 		if (pending_prog)
@@ -1041,50 +1043,53 @@ mythtv_pending(mvp_widget_t *widget)
 		if (rec_t < t)
 			continue;
 
+		card_id = cmyth_proginfo_card_id(pending_prog);
+		snprintf(card, sizeof(card), "%ld", card_id);
+
 		switch (status) {
 		case RS_RECORDING:
 			item_attr.fg = mythtv_colors.pending_recording;
-			type = '1';
+			type = card;
 			break;
 		case RS_WILL_RECORD:
 			item_attr.fg = mythtv_colors.pending_will_record;
-			type = '1';
+			type = card;
 			break;
 		case RS_CONFLICT:
 			item_attr.fg = mythtv_colors.pending_conflict;
-			type = 'C';
+			type = "C";
 			break;
 		case RS_DONT_RECORD:
 			item_attr.fg = mythtv_colors.pending_other;
-			type = 'X';
+			type = "X";
 			break;
 		case RS_TOO_MANY_RECORDINGS:
 			item_attr.fg = mythtv_colors.pending_other;
-			type = 'T';
+			type = "T";
 			break;
 		case RS_PREVIOUS_RECORDING:
 			item_attr.fg = mythtv_colors.pending_other;
-			type = 'P';
+			type = "P";
 			break;
 		case RS_LATER_SHOWING:
 			item_attr.fg = mythtv_colors.pending_other;
-			type = 'L';
+			type = "L";
 			break;
 		case RS_EARLIER_RECORDING:
 			item_attr.fg = mythtv_colors.pending_other;
-			type = 'E';
+			type = "E";
 			break;
 		case RS_REPEAT:
 			item_attr.fg = mythtv_colors.pending_other;
-			type = 'r';
+			type = "r";
 			break;
 		case RS_CURRENT_RECORDING:
 			item_attr.fg = mythtv_colors.pending_other;
-			type = 'R';
+			type = "R";
 			break;
 		default:
 			item_attr.fg = mythtv_colors.pending_other;
-			type = '?';
+			type = "?";
 			break;
 		}
 
@@ -1110,7 +1115,7 @@ mythtv_pending(mvp_widget_t *widget)
 		rec_t = mktime(&rec_tm);
 
 		snprintf(buf, sizeof(buf),
-			 "%.2d/%.2d  %.2d:%.2d   %c   %s  -  %s",
+			 "%.2d/%.2d  %.2d:%.2d   %s   %s  -  %s",
 			 month, day, hour, minute, type, title, subtitle);
 
 		mvpw_add_menu_item(widget, buf, (void*)i, &item_attr);
@@ -1855,11 +1860,10 @@ mythtv_livetv_start(int *tuner)
 	printf("Found %d free recorders\n", c);
 
 	if (tuner[0]) {
-		snprintf(buf, sizeof(buf), "All tuners unavailable: ");
+		int count = 0;;
 		for (i=0; i<MAX_TUNER && tuner[i]; i++) {
 			printf("Looking for tuner %d\n", tuner[i]);
-			snprintf(t, sizeof(t), " %d", tuner[i]);
-			strcat(buf, t);
+			count++;
 			if ((recorder=cmyth_conn_get_recorder_from_num(control,
 								       tuner[i])) == NULL) {
 				continue;
@@ -1872,6 +1876,27 @@ mythtv_livetv_start(int *tuner)
 			break;
 		}
 		if (id == 0) {
+			/*
+			 * None of the tuners are free, so display a good error
+			 * message for the user.
+			 */
+			if (count == 1) {
+				snprintf(buf, sizeof(buf),
+					 "Tuner %d is currently unavailable.",
+					 tuner[0]);
+			} else {
+				snprintf(buf, sizeof(buf), "Tuners ");
+				for (i=0; i<count; i++) {
+					if ((i != 0) && (count > 2))
+						strcat(buf, ",");
+					if (i == (count-1))
+						strcat(buf, " and");
+					snprintf(t, sizeof(t),
+						 " %d", tuner[i]);
+					strcat(buf, t);
+				}
+				strcat(buf, " are currently unavailable.");
+			}
 			msg = buf;
 			goto err;
 		}
@@ -2302,7 +2327,7 @@ get_livetv_programs_rec(int id, struct livetv_prog **list, int *n, int *p)
 	const char *description;
 	char start[256], end[256], *ptr;
 	int cur_id, i; 
-	int c = 0, unique = 0;
+	int c = 0, unique = 0, busy = 0;
 	struct livetv_proginfo *pi;
 	
 	cur_id = cmyth_recorder_get_recorder_id(recorder);
@@ -2319,6 +2344,9 @@ get_livetv_programs_rec(int id, struct livetv_prog **list, int *n, int *p)
 				"failed to connect to tuner %d!\n", id);
 			return -1;
 		}
+
+	if (cmyth_recorder_is_recording(control, rec) == 1)
+		busy = 1;
 
 	cur = cmyth_proginfo_create();
 	cmyth_proginfo_hold(cur);
@@ -2377,6 +2405,7 @@ get_livetv_programs_rec(int id, struct livetv_prog **list, int *n, int *p)
 					pi->chan = strdup(channame);
 					pi->channame = strdup(chansign);
 					pi->rec_id = id;
+					pi->busy = busy;
 					goto next;
 				}
 			}
@@ -2395,6 +2424,7 @@ get_livetv_programs_rec(int id, struct livetv_prog **list, int *n, int *p)
 			(*list)[*p].end = NULL;
 		(*list)[*p].count = 1;
 		(*list)[*p].pi[0].rec_id = id;
+		(*list)[*p].pi[0].busy = busy;
 		(*list)[*p].pi[0].chan = strdup(channame);
 		(*list)[*p].pi[0].channame = strdup(chansign);
 		(*p)++;
@@ -2562,14 +2592,16 @@ mythtv_proginfo_livetv(char *buf, int size)
 }
 
 int
-mythtv_livetv_tuners(int *tuners)
+mythtv_livetv_tuners(int *tuners, int *busy)
 {
 	int i, n;
 
 	n = livetv_list[current_livetv].count;
 
-	for (i=0; i<n; i++)
+	for (i=0; i<n; i++) {
 		tuners[i] = livetv_list[current_livetv].pi[i].rec_id;
+		busy[i] = livetv_list[current_livetv].pi[i].busy;
+	}
 
 	return n;
 }
@@ -2580,6 +2612,8 @@ mythtv_livetv_select(int which)
 	int rec_id = livetv_list[current_livetv].pi[which].rec_id;
 	int tuner[2] = { rec_id, 0 };
 	char *channame = strdup(livetv_list[current_livetv].pi[which].chan);
+
+	switch_hw_state(MVPMC_STATE_MYTHTV);
 
 	printf("starting liveTV on tuner %d channel %s index %d\n",
 	       rec_id, channame, current_livetv);
@@ -2612,6 +2646,13 @@ mythtv_livetv_select(int which)
 		demux_attr_reset(handle);
 		av_play();
 		video_play(root);
+
+		add_osd_widget(mythtv_program_widget, OSD_PROGRAM,
+			       osd_settings.program, NULL);
+		mvpw_hide(mythtv_description);
+		running_mythtv = 1;
+
+		mythtv_fullscreen();
 
 	err:
 		pthread_mutex_unlock(&myth_mutex);
