@@ -466,6 +466,8 @@ extern int cmyth_proginfo_fill(cmyth_conn_t control, cmyth_proginfo_t prog);
 extern cmyth_timestamp_t cmyth_proginfo_start(cmyth_proginfo_t prog);
 
 extern cmyth_timestamp_t cmyth_proginfo_end(cmyth_proginfo_t prog);
+
+extern long cmyth_proginfo_card_id(cmyth_proginfo_t prog);
 /*
  * -----------------------------------------------------------------
  * Program List Operations

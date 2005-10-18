@@ -1983,3 +1983,15 @@ cmyth_proginfo_host(cmyth_proginfo_t prog)
 
 	return prog->proginfo_host;
 }
+
+long
+cmyth_proginfo_card_id(cmyth_proginfo_t prog)
+{
+	if (!prog) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: no program info\n", __FUNCTION__);
+		return -1;
+	}
+
+	return prog->proginfo_card_id;
+}
