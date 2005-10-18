@@ -225,6 +225,14 @@ add_item(config_list_t *list, int type)
 		ptr = (void*)&config->y;\
 		break;
 
+#define ITEM_STRING(x, y) \
+	case CONFIG_ITEM_##x:\
+		if ((config->bitmask & CONFIG_##x) == 0)\
+			return 0;\
+		len = strlen(config->y);\
+		ptr = (void*)&config->y;\
+		break;
+
 	switch (type) {
 		ITEM_FIXED(SCREENSAVER, screensaver_timeout);
 		ITEM_FIXED(MODE, av_mode);
@@ -242,12 +250,14 @@ add_item(config_list_t *list, int type)
 		ITEM_FIXED(MYTHTV_PROGRAM, mythtv_tcp_program);
 		ITEM_FIXED(VOLUME, volume);
 		ITEM_FIXED(VIEWPORT, viewport);
+		ITEM_STRING(THEME, theme);
 	default:
 		goto err;
 		break;
 	}
 
 #undef ITEM_FIXED
+#undef ITEM_STRING
 
 	if ((item=(config_item_t*)malloc(sizeof(*item)+len)) == NULL)
 		return -1;
@@ -286,6 +296,18 @@ get_item(config_item_t *item, int override)
 		} \
 		break;
 
+#define ITEM_STRING(x, y) \
+	case CONFIG_ITEM_##x: \
+		len = sizeof(config->y); \
+		if (len <= item->buflen) \
+			return -1; \
+		if (!(config->bitmask & CONFIG_##x) || override) { \
+			memcpy((void*)&config->y, item->buf, len); \
+			config->y[item->buflen] = '\0'; \
+			config->bitmask |= CONFIG_##x; \
+		} \
+		break;
+
 	switch (item->type) {
 		ITEM_FIXED(SCREENSAVER, screensaver_timeout);
 		ITEM_FIXED(MODE, av_mode);
@@ -303,12 +325,14 @@ get_item(config_item_t *item, int override)
 		ITEM_FIXED(MYTHTV_PROGRAM, mythtv_tcp_program);
 		ITEM_FIXED(VOLUME, volume);
 		ITEM_FIXED(VIEWPORT, viewport);
+		ITEM_STRING(THEME, theme);
 	default:
 		return -1;
 		break;
 	}
 
 #undef ITEM_FIXED
+#undef ITEM_STRING
 
 	return 0;
 }
@@ -358,6 +382,8 @@ save_config_file(char *file)
 	if (add_item(list, CONFIG_ITEM_VOLUME) < 0)
 		goto err;
 	if (add_item(list, CONFIG_ITEM_VIEWPORT) < 0)
+		goto err;
+	if (add_item(list, CONFIG_ITEM_THEME) < 0)
 		goto err;
 
 	list->crc = 0;

@@ -559,16 +559,18 @@ main(int argc, char **argv)
 
 	signal(SIGPIPE, SIG_IGN);
 
-	if ((stat(DEFAULT_THEME, &sb) == 0) && (sb.st_size > 0)) {
-		theme_parse(DEFAULT_THEME);
-	} else {
 #ifndef MVPMC_HOST
-		if (font == NULL)
-			font = DEFAULT_FONT;
-#endif
+	if ((theme_file == NULL) && (config->bitmask & CONFIG_THEME)) {
+		theme_parse(config->theme);
+	} else {
+		if ((stat(DEFAULT_THEME, &sb) == 0) && (sb.st_size > 0)) {
+			theme_parse(DEFAULT_THEME);
+		} else {
+			if (font == NULL)
+				font = DEFAULT_FONT;
+		}
 	}
-
-#ifdef MVPMC_HOST
+#else
 	if (theme_file)
 		theme_parse(theme_file);
 #endif

@@ -22,27 +22,30 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#include <limits.h>
+
 #define CONFIG_MAGIC		0x434f4e46
 
 /*
  * The bit definitions for the config_t bitmask
  */
-#define CONFIG_SCREENSAVER	0x0001
-#define CONFIG_MODE		0x0002
-#define CONFIG_AUDIO_OUTPUT	0x0004
-#define CONFIG_VIDEO_OUTPUT	0x0008
-#define CONFIG_ASPECT		0x0010
-#define CONFIG_OSD_BITRATE	0x0020
-#define CONFIG_OSD_CLOCK	0x0040
-#define CONFIG_OSD_DEMUX_INFO	0x0080
-#define CONFIG_OSD_PROGRESS	0x0100
-#define CONFIG_OSD_PROGRAM	0x0200
-#define CONFIG_OSD_TIMECODE	0x0400
-#define CONFIG_BRIGHTNESS	0x0800
-#define CONFIG_MYTHTV_CONTROL	0x1000
-#define CONFIG_MYTHTV_PROGRAM	0x2000
-#define CONFIG_VOLUME		0x4000
-#define CONFIG_VIEWPORT		0x8000
+#define CONFIG_SCREENSAVER	0x00001
+#define CONFIG_MODE		0x00002
+#define CONFIG_AUDIO_OUTPUT	0x00004
+#define CONFIG_VIDEO_OUTPUT	0x00008
+#define CONFIG_ASPECT		0x00010
+#define CONFIG_OSD_BITRATE	0x00020
+#define CONFIG_OSD_CLOCK	0x00040
+#define CONFIG_OSD_DEMUX_INFO	0x00080
+#define CONFIG_OSD_PROGRESS	0x00100
+#define CONFIG_OSD_PROGRAM	0x00200
+#define CONFIG_OSD_TIMECODE	0x00400
+#define CONFIG_BRIGHTNESS	0x00800
+#define CONFIG_MYTHTV_CONTROL	0x01000
+#define CONFIG_MYTHTV_PROGRAM	0x02000
+#define CONFIG_VOLUME		0x04000
+#define CONFIG_VIEWPORT		0x08000
+#define CONFIG_THEME		0x10000
 
 /*
  * The config_t structure will hold all the user settings that can survive
@@ -68,6 +71,7 @@ typedef struct {
 	int			mythtv_tcp_program;
 	int			volume;
 	unsigned short		viewport[4];
+	char			theme[PATH_MAX];
 } config_t;
 
 extern config_t *config;
@@ -91,12 +95,17 @@ extern config_t *config;
 #define CONFIG_ITEM_MYTHTV_PROGRAM	0x000e
 #define CONFIG_ITEM_VOLUME		0x000f
 #define CONFIG_ITEM_VIEWPORT		0x0010
+#define CONFIG_ITEM_THEME		0x0011
 
 /*
  * The flags in config_list_t
  */
 #ifdef MVPMC_HOST
+#if __BYTE_ORDER == __LITTLE_ENDIAN
 #define CONFIG_FLAGS_PLATFORM		0x0001
+#else
+#define CONFIG_FLAGS_PLATFORM		0x0008
+#endif
 #else
 #define CONFIG_FLAGS_PLATFORM		0x0002
 #endif
