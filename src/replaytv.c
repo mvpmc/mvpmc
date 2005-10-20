@@ -2,9 +2,6 @@
  *  Copyright (C) 2004, John Honeycutt
  *  http://mvpmc.sourceforge.net/
  *
- *  Code based on ReplayPC:
- *    Copyright (C) 2002 Matthew T. Linehan and John Todd Larason
- *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or

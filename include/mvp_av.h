@@ -159,4 +159,11 @@ extern int av_set_volume(int volume);
 #define AV_VOLUME_MAX	255
 #define AV_VOLUME_MIN	0
 
+/*
+ * mvpstb_mod api's
+ */
+int kern_read(unsigned long memaddr, void *buffaddr, unsigned int size);
+int kern_write(unsigned long memaddr, void *buffaddr, unsigned int size);
+
+
 #endif /* MVP_AV_H */
