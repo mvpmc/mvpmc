@@ -29,6 +29,7 @@ insmod ircombo
 insmod gfx
 insmod osdfb
 insmod ac3_mod
+insmod mvpstb_mod.o mvpmod_major=230
 #insmod xrmod
 
 #default timezone
