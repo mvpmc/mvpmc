@@ -266,8 +266,12 @@ void ts_demux_pmt_callback(void *private, dvbpsi_pmt_t *pmt) {
   dvbpsi_descriptor_t *desc;
   dvbpsi_pmt_es_t *es = pmt->p_first_es;
 
+  int pcr_pid_added = 0;
+  int es_added;
+
   PRINTF("Decoding Program Map Table\n");
 
+  PRINTF("  pcr_pid = %d\n", pmt->i_pcr_pid);
 
   /* Log the PMT descriptors */
   desc = pmt->p_first_descriptor;
@@ -294,10 +298,13 @@ void ts_demux_pmt_callback(void *private, dvbpsi_pmt_t *pmt) {
 
       desc = desc->p_next;
     }
-    
+
+    es_added = 0;
+
     /* Allocate IPacks to known stream types */
     if (es->i_type == 2) {
-      ts_demux_allocate_next_ipack(tshandle, es->i_pid, 0);
+      ts_demux_allocate_next_ipack(tshandle, es->i_pid, 0xe0 + video_count);
+      es_added = 1;
       video_count++;
     } else if ((es->i_type == 3) || (es->i_type == 4)) {
 
@@ -319,17 +326,27 @@ void ts_demux_pmt_callback(void *private, dvbpsi_pmt_t *pmt) {
 	break;
       }
 
-      ts_demux_allocate_next_ipack(tshandle, es->i_pid, 0xC0 + audio_count);
-
+      if (audio_type != 3) {
+	ts_demux_allocate_next_ipack(tshandle, es->i_pid, 0xC0 + audio_count);
+	es_added = 1;
+      }
+      
       audio_count++;
     } else if (es->i_type == 6) {
       // ts_demux_allocate_next_ipack(tshandle, es->i_pid, 0);
+      // es_added = 1;
       PRINTF("    Subtitle decoding disabled\n");
       subtitle_count++;
     }
 
+    if ((es_added) && (es->i_pid == pmt->i_pcr_pid))
+      pcr_pid_added = 1;
+
     es = es->p_next;
   }
+
+  if (!pcr_pid_added)
+    ts_demux_allocate_next_ipack(tshandle, pmt->i_pcr_pid, 0);
 
   PRINTF("found %d video streams; %d audio streams; %d subtitle streams\n", video_count, audio_count, subtitle_count);
 
