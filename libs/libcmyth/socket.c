@@ -2172,13 +2172,15 @@ cmyth_rcv_chaninfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 	/*
 	 * Get proginfo_chanId (long)
 	 */
-	consumed = cmyth_rcv_long(conn, err, &buf->proginfo_chanId, count);
+	consumed = cmyth_rcv_string(conn, err,
+				    tmp_str, sizeof(tmp_str) - 1, count);
 	count -= consumed;
 	total += consumed;
 	if (*err) {
 		failed = "cmyth_rcv_long";
 		goto fail;
 	}
+	buf->proginfo_chanId = atoi(tmp_str);
 
 	// get seriesid
 	consumed = cmyth_rcv_string(conn, err,
