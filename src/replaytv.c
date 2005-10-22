@@ -1990,6 +1990,10 @@ int replaytv_init(char *init_str)
          else if ( strcmp(cur, "mrtv") == 0 ) {
             max_num_rtv = strtoul((val), NULL, 10);
          }
+         else if ( strcmp(cur, "chunksz") == 0 ) {
+            int chunks = strtoul((val), NULL, 10);
+            rtv_set_32k_chunks_to_merge(chunks);
+         }
          else {
             printf("***ERROR: RTV: Invalid option: %s\n", cur);
          }

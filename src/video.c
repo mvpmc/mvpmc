@@ -1233,7 +1233,7 @@ video_read_start(void *arg)
 		if (len == 0) {
 
 			if ( video_functions->read_dynb != NULL ){
-				tslen = video_functions->read_dynb(&tsbuf, VIDEO_BUFF_SIZE);
+				tslen = video_functions->read_dynb(&tsbuf, 1024 * 256);
 			}
 			else {
 				tsbuf = tsbuf_static;
