@@ -253,3 +253,15 @@ av_set_volume(int volume)
 	else
 		return 0;
 }
+
+int 
+kern_read(unsigned long memaddr, void *buffaddr, unsigned int size)
+{
+   return 0;
+}
+
+int 
+kern_write(unsigned long memaddr, void *buffaddr, unsigned int size)
+{
+   return 0;
+}
