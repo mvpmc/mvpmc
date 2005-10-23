@@ -247,7 +247,7 @@ struct cmyth_proginfo {
 	cmyth_timestamp_t proginfo_start_ts;
 	cmyth_timestamp_t proginfo_end_ts;
 	unsigned long proginfo_conflicting; /* Deprecated in V8, always 0 */
-	unsigned char *proginfo_unknown_0;   /* May be new 'conflicting' in V8 */
+	char *proginfo_unknown_0;   /* May be new 'conflicting' in V8 */
 	unsigned long proginfo_recording;
 	unsigned long proginfo_override;
 	char *proginfo_hostname;
@@ -335,10 +335,12 @@ extern int cmyth_rcv_short(cmyth_conn_t conn, int *err, short *buf, int count);
 
 #define cmyth_rcv_long __cmyth_rcv_long
 extern int cmyth_rcv_long(cmyth_conn_t conn, int *err, long *buf, int count);
+#define cmyth_rcv_u_long(c, e, b, n) cmyth_rcv_long(c, e, (long*)b, n)
 
 #define cmyth_rcv_long_long __cmyth_rcv_long_long
 extern int cmyth_rcv_long_long(cmyth_conn_t conn, int *err, long long *buf,
 			       int count);
+#define cmyth_rcv_u_long_long(c, e, b, n) cmyth_rcv_long_long(c, e, (long long*)b, n)
 
 #define cmyth_rcv_ubyte __cmyth_rcv_ubyte
 extern int cmyth_rcv_ubyte(cmyth_conn_t conn, int *err, unsigned char *buf,

@@ -61,7 +61,7 @@ typedef struct  {
 
   ipack p[TS_MAXIPACKS];                 /* ipack for each active PID */
   int frag_buf_pos;                      /* index into frag_buf */
-  char frag_buf[TS_SIZE];                /* holds remaining TS bytes between calls */
+  unsigned char frag_buf[TS_SIZE];       /* holds remaining TS bytes between calls */
 
   char *pes_buf;                         /* A pointer to the current PES buffer that has been passed in */
   int pes_buf_len;                       /* Size of this buffer */
@@ -82,7 +82,7 @@ ts_demux_handle_t * ts_demux_init();
 
 /* Tranforms a chunk of TS packets into a chunk of PES packets */
 /* Returns the number of PES bytes generated, or -ve if a fatal error occurred */
-int ts_demux_transform(ts_demux_handle_t *tshandle, char *ts_buf, int ts_buf_len, char *pes_buf, int pes_buf_len);
+int ts_demux_transform(ts_demux_handle_t *tshandle, void *ts_buf, int ts_buf_len, char *pes_buf, int pes_buf_len);
 
 /* Resets the state of a TS Demuultiplexor */
 void ts_demux_reset(ts_demux_handle_t *tshandle);

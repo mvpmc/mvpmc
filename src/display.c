@@ -58,7 +58,7 @@ int display_type;
 static FILE *out_to_display;
 
 static FILE *child_display_file_ptr;
-static int fromlen;
+static unsigned int fromlen;
 static int socket_descriptor, new_socket_descriptor;
 static struct sockaddr_in sain, from_sain, client_sain;
 

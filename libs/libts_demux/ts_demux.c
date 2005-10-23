@@ -116,7 +116,7 @@ static void write_pes(uint8_t *buf, int count, void  *private) {
 }
 
 
-void demux_ts_packet(ts_demux_handle_t *tshandle, char *buf) {
+void demux_ts_packet(ts_demux_handle_t *tshandle, unsigned char *buf) {
 
   int pid;
 
@@ -375,13 +375,14 @@ ts_demux_handle_t * ts_demux_init() {
 
 /* Tranforms a chunk of TS packets into a chunk of PES packets */
 /* Returns the number of PES bytes generated, or -ve if a fatal error occurred */
-int ts_demux_transform(ts_demux_handle_t *tshandle, char *ts_buf, int ts_buf_len, char *pes_buf, int pes_buf_len) {
+int ts_demux_transform(ts_demux_handle_t *tshandle, void *buf, int ts_buf_len, char *pes_buf, int pes_buf_len) {
 
   int i;
   int offset = 0;
-  char *ptr1;
-  char *ptr2;
+  unsigned char *ptr1;
+  unsigned char *ptr2;
   int fraglen;
+  unsigned char *ts_buf = (unsigned char*)buf;
 
   /* Initialize the tshandle structure with details of the PES buffer to be filled */
   tshandle->pes_buf = pes_buf;
@@ -395,7 +396,7 @@ int ts_demux_transform(ts_demux_handle_t *tshandle, char *ts_buf, int ts_buf_len
     if (fraglen > ts_buf_len)
       fraglen = ts_buf_len;
     ptr1 = tshandle->frag_buf + tshandle->frag_buf_pos;
-    ptr2 = ts_buf;
+    ptr2 = (unsigned char*)ts_buf;
     for (i = 0; i < fraglen; i++)
       *ptr1++ = *ptr2++;
     tshandle->frag_buf_pos += fraglen;

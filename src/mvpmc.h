@@ -85,7 +85,7 @@ struct playlist_struct {
 extern void playlist_create(char **item, int n, char *cwd);
 
 extern volatile video_callback_t *video_functions;
-extern video_callback_t file_functions, mythtv_functions;
+extern video_callback_t file_functions;
 
 extern volatile int video_playing;
 
@@ -290,7 +290,7 @@ extern av_demux_mode_t demux_mode;
 
 extern demux_handle_t *handle;
 
-extern int (*DEMUX_PUT)(demux_handle_t*, char*, int);
+extern int (*DEMUX_PUT)(demux_handle_t*, void*, int);
 extern int (*DEMUX_WRITE_VIDEO)(demux_handle_t*, int);
 
 extern int mythtv_livetv_stop(void);

@@ -62,7 +62,7 @@ static int disable_adjust=0;
 static int disable_dynrng=0;
 static float gain = 1;
 static unsigned char ac3_buf[AC3_SIZE];
-static volatile char *ac3_end;
+static volatile unsigned char *ac3_end;
 static int ac3_size = AC3_SIZE;
 static volatile int ac3_head = 0, ac3_tail = AC3_SIZE - 1;
 
@@ -244,7 +244,7 @@ ogg_play(int afd)
 static int
 ac3_play(int afd)
 {
-	static char buf[BSIZE];
+	static unsigned char buf[BSIZE];
 	static int ac3more = 0;
 	static int ac3len = 0;
 

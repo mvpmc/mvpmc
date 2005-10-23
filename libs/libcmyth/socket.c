@@ -212,7 +212,7 @@ cmyth_conn_refill(cmyth_conn_t conn, int len)
 {
 	int r;
 	int total = 0;
-	char *p;
+	unsigned char *p;
 	struct timeval tv;
 	fd_set fds;
 
@@ -870,14 +870,14 @@ cmyth_rcv_long_long(cmyth_conn_t conn, int *err, long long *buf, int count)
 		*err = EINVAL;
 		return 0;
 	}
-	consumed = cmyth_rcv_long(conn, err, &hi, count);
+	consumed = cmyth_rcv_u_long(conn, err, &hi, count);
 	if (*err) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_rcv_long_long() failed (%d)\n",
 			  __FUNCTION__, consumed);
 		return consumed;
 	}
-	consumed += cmyth_rcv_long(conn, err, &lo, count-consumed);
+	consumed += cmyth_rcv_u_long(conn, err, &lo, count-consumed);
 	if (*err) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_rcv_long_long() failed (%d)\n",
@@ -1074,14 +1074,14 @@ cmyth_rcv_ulong_long(cmyth_conn_t conn, int *err,
 		*err = EINVAL;
 		return 0;
 	}
-	consumed = cmyth_rcv_long(conn, err, &hi, count);
+	consumed = cmyth_rcv_u_long(conn, err, &hi, count);
 	if (*err) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_rcv_ulong_long() failed (%d)\n",
 			  __FUNCTION__, consumed);
 		return consumed;
 	}
-	consumed += cmyth_rcv_long(conn, err, &lo, count);
+	consumed += cmyth_rcv_u_long(conn, err, &lo, count);
 	if (*err) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_rcv_ulong_long() failed (%d)\n",
@@ -2565,7 +2565,7 @@ cmyth_rcv_data(cmyth_conn_t conn, int *err, unsigned char *buf, int count)
 {
 	int r;
 	int total = 0;
-	char *p;
+	unsigned char *p;
 	int tmp_err;
 	struct timeval tv;
 	fd_set fds;

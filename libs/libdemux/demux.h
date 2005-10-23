@@ -34,7 +34,7 @@ typedef struct {
 } stream_t;
 
 typedef struct {
-	char *buf;
+	unsigned char *buf;
 	int bufsz;
 	int len;
 	int size;
@@ -111,12 +111,12 @@ struct demux_handle_s {
 #define MPEG2		2
 
 extern int start_stream(demux_handle_t *handle);
-extern int add_buffer(demux_handle_t *handle, char *buf, int len);
+extern int add_buffer(demux_handle_t *handle, void *buf, int len);
 extern int parse_frame(demux_handle_t *handle, unsigned char *buf,
 		       int len, int type);
-extern int stream_drain(stream_t *stream, char *buf, int max);
+extern int stream_drain(stream_t *stream, void *buf, int max);
 extern int stream_drain_fd(stream_t *stream, int fd);
-extern int stream_resize(stream_t *stream, char *start, int size);
+extern int stream_resize(stream_t *stream, void *start, int size);
 
 extern inline void
 register_stream(stream_t *stream, int id, stream_type_t type)

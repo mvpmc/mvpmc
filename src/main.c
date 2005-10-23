@@ -83,7 +83,7 @@ static pid_t child;
 
 av_demux_mode_t demux_mode;
 
-int (*DEMUX_PUT)(demux_handle_t*, char*, int);
+int (*DEMUX_PUT)(demux_handle_t*, void*, int);
 int (*DEMUX_WRITE_VIDEO)(demux_handle_t*, int);
 
 #define DATA_SIZE (1024*1024)
@@ -103,7 +103,7 @@ char *screen_capture_file = NULL;
 static void atexit_handler(void);
 
 static int
-buffer_put(demux_handle_t *handle, char *buf, int len)
+buffer_put(demux_handle_t *handle, void *buf, int len)
 {
 	int n;
 

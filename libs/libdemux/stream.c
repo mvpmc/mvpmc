@@ -77,7 +77,7 @@
  *	0 if the resize succeeded, -1 if it failed
  */
 int
-stream_resize(stream_t *stream, char *start, int size)
+stream_resize(stream_t *stream, void *start, int size)
 {
 	int bytes;
 
@@ -161,7 +161,7 @@ stream_resize(stream_t *stream, char *start, int size)
  *	number of bytes consumed
  */
 static int
-stream_add(demux_handle_t *handle, stream_t *stream, char *buf, int len)
+stream_add(demux_handle_t *handle, stream_t *stream, unsigned char *buf, int len)
 {
 	unsigned int end, tail;
 	int size1, size2;
@@ -244,7 +244,7 @@ stream_add(demux_handle_t *handle, stream_t *stream, char *buf, int len)
  *	number of bytes written into buffer
  */
 int
-stream_drain(stream_t *stream, char *buf, int max)
+stream_drain(stream_t *stream, void *buf, int max)
 {
 	int size1, size2;
 	unsigned int head;
@@ -553,7 +553,7 @@ parse_video_frame(demux_handle_t *handle, unsigned char *buf, int len)
 static int
 parse_spu_frame(demux_handle_t *handle, unsigned char *buf, int len)
 {
-	unsigned int pts[2], color = 0, alpha = 0;
+	unsigned int pts[2] = {0, 0}, color = 0, alpha = 0;
 	unsigned int x = 0, y = 0, w=0, h=0, line1 = 0, line2 = 0;
 	unsigned int id, start, cmd;
 	unsigned int size, data_size = 0;
@@ -1310,9 +1310,10 @@ parse_frame(demux_handle_t *handle, unsigned char *buf, int len, int type)
  *	number of bytes consumed from the buffer
  */
 int
-add_buffer(demux_handle_t *handle, char *buf, int len)
+add_buffer(demux_handle_t *handle, void *b, int len)
 {
 	int n, ret = 0;
+	unsigned char *buf = (unsigned char*)b;
 
 	while ((len-ret) > 0) {
 		switch (handle->state) {
@@ -1380,7 +1381,7 @@ add_buffer(demux_handle_t *handle, char *buf, int len)
  *	pointer to stream data
  */
 static stream_t*
-stream_init(char *buf, int size)
+stream_init(unsigned char *buf, int size)
 {
 	stream_t *stream = NULL;
 
@@ -1418,7 +1419,7 @@ int
 start_stream(demux_handle_t *handle)
 {
 	int nv, na;
-	char *stream_buf;
+	unsigned char *stream_buf;
 	stream_t *video, *audio;
 
 	if ((stream_buf=malloc(handle->size)) == NULL)

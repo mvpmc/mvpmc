@@ -31,7 +31,6 @@ extern void display_iee_16x1(void);
 #define DISPLAY_SUBMESG_SIZE	50
 
 extern char display_message[DISPLAY_MESG_SIZE];
-extern char display_server_message[DISPLAY_MESG_SIZE];
 
 /*
  * Track which local display type is selected on the command line.

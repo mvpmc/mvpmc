@@ -52,7 +52,7 @@
 #include "config.h"
 
 static int
-do_compress(char *buf, int len, char *cbuf, int clen)
+do_compress(unsigned char *buf, int len, unsigned char *cbuf, int clen)
 {
 	z_stream c_stream;
 
@@ -85,7 +85,7 @@ do_compress(char *buf, int len, char *cbuf, int clen)
 }
 
 static int
-do_uncompress(char *cbuf, int clen, char *buf, int len)
+do_uncompress(unsigned char *cbuf, int clen, unsigned char *buf, int len)
 {
 	z_stream d_stream;
 

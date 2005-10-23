@@ -725,7 +725,8 @@ static int rtv_video_key(char key)
    int   jump         = 0;
    int   invalid_seek = 0;
    int   jumpto_secs  = 0;
-   int   cur_secs, comm_break_sec;
+   unsigned int   cur_secs;
+   int   comm_break_sec;
    char  timestamp_str[20];
 
    RTV_DBGLOG(LOGTRC, "%s: Enter: key=%d\n", __FUNCTION__, key);
@@ -1033,7 +1034,7 @@ static int get_mpeg_callback(unsigned char *buf, size_t len, size_t offset, void
       len    -= rtv_video_state.chunk_offset;
       rtv_video_state.chunk_offset = 0;
    } 
-   rtv_video_queue_write(buf, offset, len);
+   rtv_video_queue_write((char*)buf, offset, len);
    rtv_video_state.pos += len;
    if ( rtv_video_state.play_state == RTV_VID_ABORT_PLAY ) {
       return(1);
@@ -1786,8 +1787,8 @@ static void delete_show_from_guide( unsigned int show_idx )
 static void rtv_show_popup_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
 	int          which = (int)key;
-   int          rc, play_gop, in_use;
-   unsigned int show_idx;
+   int          rc, in_use;
+   unsigned int show_idx = 0, play_gop;
    char         delete_msg[512];
 
 	switch (which) {
@@ -1860,7 +1861,7 @@ static void rtv_show_popup_select_callback(mvp_widget_t *widget, char *item, voi
       confirm_show_delete = 0;
       show_message_window(msg_win_delete_callback, delete_msg);
       if ( confirm_show_delete ) {
-         unsigned int show_idx;
+         unsigned int show_idx = 0;
 
          if ( get_show_idx((rtv_guide_export_t*)&(current_rtv_device->guide), rtv_video_state.show_p, &show_idx) != 0 ) {
             char buf[128];

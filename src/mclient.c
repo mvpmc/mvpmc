@@ -1065,7 +1065,7 @@ mclient_server_connect(void)
   */
   strcpy(ifr.ifr_name,"eth0");
   ioctl(s,SIOCGIFHWADDR, &ifr);
-  mac_address_ptr = ifr.ifr_hwaddr.sa_data;
+  mac_address_ptr = (unsigned char*)ifr.ifr_hwaddr.sa_data;
 
   if(s == -1)
     {

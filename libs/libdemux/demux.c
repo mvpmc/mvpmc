@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2004, Jon Gettler
+ *  Copyright (C) 2004,2005 Jon Gettler
  *  http://mvpmc.sourceforge.net/
  *
  *  This library is free software; you can redistribute it and/or
@@ -92,7 +92,7 @@ demux_init(unsigned int size)
  *	amount of data consumed
  */
 int
-demux_put(demux_handle_t *handle, char *buf, int len)
+demux_put(demux_handle_t *handle, void *buf, int len)
 {
 	int n, ret = 0;
 
@@ -152,7 +152,7 @@ demux_put(demux_handle_t *handle, char *buf, int len)
  *	number of bytes returned
  */
 int
-demux_get_audio(demux_handle_t *handle, char *buf, int max)
+demux_get_audio(demux_handle_t *handle, void *buf, int max)
 {
 	if (handle == NULL)
 		return -1;
@@ -176,7 +176,7 @@ demux_get_audio(demux_handle_t *handle, char *buf, int max)
  *	number of bytes returned
  */
 int
-demux_get_video(demux_handle_t *handle, char *buf, int max)
+demux_get_video(demux_handle_t *handle, void *buf, int max)
 {
 	if (handle == NULL)
 		return -1;

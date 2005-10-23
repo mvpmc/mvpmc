@@ -334,7 +334,7 @@ mvpw_expose(const mvp_widget_t *widget)
 int
 mvpw_load_font(char *file)
 {
-	return GrCreateFont(file, 0, NULL);
+	return GrCreateFont((unsigned char*)file, 0, NULL);
 }
 
 void

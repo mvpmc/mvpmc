@@ -1,7 +1,7 @@
 /*
  *  $Id$
  *
- *  Copyright (C) 2004, Jon Gettler
+ *  Copyright (C) 2004,2005 Jon Gettler
  *  http://mvpmc.sourceforge.net/
  *
  *  This library is free software; you can redistribute it and/or
@@ -93,7 +93,7 @@ typedef struct {
 } demux_attr_t;
 
 typedef struct {
-	char *data;
+	unsigned char *data;
 	int size;
 	int x;
 	int y;
@@ -112,9 +112,9 @@ extern demux_handle_t *demux_init(unsigned int);
 extern int demux_destroy(demux_handle_t*);
 extern int demux_set_display_size(demux_handle_t*, int, int);
 
-extern int demux_put(demux_handle_t*, char*, int);
-extern int demux_get_audio(demux_handle_t*, char*, int);
-extern int demux_get_video(demux_handle_t*, char*, int);
+extern int demux_put(demux_handle_t*, void*, int);
+extern int demux_get_audio(demux_handle_t*, void*, int);
+extern int demux_get_video(demux_handle_t*, void*, int);
 extern int demux_write_audio(demux_handle_t*, int);
 extern int demux_write_video(demux_handle_t*, int);
 

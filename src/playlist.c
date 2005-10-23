@@ -338,7 +338,7 @@ playlist_idle(mvp_widget_t *widget)
 		  ID3 *info;
 
 		  info = create_ID3(NULL);
-		  if (parse_file_ID3(info, pl_item->filename) == 0) {
+		  if (parse_file_ID3(info, (unsigned char*)pl_item->filename) == 0) {
 			  char artist[64], title[64], buf[128];
 			  char *p;
 
@@ -403,7 +403,7 @@ static void playlist_change(playlist_t *next)
 	printf("Create Failed\n");
       }
 
-    if ((rc = parse_file_ID3(info, playlist->filename))) 
+    if ((rc = parse_file_ID3(info, (unsigned char*)playlist->filename))) 
       {
 	printf("File: %s\n", playlist->filename);
 	printf("MP3 ID3 Failed with code %d\n", rc);
