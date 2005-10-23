@@ -1,0 +1,19 @@
+diff -ruN microwindows-0.91-orig/src/mwin/winevent.c microwindows-0.91/src/mwin/winevent.c
+--- microwindows-0.91-orig/src/mwin/winevent.c	2002-08-21 11:36:20.000000000 -0500
++++ microwindows-0.91/src/mwin/winevent.c	2005-10-23 10:09:04.000000000 -0500
+@@ -13,6 +13,7 @@
+ #include <stdlib.h>
+ #include <string.h>
+ 
++#if 0
+ #if !(DOS_TURBOC | DOS_QUICKC | _MINIX | VXWORKS)
+ static int
+ abs(int n)
+@@ -20,6 +21,7 @@
+ 	return n >= 0? n: -n;
+ }
+ #endif
++#endif
+ 
+ /*
+  * Update mouse status and issue events on it if necessary.

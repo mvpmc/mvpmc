@@ -2,7 +2,7 @@
 #
 # $Id$
 #
-# Copyright (C) 2004, Jon Gettler
+# Copyright (C) 2004,2005 Jon Gettler
 # http://mvpmc.sourceforge.net/
 #
 # This script will copy the IBM kernel modules from a Hauppauge dongle.bin
@@ -10,13 +10,19 @@
 #
 # The programs in bin were built under Suse 9.0.  If they do not work for you,
 # you will need to rebuild them.  See http://www.dforsyth.net/mvp/software.html
-# for info on setting up a cross compilation environment.
+# or http://mvpmc.sourceforge.net/ for info on setting up a cross compilation
+# environment.
+#
+# To use your own versions of mktree and/or genext2fs, make sure they can be
+# found in $PATH.  For objcopy and ld, set $CROSS to point to their prefix.
 #
 
 #set -x
 
 TMP="tmpdir"
 RAMDISK="ramdisk"
+
+export PATH=$PATH:bin
 
 if [ -a $TMP ] ; then
 	rm -rf $TMP
@@ -60,7 +66,7 @@ $OBJCOPY -O elf32-powerpc \
 $LD -T kernel_files/ld.script -Ttext 0x00400000 -Bstatic -o ${TMP}/zvmlinux.initrd kernel_files/head.o kernel_files/relocate.o  kernel_files/misc-embedded.o kernel_files/misc-common.o kernel_files/string.o kernel_files/util.o kernel_files/embed_config.o kernel_files/ns16550.o ${TMP}/image.o kernel_files/zlib.a
 $OBJCOPY -O elf32-powerpc ${TMP}/zvmlinux.initrd ${TMP}/zvmlinux.initrd -R .comment -R .stab -R .stabstr \
 	-R .sysmap
-./bin/mktree ${TMP}/zvmlinux.initrd ${OUTFILE}
+mktree ${TMP}/zvmlinux.initrd ${OUTFILE} || error "mktree failed"
 }
 
 while [ "$1" ] ; do
@@ -105,7 +111,7 @@ fi
 #
 # Create the ramdisk out of the fs directory
 #
-bin/genext2fs -d fs -b ${RAMDISK_SIZE} -f spec ${RAMDISK}
+genext2fs -d fs -b ${RAMDISK_SIZE} -D devtable ${RAMDISK} || error "genext2fs failed"
 
 gzip $RAMDISK
 
