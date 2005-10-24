@@ -164,6 +164,7 @@ extern int av_set_volume(int volume);
  */
 int kern_read(unsigned long memaddr, void *buffaddr, unsigned int size);
 int kern_write(unsigned long memaddr, void *buffaddr, unsigned int size);
-
+int dcr_read(unsigned long regaddr, unsigned int *data);
+int dcr_write(unsigned long regaddr, unsigned int data);
 
 #endif /* MVP_AV_H */

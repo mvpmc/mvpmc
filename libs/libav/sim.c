@@ -265,3 +265,15 @@ kern_write(unsigned long memaddr, void *buffaddr, unsigned int size)
 {
    return 0;
 }
+
+int 
+dcr_read(unsigned long regaddr, unsigned int *data)
+{
+   return 0;
+}
+
+int 
+dcr_write(unsigned long regaddr, unsigned int data)
+{
+   return 0;
+}

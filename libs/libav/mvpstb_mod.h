@@ -35,6 +35,7 @@ struct mvpmod_iocrw {
    union {
       unsigned char  dchar;
       unsigned short dshort;
+      unsigned int   dint;
       unsigned long  dlong;
       struct buffer_ {
          unsigned int  bcount;
@@ -48,8 +49,11 @@ struct mvpmod_iocrw {
 #define MVPMOD_WRITEL          _IOWR(MVPMOD_IOC_MAGIC,   2, struct mvpmod_iocrw)
 #define MVPMOD_SETDBGLVL       _IOWR(MVPMOD_IOC_MAGIC,   3, struct mvpmod_iocrw)
 
-#define MVPMOD_FINAL_NUM 3
+#define MVPMOD_READ_DCR        _IOWR(MVPMOD_IOC_MAGIC,   4, struct mvpmod_iocrw)
+#define MVPMOD_WRITE_DCR       _IOWR(MVPMOD_IOC_MAGIC,   5, struct mvpmod_iocrw)
 
-#define MVPMOD_IOC_MAXNR 3
+#define MVPMOD_FINAL_NUM 5
+
+#define MVPMOD_IOC_MAXNR 5
 
 #endif

@@ -57,8 +57,6 @@ static struct cmdb
 {
    char *name;
    int (*proc)(int, char **);
-   int bindCmdLine;
-   int bindInteractive;
    int minargc;
    int maxargc;
    char help[MAX_HELP_STR];
@@ -221,6 +219,121 @@ void print_databuffer (char *marker, void *addr, unsigned char *dp, int bcnt)
 }
 
 
+// STB DCR registers
+//
+#define VIDEO_DCR_BASE  0x140
+
+
+#define VIDEO_CHIP_CTRL      VIDEO_DCR_BASE + 0x00
+#define VIDEO_SYNC_STC0      VIDEO_DCR_BASE + 0x02
+#define VIDEO_SYNC_STC1      VIDEO_DCR_BASE + 0x03
+#define VIDEO_FIFO           VIDEO_DCR_BASE + 0x06
+#define VIDEO_FIFO_STAT      VIDEO_DCR_BASE + 0x07
+#define VIDEO_CMD_DATA       VIDEO_DCR_BASE + 0x09
+#define VIDEO_PROC_IADDR     VIDEO_DCR_BASE + 0x0c
+#define VIDEO_PROC_IDATA     VIDEO_DCR_BASE + 0x0d
+
+#define VIDEO_OSD_MODE       VIDEO_DCR_BASE + 0x11
+#define VIDEO_HOST_INT       VIDEO_DCR_BASE + 0x12
+#define VIDEO_MASK           VIDEO_DCR_BASE + 0x13
+#define VIDEO_DISP_MODE      VIDEO_DCR_BASE + 0x14
+#define VIDEO_DISP_DLY       VIDEO_DCR_BASE + 0x15
+#define VIDEO_OSDI_LINK_ADR  VIDEO_DCR_BASE + 0x1a
+#define VIDEO_RB_THRE        VIDEO_DCR_BASE + 0x1b
+#define VIDEO_PTS_DELTA      VIDEO_DCR_BASE + 0x1e
+#define VIDEO_PTS_CTRL       VIDEO_DCR_BASE + 0x1f
+
+#define VIDEO_UNKNOWN_21     VIDEO_DCR_BASE + 0x21
+#define VIDEO_VCLIP_ADR      VIDEO_DCR_BASE + 0x27
+#define VIDEO_VCLIP_LEN      VIDEO_DCR_BASE + 0x28
+#define VIDEO_BLOCK_SIZE     VIDEO_DCR_BASE + 0x29
+#define VIDEO_SRC_ADR        VIDEO_DCR_BASE + 0x2a
+#define VIDEO_USERDATA_BASE  VIDEO_DCR_BASE + 0x2b
+#define VIDEO_VBI_BASE       VIDEO_DCR_BASE + 0x2c
+#define VIDEO_UNKNOWN_2D     VIDEO_DCR_BASE + 0x2d
+#define VIDEO_UNKNOWN_2E     VIDEO_DCR_BASE + 0x2e
+#define VIDEO_RB_BASE        VIDEO_DCR_BASE + 0x2f
+
+#define VIDEO_DRAM_ADR       VIDEO_DCR_BASE + 0x30
+#define VIDEO_CLIP_WAR       VIDEO_DCR_BASE + 0x33
+#define VIDEO_CLIP_WLR       VIDEO_DCR_BASE + 0x34
+#define VIDEO_SEG0           VIDEO_DCR_BASE + 0x35
+#define VIDEO_SEG1           VIDEO_DCR_BASE + 0x36
+#define VIDEO_SEG2           VIDEO_DCR_BASE + 0x37
+#define VIDEO_SEG3           VIDEO_DCR_BASE + 0x38
+#define VIDEO_FRAME_BUF      VIDEO_DCR_BASE + 0x39
+#define VIDEO_RB_SIZE        VIDEO_DCR_BASE + 0x3f
+
+
+
+
+static unsigned int dcr_get(unsigned long reg)
+{
+   int rc;
+   unsigned int data;
+
+   rc = dcr_read(reg, &data);
+   if ( rc ) {
+      printf("ERROR: %s: rc=%d: %s\n", __FUNCTION__, errno, strerror(errno));
+      return(0);
+   }
+   return(data);
+}
+
+#define DCR_READ_PRT(x) printf("%-20s (%04x) = 0x%08x\n", ""#x"", x, dcr_get(x))
+
+/*******************************************************************************
+ * Function: video_reg_dmp
+ * 
+ * Description:  
+ *              
+ ******************************************************************************/
+static int video_reg_dmp(int argc, char **argv)
+{
+   
+   DCR_READ_PRT(VIDEO_CHIP_CTRL);
+   DCR_READ_PRT(VIDEO_SYNC_STC0);
+   DCR_READ_PRT(VIDEO_SYNC_STC1);
+   DCR_READ_PRT(VIDEO_FIFO);
+   DCR_READ_PRT(VIDEO_FIFO_STAT);
+   DCR_READ_PRT(VIDEO_CMD_DATA);
+   DCR_READ_PRT(VIDEO_PROC_IADDR);
+   DCR_READ_PRT(VIDEO_PROC_IDATA);
+
+   DCR_READ_PRT(VIDEO_OSD_MODE);
+   DCR_READ_PRT(VIDEO_HOST_INT);
+   DCR_READ_PRT(VIDEO_MASK);
+   DCR_READ_PRT(VIDEO_DISP_MODE);
+   DCR_READ_PRT(VIDEO_DISP_DLY);
+   DCR_READ_PRT(VIDEO_OSDI_LINK_ADR);
+   DCR_READ_PRT(VIDEO_RB_THRE);
+   DCR_READ_PRT(VIDEO_PTS_DELTA);
+   DCR_READ_PRT(VIDEO_PTS_CTRL);
+   
+   DCR_READ_PRT(VIDEO_UNKNOWN_21);
+   DCR_READ_PRT(VIDEO_VCLIP_ADR);
+   DCR_READ_PRT(VIDEO_VCLIP_LEN);
+   DCR_READ_PRT(VIDEO_BLOCK_SIZE);
+   DCR_READ_PRT(VIDEO_SRC_ADR);
+   DCR_READ_PRT(VIDEO_VBI_BASE);
+   DCR_READ_PRT(VIDEO_UNKNOWN_2D);
+   DCR_READ_PRT(VIDEO_UNKNOWN_2E);
+   DCR_READ_PRT(VIDEO_RB_BASE);
+   
+   DCR_READ_PRT(VIDEO_DRAM_ADR);
+   DCR_READ_PRT(VIDEO_CLIP_WAR);
+   DCR_READ_PRT(VIDEO_CLIP_WLR);
+   DCR_READ_PRT(VIDEO_SEG0);
+   DCR_READ_PRT(VIDEO_SEG1);
+   DCR_READ_PRT(VIDEO_SEG2);
+   DCR_READ_PRT(VIDEO_SEG3);
+   DCR_READ_PRT(VIDEO_USERDATA_BASE);
+   DCR_READ_PRT(VIDEO_RB_SIZE);
+   DCR_READ_PRT(VIDEO_FRAME_BUF);
+
+   return(0);
+}
+
 /*******************************************************************************
  * Function: mem_ops
  * 
@@ -248,7 +361,7 @@ void print_databuffer (char *marker, void *addr, unsigned char *dp, int bcnt)
                                 || (*(firstp + 1) != 'x')) && \
                                 ((nextp - firstp) > 8)))        
 
-static int mem_ops (int argc, char **argv)
+static int mem_ops(int argc, char **argv)
 {
    int argi, ibyte, bytecnt = 0;
    char *start, *end;
@@ -512,15 +625,11 @@ static void processLibRc (int rc)
  ******************************************************************************/
 static void interpExport (char *cmdName, 
                           int (*proc)(int, char**),
-                          int   bindCmdLine,
-                          int   bindInteractive,
                           int   minargc, 
                           int   maxargc,
                           char *help)
 {
    cmd_list[cmdmax].name            = cmdName;
-   cmd_list[cmdmax].bindCmdLine     = bindCmdLine,
-   cmd_list[cmdmax].bindInteractive = bindInteractive,    
    cmd_list[cmdmax].minargc         = minargc;
    cmd_list[cmdmax].maxargc         = maxargc;
    strncpy(cmd_list[cmdmax].help, help, MAX_HELP_STR);
@@ -535,8 +644,9 @@ static void interpExport (char *cmdName,
  ******************************************************************************/
 static void initDebug (void)
 {
-   interpExport("mm",          mem_ops,           1, 1, 0, MAX_PARMS, "read/write kernel space");
-   interpExport("help",        myHelp,            1, 1, 0, 0,         "Display cmds help");
+   interpExport("mm",          mem_ops,           0, MAX_PARMS, "read/write kernel space");
+   interpExport("vdmp",        video_reg_dmp,     0, MAX_PARMS, "dump video registers");
+   interpExport("help",        myHelp,            0, 0,         "Display cmds help");
    return;
 }
 

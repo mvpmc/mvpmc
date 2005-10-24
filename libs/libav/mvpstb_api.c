@@ -84,3 +84,42 @@ int kern_write(unsigned long memaddr, void *buffaddr, unsigned int size)
    
    return(ioctl(mvpstb_fd, MVPMOD_WRITEL, &pdb));
 }
+
+/*******************************************************************************
+   Name:  dcr_read
+   Description: 
+   Return:      
+*******************************************************************************/  
+int dcr_read(unsigned long regaddr, unsigned int *data)
+{
+   struct mvpmod_iocrw pdb;
+
+   if ( mvpstb_open() ) {
+      return -1;
+   }
+
+   pdb.memaddr = (void*)regaddr;
+   pdb.res.buff.addr = data;
+   
+   return(ioctl(mvpstb_fd, MVPMOD_READ_DCR, &pdb));
+}
+
+/*******************************************************************************
+   Name:  dcr_write
+   Description: 
+   Return:      
+*******************************************************************************/  
+int dcr_write(unsigned long regaddr, unsigned int data)
+{
+   struct mvpmod_iocrw pdb;
+
+   if ( mvpstb_open() ) {
+      return -1;
+   }
+
+   pdb.memaddr = (void*)regaddr;
+   pdb.res.dint = data;
+   
+   return(ioctl(mvpstb_fd, MVPMOD_WRITE_DCR, &pdb));
+}
+
