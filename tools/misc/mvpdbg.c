@@ -34,6 +34,7 @@
 #include <limits.h>
 #include <asm/types.h>
 #include "mvp_av.h"
+#include "../../mvplib/libav/mvpstb_mod.h"
 
 /*******************************************************************************
  *                             GLOBAL VARIABLES
@@ -219,54 +220,6 @@ void print_databuffer (char *marker, void *addr, unsigned char *dp, int bcnt)
 }
 
 
-// STB DCR registers
-//
-#define VIDEO_DCR_BASE  0x140
-
-
-#define VIDEO_CHIP_CTRL      VIDEO_DCR_BASE + 0x00
-#define VIDEO_SYNC_STC0      VIDEO_DCR_BASE + 0x02
-#define VIDEO_SYNC_STC1      VIDEO_DCR_BASE + 0x03
-#define VIDEO_FIFO           VIDEO_DCR_BASE + 0x06
-#define VIDEO_FIFO_STAT      VIDEO_DCR_BASE + 0x07
-#define VIDEO_CMD_DATA       VIDEO_DCR_BASE + 0x09
-#define VIDEO_PROC_IADDR     VIDEO_DCR_BASE + 0x0c
-#define VIDEO_PROC_IDATA     VIDEO_DCR_BASE + 0x0d
-
-#define VIDEO_OSD_MODE       VIDEO_DCR_BASE + 0x11
-#define VIDEO_HOST_INT       VIDEO_DCR_BASE + 0x12
-#define VIDEO_MASK           VIDEO_DCR_BASE + 0x13
-#define VIDEO_DISP_MODE      VIDEO_DCR_BASE + 0x14
-#define VIDEO_DISP_DLY       VIDEO_DCR_BASE + 0x15
-#define VIDEO_OSDI_LINK_ADR  VIDEO_DCR_BASE + 0x1a
-#define VIDEO_RB_THRE        VIDEO_DCR_BASE + 0x1b
-#define VIDEO_PTS_DELTA      VIDEO_DCR_BASE + 0x1e
-#define VIDEO_PTS_CTRL       VIDEO_DCR_BASE + 0x1f
-
-#define VIDEO_UNKNOWN_21     VIDEO_DCR_BASE + 0x21
-#define VIDEO_VCLIP_ADR      VIDEO_DCR_BASE + 0x27
-#define VIDEO_VCLIP_LEN      VIDEO_DCR_BASE + 0x28
-#define VIDEO_BLOCK_SIZE     VIDEO_DCR_BASE + 0x29
-#define VIDEO_SRC_ADR        VIDEO_DCR_BASE + 0x2a
-#define VIDEO_USERDATA_BASE  VIDEO_DCR_BASE + 0x2b
-#define VIDEO_VBI_BASE       VIDEO_DCR_BASE + 0x2c
-#define VIDEO_UNKNOWN_2D     VIDEO_DCR_BASE + 0x2d
-#define VIDEO_UNKNOWN_2E     VIDEO_DCR_BASE + 0x2e
-#define VIDEO_RB_BASE        VIDEO_DCR_BASE + 0x2f
-
-#define VIDEO_DRAM_ADR       VIDEO_DCR_BASE + 0x30
-#define VIDEO_CLIP_WAR       VIDEO_DCR_BASE + 0x33
-#define VIDEO_CLIP_WLR       VIDEO_DCR_BASE + 0x34
-#define VIDEO_SEG0           VIDEO_DCR_BASE + 0x35
-#define VIDEO_SEG1           VIDEO_DCR_BASE + 0x36
-#define VIDEO_SEG2           VIDEO_DCR_BASE + 0x37
-#define VIDEO_SEG3           VIDEO_DCR_BASE + 0x38
-#define VIDEO_FRAME_BUF      VIDEO_DCR_BASE + 0x39
-#define VIDEO_RB_SIZE        VIDEO_DCR_BASE + 0x3f
-
-
-
-
 static unsigned int dcr_get(unsigned long reg)
 {
    int rc;
@@ -333,6 +286,51 @@ static int video_reg_dmp(int argc, char **argv)
 
    return(0);
 }
+/*******************************************************************************
+ * Function: audio_reg_dmp
+ * 
+ * Description:  
+ *              
+ ******************************************************************************/
+static int audio_reg_dmp(int argc, char **argv)
+{
+   
+   DCR_READ_PRT(AUDIO_CTRL0);
+   DCR_READ_PRT(AUDIO_CTRL1);
+   DCR_READ_PRT(AUDIO_CTRL2);
+   DCR_READ_PRT(AUDIO_CMD);
+   DCR_READ_PRT(AUDIO_ISR);
+   DCR_READ_PRT(AUDIO_IMR);
+   DCR_READ_PRT(AUDIO_DSR);
+   DCR_READ_PRT(AUDIO_STC);
+   DCR_READ_PRT(AUDIO_CSR);
+   DCR_READ_PRT(AUDIO_QAR2);
+   DCR_READ_PRT(AUDIO_PTS);
+   DCR_READ_PRT(AUDIO_TONE_GEN_CTRL);
+   DCR_READ_PRT(AUDIO_QLR2);
+   DCR_READ_PRT(AUDIO_ACL_DATA);
+   DCR_READ_PRT(AUDIO_STREAM_ID);
+   DCR_READ_PRT(AUDIO_QAR);
+   DCR_READ_PRT(AUDIO_DSP_STATUS);
+   DCR_READ_PRT(AUDIO_QLR);
+   DCR_READ_PRT(AUDIO_DSP_CTRL);
+   DCR_READ_PRT(AUDIO_WLR2);
+   DCR_READ_PRT(AUDIO_IMFD);
+   DCR_READ_PRT(AUDIO_WAR);
+   DCR_READ_PRT(AUDIO_SEG1);
+   DCR_READ_PRT(AUDIO_SEG2);
+   DCR_READ_PRT(AUDIO_RB_RBF);
+   DCR_READ_PRT(AUDIO_ATN_VAL_FRONT);
+   DCR_READ_PRT(AUDIO_ATN_VAL_REAR);
+   DCR_READ_PRT(AUDIO_ATN_VAL_CENTER);
+   DCR_READ_PRT(AUDIO_SEG3);
+   DCR_READ_PRT(AUDIO_OFFSETS);
+   DCR_READ_PRT(AUDIO_WLR);
+   DCR_READ_PRT(AUDIO_WAR2);
+   
+   return(0);
+}
+
 
 /*******************************************************************************
  * Function: mem_ops
@@ -646,6 +644,7 @@ static void initDebug (void)
 {
    interpExport("mm",          mem_ops,           0, MAX_PARMS, "read/write kernel space");
    interpExport("vdmp",        video_reg_dmp,     0, MAX_PARMS, "dump video registers");
+   interpExport("admp",        audio_reg_dmp,     0, MAX_PARMS, "dump audio registers");
    interpExport("help",        myHelp,            0, 0,         "Display cmds help");
    return;
 }
