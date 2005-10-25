@@ -218,9 +218,7 @@ ring_buf* ring_buf_create(int size)
 {
   ring_buf * b;
   b = malloc(sizeof(ring_buf));
-  /// Shouldn't this be the other way around:
-  /// "calloc(size,1)"???
-  b->buf = (void*)calloc(1, size); 
+  b->buf = (void*)calloc(size, 1); 
   b->size = size;
   b->head = b->tail = 0;
   return b;
@@ -364,9 +362,11 @@ unsigned long curses2ir(int key) {
     case MVPW_KEY_PLAY: ir = 0x768910ef; break; /* play */
     case MVPW_KEY_MENU: ir = 0x76897887; break; /* jump to now playing menu */
     case MVPW_KEY_REPLAY: ir = 0x768938c7; break; /* cycle through repeat modes */
-    case MVPW_KEY_RED: ir = 0x768958a7; break; /* jump to search menu */
-    case MVPW_KEY_GREEN: ir = 0x7689609f; break; /* add, NOTE: if held = zap */
-    case MVPW_KEY_BLUE: ir = 0x7689d827; break; /* cycle through shuffle modes */
+
+    case MVPW_KEY_RED: ir = 0x768940bf; break; /* power */
+    case MVPW_KEY_GREEN: ir = 0x7689d827; break; /* cycle through shuffle modes */
+    case MVPW_KEY_BLUE: ir = 0x7689807f; break; /* volup */
+    case MVPW_KEY_YELLOW: ir = 0x768900ff; break; /* voldown */
 
    /*
     * JVC remote control codes.
@@ -383,8 +383,10 @@ unsigned long curses2ir(int key) {
           mvpw_hide(mute_widget);
        break;
 
-    case MVPW_KEY_YELLOW: debug = !debug; break; /* toggle debug mode */
-
+      /*
+       * Uncomment if want to toggle mclient debug printfs (lots of them!).
+       */
+      ///    case MVPW_KEY_RECORD: debug = !debug; break; /* toggle debug mode */
 
       /*
        * Keys that may not make sense for mvpmc.
@@ -393,6 +395,10 @@ unsigned long curses2ir(int key) {
       ///    case 's': ir = 0x7689b847; break; /* sleep */
       ///    case '+': ir = 0x7689f807; break; /* size */
       ///    case '*': ir = 0x768904fb; break; /* brightness */
+      ///    case    : ir = 0x768958a7; break; /* jump to search menu */
+      ///    case    : ir = 0x7689609f; break; /* add, NOTE: if held = zap */
+      ///    case    : ir = 0x7689d827; break; /* cycle through shuffle modes */
+
     }
     if (ir != 0) send_ir(mclient_socket, 0xff , ir, 16);
 
@@ -709,7 +715,7 @@ mclient_idle_callback(mvp_widget_t *widget)
    * Only use the first 40 characters.  Looks like the server
    * leaves old characters laying round past the 40th character.
    */
-  sprintf(newstring,"\n%40.40s\n%40.40s\n",slimp3_display,&slimp3_display[64]);
+  sprintf(newstring,"%40.40s\n%40.40s\n",slimp3_display,&slimp3_display[64]);
   pthread_mutex_unlock(&mclient_mutex);
 
   /*
@@ -749,27 +755,10 @@ mclient_idle_callback(mvp_widget_t *widget)
   if((strncmp(newstring, oldstring, 40) == 0) && (send_display_data_state == 1))
     {
       if(debug) printf("mclient:TEST:new&old are same new:%s old:%s state:%d\n",newstring,oldstring,send_display_data_state);
-      int i;
       snprintf(display_message, sizeof(display_message),"Line1:%40.40s\n", &slimp3_display[0]);
-
-      /*
-       * Get rid of trailling spaces.
-       */
-      for(i = 40; (display_message[i] == ' ') && (i > 1) ; i--);
-      ///	  display_message[i + 1] = '\n';
-      display_message[i + 1] = '\0';
-
       display_send(display_message); 
 
       snprintf(display_message, sizeof(display_message),"Line2:%40.40s\n", &slimp3_display[64]);
-
-      /*
-       * Get rid of trailling spaces.
-       */
-      for(i = 40; (display_message[i] == ' ') && (i > 1) ; i--);
-      ///	  display_message[i + 1] = '\n';
-      display_message[i + 1] = '\0';
-
       display_send(display_message); 
 
       send_display_data_state = 0;

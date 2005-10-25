@@ -34,7 +34,9 @@ expose(mvp_widget_t *widget)
 	GR_FONT_INFO finfo;
 	int x, y, h, w, descent, indent = 0, width, dia;
 	char *str;
-	int i, nl = 0;
+	int i, j, k, nl = 0;
+
+	int consume_spaces;
 
 	if (widget->data.text.str == NULL)
 		return;
@@ -120,15 +122,44 @@ expose(mvp_widget_t *widget)
 	if (widget->data.text.wrap && ((w > widget->width - x) || nl)) {
 		char buf[256];
 
+		/*
+		 * If we find CRs then don't consume leading spaces unless
+		 * we wrap.
+		 */
+		i = 0;
+		j = 0;
+		while (i < strlen(str)) {
+			if (str[i++] == '\n')
+				j++;
+			}
+		if (j > 1)
+			consume_spaces = 0;
+		else
+			consume_spaces = 1;
+			
 		i = 0;
 		while (i < strlen(str)) {
-			int j = 0;
-
-			while (str[i] == ' ')
-				i++;
+			j = 0;
 
 			memset(buf, 0, sizeof(buf));
 
+			/*
+			 * Found CRs, don't consume leading spaces unless
+			 * we wrap.
+			 */
+			if (consume_spaces == 1) {
+				/*
+				 * No CRs, get rid of any leading blanks.
+				 */
+				while (str[i] == ' ')
+					i++;
+			}
+
+			/*
+			 * Grow the part of the string to be printed until
+			 * it fills the width of the widget or we run out
+			 * of characters.
+			 */
 			w = 0;
 			while (((w < widget->width - x) &&
 				((j+i) < strlen(str))) &&
@@ -138,17 +169,30 @@ expose(mvp_widget_t *widget)
 						    buf);
 				j++;
 			}
-
+	
+			/*
+			 * Remove last partial word and spaces.
+			 */
+			k = j;
 			if (((j+i) < strlen(str)) && (str[i+j] != '\n')) {
 				while ((j > 0) && (buf[j] != ' '))
 					j--;
+
 				while ((j > 0) && (buf[j] == ' '))
 					j--;
 				buf[++j] = '\0';
+
+				/*
+				 * We are wrapping, so consume spaces to
+				 * next non-space character in next line.
+				 */
+				k = j + 1;
+				while ((k < strlen(str)) && (str[i+k] == ' '))
+					k++;
 			}
-
+			
 			w = mvpw_font_width(widget->data.text.font, buf);
-
+	
 			switch (widget->data.text.justify) {
 			case MVPW_TEXT_LEFT:
 				x = widget->data.text.margin;
@@ -169,7 +213,7 @@ expose(mvp_widget_t *widget)
 			GrText(widget->wid, gc, x+indent, y-descent, buf, strlen(buf), 0);
 			y += h;
 
-			i += j;
+			i += k;
 
 			if (str[i] == '\n')
 				i++;

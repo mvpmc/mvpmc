@@ -781,7 +781,7 @@ display_iee_40x2()
       /*
        * Setup to display string.
        */
-      sprintf(display_server_message, "%c%c%-40.40s", DISPLAY_IEE_POSITION,DISPLAY_IEE_POS_0_1,display_struct.Message.String);
+      sprintf(display_server_message, "%c%c%c%c%-40.40s", DISPLAY_IEE_HOME,DISPLAY_IEE_CLR,DISPLAY_IEE_POSITION,DISPLAY_IEE_POS_0_1,display_struct.Message.String);
     }
   else
     {
@@ -796,7 +796,7 @@ display_iee_40x2()
 	      /*
 	       * Copy only what can be shown on the display.
 	       */
-	      sprintf(display_server_message, "%c%c%-40.40s", DISPLAY_IEE_POSITION,DISPLAY_IEE_POS_1_0,display_struct.Message.String);
+	      sprintf(display_server_message, "%c%c%c%c%-40.40s", DISPLAY_IEE_HOME,DISPLAY_IEE_CLR,DISPLAY_IEE_POSITION,DISPLAY_IEE_POS_1_0,display_struct.Message.String);
 	      display_struct.Message.Scroll--;
 
 	      /*
@@ -806,7 +806,7 @@ display_iee_40x2()
 	    }
 	  else
 	    {
-	      sprintf(last_message, "%c%-40.40s", DISPLAY_IEE_CR, display_struct.Message.String);
+	      sprintf(last_message, "%c%c%c%c%-40.40s", DISPLAY_IEE_HOME,DISPLAY_IEE_CLR,DISPLAY_IEE_POSITION,DISPLAY_IEE_POS_0_1,display_struct.Message.String);
 	      display_struct.Message.Scroll = 0;
 	      
 	      /*
@@ -1303,7 +1303,7 @@ display_iee_40x2()
       /*
        * Setup to display string.
        */
-      sprintf(display_server_message, "%c%c%c%c%-40.40s", DISPLAY_IEE_CLR, DISPLAY_IEE_POSITION, DISPLAY_IEE_POS_0_0, DISPLAY_IEE_CURINV, display_struct.File.String);
+      sprintf(display_server_message, "%c%c%c%c%c%-40.40s", DISPLAY_IEE_HOME,DISPLAY_IEE_CLR, DISPLAY_IEE_POSITION, DISPLAY_IEE_POS_0_0, DISPLAY_IEE_CURINV, display_struct.File.String);
     }
   else
     {
@@ -1317,7 +1317,7 @@ display_iee_40x2()
 	      /*
 	       * Copy only what can be shown on the display.
 	       */
-	      sprintf(display_server_message, "%c%c%c%c%-40.40s", DISPLAY_IEE_CLR, DISPLAY_IEE_POSITION, DISPLAY_IEE_POS_0_0, DISPLAY_IEE_CURINV, &display_struct.File.String[starting_char]);
+	      sprintf(display_server_message, "%c%c%c%c%c%-40.40s", DISPLAY_IEE_HOME,DISPLAY_IEE_CLR, DISPLAY_IEE_POSITION, DISPLAY_IEE_POS_0_0, DISPLAY_IEE_CURINV, &display_struct.File.String[starting_char]);
 	      display_struct.File.Scroll--;
 
               /*
@@ -1327,7 +1327,7 @@ display_iee_40x2()
 	    }
 	  else
 	    {
-	      sprintf(last_message, "%c%c%c%c%-40.40s", DISPLAY_IEE_CLR, DISPLAY_IEE_POSITION, DISPLAY_IEE_POS_0_0, DISPLAY_IEE_CURINV, display_struct.File.String);
+	      sprintf(last_message, "%c%c%c%c%c%-40.40s", DISPLAY_IEE_HOME,DISPLAY_IEE_CLR, DISPLAY_IEE_POSITION, DISPLAY_IEE_POS_0_0, DISPLAY_IEE_CURINV, display_struct.File.String);
 	      display_struct.File.Scroll = 0;
 		
               /*
@@ -1376,7 +1376,7 @@ display_iee_40x2()
       /*
        * Setup to display string.
        */
-      sprintf(display_server_message, "%c%c%c%c%-40.40s%-38.38s", 
+      sprintf(display_server_message, "%c%c%c%c%-40.40s%-39.39s", 
               DISPLAY_IEE_CLR, DISPLAY_IEE_CURINV, DISPLAY_IEE_POSITION,DISPLAY_IEE_POS_0_0,
               display_struct.Line1.String, display_struct.Line2.String);
     }

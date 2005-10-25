@@ -376,12 +376,12 @@ static mvpw_dialog_attr_t about_attr = {
 };
 
 static mvpw_dialog_attr_t mclient_attr = {
-	.font = FONT_STANDARD,
+	.font = FONT_LARGE,
 	.fg = MVPW_WHITE,
 	.bg = MVPW_DARKGREY,
 	.title_fg = MVPW_WHITE,
 	.title_bg = MVPW_DARKGREY,
-	.modal = 1,
+	.modal = 0,
 	.border = MVPW_BLUE,
 	.border_size = 2,
 	.margin = 4,
@@ -3537,7 +3537,7 @@ mclient_init(void)
 	splash_update("Creating mclient dialog");
 
 
-	h = 4 * FONT_HEIGHT(mclient_attr);
+	h = 3 * FONT_HEIGHT(mclient_attr);
 	w = 400;
 
 	x = (si.cols - w) / 2;
@@ -3980,14 +3980,32 @@ screensaver_timer(mvp_widget_t *widget)
 	mvpw_widget_info_t info;
 	int x, y;
 
-	mvpw_set_timer(screensaver, screensaver_timer, 1000);
 
-	mvpw_get_widget_info(mvpmc_logo, &info);
+	if(gui_state == MVPMC_STATE_MCLIENT)
+	{
+		mvpw_get_widget_info(mclient, &info);
+		mvpw_set_timer(screensaver, screensaver_timer, 10000);
+
+	}
+	else
+	{
+		mvpw_get_widget_info(mvpmc_logo, &info);
+		mvpw_set_timer(screensaver, screensaver_timer, 1000);
+
+	}
 
 	x = rand() % (si.cols - info.w);
 	y = rand() % (si.rows - info.h);
 
-	mvpw_moveto(mvpmc_logo, x, y);
+	if(gui_state == MVPMC_STATE_MCLIENT)
+	{
+		mvpw_moveto(mclient, x, y);
+		mvpw_expose(screensaver);
+	}
+	else
+	{
+		mvpw_moveto(mvpmc_logo, x, y);
+	}
 }
 
 static void
@@ -3995,11 +4013,30 @@ screensaver_event(mvp_widget_t *widget, int activate)
 {
 	static int visible = 0;
 
+	static mvpw_widget_info_t local_mclient_info;
+
 	if (activate) {
-		visible = mvpw_visible(mvpmc_logo);
-		mvpw_unattach(mvpmc_logo, MVPW_DIR_DOWN);
-		mvpw_reparent(mvpmc_logo, screensaver);
-		mvpw_show(mvpmc_logo);
+		/*
+		 * If mclient hardware active, use it's display as 
+		 * part of screen saver.
+		 */
+		if(gui_state == MVPMC_STATE_MCLIENT)
+		{
+			/*
+			 * Save mclient position when we return from
+			 * screen saver mode.
+			 */
+			mvpw_get_widget_info(mclient, &local_mclient_info);
+			mvpw_reparent(mclient, screensaver);
+			mvpw_show(mclient);
+		}
+		else
+		{
+			visible = mvpw_visible(mvpmc_logo);
+			mvpw_unattach(mvpmc_logo, MVPW_DIR_DOWN);
+			mvpw_reparent(mvpmc_logo, screensaver);
+			mvpw_show(mvpmc_logo);
+		}
 		mvpw_show(screensaver);
 		mvpw_focus(screensaver);
 		mvpw_raise(screensaver);
@@ -4007,10 +4044,33 @@ screensaver_event(mvp_widget_t *widget, int activate)
 	} else {
 		mvpw_set_timer(screensaver, NULL, 0);
 		mvpw_hide(screensaver);
-		mvpw_hide(mvpmc_logo);
-		mvpw_reparent(mvpmc_logo, NULL);
-		mvpw_lower(mvpmc_logo);
-		mvpw_attach(main_menu, mvpmc_logo, MVPW_DIR_UP);
+		/*
+		 * If mclient hardware active, revert back to
+		 * mclient gui from screen saver mode.
+		 */
+		if(gui_state == MVPMC_STATE_MCLIENT)
+		{
+			mvpw_hide(mclient);
+			mvpw_reparent(mclient, NULL);
+			mvpw_moveto(mclient, local_mclient_info.x, local_mclient_info.y);
+			/*
+			 * Only show mclient widget if mclient has control
+			 * of the gui.
+			 */
+			if(gui_state == MVPMC_STATE_MCLIENT)
+			{
+				mvpw_raise(mclient);
+				mvpw_show(mclient);
+				mvpw_focus(mclient);
+			}
+		}
+		else
+		{
+			mvpw_hide(mvpmc_logo);
+			mvpw_reparent(mvpmc_logo, NULL);
+			mvpw_lower(mvpmc_logo);
+			mvpw_attach(main_menu, mvpmc_logo, MVPW_DIR_UP);
+		}
 		if (visible)
 			mvpw_show(mvpmc_logo);
 	}
