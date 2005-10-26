@@ -352,8 +352,10 @@ unsigned long curses2ir(int key) {
     case MVPW_KEY_LEFT: ir = 0x7689906f; break; /* arrow_left */
     case MVPW_KEY_RIGHT: ir = 0x7689d02f; break; /* arrow_right */
     case MVPW_KEY_UP: ir = 0x7689e01f; break; /* arrow_up */
+#if 0
     case MVPW_KEY_VOL_DOWN: ir = 0x768900ff; break; /* voldown */
     case MVPW_KEY_VOL_UP: ir = 0x7689807f; break; /* volup */
+#endif
     case MVPW_KEY_REWIND: ir = 0x7689c03f; break; /* rew */
     case MVPW_KEY_PAUSE: ir = 0x768920df; break; /* pause */
     case MVPW_KEY_SKIP: ir = 0x7689a05f; break; /* fwd */
@@ -398,7 +400,12 @@ unsigned long curses2ir(int key) {
       ///    case    : ir = 0x768958a7; break; /* jump to search menu */
       ///    case    : ir = 0x7689609f; break; /* add, NOTE: if held = zap */
       ///    case    : ir = 0x7689d827; break; /* cycle through shuffle modes */
-
+    case MVPW_KEY_VOL_UP:
+    case MVPW_KEY_VOL_DOWN:
+	    volume_key_callback(volume_dialog, key);
+	    mvpw_show(volume_dialog);
+	    mvpw_set_timer(volume_dialog, mvpw_hide, 3000);
+	    break;
     }
     if (ir != 0) send_ir(mclient_socket, 0xff , ir, 16);
 

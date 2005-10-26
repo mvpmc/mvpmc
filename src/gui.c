@@ -958,6 +958,13 @@ splash_update(char *str)
 	mvpw_event_flush();
 }
 
+void
+timer_hide(mvp_widget_t *widget)
+{
+	mvpw_hide(widget);
+	mvpw_set_timer(volume_dialog, NULL, 0);
+}
+
 static void
 root_callback(mvp_widget_t *widget, char key)
 {
@@ -967,6 +974,17 @@ root_callback(mvp_widget_t *widget, char key)
 static void
 main_menu_callback(mvp_widget_t *widget, char key)
 {
+	if (hw_state == MVPMC_STATE_NONE)
+		return;
+
+	switch (key) {
+	case MVPW_KEY_VOL_UP:
+	case MVPW_KEY_VOL_DOWN:
+		volume_key_callback(volume_dialog, key);
+		mvpw_show(volume_dialog);
+		mvpw_set_timer(volume_dialog, timer_hide, 3000);
+		break;
+	}
 }
 
 static void
@@ -1231,7 +1249,12 @@ themes_select_callback(mvp_widget_t *widget, char *item, void *key)
 	char *path;
 
 	memset(buf, 0, sizeof(buf));
-	readlink(DEFAULT_THEME, buf, sizeof(buf));
+
+	if (config->bitmask & CONFIG_THEME) {
+		strcpy(buf, config->theme);
+	} else {
+		readlink(DEFAULT_THEME, buf, sizeof(buf));
+	}
 
 	path = theme_list[(int)key].path;
 
@@ -1252,10 +1275,19 @@ themes_select_callback(mvp_widget_t *widget, char *item, void *key)
 static void
 fb_menu_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
+	char buf[256];
+
+	mvpw_hide(widget);
+
 	switch ((int)key) {
 	case 1:
-		mvpw_hide(widget);
 		fb_shuffle();
+		break;
+	case 2:
+		snprintf(buf, sizeof(buf), "%d", volume);
+		mvpw_set_dialog_text(volume_dialog, buf);
+		mvpw_show(volume_dialog);
+		mvpw_focus(volume_dialog);
 		break;
 	default:
 		break;
@@ -1292,6 +1324,8 @@ fb_key_callback(mvp_widget_t *widget, char key)
 
 			if (mythtv_livetv == 2)
 				mythtv_livetv = 1;
+
+			screensaver_disable();
 		}
 		break;
 	case MVPW_KEY_PLAY:
@@ -1310,6 +1344,12 @@ fb_key_callback(mvp_widget_t *widget, char key)
 	case MVPW_KEY_MENU:
 		mvpw_show(fb_menu);
 		mvpw_focus(fb_menu);
+		break;
+	case MVPW_KEY_VOL_UP:
+	case MVPW_KEY_VOL_DOWN:
+		volume_key_callback(volume_dialog, key);
+		mvpw_show(volume_dialog);
+		mvpw_set_timer(volume_dialog, timer_hide, 3000);
 		break;
 	}
 }
@@ -1569,6 +1609,8 @@ mythtv_key_callback(mvp_widget_t *widget, char key)
 	case MVPW_KEY_PAUSE:
 	case MVPW_KEY_MUTE:
 	case MVPW_KEY_ZERO ... MVPW_KEY_NINE:
+	case MVPW_KEY_VOL_UP:
+	case MVPW_KEY_VOL_DOWN:
 		video_callback(widget, key);
 		break;
 	}
@@ -1765,7 +1807,7 @@ file_browser_init(void)
 	 * file browser popup menu
 	 */
 	h = 5 * FONT_HEIGHT(fb_attr);
-	w = 200;
+	w = 275;
 	x = (si.cols - w) / 2;
 	y = (si.rows - h) / 2;
 
@@ -1779,8 +1821,12 @@ file_browser_init(void)
 	mvpw_set_key(fb_menu, fb_menu_key_callback);
 
 	fb_menu_item_attr.select = fb_menu_select_callback;
+	fb_menu_item_attr.fg = fb_popup_attr.fg;
+	fb_menu_item_attr.bg = fb_popup_attr.bg;
 	mvpw_add_menu_item(fb_menu, "Shuffle Play",
 			   (void*)1, &fb_menu_item_attr);
+	mvpw_add_menu_item(fb_menu, "Volume",
+			   (void*)2, &fb_menu_item_attr);
 
 	return 0;
 }
@@ -1944,7 +1990,7 @@ bright_key_callback(mvp_widget_t *widget, char key)
 	}
 }
 
-static void
+void
 volume_key_callback(mvp_widget_t *widget, char key)
 {
 	char buf[16];
@@ -1952,16 +1998,19 @@ volume_key_callback(mvp_widget_t *widget, char key)
 
 	switch (key) {
 	case MVPW_KEY_EXIT:
+		mvpw_set_timer(volume_dialog, NULL, 0);
 		mvpw_hide(widget);
 		return;
 		break;
 	case MVPW_KEY_UP:
 	case MVPW_KEY_RIGHT:
+	case MVPW_KEY_VOL_UP:
 		vol++;
 		change = 1;
 		break;
 	case MVPW_KEY_DOWN:
 	case MVPW_KEY_LEFT:
+	case MVPW_KEY_VOL_DOWN:
 		vol--;
 		change = 1;
 		break;
@@ -2839,21 +2888,27 @@ themes_init(void)
 	themes_item_attr.bg = themes_attr.bg;
 
 	for (i=0; i<THEME_MAX; i++) {
+		int check = 0;
+
 		if (theme_list[i].path == NULL)
 			break;
 		memset(buf, 0, sizeof(buf));
-		readlink(DEFAULT_THEME, buf, sizeof(buf));
+		if (config->bitmask & CONFIG_THEME) {
+			if (strcmp(config->theme, theme_list[i].path) == 0)
+				check = 1;
+		} else {
+			readlink(DEFAULT_THEME, buf, sizeof(buf));
+			if (strcmp(buf, theme_list[i].path) == 0)
+				check = 1;
+		}
 		if (theme_list[i].name)
 			mvpw_add_menu_item(themes_menu, theme_list[i].name,
 					   (void*)i, &themes_item_attr);
 		else
 			mvpw_add_menu_item(themes_menu, theme_list[i].path,
 					   (void*)i, &themes_item_attr);
-		if (strcmp(buf, theme_list[i].path) == 0) {
-			mvpw_check_menu_item(themes_menu, (void*)i, 1);
-		} else {
-			mvpw_check_menu_item(themes_menu, (void*)i, 0);
-		}
+
+		mvpw_check_menu_item(themes_menu, (void*)i, check);
 	}
 
 	return 0;
@@ -3950,7 +4005,7 @@ popup_init(void)
 
 	h = 2 * FONT_HEIGHT(video_dialog_attr);
 	x = (si.cols - w) / 2;
-	y = si.rows - (h * 2);
+	y = si.rows - viewport_edges[EDGE_BOTTOM] - h;
 	bright_dialog = mvpw_create_dialog(NULL, x, y, w, h,
 					   video_dialog_attr.bg,
 					   video_dialog_attr.border,

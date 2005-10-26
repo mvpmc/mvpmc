@@ -141,6 +141,12 @@ extern mvp_widget_t *fb_time;
 extern mvp_widget_t *fb_size;
 extern mvp_widget_t *vnc_widget;
 
+extern mvp_widget_t *volume_dialog;
+
+extern void volume_key_callback(mvp_widget_t *widget, char key);
+
+extern void timer_hide(mvp_widget_t *widget);
+
 extern uint32_t root_color;
 extern int root_bright;
 extern int volume;

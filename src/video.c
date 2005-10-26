@@ -787,14 +787,10 @@ video_callback(mvp_widget_t *widget, char key)
 	        break;
 */
 	case MVPW_KEY_VOL_UP:
-		if (av_set_volume(volume+1) < 0)
-			return;
-		volume++;
-		break;
 	case MVPW_KEY_VOL_DOWN:
-		if (av_set_volume(volume-1) < 0)
-			return;
-		volume--;
+		volume_key_callback(volume_dialog, key);
+		mvpw_show(volume_dialog);
+		mvpw_set_timer(volume_dialog, timer_hide, 3000);
 		break;
 	default:
 		PRINTF("button %d\n", key);
