@@ -658,6 +658,24 @@ video_callback(mvp_widget_t *widget, char key)
 			screensaver_disable();
 		}
 		break;
+	case MVPW_KEY_PLAY:
+		if ( paused ) {
+			/*
+			 * play key can be used to un-pause
+          */
+         av_pause();
+			if (pause_osd && !display_on &&
+			    (display_on_alt == 2)) {
+				display_on_alt = 0;
+				disable_osd();
+				mvpw_expose(root);
+			}
+			mvpw_hide(pause_widget);
+			mvpw_hide(mute_widget);
+			paused = 0;
+			screensaver_disable();
+		}
+		break;
 	case MVPW_KEY_REPLAY:
 		seek_by(-30);
 		timed_osd(seek_osd_timeout*1000);
