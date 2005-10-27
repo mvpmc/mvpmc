@@ -238,6 +238,8 @@ mythtv_fullscreen(void)
 	mvpw_focus(root);
 
 	printf("fullscreen video mode\n");
+
+	screensaver_disable();
 }
 
 static int
@@ -1622,7 +1624,7 @@ mythtv_seek(long long offset, int whence)
 	}
 
 	if (mythtv_livetv)
-		seek_pos = cmyth_ringbuf_seek(c, r, 0, SEEK_CUR);
+		seek_pos = cmyth_ringbuf_seek(r, 0, SEEK_CUR);
 	else
 		seek_pos = cmyth_file_seek(c, f, 0, SEEK_CUR);
 	if ((offset == 0) && (whence == SEEK_CUR)) {
@@ -1683,7 +1685,7 @@ mythtv_seek(long long offset, int whence)
 	}
 
 	if (mythtv_livetv)
-		seek_pos = cmyth_ringbuf_seek(c, r, offset, whence);
+		seek_pos = cmyth_ringbuf_seek(r, offset, whence);
 	else
 		seek_pos = cmyth_file_seek(c, f, offset, whence);
 
@@ -1868,7 +1870,7 @@ mythtv_livetv_start(int *tuner)
 								       tuner[i])) == NULL) {
 				continue;
 			}
-			if(cmyth_recorder_is_recording(control, recorder) == 1) {
+			if(cmyth_recorder_is_recording(recorder) == 1) {
 				cmyth_recorder_release(recorder);
 				continue;
 			}
@@ -1908,7 +1910,7 @@ mythtv_livetv_start(int *tuner)
 		}
 	}
 
-	if (cmyth_ringbuf_setup(control, recorder) != 0) {
+	if (cmyth_ringbuf_setup(recorder) != 0) {
 		msg = "Failed to setup ringbuffer.";
 		goto err;
 	}
@@ -1919,17 +1921,17 @@ mythtv_livetv_start(int *tuner)
 		goto err;
 	}
 
-	if (cmyth_recorder_spawn_livetv(control, recorder) != 0) {
+	if (cmyth_recorder_spawn_livetv(recorder) != 0) {
 		msg = "Spawn livetv failed.";
 		goto err;
 	}
 
-	if (cmyth_recorder_is_recording(control, recorder) != 1) {
+	if (cmyth_recorder_is_recording(recorder) != 1) {
 		msg = "LiveTV not recording.";
 		goto err;
 	}
 
-	if (cmyth_recorder_get_framerate(control, recorder, &rate) != 0) {
+	if (cmyth_recorder_get_framerate(recorder, &rate) != 0) {
 		msg = "Get framerate failed.";
 		goto err;
 	}
@@ -1955,7 +1957,7 @@ mythtv_livetv_start(int *tuner)
 	current_prog = cmyth_proginfo_create();
 	cmyth_proginfo_hold(current_prog);
 
-	cmyth_recorder_get_program_info(control, recorder, current_prog);
+	cmyth_recorder_get_program_info(recorder, current_prog);
 
 	get_livetv_programs();
 
@@ -2016,12 +2018,12 @@ mythtv_livetv_stop(void)
 	mvpw_set_idle(NULL);
 	mvpw_set_timer(root, NULL, 0);
 
-	if (cmyth_recorder_stop_livetv(control, recorder) != 0) {
+	if (cmyth_recorder_stop_livetv(recorder) != 0) {
 		fprintf(stderr, "stop livetv failed\n");
 		goto fail;
 	}
 
-	if (cmyth_recorder_done_ringbuf(control, recorder) != 0) {
+	if (cmyth_recorder_done_ringbuf(recorder) != 0) {
 		fprintf(stderr, "done ringbuf failed\n");
 		goto fail;
 	}
@@ -2051,14 +2053,13 @@ int __change_channel(direction)
 	video_clear();
 	pthread_mutex_lock(&myth_mutex);
 
-	if (cmyth_recorder_pause(control, recorder) < 0) {
+	if (cmyth_recorder_pause(recorder) < 0) {
 		fprintf(stderr, "channel change (pause) failed\n");
 		ret = -1;
 		goto out;
 	}
 
-	if (cmyth_recorder_change_channel(control, recorder,
-					  direction) < 0) {
+	if (cmyth_recorder_change_channel(recorder, direction) < 0) {
 		fprintf(stderr, "channel change failed\n");
 		ret = -1;
 		goto out;
@@ -2070,7 +2071,7 @@ int __change_channel(direction)
 	 */
 	if (mythtv_ringbuf) {
 #if 0
-		if (cmyth_recorder_stop_livetv(control, recorder) != 0) {
+		if (cmyth_recorder_stop_livetv(recorder) != 0) {
 			fprintf(stderr, "stop livetv failed\n");
 			ret = -1;
 			goto out;
@@ -2086,8 +2087,7 @@ int __change_channel(direction)
 	}
 
 	if (current_prog)
-		cmyth_recorder_get_program_info(control, recorder,
-						current_prog);
+		cmyth_recorder_get_program_info(recorder, current_prog);
 
 	// we need to reset the ringbuffer reader to the start of the file
 	// since the backend always resets the pointer.
@@ -2157,7 +2157,7 @@ livetv_size(void)
 	 */
 
 	pthread_mutex_lock(&myth_mutex);
-	seek_pos = cmyth_ringbuf_seek(control, recorder, 0, SEEK_CUR);
+	seek_pos = cmyth_ringbuf_seek(recorder, 0, SEEK_CUR);
 	PRINTF("%s(): pos %lld\n", __FUNCTION__, seek_pos);
 	pthread_mutex_unlock(&myth_mutex);
 
@@ -2244,19 +2244,18 @@ livetv_select_callback(mvp_widget_t *widget, char *item, void *key)
 	busy_start();
 	pthread_mutex_lock(&myth_mutex);
 
-	if (cmyth_recorder_pause(control, recorder) < 0) {
+	if (cmyth_recorder_pause(recorder) < 0) {
 		fprintf(stderr, "channel change (pause) failed\n");
 		goto err;
 	}
 
-	if (cmyth_recorder_set_channel(control, recorder, channame) < 0) {
+	if (cmyth_recorder_set_channel(recorder, channame) < 0) {
 		fprintf(stderr, "channel change failed!\n");
 		goto err;
 	}
 
 	if (current_prog)
-		cmyth_recorder_get_program_info(control, recorder,
-						current_prog);
+		cmyth_recorder_get_program_info(recorder, current_prog);
 
 	demux_reset(handle);
 	demux_attr_reset(handle);
@@ -2327,7 +2326,7 @@ get_livetv_programs_rec(int id, struct livetv_prog **list, int *n, int *p)
 	const char *description;
 	char start[256], end[256], *ptr;
 	int cur_id, i; 
-	int c = 0, unique = 0, busy = 0;
+	int shows = 0, unique = 0, busy = 0;
 	struct livetv_proginfo *pi;
 	
 	cur_id = cmyth_recorder_get_recorder_id(recorder);
@@ -2337,21 +2336,22 @@ get_livetv_programs_rec(int id, struct livetv_prog **list, int *n, int *p)
 
 	next_prog = cmyth_proginfo_create();
 
-	if (cur_id != id)
+	if (cur_id != id) {
 		if ((rec=cmyth_conn_get_recorder_from_num(control,
 							       id)) == NULL) {
 			fprintf(stderr,
 				"failed to connect to tuner %d!\n", id);
 			return -1;
 		}
+	}
 
-	if (cmyth_recorder_is_recording(control, rec) == 1)
+	if (cmyth_recorder_is_recording(rec) == 1)
 		busy = 1;
 
 	cur = cmyth_proginfo_create();
 	cmyth_proginfo_hold(cur);
 	
-	if (cmyth_recorder_get_program_info(control, rec, cur) < 0) {
+	if (cmyth_recorder_get_program_info(rec, cur) < 0) {
 		fprintf(stderr, "get program info failed!\n");
 		return -1;
 	}
@@ -2359,7 +2359,7 @@ get_livetv_programs_rec(int id, struct livetv_prog **list, int *n, int *p)
 	start_channame = (char *) cmyth_proginfo_channame(cur);
 
 	do {
-		if (cmyth_recorder_get_next_program_info(control, rec, cur,
+		if (cmyth_recorder_get_next_program_info(rec, cur,
 							 next_prog, 1) < 0) {
 			fprintf(stderr, "get next program info failed!\n");
 			break;
@@ -2387,7 +2387,7 @@ get_livetv_programs_rec(int id, struct livetv_prog **list, int *n, int *p)
 		}
 
 		cur = next_prog;
-		c++;
+		shows++;
 
 		/*
 		 * Search for duplicates only if the show has a title.
@@ -2441,9 +2441,10 @@ get_livetv_programs_rec(int id, struct livetv_prog **list, int *n, int *p)
 	}
 	cmyth_proginfo_release(next_prog);
 
-	printf("Found %d shows on recorder %d (%d unique)\n", c, id, unique);
+	printf("Found %d shows on recorder %d (%d unique)\n",
+	       shows, id, unique);
 
-	return c;
+	return shows;
 }
 
 static int
@@ -2628,19 +2629,18 @@ mythtv_livetv_select(int which)
 		busy_start();
 		pthread_mutex_lock(&myth_mutex);
 
-		if (cmyth_recorder_pause(control, recorder) < 0) {
+		if (cmyth_recorder_pause(recorder) < 0) {
 			fprintf(stderr, "channel change (pause) failed\n");
 			goto err;
 		}
 
-		if (cmyth_recorder_set_channel(control, recorder, channame) < 0) {
+		if (cmyth_recorder_set_channel(recorder, channame) < 0) {
 			fprintf(stderr, "channel change failed!\n");
 			goto err;
 		}
 
 		if (current_prog)
-			cmyth_recorder_get_program_info(control, recorder,
-							current_prog);
+			cmyth_recorder_get_program_info(recorder, current_prog);
 
 		demux_reset(handle);
 		demux_attr_reset(handle);
