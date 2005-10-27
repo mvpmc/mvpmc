@@ -1559,6 +1559,7 @@ mythtv_key_callback(mvp_widget_t *widget, char key)
 					   (void*)(MYTHTV_POPUP_TUNER+i),
 					   &mythtv_popup_item_attr);
 		}
+		mythtv_popup_item_attr.selectable = 1;
 		mvpw_menu_hilite_item(mythtv_popup,
 				      (void*)MYTHTV_POPUP_LIVE_INFO);
 		mvpw_show(mythtv_popup);
