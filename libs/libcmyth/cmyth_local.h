@@ -161,6 +161,7 @@ struct cmyth_conn {
 	cmyth_atomic_t refcount;
 	unsigned long conn_version;
 	volatile int conn_hang;
+	int conn_tcp_rcvbuf;
 };
 
 struct cmyth_recorder {
@@ -169,7 +170,7 @@ struct cmyth_recorder {
 	char *rec_server;
 	int rec_port;
 	cmyth_ringbuf_t rec_ring;
-	cmyth_conn_t rec_data;
+	cmyth_conn_t rec_conn;
 	double rec_framerate;
 	cmyth_atomic_t refcount;
 };

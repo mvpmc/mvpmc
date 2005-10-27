@@ -138,6 +138,8 @@ extern cmyth_file_t cmyth_conn_connect_file(cmyth_proginfo_t prog,
 					    unsigned buflen, int tcp_rcvbuf);
 extern int cmyth_conn_connect_ring(cmyth_recorder_t rec, unsigned buflen,
 				   int tcp_rcvbuf);
+extern int cmyth_conn_connect_recorder(cmyth_recorder_t rec,
+				       unsigned buflen, int tcp_rcvbuf);
 
 extern int cmyth_conn_check_block(cmyth_conn_t conn, unsigned long size);
 
@@ -168,11 +170,9 @@ extern int cmyth_recorder_request_block(cmyth_conn_t control,
 					cmyth_recorder_t rec,
 					unsigned len);
 
-extern int cmyth_recorder_is_recording(cmyth_conn_t control,
-				       cmyth_recorder_t rec);
+extern int cmyth_recorder_is_recording(cmyth_recorder_t rec);
 
-extern int cmyth_recorder_get_framerate(cmyth_conn_t control,
-					cmyth_recorder_t rec,
+extern int cmyth_recorder_get_framerate(cmyth_recorder_t rec,
 					double *rate);
 
 extern long long cmyth_recorder_get_frames_written(cmyth_conn_t control,
@@ -201,8 +201,7 @@ extern int cmyth_recorder_frontend_ready(cmyth_conn_t control,
 extern int cmyth_recorder_cancel_next_recording(cmyth_conn_t control,
 						cmyth_recorder_t rec);
 
-extern int cmyth_recorder_pause(cmyth_conn_t control,
-				cmyth_recorder_t rec);
+extern int cmyth_recorder_pause(cmyth_recorder_t rec);
 
 extern int cmyth_recorder_finish_recording(cmyth_conn_t control,
 					   cmyth_recorder_t rec);
@@ -213,12 +212,10 @@ extern int cmyth_recorder_toggle_channel_favorite(cmyth_conn_t control,
 extern int cmyth_recorder_toggle_channel_favorite(cmyth_conn_t control,
 						  cmyth_recorder_t rec);
 
-extern int cmyth_recorder_change_channel(cmyth_conn_t control,
-					 cmyth_recorder_t rec,
+extern int cmyth_recorder_change_channel(cmyth_recorder_t rec,
 					 cmyth_channeldir_t direction);
 
-extern int cmyth_recorder_set_channel(cmyth_conn_t control,
-				      cmyth_recorder_t rec,
+extern int cmyth_recorder_set_channel(cmyth_recorder_t rec,
 				      char *channame);
 
 extern int cmyth_recorder_change_color(cmyth_conn_t control,
@@ -245,12 +242,10 @@ extern int cmyth_recorder_check_channel_prefix(cmyth_conn_t control,
 					       cmyth_recorder_t rec,
 					       char *channame);
 
-extern int cmyth_recorder_get_program_info(cmyth_conn_t control,
-					   cmyth_recorder_t rec,
+extern int cmyth_recorder_get_program_info(cmyth_recorder_t rec,
 					   cmyth_proginfo_t proginfo);
 
-extern int cmyth_recorder_get_next_program_info(cmyth_conn_t control,
-						cmyth_recorder_t rec,
+extern int cmyth_recorder_get_next_program_info(cmyth_recorder_t rec,
 						cmyth_proginfo_t cur_prog,
 						cmyth_proginfo_t next_prog,
 						cmyth_browsedir_t direction);
@@ -266,8 +261,7 @@ extern long long cmyth_recorder_seek(cmyth_conn_t control,
 				     cmyth_whence_t whence,
 				     long long curpos);
 
-extern int cmyth_recorder_spawn_livetv(cmyth_conn_t control,
-				       cmyth_recorder_t rec);
+extern int cmyth_recorder_spawn_livetv(cmyth_recorder_t rec);
 
 extern int cmyth_recorder_start_stream(cmyth_conn_t control,
 				       cmyth_recorder_t rec);
@@ -275,9 +269,9 @@ extern int cmyth_recorder_start_stream(cmyth_conn_t control,
 extern int cmyth_recorder_end_stream(cmyth_conn_t control,
 				     cmyth_recorder_t rec);
 extern char*cmyth_recorder_get_filename(cmyth_recorder_t rec);
-extern int cmyth_recorder_stop_livetv(cmyth_conn_t control, cmyth_recorder_t rec);
+extern int cmyth_recorder_stop_livetv(cmyth_recorder_t rec);
 extern void cmyth_recorder_release(cmyth_recorder_t p);
-extern int cmyth_recorder_done_ringbuf(cmyth_conn_t control, cmyth_recorder_t rec);
+extern int cmyth_recorder_done_ringbuf(cmyth_recorder_t rec);
 extern int cmyth_recorder_get_recorder_id(cmyth_recorder_t rec);
 
 /*
@@ -292,11 +286,11 @@ extern cmyth_ringbuf_t cmyth_ringbuf_create(void);
 extern cmyth_ringbuf_t cmyth_ringbuf_hold(cmyth_ringbuf_t p);
 
 extern void cmyth_ringbuf_release(cmyth_ringbuf_t p);
-extern int cmyth_ringbuf_setup(cmyth_conn_t control, cmyth_recorder_t rec);
+extern int cmyth_ringbuf_setup(cmyth_recorder_t rec);
 extern int cmyth_ringbuf_request_block(cmyth_conn_t control, cmyth_recorder_t rec, unsigned long len);
 extern int cmyth_ringbuf_select(cmyth_recorder_t rec, struct timeval *timeout);
 extern int cmyth_ringbuf_get_block(cmyth_recorder_t rec, char *buf, unsigned long len);
-extern long long cmyth_ringbuf_seek(cmyth_conn_t control, cmyth_recorder_t rec,
+extern long long cmyth_ringbuf_seek(cmyth_recorder_t rec,
 				    long long offset, int whence);
 
 /*

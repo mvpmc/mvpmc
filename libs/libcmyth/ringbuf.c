@@ -164,7 +164,7 @@ cmyth_ringbuf_release(cmyth_ringbuf_t p)
 }
 
 int
-cmyth_ringbuf_setup(cmyth_conn_t control, cmyth_recorder_t rec)
+cmyth_ringbuf_setup(cmyth_recorder_t rec)
 {
 	static const char service[]="rbuf://";
 	char *host = NULL;
@@ -179,12 +179,15 @@ cmyth_ringbuf_setup(cmyth_conn_t control, cmyth_recorder_t rec)
 	char msg[256];
 	char url[1024];
 	char buf[32];
+	cmyth_conn_t control;
 
-	if (!control || !rec) {
+	if (!rec) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: no recorder connection\n",
 			  __FUNCTION__);
 		return -EINVAL;
 	}
+
+	control = rec->rec_conn;
 
 	pthread_mutex_lock(&mutex);
 
@@ -406,7 +409,7 @@ cmyth_ringbuf_request_block(cmyth_conn_t control, cmyth_recorder_t rec,
 }
 
 /*
- * cmyth_ringbuf_seek(cmyth_ringbuf_t control,
+ * cmyth_ringbuf_seek(
  *                    cmyth_ringbuf_t file, long long offset, int whence)
  * 
  * Scope: PUBLIC
@@ -428,7 +431,7 @@ cmyth_ringbuf_request_block(cmyth_conn_t control, cmyth_recorder_t rec,
  * Failure: an int containing -errno
  */
 long long
-cmyth_ringbuf_seek(cmyth_conn_t control, cmyth_recorder_t rec,
+cmyth_ringbuf_seek(cmyth_recorder_t rec,
 		   long long offset, int whence)
 {
 	char msg[128];
@@ -439,7 +442,7 @@ cmyth_ringbuf_seek(cmyth_conn_t control, cmyth_recorder_t rec,
 	long long ret;
 	cmyth_ringbuf_t ring;
 
-	if ((control == NULL) || (rec == NULL))
+	if (rec == NULL)
 		return -EINVAL;
 
 	ring = rec->rec_ring;
@@ -458,7 +461,7 @@ cmyth_ringbuf_seek(cmyth_conn_t control, cmyth_recorder_t rec,
 		 (long)(ring->file_pos >> 32),
 		 (long)(ring->file_pos & 0xffffffff));
 
-	if ((err = cmyth_send_message(control, msg)) < 0) {
+	if ((err = cmyth_send_message(rec->rec_conn, msg)) < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_send_message() failed (%d)\n",
 			  __FUNCTION__, err);
@@ -466,8 +469,8 @@ cmyth_ringbuf_seek(cmyth_conn_t control, cmyth_recorder_t rec,
 		goto out;
 	}
 
-	count = cmyth_rcv_length(control);
-	if ((r=cmyth_rcv_long_long(control, &err, &c, count)) < 0) {
+	count = cmyth_rcv_length(rec->rec_conn);
+	if ((r=cmyth_rcv_long_long(rec->rec_conn, &err, &c, count)) < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_rcv_length() failed (%d)\n",
 			  __FUNCTION__, r);

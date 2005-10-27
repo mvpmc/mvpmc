@@ -306,6 +306,7 @@ cmyth_connect(char *server, unsigned short port, unsigned buflen,
 	ret->conn_len = 0;
 	ret->conn_pos = 0;
 	ret->conn_version = 8;
+	ret->conn_tcp_rcvbuf = tcp_rcvbuf;
 	return ret;
 
     shut:
@@ -622,6 +623,37 @@ cmyth_conn_connect_ring(cmyth_recorder_t rec, unsigned buflen, int tcp_rcvbuf)
 	return -1;
 }
 
+int
+cmyth_conn_connect_recorder(cmyth_recorder_t rec, unsigned buflen,
+			    int tcp_rcvbuf)
+{
+	cmyth_conn_t conn;
+	char *server;
+	unsigned short port;
+
+	if (!rec) {
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: rec is NULL\n", __FUNCTION__);
+		return -1;
+	}
+
+	server = rec->rec_server;
+	port = rec->rec_port;
+
+	conn = cmyth_conn_connect_ctrl(server, port, buflen, tcp_rcvbuf);
+	if (!conn) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_connect(%s, %d, %d) failed\n",
+			  __FUNCTION__, server, port, buflen);
+		return -1;
+	}
+
+	if (rec->rec_conn)
+		cmyth_conn_release(rec->rec_conn);
+	rec->rec_conn = conn;
+
+	return 0;
+}
+
 /*
  * cmyth_conn_check_block(cmyth_conn_t conn, unsigned long size)
  * 
@@ -771,6 +803,10 @@ cmyth_conn_get_recorder_from_num(cmyth_conn_t conn, int id)
 	rec->rec_server = strdup(reply);
 	rec->rec_port = port;
 
+	if (cmyth_conn_connect_recorder(rec, conn->conn_buflen,
+					conn->conn_tcp_rcvbuf) < 0)
+		goto fail;
+
 	pthread_mutex_unlock(&mutex);
 
 	return rec;
@@ -866,6 +902,10 @@ cmyth_conn_get_free_recorder(cmyth_conn_t conn)
 	rec->rec_id = id;
 	rec->rec_server = strdup(reply);
 	rec->rec_port = port;
+
+	if (cmyth_conn_connect_recorder(rec, conn->conn_buflen,
+					conn->conn_tcp_rcvbuf) < 0)
+		goto fail;
 
 	pthread_mutex_unlock(&mutex);
 
