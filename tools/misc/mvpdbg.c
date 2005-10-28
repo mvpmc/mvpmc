@@ -286,6 +286,7 @@ static int video_reg_dmp(int argc, char **argv)
 
    return(0);
 }
+
 /*******************************************************************************
  * Function: audio_reg_dmp
  * 
@@ -330,6 +331,84 @@ static int audio_reg_dmp(int argc, char **argv)
    
    return(0);
 }
+
+
+/*******************************************************************************
+ * Function: dmp_avpos
+ * 
+ * Description:  
+ *              
+ ******************************************************************************/
+static int  dmp_avpos(int argc, char **argv)
+{
+   unsigned int vb_adr, vb_len, v_read, vb_left, visr;
+   unsigned int ab_adr, ab_len, a_read, ab_left, aisr;
+   
+   vb_adr  = dcr_get(VIDEO_VCLIP_ADR);
+   vb_len  = dcr_get(VIDEO_VCLIP_LEN);
+   v_read  = dcr_get(VIDEO_CLIP_WAR);
+   vb_left = dcr_get(VIDEO_CLIP_WLR);
+   visr    = dcr_get(VIDEO_HOST_INT);
+
+   ab_adr  = dcr_get(AUDIO_QAR);
+   ab_len  = dcr_get(AUDIO_QLR);
+   a_read  = dcr_get(AUDIO_WAR);
+   ab_left = dcr_get(AUDIO_WLR);
+   aisr     = dcr_get(AUDIO_ISR);
+   
+//   printf("BuffAddr(V/A):     %08x    %08x\n", vb_adr, ab_adr);
+//   printf("BuffLen(V/A):      %08x    %08x\n", vb_len, ab_len);
+//   printf("Read(V/A):         %08x    %08x\n", v_read, a_read);
+//   printf("BuffLeft(V/A):     %08x    %08x\n", vb_left, ab_left);
+   printf("S/A/L/P/R:       %08x  %08x  %08x  %08x  %08x    %08x  %08x  %08x  %08x  %08x\n",
+          visr, vb_adr, vb_len, v_read, vb_left, aisr, ab_adr, ab_len, a_read, ab_left);
+   return(0);
+}
+
+
+
+/*******************************************************************************
+ * Function: dmp_videopos
+ * 
+ * Description:  
+ *              
+ ******************************************************************************/
+static int  dmp_videopos(int argc, char **argv)
+{
+   unsigned int vb_adr, vb_len, v_read, vb_left, isr;
+   
+   isr    = dcr_get(VIDEO_HOST_INT);
+   vb_adr  = dcr_get(VIDEO_VCLIP_ADR);
+   vb_len  = dcr_get(VIDEO_VCLIP_LEN);
+   v_read  = dcr_get(VIDEO_CLIP_WAR);
+   vb_left = dcr_get(VIDEO_CLIP_WLR);
+   
+   printf("S/A/L/P/R:       %08x    %08x  %08x  %08x  %08x\n",
+          isr, vb_adr, vb_len, v_read, vb_left);
+   return(0);
+}
+
+/*******************************************************************************
+ * Function: dmp_audiopos
+ * 
+ * Description:  
+ *              
+ ******************************************************************************/
+static int  dmp_audiopos(int argc, char **argv)
+{
+   unsigned int ab_adr, ab_len, a_read, ab_left, isr;
+   
+   isr     = dcr_get(AUDIO_ISR);
+   ab_adr  = dcr_get(AUDIO_QAR);
+   ab_len  = dcr_get(AUDIO_QLR);
+   a_read  = dcr_get(AUDIO_WAR);
+   ab_left = dcr_get(AUDIO_WLR);
+   
+   printf("S/A/L/P/R:       %08x    %08x  %08x  %08x  %08x\n",
+          isr, ab_adr, ab_len, a_read, ab_left);
+   return(0);
+}
+
 
 
 /*******************************************************************************
@@ -645,10 +724,12 @@ static void initDebug (void)
    interpExport("mm",          mem_ops,           0, MAX_PARMS, "read/write kernel space");
    interpExport("vdmp",        video_reg_dmp,     0, MAX_PARMS, "dump video registers");
    interpExport("admp",        audio_reg_dmp,     0, MAX_PARMS, "dump audio registers");
+   interpExport("avp",         dmp_avpos,         0, MAX_PARMS, "Audio/Video position registers");
+   interpExport("ap",          dmp_audiopos,      0, MAX_PARMS, "Audio position registers");
+   interpExport("vp",          dmp_videopos,      0, MAX_PARMS, "Video position registers");
    interpExport("help",        myHelp,            0, 0,         "Display cmds help");
    return;
 }
-
 
 
 /*******************************************************************************
