@@ -352,10 +352,8 @@ unsigned long curses2ir(int key) {
     case MVPW_KEY_LEFT: ir = 0x7689906f; break; /* arrow_left */
     case MVPW_KEY_RIGHT: ir = 0x7689d02f; break; /* arrow_right */
     case MVPW_KEY_UP: ir = 0x7689e01f; break; /* arrow_up */
-#if 0
     case MVPW_KEY_VOL_DOWN: ir = 0x768900ff; break; /* voldown */
     case MVPW_KEY_VOL_UP: ir = 0x7689807f; break; /* volup */
-#endif
     case MVPW_KEY_REWIND: ir = 0x7689c03f; break; /* rew */
     case MVPW_KEY_PAUSE: ir = 0x768920df; break; /* pause */
     case MVPW_KEY_SKIP: ir = 0x7689a05f; break; /* fwd */
@@ -393,19 +391,19 @@ unsigned long curses2ir(int key) {
       /*
        * Keys that may not make sense for mvpmc.
        */
-      ///    case '!': ir = 0x768940bf; break; /* power */
       ///    case 's': ir = 0x7689b847; break; /* sleep */
       ///    case '+': ir = 0x7689f807; break; /* size */
       ///    case '*': ir = 0x768904fb; break; /* brightness */
       ///    case    : ir = 0x768958a7; break; /* jump to search menu */
       ///    case    : ir = 0x7689609f; break; /* add, NOTE: if held = zap */
-      ///    case    : ir = 0x7689d827; break; /* cycle through shuffle modes */
-    case MVPW_KEY_VOL_UP:
-    case MVPW_KEY_VOL_DOWN:
-	    volume_key_callback(volume_dialog, key);
-	    mvpw_show(volume_dialog);
-	    mvpw_set_timer(volume_dialog, mvpw_hide, 3000);
-	    break;
+
+///    Let's try running vol cntrl through the server.
+///    case MVPW_KEY_VOL_UP:
+///    case MVPW_KEY_VOL_DOWN:
+///	    volume_key_callback(volume_dialog, key);
+///	    mvpw_show(volume_dialog);
+///	    mvpw_set_timer(volume_dialog, mvpw_hide, 3000);
+///	    break;
     }
     if (ir != 0) send_ir(mclient_socket, 0xff , ir, 16);
 
@@ -840,6 +838,46 @@ void receive_display_data(char * ddram, unsigned short *data, int bytes_read) {
   pthread_mutex_unlock(&mclient_mutex);
 }
 
+void receive_volume_data(unsigned short *data, int bytes_read)
+{
+  unsigned short vol_2, vol_1, vol_0;
+  unsigned short addr_hi, addr_lo;
+  uint addr; 
+  ulong vol_data;
+
+  /*
+   * Verify i2c Address for chan 1.
+   *
+   * Data starts at byte 18 (9), addres is at 32 (16)
+   * vol_data at 38 (18).
+   */
+  addr_hi = data[16] & 0xff00;
+  addr_lo = data[17] & 0xff00;
+  addr = (addr_hi + (addr_lo >> 8));
+  /*
+   * Get volume data for chan 1.
+   * Assume chan 1 & 2 (left & right) chan are same.
+   */
+  if(addr == 0x7f8)
+  {
+    vol_2 = (data[21]) & 0xff00;
+    vol_1 = (data[18]) & 0xff00;
+    vol_0 = (data[19]) & 0xff00;
+    vol_data = ((vol_2 << 8) + (vol_1) + (vol_0 >> 8));
+   /*
+    * Mvpmc vol range appears to be between 220 to 255.  Find a
+    * best fit for our vol_data we receive from the server.
+    * (If we could, we might do better if we used the square
+    * root of vol_data.))
+    * Note, using the following equation results in identical
+    * mvpmc vol levels for different mvpmc values.
+    */
+    vol_data = 238 + ((17.0 * vol_data) / 0x80000);
+    if(av_set_volume(vol_data) < 0)
+      printf("mclient:error:volume could not be set\n");
+    volume = vol_data;
+  }
+}
 
 void read_packet(int s) {
   struct sockaddr ina;
@@ -886,7 +924,8 @@ void read_packet(int s) {
       break;
     case '2':
       if(debug) printf("<= i2c data\n"); 
-      break;
+       receive_volume_data(recvbuf, bytes_read);
+     break;
     }
   }
 
