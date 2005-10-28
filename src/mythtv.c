@@ -1200,6 +1200,10 @@ control_start(void *arg)
 		printf("mythtv control thread sleeping...(pid %d)\n", pid);
 		while ((file == NULL) && (recorder == NULL))
 			pthread_cond_wait(&cond, &mutex);
+		if (file)
+			printf("%s(): starting file playback\n", __FUNCTION__);
+		if (recorder)
+			printf("%s(): starting rec playback\n", __FUNCTION__);
 		pthread_mutex_unlock(&mutex);
 
 		printf("mythtv control thread starting...(pid %d)\n", pid);
@@ -1207,8 +1211,6 @@ control_start(void *arg)
 		attr = demux_get_attr(handle);
 
 		if (mythtv_livetv) {
-			if ((c=cmyth_conn_hold(control)) == NULL)
-				goto end;
 			if ((r=cmyth_recorder_hold(recorder)) == NULL)
 				goto end;
 		} else {
@@ -1251,7 +1253,7 @@ control_start(void *arg)
 			}
 
 			if (mythtv_livetv)
-				len = cmyth_ringbuf_request_block(c, r, size);
+				len = cmyth_ringbuf_request_block(r, size);
 			else
 				len = cmyth_file_request_block(c, f, size);
 
@@ -1330,13 +1332,14 @@ control_start(void *arg)
 		printf("%s(): len %d playing_via_mythtv %d close_mythtv %d\n",
 		       __FUNCTION__, len, playing_via_mythtv, close_mythtv);
 
-		if (mythtv_livetv)
+		if (r) {
 			cmyth_recorder_release(r);
-		else
+			mythtv_livetv_stop();
+		} else {
 			cmyth_file_release(c, f);
-		cmyth_conn_release(c);
-		if (!mythtv_livetv)
+			cmyth_conn_release(c);
 			mythtv_close_file();
+		}
 
 		if ((len == -EPIPE) || (len == -ECONNRESET) ||
 		    (len == -EBADF)) {
