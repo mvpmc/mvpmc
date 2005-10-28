@@ -345,7 +345,7 @@ cmyth_ringbuf_select(cmyth_recorder_t rec, struct timeval *timeout)
 }
 
 /*
- * cmyth_ringbuf_request_block(cmyth_ringbuf_t control, cmyth_ringbuf_t file,
+ * cmyth_ringbuf_request_block(cmyth_ringbuf_t file,
  *                          unsigned long len)
  * 
  * Scope: PUBLIC
@@ -362,7 +362,7 @@ cmyth_ringbuf_select(cmyth_recorder_t rec, struct timeval *timeout)
  * Failure: an int containing -errno
  */
 int
-cmyth_ringbuf_request_block(cmyth_conn_t control, cmyth_recorder_t rec,
+cmyth_ringbuf_request_block(cmyth_recorder_t rec,
 			    unsigned long len)
 {
 	int err, count;
@@ -382,7 +382,7 @@ cmyth_ringbuf_request_block(cmyth_conn_t control, cmyth_recorder_t rec,
 		 "QUERY_RECORDER %u[]:[]REQUEST_BLOCK_RINGBUF[]:[]%ld",
 		 rec->rec_id, len);
 
-	if ((err = cmyth_send_message(control, msg)) < 0) {
+	if ((err = cmyth_send_message(rec->rec_conn, msg)) < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_send_message() failed (%d)\n",
 			  __FUNCTION__, err);
@@ -390,8 +390,8 @@ cmyth_ringbuf_request_block(cmyth_conn_t control, cmyth_recorder_t rec,
 		goto out;
 	}
 
-	count = cmyth_rcv_length(control);
-	if ((r=cmyth_rcv_long(control, &err, &c, count)) < 0) {
+	count = cmyth_rcv_length(rec->rec_conn);
+	if ((r=cmyth_rcv_long(rec->rec_conn, &err, &c, count)) < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_rcv_length() failed (%d)\n",
 			  __FUNCTION__, r);

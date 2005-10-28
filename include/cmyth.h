@@ -287,7 +287,7 @@ extern cmyth_ringbuf_t cmyth_ringbuf_hold(cmyth_ringbuf_t p);
 
 extern void cmyth_ringbuf_release(cmyth_ringbuf_t p);
 extern int cmyth_ringbuf_setup(cmyth_recorder_t rec);
-extern int cmyth_ringbuf_request_block(cmyth_conn_t control, cmyth_recorder_t rec, unsigned long len);
+extern int cmyth_ringbuf_request_block(cmyth_recorder_t rec, unsigned long len);
 extern int cmyth_ringbuf_select(cmyth_recorder_t rec, struct timeval *timeout);
 extern int cmyth_ringbuf_get_block(cmyth_recorder_t rec, char *buf, unsigned long len);
 extern long long cmyth_ringbuf_seek(cmyth_recorder_t rec,
