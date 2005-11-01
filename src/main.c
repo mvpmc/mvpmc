@@ -180,10 +180,10 @@ sighandler(int sig)
 	/*
 	 * Allow the child to do any exit processing before killing it.
 	 */
-	kill(child, sig);
+	kill(-child, sig);
 	usleep(1000*250);
 
-	kill(child, SIGKILL);
+	kill(-child, SIGKILL);
 	if (shmctl(shmid, IPC_RMID, NULL) != 0)
 		perror("shmctl()");
 	exit(sig);
@@ -229,6 +229,7 @@ spawn_child(void)
 
 	while (1) {
 		if ((child=fork()) == 0) {
+			setsid();
 			printf("child pid %d\n", getpid());
 			close(fd);
 			signal(SIGINT, doexit);
@@ -253,9 +254,9 @@ spawn_child(void)
 
 					if (power == 0) {
 						printf("Power OFF\n");
-						kill(child, SIGINT);
+						kill(-child, SIGINT);
 						usleep(5000);
-						kill(child, SIGKILL);
+						kill(-child, SIGKILL);
 						av_set_led(0);
 					} else {
 						printf("Power ON\n");
