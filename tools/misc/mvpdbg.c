@@ -409,8 +409,99 @@ static int  dmp_audiopos(int argc, char **argv)
    return(0);
 }
 
+/*******************************************************************************
+ * Function: get_video_ts
+ * 
+ * Description:  
+ *              
+ ******************************************************************************/
+static int  get_ts(int argc, char **argv)
+{
+   unsigned int mask, hour, minute, second, ms;
+   unsigned long long ts;
+
+   if ( argc == 1 ) {
+      PRT( "   %s  <vid_stc=1 | vid_pts=2 | aud_stc=4 | aud_pts=8>\n",argv[0]);
+      return(0);
+   }
+
+   mask = STRTOHEX(argv[1]);
+   
+   if ( mask & 0x01 ) {
+      mvpstb_get_vid_stc(&ts);
+      printf("vid_stc=%09llX ", ts);
+		second = ts / PTS_HZ;
+		hour = second / 3600;
+		minute = second / 60 - hour * 60;
+		second = second % 60;
+      ms = (ts / ( PTS_HZ / 1000 )) % 1000; 
+      printf("(%02d:%02d:%02d.%03d)\n", hour, minute, second, ms);
+   }
+
+   if ( mask & 0x02 ) {
+      mvpstb_get_vid_pts(&ts);
+      printf("vid_pts=%09llX ", ts);
+		second = ts / PTS_HZ;
+		hour = second / 3600;
+		minute = second / 60 - hour * 60;
+		second = second % 60;
+      ms = (ts / ( PTS_HZ / 1000 )) % 1000; 
+      printf("(%02d:%02d:%02d.%03d)\n", hour, minute, second, ms);
+   }
+
+   if ( mask & 0x04 ) {
+      mvpstb_get_aud_stc(&ts);
+      printf("aud_stc=%09llX ", ts);
+		second = ts / PTS_HZ;
+		hour = second / 3600;
+		minute = second / 60 - hour * 60;
+		second = second % 60;
+      ms = (ts / ( PTS_HZ / 1000 )) % 1000; 
+      printf("(%02d:%02d:%02d.%03d)\n", hour, minute, second, ms);
+   }
+      
+   if ( mask & 0x08 ) {
+      mvpstb_get_aud_pts(&ts);
+      printf("aud_pts=%09llX ", ts);
+		second = ts / PTS_HZ;
+		hour = second / 3600;
+		minute = second / 60 - hour * 60;
+		second = second % 60;
+      ms = (ts / ( PTS_HZ / 1000 )) % 1000; 
+      printf("(%02d:%02d:%02d.%03d)\n", hour, minute, second, ms);
+   }
+   return(0);
+}
 
 
+/*******************************************************************************
+ * Function: set_sync
+ * 
+ * Description:  
+ *              
+ ******************************************************************************/
+static int  set_sync(int argc, char **argv)
+{
+   int on;
+
+   if ( argc < 3 ) {
+      PRT( "   %s  <a|v> <1=on|0=off>\n",argv[0]);
+      return(0);
+   }
+
+   on = STRTODEC(argv[2]);
+   if ( tolower(argv[1][0]) == 'a' ) {
+      mvpstb_set_audio_sync(on);
+   }
+   else if ( tolower(argv[1][0]) == 'v' ) {
+      mvpstb_set_video_sync(on);
+   }
+   else {
+      PRT( "   %s  <a|v> <1=on|0=off>\n",argv[0]);
+   }
+   return(0);
+
+}
 /*******************************************************************************
  * Function: mem_ops
  * 
@@ -727,6 +818,8 @@ static void initDebug (void)
    interpExport("avp",         dmp_avpos,         0, MAX_PARMS, "Audio/Video position registers");
    interpExport("ap",          dmp_audiopos,      0, MAX_PARMS, "Audio position registers");
    interpExport("vp",          dmp_videopos,      0, MAX_PARMS, "Video position registers");
+   interpExport("gts",         get_ts,            0, MAX_PARMS, "Get timestamps: stc/pts");
+   interpExport("setsync",     set_sync,          0, MAX_PARMS, "Enable/disable audio/video sync");
    interpExport("help",        myHelp,            0, 0,         "Display cmds help");
    return;
 }

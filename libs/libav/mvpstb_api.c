@@ -123,3 +123,110 @@ int dcr_write(unsigned long regaddr, unsigned int data)
    return(ioctl(mvpstb_fd, MVPMOD_WRITE_DCR, &pdb));
 }
 
+/*******************************************************************************
+   Name:  mvpstb_get_vid_stc
+   Description: 
+   Return:      
+*******************************************************************************/  
+int mvpstb_get_vid_stc(unsigned long long *vstc)
+{
+   struct mvpmod_iocrw pdb;
+   if ( mvpstb_open() ) {
+      return -1;
+   }
+
+   pdb.info[0] = TS_VIDEO_STC;
+   pdb.res.buff.addr = vstc;
+   return(ioctl(mvpstb_fd, MVPMOD_GET_TS, &pdb));
+}
+
+/*******************************************************************************
+   Name:  mvpstb_get_vid_pts
+   Description: 
+   Return:      
+*******************************************************************************/  
+int mvpstb_get_vid_pts(unsigned long long *vpts)
+{
+   struct mvpmod_iocrw pdb;
+
+   if ( mvpstb_open() ) {
+      return -1;
+   }
+
+   pdb.info[0] = TS_VIDEO_PTS;
+   pdb.res.buff.addr = vpts;
+   return(ioctl(mvpstb_fd, MVPMOD_GET_TS, &pdb));
+}
+
+/*******************************************************************************
+   Name:  mvpstb_get_aud_stc
+   Description: 
+   Return:      
+*******************************************************************************/  
+int mvpstb_get_aud_stc(unsigned long long *astc)
+{
+   struct mvpmod_iocrw pdb;
+
+   if ( mvpstb_open() ) {
+      return -1;
+   }
+
+   pdb.info[0] = TS_AUDIO_STC;
+   pdb.res.buff.addr = astc;
+   return(ioctl(mvpstb_fd, MVPMOD_GET_TS, &pdb));
+}
+
+/*******************************************************************************
+   Name:  mvpstb_get_aud_pts
+   Description: 
+   Return:      
+*******************************************************************************/  
+int mvpstb_get_aud_pts(unsigned long long *apts)
+{
+   struct mvpmod_iocrw pdb;
+
+   if ( mvpstb_open() ) {
+      return -1;
+   }
+
+   pdb.info[0] = TS_AUDIO_PTS;
+   pdb.res.buff.addr = apts;
+   return(ioctl(mvpstb_fd, MVPMOD_GET_TS, &pdb));
+}
+
+/*******************************************************************************
+   Name:  mvpstb_set_video_sync
+   Description: 
+   Return:      
+*******************************************************************************/  
+int mvpstb_set_video_sync(int on)
+{
+   struct mvpmod_iocrw pdb;
+
+   if ( mvpstb_open() ) {
+      return -1;
+   }
+
+   pdb.info[0] = MVPMOD_VIDEO;
+   pdb.info[1] = on;
+   return(ioctl(mvpstb_fd, MVPMOD_SET_SYNC, &pdb));
+}
+
+/*******************************************************************************
+   Name:  mvpstb_set_audio_sync
+   Description: 
+   Return:      
+*******************************************************************************/  
+int mvpstb_set_audio_sync(int on)
+{
+   struct mvpmod_iocrw pdb;
+
+   if ( mvpstb_open() ) {
+      return -1;
+   }
+
+   pdb.info[0] = MVPMOD_AUDIO;
+   pdb.info[1] = on;
+   return(ioctl(mvpstb_fd, MVPMOD_SET_SYNC, &pdb));
+}
+

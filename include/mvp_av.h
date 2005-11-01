@@ -166,5 +166,12 @@ int kern_read(unsigned long memaddr, void *buffaddr, unsigned int size);
 int kern_write(unsigned long memaddr, void *buffaddr, unsigned int size);
 int dcr_read(unsigned long regaddr, unsigned int *data);
 int dcr_write(unsigned long regaddr, unsigned int data);
+int mvpstb_get_vid_stc(unsigned long long *vstc);
+int mvpstb_get_vid_pts(unsigned long long *vpts);
+int mvpstb_get_aud_stc(unsigned long long *astc);
+int mvpstb_get_aud_pts(unsigned long long *apts);
+int mvpstb_set_video_sync(int on);
+int mvpstb_set_audio_sync(int on);
+
 
 #endif /* MVP_AV_H */

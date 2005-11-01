@@ -20,6 +20,19 @@
 #ifndef __mvpstb_mod_h_
 #define __mvpstb_mod_h_
 
+
+enum stb_ts_type {
+   TS_VIDEO_STC = 1,
+   TS_VIDEO_PTS,
+   TS_AUDIO_STC,
+   TS_AUDIO_PTS
+};
+
+enum mvpmod_av {
+   MVPMOD_VIDEO = 1,
+   MVPMOD_AUDIO
+};
+
 /*******************
  * Ioctl definitions
  *******************/
@@ -49,9 +62,11 @@ struct mvpmod_iocrw {
 #define MVPMOD_READ_DCR        _IOWR(MVPMOD_IOC_MAGIC,   4, struct mvpmod_iocrw)
 #define MVPMOD_WRITE_DCR       _IOWR(MVPMOD_IOC_MAGIC,   5, struct mvpmod_iocrw)
 
-#define MVPMOD_FINAL_NUM 5
+#define MVPMOD_GET_TS          _IOWR(MVPMOD_IOC_MAGIC,   6, struct mvpmod_iocrw)
+#define MVPMOD_SET_SYNC        _IOWR(MVPMOD_IOC_MAGIC,   7, struct mvpmod_iocrw)
 
-#define MVPMOD_IOC_MAXNR 5
+#define MVPMOD_FINAL_NUM 7
+#define MVPMOD_IOC_MAXNR 7
 
 
 
@@ -62,6 +77,8 @@ struct mvpmod_iocrw {
 #define VIDEO_CHIP_CTRL      VIDEO_DCR_BASE + 0x00
 #define VIDEO_SYNC_STC0      VIDEO_DCR_BASE + 0x02
 #define VIDEO_SYNC_STC1      VIDEO_DCR_BASE + 0x03
+#define VIDEO_SYNC_PTS0      VIDEO_DCR_BASE + 0x04
+#define VIDEO_SYNC_PTS1      VIDEO_DCR_BASE + 0x05
 #define VIDEO_FIFO           VIDEO_DCR_BASE + 0x06
 #define VIDEO_FIFO_STAT      VIDEO_DCR_BASE + 0x07
 #define VIDEO_CMD_DATA       VIDEO_DCR_BASE + 0x09
@@ -133,6 +150,11 @@ struct mvpmod_iocrw {
 #define AUDIO_OFFSETS             0x1BD
 #define AUDIO_WLR                 0x1BE
 #define AUDIO_WAR2                0x1BF
+
+
+#define VIDEO_CHIP_CTRL_DIS_SYNC     0x00000010
+
+#define AUDIO_CTRL0_ENABLE_SYNC     0x00000200
 
 
 #endif

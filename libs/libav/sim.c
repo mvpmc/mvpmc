@@ -277,3 +277,28 @@ dcr_write(unsigned long regaddr, unsigned int data)
 {
    return 0;
 }
+
+int 
+mvpstb_get_vid_stc(unsigned long long *vstc)
+{
+   return 0;
+}
+
+int 
+mvpstb_get_vid_pts(unsigned long long *vpts)
+{
+   return 0;
+}
+
+int 
+mvpstb_get_aud_stc(unsigned long long *astc)
+{
+   return 0;
+}
+
+int 
+mvpstb_get_aud_pts(unsigned long long *apts)
+{
+   return 0;
+}
+
