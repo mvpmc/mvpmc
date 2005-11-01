@@ -1230,6 +1230,10 @@ control_start(void *arg)
 			} else {
 				if ((attr->video.bufsz -
 				     attr->video.stats.cur_bytes) < BSIZE) {
+					if (paused) {
+						usleep(1000);
+						continue;
+					}
 					size = attr->video.bufsz -
 						attr->video.stats.cur_bytes -
 						1024;
