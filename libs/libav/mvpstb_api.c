@@ -124,6 +124,40 @@ int dcr_write(unsigned long regaddr, unsigned int data)
 }
 
 /*******************************************************************************
+   Name:  mvpmod_start_audit
+   Description: 
+   Return:      
+*******************************************************************************/  
+int mvpmod_start_audit(unsigned long interval_ms)
+{
+   struct mvpmod_iocrw pdb;
+
+   if ( mvpstb_open() ) {
+      return -1;
+   }
+
+   pdb.info[0] = interval_ms;
+   
+   return(ioctl(mvpstb_fd, MVPMOD_START_AUDIT, &pdb));
+}
+
+/*******************************************************************************
+   Name:  mvpmod_stop_audit
+   Description: 
+   Return:      
+*******************************************************************************/  
+int mvpmod_stop_audit(void)
+{
+   struct mvpmod_iocrw pdb;
+
+   if ( mvpstb_open() ) {
+      return -1;
+   }
+   
+   return(ioctl(mvpstb_fd, MVPMOD_STOP_AUDIT, &pdb));
+}
+
+/*******************************************************************************
    Name:  mvpstb_get_vid_stc
    Description: 
    Return:      

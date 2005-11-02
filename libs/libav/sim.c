@@ -302,3 +302,14 @@ mvpstb_get_aud_pts(unsigned long long *apts)
    return 0;
 }
 
+int 
+mvpmod_start_audit(unsigned long interval_ms)
+{
+   return 0;
+}
+
+int 
+mvpmod_stop_audit(void)
+{
+   return 0;
+}

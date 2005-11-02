@@ -65,8 +65,11 @@ struct mvpmod_iocrw {
 #define MVPMOD_GET_TS          _IOWR(MVPMOD_IOC_MAGIC,   6, struct mvpmod_iocrw)
 #define MVPMOD_SET_SYNC        _IOWR(MVPMOD_IOC_MAGIC,   7, struct mvpmod_iocrw)
 
-#define MVPMOD_FINAL_NUM 7
-#define MVPMOD_IOC_MAXNR 7
+#define MVPMOD_START_AUDIT     _IOWR(MVPMOD_IOC_MAGIC,   8, struct mvpmod_iocrw)
+#define MVPMOD_STOP_AUDIT      _IO(MVPMOD_IOC_MAGIC,   9)
+
+#define MVPMOD_FINAL_NUM 9
+#define MVPMOD_IOC_MAXNR 9
 
 
 

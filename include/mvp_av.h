@@ -172,6 +172,7 @@ int mvpstb_get_aud_stc(unsigned long long *astc);
 int mvpstb_get_aud_pts(unsigned long long *apts);
 int mvpstb_set_video_sync(int on);
 int mvpstb_set_audio_sync(int on);
-
+int mvpmod_start_audit(unsigned long interval_ms);
+int mvpmod_stop_audit(void);
 
 #endif /* MVP_AV_H */

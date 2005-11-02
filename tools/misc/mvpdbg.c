@@ -502,6 +502,44 @@ static int  set_sync(int argc, char **argv)
    return(0);
 
 }
+
+
+/*******************************************************************************
+ * Function: start_audit
+ * 
+ * Description:  
+ *              
+ ******************************************************************************/
+static int  start_audit(int argc, char **argv)
+{
+   int interval;
+
+   if ( argc < 2 ) {
+      PRT( "   %s  <interval mS>\n",argv[0]);
+      return(0);
+   }
+
+   interval = STRTODEC(argv[1]);
+   mvpmod_start_audit(interval);
+   return(0);
+
+}
+
+
+/*******************************************************************************
+ * Function: stop_audit
+ * 
+ * Description:  
+ *              
+ ******************************************************************************/
+static int  stop_audit(int argc, char **argv)
+{
+   mvpmod_stop_audit();
+   return(0);
+
+}
+
+
 /*******************************************************************************
  * Function: mem_ops
  * 
@@ -820,6 +858,8 @@ static void initDebug (void)
    interpExport("vp",          dmp_videopos,      0, MAX_PARMS, "Video position registers");
    interpExport("gts",         get_ts,            0, MAX_PARMS, "Get timestamps: stc/pts");
    interpExport("setsync",     set_sync,          0, MAX_PARMS, "Enable/disable audio/video sync");
+   interpExport("start_aud",   start_audit,       0, MAX_PARMS, "Start kernel audit");
+   interpExport("stop_aud",    stop_audit,        0, MAX_PARMS, "Stop kernel audit");
    interpExport("help",        myHelp,            0, 0,         "Display cmds help");
    return;
 }
