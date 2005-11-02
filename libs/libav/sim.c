@@ -302,6 +302,18 @@ mvpstb_get_aud_pts(unsigned long long *apts)
    return 0;
 }
 
+int
+mvpstb_set_video_sync(int on)
+{
+   return 0;
+}
+
+int
+mvpstb_set_audio_sync(int on)
+{
+   return 0;
+}
+
 int 
 mvpmod_start_audit(unsigned long interval_ms)
 {
