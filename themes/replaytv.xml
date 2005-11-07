@@ -92,6 +92,24 @@
     <font>large</font>
   </widget>
 
+  <widget type="text" name="settings_ip">
+    <color type="bg">midnightblue</color>
+    <color type="fg">seashell3</color>
+    <font>large</font>
+  </widget>
+
+  <widget type="text" name="settings_ip_title">
+    <color type="bg">darkslategray</color>
+    <color type="fg">seashell3</color>
+    <font>large</font>
+  </widget>
+
+  <widget type="text" name="settings_help">
+    <color type="bg">black</color>
+    <color type="fg">gray40</color>
+    <font>large</font>
+  </widget>
+
   <!--
      - Menu widget settings
     -->

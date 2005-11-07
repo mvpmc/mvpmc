@@ -89,6 +89,7 @@ extern video_callback_t file_functions;
 
 extern volatile int video_playing;
 
+extern char *replaytv_server;
 extern char *mythtv_server;
 extern int mythtv_debug;
 extern volatile mythtv_state_t mythtv_state;

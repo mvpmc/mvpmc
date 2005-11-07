@@ -347,6 +347,39 @@ static mvpw_text_attr_t ct_fgbg_box_attr = {
 	.fg = MVPW_GREEN,
 };
 
+static mvpw_text_attr_t settings_ip_attr = {
+	.wrap = 0,
+	.justify = MVPW_TEXT_LEFT,
+	.margin = 4,
+	.font = FONT_STANDARD,
+	.fg = MVPW_BLACK,
+	.bg = MVPW_WHITE,
+	.border = MVPW_BLACK,
+	.border_size = 2,
+};
+
+static mvpw_text_attr_t settings_ip_title_attr = {
+	.wrap = 0,
+	.justify = MVPW_TEXT_CENTER,
+	.margin = 4,
+	.font = FONT_STANDARD,
+	.fg = MVPW_WHITE,
+	.bg = MVPW_BLUE,
+	.border = MVPW_BLACK,
+	.border_size = 0,
+};
+
+static mvpw_text_attr_t settings_help_attr = {
+	.wrap = 1,
+	.justify = MVPW_TEXT_LEFT,
+	.margin = 4,
+	.font = FONT_STANDARD,
+	.fg = MVPW_BLACK,
+	.bg = MVPW_LIGHTGREY,
+	.border = MVPW_BLACK,
+	.border_size = 0,
+};
+
 static mvpw_dialog_attr_t warn_attr = {
 	.font = FONT_STANDARD,
 	.fg = MVPW_WHITE,
@@ -630,6 +663,15 @@ theme_attr_t theme_attr[] = {
 	{ .name = "settings_dialog",
 	  .type = WIDGET_DIALOG,
 	  .attr.dialog = &settings_dialog_attr },
+	{ .name = "settings_ip",
+	  .type = WIDGET_TEXT,
+	  .attr.text = &settings_ip_attr },
+	{ .name = "settings_ip_title",
+	  .type = WIDGET_TEXT,
+	  .attr.text = &settings_ip_title_attr },
+	{ .name = "settings_help",
+	  .type = WIDGET_TEXT,
+	  .attr.text = &settings_help_attr },
 	{ .name = "splash",
 	  .type = WIDGET_TEXT,
 	  .attr.text = &splash_attr },
@@ -692,6 +734,12 @@ int volume = AV_VOLUME_MAX;
 mvp_widget_t *root;
 mvp_widget_t *iw;
 
+static void (*settings_ip_change)(char*);
+static void settings_ip_change_mythtv(char*);
+static void settings_ip_change_mclient(char*);
+
+static mvp_widget_t *settings_ip_change_widget;
+
 static mvp_widget_t *splash;
 static mvp_widget_t *splash_title;
 static mvp_widget_t *splash_graph;
@@ -703,8 +751,15 @@ static mvp_widget_t *settings_osd;
 static mvp_widget_t *settings_mythtv;
 static mvp_widget_t *settings_mythtv_control;
 static mvp_widget_t *settings_mythtv_program;
+static mvp_widget_t *settings_ip;
+static mvp_widget_t *settings_ip_label;
+static mvp_widget_t *settings_ip_title;
+static mvp_widget_t *settings_ip_old[4];
+static mvp_widget_t *settings_ip_new[4];
 static mvp_widget_t *settings_check;
 static mvp_widget_t *settings_nocheck;
+static mvp_widget_t *settings_mclient;
+static mvp_widget_t *settings_help;
 static mvp_widget_t *sub_settings;
 static mvp_widget_t *screensaver_dialog;
 static mvp_widget_t *about;
@@ -849,6 +904,7 @@ typedef enum {
 	SETTINGS_MAIN_SCREENSAVER,
 	SETTINGS_MAIN_DISPLAY,
 	SETTINGS_MAIN_MYTHTV,
+	SETTINGS_MAIN_MCLIENT,
 	SETTINGS_MAIN_OSD,
 	SETTINGS_MAIN_SAVE,
 	SETTINGS_MAIN_VIEWPORT,
@@ -892,6 +948,8 @@ enum {
 };
 
 static void settings_display_mode_callback(mvp_widget_t*, char*, void*);
+
+static void main_menu_items(void);
 
 osd_widget_t osd_widgets[MAX_OSD_WIDGETS];
 osd_settings_t osd_settings = {
@@ -1202,6 +1260,104 @@ settings_mythtv_program_key_callback(mvp_widget_t *widget, char key)
 			config->mythtv_tcp_program = mythtv_tcp_program;
 			config->bitmask |= CONFIG_MYTHTV_PROGRAM;
 		}
+	}
+}
+
+static void
+settings_ip_change_mythtv(char *buf)
+{
+	printf("Setting new MythTV IP address: %s\n", buf);
+
+	if (mythtv_server) {
+		free(mythtv_server);
+	}
+	mythtv_server = strdup(buf);
+
+	config->bitmask |= CONFIG_MYTHTV_IP;
+	strncpy(config->mythtv_ip, buf, sizeof(config->mythtv_ip));
+}
+
+static void
+settings_ip_change_mclient(char *buf)
+{
+	printf("Setting new mclient IP address: %s\n", buf);
+
+	if (mclient_server) {
+		free(mclient_server);
+	}
+	mclient_server = strdup(buf);
+
+	config->bitmask |= CONFIG_MCLIENT_IP;
+	strncpy(config->mclient_ip, buf, sizeof(config->mclient_ip));
+}
+
+static void
+settings_ip_key_callback(mvp_widget_t *widget, char key)
+{
+	static int which = 0;
+	static unsigned char new[4];
+	int tmp;
+	char buf[64];
+	mvpw_text_attr_t attr;
+	uint32_t c;
+
+	switch (key) {
+	case MVPW_KEY_OK:
+		snprintf(buf, sizeof(buf), "%d.%d.%d.%d",
+			 new[0], new[1], new[2], new[3]);
+		settings_ip_change(buf);
+		main_menu_items();
+		mvpw_menu_hilite_item(main_menu, (void*)MM_SETTINGS);
+		/* fall through */
+	case MVPW_KEY_EXIT:
+		mvpw_hide(widget);
+		mvpw_hide(settings_help);
+		mvpw_show(settings_ip_change_widget);
+		mvpw_focus(settings_ip_change_widget);
+		which = 0;
+		new[0] = new[1] = new[2] = new[3] = 0;
+		break;
+	case MVPW_KEY_ZERO ... MVPW_KEY_NINE:
+		tmp = new[which] * 10;
+		while (tmp > 255) {
+			snprintf(buf, sizeof(buf), "%d", tmp);
+			memmove(buf, buf+1, strlen(buf));
+			tmp = atoi(buf);
+		}
+		new[which] = tmp + (key - MVPW_KEY_ZERO);
+		snprintf(buf, sizeof(buf), "%d", new[which]);
+		mvpw_set_text_str(settings_ip_new[which], buf);
+		break;
+	case MVPW_KEY_UP:
+		break;
+	case MVPW_KEY_DOWN:
+		break;
+	case MVPW_KEY_RIGHT:
+		if (which < 3) {
+			mvpw_get_text_attr(settings_ip_new[which], &attr);
+			tmp = which++;
+			mvpw_set_text_attr(settings_ip_new[which], &attr);
+			c = attr.fg;
+			attr.fg = attr.bg;
+			attr.bg = c;
+			mvpw_set_text_attr(settings_ip_new[tmp], &attr);
+			mvpw_set_bg(settings_ip_new[tmp], c);
+			mvpw_set_bg(settings_ip_new[which], attr.fg);
+		}
+		break;
+	case MVPW_KEY_LEFT:
+		if (which > 0) {
+			mvpw_get_text_attr(settings_ip_new[which], &attr);
+			tmp = which--;
+			mvpw_set_text_attr(settings_ip_new[which], &attr);
+			c = attr.fg;
+			attr.fg = attr.bg;
+			attr.bg = c;
+			mvpw_set_text_attr(settings_ip_new[tmp], &attr);
+			mvpw_set_bg(settings_ip_new[tmp], c);
+			mvpw_set_bg(settings_ip_new[which], attr.fg);
+		}
+		break;
 	}
 }
 
@@ -2240,6 +2396,10 @@ settings_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mvpw_show(settings_mythtv);
 		mvpw_focus(settings_mythtv);
 		break;
+	case SETTINGS_MAIN_MCLIENT:
+		mvpw_show(settings_mclient);
+		mvpw_focus(settings_mclient);
+		break;
 	case SETTINGS_MAIN_OSD:
 		mvpw_show(settings_osd);
 		mvpw_focus(settings_osd);
@@ -2263,16 +2423,41 @@ static void
 mythtv_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
 	char buf[16];
+	int old[4] = { 0, 0, 0, 0 };
+	int i;
+	uint32_t c;
+	mvpw_text_attr_t attr;
 
 	mvpw_hide(widget);
 
 	switch ((settings_mythtv_t)key) {
 	case SETTINGS_MYTHTV_IP:
-		/*
-		 * XXX: what to do here...?
-		 */
-		mvpw_show(widget);
-		mvpw_focus(widget);
+		mvpw_set_text_str(settings_ip_label, "MythTV");
+		if (mythtv_server) {
+			sscanf(mythtv_server, "%d.%d.%d.%d",
+			       &old[0], &old[1], &old[2], &old[3]);
+		}
+		for (i=0; i<4; i++) {
+			snprintf(buf, sizeof(buf), "%d", old[i]);
+			mvpw_set_text_str(settings_ip_new[i], buf);
+		}
+		strncpy(buf, "0", sizeof(buf));
+		for (i=0; i<4; i++) {
+			mvpw_set_text_attr(settings_ip_new[i],
+					   &settings_ip_attr);
+			mvpw_set_bg(settings_ip_new[i], settings_ip_attr.bg);
+		}
+		mvpw_get_text_attr(settings_ip_new[0], &attr);
+		c = attr.fg;
+		attr.fg = attr.bg;
+		attr.bg = c;
+		mvpw_set_text_attr(settings_ip_new[0], &attr);
+		mvpw_set_bg(settings_ip_new[0], c);
+		settings_ip_change = settings_ip_change_mythtv;
+		settings_ip_change_widget = settings_mythtv;
+		mvpw_show(settings_help);
+		mvpw_show(settings_ip);
+		mvpw_focus(settings_ip);
 		break;
 	case SETTINGS_MYTHTV_TCP_PROGRAM:
 		snprintf(buf, sizeof(buf), "%d", mythtv_tcp_program);
@@ -2285,6 +2470,49 @@ mythtv_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mvpw_set_dialog_text(settings_mythtv_control, buf);
 		mvpw_show(settings_mythtv_control);
 		mvpw_focus(settings_mythtv_control);
+		break;
+	}
+}
+
+static void
+mclient_select_callback(mvp_widget_t *widget, char *item, void *key)
+{
+	char buf[16];
+	int old[4] = { 0, 0, 0, 0 };
+	int i;
+	uint32_t c;
+	mvpw_text_attr_t attr;
+
+	mvpw_hide(widget);
+
+	switch ((int)key) {
+	case 0:
+		mvpw_set_text_str(settings_ip_label, "SlimServer");
+		if (mclient_server) {
+			sscanf(mclient_server, "%d.%d.%d.%d",
+			       &old[0], &old[1], &old[2], &old[3]);
+		}
+		for (i=0; i<4; i++) {
+			snprintf(buf, sizeof(buf), "%d", old[i]);
+			mvpw_set_text_str(settings_ip_new[i], buf);
+		}
+		strncpy(buf, "0", sizeof(buf));
+		for (i=0; i<4; i++) {
+			mvpw_set_text_attr(settings_ip_new[i],
+					   &settings_ip_attr);
+			mvpw_set_bg(settings_ip_new[i], settings_ip_attr.bg);
+		}
+		mvpw_get_text_attr(settings_ip_new[0], &attr);
+		c = attr.fg;
+		attr.fg = attr.bg;
+		attr.bg = c;
+		mvpw_set_text_attr(settings_ip_new[0], &attr);
+		mvpw_set_bg(settings_ip_new[0], c);
+		settings_ip_change = settings_ip_change_mclient;
+		settings_ip_change_widget = settings_mclient;
+		mvpw_show(settings_help);
+		mvpw_show(settings_ip);
+		mvpw_focus(settings_ip);
 		break;
 	}
 }
@@ -2464,6 +2692,7 @@ static int
 settings_init(void)
 {
 	int x, y, w, h;
+	int i;
 
 	splash_update("Creating settings menus");
 
@@ -2503,6 +2732,8 @@ settings_init(void)
 #endif
 	mvpw_add_menu_item(settings, "MythTV",
 			   (void*)SETTINGS_MAIN_MYTHTV, &settings_item_attr);
+	mvpw_add_menu_item(settings, "mclient",
+			   (void*)SETTINGS_MAIN_MCLIENT, &settings_item_attr);
 	mvpw_add_menu_item(settings, "On-Screen-Display",
 			   (void*)SETTINGS_MAIN_OSD, &settings_item_attr);
 	mvpw_add_menu_item(settings, "Screensaver",
@@ -2606,11 +2837,9 @@ settings_init(void)
 	settings_item_attr.hilite = NULL;
 	settings_item_attr.select = mythtv_select_callback;
 
-#if 0
 	mvpw_add_menu_item(settings_mythtv,
 			   "MythTV IP Address",
 			   (void*)SETTINGS_MYTHTV_IP, &settings_item_attr);
-#endif
 	mvpw_add_menu_item(settings_mythtv,
 			   "Control TCP Receive Buffer",
 			   (void*)SETTINGS_MYTHTV_TCP_CONTROL,
@@ -2619,6 +2848,25 @@ settings_init(void)
 			   "Program TCP Receive Buffer",
 			   (void*)SETTINGS_MYTHTV_TCP_PROGRAM,
 			   &settings_item_attr);
+
+	/*
+	 * mclient settings menu
+	 */
+	settings_mclient = mvpw_create_menu(NULL, x, y, w, h,
+					    settings_attr.bg,
+					    settings_attr.border,
+					    settings_attr.border_size);
+	settings_attr.checkboxes = 0;
+	mvpw_set_menu_attr(settings_mclient, &settings_attr);
+	mvpw_set_menu_title(settings_mclient, "mclient Settings");
+	mvpw_set_key(settings_mclient, settings_item_key_callback);
+
+	settings_item_attr.hilite = NULL;
+	settings_item_attr.select = mclient_select_callback;
+
+	mvpw_add_menu_item(settings_mclient,
+			   "SlimServer IP Address",
+			   (void*)0, &settings_item_attr);
 
 	/*
 	 * settings menu with checkboxes
@@ -2685,6 +2933,82 @@ settings_init(void)
 	mvpw_set_dialog_title(settings_mythtv_program,
 			      "MythTV Program TCP Receive Buffer");
 	mvpw_set_dialog_text(settings_mythtv_program, "");
+
+	/*
+	 * IP Address entry widget
+	 */
+	h = FONT_HEIGHT(settings_ip_attr);
+	settings_ip = mvpw_create_container(NULL, x, y, w, h*2,
+					     settings_ip_attr.bg,
+					     settings_ip_attr.border,
+					     settings_ip_attr.border_size);
+
+	settings_ip_title = mvpw_create_text(settings_ip, 0, 0, w, h,
+					     settings_ip_title_attr.bg,
+					     settings_ip_title_attr.border,
+					     settings_ip_title_attr.border_size);
+	mvpw_set_text_attr(settings_ip_title, &settings_ip_title_attr);
+
+	w = mvpw_font_width(settings_ip_attr.font, "XXXXXXXXXXXXXXX");
+	settings_ip_label = mvpw_create_text(settings_ip, 0, 0, w, h,
+					     settings_ip_attr.bg,
+					     settings_ip_attr.border,
+					     settings_ip_attr.border_size);
+	mvpw_set_text_attr(settings_ip_label, &settings_ip_attr);
+	mvpw_attach(settings_ip_title, settings_ip_label, MVPW_DIR_DOWN);
+
+	w = mvpw_font_width(settings_ip_attr.font, "XXXX");
+	for (i=0; i<4; i++) {
+		settings_ip_old[i] = mvpw_create_text(settings_ip, 0, 0, w, h,
+						      settings_ip_attr.bg,
+						      settings_ip_attr.border,
+						      settings_ip_attr.border_size);
+		mvpw_set_text_attr(settings_ip_old[i], &settings_ip_attr);
+		if (i != 0)
+			mvpw_attach(settings_ip_old[i-1],
+				    settings_ip_old[i], MVPW_DIR_RIGHT);
+	}
+
+	for (i=0; i<4; i++) {
+		settings_ip_new[i] = mvpw_create_text(settings_ip, 0, 0, w, h,
+						      settings_ip_attr.bg,
+						      settings_ip_attr.border,
+						      settings_ip_attr.border_size);
+		mvpw_set_text_attr(settings_ip_new[i], &settings_ip_attr);
+		if (i != 0)
+			mvpw_attach(settings_ip_new[i-1],
+				    settings_ip_new[i], MVPW_DIR_RIGHT);
+		mvpw_show(settings_ip_new[i]);
+	}
+	mvpw_attach(settings_ip_label, settings_ip_new[0], MVPW_DIR_RIGHT);
+
+	mvpw_set_text_str(settings_ip_title, "IP Address");
+
+	mvpw_show(settings_ip_title);
+	mvpw_show(settings_ip_label);
+
+	mvpw_set_key(settings_ip, settings_ip_key_callback);
+
+	mvpw_raise(settings_ip_title);
+
+	/*
+	 * settings help
+	 */
+	h = 4 * FONT_HEIGHT(settings_help_attr);
+	w = (si.cols - 250);
+	x = (si.cols - w) / 2;
+	y = si.rows - viewport_edges[EDGE_BOTTOM] - h;
+	settings_help = mvpw_create_text(NULL, x, y, w, h,
+					 settings_help_attr.bg,
+					 settings_help_attr.border,
+					 settings_help_attr.border_size);
+	mvpw_set_text_attr(settings_help, &settings_help_attr);
+
+	mvpw_set_text_str(settings_help,
+			  "Change the IP address with the number keys.\n"
+			  "Use the right/left keys to move between octets.\n"
+			  "Press OK to accept the new IP address.\n"
+			  "Press Back/Exit to abort.");
 
 	return 0;
 }
@@ -3298,6 +3622,9 @@ main_hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 	if (!init_done)
 		return;
 
+	if (!mvpw_visible(widget))
+		return;
+
 	if (hilite) {
 		switch (k) {
 		case MM_SETTINGS:
@@ -3372,6 +3699,40 @@ main_hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 	}
 }
 
+static void
+main_menu_items(void)
+{
+	extern size_t strnlen(const char*, size_t);
+
+	mvpw_clear_menu(main_menu);
+
+	if (mythtv_server)
+		mvpw_add_menu_item(main_menu, "MythTV",
+				   (void*)MM_MYTHTV, &item_attr);
+	if (replaytv_server)
+		mvpw_add_menu_item(main_menu, "ReplayTV",
+				   (void*)MM_REPLAYTV, &item_attr);
+	mvpw_add_menu_item(main_menu, "Filesystem",
+			   (void*)MM_FILESYSTEM, &item_attr);
+	mvpw_add_menu_item(main_menu, "Settings",
+			   (void*)MM_SETTINGS, &item_attr);
+	mvpw_add_menu_item(main_menu, "About",
+			   (void*)MM_ABOUT, &item_attr);
+	if (mclient_server)
+		mvpw_add_menu_item(main_menu, "Music Client",
+				   (void*)MM_MCLIENT, &item_attr);
+	if (strnlen(vnc_server, 254))
+		mvpw_add_menu_item(main_menu, "VNC",
+			   (void*)MM_VNC, &item_attr);
+#ifdef MVPMC_HOST
+	mvpw_add_menu_item(main_menu, "Exit",
+			   (void*)MM_EXIT, &item_attr);
+#else
+	mvpw_add_menu_item(main_menu, "Reboot",
+			   (void*)MM_EXIT, &item_attr);
+#endif
+}
+
 int
 main_menu_init(char *server, char *replaytv)
 {
@@ -3380,7 +3741,6 @@ main_menu_init(char *server, char *replaytv)
 	char file[128];
 	int w;
 	int i, theme_count = 0;
-	extern size_t strnlen(const char*, size_t);
 
 	for (i=0; i<THEME_MAX; i++) {
 		if (theme_list[i].path != NULL) {
@@ -3511,31 +3871,8 @@ main_menu_init(char *server, char *replaytv)
 	item_attr.fg = attr.fg;
 	item_attr.bg = attr.bg;
 
-	if (server)
-		mvpw_add_menu_item(main_menu, "MythTV",
-				   (void*)MM_MYTHTV, &item_attr);
-	if (replaytv)
-		mvpw_add_menu_item(main_menu, "ReplayTV",
-				   (void*)MM_REPLAYTV, &item_attr);
-	mvpw_add_menu_item(main_menu, "Filesystem",
-			   (void*)MM_FILESYSTEM, &item_attr);
-	mvpw_add_menu_item(main_menu, "Settings",
-			   (void*)MM_SETTINGS, &item_attr);
-	mvpw_add_menu_item(main_menu, "About",
-			   (void*)MM_ABOUT, &item_attr);
-	if (mclient_type == MCLIENT)
-		mvpw_add_menu_item(main_menu, "Music Client",
-				   (void*)MM_MCLIENT, &item_attr);
-	if (strnlen(vnc_server, 254))
-		mvpw_add_menu_item(main_menu, "VNC",
-			   (void*)MM_VNC, &item_attr);
-#ifdef MVPMC_HOST
-	mvpw_add_menu_item(main_menu, "Exit",
-			   (void*)MM_EXIT, &item_attr);
-#else
-	mvpw_add_menu_item(main_menu, "Reboot",
-			   (void*)MM_EXIT, &item_attr);
-#endif
+	main_menu_items();
+
 	mvpw_set_key(main_menu, main_menu_callback);
 
 	return 0;

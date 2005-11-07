@@ -726,7 +726,7 @@ main(int argc, char **argv)
 	}
 #endif
 
-	if ((mclient_type == MCLIENT) && (music_client() < 0)) {
+	if (music_client() < 0) {
 		fprintf(stderr, "failed to start up music client!\n");
 		exit(1);
 	}

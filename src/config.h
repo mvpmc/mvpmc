@@ -46,6 +46,8 @@
 #define CONFIG_VOLUME		0x04000
 #define CONFIG_VIEWPORT		0x08000
 #define CONFIG_THEME		0x10000
+#define CONFIG_MYTHTV_IP	0x20000
+#define CONFIG_MCLIENT_IP	0x40000
 
 /*
  * The config_t structure will hold all the user settings that can survive
@@ -72,6 +74,8 @@ typedef struct {
 	int			volume;
 	unsigned short		viewport[4];
 	char			theme[PATH_MAX];
+	char			mythtv_ip[64];
+	char			mclient_ip[64];
 } config_t;
 
 extern config_t *config;
@@ -96,6 +100,8 @@ extern config_t *config;
 #define CONFIG_ITEM_VOLUME		0x000f
 #define CONFIG_ITEM_VIEWPORT		0x0010
 #define CONFIG_ITEM_THEME		0x0011
+#define CONFIG_ITEM_MYTHTV_IP		0x0012
+#define CONFIG_ITEM_MCLIENT_IP		0x0013
 
 /*
  * The flags in config_list_t

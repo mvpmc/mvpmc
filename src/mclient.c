@@ -189,8 +189,6 @@ static int debug = 0;
  */
 int display = 1;
 
-char *server_name;
-
 struct in_addr *server_addr_mclient = NULL;
 
 char slimp3_display[DISPLAY_SIZE];
@@ -1055,14 +1053,14 @@ mclient_local_init(void)
    */
   recvbuf = (void*)calloc(1, RECV_BUF_SIZE);
 
-  h = gethostbyname((const char *)server_name);
+  h = gethostbyname((const char *)mclient_server);
   if(h == NULL) {
-    printf("mclient:Unable to get address for %s\n", server_name);
+    printf("mclient:Unable to get address for %s\n", mclient_server);
     exit(1);
   }
   else
     {
-      printf("mclient:Was able to get an address for:%s\n", server_name);
+      printf("mclient:Was able to get an address for:%s\n", mclient_server);
     }
 
   /*
@@ -1132,8 +1130,6 @@ mclient_server_connect(void)
  */
 int music_client(void)
 {
-  server_name = mclient_server;
-
   printf("mclient:Starting mclient pthread.\n");
   pthread_create(&mclient_loop_thread_handle, &thread_attr_small, mclient_loop_thread, NULL);
 

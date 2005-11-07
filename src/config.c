@@ -49,6 +49,7 @@
 #include <mvp_av.h>
 
 #include "mvpmc.h"
+#include "mclient.h"
 #include "config.h"
 
 static int
@@ -251,6 +252,8 @@ add_item(config_list_t *list, int type)
 		ITEM_FIXED(VOLUME, volume);
 		ITEM_FIXED(VIEWPORT, viewport);
 		ITEM_STRING(THEME, theme);
+		ITEM_STRING(MYTHTV_IP, mythtv_ip);
+		ITEM_STRING(MCLIENT_IP, mclient_ip);
 	default:
 		goto err;
 		break;
@@ -326,6 +329,8 @@ get_item(config_item_t *item, int override)
 		ITEM_FIXED(VOLUME, volume);
 		ITEM_FIXED(VIEWPORT, viewport);
 		ITEM_STRING(THEME, theme);
+		ITEM_STRING(MYTHTV_IP, mythtv_ip);
+		ITEM_STRING(MCLIENT_IP, mclient_ip);
 	default:
 		return -1;
 		break;
@@ -384,6 +389,10 @@ save_config_file(char *file)
 	if (add_item(list, CONFIG_ITEM_VIEWPORT) < 0)
 		goto err;
 	if (add_item(list, CONFIG_ITEM_THEME) < 0)
+		goto err;
+	if (add_item(list, CONFIG_ITEM_MYTHTV_IP) < 0)
+		goto err;
+	if (add_item(list, CONFIG_ITEM_MCLIENT_IP) < 0)
 		goto err;
 
 	list->crc = 0;
@@ -470,6 +479,10 @@ set_config(void)
 	if (config->bitmask & CONFIG_VIEWPORT)
 		memcpy(viewport_edges, config->viewport,
 		       sizeof(viewport_edges));
+	if (config->bitmask & CONFIG_MYTHTV_IP)
+		mythtv_server = strdup(config->mythtv_ip);
+	if (config->bitmask & CONFIG_MCLIENT_IP)
+		mclient_server = strdup(config->mclient_ip);
 }
 
 int
