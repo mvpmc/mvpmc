@@ -715,6 +715,7 @@ video_callback(mvp_widget_t *widget, char key)
 				av_mute();
 			mvpw_show(ffwd_widget);
 			mvpw_hide(pause_widget);
+			screensaver_disable();
 		}
 		timed_osd(seek_osd_timeout*1000);
 		break;
@@ -1257,6 +1258,7 @@ video_read_start(void *arg)
 				av_play();
 				paused = 0;
 				mvpw_hide(pause_widget);
+				screensaver_disable();
 			}
 			if (muted)
 				av_mute();
