@@ -1,0 +1,392 @@
+  <mvpmctheme version="0" name="Easy (Primary Colors)">
+  <!-- clean, high contrast, easy theme -->
+
+  <!-- Load fonts (ignored under X11) -->
+  <font name="standard">/etc/helvB14.pcf</font>
+  <font name="large">/etc/helvB18.pcf</font>
+
+  <!-- include font overrides  -->
+  <sinclude>/tmp/font_override.xml</sinclude>
+
+  <!-- include settings options -->
+  <include>/usr/share/mvpmc/settings_1.xml</include>
+
+  <!-- BUSY bar graph -->
+  <widget type="graph" name="busy_graph">
+    <color type="left">slategray</color>
+    <color type="right">white</color>
+    <color type="border">white</color>
+    <style type="border_size">2</style>
+    <color type="bg">darkred</color>
+  </widget>
+
+  <!-- OSD bar graph -->
+  <widget type="graph" name="offset_graph">
+    <color type="bg" alpha="50%">black</color>
+    <color type="fg" alpha="50%">red</color>
+  </widget>
+
+  <!-- STARTUP splash -->
+  <widget type="text" name="splash">
+    <color type="bg">darkblue</color>
+    <color type="fg">white</color>
+    <color type="border">yellow</color>
+    <style type="border_size">2</style>
+    <font>large</font>
+  </widget>
+
+  <!-- MYTH WATCH RECORDING full screen program info -->
+  <widget type="text" name="myth_info">
+    <color type="bg">black</color>
+    <color type="fg">white</color>
+    <color type="border">yellow</color>
+    <style type="border_size">2</style>
+    <font>large</font>
+  </widget>
+
+  <!-- MYTH OSD program name -->
+  <widget type="text" name="myth_program">
+    <color type="bg" alpha="50%">black</color>
+    <color type="fg">green</color>
+    <color type="border">green</color>
+    <!-- Disable border b/c of MVPMC 0.18 repaint issues -->
+    <style type="border_size">0</style>
+    <font>large</font>
+  </widget>
+
+  <!-- MYTH OSD program description -->
+  <widget type="text" name="myth_description">
+    <color type="bg" alpha="50%">black</color>
+    <color type="fg">white</color>
+    <color type="border">green</color>
+    <!-- Disable border b/c of MVPMC 0.18 repaint issues -->
+    <style type="border_size">0</style>
+    <font>standard</font>
+  </widget>
+
+  <!-- MYTH WATCH RECORDING text description -->
+  <widget type="text" name="description">
+    <color type="bg">darkslategray</color>
+    <color type="fg">white</color>
+    <color type="border">yellow</color>
+    <style type="border_size">0</style>
+    <font>standard</font>
+  </widget>
+
+  <!-- MYTH OSD text boxes -->
+  <widget type="text" name="display">
+    <color type="bg" alpha="50%">black</color>
+    <color type="fg">white</color>
+    <color type="border">green</color>
+    <!-- Disable border b/c of MVPMC 0.18 repaint issues -->
+    <style type="border_size">0</style>
+  </widget>
+
+  <!-- BUSY pop-up -->
+  <widget type="text" name="busy_text">
+    <color type="bg">darkred</color>
+    <color type="fg">white</color>
+    <color type="border">yellow</color>
+    <style type="border_size">2</style>
+    <font>large</font>
+  </widget>
+
+  <!-- MAIN MENU -->
+  <widget type="menu" name="main_menu">
+    <color type="bg">darkblue</color>
+    <color type="fg">white</color>
+    <color type="hilite_bg">yellow</color>
+    <color type="hilite_fg">black</color>
+    <style type="hilite">square</style>
+    <color type="border">yellow</color>
+    <style type="border_size">2</style>
+    <font>large</font>
+  </widget>
+
+  <!-- MYTH MENU -->
+  <widget type="menu" name="myth_menu" copy="main_menu">
+    <style type="border_size">2</style>
+    <font>large</font>
+  </widget>
+
+  <!-- MYTH WATCH RECORDING -->
+  <widget type="menu" name="myth_browser">
+    <color type="title_bg">darkslategray</color>
+    <color type="title_fg">white</color>
+    <color type="bg">darkblue</color>
+    <color type="fg">white</color>
+    <color type="hilite_bg">yellow</color>
+    <color type="hilite_fg">black</color>
+    <style type="hilite">square</style>
+    <color type="border">yellow</color>
+    <style type="border_size">2</style>
+    <font>large</font>
+  </widget>
+
+  <!-- FILE BROWSER -->
+  <widget type="menu" name="file_browser" copy="myth_browser">
+  </widget>
+
+  <!-- OSD POP-UP MENU -->
+  <widget type="menu" name="popup">
+    <color type="bg" alpha="65%">darkred</color>
+    <color type="fg">white</color>
+    <color type="title_fg">white</color>
+    <color type="title_bg">darkslategray</color>
+    <color type="hilite_bg">yellow</color>
+    <color type="hilite_fg">black</color>
+    <style type="hilite">square</style>
+    <color type="checkbox">green</color>
+    <color type="border">yellow</color>
+    <style type="border_size">2</style>
+    <font>large</font>
+  </widget>
+
+  <!-- MYTH DELETE MENU -->
+  <widget type="menu" name="myth_delete" copy="popup">
+    <color type="bg">darkred</color>
+  </widget>
+
+  <!-- THEME SELECTION MENU -->
+  <widget type="menu" name="themes">
+    <color type="bg">darkblue</color>
+    <color type="fg">white</color>
+    <color type="title_bg">darkslategray</color>
+    <color type="title_fg">white</color>
+    <color type="hilite_bg">yellow</color>
+    <color type="hilite_fg">black</color>
+    <color type="checkbox">green</color>
+    <style type="border_size">2</style>
+    <color type="border">yellow</color>
+    <style type="hilite">square</style>
+    <font>large</font>
+  </widget>
+
+  <!-- WARNING DIALOG -->
+  <widget type="dialog" name="warning">
+    <color type="bg">darkred</color>
+    <color type="fg">white</color>
+    <color type="title_bg">darkslategray</color>
+    <color type="title_fg">white</color>
+    <color type="border">yellow</color>
+    <style type="border_size">2</style>
+    <font>large</font>
+  </widget>
+
+  <!-- ABOUT DIALOG -->
+  <widget type="dialog" name="about">
+    <color type="bg">darkred</color>
+    <color type="fg">white</color>
+    <color type="title_bg">darkslategray</color>
+    <color type="title_fg">white</color>
+    <color type="border">yellow</color>
+    <style type="border_size">2</style>
+    <font>large</font>
+  </widget>
+
+  <!-- MYTH LIVE TV -->
+  <settings name="mythtv_livetv">
+    <color type="current">green</color>
+  </settings>
+
+  <!-- MYTH UPCOMING RECORDINGS -->
+  <settings name="mythtv_pending">
+    <color type="recording">green</color>
+    <color type="will_record">white</color>
+    <color type="conflict">cyan</color>
+    <color type="other">slategray</color>
+  </settings>
+
+
+  <!-- MYTH & MCLIENT IP SETTINGS -->
+  <widget type="text" name="settings_ip">
+    <color type="bg">darkblue</color>
+    <color type="fg">white</color>
+    <color type="border">yellow</color>
+    <style type="border_size">2</style>
+    <font>large</font>
+  </widget>
+
+  <widget type="text" name="settings_ip_title">
+    <color type="bg">darkslategray</color>
+    <color type="fg">white</color>
+    <font>large</font>
+    <color type="border">yellow</color>
+    <style type="border_size">2</style>
+  </widget>
+
+  <widget type="text" name="settings_help">
+    <color type="bg">darkblue</color>
+    <color type="fg">white</color>
+    <color type="border">yellow</color>
+    <style type="border_size">2</style>
+    <font>large</font>
+  </widget>
+
+
+  <!-- OSD settings -->
+  <settings name="osd">
+    <item name="clock">off</item>
+    <item name="bitrate">on</item>
+  </settings>
+  
+  <!-- MVPMC SETTINGS MENU -->
+  <widget type="menu" name="settings">
+    <color type="bg">darkblue</color>
+    <color type="fg">white</color>
+    <color type="title_bg">darkslategray</color>
+    <color type="title_fg">white</color>
+    <color type="hilite_bg">yellow</color>
+    <color type="hilite_fg">black</color>
+    <style type="hilite">square</style>
+    <color type="border">yellow</color>
+    <style type="border_size">2</style>
+    <font>large</font>
+  </widget>
+
+  <!-- MCLIENT -->
+  <widget type="dialog" name="mclient">
+    <color type="bg">darkred</color>
+    <color type="fg">white</color>
+    <color type="title_bg">darkslategray</color>
+    <color type="title_fg">white</color>
+    <color type="border">yellow</color>
+    <style type="border_size">2</style>
+    <font>large</font>
+  </widget>
+
+
+  <!-- FILE BROWSER POPUP -->
+  <widget type="menu" name="fb_popup">
+    <color type="bg">darkred</color>
+    <color type="fg">white</color>
+    <color type="title_bg">darkslategray</color>
+    <color type="title_fg">white</color>
+    <color type="hilite_bg">yellow</color>
+    <color type="hilite_fg">black</color>
+    <color type="border">yellow</style>
+    <style type="border_size">2</style>
+    <style type="hilite">square</style>
+    <font>large</font>
+  </widget>
+
+
+  <!-- VIDEO DIALOG -->
+  <widget type="dialog" name="video_dialog">
+    <color type="bg">darkred</color>
+    <color type="fg">white</color>
+    <color type="title_bg">darkslategray</color>
+    <color type="title_fg">white</color>
+    <color type="border">yellow</color>
+    <style type="border_size">2</style>
+    <font>large</font>
+  </widget>
+
+
+ <!-- DEMUX AUDIO -->
+  <widget type="graph" name="demux_audio">
+    <color type="fg" alpha="50%">orange3</color>
+    <style type="border_size">0</style>
+    <color type="bg" alpha="50%">black</color>
+  </widget>
+
+ <!-- DEMUX VIDEO -->
+  <widget type="graph" name="demux_video" copy="demux_audio">
+  </widget>
+
+
+  <!--
+     - ReplayTV settings
+    -->
+  <widget type="menu" name="rtv_device_menu">
+    <color type="bg">darkblue</color>
+    <color type="fg">white</color>
+    <color type="hilite_bg">yellow</color>
+    <color type="hilite_fg">black</color>
+    <color type="title_bg">darkslategray</color>
+    <color type="title_fg">white</color>
+    <style type="hilite">square</style>
+    <color type="border">yellow</color>
+    <style type="border_size">2</style>
+    <font>large</font>
+  </widget>
+
+  <widget type="menu" name="rtv_show_browser">
+    <color type="bg">darkblue</color>
+    <color type="fg">white</color>
+    <color type="hilite_bg">yellow</color>
+    <color type="hilite_fg">white</color>
+    <color type="title_bg">darkslategray</color>
+    <color type="title_fg">white</color>
+    <style type="hilite">square</style>
+    <color type="border">yellow</color>
+    <style type="border_size">2</style>
+    <font>large</font>
+  </widget>
+
+  <widget type="menu" name="rtv_show_popup">
+    <color type="bg">darkred</color>
+    <color type="fg">white</color>
+    <color type="hilite_bg">yellow</color>
+    <color type="hilite_fg">black</color>
+    <color type="title_bg">darkslategray</color>
+    <color type="title_fg">white</color>
+    <style type="hilite">square</style>
+    <color type="border">yellow</color>
+    <style type="border_size">2</style>
+    <font>large</font>
+  </widget>
+
+  <widget type="graph" name="rtv_discspace_graph">
+    <color type="fg">firebrick3</color>
+    <color type="bg">gray50</color>
+  </widget>
+
+  <widget type="text" name="rtv_discovery_splash">
+    <color type="bg">darkred</color>
+    <color type="fg">white</color>
+    <font>large</font>
+  </widget>
+
+  <widget type="text" name="rtv_device_description">
+    <color type="bg">black</color>
+    <color type="fg">lightcyan4</color>
+    <font>large</font>
+  </widget>
+
+  <widget type="text" name="rtv_episode_description">
+    <color type="bg">black</color>
+    <color type="fg">lightcyan4</color>
+    <font>large</font>
+  </widget>
+
+  <widget type="text" name="rtv_osd_show_title">
+    <color type="bg" alpha="50%">black</color>
+    <color type="fg">cyan</color>
+    <font>large</font>
+  </widget>
+
+  <widget type="text" name="rtv_osd_show_description">
+    <color type="bg" alpha="50%">black</color>
+    <color type="fg">snow2</color>
+    <font>large</font>
+  </widget>
+
+  <widget type="text" name="rtv_message_window">
+    <color type="bg">darkred</color>
+    <color type="fg">white</color>
+    <font>large</font>
+    <color type="border">yellow</color>
+    <style type="border_size">2</style>
+  </widget>
+
+  <widget type="text" name="rtv_seek_osd">
+    <color type="bg" alpha="50%">black</color>
+    <color type="fg">snow2</color>
+    <font>large</font>
+  </widget>
+
+  <!-- include user theme overrides -->
+  <sinclude>/tmp/user_override.xml</sinclude>
+
+</mvpmctheme>
