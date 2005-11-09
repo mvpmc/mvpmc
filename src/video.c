@@ -82,6 +82,7 @@ static volatile int audio_selected = 0;
 static volatile int audio_checks = 0;
 static volatile int pcm_decoded = 0;
 volatile int paused = 0;
+static volatile int muted = 0;
 static int zoomed = 0;
 static int display_on = 0, display_on_alt = 0;
 
@@ -439,6 +440,11 @@ seek_by(int seconds)
 	pthread_kill(video_write_thread, SIGURG);
 	pthread_kill(audio_write_thread, SIGURG);
 
+	if (mvpw_visible(ffwd_widget)) {
+		mvpw_hide(ffwd_widget);
+		av_ffwd();
+	}
+
 	gop_seek_attempts = 0;
 	pts_seek_attempts = 0;
 
@@ -639,6 +645,7 @@ video_callback(mvp_widget_t *widget, char key)
 	case MVPW_KEY_PAUSE:
 		if (av_pause()) {
 			mvpw_show(pause_widget);
+			mvpw_hide(ffwd_widget);
 			paused = 1;
 			if (pause_osd && !display_on && (display_on_alt < 2)) {
 				display_on_alt = 2;
@@ -652,8 +659,11 @@ video_callback(mvp_widget_t *widget, char key)
 				disable_osd();
 				mvpw_expose(root);
 			}
+			if (muted)
+				av_mute();
+			else
+				mvpw_hide(mute_widget);
 			mvpw_hide(pause_widget);
-			mvpw_hide(mute_widget);
 			paused = 0;
 			screensaver_disable();
 		}
@@ -662,8 +672,8 @@ video_callback(mvp_widget_t *widget, char key)
 		if ( paused ) {
 			/*
 			 * play key can be used to un-pause
-          */
-         av_pause();
+			 */
+			av_pause();
 			if (pause_osd && !display_on &&
 			    (display_on_alt == 2)) {
 				display_on_alt = 0;
@@ -695,11 +705,16 @@ video_callback(mvp_widget_t *widget, char key)
 			av_stop();
 			av_reset();
 			av_play();
+			if (muted)
+				av_mute();
+			else
+				mvpw_hide(mute_widget);
 			mvpw_hide(ffwd_widget);
-			mvpw_hide(mute_widget);
 		} else {
-			av_mute();
+			if (!muted)
+				av_mute();
 			mvpw_show(ffwd_widget);
+			mvpw_hide(pause_widget);
 		}
 		timed_osd(seek_osd_timeout*1000);
 		break;
@@ -744,10 +759,18 @@ video_callback(mvp_widget_t *widget, char key)
 		mvpw_focus(popup_menu);
 		break;
 	case MVPW_KEY_MUTE:
-		if (av_mute() == 1)
-			mvpw_show(mute_widget);
-		else
+		if (mvpw_visible(ffwd_widget)) {
+			muted = 0;
 			mvpw_hide(mute_widget);
+			break;
+		}
+		if (av_mute() == 1) {
+			muted = 1;
+			mvpw_show(mute_widget);
+		} else {
+			muted = 0;
+			mvpw_hide(mute_widget);
+		}
 		break;
 	case MVPW_KEY_BLANK:
 	case MVPW_KEY_OK:
@@ -1230,6 +1253,13 @@ video_read_start(void *arg)
 			av_reset();
 			if (seeking)
 				reset = 0;
+			if (paused) {
+				av_play();
+				paused = 0;
+				mvpw_hide(pause_widget);
+			}
+			if (muted)
+				av_mute();
 			pcm_decoded = 0;
 			ac3len = 0;
 			if (jumping) {
