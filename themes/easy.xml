@@ -264,7 +264,7 @@
     <color type="title_fg">white</color>
     <color type="hilite_bg">yellow</color>
     <color type="hilite_fg">black</color>
-    <color type="border">yellow</style>
+    <color type="border">yellow</color>
     <style type="border_size">2</style>
     <style type="hilite">square</style>
     <font>large</font>
@@ -315,7 +315,7 @@
     <color type="bg">darkblue</color>
     <color type="fg">white</color>
     <color type="hilite_bg">yellow</color>
-    <color type="hilite_fg">white</color>
+    <color type="hilite_fg">black</color>
     <color type="title_bg">darkslategray</color>
     <color type="title_fg">white</color>
     <style type="hilite">square</style>
