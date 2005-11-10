@@ -321,27 +321,9 @@ cmyth_connect(char *server, unsigned short port, unsigned buflen,
 	return NULL;
 }
 
-/*
- * cmyth_conn_connect_ctrl(char *server, unsigned short port, unsigned buflen)
- *
- * Scope: PUBLIC
- *
- * Description:
- *
- * Create a connection for use as a control connection within the
- * MythTV protocol.  Return a pointer to the newly created connection.
- * The connection is returned held, and may be released using
- * cmyth_conn_release().
- *
- * Return Value:
- *
- * Success: Non-NULL cmyth_conn_t (this is a pointer type)
- *
- * Failure: NULL cmyth_conn_t
- */
-cmyth_conn_t
-cmyth_conn_connect_ctrl(char *server, unsigned short port, unsigned buflen,
-			int tcp_rcvbuf)
+static cmyth_conn_t
+cmyth_conn_connect(char *server, unsigned short port, unsigned buflen,
+		   int tcp_rcvbuf, int event)
 {
 	cmyth_conn_t conn;
 	char announcement[256];
@@ -396,7 +378,7 @@ cmyth_conn_connect_ctrl(char *server, unsigned short port, unsigned buflen,
 	cmyth_dbg(CMYTH_DBG_ERROR, "%s: agreed on Version %ld protocol\n",
 		  __FUNCTION__, conn->conn_version);
 
-	sprintf(announcement, "ANN Playback %s 0", my_hostname);
+	sprintf(announcement, "ANN Playback %s %d", my_hostname, event);
 	if (cmyth_send_message(conn, announcement) < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_send_message('%s') failed\n",
@@ -413,6 +395,38 @@ cmyth_conn_connect_ctrl(char *server, unsigned short port, unsigned buflen,
     shut:
 	cmyth_conn_release(conn);
 	return NULL;
+}
+
+/*
+ * cmyth_conn_connect_ctrl(char *server, unsigned short port, unsigned buflen)
+ *
+ * Scope: PUBLIC
+ *
+ * Description:
+ *
+ * Create a connection for use as a control connection within the
+ * MythTV protocol.  Return a pointer to the newly created connection.
+ * The connection is returned held, and may be released using
+ * cmyth_conn_release().
+ *
+ * Return Value:
+ *
+ * Success: Non-NULL cmyth_conn_t (this is a pointer type)
+ *
+ * Failure: NULL cmyth_conn_t
+ */
+cmyth_conn_t
+cmyth_conn_connect_ctrl(char *server, unsigned short port, unsigned buflen,
+			int tcp_rcvbuf)
+{
+	return cmyth_conn_connect(server, port, buflen, tcp_rcvbuf, 0);
+}
+
+cmyth_conn_t
+cmyth_conn_connect_event(char *server, unsigned short port, unsigned buflen,
+			 int tcp_rcvbuf)
+{
+	return cmyth_conn_connect(server, port, buflen, tcp_rcvbuf, 1);
 }
 
 /*

@@ -72,6 +72,12 @@ typedef enum {
 	WHENCE_END = 2,
 } cmyth_whence_t;
 
+typedef enum {
+	CMYTH_EVENT_NONE = 0,
+	CMYTH_EVENT_RECORDING_LIST_CHANGE,
+	CMYTH_EVENT_SCHEDULE_CHANGE,
+} cmyth_event_t;
+
 struct cmyth_timestamp;
 typedef struct cmyth_timestamp *cmyth_timestamp_t;
 
@@ -134,6 +140,10 @@ extern cmyth_conn_t cmyth_conn_connect_ctrl(char *server,
 					    unsigned short port,
 					    unsigned buflen, int tcp_rcvbuf);
 
+extern cmyth_conn_t cmyth_conn_connect_event(char *server,
+					     unsigned short port,
+					     unsigned buflen, int tcp_rcvbuf);
+
 extern cmyth_file_t cmyth_conn_connect_file(cmyth_proginfo_t prog,
 					    unsigned buflen, int tcp_rcvbuf);
 extern int cmyth_conn_connect_ring(cmyth_recorder_t rec, unsigned buflen,
@@ -154,6 +164,13 @@ extern int cmyth_conn_get_freespace(cmyth_conn_t control,
 extern int cmyth_conn_hung(cmyth_conn_t control);
 
 extern int cmyth_conn_get_free_recorder_count(cmyth_conn_t conn);
+
+/*
+ * -----------------------------------------------------------------
+ * Event Operations
+ * -----------------------------------------------------------------
+ */
+extern cmyth_event_t cmyth_event_get(cmyth_conn_t conn);
 
 /*
  * -----------------------------------------------------------------
