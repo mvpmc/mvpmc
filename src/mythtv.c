@@ -65,8 +65,10 @@ static pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t seek_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t myth_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t event_cond = PTHREAD_COND_INITIALIZER;
 
 static volatile cmyth_conn_t control;		/* master backend */
+static volatile cmyth_conn_t event;		/* master backend */
 static volatile cmyth_conn_t control_slave;	/* slave backend */
 static volatile cmyth_proginfo_t current_prog;	/* program currently being played */
 static cmyth_proginfo_t hilite_prog;	/* program currently hilighted */
@@ -76,6 +78,9 @@ static cmyth_proginfo_t episode_prog;
 static cmyth_proginfo_t pending_prog;
 static char *pathname = NULL;
 static volatile cmyth_recorder_t recorder;
+
+static volatile int pending_dirty = 0;
+static volatile int episode_dirty = 0;
 
 static volatile int current_livetv;
 
@@ -94,7 +99,7 @@ static volatile int close_mythtv = 0;
 static volatile int changing_channel = 0;
 static volatile int video_reading = 0;
 
-static pthread_t control_thread, wd_thread;
+static pthread_t control_thread, wd_thread, event_thread;
 
 #define MAX_TUNER	16
 struct livetv_proginfo {
@@ -299,6 +304,11 @@ mythtv_close(void)
 	if (control_slave) {
 		cmyth_conn_t c = control_slave;
 		control_slave = NULL;
+		cmyth_conn_release(c);
+	}
+	if (event) {
+		cmyth_conn_t c = event;
+		event = NULL;
 		cmyth_conn_release(c);
 	}
 }
@@ -561,18 +571,24 @@ load_episodes(void)
 {
 	int err;
 
-	if (episode_plist)
-		cmyth_proglist_release(episode_plist);
+	if ((episode_plist == NULL) || episode_dirty) {
+		if (episode_plist)
+			cmyth_proglist_release(episode_plist);
 
-	if ((episode_plist=cmyth_proglist_create()) == NULL) {
-		fprintf(stderr, "cannot get program list\n");
-		goto err;
-	}
+		if ((episode_plist=cmyth_proglist_create()) == NULL) {
+			fprintf(stderr, "cannot get program list\n");
+			goto err;
+		}
 
-	if ((err=cmyth_proglist_get_all_recorded(control, episode_plist)) < 0) {
-		fprintf(stderr, "get recorded failed, err %d\n", err);
-		mythtv_shutdown();
-		goto err;
+		if ((err=cmyth_proglist_get_all_recorded(control, episode_plist)) < 0) {
+			fprintf(stderr, "get recorded failed, err %d\n", err);
+			mythtv_shutdown();
+			goto err;
+		}
+
+		episode_dirty = 0;
+	} else {
+		printf("Using cached episode data\n");
 	}
 
 	return cmyth_proglist_get_count(episode_plist);
@@ -732,8 +748,6 @@ add_shows(mvp_widget_t *widget)
 	for (i=0; i<n; i++)
 		mvpw_add_menu_item(widget, titles[i], (void*)n+2, &item_attr);
 
-	cmyth_proglist_release(episode_plist);
-	episode_plist = NULL;
 	pthread_mutex_unlock(&myth_mutex);
 }
 
@@ -840,10 +854,6 @@ mythtv_back(mvp_widget_t *widget)
 
 	if ((mythtv_state == MYTHTV_STATE_PROGRAMS) ||
 	    (mythtv_state == MYTHTV_STATE_PENDING)) {
-		if (pending_plist) {
-			cmyth_proglist_release(pending_plist);
-			pending_plist = NULL;
-		}
 		return 0;
 	}
 
@@ -966,20 +976,26 @@ mythtv_pending(mvp_widget_t *widget)
 	mvpw_set_menu_title(widget, buf);
 	mvpw_clear_menu(widget);
 
-	if (pending_plist)
-		cmyth_proglist_release(pending_plist);
+	if ((pending_plist == NULL) || pending_dirty) {
+		if (pending_plist)
+			cmyth_proglist_release(pending_plist);
 
-	if ((pending_plist=cmyth_proglist_create()) == NULL) {
-		fprintf(stderr, "cannot get program list\n");
-		ret = -1;
-		goto out;
-	}
+		if ((pending_plist=cmyth_proglist_create()) == NULL) {
+			fprintf(stderr, "cannot get program list\n");
+			ret = -1;
+			goto out;
+		}
 
-	if ((err=cmyth_proglist_get_all_pending(control, pending_plist)) < 0) {
-		fprintf(stderr, "get pending failed, err %d\n", err);
-		mythtv_shutdown();
-		ret = -1;
-		goto out;
+		if ((err=cmyth_proglist_get_all_pending(control, pending_plist)) < 0) {
+			fprintf(stderr, "get pending failed, err %d\n", err);
+			mythtv_shutdown();
+			ret = -1;
+			goto out;
+		}
+
+		pending_dirty = 0;
+	} else {
+		printf("Using cached pending data\n");
 	}
 
 	item_attr.select = NULL;
@@ -1176,6 +1192,40 @@ sighandler(int sig)
 	 * the mythbackend socket to be interrupted, and break out of the
 	 * system call they are in.
 	 */
+}
+
+static void*
+event_start(void *arg)
+{
+	cmyth_event_t next;
+	pthread_mutex_t event_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+	printf("event thread started (pid %d)\n", getpid());
+
+	pthread_mutex_lock(&event_mutex);
+
+	while (1) {
+		while (event == NULL) {
+			pthread_cond_wait(&event_cond, &event_mutex);
+		}
+		next = cmyth_event_get(event);
+		switch (next) {
+		case CMYTH_EVENT_NONE:
+			printf("Got empty event (error?)\n");
+			sleep(5);
+			break;
+		case CMYTH_EVENT_RECORDING_LIST_CHANGE:
+			printf("Got event RECORDING_LIST_CHANGE\n");
+			episode_dirty = 1;
+			break;
+		case CMYTH_EVENT_SCHEDULE_CHANGE:
+			printf("Got event SCHEDULE_CHANGE\n");
+			pending_dirty = 1;
+			break;
+		}
+	}
+
+	return NULL;
 }
 
 static void*
@@ -1378,11 +1428,21 @@ mythtv_init(char *server_name, int portnum)
 		return -1;
 	}
 
+	if ((event=cmyth_conn_connect_event(server, port, 16*1024,
+					    mythtv_tcp_control)) == NULL) {
+		fprintf(stderr, "cannot connect to mythtv server %s\n",
+			server);
+		return -1;
+	}
+	pthread_cond_signal(&event_cond);
+
 	if (!thread) {
 		thread = 1;
 		pthread_create(&control_thread, &thread_attr_small,
 			       control_start, NULL);
 		pthread_create(&wd_thread, &thread_attr_small, wd_start, NULL);
+		pthread_create(&event_thread, &thread_attr_small,
+			       event_start, NULL);
 	}
 
 	return 0;
@@ -1453,6 +1513,7 @@ mythtv_delete(void)
 
 	pthread_mutex_lock(&myth_mutex);
 	ret = cmyth_proginfo_delete_recording(control, hilite_prog);
+	episode_dirty = 1;
 	if (cmyth_proginfo_compare(hilite_prog, current_prog) == 0) {
 		mythtv_close_file();
 		video_clear();
@@ -1471,6 +1532,7 @@ mythtv_forget(void)
 
 	pthread_mutex_lock(&myth_mutex);
 	ret = cmyth_proginfo_forget_recording(control, hilite_prog);
+	episode_dirty = 1;
 	if (cmyth_proginfo_compare(hilite_prog, current_prog) == 0) {
 		mythtv_close_file();
 		video_clear();
