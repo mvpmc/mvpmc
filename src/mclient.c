@@ -360,6 +360,9 @@ unsigned long curses2ir(int key) {
     case MVPW_KEY_PLAY: ir = 0x768910ef; break; /* play */
     case MVPW_KEY_MENU: ir = 0x76897887; break; /* jump to now playing menu */
     case MVPW_KEY_REPLAY: ir = 0x768938c7; break; /* cycle through repeat modes */
+    case MVPW_KEY_GO: ir = 0x7689609f; break; /* add, NOTE: if held = zap */
+    case MVPW_KEY_FULL: ir = 0x768958a7; break; /* jump to search menu */
+    case MVPW_KEY_BLANK: ir = 0x7689b847; break; /* sleep */
 
     case MVPW_KEY_RED: ir = 0x768940bf; break; /* power */
     case MVPW_KEY_GREEN: ir = 0x7689d827; break; /* cycle through shuffle modes */
@@ -389,11 +392,8 @@ unsigned long curses2ir(int key) {
       /*
        * Keys that may not make sense for mvpmc.
        */
-      ///    case 's': ir = 0x7689b847; break; /* sleep */
       ///    case '+': ir = 0x7689f807; break; /* size */
       ///    case '*': ir = 0x768904fb; break; /* brightness */
-      ///    case    : ir = 0x768958a7; break; /* jump to search menu */
-      ///    case    : ir = 0x7689609f; break; /* add, NOTE: if held = zap */
 
 ///    Let's try running vol cntrl through the server.
 ///    case MVPW_KEY_VOL_UP:
@@ -718,7 +718,8 @@ mclient_idle_callback(mvp_widget_t *widget)
    * Only use the first 40 characters.  Looks like the server
    * leaves old characters laying round past the 40th character.
    */
-  sprintf(newstring,"%40.40s\n%40.40s\n",slimp3_display,&slimp3_display[64]);
+  sprintf(newstring,"%-40.40s\n%-40.40s\n",slimp3_display,&slimp3_display[64]);
+
   pthread_mutex_unlock(&mclient_mutex);
 
   /*
@@ -777,62 +778,107 @@ mclient_idle_callback(mvp_widget_t *widget)
 }
 
 
-void receive_display_data(char * ddram, unsigned short *data, int bytes_read) {
+void receive_display_data(char * ddram, unsigned short *data, int bytes_read) 
+{
   unsigned short *display_data;
   int n;
-  int addr = 0; /* counter */
+  static int addr = 0; /* counter */
 
   pthread_mutex_lock(&mclient_mutex);
   if (bytes_read % 2) bytes_read--; /* even number of bytes */
   display_data = &(data[9]); /* display data starts at byte 18 */
 
-  for (n=0; n<(bytes_read/2); n++) {
-    unsigned short d; /* data element */
-    unsigned char t, c;
+  for (n=0; n<(bytes_read/2); n++) 
+    {
+      unsigned short d; /* data element */
+      unsigned char t, c;
 
-    d = ntohs(display_data[n]);
-    t = (d & 0x00ff00) >> 8; /* type of display data */
-    c = (d & 0x0000ff); /* character/command */
-    switch (t) {
-    case 0x03: /* character */
-      c = vfd2latin1[c];
-      if (!isprint(c)) c = ' ';
-      if (addr <= DISPLAY_SIZE)
-	ddram[addr++] = c;
-      break;
-    case 0x02: /* command */
-      switch (c) {
-      case 0x01: /* display clear */
-	memset(ddram, ' ', DISPLAY_SIZE);
-	addr = 0;
-	break;
-      case 0x02: /* cursor home */
-      case 0x03: /* cursor home */
-	addr = 0;
-	break;
-      case 0x10: /* cursor left */
-      case 0x11: /* cursor left */
-      case 0x12: /* cursor left */
-      case 0x13: /* cursor left */
-	addr--;
-	if (addr < 0) addr = 0;
-	break;
-      case 0x14: /* cursor right */
-      case 0x15: /* cursor right */
-      case 0x16: /* cursor right */
-      case 0x17: /* cursor right */
-	addr++;
-	if (addr > DISPLAY_SIZE) addr = DISPLAY_SIZE;
-	break;
-      default:
-	if ((c & 0x80) == 0x80) {addr = (c & 0x7f);}
-	break;
-      }
-    case 0x00: /* delay */
-    default:
-      break;
+      d = ntohs(display_data[n]);
+      t = (d & 0x00ff00) >> 8; /* type of display data */
+      c = (d & 0x0000ff); /* character/command */
+
+      switch (t) 
+	{
+	case 0x03: /* character */
+	  /*
+	   * Traslate server's chars into printable
+	   * ASCII.
+	   */
+	  c = vfd2latin1[c];
+	  /*
+	   * Filter out non printable chars.
+	   */
+	  if(
+	     (c == 0xaf)    /* "~" */
+	     || (c == 0xbb) /* ">>" */
+	     /*
+	      * We can probably open up the filter
+	      * to pass either the IBM or Windoze
+	      * extened ASCII char set here.
+	      */
+	     )
+	    {
+	      /*
+	       * Allow these characters to pass through.
+	       */
+	    }
+	  else
+	    {
+	      /*
+	       * If non printable, replace with a space.
+	       */
+	      if (!isprint(c))
+		{
+		  c = ' ';
+		}
+	    }
+	  if (addr <= DISPLAY_SIZE)
+	    {
+	      ddram[addr++] = c;
+	    }
+	  break;
+	case 0x02: /* command */
+	  switch (c) 
+	    {
+	    case 0x01: /* display clear */
+	      memset(ddram, ' ', DISPLAY_SIZE);
+	      addr = 0;
+	      break;
+	    case 0x02: /* cursor home */
+	    case 0x03: /* cursor home */
+	      addr = 0;
+	      break;
+	    case 0x10: /* cursor left */
+	    case 0x11: /* cursor left */
+	    case 0x12: /* cursor left */
+	    case 0x13: /* cursor left */
+	      addr--;
+	      if (addr < 0) addr = 0;
+	      break;
+	    case 0x0e: /* cursor right */ /* NEW */
+	    case 0x14: /* cursor right */
+	    case 0x15: /* cursor right */
+	    case 0x16: /* cursor right */
+	    case 0x17: /* cursor right */
+	      addr++;
+	      if (addr > DISPLAY_SIZE) addr = DISPLAY_SIZE;
+	      break;
+	    default:
+	      if ((c & 0x80) == 0x80) 
+		{
+		  addr = (c & 0x7f);
+		}
+	      else
+		{
+		  if(debug) printf("mclinet:UNDEFINED CONTROL CHARACTER!!! c:%-2.2x n:%-2.2d\n", c, n);
+		}
+	      break;
+	    }
+	case 0x00: /* delay */
+	default:
+	  break;
+	}
     }
-  }
   pthread_mutex_unlock(&mclient_mutex);
 }
 
@@ -911,7 +957,9 @@ void read_packet(int s) {
     case 'l':
       if(debug) printf("<= LCD data\n");
       if(display) 
-	receive_display_data(slimp3_display, recvbuf, bytes_read);
+	{
+	  receive_display_data(slimp3_display, recvbuf, bytes_read);
+	}
       break;
     case 's':
       if(debug) printf("<= stream control\n");
