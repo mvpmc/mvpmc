@@ -50,6 +50,8 @@ extern int mvpw_event_loop(void);
 extern int mvpw_event_flush(void);
 extern mvp_widget_t *mvpw_get_root(void);
 extern void mvpw_set_idle(void (*callback)(void));
+extern void mvpw_set_expose_callback(mvp_widget_t *widget,
+				     void (*callback)(mvp_widget_t*));
 
 extern void mvpw_get_widget_info(mvp_widget_t *widget, mvpw_widget_info_t *info);
 extern void mvpw_get_screen_info(mvpw_screen_info_t *info);

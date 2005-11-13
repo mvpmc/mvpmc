@@ -548,6 +548,15 @@ mvpw_font_width(int font, char *str)
 	return w;
 }
 
+void
+mvpw_set_expose_callback(mvp_widget_t *widget, void (*callback)(mvp_widget_t*))
+{
+	if (widget == NULL)
+		return;
+
+	widget->callback_expose = callback;
+}
+
 static void
 exposure(GR_EVENT_EXPOSURE *exposure)
 {
