@@ -728,6 +728,8 @@ theme_attr_t theme_attr[] = {
 
 static int init_done = 0;
 
+static pthread_mutex_t busy_mutex = PTHREAD_MUTEX_INITIALIZER;
+
 uint32_t root_color = 0;
 int root_bright = 0;
 int volume = AV_VOLUME_MAX;
@@ -751,6 +753,8 @@ static mvp_widget_t *settings_osd;
 static mvp_widget_t *settings_mythtv;
 static mvp_widget_t *settings_mythtv_control;
 static mvp_widget_t *settings_mythtv_program;
+static mvp_widget_t *settings_playback_osd;
+static mvp_widget_t *settings_playback_pause;
 static mvp_widget_t *settings_ip;
 static mvp_widget_t *settings_ip_label;
 static mvp_widget_t *settings_ip_title;
@@ -759,6 +763,7 @@ static mvp_widget_t *settings_ip_new[4];
 static mvp_widget_t *settings_check;
 static mvp_widget_t *settings_nocheck;
 static mvp_widget_t *settings_mclient;
+static mvp_widget_t *settings_playback;
 static mvp_widget_t *settings_help;
 static mvp_widget_t *sub_settings;
 static mvp_widget_t *screensaver_dialog;
@@ -906,6 +911,7 @@ typedef enum {
 	SETTINGS_MAIN_MYTHTV,
 	SETTINGS_MAIN_MCLIENT,
 	SETTINGS_MAIN_OSD,
+	SETTINGS_MAIN_PLAYBACK,
 	SETTINGS_MAIN_SAVE,
 	SETTINGS_MAIN_VIEWPORT,
 } settings_main_t;
@@ -1081,6 +1087,7 @@ mythtv_menu_callback(mvp_widget_t *widget, char key)
 
 			if (mythtv_livetv == 2)
 				mythtv_livetv = 1;
+			screensaver_disable();
 		}
 	}
 
@@ -1260,6 +1267,54 @@ settings_mythtv_program_key_callback(mvp_widget_t *widget, char key)
 			config->mythtv_tcp_program = mythtv_tcp_program;
 			config->bitmask |= CONFIG_MYTHTV_PROGRAM;
 		}
+	}
+}
+
+static void
+settings_playback_osd_key_callback(mvp_widget_t *widget, char key)
+{
+	char buf[16];
+	int change = 0;
+
+	switch (key) {
+	case MVPW_KEY_EXIT:
+		mvpw_hide(widget);
+		mvpw_show(settings_playback);
+		mvpw_focus(settings_playback);
+		break;
+	case MVPW_KEY_UP:
+	case MVPW_KEY_RIGHT:
+		seek_osd_timeout++;
+		change = 1;
+		break;
+	case MVPW_KEY_DOWN:
+	case MVPW_KEY_LEFT:
+		seek_osd_timeout--;
+		change = 1;
+		break;
+	}
+
+	if (change) {
+		if (seek_osd_timeout < 0)
+			seek_osd_timeout = 0;
+		snprintf(buf, sizeof(buf), "%d", seek_osd_timeout);
+		mvpw_set_dialog_text(settings_playback_osd, buf);
+		if (config->playback_osd != seek_osd_timeout) {
+			config->playback_osd = seek_osd_timeout;
+			config->bitmask |= CONFIG_PLAYBACK_OSD;
+		}
+	}
+}
+
+static void
+settings_pause_key_callback(mvp_widget_t *widget, char key)
+{
+	switch (key) {
+	case MVPW_KEY_EXIT:
+		mvpw_hide(widget);
+		mvpw_show(settings_playback);
+		mvpw_focus(settings_playback);
+		break;
 	}
 }
 
@@ -1569,6 +1624,7 @@ playlist_key_callback(mvp_widget_t *widget, char key)
 			mvpw_hide(fb_progress);
 			video_set_root();
 			mvpw_focus(root);
+			screensaver_disable();
 		}
 		break;
 	}
@@ -1740,6 +1796,7 @@ mythtv_key_callback(mvp_widget_t *widget, char key)
 
 			if (mythtv_livetv == 2)
 				mythtv_livetv = 1;
+			screensaver_disable();
 		}
 	}
 
@@ -1963,7 +2020,7 @@ file_browser_init(void)
 	/*
 	 * file browser popup menu
 	 */
-	h = 5 * FONT_HEIGHT(fb_attr);
+	h = 5 * FONT_HEIGHT(fb_popup_attr);
 	w = 275;
 	x = (si.cols - w) / 2;
 	y = (si.rows - h) / 2;
@@ -2416,6 +2473,10 @@ settings_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mvpw_show(viewport);
 		mvpw_focus(viewport);
 		break;
+	case SETTINGS_MAIN_PLAYBACK:
+		mvpw_show(settings_playback);
+		mvpw_focus(settings_playback);
+		break;
 	}
 }
 
@@ -2515,6 +2576,47 @@ mclient_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mvpw_focus(settings_ip);
 		break;
 	}
+}
+
+static void
+playback_select_callback(mvp_widget_t *widget, char *item, void *key)
+{
+	char buf[16];
+
+	mvpw_hide(widget);
+
+	switch ((int)key) {
+	case 0:
+		snprintf(buf, sizeof(buf), "%d", seek_osd_timeout);
+		mvpw_set_dialog_text(settings_playback_osd, buf);
+		mvpw_show(settings_playback_osd);
+		mvpw_focus(settings_playback_osd);
+		break;
+	case 1:
+		mvpw_show(settings_playback_pause);
+		mvpw_focus(settings_playback_pause);
+		break;
+	}
+}
+
+static void
+playback_pause_select_callback(mvp_widget_t *widget, char *item, void *key)
+{
+	switch ((int)key) {
+	case 0:
+		mvpw_check_menu_item(widget, (void*)0, 1);
+		mvpw_check_menu_item(widget, (void*)1, 0);
+		pause_osd = 0;
+		break;
+	case 1:
+		mvpw_check_menu_item(widget, (void*)0, 0);
+		mvpw_check_menu_item(widget, (void*)1, 1);
+		pause_osd = 1;
+		break;
+	}
+
+	config->playback_pause = (int)key;
+	config->bitmask |= CONFIG_PLAYBACK_PAUSE;
 }
 
 static void
@@ -2730,12 +2832,14 @@ settings_init(void)
 	mvpw_add_menu_item(settings, "IEE Display",
 			   (void*)SETTINGS_MAIN_DISPLAY, &settings_item_attr);
 #endif
+	mvpw_add_menu_item(settings, "Music Client",
+			   (void*)SETTINGS_MAIN_MCLIENT, &settings_item_attr);
 	mvpw_add_menu_item(settings, "MythTV",
 			   (void*)SETTINGS_MAIN_MYTHTV, &settings_item_attr);
-	mvpw_add_menu_item(settings, "mclient",
-			   (void*)SETTINGS_MAIN_MCLIENT, &settings_item_attr);
 	mvpw_add_menu_item(settings, "On-Screen-Display",
 			   (void*)SETTINGS_MAIN_OSD, &settings_item_attr);
+	mvpw_add_menu_item(settings, "Playback Options",
+			   (void*)SETTINGS_MAIN_PLAYBACK, &settings_item_attr);
 	mvpw_add_menu_item(settings, "Screensaver",
 			   (void*)SETTINGS_MAIN_SCREENSAVER,
 			   &settings_item_attr);
@@ -2867,6 +2971,63 @@ settings_init(void)
 	mvpw_add_menu_item(settings_mclient,
 			   "SlimServer IP Address",
 			   (void*)0, &settings_item_attr);
+
+	/*
+	 * playback settings menu
+	 */
+	settings_playback = mvpw_create_menu(NULL, x, y, w, h,
+					     settings_attr.bg,
+					     settings_attr.border,
+					     settings_attr.border_size);
+	settings_attr.checkboxes = 0;
+	mvpw_set_menu_attr(settings_playback, &settings_attr);
+	mvpw_set_menu_title(settings_playback, "Playback Settings");
+	mvpw_set_key(settings_playback, settings_item_key_callback);
+
+	settings_item_attr.hilite = NULL;
+	settings_item_attr.select = playback_select_callback;
+
+	mvpw_add_menu_item(settings_playback,
+			   "OSD Seek Timeout",
+			   (void*)0, &settings_item_attr);
+	mvpw_add_menu_item(settings_playback,
+			   "OSD Pause",
+			   (void*)1, &settings_item_attr);
+
+	h = 2 * FONT_HEIGHT(settings_dialog_attr);
+	settings_playback_osd = mvpw_create_dialog(NULL, x, y, w, h,
+						   settings_dialog_attr.bg,
+						   settings_dialog_attr.border,
+						   settings_dialog_attr.border_size);
+	mvpw_set_dialog_attr(settings_playback_osd, &settings_dialog_attr);
+	mvpw_set_key(settings_playback_osd,
+		     settings_playback_osd_key_callback);
+	mvpw_set_dialog_title(settings_playback_osd,
+			      "Playback OSD Seek Timeout");
+	mvpw_set_dialog_text(settings_playback_osd, "");
+
+	h = 6 * FONT_HEIGHT(settings_attr);
+	settings_playback_pause = mvpw_create_menu(NULL, x, y, w, h,
+						   settings_attr.bg,
+						   settings_attr.border,
+						   settings_attr.border_size);
+	settings_attr.checkboxes = 1;
+	mvpw_set_menu_attr(settings_playback_pause, &settings_attr);
+	settings_attr.checkboxes = 0;
+	mvpw_set_menu_title(settings_playback_pause,
+			    "Display OSD While Paused");
+	mvpw_set_key(settings_playback_pause, settings_pause_key_callback);
+
+	settings_item_attr.hilite = NULL;
+	settings_item_attr.select = playback_pause_select_callback;
+
+	mvpw_add_menu_item(settings_playback_pause,
+			   "Disable",
+			   (void*)0, &settings_item_attr);
+	mvpw_add_menu_item(settings_playback_pause,
+			   "Enable",
+			   (void*)1, &settings_item_attr);
+	mvpw_check_menu_item(settings_playback_pause, (void*)pause_osd, 1);
 
 	/*
 	 * settings menu with checkboxes
@@ -3455,6 +3616,8 @@ myth_browser_init(void)
 	mvpw_raise(mythtv_menu);
 	mvpw_raise(mythtv_popup);
 	mvpw_raise(mythtv_info);
+
+	mvpw_set_expose_callback(mythtv_browser, mythtv_browser_expose);
 
 	return 0;
 }
@@ -4603,15 +4766,23 @@ busy_loop(void *arg)
 void
 busy_start(void)
 {
-	busy = 1;
-	pthread_cond_signal(&busy_cond);
+	pthread_mutex_lock(&busy_mutex);
+
+	if (++busy == 0)
+		pthread_cond_signal(&busy_cond);
+
+	pthread_mutex_unlock(&busy_mutex);
 }
 
 void
 busy_end(void)
 {
-	busy = 0;
-	mvpw_hide(busy_widget);
+	pthread_mutex_lock(&busy_mutex);
+
+	if (--busy == 0)
+		mvpw_hide(busy_widget);
+
+	pthread_mutex_unlock(&busy_mutex);
 }
 
 void

@@ -102,6 +102,7 @@ extern mvp_widget_t *mythtv_date;
 extern mvp_widget_t *mythtv_description;
 extern mvp_widget_t *mythtv_channel;
 extern mvp_widget_t *mythtv_record;
+extern mvp_widget_t *mythtv_popup;
 extern mvp_widget_t *root;
 extern mvp_widget_t *iw;
 extern mvp_widget_t *pause_widget;
@@ -409,4 +410,6 @@ extern mvp_widget_t *ct_text_box;
 extern mvp_widget_t *settings;
 
 extern unsigned short viewport_edges[4];
+
+extern void mythtv_browser_expose(mvp_widget_t *widget);
 #endif /* MVPMC_H */

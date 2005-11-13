@@ -621,6 +621,29 @@ episode_exists(char *title)
 	return 0;
 }
 
+static int
+episode_index(cmyth_proginfo_t episode)
+{
+	int i, count;
+	cmyth_proginfo_t prog;
+
+	if ((episode_plist == NULL) || (episode == NULL))
+		return -1;
+
+	count = cmyth_proglist_get_count(episode_plist);
+
+	for (i = 0; i < count; ++i) {
+		prog = cmyth_proglist_get_item(episode_plist, i);
+		if (cmyth_proginfo_compare(prog, episode) == 0) {
+			cmyth_proginfo_release(prog);
+			return i;
+		}
+		cmyth_proginfo_release(prog);
+	}
+
+	return -1;
+}
+
 static void
 add_episodes(mvp_widget_t *widget, char *item, int load)
 {
@@ -855,6 +878,11 @@ mythtv_back(mvp_widget_t *widget)
 	if ((mythtv_state == MYTHTV_STATE_PROGRAMS) ||
 	    (mythtv_state == MYTHTV_STATE_PENDING)) {
 		return 0;
+	}
+
+	if (hilite_prog) {
+		cmyth_proginfo_release(hilite_prog);
+		hilite_prog = NULL;
 	}
 
 	mythtv_state = MYTHTV_STATE_PROGRAMS;
@@ -1210,17 +1238,26 @@ event_start(void *arg)
 		}
 		next = cmyth_event_get(event);
 		switch (next) {
-		case CMYTH_EVENT_NONE:
-			printf("Got empty event (error?)\n");
-			sleep(5);
+		case CMYTH_EVENT_UNKNOWN:
+			printf("MythTV unknown event (error?)\n");
+			sleep(1);
+			break;
+		case CMYTH_EVENT_CLOSE:
+			printf("Event socket closed, shutting down myth\n");
+			mythtv_shutdown();
 			break;
 		case CMYTH_EVENT_RECORDING_LIST_CHANGE:
-			printf("Got event RECORDING_LIST_CHANGE\n");
+			printf("MythTV event RECORDING_LIST_CHANGE\n");
 			episode_dirty = 1;
+			mvpw_expose(mythtv_browser);
 			break;
 		case CMYTH_EVENT_SCHEDULE_CHANGE:
-			printf("Got event SCHEDULE_CHANGE\n");
+			printf("MythTV event SCHEDULE_CHANGE\n");
 			pending_dirty = 1;
+			mvpw_expose(mythtv_browser);
+			break;
+		case CMYTH_EVENT_DONE_RECORDING:
+			printf("MythTV event DONE_RECORDING\n");
 			break;
 		}
 	}
@@ -1506,42 +1543,41 @@ mythtv_stop(void)
 	mvpw_set_timer(root, NULL, 0);
 }
 
-int
-mythtv_delete(void)
+static int
+mythtv_delete_prog(int forget)
 {
 	int ret;
+	cmyth_proginfo_t prog;
 
 	pthread_mutex_lock(&myth_mutex);
-	ret = cmyth_proginfo_delete_recording(control, hilite_prog);
-	episode_dirty = 1;
-	if (cmyth_proginfo_compare(hilite_prog, current_prog) == 0) {
+	prog = cmyth_proginfo_hold(hilite_prog);
+	cmyth_proglist_delete_item(episode_plist, prog);
+	if (forget)
+		ret = cmyth_proginfo_forget_recording(control, prog);
+	else
+		ret = cmyth_proginfo_delete_recording(control, prog);
+	if (cmyth_proginfo_compare(prog, current_prog) == 0) {
 		mythtv_close_file();
 		video_clear();
 		mvpw_set_idle(NULL);
 		mvpw_set_timer(root, NULL, 0);
 	}
+	cmyth_proginfo_release(prog);
 	pthread_mutex_unlock(&myth_mutex);
 
 	return ret;
 }
 
 int
+mythtv_delete(void)
+{
+	return mythtv_delete_prog(0);
+}
+
+int
 mythtv_forget(void)
 {
-	int ret;
-
-	pthread_mutex_lock(&myth_mutex);
-	ret = cmyth_proginfo_forget_recording(control, hilite_prog);
-	episode_dirty = 1;
-	if (cmyth_proginfo_compare(hilite_prog, current_prog) == 0) {
-		mythtv_close_file();
-		video_clear();
-		mvpw_set_idle(NULL);
-		mvpw_set_timer(root, NULL, 0);
-	}
-	pthread_mutex_unlock(&myth_mutex);
-
-	return ret;
+	return mythtv_delete_prog(1);
 }
 
 int
@@ -2730,4 +2766,67 @@ mythtv_livetv_select(int which)
 	}
 
 	free(channame);
+}
+
+void
+mythtv_browser_expose(mvp_widget_t *widget)
+{
+	cmyth_proginfo_t prog = NULL;
+
+	if (gui_state != MVPMC_STATE_MYTHTV)
+		return;
+
+	if (!episode_dirty && !pending_dirty)
+		return;
+
+	/*
+	 * To avoid scaring the user into thinking that they might be
+	 * deleting the wrong episode, do not update the menu while
+	 * the popup window is visible.
+	 */
+	if (mvpw_visible(mythtv_popup)) {
+		printf("mythtv_popup has focus, skipping update\n");
+		return;
+	}
+
+	if (hilite_prog)
+		prog = cmyth_proginfo_hold(hilite_prog);
+
+	switch (mythtv_state) {
+	case MYTHTV_STATE_MAIN:
+		break;
+	case MYTHTV_STATE_PENDING:
+		if (!pending_dirty)
+			goto out;
+		printf("myth browser expose: pending\n");
+		mythtv_pending(widget);
+		break;
+	case MYTHTV_STATE_PROGRAMS:
+		if (!episode_dirty)
+			goto out;
+		printf("myth browser expose: programs\n");
+		mythtv_update(widget);
+		break;
+	case MYTHTV_STATE_EPISODES:
+		if (!episode_dirty)
+			goto out;
+		printf("myth browser expose: episodes\n");
+		mythtv_update(widget);
+		if (prog) {
+			int i;
+
+			if ((i=episode_index(prog)) >= 0) {
+				printf("change hilite\n");
+				mvpw_menu_hilite_item(widget, (void*)i);
+				hilite_callback(widget, NULL, (void*)i, 1);
+			}
+		}
+		break;
+	case MYTHTV_STATE_LIVETV:
+		break;
+	}
+
+ out:
+	if (prog)
+		cmyth_proginfo_release(prog);
 }
