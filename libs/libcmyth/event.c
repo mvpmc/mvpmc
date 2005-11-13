@@ -36,11 +36,11 @@ cmyth_event_get(cmyth_conn_t conn)
 	if (conn == NULL)
 		goto fail;
 
-	if ((count=cmyth_rcv_length(conn)) < 0) {
+	if ((count=cmyth_rcv_length(conn)) <= 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_rcv_length() failed (%d)\n",
 			  __FUNCTION__, count);
-		goto fail;
+		return CMYTH_EVENT_CLOSE;
 	}
 
 	consumed = cmyth_rcv_string(conn, &err, tmp, sizeof(tmp) - 1, count);
@@ -58,11 +58,14 @@ cmyth_event_get(cmyth_conn_t conn)
 		event = CMYTH_EVENT_RECORDING_LIST_CHANGE;
 	} else if (strcmp(tmp, "SCHEDULE_CHANGE") == 0) {
 		event = CMYTH_EVENT_SCHEDULE_CHANGE;
+	} else if (strncmp(tmp, "DONE_RECORDING", 14) == 0) {
+		event = CMYTH_EVENT_DONE_RECORDING;
 	} else {
+		printf("unknown mythtv BACKEND_MESSAGE '%s'\n", tmp);
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_rcv_string() failed (%d)\n",
 			  __FUNCTION__, count);
-		goto fail;
+		event = CMYTH_EVENT_UNKNOWN;
 	}
 
 	consumed = cmyth_rcv_string(conn, &err, tmp, sizeof(tmp) - 1, count);
@@ -71,11 +74,10 @@ cmyth_event_get(cmyth_conn_t conn)
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_rcv_string() failed (%d)\n",
 			  __FUNCTION__, count);
-		goto fail;
 	}
 
 	return event;
 
  fail:
-	return CMYTH_EVENT_NONE;
+	return CMYTH_EVENT_UNKNOWN;
 }

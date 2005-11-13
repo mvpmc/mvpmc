@@ -199,6 +199,45 @@ cmyth_proglist_get_item(cmyth_proglist_t pl, int index)
 	return pl->proglist_list[index];
 }
 
+int
+cmyth_proglist_delete_item(cmyth_proglist_t pl, cmyth_proginfo_t prog)
+{
+	int i;
+	cmyth_proginfo_t old;
+	int ret = -EINVAL;
+
+	if (!pl) {
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: NULL program list\n",
+			  __FUNCTION__);
+		return -EINVAL;
+	}
+	if (!prog) {
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: NULL program item\n",
+			  __FUNCTION__);
+		return -EINVAL;
+	}
+
+	pthread_mutex_lock(&mutex);
+
+	for (i=0; i<pl->proglist_count; i++) {
+		if (cmyth_proginfo_compare(prog, pl->proglist_list[i]) == 0) {
+			old = pl->proglist_list[i];
+			memmove(pl->proglist_list+i,
+				pl->proglist_list+i+1,
+				(pl->proglist_count-i-1)*sizeof(cmyth_proginfo_t));
+			pl->proglist_count--;
+			cmyth_proginfo_release(old);
+			ret = 0;
+			goto out;
+		}
+	}
+
+ out:
+	pthread_mutex_unlock(&mutex);
+
+	return ret;
+}
+
 /*
  * cmyth_proglist_get_count(cmyth_proglist_t pl)
  *

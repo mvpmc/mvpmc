@@ -73,9 +73,11 @@ typedef enum {
 } cmyth_whence_t;
 
 typedef enum {
-	CMYTH_EVENT_NONE = 0,
+	CMYTH_EVENT_UNKNOWN = 0,
+	CMYTH_EVENT_CLOSE = 1,
 	CMYTH_EVENT_RECORDING_LIST_CHANGE,
 	CMYTH_EVENT_SCHEDULE_CHANGE,
+	CMYTH_EVENT_DONE_RECORDING,
 } cmyth_event_t;
 
 struct cmyth_timestamp;
@@ -505,6 +507,9 @@ extern int cmyth_proglist_get_conflicting(cmyth_conn_t control,
 
 extern cmyth_proginfo_t cmyth_proglist_get_item(cmyth_proglist_t pl,
 						int index);
+
+extern int cmyth_proglist_delete_item(cmyth_proglist_t pl,
+				      cmyth_proginfo_t prog);
 
 extern int cmyth_proglist_get_count(cmyth_proglist_t pl);
 
