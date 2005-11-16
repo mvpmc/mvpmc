@@ -504,6 +504,7 @@ void playlist_create(char **item, int n, char *cwd)
 		if (pl_prev)
 			pl_prev->next = pl;
 		pl_prev = pl;
+		item_attr.select = select_callback;
 		mvpw_add_menu_item(playlist_widget, item[i],
 				   pl->key, &item_attr);
 	}
