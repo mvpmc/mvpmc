@@ -1627,6 +1627,12 @@ playlist_key_callback(mvp_widget_t *widget, char key)
 			screensaver_disable();
 		}
 		break;
+	case MVPW_KEY_VOL_UP:
+	case MVPW_KEY_VOL_DOWN:
+		volume_key_callback(volume_dialog, key);
+		mvpw_show(volume_dialog);
+		mvpw_set_timer(volume_dialog, timer_hide, 3000);
+		break;
 	}
 }
 
@@ -2171,6 +2177,7 @@ bright_key_callback(mvp_widget_t *widget, char key)
 
 	switch (key) {
 	case MVPW_KEY_EXIT:
+	case MVPW_KEY_MENU:
 		mvpw_hide(widget);
 		return;
 		break;
@@ -2212,6 +2219,7 @@ volume_key_callback(mvp_widget_t *widget, char key)
 
 	switch (key) {
 	case MVPW_KEY_EXIT:
+	case MVPW_KEY_MENU:
 		mvpw_set_timer(volume_dialog, NULL, 0);
 		mvpw_hide(widget);
 		return;
@@ -4768,8 +4776,10 @@ busy_start(void)
 {
 	pthread_mutex_lock(&busy_mutex);
 
-	if (++busy == 0)
+	if (++busy == 1) {
+		printf("show busy widget\n");
 		pthread_cond_signal(&busy_cond);
+	}
 
 	pthread_mutex_unlock(&busy_mutex);
 }
@@ -4779,8 +4789,10 @@ busy_end(void)
 {
 	pthread_mutex_lock(&busy_mutex);
 
-	if (--busy == 0)
+	if (--busy == 0) {
+		printf("hide busy widget\n");
 		mvpw_hide(busy_widget);
+	}
 
 	pthread_mutex_unlock(&busy_mutex);
 }
