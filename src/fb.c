@@ -55,6 +55,8 @@ static void add_files(mvp_widget_t*);
 char *current = NULL;
 char *current_hilite = NULL;
 
+static char *current_pl = NULL;
+
 static int file_count = 0;
 static int dir_count = 0;
 
@@ -161,11 +163,30 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 	sprintf(path, "%s/%s", cwd, item);
 	stat64(path, &sb);
 
+	if (current_pl && !is_playlist(item)) {
+		free(current_pl);
+		current_pl = NULL;
+	}
+
+	printf("%s(): path '%s'\n", __FUNCTION__, path);
 	if (current && (strcmp(path, current) == 0)) {
+		printf("selected current item\n");
 		if (is_video(item)) {
 			mvpw_hide(widget);
 			mvpw_hide(fb_progress);
 			av_move(0, 0, 0);
+			return;
+		}
+	}
+
+	if (current_pl && (strcmp(path, current_pl) == 0)) {
+		if (is_playlist(item)) {
+			mvpw_show(fb_progress);
+			mvpw_set_timer(fb_progress, fb_osd_update, 500);
+			mvpw_hide(widget);
+			printf("Show playlist menu\n");
+			mvpw_show(playlist_widget);
+			mvpw_focus(playlist_widget);
 			return;
 		}
 	}
@@ -254,6 +275,9 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 			mvpw_show(iw);
 			mvpw_focus(iw);
 		} else if (is_playlist(item)) {
+			if (current_pl)
+				free(current_pl);
+			current_pl = strdup(path);
 			mvpw_show(fb_progress);
 			mvpw_set_timer(fb_progress, fb_osd_update, 500);
 			mvpw_hide(widget);
@@ -490,6 +514,8 @@ fb_shuffle(void)
 	mvpw_focus(playlist_widget);
 
 	playlist_create(item, n, cwd);
+
+	mvpw_set_text_str(fb_name, "Shuffle Play");
 
 	mvpw_show(fb_progress);
 	mvpw_set_timer(fb_progress, fb_osd_update, 500);
