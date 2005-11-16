@@ -320,27 +320,31 @@ mythtv_shutdown(void)
 
 	mythtv_close();
 
-	mvpw_set_bg(root, MVPW_BLACK);
+	if (gui_state == MVPMC_STATE_MYTHTV) {
+		mvpw_set_bg(root, MVPW_BLACK);
 
-	mvpw_hide(mythtv_browser);
-	mvpw_hide(mythtv_channel);
-	mvpw_hide(mythtv_date);
-	mvpw_hide(mythtv_description);
-	mvpw_hide(mythtv_record);
-	mvpw_hide(shows_widget);
-	mvpw_hide(episodes_widget);
-	mvpw_hide(freespace_widget);
+		mvpw_hide(mythtv_browser);
+		mvpw_hide(mythtv_channel);
+		mvpw_hide(mythtv_date);
+		mvpw_hide(mythtv_description);
+		mvpw_hide(mythtv_record);
+		mvpw_hide(shows_widget);
+		mvpw_hide(episodes_widget);
+		mvpw_hide(freespace_widget);
 
-	mvpw_show(mythtv_logo);
-	mvpw_show(mythtv_menu);
-	mvpw_focus(mythtv_menu);
+		mvpw_show(mythtv_logo);
+		mvpw_show(mythtv_menu);
+		mvpw_focus(mythtv_menu);
+	}
 
 	mythtv_main_menu = 1;
 	reset_mythtv = 1;
 	close_mythtv = 0;
 	mythtv_state = MYTHTV_STATE_MAIN;
 
-	gui_error("MythTV connection lost!");
+	if ((gui_state == MVPMC_STATE_MYTHTV) ||
+	    (hw_state == MVPMC_STATE_MYTHTV))
+		gui_error("MythTV connection lost!");
 }
 
 static void
@@ -509,6 +513,8 @@ show_select_callback(mvp_widget_t *widget, char *item, void *key)
 void
 mythtv_start_thumbnail(void)
 {
+	busy_start();
+
 	switch_hw_state(MVPMC_STATE_MYTHTV);
 
 	if (mythtv_recdir) {
@@ -528,7 +534,7 @@ mythtv_start_thumbnail(void)
 
 		printf("thumbnail video mode\n");
 
-		return;
+		goto out;
 	}
 
 	if (cmyth_proginfo_compare(hilite_prog, current_prog) != 0) {
@@ -564,6 +570,9 @@ mythtv_start_thumbnail(void)
 		av_play();
 		video_play(root);
 	}
+
+ out:
+	busy_end();
 }
 
 static int
@@ -788,6 +797,8 @@ mythtv_update(mvp_widget_t *widget)
 	if (mythtv_verify() < 0)
 		return -1;
 
+	busy_start();
+
 	if (mythtv_state == MYTHTV_STATE_EPISODES) {
 		const char *t;
 		char *title = NULL;
@@ -813,7 +824,7 @@ mythtv_update(mvp_widget_t *widget)
 				add_episodes(widget, "All - Newest first", 0);
 				break;
 			}
-			return 0;
+			goto out;
 		}
 		printf("returning to program menu\n");
 		mythtv_state = MYTHTV_STATE_PROGRAMS;
@@ -856,6 +867,9 @@ mythtv_update(mvp_widget_t *widget)
 		mvpw_show(episodes_widget);
 		mvpw_show(freespace_widget);
 	}
+
+ out:
+	busy_end();
 
 	return 0;
 }
@@ -983,6 +997,8 @@ mythtv_pending(mvp_widget_t *widget)
 
 	if (mythtv_verify() < 0)
 		return -1;
+
+	busy_start();
 
 	pthread_mutex_lock(&myth_mutex);
 
@@ -1182,6 +1198,8 @@ mythtv_pending(mvp_widget_t *widget)
  out:
 	pthread_mutex_unlock(&myth_mutex);
 
+	busy_end();
+
 	return ret;
 }
 
@@ -1197,12 +1215,16 @@ wd_start(void *arg)
 	while (1) {
 		if ((state=cmyth_conn_hung(control)) == 1) {
 			if (old == 0) {
-				gui_error(err);
+				if ((gui_state == MVPMC_STATE_MYTHTV) ||
+				    (hw_state == MVPMC_STATE_MYTHTV))
+					gui_error(err);
 			}
 		} else {
 			if (old == 1) {
 				fprintf(stderr, "%s\n", ok);
-				gui_error_clear();
+				if ((gui_state == MVPMC_STATE_MYTHTV) ||
+				    (hw_state == MVPMC_STATE_MYTHTV))
+					gui_error_clear();
 			}
 		}
 		old = state;
@@ -1534,6 +1556,8 @@ mythtv_program(mvp_widget_t *widget)
 void
 mythtv_stop(void)
 {
+	busy_start();
+
 	pthread_mutex_lock(&myth_mutex);
 	mythtv_close_file();
 	pthread_mutex_unlock(&myth_mutex);
@@ -1541,6 +1565,8 @@ mythtv_stop(void)
 	video_clear();
 	mvpw_set_idle(NULL);
 	mvpw_set_timer(root, NULL, 0);
+
+	busy_end();
 }
 
 static int
@@ -1548,6 +1574,8 @@ mythtv_delete_prog(int forget)
 {
 	int ret;
 	cmyth_proginfo_t prog;
+
+	busy_start();
 
 	pthread_mutex_lock(&myth_mutex);
 	prog = cmyth_proginfo_hold(hilite_prog);
@@ -1564,6 +1592,8 @@ mythtv_delete_prog(int forget)
 	}
 	cmyth_proginfo_release(prog);
 	pthread_mutex_unlock(&myth_mutex);
+
+	busy_end();
 
 	return ret;
 }
