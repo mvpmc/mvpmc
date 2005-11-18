@@ -314,7 +314,7 @@ mythtv_close(void)
 }
 
 static void
-mythtv_shutdown(void)
+mythtv_shutdown(int display)
 {
 	printf("%s(): closing mythtv connection\n", __FUNCTION__);
 
@@ -342,9 +342,11 @@ mythtv_shutdown(void)
 	close_mythtv = 0;
 	mythtv_state = MYTHTV_STATE_MAIN;
 
-	if ((gui_state == MVPMC_STATE_MYTHTV) ||
-	    (hw_state == MVPMC_STATE_MYTHTV))
-		gui_error("MythTV connection lost!");
+	if (display) {
+		if ((gui_state == MVPMC_STATE_MYTHTV) ||
+		    (hw_state == MVPMC_STATE_MYTHTV))
+			gui_error("MythTV connection lost!");
+	}
 }
 
 static void
@@ -591,7 +593,7 @@ load_episodes(void)
 
 		if ((err=cmyth_proglist_get_all_recorded(control, episode_plist)) < 0) {
 			fprintf(stderr, "get recorded failed, err %d\n", err);
-			mythtv_shutdown();
+			mythtv_shutdown(1);
 			goto err;
 		}
 
@@ -1032,7 +1034,7 @@ mythtv_pending(mvp_widget_t *widget)
 
 		if ((err=cmyth_proglist_get_all_pending(control, pending_plist)) < 0) {
 			fprintf(stderr, "get pending failed, err %d\n", err);
-			mythtv_shutdown();
+			mythtv_shutdown(1);
 			ret = -1;
 			goto out;
 		}
@@ -1266,7 +1268,7 @@ event_start(void *arg)
 			break;
 		case CMYTH_EVENT_CLOSE:
 			printf("Event socket closed, shutting down myth\n");
-			mythtv_shutdown();
+			mythtv_shutdown(1);
 			break;
 		case CMYTH_EVENT_RECORDING_LIST_CHANGE:
 			printf("MythTV event RECORDING_LIST_CHANGE\n");
@@ -1280,6 +1282,12 @@ event_start(void *arg)
 			break;
 		case CMYTH_EVENT_DONE_RECORDING:
 			printf("MythTV event DONE_RECORDING\n");
+			break;
+		case CMYTH_EVENT_QUIT_LIVETV:
+			printf("MythTV event QUIT_LIVETV\n");
+			mythtv_livetv_stop();
+			mythtv_shutdown(0);
+			gui_error("Stopping LiveTV to start new recording.");
 			break;
 		}
 	}
@@ -1456,7 +1464,7 @@ control_start(void *arg)
 
 		if ((len == -EPIPE) || (len == -ECONNRESET) ||
 		    (len == -EBADF)) {
-			mythtv_shutdown();
+			mythtv_shutdown(1);
 			continue;
 		}
 
@@ -1712,7 +1720,7 @@ mythtv_open(void)
 	printf("connecting to mythtv (slave) backend %s\n", host);
 	if ((control_slave=cmyth_conn_connect_ctrl(host, port, 1024,
 						   mythtv_tcp_control)) == NULL) {
-		mythtv_shutdown();
+		mythtv_shutdown(1);
 		return -1;
 	}
 
@@ -1990,7 +1998,7 @@ mythtv_livetv_start(int *tuner)
 	}
 
 	if ((c=cmyth_conn_get_free_recorder_count(control)) < 0) {
-		mythtv_shutdown();
+		mythtv_shutdown(1);
 		goto err;
 	}
 
@@ -2615,7 +2623,7 @@ get_livetv_programs(void)
 
 	if ((c=cmyth_conn_get_free_recorder_count(control)) < 0) {
 		fprintf(stderr, "unable to get free recorder\n");
-		mythtv_shutdown();
+		mythtv_shutdown(1);
 		return -2;
 	}
 
