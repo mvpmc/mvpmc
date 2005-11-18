@@ -60,6 +60,8 @@ cmyth_event_get(cmyth_conn_t conn)
 		event = CMYTH_EVENT_SCHEDULE_CHANGE;
 	} else if (strncmp(tmp, "DONE_RECORDING", 14) == 0) {
 		event = CMYTH_EVENT_DONE_RECORDING;
+	} else if (strncmp(tmp, "QUIT_LIVETV", 11) == 0) {
+		event = CMYTH_EVENT_QUIT_LIVETV;
 	} else {
 		printf("unknown mythtv BACKEND_MESSAGE '%s'\n", tmp);
 		cmyth_dbg(CMYTH_DBG_ERROR,
