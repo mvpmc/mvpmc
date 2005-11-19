@@ -47,6 +47,7 @@
 #include <cmyth_local.h>
 
 #include <string.h>
+#include <stdio.h>
 
 /*
  * struct refcounter
@@ -70,8 +71,12 @@
  */
 typedef struct refcounter {
 	cmyth_atomic_t refcount;
-	void (*destroy)(void *p);
+	size_t length;
+	destroy_t destroy;
 } refcounter_t;
+
+#define CMYTH_REFCNT(p) ((refcounter_t *)(((unsigned char *)(p)) - sizeof(refcounter_t)))
+#define CMYTH_DATA(r) (((unsigned char *)(r)) + sizeof(refcounter_t))
 
 /*
  * cmyth_allocate(size_t len)
@@ -95,19 +100,64 @@ void *
 cmyth_allocate(size_t len)
 {
 	void *block = malloc(sizeof(refcounter_t) + len);
-	void *ret = (((unsigned char *)block) + sizeof(refcounter_t));
+	void *ret = CMYTH_DATA(block);
 	refcounter_t *ref = (refcounter_t *)block;
 
-	if (ref) {
-		cmyth_atomic_inc(&ref->refcount);
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s(%d, ret = %p, ref = %p) {\n",
+		  __FUNCTION__, len, ret, ref);
+	if (block) {
+		memset(block, 0, sizeof(refcounter_t) + len);
+		cmyth_atomic_set(&ref->refcount, 1);
 		ref->destroy = NULL;
+		ref->length = len;
+		cmyth_dbg(CMYTH_DBG_DEBUG, "%s(%d, ret = %p, ref = %p) }\n",
+			  __FUNCTION__, len, ret, ref);
 		return ret;
 	}
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s(%d, ret = %p, ref = %p) !}\n",
+		  __FUNCTION__, len, ret, ref);
 	return NULL;
 }
 
 /*
- * cmyth_alloc_set_destroy(void *block, void (*func)(*p))
+ * cmyth_reallocate(void *p, size_t len)
+ * 
+ * Scope: PRIVATE (mapped to __cmyth_reallocate)
+ *
+ * Description
+ *
+ * Change the allocation size of a reference counted allocation.
+ *
+ * Return Value:
+ *
+ * Success: A non-NULL pointer to  a block of memory at least 'len' bytes long
+ *          and safely aligned.  The block is reference counted and can be
+ *          released using cmyth_release().
+ *
+ * Failure: A NULL pointer.
+ */
+void *
+cmyth_reallocate(void *p, size_t len)
+{
+	refcounter_t *ref = CMYTH_REFCNT(p);
+	void *ret = cmyth_allocate(len);
+
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s(%d, ret = %p, ref = %p) {\n",
+		  __FUNCTION__, len, ret, ref);
+	if (p && ret) {
+		memcpy(ret, p, ref->length);
+		cmyth_set_destroy(ret, ref->destroy);
+	}
+	if (p) {
+		cmyth_release(p);
+	}
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s(%d, ret = %p, ref = %p) }\n",
+		  __FUNCTION__, len, ret, ref);
+	return ret;
+}
+
+/*
+ * cmyth_set_destroy(void *block, destroy_t func)
  * 
  * Scope: PRIVATE (mapped to __cmyth_set_destroy)
  *
@@ -124,20 +174,24 @@ cmyth_allocate(size_t len)
  * Return Value: NONE
  */
 void
-cmyth_alloc_set_destroy(void *data, void (*func)(void *p))
+cmyth_set_destroy(void *data, destroy_t func)
 {
-	void *block = (((unsigned char *)data) - sizeof(refcounter_t));
+	void *block = CMYTH_REFCNT(data);
 	refcounter_t *ref = block;
 
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s(%p, func = %p, ref = %p) {\n",
+		  __FUNCTION__, data, func, ref);
 	if (data) {
 		ref->destroy = func;
 	}
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s(%p, func = %p, ref = %p) }\n",
+		  __FUNCTION__, data, func, ref);
 }
 
 /*
- * cmyth_alloc_strdup(char *str)
+ * cmyth_strdup(char *str)
  * 
- * Scope: PRIVATE (mapped to __cmyth_alloc_strdup)
+ * Scope: PUBLIC
  *
  * Description
  *
@@ -152,15 +206,25 @@ cmyth_alloc_set_destroy(void *data, void (*func)(void *p))
  * Failure: A NULL pointer.
  */
 char *
-cmyth_alloc_strdup(char *str)
+cmyth_strdup(char *str)
 {
-	size_t len = strlen(str) + 1;
-	char *ret = cmyth_allocate(len);
+	size_t len;
+	char *ret = NULL;
 
-	if (ret) {
-		strncpy(ret, str, len);
-		ret[len - 1] = '\0';
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s(%p) {\n",
+		  __FUNCTION__, str);
+	if (str) {
+		len = strlen(str) + 1;
+		ret = cmyth_allocate(len);
+		if (ret) {
+			strncpy(ret, str, len);
+			ret[len - 1] = '\0';
+		}
+		cmyth_dbg(CMYTH_DBG_DEBUG,
+			  "%s str = %p[%s], len = %d, ret =%p\n",
+			  __FUNCTION__, str, str, len, ret);
 	}
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s() }\n", __FUNCTION__);
 	return ret;
 }
 
@@ -189,15 +253,15 @@ cmyth_alloc_strdup(char *str)
 void *
 cmyth_hold(void *p)
 {
-	void *block = (((unsigned char *)p) - sizeof(refcounter_t));
+	void *block = CMYTH_REFCNT(p);
 	refcounter_t *ref = block;
 
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s(%p) {\n", __FUNCTION__, p);
 	if (p) {
 		cmyth_atomic_inc(&ref->refcount);
-		ref->destroy = NULL;
-		return p;
 	}
-        return NULL;
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s(%p) }\n", __FUNCTION__, p);
+        return p;
 }
 
 /*
@@ -219,10 +283,15 @@ cmyth_hold(void *p)
 void
 cmyth_release(void *p)
 {
-	void *block = (((unsigned char *)p) - sizeof(refcounter_t));
+	void *block = CMYTH_REFCNT(p);
 	refcounter_t *ref = block;
 
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s(%p) {\n", __FUNCTION__, p);
 	if (p) {
+		cmyth_dbg(CMYTH_DBG_DEBUG,
+			  "%s:%d %s(%p,ref = %p,refcount = %p,length = %d)\n",
+			  __FILE__, __LINE__, __FUNCTION__,
+			  p, ref, ref->refcount, ref->length);
 		if (cmyth_atomic_dec_and_test(&ref->refcount)) {
 			/*
 			 * Last reference, destroy the structure (if
@@ -232,7 +301,28 @@ cmyth_release(void *p)
 			if (ref->destroy) {
 				ref->destroy(p);
 			}
+			cmyth_dbg(CMYTH_DBG_DEBUG,
+				  "%s:%d %s() -- free it\n",
+				  __FILE__, __LINE__, __FUNCTION__);
 			free(block);
 		}
 	}
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s(%p) }\n", __FUNCTION__, p);
+}
+
+/*
+ * cmyth_str_create(int len)
+ * 
+ * Scope: PUBLIC
+ *
+ * Description
+ *
+ * Allocate space for a string of 'len' bytes.
+ *
+ * Return Value: A pointer to the space
+ */
+char *
+cmyth_str_create(int len)
+{
+	return cmyth_allocate(len);
 }

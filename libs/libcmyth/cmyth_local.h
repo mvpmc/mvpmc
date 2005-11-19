@@ -158,7 +158,6 @@ struct cmyth_conn {
 	int conn_buflen;
 	int conn_len;
 	int conn_pos;
-	cmyth_atomic_t refcount;
 	unsigned long conn_version;
 	volatile int conn_hang;
 	int conn_tcp_rcvbuf;
@@ -172,7 +171,6 @@ struct cmyth_recorder {
 	cmyth_ringbuf_t rec_ring;
 	cmyth_conn_t rec_conn;
 	double rec_framerate;
-	cmyth_atomic_t refcount;
 };
 
 struct cmyth_file {
@@ -181,7 +179,7 @@ struct cmyth_file {
 	unsigned long long file_start;
 	unsigned long long file_length;
 	unsigned long long file_pos;
-	cmyth_atomic_t refcount;
+	cmyth_conn_t file_control;
 };
 
 struct cmyth_ringbuf {
@@ -194,32 +192,27 @@ struct cmyth_ringbuf {
 	unsigned long long ringbuf_fill;
 	char *ringbuf_hostname;
 	int ringbuf_port;
-	cmyth_atomic_t refcount;
 };
 
 struct cmyth_rec_num {
 	char *recnum_host;
 	unsigned short recnum_port;
 	unsigned recnum_id;
-	cmyth_atomic_t refcount;
 };
 
 struct cmyth_keyframe {
 	unsigned long keyframe_number;
 	unsigned long long keyframe_pos;
-	cmyth_atomic_t refcount;
 };
 
 struct cmyth_posmap {
 	unsigned posmap_count;
 	struct cmyth_keyframe **posmap_list;
-	cmyth_atomic_t refcount;
 };
 
 struct cmyth_freespace {
 	unsigned long long freespace_total;
 	unsigned long long freespace_used;
-	cmyth_atomic_t refcount;
 };
 
 struct cmyth_timestamp {
@@ -230,7 +223,6 @@ struct cmyth_timestamp {
 	unsigned long timestamp_minute;
 	unsigned long timestamp_second;
 	int timestamp_isdst;
-	cmyth_atomic_t refcount;
 };
 
 struct cmyth_proginfo {
@@ -279,33 +271,13 @@ struct cmyth_proginfo {
         unsigned long proginfo_hasairdate;
 	char *proginfo_host;
 	unsigned long proginfo_version;
-	cmyth_atomic_t refcount;
 	char *proginfo_timestretch; /* new in v18 */
 };
 
 struct cmyth_proglist {
 	cmyth_proginfo_t *proglist_list;
 	long proglist_count;
-	cmyth_atomic_t refcount;
 };
-
-/*
- * Private functions in  alloc.c
- */
-#define cmyth_allocate __cmyth_allocate
-extern void *cmyth_allocate(size_t len);
-
-#define cmyth_alloc_set_destroy __cmyth_alloc_set_destroy
-extern void cmyth_alloc_set_destroy(void *block, void (*func)(void *p));
-
-#define cmyth_alloc_strdup __cmyth_alloc_strdup
-extern char *cmyth_alloc_strdup(char *str);
-
-/*
- * Private funtions in debug.c
- */
-#define cmyth_dbg __cmyth_dbg
-extern void cmyth_dbg(int level, char *fmt, ...);
 
 /*
  * Private funtions in socket.c
@@ -367,11 +339,11 @@ extern int cmyth_rcv_data(cmyth_conn_t conn, int *err, unsigned char *buf,
 
 #define cmyth_rcv_timestamp __cmyth_rcv_timestamp
 extern int cmyth_rcv_timestamp(cmyth_conn_t conn, int *err,
-			       cmyth_timestamp_t buf,
+			       cmyth_timestamp_t *ts_p,
 			       int count);
 #define cmyth_rcv_datetime __cmyth_rcv_datetime
 extern int cmyth_rcv_datetime(cmyth_conn_t conn, int *err,
-			      cmyth_timestamp_t buf,
+			      cmyth_timestamp_t *ts_p,
 			      int count);
 
 #define cmyth_rcv_proginfo __cmyth_rcv_proginfo
@@ -421,18 +393,12 @@ extern char *cmyth_chaninfo_string(cmyth_proginfo_t prog);
  * From file.c
  */
 #define cmyth_file_create __cmyth_file_create
-extern cmyth_file_t cmyth_file_create(void);
+extern cmyth_file_t cmyth_file_create(cmyth_conn_t control);
 
 /*
  * From timestamp.c
  */
 #define cmyth_timestamp_diff __cmyth_timestamp_diff
 extern int cmyth_timestamp_diff(cmyth_timestamp_t, cmyth_timestamp_t);
-
-/*
- * recorder.c
- */
-void cmyth_recorder_release(cmyth_recorder_t p);
-int cmyth_datetime_from_string(cmyth_timestamp_t ts, char *str);
 
 #endif /* __CMYTH_LOCAL_H */

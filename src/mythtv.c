@@ -46,6 +46,24 @@
 #define PRINTF(x...)
 #endif
 
+/*
+ * Swap a reference counted global for a new reference (including NULL).
+ * This little dance ensures that no one can be taking a new reference
+ * to the global while the old reference is being destroyed.  Either another
+ * thread will get the value while it is still held and hold it again, or
+ * it will get the new (held) value.  At the end of this, 'new_ref' will be
+ * held both by the 'new_ref' reference and the newly created 'ref'
+ * reference.  The caller is responsible for releasing 'new_ref' when it is
+ * no longer in use (and 'ref' for that matter).
+ */
+#define CHANGE_GLOBAL_REF(global_ref, new_ref) \
+{                                              \
+  void *tmp_ref = cmyth_hold((global_ref));    \
+  cmyth_release((global_ref));                 \
+  (global_ref) = cmyth_hold((new_ref));        \
+  cmyth_release((tmp_ref));                    \
+}
+
 extern mvpw_menu_attr_t mythtv_attr;
 
 #define BSIZE	(256*1024)
@@ -69,14 +87,11 @@ static pthread_cond_t event_cond = PTHREAD_COND_INITIALIZER;
 
 static volatile cmyth_conn_t control;		/* master backend */
 static volatile cmyth_conn_t event;		/* master backend */
-static volatile cmyth_conn_t control_slave;	/* slave backend */
 static volatile cmyth_proginfo_t current_prog;	/* program currently being played */
-static cmyth_proginfo_t hilite_prog;	/* program currently hilighted */
-static cmyth_proglist_t episode_plist;
-static cmyth_proglist_t pending_plist;
-static cmyth_proginfo_t episode_prog;
-static cmyth_proginfo_t pending_prog;
-static char *pathname = NULL;
+static volatile cmyth_proginfo_t hilite_prog;	/* program currently hilighted */
+static volatile cmyth_proglist_t episode_plist;
+static volatile cmyth_proglist_t pending_plist;
+
 static volatile cmyth_recorder_t recorder;
 
 static volatile int pending_dirty = 0;
@@ -94,7 +109,7 @@ int running_mythtv = 0;
 int mythtv_main_menu = 0;
 int mythtv_debug = 0;
 
-static volatile int playing_via_mythtv = 0, reset_mythtv = 1;
+static volatile int playing_via_mythtv = 0;
 static volatile int close_mythtv = 0;
 static volatile int changing_channel = 0;
 static volatile int video_reading = 0;
@@ -133,10 +148,6 @@ static void livetv_select_callback(mvp_widget_t*, char*, void*);
 static volatile int myth_seeking = 0;
 
 static char *hilite_path = NULL;
-char *mythtv_recdir_tosplit = NULL;
-char *recdir_token = NULL;
-char *test_path = NULL;
-FILE *test_file;
 
 int mythtv_tcp_control = 4096;
 int mythtv_tcp_program = 0;
@@ -174,9 +185,13 @@ string_compare(const void *a, const void *b)
 {
 	const char *x, *y;
 
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 	x = *((const char**)a);
 	y = *((const char**)b);
 
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) }\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 	return strcmp(x, y);
 }
 
@@ -186,22 +201,35 @@ livetv_compare(const void *a, const void *b)
 	const struct livetv_prog *x, *y;
 	int X, Y;
 
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 	x = ((const struct livetv_prog*)a);
 	y = ((const struct livetv_prog*)b);
 	X = atoi(x->pi[0].chan);
 	Y = atoi(y->pi[0].chan);
 
-	if (X < Y)
+	if (X < Y) {
+		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1 }\n",
+			    __FUNCTION__, __FILE__, __LINE__);
+
 		return -1;
-	else if (X > Y)
+	} else if (X > Y) {
+		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) 1}\n",
+			    __FUNCTION__, __FILE__, __LINE__);
+
 		return 1;
-	else
+	} else {
+		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) 0}\n",
+			    __FUNCTION__, __FILE__, __LINE__);
 		return 0;
+	}
 }
 
 void
 mythtv_show_widgets(void)
 {
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 	if (mythtv_state == MYTHTV_STATE_PENDING) {
 		mvpw_show(mythtv_browser);
 		mvpw_show(mythtv_channel);
@@ -222,11 +250,15 @@ mythtv_show_widgets(void)
 		mvpw_show(mythtv_description);
 		mvpw_show(mythtv_channel);
 	}
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) }\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 }
 
 static void
 mythtv_fullscreen(void)
 {
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 	mvpw_hide(mythtv_browser);
 	mvpw_hide(mythtv_logo);
 	mvpw_hide(mythtv_channel);
@@ -242,7 +274,7 @@ mythtv_fullscreen(void)
 	mvpw_expose(root);
 	mvpw_focus(root);
 
-	printf("fullscreen video mode\n");
+	fprintf(stderr, "fullscreen video mode\n");
 
 	screensaver_disable();
 }
@@ -252,15 +284,22 @@ mythtv_verify(void)
 {
 	char buf[128];
 
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 	if (control == NULL) {
 		if (mythtv_init(mythtv_server, -1) < 0) {
 			snprintf(buf, sizeof(buf),
 				 "Connect to mythtv server %s failed!",
 				 mythtv_server ? mythtv_server : "127.0.0.1");
 			gui_error(buf);
+			cmyth_dbg(CMYTH_DBG_DEBUG,
+				    "%s [%s:%d]: (trace) -1}\n",
+				    __FUNCTION__, __FILE__, __LINE__);
 			return -1;
 		}
 	}
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) 0}\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 
 	return 0;
 }
@@ -268,55 +307,24 @@ mythtv_verify(void)
 static void
 mythtv_close(void)
 {
-	if (control_slave && file) {
-		cmyth_file_t f = file;
-		file = NULL;
-		cmyth_file_release(control_slave, f);
-	}
-	if (pending_prog) {
-		cmyth_proginfo_release(pending_prog);
-		pending_prog = NULL;
-	}
-	if (current_prog) {
-		cmyth_proginfo_release(current_prog);
-		current_prog = NULL;
-	}
-	if (hilite_prog) {
-		cmyth_proginfo_release(hilite_prog);
-		hilite_prog = NULL;
-	}
-	if (episode_prog) {
-		cmyth_proginfo_release(episode_prog);
-		episode_prog = NULL;
-	}
-	if (episode_plist) {
-		cmyth_proglist_release(episode_plist);
-		episode_plist = NULL;
-	}
-	if (pending_plist) {
-		cmyth_proglist_release(pending_plist);
-		pending_plist = NULL;
-	}
-	if (control) {
-		cmyth_conn_release(control);
-		control = NULL;
-	}
-	if (control_slave) {
-		cmyth_conn_t c = control_slave;
-		control_slave = NULL;
-		cmyth_conn_release(c);
-	}
-	if (event) {
-		cmyth_conn_t c = event;
-		event = NULL;
-		cmyth_conn_release(c);
-	}
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
+		    __FUNCTION__, __FILE__, __LINE__);
+	CHANGE_GLOBAL_REF(file, NULL);
+	CHANGE_GLOBAL_REF(recorder, NULL);
+	CHANGE_GLOBAL_REF(current_prog, NULL);
+	CHANGE_GLOBAL_REF(hilite_prog, NULL);
+	CHANGE_GLOBAL_REF(episode_plist, NULL);
+	CHANGE_GLOBAL_REF(pending_plist, NULL);
+	CHANGE_GLOBAL_REF(control, NULL);
+	CHANGE_GLOBAL_REF(event, NULL);
 }
 
 static void
 mythtv_shutdown(int display)
 {
-	printf("%s(): closing mythtv connection\n", __FUNCTION__);
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
+		    __FUNCTION__, __FILE__, __LINE__);
+	fprintf(stderr, "%s(): closing mythtv connection\n", __FUNCTION__);
 
 	mythtv_close();
 
@@ -338,9 +346,10 @@ mythtv_shutdown(int display)
 	}
 
 	mythtv_main_menu = 1;
-	reset_mythtv = 1;
 	close_mythtv = 0;
 	mythtv_state = MYTHTV_STATE_MAIN;
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) }\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 
 	if (display) {
 		if ((gui_state == MVPMC_STATE_MYTHTV) ||
@@ -352,35 +361,35 @@ mythtv_shutdown(int display)
 static void
 mythtv_close_file(void)
 {
-	printf("%s(): closing file\n", __FUNCTION__);
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 	if (playing_via_mythtv && file) {
-		if (file) {
-			cmyth_conn_t c = control_slave;
-			cmyth_file_t f = file;
-			control_slave = NULL;
-			file = NULL;
-			printf("%s(): releasing file\n", __FUNCTION__);
-			cmyth_file_release(c, f);
-			cmyth_conn_release(c);
-		}
-		if (current_prog) {
-			cmyth_proginfo_release(current_prog);
-			current_prog = NULL;
-		}
-		reset_mythtv = 1;
+		fprintf(stderr, "%s(): closing file\n", __FUNCTION__);
+		CHANGE_GLOBAL_REF(file, NULL);
+		fprintf(stderr, "%s(): releasing current prog\n",
+			__FUNCTION__);
+		CHANGE_GLOBAL_REF(current_prog, NULL);
 	}
 
 	close_mythtv = 0;
 	playing_file = 0;
 
+	/*
+	 * Wakeup anybody that is sleeping in a system call.
+	 */
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) }\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 	pthread_kill(control_thread, SIGURG);
 }
 
 static void
 hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 {
-	const char *description, *channame, *title, *subtitle;
+	char *description, *channame;
+	char *pathname = NULL;
 
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 	mvpw_hide(shows_widget);
 	mvpw_hide(episodes_widget);
 	mvpw_hide(freespace_widget);
@@ -388,68 +397,82 @@ hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 	if (hilite) {
 		cmyth_timestamp_t ts;
 		char start[256], end[256], str[256], *ptr;
+		cmyth_proginfo_t hi_prog = cmyth_hold(hilite_prog);
+		cmyth_proglist_t ep_list = cmyth_hold(episode_plist);
 
 		mvpw_show(mythtv_channel);
 		mvpw_show(mythtv_date);
 		mvpw_show(mythtv_description);
 
-		if (hilite_prog)
-			cmyth_proginfo_release(hilite_prog);
+		cmyth_release(ep_list);
+		cmyth_release(hi_prog);
+		hi_prog = cmyth_proglist_get_item(ep_list, (int)key);
+		CHANGE_GLOBAL_REF(hilite_prog, hi_prog);
 
-		hilite_prog = cmyth_proglist_get_item(episode_plist, (int)key);
-
-		channame = cmyth_proginfo_channame(hilite_prog);
-		title = cmyth_proginfo_title(hilite_prog);
-		subtitle = cmyth_proginfo_subtitle(hilite_prog);
+		channame = cmyth_proginfo_channame(hi_prog);
 		if (channame) {
-			mvpw_set_text_str(mythtv_channel, (char*)channame);
+			mvpw_set_text_str(mythtv_channel, channame);
+			cmyth_release(channame);
 		} else {
-			printf("program channel name not found!\n");
+			fprintf(stderr, "program channel name not found!\n");
 			mvpw_set_text_str(mythtv_channel, "");
 		}
 		mvpw_expose(mythtv_channel);
 
-		description = cmyth_proginfo_description(hilite_prog);
+		description = cmyth_proginfo_description(hi_prog);
 		if (description) {
-			mvpw_set_text_str(mythtv_description, (char*)description);
+			mvpw_set_text_str(mythtv_description, description);
+			cmyth_release(description);
 		} else {
-			printf("program description not found!\n");
+			fprintf(stderr, "program description not found!\n");
 			mvpw_set_text_str(mythtv_description, "");
 		}
 		mvpw_expose(mythtv_description);
 
-		ts = cmyth_proginfo_rec_start(hilite_prog);
+		ts = cmyth_proginfo_rec_start(hi_prog);
 		cmyth_timestamp_to_string(start, ts);
-		cmyth_timestamp_release(ts);
-		ts = cmyth_proginfo_rec_end(hilite_prog);
+		cmyth_release(ts);
+		ts = cmyth_proginfo_rec_end(hi_prog);
 		cmyth_timestamp_to_string(end, ts);
-		cmyth_timestamp_release(ts);
+		cmyth_release(ts);
 		
-		pathname = (char*)cmyth_proginfo_pathname(hilite_prog);
-
-		if (hilite_path)
-			free(hilite_path);
+		pathname = cmyth_proginfo_pathname(hi_prog);
+		if (!pathname) {
+			printf("NULL Pathname for HILITE PROG!!!!!!!!!!!!!\n");
+		}
+		cmyth_release(hi_prog);
+		CHANGE_GLOBAL_REF(hilite_path, NULL);
 
 		if (mythtv_recdir) {
-			mythtv_recdir_tosplit = strdup(mythtv_recdir);
-			recdir_token = strtok(mythtv_recdir_tosplit,":");
+			char *mythtv_recdir_tosplit = 
+				cmyth_strdup(mythtv_recdir);
+			char *recdir_token =
+				strtok(mythtv_recdir_tosplit,":");
+
 			while (recdir_token != NULL)
 			{
-				if (test_path) free(test_path);
-				test_path = malloc(strlen(recdir_token)+strlen(pathname)+1);
-				sprintf(test_path,"%s%s",recdir_token, pathname);
-				if ((test_file=fopen(test_path,"r")) != NULL)
+				FILE *test_file;
+				char *test_path =
+					cmyth_allocate(strlen(recdir_token) +
+						       strlen(pathname) + 1);
+				sprintf(test_path,"%s%s",
+					recdir_token, pathname);
+				if ((test_file=fopen(test_path, "r")) != NULL)
 				{
-					hilite_path = strdup(test_path);
+					char *path = cmyth_hold(hilite_path);
+					cmyth_release(hilite_path);
+					hilite_path = cmyth_hold(test_path);
+					cmyth_release(path);
 					fclose(test_file);
 				}
+				cmyth_release(test_path);
 				recdir_token = strtok(NULL,":");
 			}
+			cmyth_release(mythtv_recdir_tosplit);
 		} else {
-			hilite_path = malloc(strlen(pathname)+1);
-			sprintf(hilite_path, "%s", pathname);
+			CHANGE_GLOBAL_REF(hilite_path, pathname);
 		}
-
+		cmyth_release(pathname);
 		ptr = strchr(start, 'T');
 		*ptr = '\0';
 		sprintf(str, "%s %s - ", start, ptr+1);
@@ -466,11 +489,18 @@ hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 		mvpw_set_text_str(mythtv_description, "");
 		mvpw_expose(mythtv_description);
 	}
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) }\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 }
 
 static void
 show_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
+	cmyth_proginfo_t loc_prog = cmyth_hold(current_prog);
+	cmyth_proginfo_t hi_prog = cmyth_hold(hilite_prog);
+
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 	switch_hw_state(MVPMC_STATE_MYTHTV);
 
 	if (mythtv_recdir) {
@@ -481,12 +511,20 @@ show_select_callback(mvp_widget_t *widget, char *item, void *key)
 
 	mythtv_fullscreen();
 
-	if (cmyth_proginfo_compare(hilite_prog, current_prog) != 0) {
-		if (current)
-			free(current);
-
-		current = malloc(strlen(hilite_path) + 1);
-		strcpy(current, hilite_path);
+	if (cmyth_proginfo_compare(hi_prog, loc_prog) != 0) {
+		/*
+		 * Change current.  The thing about 'current' is that
+		 * it is a global that is not allocated as reference
+		 * counted and it is allocated and freed outside this
+		 * file.  If / when it turns into reference counted
+		 * space, it will be much cleaner and safer to hold it
+		 * in a local, release and change it and then release
+		 * the local.  For now we take a chance on a non-held
+		 * reference being destroyed.
+		 */
+		char *path = current;
+		current = strdup(hilite_path);
+		free(path);
 
 		if (mythtv_livetv) {
 			mythtv_livetv_stop();
@@ -500,9 +538,7 @@ show_select_callback(mvp_widget_t *widget, char *item, void *key)
 		while (video_reading)
 			;
 
-		if (current_prog)
-			cmyth_proginfo_release(current_prog);
-		current_prog = cmyth_proginfo_hold(hilite_prog);
+		CHANGE_GLOBAL_REF(current_prog, hi_prog);
 
 		demux_reset(handle);
 		demux_attr_reset(handle);
@@ -510,11 +546,20 @@ show_select_callback(mvp_widget_t *widget, char *item, void *key)
 		av_play();
 		video_play(root);
 	}
+	cmyth_release(hi_prog);
+	cmyth_release(loc_prog);
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) }\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 }
 
 void
 mythtv_start_thumbnail(void)
 {
+	cmyth_proginfo_t loc_prog = cmyth_hold(current_prog);
+	cmyth_proginfo_t hi_prog = cmyth_hold(hilite_prog);
+
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 	busy_start();
 
 	switch_hw_state(MVPMC_STATE_MYTHTV);
@@ -526,7 +571,7 @@ mythtv_start_thumbnail(void)
 	}
 
 	if (mythtv_state == MYTHTV_STATE_LIVETV) {
-		printf("trying to start livetv thumbnail...\n");
+		fprintf(stderr, "trying to start livetv thumbnail...\n");
 		livetv_select_callback(NULL, NULL, (void*)current_livetv);
 
 		if (si.rows == 480)
@@ -534,18 +579,22 @@ mythtv_start_thumbnail(void)
 		else
 			av_move(475, si.rows-113, 4);
 
-		printf("thumbnail video mode\n");
+		fprintf(stderr, "thumbnail video mode\n");
 
+		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) }\n",
+			    __FUNCTION__, __FILE__, __LINE__);
 		goto out;
 	}
 
-	if (cmyth_proginfo_compare(hilite_prog, current_prog) != 0) {
+	if (cmyth_proginfo_compare(hi_prog, loc_prog) != 0) {
+		char *path;
+
 		if (si.rows == 480)
 			av_move(475, si.rows-60, 4);
 		else
 			av_move(475, si.rows-113, 4);
 
-		printf("thumbnail video mode\n");
+		fprintf(stderr, "thumbnail video mode\n");
 
 		pthread_mutex_lock(&myth_mutex);
 		mythtv_close_file();
@@ -554,16 +603,21 @@ mythtv_start_thumbnail(void)
 		while (video_reading)
 			;
 
-		if (current_prog)
-			cmyth_proginfo_release(current_prog);
+		CHANGE_GLOBAL_REF(current_prog, hi_prog);
 
-		current_prog = cmyth_proginfo_hold(hilite_prog);
-
-		if (current)
-			free(current);
-
-		current = malloc(strlen(hilite_path) + 1);
-		strcpy(current, hilite_path);
+		/*
+		 * Change current.  The thing about 'current' is that
+		 * it is a global that is not allocated as reference
+		 * counted and it is allocated and freed outside this
+		 * file.  If / when it turns into reference counted
+		 * space, it will be much cleaner and safer to hold it
+		 * in a local, release and change it and then release
+		 * the local.  For now we take a chance on a non-held
+		 * reference being destroyed.
+		 */
+		path = current;
+		current = strdup(hilite_path);
+		free(path);
 
 		demux_reset(handle);
 		demux_seek(handle);
@@ -572,63 +626,82 @@ mythtv_start_thumbnail(void)
 		av_play();
 		video_play(root);
 	}
-
  out:
+	cmyth_release(hi_prog);
+	cmyth_release(loc_prog);
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) }\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 	busy_end();
 }
 
 static int
 load_episodes(void)
 {
-	int err;
+	cmyth_proglist_t ep_list = cmyth_hold(episode_plist);
+	cmyth_conn_t ctrl = cmyth_hold(control);
+	int ret = 0;
 
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 	if ((episode_plist == NULL) || episode_dirty) {
-		if (episode_plist)
-			cmyth_proglist_release(episode_plist);
+		ep_list = cmyth_proglist_get_all_recorded(ctrl);
+		CHANGE_GLOBAL_REF(episode_plist, ep_list);
 
-		if ((episode_plist=cmyth_proglist_create()) == NULL) {
-			fprintf(stderr, "cannot get program list\n");
-			goto err;
-		}
-
-		if ((err=cmyth_proglist_get_all_recorded(control, episode_plist)) < 0) {
-			fprintf(stderr, "get recorded failed, err %d\n", err);
+		if (ep_list == NULL) {
+			fprintf(stderr, "get recorded failed\n");
 			mythtv_shutdown(1);
 			goto err;
 		}
-
 		episode_dirty = 0;
 	} else {
-		printf("Using cached episode data\n");
+		fprintf(stderr, "Using cached episode data\n");
+		ep_list = cmyth_hold(episode_plist);
 	}
+	fprintf(stderr, "'cmyth_proglist_get_all_recorded' worked\n");
 
-	return cmyth_proglist_get_count(episode_plist);
+	ret = cmyth_proglist_get_count(ep_list);
 
- err:
-	return 0;
+    err:
+	cmyth_release(ep_list);
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) }\n",
+		    __FUNCTION__, __FILE__, __LINE__);
+	return ret;
 }
 
 static int
 episode_exists(char *title)
 {
+	cmyth_proglist_t ep_list = cmyth_hold(episode_plist);
 	int i, count;
 	cmyth_proginfo_t prog;
-	const char *t;
+	char *t;
 
-	if ((episode_plist == NULL) || (title == NULL))
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
+		    __FUNCTION__, __FILE__, __LINE__);
+	if ((episode_plist == NULL) || (title == NULL)) {
+		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) 0}\n",
+			    __FUNCTION__, __FILE__, __LINE__);
 		return 0;
-
-	count = cmyth_proglist_get_count(episode_plist);
-
-	for (i = 0; i < count; ++i) {
-		prog = cmyth_proglist_get_item(episode_plist, i);
-		t = cmyth_proginfo_title(prog);
-		cmyth_proginfo_release(prog);
-		if (strcmp(title, t) == 0) {
-			return 1;
-		}
 	}
 
+	count = cmyth_proglist_get_count(ep_list);
+
+	for (i = 0; i < count; ++i) {
+		prog = cmyth_proglist_get_item(ep_list, i);
+		t = cmyth_proginfo_title(prog);
+		cmyth_release(prog);
+		if (strcmp(title, t) == 0) {
+			cmyth_dbg(CMYTH_DBG_DEBUG,
+				    "%s [%s:%d]: (trace) 1}\n",
+				    __FUNCTION__, __FILE__, __LINE__);
+			return 1;
+		}
+		cmyth_release(t);
+	}
+
+	cmyth_release(ep_list);
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) 0}\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 	return 0;
 }
 
@@ -646,10 +719,10 @@ episode_index(cmyth_proginfo_t episode)
 	for (i = 0; i < count; ++i) {
 		prog = cmyth_proglist_get_item(episode_plist, i);
 		if (cmyth_proginfo_compare(prog, episode) == 0) {
-			cmyth_proginfo_release(prog);
+			cmyth_release(prog);
 			return i;
 		}
-		cmyth_proginfo_release(prog);
+		cmyth_release(prog);
 	}
 
 	return -1;
@@ -658,11 +731,14 @@ episode_index(cmyth_proginfo_t episode)
 static void
 add_episodes(mvp_widget_t *widget, char *item, int load)
 {
-	const char *title, *subtitle;
+	char *title, *subtitle;
 	int count, i, n = 0, episodes = 0;
 	char buf[256];
 	char *prog;
+	cmyth_proglist_t ep_list = cmyth_hold(episode_plist);
 
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 	busy_start();
 
 	pthread_mutex_lock(&myth_mutex);
@@ -674,29 +750,29 @@ add_episodes(mvp_widget_t *widget, char *item, int load)
 	item_attr.fg = mythtv_attr.fg;
 	item_attr.bg = mythtv_attr.bg;
 
-	prog = strdup(item);
+	prog = cmyth_strdup(item);
 	mvpw_clear_menu(widget);
 
-	if (load)
+	if (load) {
 		count = load_episodes();
-	else
-		count = cmyth_proglist_get_count(episode_plist);
+		cmyth_release(ep_list);
+		ep_list = cmyth_hold(episode_plist);
+	} else {
+		count = cmyth_proglist_get_count(ep_list);
+	}
 
 	for (i = 0; i < count; ++i) {
 		char full[256];
+		cmyth_proginfo_t ep_prog = NULL;
 
-		if (episode_prog)
-			cmyth_proginfo_release(episode_prog);
-
-		if (strcmp(prog, "All - Newest first") == 0)
-			episode_prog = cmyth_proglist_get_item(episode_plist,
-							       count-i-1);
-		else
-			episode_prog = cmyth_proglist_get_item(episode_plist,
-							       i);
-
-		title = cmyth_proginfo_title(episode_prog);
-		subtitle = cmyth_proginfo_subtitle(episode_prog);
+		if (strcmp(prog, "All - Newest first") == 0) {
+			ep_prog = cmyth_proglist_get_item(ep_list,
+							  count - i - 1);
+		} else {
+			ep_prog = cmyth_proglist_get_item(ep_list, i);
+		}
+		title = cmyth_proginfo_title(ep_prog);
+		subtitle = cmyth_proginfo_subtitle(ep_prog);
 
 		if (strcmp(title, prog) == 0) {
 			list_all = 0;
@@ -721,6 +797,9 @@ add_episodes(mvp_widget_t *widget, char *item, int load)
 					   &item_attr);
 			episodes++;
 		}
+		cmyth_release(title);
+		cmyth_release(subtitle);
+		cmyth_release(ep_prog);
 		n++;
 	}
 
@@ -728,28 +807,36 @@ add_episodes(mvp_widget_t *widget, char *item, int load)
 	if (episodes > 1)
 		strcat(buf, "s");
 	mvpw_set_menu_title(widget, buf);
-	free(prog);
+	cmyth_release(prog);
 
 	pthread_mutex_unlock(&myth_mutex);
 
 	busy_end();
+	cmyth_release(ep_list);
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) }\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 }
 
 static void
 select_callback(mvp_widget_t *widget, char *item, void *key)
 {
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 	add_episodes(widget, item, 1);
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) }\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 }
 
 static void
 add_shows(mvp_widget_t *widget)
 {
-	cmyth_proginfo_t prog;
+	cmyth_proglist_t ep_list;
 	int count;
 	int i, j, n = 0;
-	const char *title;
 	char *titles[1024];
 
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 	item_attr.select = select_callback;
 	item_attr.hilite = NULL;
 	item_attr.fg = mythtv_attr.fg;
@@ -758,19 +845,21 @@ add_shows(mvp_widget_t *widget)
 	pthread_mutex_lock(&myth_mutex);
 
 	count = load_episodes();
+	ep_list  = cmyth_hold(episode_plist);
 	for (i = 0; i < count; ++i) {
-		prog = cmyth_proglist_get_item(episode_plist, i);
-		title = cmyth_proginfo_title(prog);
+		cmyth_proginfo_t prog = cmyth_proglist_get_item(ep_list, i);
+		char *title = cmyth_proginfo_title(prog);
 		for (j=0; j<n; j++)
 			if (strcmp(title, titles[j]) == 0)
 				break;
 		if (j == n) {
-			titles[n] = (char*)title;
+			titles[n] = cmyth_hold(title);
 			n++;
 		}
-		cmyth_proginfo_release(prog);
+		cmyth_release(prog);
+		cmyth_release(title);
 	}
-
+	cmyth_release(ep_list);
 	episode_count = count;
 	show_count = n;
 
@@ -779,10 +868,13 @@ add_shows(mvp_widget_t *widget)
 	mvpw_add_menu_item(widget, "All - Newest first", (void*)0, &item_attr);
 	mvpw_add_menu_item(widget, "All - Oldest first", (void*)1, &item_attr);
 
-	for (i=0; i<n; i++)
+	for (i=0; i<n; i++) {
 		mvpw_add_menu_item(widget, titles[i], (void*)n+2, &item_attr);
-
+		cmyth_release(titles[i]);
+	}
 	pthread_mutex_unlock(&myth_mutex);
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) }\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 }
 
 int
@@ -791,30 +883,34 @@ mythtv_update(mvp_widget_t *widget)
 	char buf[64];
 	long long total, used;
 
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 	running_mythtv = 1;
 
 	mvpw_show(root);
 	mvpw_expose(root);
 
-	if (mythtv_verify() < 0)
+	if (mythtv_verify() < 0) {
+		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1}\n",
+			    __FUNCTION__, __FILE__, __LINE__);
 		return -1;
+	}
 
 	busy_start();
 
 	if (mythtv_state == MYTHTV_STATE_EPISODES) {
-		const char *t;
+		cmyth_proginfo_t hi_prog = cmyth_hold(hilite_prog);
 		char *title = NULL;
 		int count;
 
-		if ((t=cmyth_proginfo_title(hilite_prog)) != NULL) {
-			title = alloca(strlen(t)+1);
-			strcpy(title, t);
-		}
+		title=cmyth_proginfo_title(hi_prog);
+		cmyth_release(hi_prog);
 		if (!list_all)
-			printf("checking for more episodes of '%s'\n", title);
+			fprintf(stderr, "checking for more episodes of '%s'\n",
+				title);
 		count = load_episodes();
 		if ((count > 0) && (list_all || episode_exists(title))) {
-			printf("staying in episode menu\n");
+			fprintf(stderr, "staying in episode menu\n");
 			switch (list_all) {
 			case 0:
 				add_episodes(widget, title, 0);
@@ -828,7 +924,8 @@ mythtv_update(mvp_widget_t *widget)
 			}
 			goto out;
 		}
-		printf("returning to program menu\n");
+		cmyth_release(title);
+		fprintf(stderr, "returning to program menu\n");
 		mythtv_state = MYTHTV_STATE_PROGRAMS;
 	}
 
@@ -871,6 +968,8 @@ mythtv_update(mvp_widget_t *widget)
 	}
 
  out:
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) 0}\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 	busy_end();
 
 	return 0;
@@ -879,6 +978,8 @@ mythtv_update(mvp_widget_t *widget)
 int
 mythtv_back(mvp_widget_t *widget)
 {
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 	mvpw_set_text_str(mythtv_channel, "");
 	mvpw_set_text_str(mythtv_date, "");
 	mvpw_set_text_str(mythtv_description, "");
@@ -897,41 +998,46 @@ mythtv_back(mvp_widget_t *widget)
 	}
 
 	if (hilite_prog) {
-		cmyth_proginfo_release(hilite_prog);
+		cmyth_release(hilite_prog);
 		hilite_prog = NULL;
 	}
 
 	mythtv_state = MYTHTV_STATE_PROGRAMS;
 	mythtv_update(widget);
 
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1}\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 	return -1;
 }
 
 static void
-pending_hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
+pending_hilite_callback(mvp_widget_t *widget,
+			char *item,
+			void *key, int hilite)
 {
 	int n = (int)key;
 
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 	if (hilite) {
 		char start[256], end[256], str[256];
 		char *description, *channame, *ptr;
 		cmyth_timestamp_t ts;
 		cmyth_proginfo_rec_status_t status;
+		cmyth_proginfo_t prog = NULL;
+		cmyth_proglist_t pnd_list = cmyth_hold(pending_plist);
 
-		if (pending_prog)
-			cmyth_proginfo_release(pending_prog);
+		prog = cmyth_proglist_get_item(pnd_list, n);
 
-		pending_prog = cmyth_proglist_get_item(pending_plist, n);
-
-		status = cmyth_proginfo_rec_status(pending_prog);
-		description = (char*)cmyth_proginfo_description(pending_prog);
-		channame = (char*)cmyth_proginfo_channame(pending_prog);
-		ts = cmyth_proginfo_rec_start(pending_prog);
+		status = cmyth_proginfo_rec_status(prog);
+		description = (char*)cmyth_proginfo_description(prog);
+		channame = (char*)cmyth_proginfo_channame(prog);
+		ts = cmyth_proginfo_rec_start(prog);
 		cmyth_timestamp_to_string(start, ts);
-		cmyth_timestamp_release(ts);
-		ts = cmyth_proginfo_rec_end(pending_prog);
+		cmyth_release(ts);
+		ts = cmyth_proginfo_rec_end(prog);
 		cmyth_timestamp_to_string(end, ts);
-		cmyth_timestamp_release(ts);
+		cmyth_release(ts);
 
 		ptr = strchr(start, 'T');
 		*ptr = '\0';
@@ -977,7 +1083,9 @@ pending_hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 		}
 
 		mvpw_set_text_str(mythtv_description, description);
+		cmyth_release(description);
 		mvpw_set_text_str(mythtv_channel, channame);
+		cmyth_release(channame);
 		mvpw_set_text_str(mythtv_date, str);
 		mvpw_set_text_str(mythtv_record, ptr);
 
@@ -985,20 +1093,33 @@ pending_hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 		mvpw_expose(mythtv_channel);
 		mvpw_expose(mythtv_date);
 		mvpw_expose(mythtv_record);
+		cmyth_release(pnd_list);
+		cmyth_release(prog);
 	}
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) }\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 }
 
 int
 mythtv_pending(mvp_widget_t *widget)
 {
-	int err, i, count, ret = 0, days = 0, last_day = 0, displayed = 0;
-	char *title, *subtitle;
+	cmyth_conn_t ctrl = cmyth_hold(control);
+	cmyth_proglist_t pnd_list;
+	int i, count, ret = 0;
+	int days = 0, last_day = 0, displayed = 0;
+	cmyth_proginfo_t prog = NULL;
 	time_t t, rec_t, last_t = 0;
 	struct tm *tm, rec_tm;
 	char buf[64];
 
-	if (mythtv_verify() < 0)
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
+		    __FUNCTION__, __FILE__, __LINE__);
+	if (mythtv_verify() < 0) {
+		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1}\n",
+			    __FUNCTION__, __FILE__, __LINE__);
+		cmyth_release(ctrl);
 		return -1;
+	}
 
 	busy_start();
 
@@ -1023,25 +1144,18 @@ mythtv_pending(mvp_widget_t *widget)
 	mvpw_clear_menu(widget);
 
 	if ((pending_plist == NULL) || pending_dirty) {
-		if (pending_plist)
-			cmyth_proglist_release(pending_plist);
-
-		if ((pending_plist=cmyth_proglist_create()) == NULL) {
-			fprintf(stderr, "cannot get program list\n");
-			ret = -1;
-			goto out;
-		}
-
-		if ((err=cmyth_proglist_get_all_pending(control, pending_plist)) < 0) {
-			fprintf(stderr, "get pending failed, err %d\n", err);
+		pnd_list = cmyth_proglist_get_all_pending(ctrl);
+		CHANGE_GLOBAL_REF(pending_plist, pnd_list);
+		if (pnd_list == NULL) {
+			fprintf(stderr, "get pending failed\n");
 			mythtv_shutdown(1);
 			ret = -1;
 			goto out;
 		}
-
 		pending_dirty = 0;
 	} else {
 		printf("Using cached pending data\n");
+		pnd_list = cmyth_hold(pending_plist);
 	}
 
 	item_attr.select = NULL;
@@ -1049,9 +1163,10 @@ mythtv_pending(mvp_widget_t *widget)
 	item_attr.fg = mythtv_attr.fg;
 	item_attr.bg = mythtv_attr.bg;
 
-	count = cmyth_proglist_get_count(pending_plist);
-	printf("found %d pending recordings\n", count);
+	count = cmyth_proglist_get_count(pnd_list);
+	fprintf(stderr, "found %d pending recordings\n", count);
 	for (i = 0; i < count; ++i) {
+		char *title, *subtitle;
 		cmyth_timestamp_t ts, te;
 		cmyth_proginfo_rec_status_t status;
 		int year, month, day, hour, minute;
@@ -1061,23 +1176,22 @@ mythtv_pending(mvp_widget_t *widget)
 		char buf[256], card[16];
 		char *ptr;
 
-		if (pending_prog)
-			cmyth_proginfo_release(pending_prog);
+		cmyth_release(prog);
+		prog = cmyth_proglist_get_item(pending_plist, i);
 
-		pending_prog = cmyth_proglist_get_item(pending_plist, i);
-		title = (char*)cmyth_proginfo_title(pending_prog);
-		subtitle = (char*)cmyth_proginfo_subtitle(pending_prog);
+		title = (char*)cmyth_proginfo_title(prog);
+		subtitle = (char*)cmyth_proginfo_subtitle(prog);
 
-		ts = cmyth_proginfo_rec_start(pending_prog);
+		ts = cmyth_proginfo_rec_start(prog);
 		cmyth_timestamp_to_string(start, ts);
 
-		te = cmyth_proginfo_rec_end(pending_prog);
+		te = cmyth_proginfo_rec_end(prog);
 		cmyth_timestamp_to_string(end, te);
 
-		cmyth_timestamp_release(ts);
-		cmyth_timestamp_release(te);
+		cmyth_release(ts);
+		cmyth_release(te);
 
-		status = cmyth_proginfo_rec_status(pending_prog);
+		status = cmyth_proginfo_rec_status(prog);
 
 		year = atoi(end);
 		ptr = strchr(end, '-');
@@ -1107,7 +1221,7 @@ mythtv_pending(mvp_widget_t *widget)
 		if (rec_t < t)
 			continue;
 
-		card_id = cmyth_proginfo_card_id(pending_prog);
+		card_id = cmyth_proginfo_card_id(prog);
 		snprintf(card, sizeof(card), "%ld", card_id);
 
 		switch (status) {
@@ -1183,6 +1297,8 @@ mythtv_pending(mvp_widget_t *widget)
 			 month, day, hour, minute, type, title, subtitle);
 
 		mvpw_add_menu_item(widget, buf, (void*)i, &item_attr);
+		cmyth_release(subtitle);
+		cmyth_release(title);
 
 		if ((rec_t > last_t) && (rec_tm.tm_mday != last_day)) {
 			days++;
@@ -1192,6 +1308,7 @@ mythtv_pending(mvp_widget_t *widget)
 
 		displayed++;
 	}
+	cmyth_release(prog);
 
 	snprintf(buf, sizeof(buf),
 		 "Recording Schedule - %d shows over %d day%s",
@@ -1200,6 +1317,10 @@ mythtv_pending(mvp_widget_t *widget)
  out:
 	pthread_mutex_unlock(&myth_mutex);
 
+	cmyth_release(ctrl);
+	cmyth_release(pnd_list);
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) %d}\n",
+		    __FUNCTION__, __FILE__, __LINE__, ret);
 	busy_end();
 
 	return ret;
@@ -1208,14 +1329,17 @@ mythtv_pending(mvp_widget_t *widget)
 static void*
 wd_start(void *arg)
 {
+	cmyth_conn_t ctrl = cmyth_hold(control);
 	int state = 0, old = 0;
 	char err[] = "MythTV backend connection is not responding.";
 	char ok[] = "MythTV backend connection has been restored.";
 
-	printf("myth watchdog thread started (pid %d)\n", getpid());
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
+		    __FUNCTION__, __FILE__, __LINE__);
+	fprintf(stderr, "myth watchdog thread started (pid %d)\n", getpid());
 
 	while (1) {
-		if ((state=cmyth_conn_hung(control)) == 1) {
+		if ((state=cmyth_conn_hung(ctrl)) == 1) {
 			if (old == 0) {
 				if ((gui_state == MVPMC_STATE_MYTHTV) ||
 				    (hw_state == MVPMC_STATE_MYTHTV))
@@ -1233,6 +1357,9 @@ wd_start(void *arg)
 		sleep(1);
 	}
 
+	cmyth_release(ctrl);
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) NULL}\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 	return NULL;
 }
 
@@ -1303,39 +1430,44 @@ control_start(void *arg)
 	demux_attr_t *attr;
 	pid_t pid;
 
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 	pid = getpid();
 	signal(SIGURG, sighandler);
 
 	while (1) {
 		int count = 0;
-		cmyth_conn_t c = NULL;
-		cmyth_file_t f = NULL;
-		cmyth_recorder_t r = NULL;
 		int audio_selected, audio_checks;
+		cmyth_file_t f = cmyth_hold(file);
+		cmyth_recorder_t r = cmyth_hold(recorder);
 
 		pthread_mutex_lock(&mutex);
-		printf("mythtv control thread sleeping...(pid %d)\n", pid);
-		while ((file == NULL) && (recorder == NULL))
+		fprintf(stderr, "mythtv control thread sleeping...(pid %d)\n",
+			pid);
+		while ((f == NULL) && (r == NULL)) {
+			fprintf(stderr,
+				"Waiting for stream, recorder = %p, "
+				"file = %p)\n", recorder, file);
 			pthread_cond_wait(&cond, &mutex);
-		if (file)
+			fprintf(stderr,
+				"Got stream recorder = %p, file = %p)\n",
+				r, f);
+			cmyth_release(f);
+			cmyth_release(r);
+			f = cmyth_hold(file);
+			r = cmyth_hold(recorder);
+		}
+		if (f)
 			printf("%s(): starting file playback\n", __FUNCTION__);
-		if (recorder)
+		if (r)
 			printf("%s(): starting rec playback\n", __FUNCTION__);
+
 		pthread_mutex_unlock(&mutex);
 
-		printf("mythtv control thread starting...(pid %d)\n", pid);
+		fprintf(stderr, "mythtv control thread starting...(pid %d)\n",
+			pid);
 
 		attr = demux_get_attr(handle);
-
-		if (mythtv_livetv) {
-			if ((r=cmyth_recorder_hold(recorder)) == NULL)
-				goto end;
-		} else {
-			if ((c=cmyth_conn_hold(control_slave)) == NULL)
-				goto end;
-			if ((f=cmyth_file_hold(file)) == NULL)
-				goto end;
-		}
 
 		audio_selected = 0;
 		audio_checks = 0;
@@ -1376,7 +1508,7 @@ control_start(void *arg)
 			if (mythtv_livetv)
 				len = cmyth_ringbuf_request_block(r, size);
 			else
-				len = cmyth_file_request_block(c, f, size);
+				len = cmyth_file_request_block(f, size);
 
 			/*
 			 * Will block if another command is executing
@@ -1389,11 +1521,13 @@ control_start(void *arg)
 			 * call will fail.
 			 */
 			if ((len < 0) && paused) {
-				printf("%s(): waiting to unpause...\n",
-				       __FUNCTION__);
+				fprintf(stderr,
+					"%s(): waiting to unpause...\n",
+					__FUNCTION__);
 				while (paused && (file || recorder) &&
-				       !close_mythtv)
+				       !close_mythtv) {
 					usleep(1000);
+				}
 				len = 1;
 				continue;
 			}
@@ -1437,29 +1571,31 @@ control_start(void *arg)
 			 */
 			if (!audio_selected) {
 				if (audio_switch_stream(NULL, 0xc0) == 0) {
-					printf("selected audio stream 0xc0\n");
+					fprintf(stderr, "selected audio "
+						"stream 0xc0\n");
 					audio_selected = 1;
 				} else if (audio_checks++ == 4) {
-					printf("audio stream 0xc0 not found\n");
+					fprintf(stderr, "audio stream "
+						"0xc0 not found\n");
 					audio_selected = 1;
 				}
 			}
 		} while ((file || recorder) && (len > 0) &&
 			 (playing_via_mythtv == 1) && (!close_mythtv));
 
-	end:
 		video_reading = 0;
 
 		printf("%s(): len %d playing_via_mythtv %d close_mythtv %d\n",
 		       __FUNCTION__, len, playing_via_mythtv, close_mythtv);
 
 		if (r) {
-			cmyth_recorder_release(r);
+			cmyth_release(r);
 			mythtv_livetv_stop();
 		} else {
-			cmyth_file_release(c, f);
-			cmyth_conn_release(c);
+			cmyth_release(f);
+			pthread_mutex_lock(&myth_mutex);
 			mythtv_close_file();
+			pthread_mutex_unlock(&myth_mutex);
 		}
 
 		if ((len == -EPIPE) || (len == -ECONNRESET) ||
@@ -1470,6 +1606,8 @@ control_start(void *arg)
 
 	}
 
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) NULL}\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 	return NULL;
 }
 
@@ -1480,23 +1618,29 @@ mythtv_init(char *server_name, int portnum)
 	int port = 6543;
 	static int thread = 0;
 
-	if (mythtv_debug)
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
+		    __FUNCTION__, __FILE__, __LINE__);
+	if (mythtv_debug) {
+		fprintf(stderr, "Turn on libcmyth debugging\n");
 		cmyth_dbg_all();
+	}
 
 	if (server_name)
 		server = server_name;
 	if (portnum > 0)
 		port = portnum;
 
-	if ((control=cmyth_conn_connect_ctrl(server, port, 16*1024,
-					     mythtv_tcp_control)) == NULL) {
+	if ((control = cmyth_conn_connect_ctrl(server, port, 16*1024,
+					       mythtv_tcp_control)) == NULL) {
 		fprintf(stderr, "cannot connect to mythtv server %s\n",
 			server);
+		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1}\n",
+			    __FUNCTION__, __FILE__, __LINE__);
 		return -1;
 	}
 
-	if ((event=cmyth_conn_connect_event(server, port, 16*1024,
-					    mythtv_tcp_control)) == NULL) {
+	if ((event = cmyth_conn_connect_event(server, port, 16*1024,
+					      mythtv_tcp_control)) == NULL) {
 		fprintf(stderr, "cannot connect to mythtv server %s\n",
 			server);
 		return -1;
@@ -1512,30 +1656,36 @@ mythtv_init(char *server_name, int portnum)
 			       event_start, NULL);
 	}
 
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) 0}\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 	return 0;
 }
 
 void
 mythtv_program(mvp_widget_t *widget)
 {
-	char *description, *program;
-	char *title, *subtitle;
+	char *program;
 	cmyth_timestamp_t ts;
 	char start[256], end[256], str[256], *ptr, *chansign;
+	cmyth_proginfo_t loc_prog = cmyth_hold(current_prog);
 		
-	if (current_prog) {
-		title = (char *) cmyth_proginfo_title(current_prog);
-		subtitle = (char *) cmyth_proginfo_subtitle(current_prog);
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
+		    __FUNCTION__, __FILE__, __LINE__);
+	if (loc_prog) {
+		char *description =
+			(char *)cmyth_proginfo_description(loc_prog);;
+		char *title = (char *) cmyth_proginfo_title(loc_prog);
+		char *subtitle = (char *) cmyth_proginfo_subtitle(loc_prog);
 		
 		if (mythtv_livetv) {
-			chansign = (char*)cmyth_proginfo_chansign(current_prog);
+			chansign = (char*)cmyth_proginfo_chansign(loc_prog);
 			
-			ts = cmyth_proginfo_start(current_prog);
+			ts = cmyth_proginfo_start(loc_prog);
 			cmyth_timestamp_to_string(start, ts);
-			cmyth_timestamp_release(ts);
-			ts = cmyth_proginfo_end(current_prog);
+			cmyth_release(ts);
+			ts = cmyth_proginfo_end(loc_prog);
 			cmyth_timestamp_to_string(end, ts);
-			cmyth_timestamp_release(ts);
+			cmyth_release(ts);
 		
 			ptr = strchr(start, 'T');
 			*ptr = '\0';
@@ -1545,25 +1695,33 @@ mythtv_program(mvp_widget_t *widget)
 			strncat(str, ptr+1,5);
 		
 			program = alloca(strlen(chansign) + strlen(str) +
-					 strlen(title) + strlen(subtitle) + 16);
+					 strlen(title) + strlen(subtitle) +
+					 16);
 			sprintf(program, "[%s] %s %s - %s",
 				chansign, str, title, subtitle);
+			cmyth_release(chansign);
 		} else {					
 			program = alloca(strlen(title) +
 					 strlen(subtitle) + 16);
 			sprintf(program, "%s - %s", title, subtitle);
 		}
 		
-		description = (char *)cmyth_proginfo_description(current_prog);
-
 		mvpw_set_text_str(mythtv_osd_description, description);
 		mvpw_set_text_str(mythtv_osd_program, program);
+		cmyth_release(title);
+		cmyth_release(subtitle);
+		cmyth_release(description);
 	}
+	cmyth_release(loc_prog);
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) }\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 }
 
 void
 mythtv_stop(void)
 {
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 	busy_start();
 
 	pthread_mutex_lock(&myth_mutex);
@@ -1573,7 +1731,8 @@ mythtv_stop(void)
 	video_clear();
 	mvpw_set_idle(NULL);
 	mvpw_set_timer(root, NULL, 0);
-
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) }\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 	busy_end();
 }
 
@@ -1581,26 +1740,33 @@ static int
 mythtv_delete_prog(int forget)
 {
 	int ret;
-	cmyth_proginfo_t prog;
+	cmyth_conn_t ctrl = cmyth_hold(control);
+	cmyth_proginfo_t hi_prog = cmyth_hold(hilite_prog);
+	cmyth_proginfo_t loc_prog = cmyth_hold(current_prog);	
 
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 	busy_start();
 
 	pthread_mutex_lock(&myth_mutex);
-	prog = cmyth_proginfo_hold(hilite_prog);
-	cmyth_proglist_delete_item(episode_plist, prog);
+	cmyth_proglist_delete_item(episode_plist, hi_prog);
 	if (forget)
-		ret = cmyth_proginfo_forget_recording(control, prog);
+		ret = cmyth_proginfo_forget_recording(ctrl, hi_prog);
 	else
-		ret = cmyth_proginfo_delete_recording(control, prog);
-	if (cmyth_proginfo_compare(prog, current_prog) == 0) {
+		ret = cmyth_proginfo_delete_recording(ctrl, hi_prog);
+	if (cmyth_proginfo_compare(hi_prog, loc_prog) == 0) {
 		mythtv_close_file();
 		video_clear();
 		mvpw_set_idle(NULL);
 		mvpw_set_timer(root, NULL, 0);
 	}
-	cmyth_proginfo_release(prog);
 	pthread_mutex_unlock(&myth_mutex);
 
+	cmyth_release(ctrl);
+	cmyth_release(hi_prog);
+	cmyth_release(loc_prog);
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) }\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 	busy_end();
 
 	return ret;
@@ -1624,16 +1790,21 @@ mythtv_proginfo(char *buf, int size)
 	cmyth_timestamp_t ts;
 	char airdate[256], start[256], end[256];
 	char *ptr;
+	char *title, *subtitle, *description, *category, *channame;
+	char *seriesid, *programid, *stars;
+	cmyth_proginfo_t hi_prog = cmyth_hold(hilite_prog);
 
-	ts = cmyth_proginfo_originalairdate(hilite_prog);
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
+		    __FUNCTION__, __FILE__, __LINE__);
+	ts = cmyth_proginfo_originalairdate(hi_prog);
 	cmyth_timestamp_to_string(airdate, ts);
-	cmyth_timestamp_release(ts);
-	ts = cmyth_proginfo_rec_start(hilite_prog);
+	cmyth_release(ts);
+	ts = cmyth_proginfo_rec_start(hi_prog);
 	cmyth_timestamp_to_string(start, ts);
-	cmyth_timestamp_release(ts);
-	ts = cmyth_proginfo_rec_end(hilite_prog);
+	cmyth_release(ts);
+	ts = cmyth_proginfo_rec_end(hi_prog);
 	cmyth_timestamp_to_string(end, ts);
-	cmyth_timestamp_release(ts);
+	cmyth_release(ts);
 
 	if ((ptr=strchr(airdate, 'T')) != NULL)
 		*ptr = '\0';
@@ -1642,6 +1813,14 @@ mythtv_proginfo(char *buf, int size)
 	if ((ptr=strchr(end, 'T')) != NULL)
 		*ptr = ' ';
 
+	title = cmyth_proginfo_title(hi_prog);
+	subtitle = cmyth_proginfo_subtitle(hi_prog);
+	description = cmyth_proginfo_description(hi_prog);
+	category = cmyth_proginfo_category(hi_prog);
+	channame = cmyth_proginfo_channame(hi_prog);
+	seriesid = cmyth_proginfo_seriesid(hi_prog);
+	programid = cmyth_proginfo_programid(hi_prog);
+	stars = cmyth_proginfo_stars(hi_prog);
 	snprintf(buf, size,
 		 "Title: %s\n"
 		 "Subtitle: %s\n"
@@ -1653,25 +1832,37 @@ mythtv_proginfo(char *buf, int size)
 		 "Series ID: %s\n"
 		 "Program ID: %s\n"
 		 "Stars: %s\n",
-		 cmyth_proginfo_title(hilite_prog),
-		 cmyth_proginfo_subtitle(hilite_prog),
-		 cmyth_proginfo_description(hilite_prog),
+		 title,
+		 subtitle,
+		 description,
 		 start,
 		 end,
-		 cmyth_proginfo_category(hilite_prog),
-		 cmyth_proginfo_channame(hilite_prog),
-		 cmyth_proginfo_seriesid(hilite_prog),
-		 cmyth_proginfo_programid(hilite_prog),
-		 cmyth_proginfo_stars(hilite_prog));
-
+		 category,
+		 channame,
+		 seriesid,
+		 programid,
+		 stars);
+	cmyth_release(title);
+	cmyth_release(subtitle);
+	cmyth_release(description);
+	cmyth_release(category);
+	cmyth_release(channame);
+	cmyth_release(seriesid);
+	cmyth_release(programid);
+	cmyth_release(stars);
+	cmyth_release(hi_prog);
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) 0}\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 	return 0;
 }
 
 void
 mythtv_cleanup(void)
 {
-	printf("stopping all video playback...\n");
-
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
+		    __FUNCTION__, __FILE__, __LINE__);
+	fprintf(stderr, "stopping all video playback...\n");
+	
 	if (file) {
 		close_mythtv = 1;
 		while (close_mythtv)
@@ -1687,18 +1878,14 @@ mythtv_cleanup(void)
 	mvpw_set_idle(NULL);
 	mvpw_set_timer(root, NULL, 0);
 
-	printf("cleanup mythtv data structures\n");
+	fprintf(stderr, "cleanup mythtv data structures\n");
 
-	if (pending_plist) {
-		cmyth_proglist_release(pending_plist);
-		pending_plist = NULL;
-	}
-	if (episode_plist) {
-		cmyth_proglist_release(episode_plist);
-		episode_plist = NULL;
-	}
+	CHANGE_GLOBAL_REF(pending_plist, NULL);
+	CHANGE_GLOBAL_REF(episode_plist, NULL);
 
 	running_mythtv = 0;
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) }\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 }
 
 static int
@@ -1706,41 +1893,66 @@ mythtv_open(void)
 {
 	char *host;
 	int port = 6543;
+	cmyth_proginfo_t loc_prog = cmyth_hold(current_prog);
+	cmyth_conn_t c = NULL;
+	cmyth_file_t f = NULL;
 
-	if ((host=cmyth_proginfo_host(current_prog)) == NULL) {
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
+		    __FUNCTION__, __FILE__, __LINE__);
+	if (loc_prog == NULL) {
+		fprintf(stderr, "%s: no program\n", __FUNCTION__);
+		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1}\n",
+			    __FUNCTION__, __FILE__, __LINE__);
+		return -1;
+	}
+
+	if ((host = cmyth_proginfo_host(loc_prog)) == NULL) {
 		fprintf(stderr, "unknown myth backend\n");
+		cmyth_release(loc_prog);
+		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1}\n",
+			    __FUNCTION__, __FILE__, __LINE__);
 		return -1;
 	}
 
-	if (control_slave) {
-		cmyth_conn_t c = control_slave;
-		control_slave = NULL;
-		cmyth_conn_release(c);
-	}
 	printf("connecting to mythtv (slave) backend %s\n", host);
-	if ((control_slave=cmyth_conn_connect_ctrl(host, port, 1024,
-						   mythtv_tcp_control)) == NULL) {
+	CHANGE_GLOBAL_REF(file, NULL);
+	if ((c = cmyth_conn_connect_ctrl(host, port, 1024, mythtv_tcp_control))
+	    == NULL) {
+		cmyth_release(loc_prog);
+		cmyth_release(host);
 		mythtv_shutdown(1);
+		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1}\n",
+			    __FUNCTION__, __FILE__, __LINE__);
 		return -1;
 	}
+	cmyth_release(host);
 
 	playing_via_mythtv = 1;
 
-	if ((file=cmyth_conn_connect_file(current_prog, BSIZE,
-					  mythtv_tcp_program)) == NULL) {
+	if ((f = cmyth_conn_connect_file(loc_prog, c, BSIZE,
+					    mythtv_tcp_program)) == NULL) {
+		cmyth_release(loc_prog);
 		video_clear();
 		mvpw_set_idle(NULL);
 		mvpw_set_timer(root, NULL, 0);
 		gui_error("Cannot connect to file!");
+		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1}\n",
+			    __FUNCTION__, __FILE__, __LINE__);
 		return -1;
 	}
+	CHANGE_GLOBAL_REF(file, f);
+	cmyth_release(f);
+	cmyth_release(c);
+	cmyth_release(loc_prog);
 
-	printf("starting mythtv file transfer\n");
+	fprintf(stderr, "starting mythtv file transfer\n");
 
 	playing_file = 1;
 
 	pthread_cond_signal(&cond);
 
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) 0}\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 	return 0;
 }
 
@@ -1750,26 +1962,15 @@ mythtv_seek(long long offset, int whence)
 	struct timeval to;
 	int count = 0;
 	long long seek_pos = -1, size;
-	cmyth_file_t f = NULL;
-	cmyth_conn_t c = NULL;
-	cmyth_recorder_t r = NULL;
+	cmyth_file_t f = cmyth_hold(file);
+	cmyth_recorder_t r = cmyth_hold(recorder);
 
-	if (mythtv_livetv) {
-		if ((c=cmyth_conn_hold(control)) == NULL)
-			goto out;
-		if ((r=cmyth_recorder_hold(recorder)) == NULL)
-			goto out;
-	} else {
-		if ((c=cmyth_conn_hold(control_slave)) == NULL)
-			goto out;
-		if ((f=cmyth_file_hold(file)) == NULL)
-			goto out;
-	}
-
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 	if (mythtv_livetv)
 		seek_pos = cmyth_ringbuf_seek(r, 0, SEEK_CUR);
 	else
-		seek_pos = cmyth_file_seek(c, f, 0, SEEK_CUR);
+		seek_pos = cmyth_file_seek(f, 0, SEEK_CUR);
 	if ((offset == 0) && (whence == SEEK_CUR)) {
 		goto out;
 	}
@@ -1777,7 +1978,7 @@ mythtv_seek(long long offset, int whence)
 	if (!mythtv_livetv) {
 		size = mythtv_size();
 		if (size < 0) {
-			fprintf(stderr, "seek failed, file size unknown\n");
+			fprintf(stderr, "seek failed, stream size unknown\n");
 			goto out;
 		}
 		if (((size < offset) && (whence == SEEK_SET)) ||
@@ -1799,7 +2000,11 @@ mythtv_seek(long long offset, int whence)
 		len = 0;
 		if (mythtv_livetv) {
 			if (cmyth_ringbuf_select(r, &to) > 0) {
-				len = cmyth_ringbuf_get_block(r, buf, sizeof(buf));
+				PRINTF("%s(): reading...\n", __FUNCTION__);
+				len = cmyth_ringbuf_get_block(r, buf,
+							     sizeof(buf));
+				PRINTF("%s(): read returned %d\n",
+				       __FUNCTION__, len);
 			}
 		} else {
 			if (cmyth_file_select(f, &to) > 0) {
@@ -1830,7 +2035,7 @@ mythtv_seek(long long offset, int whence)
 	if (mythtv_livetv)
 		seek_pos = cmyth_ringbuf_seek(r, offset, whence);
 	else
-		seek_pos = cmyth_file_seek(c, f, offset, whence);
+		seek_pos = cmyth_file_seek(f, offset, whence);
 
 	PRINTF("%s(): pos %lld\n", __FUNCTION__, seek_pos);
 
@@ -1838,74 +2043,60 @@ mythtv_seek(long long offset, int whence)
 	pthread_mutex_unlock(&seek_mutex);
 
  out:
-	if (mythtv_livetv)
-		cmyth_recorder_release(r);
-	else
-		cmyth_file_release(c, f);
-	cmyth_conn_release(c);
-
+	cmyth_release(r);
+	cmyth_release(f);
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) %lld}\n",
+		  __FUNCTION__, __FILE__, __LINE__, seek_pos);
 	return seek_pos;
 }
 
 static int
 mythtv_read(char *buf, int len)
 {
-	int ret;
+	int ret = -EBADF;
 	int tot = 0;
-	cmyth_file_t f = NULL;
-	cmyth_recorder_t r = NULL;
-	cmyth_conn_t c = NULL;
+	cmyth_file_t f = cmyth_hold(file);
+	cmyth_recorder_t r = cmyth_hold(recorder);
 
-	if ((file == NULL) && (recorder == NULL))
-		return -EINVAL;
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 
 	pthread_mutex_lock(&seek_mutex);
-
 	pthread_cond_signal(&cond);
 
 	PRINTF("cmyth getting block of size %d\n", len);
-
-	if (mythtv_livetv) {
-		if ((c=cmyth_conn_hold(control)) == NULL)
-			goto out;
-		if ((r=cmyth_recorder_hold(recorder)) == NULL)
-			goto out;
-	} else {
-		if ((c=cmyth_conn_hold(control_slave)) == NULL)
-			goto out;
-		if ((f=cmyth_file_hold(file)) == NULL)
-			goto out;
-	}
-
-	while ((file || recorder) && (tot < len) && !myth_seeking) {
+	while ((f || r) && (tot < len) && !myth_seeking) {
 		struct timeval to;
 
 		to.tv_sec = 0;
 		to.tv_usec = 10;
+		ret = -EBADF;
 		if (mythtv_livetv) {
-			if (cmyth_ringbuf_select(r, &to) <= 0)
+			if (cmyth_ringbuf_select(r, &to) <= 0) {
 				break;
+			}
 			ret = cmyth_ringbuf_get_block(r, buf+tot, len-tot);
 		} else {
-			if (cmyth_file_select(f, &to) <= 0)
+			if (cmyth_file_select(f, &to) <= 0) {
 				break;
+			}
 			ret = cmyth_file_get_block(f, buf+tot, len-tot);
 		}
-		if (ret <= 0)
+		if (ret <= 0) {
+			fprintf(stderr, "%s: get block failed\n",
+				__FUNCTION__);
 			break;
+		}
 		tot += ret;
 	}
+	cmyth_release(f);
+	cmyth_release(r);
 	PRINTF("cmyth got block of size %d (out of %d)\n", tot, len);
-
- out:
-	if (mythtv_livetv)
-		cmyth_recorder_release(r);
-	else
-		cmyth_file_release(c, f);
-	cmyth_conn_release(c);
 
 	pthread_mutex_unlock(&seek_mutex);
 
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) %d}\n",
+		    __FUNCTION__, __FILE__, __LINE__, tot);
 	return tot;
 }
 
@@ -1917,7 +2108,11 @@ mythtv_size(void)
 	struct timeval now;
 	long long ret;
 	static volatile int failed = 0;
+	cmyth_proginfo_t loc_prog = cmyth_hold(current_prog);	
+	cmyth_conn_t ctrl = cmyth_hold(control);
 
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 	gettimeofday(&now, NULL);
 
 	/*
@@ -1925,20 +2120,20 @@ mythtv_size(void)
 	 * have elapsed since the last try, and we are still playing the
 	 * same recording.
 	 */
-	if ((prog == current_prog) && ((now.tv_sec - last.tv_sec) < 30)) {
-		ret = cmyth_proginfo_length(current_prog);
+	if ((prog == loc_prog) && ((now.tv_sec - last.tv_sec) < 30)) {
+		ret = cmyth_proginfo_length(loc_prog);
 		goto out;
 	}
-
 	pthread_mutex_lock(&myth_mutex);
 
+	loc_prog = cmyth_proginfo_get_detail(ctrl, loc_prog);
 	/*
-	 * If the refill fails, use the value in the file structure.
+	 * If get detail fails, use the value in the file structure.
 	 */
-	if (cmyth_proginfo_fill(control, current_prog) < 0) {
+	if (loc_prog == NULL) {
 		if (!failed) {
 			fprintf(stderr,
-				"%s(): cmyth_proginfo_fill() failed!\n",
+				"%s(): cmyth_proginfo_get_detail() failed!\n",
 				__FUNCTION__);
 			failed = 1;
 		}
@@ -1948,15 +2143,20 @@ mythtv_size(void)
 
 	failed = 0;
 
-	ret = cmyth_proginfo_length(current_prog);
+	ret = cmyth_proginfo_length(loc_prog);
 
 	memcpy(&last, &now, sizeof(last));
-	prog = current_prog;
+	CHANGE_GLOBAL_REF(current_prog, loc_prog);
+	CHANGE_GLOBAL_REF(prog, current_prog);
 
  unlock:
 	pthread_mutex_unlock(&myth_mutex);
+	cmyth_release(ctrl);
+	cmyth_release(loc_prog);
 
  out:
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) %lld}\n",
+		    __FUNCTION__, __FILE__, __LINE__, ret);
 	return ret;
 }
 
@@ -1967,25 +2167,37 @@ mythtv_livetv_start(int *tuner)
 	char *rb_file;
 	char *msg = NULL, buf[128], t[16];
 	int c, i, id = 0;
+	cmyth_proginfo_t loc_prog = NULL;
+	cmyth_conn_t ctrl = cmyth_hold(control);
+	cmyth_recorder_t rec = NULL;
+	cmyth_recorder_t ring = NULL;
+	char *path;
 
-	if (playing_via_mythtv && file)
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
+		    __FUNCTION__, __FILE__, __LINE__);
+	if (playing_via_mythtv && (file || recorder))
 		mythtv_stop();
 
 	if (mythtv_livetv) {
-		printf("Live TV already active\n");
+		fprintf(stderr, "Live TV already active\n");
 		mvpw_show(mythtv_logo);
 		mvpw_show(mythtv_browser);
 		mvpw_focus(mythtv_browser);
 		pthread_mutex_lock(&myth_mutex);
 		get_livetv_programs();
 		pthread_mutex_unlock(&myth_mutex);
+		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) 0}\n",
+			    __FUNCTION__, __FILE__, __LINE__);
 		return 0;
 	}
 
-	printf("Starting Live TV...\n");
+	fprintf(stderr, "Starting Live TV...\n");
 
-	if (mythtv_verify() < 0)
+	if (mythtv_verify() < 0) {
+		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1}\n",
+			    __FUNCTION__, __FILE__, __LINE__);
 		return -1;
+	}
 
 	pthread_mutex_lock(&myth_mutex);
 
@@ -1997,24 +2209,24 @@ mythtv_livetv_start(int *tuner)
 		video_functions = &livetv_functions;
 	}
 
-	if ((c=cmyth_conn_get_free_recorder_count(control)) < 0) {
+	if ((c = cmyth_conn_get_free_recorder_count(ctrl)) < 0) {
 		mythtv_shutdown(1);
 		goto err;
 	}
-
 	printf("Found %d free recorders\n", c);
 
 	if (tuner[0]) {
-		int count = 0;;
+		int count = 0;
 		for (i=0; i<MAX_TUNER && tuner[i]; i++) {
-			printf("Looking for tuner %d\n", tuner[i]);
-			count++;
-			if ((recorder=cmyth_conn_get_recorder_from_num(control,
-								       tuner[i])) == NULL) {
+			fprintf(stderr, "Looking for tuner %d\n", tuner[i]);
+                        count++; 
+			if ((rec = cmyth_conn_get_recorder_from_num(ctrl,
+								    tuner[i]))
+			    == NULL) {
 				continue;
 			}
-			if(cmyth_recorder_is_recording(recorder) == 1) {
-				cmyth_recorder_release(recorder);
+			if(cmyth_recorder_is_recording(rec) == 1) {
+				cmyth_release(rec);
 				continue;
 			}
 			id = tuner[i];
@@ -2046,61 +2258,71 @@ mythtv_livetv_start(int *tuner)
 			goto err;
 		}
 	} else {
-		printf("Looking for any free recorder\n");
-		if ((recorder=cmyth_conn_get_free_recorder(control)) == NULL) {
+		fprintf(stderr, "Looking for any free recorder\n");
+		if ((rec = cmyth_conn_get_free_recorder(ctrl)) == NULL) {
 			msg = "Failed to get free recorder.";
 			goto err;
 		}
 	}
 
-	if (cmyth_ringbuf_setup(recorder) != 0) {
+	if ((ring = cmyth_ringbuf_setup(rec)) == NULL) {
 		msg = "Failed to setup ringbuffer.";
 		goto err;
 	}
 
-	if (cmyth_conn_connect_ring(recorder, 16*1024,
-				    mythtv_tcp_program) != 0) {
+	if (cmyth_conn_connect_ring(ring, 16*1024, mythtv_tcp_program) != 0) {
 		msg = "Cannot connect to mythtv ringbuffer.";
 		goto err;
 	}
 
-	if (cmyth_recorder_spawn_livetv(recorder) != 0) {
+	if (cmyth_recorder_spawn_livetv(ring) != 0) {
 		msg = "Spawn livetv failed.";
 		goto err;
 	}
 
-	if (cmyth_recorder_is_recording(recorder) != 1) {
+	if (cmyth_recorder_is_recording(ring) != 1) {
 		msg = "LiveTV not recording.";
 		goto err;
 	}
 
-	if (cmyth_recorder_get_framerate(recorder, &rate) != 0) {
+	if (cmyth_recorder_get_framerate(ring, &rate) != 0) {
 		msg = "Get framerate failed.";
 		goto err;
 	}
 
-	printf("recorder framerate is %5.2f\n", rate);
+	fprintf(stderr, "recorder framerate is %5.2f\n", rate);
 
-	if (current)
-		free(current);
-	current = malloc(1024);
 
-	rb_file = (char *) cmyth_recorder_get_filename(recorder);
-	if (mythtv_ringbuf)
-		sprintf(current, "%s/%s", mythtv_ringbuf, rb_file);
-	else
-		sprintf(current, "%s", rb_file);
+	rb_file = (char *) cmyth_recorder_get_filename(ring);
+	/*
+	 * Change current.  The thing about 'current' is that it is a
+	 * global that is not allocated as reference counted and it is
+	 * allocated and freed outside this file.  If / when it turns
+	 * into reference counted space, it will be much cleaner and
+	 * safer to hold it in a local, release and change it and then
+	 * release the local.  For now we take a chance on a non-held
+	 * reference being destroyed.
+	 */
+	if (mythtv_ringbuf) {
+		char *tmp;
+		path = current;
+		tmp = malloc(strlen(mythtv_ringbuf) + strlen(rb_file) + 2);
+		sprintf(tmp, "%s/%s", mythtv_ringbuf, rb_file);
+		current = tmp;
+		free(path);
+	} else {
+		path = current;
+		current = strdup(rb_file);
+		free(path);
+	}
+	cmyth_release(rb_file);
 
 	// get the information about the current programme
 	// we assume last used structure is cleared already...
 	//
-	if (current_prog)
-		cmyth_proginfo_release(current_prog);
-	current_prog = NULL;
-	current_prog = cmyth_proginfo_create();
-	cmyth_proginfo_hold(current_prog);
-
-	cmyth_recorder_get_program_info(recorder, current_prog);
+	loc_prog = cmyth_recorder_get_cur_proginfo(ring);
+	CHANGE_GLOBAL_REF(current_prog, loc_prog);
+	cmyth_release(loc_prog);
 
 	get_livetv_programs();
 
@@ -2121,7 +2343,12 @@ mythtv_livetv_start(int *tuner)
 	running_mythtv = 1;
 
 	pthread_mutex_unlock(&myth_mutex);
-
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) 0}\n",
+		    __FUNCTION__, __FILE__, __LINE__);
+	cmyth_release(ctrl);
+	cmyth_release(rec);
+	CHANGE_GLOBAL_REF(recorder, ring);
+	cmyth_release(ring);
 	return 0;
 
  err:
@@ -2131,6 +2358,11 @@ mythtv_livetv_start(int *tuner)
 	if (msg)
 		gui_error(msg);
 
+	cmyth_release(ctrl);
+	cmyth_release(rec);
+	cmyth_release(ring);
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1}\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 	return -1;
 }
 
@@ -2139,23 +2371,27 @@ mythtv_livetv_stop(void)
 {
 	int ret = -1;
 
-	if (!mythtv_livetv)
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
+		    __FUNCTION__, __FILE__, __LINE__);
+	if (!mythtv_livetv) {
+		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1}\n",
+			  __FUNCTION__, __FILE__, __LINE__);
 		return -1;
+	}
 
-	printf("Stopping Live TV\n");
+	fprintf(stderr, "Stopping Live TV\n");
 
 	busy_start();
+
+	pthread_mutex_lock(&myth_mutex);
 
 	if (!mythtv_ringbuf) {
 		playing_via_mythtv = 0;
 		running_mythtv = 0;
 		close_mythtv = 0;
-		reset_mythtv = 1;
 	}
 
 	mythtv_livetv = 0;
-
-	pthread_mutex_lock(&myth_mutex);
 
 	video_clear();
 	mvpw_set_idle(NULL);
@@ -2171,38 +2407,43 @@ mythtv_livetv_stop(void)
 		goto fail;
 	}
 
-	cmyth_recorder_release(recorder);
-	recorder = NULL;
-	if (current_prog)
-		cmyth_proginfo_release(current_prog);
+	CHANGE_GLOBAL_REF(recorder, NULL);
+	CHANGE_GLOBAL_REF(current_prog, NULL);
 
 	ret = 0;
 
  fail:
-	busy_end();
-
+	mythtv_livetv = 0;
 	pthread_mutex_unlock(&myth_mutex);
 
+	busy_end();
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) %d}\n",
+		    __FUNCTION__, __FILE__, __LINE__, ret);
 	return ret;
 }
 
 int __change_channel(direction)
 {
 	int ret = 0;
+	cmyth_proginfo_t loc_prog = NULL;
+	cmyth_conn_t ctrl = cmyth_hold(control);
+	cmyth_recorder_t rec = cmyth_hold(recorder);
 
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 	changing_channel = 1;
 
 	busy_start();
 	video_clear();
 	pthread_mutex_lock(&myth_mutex);
 
-	if (cmyth_recorder_pause(recorder) < 0) {
+	if (cmyth_recorder_pause(rec) < 0) {
 		fprintf(stderr, "channel change (pause) failed\n");
 		ret = -1;
 		goto out;
 	}
 
-	if (cmyth_recorder_change_channel(recorder, direction) < 0) {
+	if (cmyth_recorder_change_channel(rec, direction) < 0) {
 		fprintf(stderr, "channel change failed\n");
 		ret = -1;
 		goto out;
@@ -2214,7 +2455,7 @@ int __change_channel(direction)
 	 */
 	if (mythtv_ringbuf) {
 #if 0
-		if (cmyth_recorder_stop_livetv(recorder) != 0) {
+		if (cmyth_recorder_stop_livetv(rec) != 0) {
 			fprintf(stderr, "stop livetv failed\n");
 			ret = -1;
 			goto out;
@@ -2229,8 +2470,9 @@ int __change_channel(direction)
 		sleep(6);
 	}
 
-	if (current_prog)
-		cmyth_recorder_get_program_info(recorder, current_prog);
+	loc_prog = cmyth_recorder_get_cur_proginfo(rec);
+	CHANGE_GLOBAL_REF(current_prog, loc_prog);
+	cmyth_release(loc_prog);
 
 	// we need to reset the ringbuffer reader to the start of the file
 	// since the backend always resets the pointer.
@@ -2243,29 +2485,39 @@ int __change_channel(direction)
 	video_play(root);
 
  out:
+	cmyth_release(ctrl);
+	cmyth_release(rec);
 	changing_channel = 0;
 	busy_end();
 	pthread_mutex_unlock(&myth_mutex);
 
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) %d}\n",
+		    __FUNCTION__, __FILE__, __LINE__, ret);
         return ret;
 }
 
 int
 mythtv_channel_up(void)
 {
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {}\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 	return __change_channel(CHANNEL_DIRECTION_UP);
 }
 
 int
 mythtv_channel_down(void)
 {
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {}\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 	return __change_channel(CHANNEL_DIRECTION_DOWN);
 }
 
 void
 mythtv_atexit(void)
 {
-	printf("%s(): start exit processing...\n", __FUNCTION__);
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
+		    __FUNCTION__, __FILE__, __LINE__);
+	fprintf(stderr, "%s(): start exit processing...\n", __FUNCTION__);
 
 	pthread_mutex_lock(&seek_mutex);
 	pthread_mutex_lock(&myth_mutex);
@@ -2277,15 +2529,23 @@ mythtv_atexit(void)
 
 	mythtv_close();
 
-	printf("%s(): end exit processing...\n", __FUNCTION__);
+	fprintf(stderr, "%s(): end exit processing...\n", __FUNCTION__);
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) }\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 }
 
 int
 mythtv_program_runtime(void)
 {
 	int seconds;
+	cmyth_proginfo_t loc_cur = cmyth_hold(current_prog);
 
-	seconds = cmyth_proginfo_length_sec(current_prog);
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
+		    __FUNCTION__, __FILE__, __LINE__);
+	seconds = cmyth_proginfo_length_sec(loc_cur);
+	cmyth_release(loc_cur);
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) %d}\n",
+		    __FUNCTION__, __FILE__, __LINE__, seconds);
 
 	return seconds;
 }
@@ -2294,31 +2554,37 @@ static long long
 livetv_size(void)
 {
 	long long seek_pos;
+	cmyth_recorder_t rec = cmyth_hold(recorder);
 
 	/*
 	 * XXX: How do we get the program size for live tv?
 	 */
 
 	pthread_mutex_lock(&myth_mutex);
-	seek_pos = cmyth_ringbuf_seek(recorder, 0, SEEK_CUR);
+	seek_pos = cmyth_ringbuf_seek(rec, 0, SEEK_CUR);
 	PRINTF("%s(): pos %lld\n", __FUNCTION__, seek_pos);
 	pthread_mutex_unlock(&myth_mutex);
 
+	cmyth_release(rec);
 	return (seek_pos+(1024*1024*500));
 }
 
 static int
 livetv_open(void)
 {
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 	if (playing_via_mythtv == 0) {
 		playing_via_mythtv = 1;
-		printf("starting mythtv live tv transfer\n");
+		fprintf(stderr, "starting mythtv live tv transfer\n");
 	}
 
 	playing_file = 1;
 
 	pthread_cond_signal(&cond);
 
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) 0}\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 	return 0;
 }
 
@@ -2330,7 +2596,12 @@ livetv_select_callback(mvp_widget_t *widget, char *item, void *key)
 	int id = -1;
 	int tuner_change = 1, tuner[MAX_TUNER];
 	struct livetv_proginfo *pi;
+	cmyth_proginfo_t loc_prog = NULL;
+	cmyth_conn_t ctrl = cmyth_hold(control);
+	cmyth_recorder_t rec = cmyth_hold(recorder);
 
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 	memset(tuner, 0, sizeof(tuner));
 
 	switch_hw_state(MVPMC_STATE_MYTHTV);
@@ -2342,17 +2613,17 @@ livetv_select_callback(mvp_widget_t *widget, char *item, void *key)
 
 
 	if (mythtv_livetv) {
-		id = cmyth_recorder_get_recorder_id(recorder);
+		id = cmyth_recorder_get_recorder_id(rec);
 		for (i=0; i<livetv_list[prog].count; i++) {
 			pi = &livetv_list[prog].pi[i];
 			if (id == pi->rec_id) {
 				tuner_change = 0;
-				channame = strdup(pi->chan);
+				channame = cmyth_hold(pi->chan);
 				break;
 			}
 		}
 	} else {
-		channame = strdup(livetv_list[prog].pi[0].chan);
+		channame = cmyth_hold(livetv_list[prog].pi[0].chan);
 		for (i=0; i<livetv_list[prog].count; i++) {
 			tuner[i] = livetv_list[prog].pi[i].rec_id;
 			printf("enable livetv tuner %d chan '%s'\n",
@@ -2364,8 +2635,9 @@ livetv_select_callback(mvp_widget_t *widget, char *item, void *key)
 	if (tuner_change && (id != -1)) {
 		for (i=0; i<livetv_list[prog].count; i++)
 			tuner[i] = livetv_list[prog].pi[i].rec_id;
-		channame = strdup(livetv_list[prog].pi[0].chan);
-		printf("switch from tuner %d to %d\n", id, tuner[0]);
+		cmyth_release(channame);
+		channame = cmyth_hold(livetv_list[prog].pi[0].chan);
+		fprintf(stderr, "switch from tuner %d to %d\n", id, tuner[0]);
 		mythtv_livetv_stop();
 	}
 
@@ -2373,13 +2645,17 @@ livetv_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mythtv_livetv_stop();
 
 	if (mythtv_livetv == 0) {
-		printf("Live TV not active!\n");
-		if (mythtv_livetv_start(tuner) != 0)
-			return;
+		fprintf(stderr, "Live TV not active!\n");
+		if (mythtv_livetv_start(tuner) != 0) {
+			goto out;
+		}
+		cmyth_release(rec);
+		cmyth_release(ctrl);
+		rec = cmyth_hold(recorder);
 	}
 
 	if (item)
-		printf("%s(): change channel '%s' '%s'\n",
+		fprintf(stderr, "%s(): change channel '%s' '%s'\n",
 		       __FUNCTION__, channame, item);
 
 	changing_channel = 1;
@@ -2387,18 +2663,19 @@ livetv_select_callback(mvp_widget_t *widget, char *item, void *key)
 	busy_start();
 	pthread_mutex_lock(&myth_mutex);
 
-	if (cmyth_recorder_pause(recorder) < 0) {
+	if (cmyth_recorder_pause(rec) < 0) {
 		fprintf(stderr, "channel change (pause) failed\n");
-		goto err;
+		goto out;
 	}
 
-	if (cmyth_recorder_set_channel(recorder, channame) < 0) {
+	if (cmyth_recorder_set_channel(rec, channame) < 0) {
 		fprintf(stderr, "channel change failed!\n");
-		goto err;
+		goto out;
 	}
 
-	if (current_prog)
-		cmyth_recorder_get_program_info(recorder, current_prog);
+	loc_prog = cmyth_recorder_get_cur_proginfo(rec);
+	CHANGE_GLOBAL_REF(current_prog, loc_prog);
+	cmyth_release(loc_prog);
 
 	demux_reset(handle);
 	demux_attr_reset(handle);
@@ -2409,7 +2686,8 @@ livetv_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mythtv_fullscreen();
 
 	i = 0;
-	while (mvpw_menu_set_item_attr(mythtv_browser, (void*)i, &item_attr) == 0) {
+	while (mvpw_menu_set_item_attr(mythtv_browser,
+				       (void*)i, &item_attr) == 0) {
 		i++;
 	}
 	if (mvpw_menu_get_item_attr(mythtv_browser, key, &item_attr) == 0) {
@@ -2420,13 +2698,15 @@ livetv_select_callback(mvp_widget_t *widget, char *item, void *key)
 	}
 	mvpw_menu_hilite_item(mythtv_browser, key);
 
- err:
+ out:
+	cmyth_release(ctrl);
+	cmyth_release(rec);
+	cmyth_release(channame);
 	pthread_mutex_unlock(&myth_mutex);
 	busy_end();
 	changing_channel = 0;
-
-	if (channame)
-		free(channame);
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 }
 
 static void
@@ -2435,6 +2715,8 @@ livetv_hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 	int prog = (int)key;
 	char buf[256];
 
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 	if (hilite) {
 		current_livetv = prog;
 		snprintf(buf, sizeof(buf), "%s %s",
@@ -2457,33 +2739,44 @@ livetv_hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 		mvpw_set_text_str(mythtv_description, "");
 		mvpw_expose(mythtv_description);
 	}
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) }\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 }
 
 static int
 get_livetv_programs_rec(int id, struct livetv_prog **list, int *n, int *p)
 {
-	cmyth_proginfo_t next_prog, cur;
-	cmyth_recorder_t rec = recorder;
+	cmyth_proginfo_t next_prog = NULL, cur = NULL;
+	cmyth_conn_t ctrl = cmyth_hold(control);
+	cmyth_recorder_t rec = cmyth_hold(recorder);
 	cmyth_timestamp_t ts;
-	const char *title, *subtitle, *channame, *start_channame, *chansign;
-	const char *description;
+	char *title = NULL, *subtitle = NULL, *channame = NULL;
+	char *start_channame = NULL, *chansign = NULL;
+	char *description = NULL;
 	char start[256], end[256], *ptr;
 	int cur_id, i; 
 	int shows = 0, unique = 0, busy = 0;
 	struct livetv_proginfo *pi;
 	
-	cur_id = cmyth_recorder_get_recorder_id(recorder);
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
+		    __FUNCTION__, __FILE__, __LINE__);
+	cur_id = cmyth_recorder_get_recorder_id(rec);
 	
 	
-	printf("Getting program listings for recorder %d [%d]\n", id, cur_id);
-
-	next_prog = cmyth_proginfo_create();
+	fprintf(stderr,
+		"Getting program listings for recorder %d [%d]\n",
+		id, cur_id);
 
 	if (cur_id != id) {
-		if ((rec=cmyth_conn_get_recorder_from_num(control,
-							       id)) == NULL) {
+		cmyth_release(rec);
+		if ((rec = cmyth_conn_get_recorder_from_num(ctrl,
+							    id)) == NULL) {
 			fprintf(stderr,
 				"failed to connect to tuner %d!\n", id);
+			cmyth_release(ctrl);
+			cmyth_dbg(CMYTH_DBG_DEBUG,
+				    "%s [%s:%d]: (trace) -1}\n",
+				    __FUNCTION__, __FILE__, __LINE__);
 			return -1;
 		}
 	}
@@ -2491,19 +2784,20 @@ get_livetv_programs_rec(int id, struct livetv_prog **list, int *n, int *p)
 	if (cmyth_recorder_is_recording(rec) == 1)
 		busy = 1;
 
-	cur = cmyth_proginfo_create();
-	cmyth_proginfo_hold(cur);
-	
-	if (cmyth_recorder_get_program_info(rec, cur) < 0) {
+	cur = cmyth_recorder_get_cur_proginfo(rec);
+	if (cur == NULL) {
 		fprintf(stderr, "get program info failed!\n");
+		cmyth_release(rec);
+		cmyth_release(ctrl);
+		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1}\n",
+			    __FUNCTION__, __FILE__, __LINE__);
 		return -1;
 	}
 	
 	start_channame = (char *) cmyth_proginfo_channame(cur);
-
 	do {
-		if (cmyth_recorder_get_next_program_info(rec, cur,
-							 next_prog, 1) < 0) {
+		next_prog = cmyth_recorder_get_next_proginfo(rec, cur, 1);
+		if ( next_prog == NULL) {
 			fprintf(stderr, "get next program info failed!\n");
 			break;
 		}
@@ -2517,10 +2811,10 @@ get_livetv_programs_rec(int id, struct livetv_prog **list, int *n, int *p)
 		ts = cmyth_proginfo_start(next_prog);
 		if (ts != NULL ) {
 			cmyth_timestamp_to_string(start, ts);
-			cmyth_timestamp_release(ts);
+			cmyth_release(ts);
 			ts = cmyth_proginfo_end(next_prog);
 			cmyth_timestamp_to_string(end, ts);
-			cmyth_timestamp_release(ts);
+			cmyth_release(ts);
 			ptr = strchr(start, 'T');
 			*ptr = '\0';
 			memmove(start, ptr+1, strlen(ptr+1)+1);
@@ -2529,7 +2823,8 @@ get_livetv_programs_rec(int id, struct livetv_prog **list, int *n, int *p)
 			memmove(end, ptr+1, strlen(ptr+1)+1);
 		}
 
-		cur = next_prog;
+		cmyth_release(cur);
+		cur = cmyth_hold(next_prog);
 		shows++;
 
 		/*
@@ -2538,15 +2833,17 @@ get_livetv_programs_rec(int id, struct livetv_prog **list, int *n, int *p)
 		if (title[0]) {
 			for (i=0; i<*p; i++) {
 				if ((strcmp((*list)[i].title, title) == 0) &&
-				    (strcmp((*list)[i].subtitle, subtitle) == 0) &&
-				    (strcmp((*list)[i].description, description) == 0) &&
+				    (strcmp((*list)[i].subtitle, subtitle)
+				     == 0) &&
+				    (strcmp((*list)[i].description,
+					    description) == 0) &&
 				    (strcmp((*list)[i].start, start) == 0) &&
 				    (strcmp((*list)[i].end, end) == 0)) {
 					if ((*list)[i].count == MAX_TUNER)
 						goto next;
-					pi = &((*list)[i].pi[(*list)[i].count++]);
-					pi->chan = strdup(channame);
-					pi->channame = strdup(chansign);
+					pi=&((*list)[i].pi[(*list)[i].count++]);
+					pi->chan = cmyth_hold(channame);
+					pi->channame = cmyth_hold(chansign);
 					pi->rec_id = id;
 					pi->busy = busy;
 					goto next;
@@ -2554,22 +2851,22 @@ get_livetv_programs_rec(int id, struct livetv_prog **list, int *n, int *p)
 			}
 		}
 
-		(*list)[*p].title = strdup(title);
-		(*list)[*p].subtitle = strdup(subtitle);
-		(*list)[*p].description = strdup(description);
+		(*list)[*p].title = cmyth_hold(title);
+		(*list)[*p].subtitle = cmyth_hold(subtitle);
+		(*list)[*p].description = cmyth_hold(description);
 		if (start)
-			(*list)[*p].start = strdup(start);
+			(*list)[*p].start = cmyth_strdup(start);
 		else
 			(*list)[*p].start = NULL;
 		if (end)
-			(*list)[*p].end = strdup(end);
+			(*list)[*p].end = cmyth_strdup(end);
 		else
 			(*list)[*p].end = NULL;
 		(*list)[*p].count = 1;
 		(*list)[*p].pi[0].rec_id = id;
 		(*list)[*p].pi[0].busy = busy;
-		(*list)[*p].pi[0].chan = strdup(channame);
-		(*list)[*p].pi[0].channame = strdup(chansign);
+		(*list)[*p].pi[0].chan = cmyth_hold(channame);
+		(*list)[*p].pi[0].channame = cmyth_hold(chansign);
 		(*p)++;
 		unique++;
 
@@ -2578,14 +2875,21 @@ get_livetv_programs_rec(int id, struct livetv_prog **list, int *n, int *p)
 			*n = *n*2;
 			*list = realloc(*list, sizeof(**list)*(*n));
 		}
+		cmyth_release(title);
+		cmyth_release(subtitle);
+		cmyth_release(description);
+		cmyth_release(channame);
+		cmyth_release(chansign);
+		cmyth_release(next_prog);
 	} while (strcmp(start_channame, channame) != 0);
-	if (cur_id != id) {
-		cmyth_recorder_release(rec);
-	}
-	cmyth_proginfo_release(next_prog);
 
-	printf("Found %d shows on recorder %d (%d unique)\n",
-	       shows, id, unique);
+	cmyth_release(cur);
+	cmyth_release(rec);
+	cmyth_release(start_channame);
+	fprintf(stderr, "Found %d shows on recorder %d (%d unique)\n",
+		shows, id, unique);
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) }\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 
 	return shows;
 }
@@ -2597,17 +2901,20 @@ get_livetv_programs(void)
 	char buf[256];
 	int i, j, c, n, p, found;
 	time_t t;
+	cmyth_conn_t ctrl = cmyth_hold(control);
 
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 	if (livetv_list) {
 		for (i=0; i<livetv_count; i++) {
-			free(livetv_list[i].title);
-			free(livetv_list[i].subtitle);
-			free(livetv_list[i].description);
-			free(livetv_list[i].start);
-			free(livetv_list[i].end);
+			cmyth_release(livetv_list[i].title);
+			cmyth_release(livetv_list[i].subtitle);
+			cmyth_release(livetv_list[i].description);
+			cmyth_release(livetv_list[i].start);
+			cmyth_release(livetv_list[i].end);
 			for (j=0; j<livetv_list[i].count; j++) {
-				free(livetv_list[i].pi[j].chan);
-				free(livetv_list[i].pi[j].channame);
+				cmyth_release(livetv_list[i].pi[j].chan);
+				cmyth_release(livetv_list[i].pi[j].channame);
 			}
 		}
 		free(livetv_list);
@@ -2618,12 +2925,17 @@ get_livetv_programs(void)
 	n = 32;
 	if ((list=(struct livetv_prog*)malloc(sizeof(*list)*n)) == NULL) {
 		perror("malloc()");
+		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1}\n",
+			    __FUNCTION__, __FILE__, __LINE__);
 		return -1;
 	}
 
-	if ((c=cmyth_conn_get_free_recorder_count(control)) < 0) {
+	if ((c=cmyth_conn_get_free_recorder_count(ctrl)) < 0) {
 		fprintf(stderr, "unable to get free recorder\n");
 		mythtv_shutdown(1);
+		cmyth_release(ctrl);
+		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -2}\n",
+			    __FUNCTION__, __FILE__, __LINE__);
 		return -2;
 	}
 
@@ -2640,11 +2952,15 @@ get_livetv_programs(void)
 	}
 
 	t = time(NULL);
-	printf("Found %d programs on %d tuners (%d free) at %s\n",
-	       p, found, c, ctime(&t));
+	fprintf(stderr, "Found %d programs on %d tuners at %s\n",
+		p, found, ctime(&t));
 
-	if (p == 0)
+	if (p == 0) {
+		cmyth_release(ctrl);
+		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1}\n",
+			    __FUNCTION__, __FILE__, __LINE__);
 		return -1;
+	}
 
 	snprintf(buf, sizeof(buf), "Live TV - %d Programs on %d Tuner%s",
 		 p, found, (found == 1) ? "" : "s");
@@ -2662,6 +2978,9 @@ get_livetv_programs(void)
 		mvpw_add_menu_item(mythtv_browser, buf, (void*)j, &item_attr);
 	}
 
+	cmyth_release(ctrl);
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) 0}\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 	return 0;
 }
 
@@ -2671,10 +2990,15 @@ mythtv_livetv_menu(void)
 	int failed = 0;
 	int err;
 
-	if (mythtv_verify() < 0)
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
+		    __FUNCTION__, __FILE__, __LINE__);
+	if (mythtv_verify() < 0) {
+		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1}\n",
+			    __FUNCTION__, __FILE__, __LINE__);
 		return -1;
+	}
 
-	printf("Displaying livetv programs\n");
+	fprintf(stderr, "Displaying livetv programs\n");
 
 	pthread_mutex_lock(&myth_mutex);
 	if ((err=get_livetv_programs()) < 0) {
@@ -2696,25 +3020,34 @@ mythtv_livetv_menu(void)
 		mvpw_show(mythtv_description);
 	}
 
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) %d}\n",
+		    __FUNCTION__, __FILE__, __LINE__, failed);
 	return failed;
 }
 
 void
 mythtv_exit(void)
 {
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 	if (mythtv_livetv) {
 		mythtv_livetv_stop();
-		mythtv_livetv = 0;
 	} else {
 		mythtv_stop();
 	}
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) }\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 }
 
 void
 mythtv_test_exit(void)
 {
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 	if (!playing_file)
 		mythtv_close();
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) }\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 }
 
 int
@@ -2753,9 +3086,13 @@ mythtv_livetv_tuners(int *tuners, int *busy)
 void
 mythtv_livetv_select(int which)
 {
+	cmyth_proginfo_t loc_prog = NULL;
+	cmyth_conn_t ctrl = cmyth_hold(control);
+	cmyth_recorder_t rec = cmyth_hold(recorder);
 	int rec_id = livetv_list[current_livetv].pi[which].rec_id;
 	int tuner[2] = { rec_id, 0 };
-	char *channame = strdup(livetv_list[current_livetv].pi[which].chan);
+	char *channame = cmyth_hold(livetv_list[current_livetv].pi[which].chan);
+	
 
 	switch_hw_state(MVPMC_STATE_MYTHTV);
 
@@ -2772,18 +3109,19 @@ mythtv_livetv_select(int which)
 		busy_start();
 		pthread_mutex_lock(&myth_mutex);
 
-		if (cmyth_recorder_pause(recorder) < 0) {
+		if (cmyth_recorder_pause(rec) < 0) {
 			fprintf(stderr, "channel change (pause) failed\n");
 			goto err;
 		}
 
-		if (cmyth_recorder_set_channel(recorder, channame) < 0) {
+		if (cmyth_recorder_set_channel(rec, channame) < 0) {
 			fprintf(stderr, "channel change failed!\n");
 			goto err;
 		}
 
-		if (current_prog)
-			cmyth_recorder_get_program_info(recorder, current_prog);
+		loc_prog = cmyth_recorder_get_cur_proginfo(rec);
+		CHANGE_GLOBAL_REF(current_prog, loc_prog);
+		cmyth_release(loc_prog);
 
 		demux_reset(handle);
 		demux_attr_reset(handle);
@@ -2801,9 +3139,11 @@ mythtv_livetv_select(int which)
 		pthread_mutex_unlock(&myth_mutex);
 		busy_end();
 		changing_channel = 0;
+		cmyth_release(rec);
+		cmyth_release(ctrl);
 	}
 
-	free(channame);
+	cmyth_release(channame);
 }
 
 void
@@ -2828,7 +3168,7 @@ mythtv_browser_expose(mvp_widget_t *widget)
 	}
 
 	if (hilite_prog)
-		prog = cmyth_proginfo_hold(hilite_prog);
+		prog = cmyth_hold(hilite_prog);
 
 	switch (mythtv_state) {
 	case MYTHTV_STATE_MAIN:
@@ -2866,5 +3206,5 @@ mythtv_browser_expose(mvp_widget_t *widget)
 
  out:
 	if (prog)
-		cmyth_proginfo_release(prog);
+		cmyth_release(prog);
 }

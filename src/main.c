@@ -439,6 +439,7 @@ main(int argc, char **argv)
 			config->av_mode = mode;
 			break;
 		case 'M':
+			fprintf(stderr, "Turn on MythTV debugging\n");
 			mythtv_debug = 1;
 			break;
 		case 'o':

@@ -25,7 +25,77 @@
 #include <cmyth_local.h>
 
 /*
- * cmyth_file_create(void)
+ * cmyth_file_destroy(cmyth_file_t file)
+ * 
+ * Scope: PRIVATE (static)
+ *
+ * Description
+ *
+ * Tear down and release storage associated with a file connection.
+ * This should only be called by cmyth_release().  All others
+ * should call cmyth_release() to release a file connection.
+ *
+ * Return Value:
+ *
+ * None.
+ */
+static void
+cmyth_file_destroy(cmyth_file_t file)
+{
+	int err, count;
+	int r;
+	long c;
+	char msg[256];
+
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s {\n", __FUNCTION__);
+	if (!file) {
+		cmyth_dbg(CMYTH_DBG_DEBUG, "%s }!\n", __FUNCTION__);
+		return;
+	}
+	if (file->file_control) {
+		pthread_mutex_lock(&mutex);
+
+		/*
+		 * Try to shut down the file transfer.  Can't do much
+		 * if it fails other than log it.
+		 */
+		snprintf(msg, sizeof(msg),
+			 "QUERY_FILETRANSFER %ld[]:[]DONE", file->file_id);
+
+		if ((err = cmyth_send_message(file->file_control, msg)) < 0) {
+			cmyth_dbg(CMYTH_DBG_ERROR,
+				  "%s: cmyth_send_message() failed (%d)\n",
+				  __FUNCTION__, err);
+			goto fail;
+		}
+
+		if ((count = cmyth_rcv_length(file->file_control)) < 0) {
+			cmyth_dbg(CMYTH_DBG_ERROR,
+				  "%s: cmyth_rcv_length() failed (%d)\n",
+				  __FUNCTION__, count);
+			err = count;
+			goto fail;
+		}
+		if ((r = cmyth_rcv_long(file->file_control,
+					&err, &c, count)) < 0) {
+			cmyth_dbg(CMYTH_DBG_ERROR,
+				  "%s: cmyth_rcv_long() failed (%d)\n",
+				  __FUNCTION__, r);
+			goto fail;
+		}
+	    fail:
+		cmyth_release(file->file_control);
+		pthread_mutex_unlock(&mutex);
+	}
+	if (file->file_data) {
+		cmyth_release(file->file_data);
+	}
+
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s }\n", __FUNCTION__);
+}
+
+/*
+ * cmyth_file_create(cmyth_conn_t control)
  * 
  * Scope: PRIVATE (mapped to __cmyth_file_create)
  *
@@ -42,163 +112,25 @@
  * Failure: A NULL cmyth_file_t
  */
 cmyth_file_t
-cmyth_file_create(void)
+cmyth_file_create(cmyth_conn_t control)
 {
-	cmyth_file_t ret = malloc(sizeof(*ret));
+	cmyth_file_t ret = cmyth_allocate(sizeof(*ret));
 
-	if (!ret) {
-		return NULL;
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s {\n", __FUNCTION__);
+ 	if (!ret) {
+		cmyth_dbg(CMYTH_DBG_DEBUG, "%s }\n", __FUNCTION__);
+ 		return NULL;
 	}
+	cmyth_set_destroy(ret, (destroy_t)cmyth_file_destroy);
+
+	ret->file_control = cmyth_hold(control);
 	ret->file_data = NULL;
 	ret->file_id = -1;
 	ret->file_start = 0;
 	ret->file_length = 0;
 	ret->file_pos = 0;
-	cmyth_atomic_set(&ret->refcount, 1);
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s }\n", __FUNCTION__);
 	return ret;
-}
-
-/*
- * cmyth_file_destroy(cmyth_file_t file)
- * 
- * Scope: PRIVATE (static)
- *
- * Description
- *
- * Tear down and release storage associated with a file connection.
- * This should only be called by cmyth_file_release().  All others
- * should call cmyth_file_release() to release a file connection.
- *
- * Return Value:
- *
- * None.
- */
-static void
-cmyth_file_destroy(cmyth_file_t file)
-{
-	if (!file) {
-		return;
-	}
-	if (file->file_data) {
-		cmyth_conn_release(file->file_data);
-	}
-	free(file);
-}
-
-/*
- * cmyth_file_hold(cmyth_file_t p)
- * 
- * Scope: PUBLIC
- *
- * Description
- *
- * Take a new reference to a file connection structure.  File
- * connection structures are reference counted to facilitate caching
- * of pointers to them.  This allows a holder of a pointer to release
- * their hold and trust that once the last reference is released the
- * file connection will be destroyed.  This function is how one
- * creates a new holder of a file connection.  This function always
- * returns the pointer passed to it.  While it cannot fail, if it is
- * passed a NULL pointer, it will do nothing.
- *
- * Return Value:
- *
- * Success: The value of 'p'
- *
- * Failure: There is no real failure case, but a NULL 'p' will result in a
- *          NULL return.
- */
-cmyth_file_t
-cmyth_file_hold(cmyth_file_t p)
-{
-	if (p) {
-		if (cmyth_atomic_inc(&p->refcount) > 1)
-			return p;
-	}
-	return NULL;
-}
-
-/*
- * cmyth_file_release(cmyth_file_t p)
- * 
- * Scope: PUBLIC
- *
- * Description
- *
- * Release a reference to a file connection structure.  File
- * connection structures are reference counted to facilitate caching
- * of pointers to them.  This allows a holder of a pointer to release
- * their hold and trust that once the last reference is released the
- * file connection will be destroyed.  This function is how one drops
- * a reference to a file connection.
- *
- * Return Value:
- *
- * Sucess: 0
- *
- * Failure: an int containing -errno
- */
-int
-cmyth_file_release(cmyth_conn_t control, cmyth_file_t file)
-{
-	int err, count;
-	int r;
-	long c;
-	char msg[256];
-
-	if (!control || !file) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: no connection\n",
-			  __FUNCTION__);
-		return -EINVAL;
-	}
-
-	/*
-	 * do not close the file connection if it is not the last reference
-	 */
-	if (cmyth_atomic_dec_and_test(&file->refcount) == 0)
-		return 0;
-
-	pthread_mutex_lock(&mutex);
-
-	snprintf(msg, sizeof(msg),
-		 "QUERY_FILETRANSFER %ld[]:[]DONE", file->file_id);
-
-	if ((err = cmyth_send_message(control, msg)) < 0) {
-		cmyth_dbg(CMYTH_DBG_ERROR,
-			  "%s: cmyth_send_message() failed (%d)\n",
-			  __FUNCTION__, err);
-		goto fail;
-	}
-
-	if ((count=cmyth_rcv_length(control)) < 0) {
-		cmyth_dbg(CMYTH_DBG_ERROR,
-			  "%s: cmyth_rcv_length() failed (%d)\n",
-			  __FUNCTION__, count);
-		err = count;
-		goto fail;
-	}
-	if ((r=cmyth_rcv_long(control, &err, &c, count)) < 0) {
-		cmyth_dbg(CMYTH_DBG_ERROR,
-			  "%s: cmyth_rcv_long() failed (%d)\n",
-			  __FUNCTION__, r);
-		goto fail;
-	}
-
-	/*
-	 * Last reference, free it.
-	 */
-	cmyth_file_destroy(file);
-
-	pthread_mutex_unlock(&mutex);
-
-	return 0;
-
-    fail:
-	cmyth_atomic_inc(&file->refcount);
-
-	pthread_mutex_unlock(&mutex);
-
-	return err;
 }
 
 /*
@@ -227,8 +159,36 @@ cmyth_file_data(cmyth_file_t file)
 	if (!file->file_data) {
 		return NULL;
 	}
-	cmyth_conn_hold(file->file_data);
-	return file->file_data;
+	return cmyth_hold(file->file_data);
+}
+
+/*
+ * cmyth_file_control(cmyth_file_t p)
+ * 
+ * Scope: PUBLIC
+ *
+ * Description
+ *
+ * Obtain a held reference to the control connection inside of a file
+ * connection.  This cmyth_conn_t can be used to control the
+ * MythTV backend server during a file transfer.
+ *
+ * Return Value:
+ *
+ * Sucess: A non-null cmyth_conn_t (this is a pointer type)
+ *
+ * Failure: NULL
+ */
+cmyth_conn_t
+cmyth_file_control(cmyth_file_t file)
+{
+	if (!file) {
+		return NULL;
+	}
+	if (!file->file_control) {
+		return NULL;
+	}
+	return cmyth_hold(file->file_control);
 }
 
 /*
@@ -341,8 +301,7 @@ cmyth_file_select(cmyth_file_t file, struct timeval *timeout)
 }
 
 /*
- * cmyth_file_request_block(cmyth_file_t control, cmyth_file_t file,
- *                          unsigned long len)
+ * cmyth_file_request_block(cmyth_file_t file, unsigned long len)
  * 
  * Scope: PUBLIC
  *
@@ -358,8 +317,7 @@ cmyth_file_select(cmyth_file_t file, struct timeval *timeout)
  * Failure: an int containing -errno
  */
 int
-cmyth_file_request_block(cmyth_conn_t control, cmyth_file_t file,
-			 unsigned long len)
+cmyth_file_request_block(cmyth_file_t file, unsigned long len)
 {
 	int err, count;
 	int r;
@@ -378,7 +336,7 @@ cmyth_file_request_block(cmyth_conn_t control, cmyth_file_t file,
 		 "QUERY_FILETRANSFER %ld[]:[]REQUEST_BLOCK[]:[]%ld",
 		 file->file_id, len);
 
-	if ((err = cmyth_send_message(control, msg)) < 0) {
+	if ((err = cmyth_send_message(file->file_control, msg)) < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_send_message() failed (%d)\n",
 			  __FUNCTION__, err);
@@ -386,14 +344,14 @@ cmyth_file_request_block(cmyth_conn_t control, cmyth_file_t file,
 		goto out;
 	}
 
-	if ((count=cmyth_rcv_length(control)) < 0) {
+	if ((count=cmyth_rcv_length(file->file_control)) < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_rcv_length() failed (%d)\n",
 			  __FUNCTION__, count);
 		ret = count;
 		goto out;
 	}
-	if ((r=cmyth_rcv_long(control, &err, &c, count)) < 0) {
+	if ((r=cmyth_rcv_long(file->file_control, &err, &c, count)) < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_rcv_long() failed (%d)\n",
 			  __FUNCTION__, r);
@@ -411,8 +369,7 @@ cmyth_file_request_block(cmyth_conn_t control, cmyth_file_t file,
 }
 
 /*
- * cmyth_file_seek(cmyth_file_t control, cmyth_file_t file, long long offset,
- *                 int whence)
+ * cmyth_file_seek(cmyth_file_t file, long long offset, int whence)
  * 
  * Scope: PUBLIC
  *
@@ -433,8 +390,7 @@ cmyth_file_request_block(cmyth_conn_t control, cmyth_file_t file,
  * Failure: an int containing -errno
  */
 long long
-cmyth_file_seek(cmyth_conn_t control, cmyth_file_t file, long long offset,
-		int whence)
+cmyth_file_seek(cmyth_file_t file, long long offset, int whence)
 {
 	char msg[128];
 	int err;
@@ -443,7 +399,7 @@ cmyth_file_seek(cmyth_conn_t control, cmyth_file_t file, long long offset,
 	long r;
 	long long ret;
 
-	if ((control == NULL) || (file == NULL))
+	if (file == NULL)
 		return -EINVAL;
 
 	if ((offset == 0) && (whence == SEEK_CUR))
@@ -460,7 +416,7 @@ cmyth_file_seek(cmyth_conn_t control, cmyth_file_t file, long long offset,
 		 (long)(file->file_pos >> 32),
 		 (long)(file->file_pos & 0xffffffff));
 
-	if ((err = cmyth_send_message(control, msg)) < 0) {
+	if ((err = cmyth_send_message(file->file_control, msg)) < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_send_message() failed (%d)\n",
 			  __FUNCTION__, err);
@@ -468,14 +424,14 @@ cmyth_file_seek(cmyth_conn_t control, cmyth_file_t file, long long offset,
 		goto out;
 	}
 
-	if ((count=cmyth_rcv_length(control)) < 0) {
+	if ((count=cmyth_rcv_length(file->file_control)) < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_rcv_length() failed (%d)\n",
 			  __FUNCTION__, count);
 		ret = count;
 		goto out;
 	}
-	if ((r=cmyth_rcv_long_long(control, &err, &c, count)) < 0) {
+	if ((r=cmyth_rcv_long_long(file->file_control, &err, &c, count)) < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_rcv_long_long() failed (%d)\n",
 			  __FUNCTION__, r);

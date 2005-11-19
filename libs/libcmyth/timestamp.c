@@ -53,8 +53,9 @@
 cmyth_timestamp_t
 cmyth_timestamp_create(void)
 {
-	cmyth_timestamp_t ret = malloc(sizeof(*ret));
+	cmyth_timestamp_t ret = cmyth_allocate(sizeof(*ret));
 
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s\n", __FUNCTION__);
 	if (!ret) {
 		return(NULL);
 	}
@@ -65,118 +66,31 @@ cmyth_timestamp_create(void)
 	ret->timestamp_minute = 0;
 	ret->timestamp_second = 0;
 	ret->timestamp_isdst = 0;
-	cmyth_atomic_set(&ret->refcount, 1);
 	return ret;
 }
 
 /*
- * cmyth_timestamp_destroy(void)
- * 
- * Scope: PRIVATE (static)
- *
- * Description
- *
- * Destroy and free a timestamp structure.  This should only be called
- * by cmyth_timestamp_release().  All others should use
- * cmyth_timestamp_release() to release references to time stamps.
- *
- * Return Value:
- *
- * None.
- */
-static void
-cmyth_timestamp_destroy(cmyth_timestamp_t ts)
-{
-	if (!ts) {
-		return;
-	}
-	free(ts);
-}
-
-/*
- * cmyth_timestamp_hold(cmyth_timestamp_t p)
+ * cmyth_timestamp_from_string(char *str)
  * 
  * Scope: PUBLIC
  *
  * Description
  *
- * Take a new reference to a timestamp structure.  Timestamp structures
- * are reference counted to facilitate caching of pointers to them.
- * This allows a holder of a pointer to release their hold and trust
- * that once the last reference is released the timestamp will be
- * destroyed.  This function is how one creates a new holder of a
- * timestamp.  This function always returns the pointer passed to it.
- * While it cannot fail, if it is passed a NULL pointer, it will do
- * nothing.
- *
- * Return Value:
- *
- * Success: The value of 'p'
- *
- * Failure: There is no real failure case, but a NULL 'p' will result in a
- *          NULL return.
- */
-cmyth_timestamp_t
-cmyth_timestamp_hold(cmyth_timestamp_t p)
-{
-	if (p) {
-		cmyth_atomic_inc(&p->refcount);
-	}
-	return p;
-}
-
-/*
- * cmyth_timestamp_release(cmyth_timestamp_t p)
- * 
- * Scope: PUBLIC
- *
- * Description
- *
- * Release a reference to a timestamp structure.  Timestamp structures
- * are reference counted to facilitate caching of pointers to them.
- * This allows a holder of a pointer to release their hold and trust
- * that once the last reference is released the timestamp will be
- * destroyed.  This function is how one drops a reference to a
- * timestamp.
- *
- * Return Value:
- *
- * None.
- */
-void
-cmyth_timestamp_release(cmyth_timestamp_t p)
-{
-	if (p) {
-		if (cmyth_atomic_dec_and_test(&p->refcount)) {
-			/*
-			 * Last reference, free it.
-			 */
-			cmyth_timestamp_destroy(p);
-		}
-	}
-}
-
-/*
- * cmyth_timestamp_from_string(cmyth_timestamp_t ts, char *str)
- * 
- * Scope: PUBLIC
- *
- * Description
- *
- * Fill out the timestamp structure pointed to by 'ts' using the
- * string 'str'.  The string must be a timestamp of the forn:
+ * Create and fill out a timestamp structure using the string 'str'.
+ * The string must be a timestamp of the forn:
  *
  *    yyyy-mm-ddThh:mm:ss
  *
  * Return Value:
  *
- * Success: 0
+ * Success: A timestamp structure (this is a pointer type)
  *
- * Failure: -(ERRNO)
+ * Failure: NULL
  */
-int
-cmyth_timestamp_from_string(cmyth_timestamp_t ts, char *str)
+cmyth_timestamp_t
+cmyth_timestamp_from_string(char *str)
 {
+	cmyth_timestamp_t ret;
 	int i;
 	int datetime = 1;
 	char *yyyy = &str[0];
@@ -188,12 +102,14 @@ cmyth_timestamp_from_string(cmyth_timestamp_t ts, char *str)
 	
 	if (!str) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: NULL string\n", __FUNCTION__);
-		return -EINVAL;
+		return NULL;
 	}
-	if (!ts) {
+
+	ret = cmyth_timestamp_create();
+	if (!ret) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: NULL timestamp\n",
 			  __FUNCTION__);
-		return -EINVAL;
+		return NULL;
 	}
 	if (strlen(str) != CMYTH_TIMESTAMP_LEN) {
 		datetime = 0;
@@ -201,7 +117,7 @@ cmyth_timestamp_from_string(cmyth_timestamp_t ts, char *str)
 			cmyth_dbg(CMYTH_DBG_ERROR,
 				  "%s: string is not a timestamp '%s'\n",
 				  __FUNCTION__, str);
-			return -EINVAL;
+			goto err;
 		}
 	}
 
@@ -210,28 +126,14 @@ cmyth_timestamp_from_string(cmyth_timestamp_t ts, char *str)
 	     (str[13] != ':') || (str[16] != ':'))) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: string is badly formed '%s'\n",
 			  __FUNCTION__, str);
-		return -EINVAL;
+		goto err;
 	}
 	if ((datetime == 0) &&
 	    ((str[4] != '-') || (str[7] != '-'))) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: string is badly formed '%s'\n",
 			  __FUNCTION__, str);
-		return -EINVAL;
+		goto err;
 	}
-
-	/*
-	 * XXX: Do not zero out the structure, since that will change the
-	 *      reference count.  This should be fixed by creating new
-	 *      timestamps each time.
-	 *
-	 *      This is actually going to be fixed soon by using the newly
-	 *      created reference counted memory allocator and getting the
-	 *      reference count out of the timestamp structure.  This will
-	 *      allow the memset() to go back in.
-	 */
-#if 0
-	memset(ts, 0, sizeof(*ts));
-#endif
 
 	str[4] = '\0';
 	str[7] = '\0';
@@ -247,49 +149,53 @@ cmyth_timestamp_from_string(cmyth_timestamp_t ts, char *str)
 			cmyth_dbg(CMYTH_DBG_ERROR,
 				  "%s: expected numeral at '%s'[%d]\n",
 				  __FUNCTION__, str, i);
-			return -EINVAL;
+			goto err;
 		}
 	}
-	ts->timestamp_year = atoi(yyyy);
-	ts->timestamp_month = atoi(MM);
-	if (ts->timestamp_month > 12) {
+	ret->timestamp_year = atoi(yyyy);
+	ret->timestamp_month = atoi(MM);
+	if (ret->timestamp_month > 12) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: month value too big'%s'\n",
 			  __FUNCTION__, str);
-		return -EINVAL;
+		goto err;
 	}
-	ts->timestamp_day = atoi(dd);
-	if (ts->timestamp_day > 31) {
+	ret->timestamp_day = atoi(dd);
+	if (ret->timestamp_day > 31) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: day value too big'%s'\n",
 			  __FUNCTION__, str);
-		return -EINVAL;
+		goto err;
 	}
 
 	if (datetime == 0)
-		return 0;
+		return ret;
 
-	ts->timestamp_hour = atoi(hh);
-	if (ts->timestamp_hour > 23) {
+	ret->timestamp_hour = atoi(hh);
+	if (ret->timestamp_hour > 23) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: hour value too big'%s'\n",
 			  __FUNCTION__, str);
-		return -EINVAL;
+		goto err;
 	}
-	ts->timestamp_minute = atoi(mm);
-	if (ts->timestamp_minute > 59) {
+	ret->timestamp_minute = atoi(mm);
+	if (ret->timestamp_minute > 59) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: minute value too big'%s'\n",
 			  __FUNCTION__, str);
-		return -EINVAL;
+		goto err;
 	}
-	ts->timestamp_second = atoi(ss);
-	if (ts->timestamp_second > 59) {
+	ret->timestamp_second = atoi(ss);
+	if (ret->timestamp_second > 59) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: second value too big'%s'\n",
 			  __FUNCTION__, str);
-		return -EINVAL;
+		goto err;
 	}
-	return 0;
+	return ret;
+
+    err:
+	cmyth_release(ret);
+	return NULL;
 }
 
 /*
- * cmyth_datetime_from_string(cmyth_timestamp_t ts, char *str)
+ * cmyth_datetime_from_string(char *str)
  * 
  * Scope: PUBLIC
  *
@@ -306,56 +212,48 @@ cmyth_timestamp_from_string(cmyth_timestamp_t ts, char *str)
  *
  * Failure: -(ERRNO)
  */
-int
-cmyth_datetime_from_string(cmyth_timestamp_t ts, char *str)
+cmyth_timestamp_t
+cmyth_datetime_from_string(char *str)
 {
+	cmyth_timestamp_t ret;
 	unsigned int isecs;
 	struct tm *tm_datetime;
 	time_t t_datetime;
 	
 	if (!str) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: NULL string\n", __FUNCTION__);
-		return -EINVAL;
+		return NULL;
 	}
-	if (!ts) {
+	ret = cmyth_timestamp_create();
+	if (!ret) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: NULL timestamp\n",
 			  __FUNCTION__);
-		return -EINVAL;
+		return NULL;
 	}
-
-	/*
-	 * XXX: Do not zero out the structure, since that will change the
-	 *      reference count.  This should be fixed by creating new
-	 *      timestamps each time.
-	 */
-#if 0
-	memset(ts, 0, sizeof(*ts));
-#endif
 
 	isecs=atoi(str);
 	t_datetime = isecs;
 	tm_datetime = localtime(&t_datetime);
-	ts->timestamp_year = tm_datetime->tm_year + 1900;
-	ts->timestamp_month = tm_datetime->tm_mon + 1;
-	ts->timestamp_day = tm_datetime->tm_mday;
-	ts->timestamp_hour = tm_datetime->tm_hour;
-	ts->timestamp_minute = tm_datetime->tm_min;
-	ts->timestamp_second = tm_datetime->tm_sec;
-	ts->timestamp_isdst = tm_datetime->tm_isdst;
-	return 0;
+	ret->timestamp_year = tm_datetime->tm_year + 1900;
+	ret->timestamp_month = tm_datetime->tm_mon + 1;
+	ret->timestamp_day = tm_datetime->tm_mday;
+	ret->timestamp_hour = tm_datetime->tm_hour;
+	ret->timestamp_minute = tm_datetime->tm_min;
+	ret->timestamp_second = tm_datetime->tm_sec;
+	ret->timestamp_isdst = tm_datetime->tm_isdst;
+	return ret;
 }
 
 
 
 /*
- * cmyth_timestamp_from_longlong(cmyth_timestamp_t ts, longlong l)
+ * cmyth_timestamp_from_longlong(longlong l)
  * 
  * Scope: PUBLIC
  *
  * Description
  *
- * Fill out the timestamp structure pointed to by 'ts' using the
- * long long 'l'.
+ * Create and fill out a timestamp structure using the long long 'l'.
  *
  * Return Value:
  *
@@ -363,10 +261,10 @@ cmyth_datetime_from_string(cmyth_timestamp_t ts, char *str)
  *
  * Failure: -(ERRNO)
  */
-int
-cmyth_timestamp_from_longlong(cmyth_timestamp_t ts, long long l)
+cmyth_timestamp_t
+cmyth_timestamp_from_longlong(long long l)
 {
-	return -ENOSYS;
+	return NULL;
 }
 
 /*

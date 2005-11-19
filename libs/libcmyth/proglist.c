@@ -34,6 +34,41 @@
 #include <cmyth_local.h>
 
 /*
+ * cmyth_proglist_destroy(void)
+ * 
+ * Scope: PRIVATE (static)
+ *
+ * Description
+ *
+ * Destroy and free a timestamp structure.  This should only be called
+ * by cmyth_release().  All others should use
+ * cmyth_release() to release references to time stamps.
+ *
+ * Return Value:
+ *
+ * None.
+ */
+static void
+cmyth_proglist_destroy(cmyth_proglist_t pl)
+{
+	int i;
+
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s\n", __FUNCTION__);
+	if (!pl) {
+		return;
+	}
+	for (i  = 0; i < pl->proglist_count; ++i) {
+		if (pl->proglist_list[i]) {
+			cmyth_release(pl->proglist_list[i]);
+		}
+		pl->proglist_list[i] = NULL;
+	}
+	if (pl->proglist_list) {
+		free(pl->proglist_list);
+	}
+}
+
+/*
  * cmyth_proglist_create(void)
  * 
  * Scope: PUBLIC
@@ -51,112 +86,18 @@
 cmyth_proglist_t
 cmyth_proglist_create(void)
 {
-	cmyth_proglist_t ret = malloc(sizeof(*ret));
+	cmyth_proglist_t ret;
 
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s\n", __FUNCTION__);
+	ret = cmyth_allocate(sizeof(*ret));
 	if (!ret) {
 		return(NULL);
 	}
+	cmyth_set_destroy(ret, (destroy_t)cmyth_proglist_destroy);
+
 	ret->proglist_list = NULL;
 	ret->proglist_count = 0;
-	cmyth_atomic_set(&ret->refcount, 1);
 	return ret;
-}
-
-/*
- * cmyth_proglist_destroy(void)
- * 
- * Scope: PRIVATE (static)
- *
- * Description
- *
- * Destroy and free a timestamp structure.  This should only be called
- * by cmyth_proglist_release().  All others should use
- * cmyth_proglist_release() to release references to time stamps.
- *
- * Return Value:
- *
- * None.
- */
-static void
-cmyth_proglist_destroy(cmyth_proglist_t pl)
-{
-	int i;
-
-	if (!pl) {
-		return;
-	}
-	for (i  = 0; i < pl->proglist_count; ++i) {
-		if (pl->proglist_list[i]) {
-			cmyth_proginfo_release(pl->proglist_list[i]);
-		}
-		pl->proglist_list[i] = NULL;
-	}
-	free(pl->proglist_list);
-	memset(pl, 0, sizeof(*pl));
-	free(pl);
-}
-
-/*
- * cmyth_proglist_hold(cmyth_proglist_t p)
- * 
- * Scope: PUBLIC
- *
- * Description
- *
- * Take a new reference to a timestamp structure.  Timestamp structures
- * are reference counted to facilitate caching of pointers to them.
- * This allows a holder of a pointer to release their hold and trust
- * that once the last reference is released the timestamp will be
- * destroyed.  This function is how one creates a new holder of a
- * timestamp.  This function always returns the pointer passed to it.
- * While it cannot fail, if it is passed a NULL pointer, it will do
- * nothing.
- *
- * Return Value:
- *
- * Success: The value of 'p'
- *
- * Failure: There is no real failure case, but a NULL 'p' will result in a
- *          NULL return.
- */
-cmyth_proglist_t
-cmyth_proglist_hold(cmyth_proglist_t p)
-{
-	if (p) {
-		cmyth_atomic_inc(&p->refcount);
-	}
-	return p;
-}
-
-/*
- * cmyth_proglist_release(cmyth_proglist_t p)
- * 
- * Scope: PUBLIC
- *
- * Description
- *
- * Release a reference to a timestamp structure.  Timestamp structures
- * are reference counted to facilitate caching of pointers to them.
- * This allows a holder of a pointer to release their hold and trust
- * that once the last reference is released the timestamp will be
- * destroyed.  This function is how one drops a reference to a
- * timestamp.
- *
- * Return Value:
- *
- * None.
- */
-void
-cmyth_proglist_release(cmyth_proglist_t p)
-{
-	if (p) {
-		if (cmyth_atomic_dec_and_test(&p->refcount)) {
-			/*
-			 * Last reference, free it.
-			 */
-			cmyth_proglist_destroy(p);
-		}
-	}
 }
 
 /*
@@ -169,7 +110,7 @@ cmyth_proglist_release(cmyth_proglist_t p)
  * Retrieve the program information structure found at index 'index'
  * in the list in 'pl'.  Return the program information structure
  * held.  Before forgetting the reference to this program info structure
- * the caller must call cmyth_proginfo_release().
+ * the caller must call cmyth_release().
  *
  * Return Value:
  *
@@ -195,7 +136,7 @@ cmyth_proglist_get_item(cmyth_proglist_t pl, int index)
 			  __FUNCTION__, index);
 		return NULL;
 	}
-	cmyth_proginfo_hold(pl->proglist_list[index]);
+	cmyth_hold(pl->proglist_list[index]);
 	return pl->proglist_list[index];
 }
 
@@ -226,7 +167,7 @@ cmyth_proglist_delete_item(cmyth_proglist_t pl, cmyth_proginfo_t prog)
 				pl->proglist_list+i+1,
 				(pl->proglist_count-i-1)*sizeof(cmyth_proginfo_t));
 			pl->proglist_count--;
-			cmyth_proginfo_release(old);
+			cmyth_release(old);
 			ret = 0;
 			goto out;
 		}
@@ -367,16 +308,32 @@ cmyth_proglist_get_list(cmyth_conn_t conn,
  *
  * Return Value:
  *
- * Success: 0
+ * Success: A held, noon-NULL cmyth_proglist_t
  *
- * Failure: -(ERRNO)
+ * Failure: NULL
  */
-int
-cmyth_proglist_get_all_recorded(cmyth_conn_t control,
-				cmyth_proglist_t proglist)
+cmyth_proglist_t
+cmyth_proglist_get_all_recorded(cmyth_conn_t control)
 {
-	return cmyth_proglist_get_list(control, proglist,
-				       "QUERY_RECORDINGS Play", __FUNCTION__);
+	cmyth_proglist_t proglist = cmyth_proglist_create();
+
+	if (proglist == NULL) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_proglist_create() failed\n",
+			  __FUNCTION__);
+		return NULL;
+	}
+
+	if (cmyth_proglist_get_list(control, proglist,
+				    "QUERY_RECORDINGS Play",
+				    __FUNCTION__) < 0) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_proglist_get_list() failed\n",
+			  __FUNCTION__);
+		cmyth_release(proglist);
+		return NULL;
+	}
+	return proglist;
 }
 
 /*
@@ -394,16 +351,32 @@ cmyth_proglist_get_all_recorded(cmyth_conn_t control,
  *
  * Return Value:
  *
- * Success: 0
+ * Success: A held, noon-NULL cmyth_proglist_t
  *
- * Failure: -(ERRNO)
+ * Failure: NULL
  */
-int
-cmyth_proglist_get_all_pending(cmyth_conn_t control,
-			       cmyth_proglist_t proglist)
+cmyth_proglist_t
+cmyth_proglist_get_all_pending(cmyth_conn_t control)
 {
-	return cmyth_proglist_get_list(control, proglist,
-				       "QUERY_GETALLPENDING", __FUNCTION__);
+	cmyth_proglist_t proglist = cmyth_proglist_create();
+
+	if (proglist == NULL) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_proglist_create() failed\n",
+			  __FUNCTION__);
+		return NULL;
+	}
+
+	if (cmyth_proglist_get_list(control, proglist,
+				    "QUERY_GETALLPENDING",
+				    __FUNCTION__) < 0) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_proglist_get_list() failed\n",
+			  __FUNCTION__);
+		cmyth_release(proglist);
+		return NULL;
+	}
+	return proglist;
 }
 
 /*
@@ -421,16 +394,32 @@ cmyth_proglist_get_all_pending(cmyth_conn_t control,
  *
  * Return Value:
  *
- * Success: 0
+ * Success: A held, noon-NULL cmyth_proglist_t
  *
- * Failure: -(ERRNO)
+ * Failure: NULL
  */
-int
-cmyth_proglist_get_all_scheduled(cmyth_conn_t control,
-				 cmyth_proglist_t proglist)
+cmyth_proglist_t
+cmyth_proglist_get_all_scheduled(cmyth_conn_t control)
 {
-	return cmyth_proglist_get_list(control, proglist,
-				       "QUERY_GETALLSCHEDULED", __FUNCTION__);
+	cmyth_proglist_t proglist = cmyth_proglist_create();
+
+	if (proglist == NULL) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_proglist_create() failed\n",
+			  __FUNCTION__);
+		return NULL;
+	}
+
+	if (cmyth_proglist_get_list(control, proglist,
+				    "QUERY_GETALLSCHEDULED",
+				    __FUNCTION__) < 0) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_proglist_get_list() failed\n",
+			  __FUNCTION__);
+		cmyth_release(proglist);
+		return NULL;
+	}
+	return proglist;
 }
 
 /*
@@ -448,14 +437,30 @@ cmyth_proglist_get_all_scheduled(cmyth_conn_t control,
  *
  * Return Value:
  *
- * Success: 0
+ * Success: A held, noon-NULL cmyth_proglist_t
  *
- * Failure: -(ERRNO)
+ * Failure: NULL
  */
-int
-cmyth_proglist_get_conflicting(cmyth_conn_t control,
-			       cmyth_proglist_t proglist)
+cmyth_proglist_t
+cmyth_proglist_get_conflicting(cmyth_conn_t control)
 {
-	return cmyth_proglist_get_list(control, proglist,
-				       "QUERY_GETCONFLICTING", __FUNCTION__);
+	cmyth_proglist_t proglist = cmyth_proglist_create();
+
+	if (proglist == NULL) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_proglist_create() failed\n",
+			  __FUNCTION__);
+		return NULL;
+	}
+
+	if (cmyth_proglist_get_list(control, proglist,
+				    "QUERY_GETCONFLICTING",
+				    __FUNCTION__) < 0) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_proglist_get_list() failed\n",
+			  __FUNCTION__);
+		cmyth_release(proglist);
+		return NULL;
+	}
+	return proglist;
 }

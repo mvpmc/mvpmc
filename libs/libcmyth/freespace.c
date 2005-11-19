@@ -47,100 +47,13 @@
 cmyth_freespace_t
 cmyth_freespace_create(void)
 {
-	cmyth_freespace_t ret = malloc(sizeof(*ret));
-	if (!ret) {
-		return NULL;
+	cmyth_freespace_t ret = cmyth_allocate(sizeof(*ret));
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s\n", __FUNCTION__);
+ 	if (!ret) {
+	       return NULL;
 	}
 
 	ret->freespace_total = 0;
 	ret->freespace_used = 0;
-	cmyth_atomic_set(&ret->refcount, 1);
 	return ret;
-}
-
-/*
- * cmyth_freespace_destroy(void)
- * 
- * Scope: PRIVATE (static)
- *
- * Description
- *
- * Tear down and free a freespace structure.  This should only be
- * called by cmyth_freespace_release().  All others should call
- * cmyth_freespace_release() to release references to freespaces.
- *
- * Return Value:
- *
- * None.
- */
-static void
-cmyth_freespace_destroy(cmyth_freespace_t kf)
-{
-	if (!kf) {
-		return;
-	}
-	free(kf);
-}
-
-/*
- * cmyth_freespace_hold(cmyth_freespace_t p)
- * 
- * Scope: PUBLIC
- *
- * Description
- *
- * Take a new reference to a freespace structure.  Freespace structures
- * are reference counted to facilitate caching of pointers to them.
- * This allows a holder of a pointer to release their hold and trust
- * that once the last reference is released the freespace will be
- * destroyed.  This function is how one creates a new holder of a
- * freespace.  This function always returns the pointer passed to it.
- * While it cannot fail, if it is passed a NULL pointer, it will do
- * nothing.
- *
- * Return Value:
- *
- * Success: The value of 'p'
- *
- * Failure: There is no real failure case, but a NULL 'p' will result in a
- *          NULL return.
- */
-cmyth_freespace_t
-cmyth_freespace_hold(cmyth_freespace_t p)
-{
-	if (p) {
-		cmyth_atomic_inc(&p->refcount);
-	}
-	return p;
-}
-
-/*
- * cmyth_freespace_release(cmyth_freespace_t p)
- * 
- * Scope: PUBLIC
- *
- * Description
- *
- * Release a reference to a freespace structure.  Freespace structures
- * are reference counted to facilitate caching of pointers to them.
- * This allows a holder of a pointer to release their hold and trust
- * that once the last reference is released the freespace will be
- * destroyed.  This function is how one drops a reference to a
- * freespace.
- *
- * Return Value:
- *
- * None.
- */
-void
-cmyth_freespace_release(cmyth_freespace_t p)
-{
-	if (p) {
-		if (cmyth_atomic_dec_and_test(&p->refcount)) {
-			/*
-			 * Last reference, free it.
-			 */
-			cmyth_freespace_destroy(p);
-		}
-	}
 }

@@ -37,6 +37,118 @@
 #include <cmyth_local.h>
 
 /*
+ * cmyth_proginfo_destroy(cmyth_proginfo_t p)
+ * 
+ * Scope: PRIVATE (static)
+ *
+ * Description
+ *
+ * Destroy the program info structure pointed to by 'p' and release
+ * its storage.  This should only be called by
+ * cmyth_release(). All others should use
+ * cmyth_release() to release references to a program info
+ * structure.
+ *
+ * Return Value:
+ *
+ * None.
+ */
+static void
+cmyth_proginfo_destroy(cmyth_proginfo_t p)
+{
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s {\n", __FUNCTION__);
+	if (!p) {
+		cmyth_dbg(CMYTH_DBG_DEBUG, "%s }!a\n", __FUNCTION__);
+		return;
+	}
+	if (p->proginfo_title) {
+		cmyth_release(p->proginfo_title);
+	}
+	if (p->proginfo_subtitle) {
+		cmyth_release(p->proginfo_subtitle);
+	}
+	if (p->proginfo_description) {
+		cmyth_release(p->proginfo_description);
+	}
+	if (p->proginfo_category) {
+		cmyth_release(p->proginfo_category);
+	}
+	if (p->proginfo_chanstr) {
+		cmyth_release(p->proginfo_chanstr);
+	}
+	if (p->proginfo_chansign) {
+		cmyth_release(p->proginfo_chansign);
+	}
+	if (p->proginfo_channame) {
+		cmyth_release(p->proginfo_channame);
+	}
+	if (p->proginfo_chanicon) {
+		cmyth_release(p->proginfo_chanicon);
+	}
+	if (p->proginfo_url) {
+		cmyth_release(p->proginfo_url);
+	}
+	if (p->proginfo_unknown_0) {
+		cmyth_release(p->proginfo_unknown_0);
+	}
+	if (p->proginfo_hostname) {
+		cmyth_release(p->proginfo_hostname);
+	}
+	if (p->proginfo_rec_priority) {
+		cmyth_release(p->proginfo_rec_priority);
+	}
+	if (p->proginfo_rec_profile) {
+		cmyth_release(p->proginfo_rec_profile);
+	}
+	if (p->proginfo_recgroup) {
+		cmyth_release(p->proginfo_recgroup);
+	}
+	if (p->proginfo_chancommfree) {
+		cmyth_release(p->proginfo_chancommfree);
+	}
+	if (p->proginfo_chan_output_filters) {
+		cmyth_release(p->proginfo_chan_output_filters);
+	}
+	if (p->proginfo_seriesid) {
+		cmyth_release(p->proginfo_seriesid);
+	}
+	if (p->proginfo_programid) {
+		cmyth_release(p->proginfo_programid);
+	}
+	if (p->proginfo_stars) {
+		cmyth_release(p->proginfo_stars);
+	}
+	if (p->proginfo_pathname) {
+		cmyth_release(p->proginfo_pathname);
+	}
+	if (p->proginfo_host) {
+		cmyth_release(p->proginfo_host);
+	}
+	if (p->proginfo_timestretch) {
+		cmyth_release(p->proginfo_timestretch);
+	}
+	if (p->proginfo_lastmodified) {
+		cmyth_release(p->proginfo_lastmodified);
+	}
+	if (p->proginfo_start_ts) {
+		cmyth_release(p->proginfo_start_ts);
+	}
+	if (p->proginfo_end_ts) {
+		cmyth_release(p->proginfo_end_ts);
+	}
+	if (p->proginfo_rec_start_ts) {
+		cmyth_release(p->proginfo_rec_start_ts);
+	}
+	if (p->proginfo_rec_end_ts) {
+		cmyth_release(p->proginfo_rec_end_ts);
+	}
+	if (p->proginfo_originalairdate) {
+		cmyth_release(p->proginfo_originalairdate);
+	}
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s }\n", __FUNCTION__);
+}
+
+/*
  * cmyth_proginfo_create(void)
  * 
  * Scope: PUBLIC
@@ -56,35 +168,43 @@
 cmyth_proginfo_t
 cmyth_proginfo_create(void)
 {
-	cmyth_proginfo_t ret;
+	cmyth_proginfo_t ret = cmyth_allocate(sizeof(*ret));
 
-	ret = malloc(sizeof(*ret));
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s {\n", __FUNCTION__);
 	if (!ret) {
+		cmyth_dbg(CMYTH_DBG_DEBUG, "%s }!\n", __FUNCTION__);
 		return NULL;
 	}
-	cmyth_atomic_set(&ret->refcount, 1);
+	cmyth_set_destroy(ret, (destroy_t)cmyth_proginfo_destroy);
+
 	ret->proginfo_start_ts = cmyth_timestamp_create();
 	if (!ret->proginfo_start_ts) {
+		cmyth_dbg(CMYTH_DBG_DEBUG, "%s }!!\n", __FUNCTION__);
 		goto err;
 	}
 	ret->proginfo_end_ts = cmyth_timestamp_create();
 	if (!ret->proginfo_end_ts) {
+		cmyth_dbg(CMYTH_DBG_DEBUG, "%s }!!!\n", __FUNCTION__);
 		goto err;
 	}
 	ret->proginfo_rec_start_ts = cmyth_timestamp_create();
 	if (!ret->proginfo_rec_start_ts) {
+		cmyth_dbg(CMYTH_DBG_DEBUG, "%s }!!!!\n", __FUNCTION__);
 		goto err;
 	}
 	ret->proginfo_rec_end_ts = cmyth_timestamp_create();
 	if (!ret->proginfo_rec_end_ts) {
+		cmyth_dbg(CMYTH_DBG_DEBUG, "%s } !!!!!\n", __FUNCTION__);
 		goto err;
 	}
 	ret->proginfo_lastmodified = cmyth_timestamp_create();
 	if (!ret->proginfo_lastmodified) {
+		cmyth_dbg(CMYTH_DBG_DEBUG, "%s } !!!!!!\n", __FUNCTION__);
 		goto err;
 	}
 	ret->proginfo_originalairdate = cmyth_timestamp_create();
 	if (!ret->proginfo_originalairdate) {
+		cmyth_dbg(CMYTH_DBG_DEBUG, "%s } !!!!!!!\n", __FUNCTION__);
 		goto err;
 	}
 	ret->proginfo_title = NULL;
@@ -127,188 +247,93 @@ cmyth_proginfo_create(void)
 	ret->proginfo_version = 12;
         ret->proginfo_hasairdate = 0;
 	ret->proginfo_timestretch = NULL;
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s }\n", __FUNCTION__);
 	return ret;
 
     err:
-	cmyth_proginfo_release(ret);
-	return NULL;
-
+	cmyth_release(ret);
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s } !++\n", __FUNCTION__);
+       	return NULL;
 }
 
 /*
- * cmyth_proginfo_destroy(cmyth_proginfo_t p)
+ * cmyth_proginfo_create(void)
  * 
  * Scope: PRIVATE (static)
  *
  * Description
  *
- * Destroy the program info structure pointed to by 'p' and release
- * its storage.  This should only be called by
- * cmyth_proginfo_release(). All others should use
- * cmyth_proginfo_release() to release references to a program info
- * structure.
+ * Duplicate a program information structure into a new one.  The sub-fields
+ * get held, not actually copied.
  *
  * Return Value:
  *
- * None.
+ * Success: A non-NULL cmyth_proginfo_t (this type is a pointer)
+ *
+ * Failure: A NULL cmyth_proginfo_t
  */
-static void
-cmyth_proginfo_destroy(cmyth_proginfo_t p)
+static cmyth_proginfo_t
+cmyth_proginfo_dup(cmyth_proginfo_t p)
 {
-	if (!p) {
-		return;
-	}
-	if (p->proginfo_title) {
-		free(p->proginfo_title);
-	}
-	if (p->proginfo_subtitle) {
-		free(p->proginfo_subtitle);
-	}
-	if (p->proginfo_description) {
-		free(p->proginfo_description);
-	}
-	if (p->proginfo_category) {
-		free(p->proginfo_category);
-	}
-	if (p->proginfo_chanstr) {
-		free(p->proginfo_chanstr);
-	}
-	if (p->proginfo_chansign) {
-		free(p->proginfo_chansign);
-	}
-	if (p->proginfo_channame) {
-		free(p->proginfo_channame);
-	}
-	if (p->proginfo_chanicon) {
-		free(p->proginfo_chanicon);
-	}
-	if (p->proginfo_url) {
-		free(p->proginfo_url);
-	}
-	if (p->proginfo_unknown_0) {
-		free(p->proginfo_unknown_0);
-	}
-	if (p->proginfo_hostname) {
-		free(p->proginfo_hostname);
-	}
-	if (p->proginfo_rec_priority) {
-		free(p->proginfo_rec_priority);
-	}
-	if (p->proginfo_rec_profile) {
-		free(p->proginfo_rec_profile);
-	}
-	if (p->proginfo_recgroup) {
-		free(p->proginfo_recgroup);
-	}
-	if (p->proginfo_chancommfree) {
-		free(p->proginfo_chancommfree);
-	}
-	if (p->proginfo_chan_output_filters) {
-		free(p->proginfo_chan_output_filters);
-	}
-	if (p->proginfo_seriesid) {
-		free(p->proginfo_seriesid);
-	}
-	if (p->proginfo_programid) {
-		free(p->proginfo_programid);
-	}
-	if (p->proginfo_stars) {
-		free(p->proginfo_stars);
-	}
-	if (p->proginfo_pathname) {
-		free(p->proginfo_pathname);
-	}
-	if (p->proginfo_host) {
-		free(p->proginfo_host);
-	}
-	if (p->proginfo_timestretch) {
-		free(p->proginfo_timestretch);
-	}
-	if (p->proginfo_lastmodified) {
-		cmyth_timestamp_release(p->proginfo_lastmodified);
-	}
-	if (p->proginfo_start_ts) {
-		cmyth_timestamp_release(p->proginfo_start_ts);
-	}
-	if (p->proginfo_end_ts) {
-		cmyth_timestamp_release(p->proginfo_end_ts);
-	}
-	if (p->proginfo_rec_start_ts) {
-		cmyth_timestamp_release(p->proginfo_rec_start_ts);
-	}
-	if (p->proginfo_rec_end_ts) {
-		cmyth_timestamp_release(p->proginfo_rec_end_ts);
-	}
-	if (p->proginfo_originalairdate) {
-		cmyth_timestamp_release(p->proginfo_originalairdate);
-	}
+	cmyth_proginfo_t ret = cmyth_proginfo_create();
 
-	memset(p, 0, sizeof(*p));
-
-	free(p);
-}
-
-/*
- * cmyth_proginfo_hold(cmyth_proginfo_t p)
- * 
- * Scope: PUBLIC
- *
- * Description
- *
- * Take a new reference to a proginfo structure.  Proginfo structures
- * are reference counted to facilitate caching of pointers to them.
- * This allows a holder of a pointer to release their hold and trust
- * that once the last reference is released the proginfo will be
- * destroyed.  This function is how one creates a new holder of a
- * proginfo.  This function always returns the pointer passed to it.
- * While it cannot fail, if it is passed a NULL pointer, it will do
- * nothing.
- *
- * Return Value:
- *
- * Success: The value of 'p'
- *
- * Failure: There is no real failure case, but a NULL 'p' will result in a
- *          NULL return.
- */
-cmyth_proginfo_t
-cmyth_proginfo_hold(cmyth_proginfo_t p)
-{
-	if (p) {
-		cmyth_atomic_inc(&p->refcount);
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s {\n", __FUNCTION__);
+	if (!ret) {
+		cmyth_dbg(CMYTH_DBG_DEBUG, "%s }!\n", __FUNCTION__);
+		return NULL;
 	}
-	return p;
-}
+	cmyth_set_destroy(ret, (destroy_t)cmyth_proginfo_destroy);
 
-/*
- * cmyth_proginfo_release(cmyth_proginfo_t p)
- * 
- * Scope: PUBLIC
- *
- * Description
- *
- * Release a reference to a proginfo structure.  Proginfo structures
- * are reference counted to facilitate caching of pointers to them.
- * This allows a holder of a pointer to release their hold and trust
- * that once the last reference is released the proginfo will be
- * destroyed.  This function is how one drops a reference to a
- * proginfo.
- *
- * Return Value:
- *
- * None.
- */
-void
-cmyth_proginfo_release(cmyth_proginfo_t p)
-{
-	if (p) {
-		if (cmyth_atomic_dec_and_test(&p->refcount)) {
-			/*
-			 * Last reference, free it.
-			 */
-			cmyth_proginfo_destroy(p);
-		}
-	}
+	ret->proginfo_start_ts = cmyth_hold(p->proginfo_start_ts);
+	ret->proginfo_end_ts = cmyth_hold(p->proginfo_end_ts);
+	ret->proginfo_rec_start_ts = cmyth_hold(p->proginfo_rec_start_ts);
+	ret->proginfo_rec_end_ts = cmyth_hold(p->proginfo_rec_end_ts);
+	ret->proginfo_lastmodified = cmyth_hold(p->proginfo_lastmodified);
+	ret->proginfo_originalairdate =
+		cmyth_hold(p->proginfo_originalairdate);
+	ret->proginfo_title = cmyth_hold(p->proginfo_title);
+	ret->proginfo_subtitle = cmyth_hold(p->proginfo_subtitle);
+	ret->proginfo_description = cmyth_hold(p->proginfo_description);
+	ret->proginfo_category = cmyth_hold(p->proginfo_category);
+	ret->proginfo_chanId = p->proginfo_chanId;
+	ret->proginfo_chanstr = cmyth_hold(p->proginfo_chanstr);
+	ret->proginfo_chansign = cmyth_hold(p->proginfo_chansign);
+	ret->proginfo_channame = cmyth_hold(p->proginfo_channame);
+	ret->proginfo_chanicon = cmyth_hold(p->proginfo_chanicon);
+	ret->proginfo_url = cmyth_hold(p->proginfo_url);
+	ret->proginfo_pathname = cmyth_hold(p->proginfo_pathname);
+	ret->proginfo_host = cmyth_hold(p->proginfo_host);
+	ret->proginfo_port = p->proginfo_port;
+	ret->proginfo_Length = p->proginfo_Length;
+	ret->proginfo_conflicting = p->proginfo_conflicting;
+	ret->proginfo_unknown_0 = cmyth_hold(p->proginfo_unknown_0);
+	ret->proginfo_recording = p->proginfo_recording;
+	ret->proginfo_override = p->proginfo_override;
+	ret->proginfo_hostname = cmyth_hold(p->proginfo_hostname);
+	ret->proginfo_source_id = p->proginfo_source_id;
+	ret->proginfo_card_id = p->proginfo_card_id;
+	ret->proginfo_input_id = p->proginfo_input_id;
+	ret->proginfo_rec_priority = p->proginfo_rec_priority;
+	ret->proginfo_rec_status = p->proginfo_rec_status;
+	ret->proginfo_record_id = p->proginfo_record_id;
+	ret->proginfo_rec_type = p->proginfo_rec_type;
+	ret->proginfo_rec_dups = p->proginfo_rec_dups;
+	ret->proginfo_unknown_1 = p->proginfo_unknown_1;
+	ret->proginfo_repeat = p->proginfo_repeat;
+	ret->proginfo_program_flags = p->proginfo_program_flags;
+	ret->proginfo_rec_profile = cmyth_hold(p->proginfo_rec_profile);
+	ret->proginfo_recgroup = cmyth_hold(p->proginfo_recgroup);
+	ret->proginfo_chancommfree = cmyth_hold(p->proginfo_chancommfree);
+	ret->proginfo_chan_output_filters =
+		cmyth_hold(p->proginfo_chan_output_filters);
+	ret->proginfo_seriesid = cmyth_hold(p->proginfo_seriesid);
+	ret->proginfo_programid = cmyth_hold(p->proginfo_programid);
+	ret->proginfo_stars = cmyth_hold(p->proginfo_stars);
+	ret->proginfo_version = p->proginfo_version;
+        ret->proginfo_hasairdate = p->proginfo_hasairdate;
+	ret->proginfo_timestretch = cmyth_hold(p->proginfo_timestretch);
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s }\n", __FUNCTION__);
+	return ret;
 }
 
 /*
@@ -332,6 +357,7 @@ int
 programinfo_stop_recording(cmyth_conn_t control,
 			   cmyth_proginfo_t prog)
 {
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s\n", __FUNCTION__);
 	return -ENOSYS;
 }
 
@@ -356,6 +382,7 @@ int
 programinfo_check_recording(cmyth_conn_t control,
 			    cmyth_proginfo_t prog)
 {
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s\n", __FUNCTION__);
 	return -ENOSYS;
 }
 
@@ -1114,15 +1141,15 @@ cmyth_chaninfo_string(cmyth_proginfo_t prog)
  *
  * The returned string is a pointer to the string within the program
  * info structure, so it should not be modified by the caller.  The
- * return value is a 'const char *' for this reason.
+ * return value is a 'char *' for this reason.
  *
  * Return Value:
  *
- * Success: A pointer to a 'const char *' pointing to the field.
+ * Success: A pointer to a 'char *' pointing to the field.
  *
  * Failure: NULL
  */
-const char *
+char *
 cmyth_proginfo_title(cmyth_proginfo_t prog)
 {
 	if (!prog) {
@@ -1130,7 +1157,7 @@ cmyth_proginfo_title(cmyth_proginfo_t prog)
 			  __FUNCTION__);
 		return NULL;
 	}
-	return prog->proginfo_title;
+	return cmyth_hold(prog->proginfo_title);
 }
 
 /*
@@ -1145,15 +1172,15 @@ cmyth_proginfo_title(cmyth_proginfo_t prog)
  *
  * The returned string is a pointer to the string within the program
  * info structure, so it should not be modified by the caller.  The
- * return value is a 'const char *' for this reason.
+ * return value is a 'char *' for this reason.
  *
  * Return Value:
  *
- * Success: A pointer to a 'const char *' pointing to the field.
+ * Success: A pointer to a 'char *' pointing to the field.
  *
  * Failure: NULL
  */
-const char *
+char *
 cmyth_proginfo_subtitle(cmyth_proginfo_t prog)
 {
 	if (!prog) {
@@ -1161,7 +1188,7 @@ cmyth_proginfo_subtitle(cmyth_proginfo_t prog)
 			  __FUNCTION__);
 		return NULL;
 	}
-	return prog->proginfo_subtitle;
+	return cmyth_hold(prog->proginfo_subtitle);
 }
 
 /*
@@ -1176,15 +1203,15 @@ cmyth_proginfo_subtitle(cmyth_proginfo_t prog)
  *
  * The returned string is a pointer to the string within the program
  * info structure, so it should not be modified by the caller.  The
- * return value is a 'const char *' for this reason.
+ * return value is a 'char *' for this reason.
  *
  * Return Value:
  *
- * Success: A pointer to a 'const char *' pointing to the field.
+ * Success: A pointer to a 'char *' pointing to the field.
  *
  * Failure: NULL
  */
-const char *
+char *
 cmyth_proginfo_description(cmyth_proginfo_t prog)
 {
 	if (!prog) {
@@ -1192,7 +1219,7 @@ cmyth_proginfo_description(cmyth_proginfo_t prog)
 			  __FUNCTION__);
 		return NULL;
 	}
-	return prog->proginfo_description;
+	return cmyth_hold(prog->proginfo_description);
 }
 
 /*
@@ -1207,15 +1234,15 @@ cmyth_proginfo_description(cmyth_proginfo_t prog)
  *
  * The returned string is a pointer to the string within the program
  * info structure, so it should not be modified by the caller.  The
- * return value is a 'const char *' for this reason.
+ * return value is a 'char *' for this reason.
  *
  * Return Value:
  *
- * Success: A pointer to a 'const char *' pointing to the field.
+ * Success: A pointer to a 'char *' pointing to the field.
  *
  * Failure: NULL
  */
-const char *
+char *
 cmyth_proginfo_category(cmyth_proginfo_t prog)
 {
 	if (!prog) {
@@ -1223,10 +1250,10 @@ cmyth_proginfo_category(cmyth_proginfo_t prog)
 			  __FUNCTION__);
 		return NULL;
 	}
-	return prog->proginfo_category;
+	return cmyth_hold(prog->proginfo_category);
 }
 
-const char *
+char *
 cmyth_proginfo_seriesid(cmyth_proginfo_t prog)
 {
 	if (!prog) {
@@ -1234,10 +1261,10 @@ cmyth_proginfo_seriesid(cmyth_proginfo_t prog)
 			  __FUNCTION__);
 		return NULL;
 	}
-	return prog->proginfo_seriesid;
+	return cmyth_hold(prog->proginfo_seriesid);
 }
 
-const char *
+char *
 cmyth_proginfo_programid(cmyth_proginfo_t prog)
 {
 	if (!prog) {
@@ -1245,10 +1272,10 @@ cmyth_proginfo_programid(cmyth_proginfo_t prog)
 			  __FUNCTION__);
 		return NULL;
 	}
-	return prog->proginfo_programid;
+	return cmyth_hold(prog->proginfo_programid);
 }
 
-const char *
+char *
 cmyth_proginfo_stars(cmyth_proginfo_t prog)
 {
 	if (!prog) {
@@ -1256,10 +1283,10 @@ cmyth_proginfo_stars(cmyth_proginfo_t prog)
 			  __FUNCTION__);
 		return NULL;
 	}
-	return prog->proginfo_stars;
+	return cmyth_hold(prog->proginfo_stars);
 }
 
-const char *
+char *
 cmyth_proginfo_timestretch(cmyth_proginfo_t prog)
 {
 	if (!prog) {
@@ -1267,7 +1294,7 @@ cmyth_proginfo_timestretch(cmyth_proginfo_t prog)
 			  __FUNCTION__);
 		return NULL;
 	}
-	return prog->proginfo_timestretch;
+	return cmyth_hold(prog->proginfo_timestretch);
 }
 
 cmyth_timestamp_t
@@ -1278,7 +1305,7 @@ cmyth_proginfo_originalairdate(cmyth_proginfo_t prog)
 			  __FUNCTION__);
 		return NULL;
 	}
-	return cmyth_timestamp_hold(prog->proginfo_originalairdate);
+	return cmyth_hold(prog->proginfo_originalairdate);
 }
 
 /*
@@ -1293,15 +1320,15 @@ cmyth_proginfo_originalairdate(cmyth_proginfo_t prog)
  *
  * The returned string is a pointer to the string within the program
  * info structure, so it should not be modified by the caller.  The
- * return value is a 'const char *' for this reason.
+ * return value is a 'char *' for this reason.
  *
  * Return Value:
  *
- * Success: A pointer to a 'const char *' pointing to the field.
+ * Success: A pointer to a 'char *' pointing to the field.
  *
  * Failure: NULL
  */
-const char *
+char *
 cmyth_proginfo_chanstr(cmyth_proginfo_t prog)
 {
 	if (!prog) {
@@ -1309,7 +1336,7 @@ cmyth_proginfo_chanstr(cmyth_proginfo_t prog)
 			  __FUNCTION__);
 		return NULL;
 	}
-	return prog->proginfo_chanstr;
+	return cmyth_hold(prog->proginfo_chanstr);
 }
 
 /*
@@ -1325,15 +1352,15 @@ cmyth_proginfo_chanstr(cmyth_proginfo_t prog)
  *
  * The returned string is a pointer to the string within the program
  * info structure, so it should not be modified by the caller.  The
- * return value is a 'const char *' for this reason.
+ * return value is a 'char *' for this reason.
  *
  * Return Value:
  *
- * Success: A pointer to a 'const char *' pointing to the field.
+ * Success: A pointer to a 'char *' pointing to the field.
  *
  * Failure: NULL
  */
-const char *
+char *
 cmyth_proginfo_chansign(cmyth_proginfo_t prog)
 {
 	if (!prog) {
@@ -1341,7 +1368,7 @@ cmyth_proginfo_chansign(cmyth_proginfo_t prog)
 			  __FUNCTION__);
 		return NULL;
 	}
-	return prog->proginfo_chansign;
+	return cmyth_hold(prog->proginfo_chansign);
 }
 
 /*
@@ -1357,15 +1384,15 @@ cmyth_proginfo_chansign(cmyth_proginfo_t prog)
  *
  * The returned string is a pointer to the string within the program
  * info structure, so it should not be modified by the caller.  The
- * return value is a 'const char *' for this reason.
+ * return value is a 'char *' for this reason.
  *
  * Return Value:
  *
- * Success: A pointer to a 'const char *' pointing to the field.
+ * Success: A pointer to a 'char *' pointing to the field.
  *
  * Failure: NULL
  */
-const char *
+char *
 cmyth_proginfo_channame(cmyth_proginfo_t prog)
 {
 	if (!prog) {
@@ -1373,7 +1400,7 @@ cmyth_proginfo_channame(cmyth_proginfo_t prog)
 			  __FUNCTION__);
 		return NULL;
 	}
-	return prog->proginfo_channame;
+	return cmyth_hold(prog->proginfo_channame);
 }
 
 /*
@@ -1389,21 +1416,21 @@ cmyth_proginfo_channame(cmyth_proginfo_t prog)
  *
  * The returned string is a pointer to the string within the program
  * info structure, so it should not be modified by the caller.  The
- * return value is a 'const char *' for this reason.
+ * return value is a 'char *' for this reason.
  *
  * Return Value:
  *
- * Success: A pointer to a 'const char *' pointing to the field.
+ * Success: A pointer to a 'char *' pointing to the field.
  *
  * Failure: NULL
  */
-const char *
+char *
 cmyth_proginfo_pathname(cmyth_proginfo_t prog)
 {
 	if (!prog) {
 		return NULL;
 	}
-	return prog->proginfo_pathname;
+	return cmyth_hold(prog->proginfo_pathname);
 }
 
 /*
@@ -1474,7 +1501,7 @@ cmyth_proginfo_length_sec(cmyth_proginfo_t prog)
  * This indicates a programmes start time.
  *
  * The returned timestamp is returned held.  It should be released
- * when no longer needed using cmyth_timestamp_release().
+ * when no longer needed using cmyth_release().
  *
  * Return Value:
  *
@@ -1488,7 +1515,7 @@ cmyth_proginfo_start(cmyth_proginfo_t prog)
 	if (!prog) {
 		return NULL;
 	}
-	return cmyth_timestamp_hold(prog->proginfo_start_ts);
+	return cmyth_hold(prog->proginfo_start_ts);
 }
 
 
@@ -1504,7 +1531,7 @@ cmyth_proginfo_start(cmyth_proginfo_t prog)
  * This tells when a recording started.
  *
  * The returned timestamp is returned held.  It should be released
- * when no longer needed using cmyth_timestamp_release().
+ * when no longer needed using cmyth_release().
  *
  * Return Value:
  *
@@ -1518,7 +1545,7 @@ cmyth_proginfo_end(cmyth_proginfo_t prog)
 	if (!prog) {
 		return NULL;
 	}
-	return cmyth_timestamp_hold(prog->proginfo_end_ts);
+	return cmyth_hold(prog->proginfo_end_ts);
 }
 
 /*
@@ -1533,7 +1560,7 @@ cmyth_proginfo_end(cmyth_proginfo_t prog)
  * This tells when a recording started.
  *
  * The returned timestamp is returned held.  It should be released
- * when no longer needed using cmyth_timestamp_release().
+ * when no longer needed using cmyth_release().
  *
  * Return Value:
  *
@@ -1547,7 +1574,7 @@ cmyth_proginfo_rec_start(cmyth_proginfo_t prog)
 	if (!prog) {
 		return NULL;
 	}
-	return cmyth_timestamp_hold(prog->proginfo_rec_start_ts);
+	return cmyth_hold(prog->proginfo_rec_start_ts);
 }
 
 
@@ -1563,7 +1590,7 @@ cmyth_proginfo_rec_start(cmyth_proginfo_t prog)
  * This tells when a recording started.
  *
  * The returned timestamp is returned held.  It should be released
- * when no longer needed using cmyth_timestamp_release().
+ * when no longer needed using cmyth_release().
  *
  * Return Value:
  *
@@ -1577,10 +1604,43 @@ cmyth_proginfo_rec_end(cmyth_proginfo_t prog)
 	if (!prog) {
 		return NULL;
 	}
-	return cmyth_timestamp_hold(prog->proginfo_rec_end_ts);
+	return cmyth_hold(prog->proginfo_rec_end_ts);
 }
 
-int
+/*
+ * cmyth_proginfo_rec_status(cmyth_proginfo_t prog)
+ *
+ * Scope: PUBLIC
+ *
+ * Description
+ *
+ * Retrieves the recording status from a program info structure.
+ * Recording status has the following possible values:
+ *
+ *	RS_DELETED
+ *	RS_STOPPED
+ *	RS_RECORDED
+ *	RS_RECORDING
+ *	RS_WILL_RECORD
+ *	RS_DONT_RECORD
+ *	RS_PREVIOUS_RECORDING
+ *	RS_CURRENT_RECORDING
+ *	RS_EARLIER_RECORDING
+ *	RS_TOO_MANY_RECORDINGS
+ *	RS_CANCELLED
+ *	RS_CONFLICT
+ *	RS_LATER_SHOWING
+ *	RS_REPEAT
+ *	RS_LOW_DISKSPACE
+ *	RS_TUNER_BUSY
+ *
+ * Return Value:
+ *
+ * Success: A recording status 
+ *
+ * Failure: 0 (an invalid status)
+ */
+cmyth_proginfo_rec_status_t
 cmyth_proginfo_rec_status(cmyth_proginfo_t prog)
 {
 	if (!prog) {
@@ -1877,7 +1937,25 @@ fill_command(cmyth_conn_t control, cmyth_proginfo_t prog, char *cmd)
 	return ret;
 }
 
-int
+/*
+ * cmyth_proginfo_fill(cmyth_conn_t control, cmyth_proginfo_t prog)
+ *
+ * Scope: PRIVATE (static)
+ *
+ * Description
+ *
+ * Fill out a (possibly incomplete) program info.  Incomplete program
+ * info comes from program listings.  Since this modifies the contents of
+ * the supplied program info, it must never be called with a program info
+ * that has more than one reference).
+ *
+ * Return Value:
+ *
+ * Success: 0
+ *
+ * Failure: a negative error code.
+ */
+static int
 cmyth_proginfo_fill(cmyth_conn_t control, cmyth_proginfo_t prog)
 {
 	int err = 0;
@@ -1940,6 +2018,67 @@ cmyth_proginfo_fill(cmyth_conn_t control, cmyth_proginfo_t prog)
 	return ret;
 }
 
+/*
+ * cmyth_proginfo_get_detailfill(cmyth_conn_t control, cmyth_proginfo_t prog)
+ *
+ * Scope: PUBLIC
+ *
+ * Description
+ *
+ * Completely fill out a program info based on a supplied (possibly
+ * incomplete) program info.  The supplied program info will be duplicated and
+ * a pointer to the duplicate will be returned.
+ *
+ * NOTE: The original program info is released before the return.  If the
+ *       caller wishes to retain access to the original it must already be
+ *       held before the call.  This permits the called to replace a
+ *       program info directly with the return from this function.
+ *
+ * Return Value:
+ *
+ * Success: A held, Non-NULL program_info
+ *
+ * Failure: NULL
+ */
+cmyth_proginfo_t
+cmyth_proginfo_get_detail(cmyth_conn_t control, cmyth_proginfo_t p)
+{
+	cmyth_proginfo_t ret = cmyth_proginfo_dup(p);
+
+	if (ret == NULL) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_proginfo_dup() failed\n",
+			  __FUNCTION__);
+		cmyth_release(p);
+		return NULL;
+	}
+	if (cmyth_proginfo_fill(control, ret) < 0) {
+		cmyth_release(ret);
+		cmyth_release(p);
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_proginfo_fill() failed\n",
+			  __FUNCTION__);
+		return NULL;
+	}
+	cmyth_release(p);
+	return ret;
+}
+
+/*
+ * cmyth_proginfo_compare(cmyth_proginfo_t a, cmyth_proginfo_t b)
+ *
+ * Scope: PUBLIC
+ *
+ * Description
+ *
+ * Compare two program info's and indicate whether they are the same program.
+ *
+ * Return Value:
+ *
+ * Same: 0
+ *
+ * Different: -1
+ */
 int
 cmyth_proginfo_compare(cmyth_proginfo_t a, cmyth_proginfo_t b)
 {
@@ -1972,6 +2111,21 @@ cmyth_proginfo_compare(cmyth_proginfo_t a, cmyth_proginfo_t b)
 	return 0;
 }
 
+/*
+ * cmyth_proginfo_host(cmyth_proginfo_t prog)
+ *
+ * Scope: PUBLIC
+ *
+ * Description
+ *
+ * Get the host name of the recorder serving the program 'prog'.
+ *
+ * Return Value:
+ *
+ * Success: A held, non-NULL string pointer
+ *
+ * Failure: NULL
+ */
 char*
 cmyth_proginfo_host(cmyth_proginfo_t prog)
 {
@@ -1981,7 +2135,7 @@ cmyth_proginfo_host(cmyth_proginfo_t prog)
 		return NULL;
 	}
 
-	return prog->proginfo_host;
+	return cmyth_hold(prog->proginfo_host);
 }
 
 long

@@ -36,6 +36,38 @@
 #include <string.h>
 
 /*
+ * cmyth_ringbuf_destroy(cmyth_ringbuf_t rb)
+ * 
+ * Scope: PRIVATE (static)
+ *
+ * Description
+ *
+ * Clean up and free a ring buffer structure.  This should only be done
+ * by the cmyth_release() code.  Everyone else should call
+ * cmyth_release() because ring buffer structures are reference
+ * counted.
+ *
+ * Return Value:
+ *
+ * None.
+ */
+static void
+cmyth_ringbuf_destroy(cmyth_ringbuf_t rb)
+{
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s\n", __FUNCTION__);
+	if (!rb) {
+		return;
+	}
+
+	if (rb->ringbuf_url) {
+		cmyth_release(rb->ringbuf_url);
+	}
+	if (rb->ringbuf_hostname) {
+		cmyth_release(rb->ringbuf_hostname);
+	}
+}
+
+/*
  * cmyth_ringbuf_create(void)
  * 
  * Scope: PUBLIC
@@ -53,8 +85,9 @@
 cmyth_ringbuf_t
 cmyth_ringbuf_create(void)
 {
-	cmyth_ringbuf_t ret = malloc(sizeof *ret);
+	cmyth_ringbuf_t ret = cmyth_allocate(sizeof(*ret));
 
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s\n", __FUNCTION__);
 	if (!ret) {
 		return NULL;
 	}
@@ -67,106 +100,34 @@ cmyth_ringbuf_create(void)
 	ret->file_id = 0;
 	ret->ringbuf_hostname = NULL;
 	ret->ringbuf_port = 0;
-	cmyth_atomic_set(&ret->refcount, 1);
+	cmyth_set_destroy(ret, (destroy_t)cmyth_ringbuf_destroy);
 	return ret;
 }
 
 /*
- * cmyth_ringbuf_destroy(cmyth_ringbuf_t rb)
- * 
- * Scope: PRIVATE (static)
- *
- * Description
- *
- * Clean up and free a ring buffer structure.  This should only be done
- * by the cmyth_ringbuf_release() code.  Everyone else should call
- * cmyth_ringbuf_release() because ring buffer structures are reference
- * counted.
- *
- * Return Value:
- *
- * None.
- */
-static void
-cmyth_ringbuf_destroy(cmyth_ringbuf_t rb)
-{
-	if (!rb) {
-		return;
-	}
-
-	if (rb->ringbuf_url) {
-		free(rb->ringbuf_url);
-	}
-	free(rb);
-}
-
-/*
- * cmyth_ringbuf_hold(cmyth_ringbuf_t p)
+ * cmyth_ringbuf_setup(cmyth_recorder_t old_rec)
  * 
  * Scope: PUBLIC
  *
  * Description
  *
- * Take a new reference to a ring buffer structure.  Ring Buffer structures
- * are reference counted to facilitate caching of pointers to them.
- * This allows a holder of a pointer to release their hold and trust
- * that once the last reference is released the ring buffer will be
- * destroyed.  This function is how one creates a new holder of a
- * ring buffer.  This function always returns the pointer passed to it.
- * While it cannot fail, if it is passed a NULL pointer, it will do
- * nothing.
+ * Set up the ring buffer inside a recorder for use in playing live
+ * tv.  The recorder is supplied.  This will be duplicated and
+ * released, so the caller can re-use the same variable to hold the
+ * return.  The new copy of the recorder will have a ringbuffer set up
+ * within it.
  *
  * Return Value:
  *
- * Success: The value of 'p'
+ * Success: A pointer to a new recorder structure with a ringbuffer
  *
- * Failure: There is no real failure case, but a NULL 'p' will result in a
- *          NULL return.
+ * Faiure: NULL
  */
-cmyth_ringbuf_t
-cmyth_ringbuf_hold(cmyth_ringbuf_t p)
-{
-	if (p) {
-		cmyth_atomic_inc(&p->refcount);
-	}
-	return p;
-}
-
-/*
- * cmyth_ringbuf_release(cmyth_ringbuf_t p)
- * 
- * Scope: PUBLIC
- *
- * Description
- *
- * Release a reference to a ring buffer structure.  Ring Buffer structures
- * are reference counted to facilitate caching of pointers to them.
- * This allows a holder of a pointer to release their hold and trust
- * that once the last reference is released the ring buffer will be
- * destroyed.  This function is how one drops a reference to a
- * ring buffer.
- *
- * Return Value:
- *
- * None.
- */
-void
-cmyth_ringbuf_release(cmyth_ringbuf_t p)
-{
-	if (p) {
-		if (cmyth_atomic_dec_and_test(&p->refcount)) {
-			/*
-			 * Last reference, free it.
-			 */
-			cmyth_ringbuf_destroy(p);
-		}
-	}
-}
-
-int
+cmyth_recorder_t
 cmyth_ringbuf_setup(cmyth_recorder_t rec)
 {
 	static const char service[]="rbuf://";
+	cmyth_recorder_t new_rec = NULL;
 	char *host = NULL;
 	char *port = NULL;
 	char *path = NULL;
@@ -174,7 +135,6 @@ cmyth_ringbuf_setup(cmyth_recorder_t rec)
 
 	int err, count;
 	int r;
-	long ret = 0;
 	long long size, fill;
 	char msg[256];
 	char url[1024];
@@ -184,7 +144,7 @@ cmyth_ringbuf_setup(cmyth_recorder_t rec)
 	if (!rec) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: no recorder connection\n",
 			  __FUNCTION__);
-		return -EINVAL;
+		return NULL;
 	}
 
 	control = rec->rec_conn;
@@ -199,7 +159,6 @@ cmyth_ringbuf_setup(cmyth_recorder_t rec)
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_send_message() failed (%d)\n",
 			  __FUNCTION__, err);
-		ret = err;
 		goto out;
 	}
 
@@ -209,7 +168,6 @@ cmyth_ringbuf_setup(cmyth_recorder_t rec)
 		r = cmyth_rcv_string(control, &err, buf, sizeof(buf)-1, count);
 		count -= r;
 	}
-
 	r = cmyth_rcv_string(control, &err, url, sizeof(url)-1, count); 
 	count -= r;
 
@@ -217,7 +175,6 @@ cmyth_ringbuf_setup(cmyth_recorder_t rec)
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_rcv_length() failed (%d)\n",
 			  __FUNCTION__, r);
-		ret = err;
 		goto out;
 	}
 	count -= r;
@@ -226,7 +183,6 @@ cmyth_ringbuf_setup(cmyth_recorder_t rec)
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_rcv_length() failed (%d)\n",
 			  __FUNCTION__, r);
-		ret = err;
 		goto out;
 	}
 
@@ -245,7 +201,9 @@ cmyth_ringbuf_setup(cmyth_recorder_t rec)
 			 * This does not seem to be a proper URL, so just
 			 * assume it is a filename, and get out.
 			 */
-			fprintf(stderr, "1 port %s, host = %s\n", port, host);
+			cmyth_dbg(CMYTH_DBG_DEBUG,
+				  "%s: 1 port %s, host = %s\n",
+				  __FUNCTION__, port, host);
 			goto out;
 		}
 		port = port + 1;
@@ -255,41 +213,47 @@ cmyth_ringbuf_setup(cmyth_recorder_t rec)
 			 * This does not seem to be a proper URL, so just
 			 * assume it is a filename, and get out.
 			 */
-			fprintf(stderr, "no path\n");
+			cmyth_dbg(CMYTH_DBG_DEBUG, "%s: no path\n",
+				  __FUNCTION__);
 			goto out;
 		}
 	}
 
-        rec->rec_ring = cmyth_ringbuf_create();
+	new_rec = cmyth_recorder_dup(rec);
+	if (new_rec == NULL) {
+		cmyth_dbg(CMYTH_DBG_DEBUG, "%s: cannot create recorder\n",
+			  __FUNCTION__);
+		goto out;
+	}
+	cmyth_release(rec);
+        new_rec->rec_ring = cmyth_ringbuf_create();
         
 	tmp = *(port - 1);
 	*(port - 1) = '\0';
-	rec->rec_ring->ringbuf_hostname = strdup(host);
+	new_rec->rec_ring->ringbuf_hostname = cmyth_strdup(host);
 	*(port - 1) = tmp;
 	tmp = *(path);
 	*(path) = '\0';
-	rec->rec_ring->ringbuf_port = atoi(port);
+	new_rec->rec_ring->ringbuf_port = atoi(port);
 	*(path) = tmp;
-	rec->rec_ring->ringbuf_url = strdup(url);
-	rec->rec_ring->ringbuf_size = size;
-	rec->rec_ring->ringbuf_fill = fill;
-
-	ret = 0;
+	new_rec->rec_ring->ringbuf_url = cmyth_strdup(url);
+	new_rec->rec_ring->ringbuf_size = size;
+	new_rec->rec_ring->ringbuf_fill = fill;
 
     out:
 	pthread_mutex_unlock(&mutex);
 
-	return ret;
+	return new_rec;
 }
 
 char *
 cmyth_ringbuf_pathname(cmyth_recorder_t rec)
 {
-        return (char *) rec->rec_ring->ringbuf_url;
+        return cmyth_hold(rec->rec_ring->ringbuf_url);
 }
 
 /*
- * cmyth_ringbuf_get_block(cmyth_ringbuf_t file, char *buf, unsigned long len)
+ * cmyth_ringbuf_get_block(cmyth_recorder_t rec, char *buf, unsigned long len)
  * Scope: PUBLIC
  * Description
  * Read incoming file data off the network into a buffer of length len.
@@ -345,8 +309,7 @@ cmyth_ringbuf_select(cmyth_recorder_t rec, struct timeval *timeout)
 }
 
 /*
- * cmyth_ringbuf_request_block(cmyth_ringbuf_t file,
- *                          unsigned long len)
+ * cmyth_ringbuf_request_block(cmyth_ringbuf_t file, unsigned long len)
  * 
  * Scope: PUBLIC
  *
@@ -362,8 +325,7 @@ cmyth_ringbuf_select(cmyth_recorder_t rec, struct timeval *timeout)
  * Failure: an int containing -errno
  */
 int
-cmyth_ringbuf_request_block(cmyth_recorder_t rec,
-			    unsigned long len)
+cmyth_ringbuf_request_block(cmyth_recorder_t rec, unsigned long len)
 {
 	int err, count;
 	int r;

@@ -32,36 +32,6 @@
 #include <cmyth_local.h>
 
 /*
- * cmyth_rec_num_create(void)
- * 
- * Scope: PUBLIC
- *
- * Description
- *
- * Create a recorder number structure.
- *
- * Return Value:
- *
- * Success: A non-NULL cmyth_rec_num_t (this type is a pointer)
- *
- * Failure: A NULL cmyth_rec_num_t
- */
-cmyth_rec_num_t
-cmyth_rec_num_create(void)
-{
-	cmyth_rec_num_t ret = malloc(sizeof(*ret));
-
-	if (!ret) {
-		return NULL;
-	}
-	ret->recnum_host = NULL;
-	ret->recnum_port = 0;
-	ret->recnum_id = 0;
-	cmyth_atomic_set(&ret->refcount, 1);
-	return ret;
-}
-
-/*
  * cmyth_rec_num_destroy(cmyth_rec_num_t rn)
  * 
  * Scope: PRIVATE (static)
@@ -80,12 +50,45 @@ cmyth_rec_num_create(void)
 static void
 cmyth_rec_num_destroy(cmyth_rec_num_t rn)
 {
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s\n", __FUNCTION__);
 	if (!rn) {
 		return;
 	}
 	if (rn->recnum_host) {
-		free(rn->recnum_host);
+		cmyth_release(rn->recnum_host);
 	}
+}
+
+/*
+ * cmyth_rec_num_create(void)
+ * 
+ * Scope: PUBLIC
+ *
+ * Description
+ *
+ * Create a recorder number structure.
+ *
+ * Return Value:
+ *
+ * Success: A non-NULL cmyth_rec_num_t (this type is a pointer)
+ *
+ * Failure: A NULL cmyth_rec_num_t
+ */
+cmyth_rec_num_t
+cmyth_rec_num_create(void)
+{
+	cmyth_rec_num_t ret = cmyth_allocate(sizeof(*ret));
+
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s\n", __FUNCTION__);
+	if (!ret) {
+		return NULL;
+	}
+	cmyth_set_destroy(ret, (destroy_t)cmyth_rec_num_destroy);
+
+	ret->recnum_host = NULL;
+	ret->recnum_port = 0;
+	ret->recnum_id = 0;
+	return ret;
 }
 
 /*
@@ -114,10 +117,8 @@ cmyth_rec_num_destroy(cmyth_rec_num_t rn)
 cmyth_rec_num_t
 cmyth_rec_num_hold(cmyth_rec_num_t p)
 {
-	if (p) {
-		cmyth_atomic_inc(&p->refcount);
-	}
-	return p;
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s\n", __FUNCTION__);
+	return cmyth_hold(p);
 }
 
 /*
@@ -141,19 +142,12 @@ cmyth_rec_num_hold(cmyth_rec_num_t p)
 void
 cmyth_rec_num_release(cmyth_rec_num_t p)
 {
-	if (p) {
-		if (cmyth_atomic_dec_and_test(&p->refcount)) {
-			/*
-			 * Last reference, free it.
-			 */
-			cmyth_rec_num_destroy(p);
-		}
-	}
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s\n", __FUNCTION__);
+	cmyth_release(p);
 }
 
 /*
- * cmyth_rec_num_fill(cmyth_rec_num_t rn,
- *                    char *host,
+ * cmyth_rec_num_get(char *host,
  *                    unsigned short port,
  *                    unsigned id)
  * 
@@ -161,30 +155,33 @@ cmyth_rec_num_release(cmyth_rec_num_t p)
  *
  * Description
  *
- * Fill out the contents of the recorder number structure 'rn' using
- * the values 'host', 'port', and 'id'.
+ * Create a recorder number structure 'rn' using the values 'host',
+ * 'port', and 'id'.
  *
  * Return Value:
  *
- * Success: 0
+ * Success: A new cmyth_rec_num (this is a ppointer type)
  *
- * Failure: -(ERRNO)
+ * Failure: NULL
  */
-void
-cmyth_rec_num_fill(cmyth_rec_num_t rn,
-		   char *host,
+cmyth_rec_num_t 
+cmyth_rec_num_get(char *host,
 		   unsigned short port,
 		   unsigned id)
 {
-	if (!rn) {
-		return;
+	cmyth_rec_num_t ret;
+
+	if ((ret = cmyth_rec_num_create()) == NULL) {
+		return NULL;
 	}
-	rn->recnum_host = strdup(host);
-	if (!rn->recnum_host) {
-		return;
+	ret->recnum_host = cmyth_strdup(host);
+	if (!ret->recnum_host) {
+		cmyth_release(ret);
+		return NULL;
 	}
-	rn->recnum_port = port;
-	rn->recnum_id = id;
+	ret->recnum_port = port;
+	ret->recnum_id = id;
+	return ret;
 }
 
 /*

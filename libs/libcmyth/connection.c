@@ -38,6 +38,39 @@
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 /*
+ * cmyth_conn_destroy(cmyth_conn_t conn)
+ * 
+ * Scope: PRIVATE (static)
+ *
+ * Description
+ *
+ * Tear down and release storage associated with a connection.  This
+ * should only be called by cmyth_conn_release().  All others should
+ * call cmyth_release() to release a connection.
+ *
+ * Return Value:
+ *
+ * None.
+ */
+static void
+cmyth_conn_destroy(cmyth_conn_t conn)
+{
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s {\n", __FUNCTION__);
+	if (!conn) {
+		cmyth_dbg(CMYTH_DBG_DEBUG, "%s } !\n", __FUNCTION__);
+		return;
+	}
+	if (conn->conn_buf) {
+		free(conn->conn_buf);
+	}
+	if (conn->conn_fd >= 0) {
+		shutdown(conn->conn_fd, 2);
+		close(conn->conn_fd);
+	}
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s }\n", __FUNCTION__);
+}
+
+/*
  * cmyth_conn_create(void)
  * 
  * Scope: PRIVATE (static)
@@ -56,114 +89,23 @@ pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 static cmyth_conn_t
 cmyth_conn_create(void)
 {
-	cmyth_conn_t ret = malloc(sizeof(*ret));
+	cmyth_conn_t ret = cmyth_allocate(sizeof(*ret));
 
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s {\n", __FUNCTION__);
 	if (!ret) {
+			cmyth_dbg(CMYTH_DBG_DEBUG, "%s }!\n", __FUNCTION__);
 		return NULL;
 	}
+	cmyth_set_destroy(ret, (destroy_t)cmyth_conn_destroy);
+
 	ret->conn_fd = -1;
 	ret->conn_buf = NULL;
 	ret->conn_len = 0;
 	ret->conn_buflen = 0;
 	ret->conn_pos = 0;
 	ret->conn_hang = 0;
-	cmyth_atomic_set(&ret->refcount, 1);
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s }\n", __FUNCTION__);
 	return ret;
-}
-
-/*
- * cmyth_conn_destroy(cmyth_conn_t conn)
- * 
- * Scope: PRIVATE (static)
- *
- * Description
- *
- * Tear down and release storage associated with a connection.  This
- * should only be called by cmyth_conn_release().  All others should
- * call cmyth_conn_release() to release a connection.
- *
- * Return Value:
- *
- * None.
- */
-static void
-cmyth_conn_destroy(cmyth_conn_t conn)
-{
-	if (!conn) {
-		return;
-	}
-	if (conn->conn_buf) {
-		free(conn->conn_buf);
-	}
-	if (conn->conn_fd >= 0) {
-		shutdown(conn->conn_fd, 2);
-		close(conn->conn_fd);
-	}
-	free(conn);
-}
-
-/*
- * cmyth_conn_hold(cmyth_conn_t p)
- * 
- * Scope: PUBLIC
- *
- * Description
- *
- * Take a new reference to a connection structure.  Connection structures
- * are reference counted to facilitate caching of pointers to them.
- * This allows a holder of a pointer to release their hold and trust
- * that once the last reference is released the connection will be
- * destroyed.  This function is how one creates a new holder of a
- * connection.  This function always returns the pointer passed to it.
- * While it cannot fail, if it is passed a NULL pointer, it will do
- * nothing.
- *
- * Return Value:
- *
- * Success: The value of 'p'
- *
- * Failure: There is no real failure case, but a NULL 'p' will result in a
- *          NULL return.
- */
-cmyth_conn_t
-cmyth_conn_hold(cmyth_conn_t p)
-{
-	if (p) {
-		if (cmyth_atomic_inc(&p->refcount) > 1)
-			return p;
-	}
-	return NULL;
-}
-
-/*
- * cmyth_conn_release(cmyth_conn_t p)
- * 
- * Scope: PUBLIC
- *
- * Description
- *
- * Release a reference to a connection structure.  Connection structures
- * are reference counted to facilitate caching of pointers to them.
- * This allows a holder of a pointer to release their hold and trust
- * that once the last reference is released the connection will be
- * destroyed.  This function is how one drops a reference to a
- * connection.
- *
- * Return Value:
- *
- * None.
- */
-void
-cmyth_conn_release(cmyth_conn_t p)
-{
-	if (p) {
-		if (cmyth_atomic_dec_and_test(&p->refcount)) {
-			/*
-			 * Last reference, free it.
-			 */
-			cmyth_conn_destroy(p);
-		}
-	}
 }
 
 /*
@@ -181,7 +123,7 @@ cmyth_conn_release(cmyth_conn_t p)
  *
  * The returned connection has a single reference.  The connection
  * will be shut down and closed when the last reference is released
- * using cmyth_conn_release().
+ * using cmyth_release().
  *
  * Return Value:
  *
@@ -267,7 +209,6 @@ cmyth_connect(char *server, unsigned short port, unsigned buflen,
 			  "%s: connect failed on port %d to '%s' (%d)\n",
 			  __FUNCTION__, port, server, errno);
 		close(fd);
-		printf("connect failed!\n");
 		signal(SIGALRM, old_sighandler);
 		alarm(old_alarm);
 		return NULL;
@@ -287,17 +228,17 @@ cmyth_connect(char *server, unsigned short port, unsigned buflen,
 	 * Okay, we are connected. Now is a good time to allocate some
 	 * resources.
 	 */
+	ret = cmyth_conn_create();
+	if (!ret) {
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_conn_create() failed\n",
+			  __FUNCTION__);
+		goto shut;
+	}
 	buf = malloc(buflen * sizeof(unsigned char));
 	if (!buf) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s:- malloc(%d) failed allocating buf\n",
 			  __FUNCTION__, buflen * sizeof(unsigned char *));
-		goto shut;
-	}
-	ret = cmyth_conn_create();
-	if (!ret) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_conn_create() failed\n",
-			  __FUNCTION__);
 		goto shut;
 	}
 	ret->conn_fd = fd;
@@ -310,11 +251,8 @@ cmyth_connect(char *server, unsigned short port, unsigned buflen,
 	return ret;
 
     shut:
-	if (buf) {
-		free(buf);
-	}
 	if (ret) {
-		free(ret);
+		cmyth_release(ret);
 	}
 	shutdown(fd, 2);
 	close(fd);
@@ -370,12 +308,10 @@ cmyth_conn_connect(char *server, unsigned short port, unsigned buflen,
 			goto shut;
 		}
 		attempt = 1;
-		cmyth_conn_release(conn);
+		cmyth_release(conn);
 		goto top;
 	}
-	printf("%s: agreed on Version %ld protocol\n",
-	       __FUNCTION__, conn->conn_version);
-	cmyth_dbg(CMYTH_DBG_ERROR, "%s: agreed on Version %ld protocol\n",
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s: agreed on Version %ld protocol\n",
 		  __FUNCTION__, conn->conn_version);
 
 	sprintf(announcement, "ANN Playback %s %d", my_hostname, event);
@@ -393,7 +329,7 @@ cmyth_conn_connect(char *server, unsigned short port, unsigned buflen,
 	return conn;
 
     shut:
-	cmyth_conn_release(conn);
+	cmyth_release(conn);
 	return NULL;
 }
 
@@ -407,7 +343,7 @@ cmyth_conn_connect(char *server, unsigned short port, unsigned buflen,
  * Create a connection for use as a control connection within the
  * MythTV protocol.  Return a pointer to the newly created connection.
  * The connection is returned held, and may be released using
- * cmyth_conn_release().
+ * cmyth_release().
  *
  * Return Value:
  *
@@ -442,7 +378,7 @@ cmyth_conn_connect_event(char *server, unsigned short port, unsigned buflen,
  * the newly created file structure.  The connection in the file
  * structure is returned held as is the file structure itself.  The
  * connection will be released when the file structure is released.
- * The file structure can be released using cmyth_file_release().
+ * The file structure can be released using cmyth_release().
  *
  * Return Value:
  *
@@ -451,7 +387,8 @@ cmyth_conn_connect_event(char *server, unsigned short port, unsigned buflen,
  * Failure: NULL cmyth_file_t
  */
 cmyth_file_t
-cmyth_conn_connect_file(cmyth_proginfo_t prog, unsigned buflen, int tcp_rcvbuf)
+cmyth_conn_connect_file(cmyth_proginfo_t prog,  cmyth_conn_t control,
+			unsigned buflen, int tcp_rcvbuf)
 {
 	cmyth_conn_t conn = NULL;
 	char *announcement = NULL;
@@ -476,7 +413,7 @@ cmyth_conn_connect_file(cmyth_proginfo_t prog, unsigned buflen, int tcp_rcvbuf)
 			  __FUNCTION__);
 		goto shut;
 	}
-	ret = cmyth_file_create();
+	ret = cmyth_file_create(control);
 	if (!ret) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_file_create() failed\n",
 			  __FUNCTION__);
@@ -507,7 +444,7 @@ cmyth_conn_connect_file(cmyth_proginfo_t prog, unsigned buflen, int tcp_rcvbuf)
 			  __FUNCTION__, announcement);
 		goto shut;
 	}
-	ret->file_data = conn;
+	ret->file_data = cmyth_hold(conn);
 	count = cmyth_rcv_length(conn);
 	if (count < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
@@ -546,18 +483,15 @@ cmyth_conn_connect_file(cmyth_proginfo_t prog, unsigned buflen, int tcp_rcvbuf)
 	}
 	count -= r;
 	free(announcement);
+	cmyth_release(conn);
 	return ret;
 
     shut:
 	if (announcement) {
 		free(announcement);
 	}
-	if (ret) {
-		cmyth_file_release(conn, ret);
-	}
-	if (conn) {
-		cmyth_conn_release(conn);
-	}
+	cmyth_release(ret);
+	cmyth_release(conn);
 	return NULL;
 }
 
@@ -572,7 +506,7 @@ cmyth_conn_connect_file(cmyth_proginfo_t prog, unsigned buflen, int tcp_rcvbuf)
  * Create a new ring buffer connection for use transferring live-tv
  * using the MythTV protocol.  Return a pointer to the newly created
  * ring buffer connection.  The ring buffer connection is returned
- * held, and may be released using cmyth_conn_release().
+ * held, and may be released using cmyth_release().
  *
  * Return Value:
  *
@@ -633,7 +567,7 @@ cmyth_conn_connect_ring(cmyth_recorder_t rec, unsigned buflen, int tcp_rcvbuf)
 	return 0;
 
     shut:
-	cmyth_conn_release(conn);
+	cmyth_release(conn);
 	return -1;
 }
 
@@ -662,7 +596,7 @@ cmyth_conn_connect_recorder(cmyth_recorder_t rec, unsigned buflen,
 	}
 
 	if (rec->rec_conn)
-		cmyth_conn_release(rec->rec_conn);
+		cmyth_release(rec->rec_conn);
 	rec->rec_conn = conn;
 
 	return 0;
@@ -814,7 +748,7 @@ cmyth_conn_get_recorder_from_num(cmyth_conn_t conn, int id)
 		goto fail;
 
 	rec->rec_id = id;
-	rec->rec_server = strdup(reply);
+	rec->rec_server = cmyth_strdup(reply);
 	rec->rec_port = port;
 
 	if (cmyth_conn_connect_recorder(rec, conn->conn_buflen,
@@ -827,7 +761,7 @@ cmyth_conn_get_recorder_from_num(cmyth_conn_t conn, int id)
 
     fail:
 	if (rec)
-		cmyth_recorder_release(rec);
+		cmyth_release(rec);
 
 	pthread_mutex_unlock(&mutex);
 
@@ -914,7 +848,7 @@ cmyth_conn_get_free_recorder(cmyth_conn_t conn)
 		goto fail;
 
 	rec->rec_id = id;
-	rec->rec_server = strdup(reply);
+	rec->rec_server = cmyth_strdup(reply);
 	rec->rec_port = port;
 
 	if (cmyth_conn_connect_recorder(rec, conn->conn_buflen,
@@ -927,7 +861,7 @@ cmyth_conn_get_free_recorder(cmyth_conn_t conn)
 
     fail:
 	if (rec)
-		cmyth_recorder_release(rec);
+		cmyth_release(rec);
 
 	pthread_mutex_unlock(&mutex);
 
