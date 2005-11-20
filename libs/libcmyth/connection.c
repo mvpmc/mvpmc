@@ -64,7 +64,10 @@ cmyth_conn_destroy(cmyth_conn_t conn)
 		free(conn->conn_buf);
 	}
 	if (conn->conn_fd >= 0) {
-		shutdown(conn->conn_fd, 2);
+		cmyth_dbg(CMYTH_DBG_PROTO,
+			  "%s: shutdown and close connection fd = %d\n",
+			  __FUNCTION__, conn->conn_fd);
+		shutdown(conn->conn_fd, SHUT_RDWR);
 		close(conn->conn_fd);
 	}
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s }\n", __FUNCTION__);
@@ -195,12 +198,13 @@ cmyth_connect(char *server, unsigned short port, unsigned buflen,
 		return NULL;
 	}
 
-	cmyth_dbg(CMYTH_DBG_DEBUG, "%s: connecting to %d.%d.%d.%d\n",
+	cmyth_dbg(CMYTH_DBG_PROTO, "%s: connecting to %d.%d.%d.%d fd = %d\n",
 		  __FUNCTION__,
 		  (ntohl(addr.sin_addr.s_addr) & 0xFF000000) >> 24,
 		  (ntohl(addr.sin_addr.s_addr) & 0x00FF0000) >> 16,
 		  (ntohl(addr.sin_addr.s_addr) & 0x0000FF00) >>  8,
-		  (ntohl(addr.sin_addr.s_addr) & 0x000000FF));
+		  (ntohl(addr.sin_addr.s_addr) & 0x000000FF),
+		  fd);
 	old_sighandler = signal(SIGALRM, sighandler);
 	old_alarm = alarm(5);
 	my_fd = fd;
@@ -254,6 +258,14 @@ cmyth_connect(char *server, unsigned short port, unsigned buflen,
 	if (ret) {
 		cmyth_release(ret);
 	}
+	cmyth_dbg(CMYTH_DBG_PROTO, "%s: error connecting to "
+		  "%d.%d.%d.%d, shutdown and close fd = %d\n",
+		  __FUNCTION__,
+		  (ntohl(addr.sin_addr.s_addr) & 0xFF000000) >> 24,
+		  (ntohl(addr.sin_addr.s_addr) & 0x00FF0000) >> 16,
+		  (ntohl(addr.sin_addr.s_addr) & 0x0000FF00) >>  8,
+		  (ntohl(addr.sin_addr.s_addr) & 0x000000FF),
+		  fd);
 	shutdown(fd, 2);
 	close(fd);
 	return NULL;
@@ -311,7 +323,7 @@ cmyth_conn_connect(char *server, unsigned short port, unsigned buflen,
 		cmyth_release(conn);
 		goto top;
 	}
-	cmyth_dbg(CMYTH_DBG_DEBUG, "%s: agreed on Version %ld protocol\n",
+	cmyth_dbg(CMYTH_DBG_PROTO, "%s: agreed on Version %ld protocol\n",
 		  __FUNCTION__, conn->conn_version);
 
 	sprintf(announcement, "ANN Playback %s %d", my_hostname, event);
@@ -355,14 +367,29 @@ cmyth_conn_t
 cmyth_conn_connect_ctrl(char *server, unsigned short port, unsigned buflen,
 			int tcp_rcvbuf)
 {
-	return cmyth_conn_connect(server, port, buflen, tcp_rcvbuf, 0);
+	cmyth_conn_t ret;
+
+	cmyth_dbg(CMYTH_DBG_PROTO, "%s: connecting control connection\n",
+		  __FUNCTION__);
+	ret = cmyth_conn_connect(server, port, buflen, tcp_rcvbuf, 0);
+	cmyth_dbg(CMYTH_DBG_PROTO,
+		  "%s: done connecting control connection ret = %p\n",
+		  __FUNCTION__, ret);
+	return ret;
 }
 
 cmyth_conn_t
 cmyth_conn_connect_event(char *server, unsigned short port, unsigned buflen,
 			 int tcp_rcvbuf)
 {
-	return cmyth_conn_connect(server, port, buflen, tcp_rcvbuf, 1);
+	cmyth_conn_t ret;
+	cmyth_dbg(CMYTH_DBG_PROTO, "%s: connecting event channel connection\n",
+		  __FUNCTION__);
+	ret = cmyth_conn_connect(server, port, buflen, tcp_rcvbuf, 1);
+	cmyth_dbg(CMYTH_DBG_PROTO,
+		  "%s: done connecting event channel connection ret = %p\n",
+		  __FUNCTION__, ret);
+	return ret;
 }
 
 /*
@@ -419,8 +446,13 @@ cmyth_conn_connect_file(cmyth_proginfo_t prog,  cmyth_conn_t control,
 			  __FUNCTION__);
 		goto shut;
 	}
+	cmyth_dbg(CMYTH_DBG_PROTO, "%s: connecting data connection\n",
+		  __FUNCTION__);
 	conn = cmyth_connect(prog->proginfo_host, prog->proginfo_port,
 			     buflen, tcp_rcvbuf);
+	cmyth_dbg(CMYTH_DBG_PROTO,
+		  "%s: done connecting data connection, conn = %d\n",
+		  __FUNCTION__, conn);
 	if (!conn) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_connect(%s, %d, %d) failed\n",
@@ -531,7 +563,12 @@ cmyth_conn_connect_ring(cmyth_recorder_t rec, unsigned buflen, int tcp_rcvbuf)
 	server = rec->rec_server;
 	port = rec->rec_port;
 
+	cmyth_dbg(CMYTH_DBG_PROTO, "%s: connecting ringbuffer\n",
+		  __FUNCTION__);
 	conn = cmyth_connect(server, port, buflen, tcp_rcvbuf);
+	cmyth_dbg(CMYTH_DBG_PROTO,
+		  "%s: connecting ringbuffer, conn = %p\n",
+		  __FUNCTION__, conn);
 	if (!conn) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_connect(%s, %d, %d) failed\n",
@@ -587,7 +624,12 @@ cmyth_conn_connect_recorder(cmyth_recorder_t rec, unsigned buflen,
 	server = rec->rec_server;
 	port = rec->rec_port;
 
+	cmyth_dbg(CMYTH_DBG_PROTO, "%s: connecting recorder control\n",
+		  __FUNCTION__);
 	conn = cmyth_conn_connect_ctrl(server, port, buflen, tcp_rcvbuf);
+	cmyth_dbg(CMYTH_DBG_PROTO,
+		  "%s: done connecting recorder control, conn = %p\n",
+		  __FUNCTION__, conn);
 	if (!conn) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_connect(%s, %d, %d) failed\n",

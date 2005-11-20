@@ -1438,28 +1438,22 @@ control_start(void *arg)
 	while (1) {
 		int count = 0;
 		int audio_selected, audio_checks;
-		cmyth_file_t f = cmyth_hold(file);
-		cmyth_recorder_t r = cmyth_hold(recorder);
 
 		pthread_mutex_lock(&mutex);
 		fprintf(stderr, "mythtv control thread sleeping...(pid %d)\n",
 			pid);
-		while ((f == NULL) && (r == NULL)) {
+		while ((file == NULL) && (recorder == NULL)) {
 			fprintf(stderr,
 				"Waiting for stream, recorder = %p, "
 				"file = %p)\n", recorder, file);
 			pthread_cond_wait(&cond, &mutex);
 			fprintf(stderr,
 				"Got stream recorder = %p, file = %p)\n",
-				r, f);
-			cmyth_release(f);
-			cmyth_release(r);
-			f = cmyth_hold(file);
-			r = cmyth_hold(recorder);
+				recorder, file);
 		}
-		if (f)
+		if (file)
 			printf("%s(): starting file playback\n", __FUNCTION__);
-		if (r)
+		if (recorder)
 			printf("%s(): starting rec playback\n", __FUNCTION__);
 
 		pthread_mutex_unlock(&mutex);
@@ -1506,9 +1500,10 @@ control_start(void *arg)
 			}
 
 			if (mythtv_livetv)
-				len = cmyth_ringbuf_request_block(r, size);
+				len = cmyth_ringbuf_request_block(recorder,
+								  size);
 			else
-				len = cmyth_file_request_block(f, size);
+				len = cmyth_file_request_block(file, size);
 
 			/*
 			 * Will block if another command is executing
@@ -1585,17 +1580,17 @@ control_start(void *arg)
 
 		video_reading = 0;
 
-		printf("%s(): len %d playing_via_mythtv %d close_mythtv %d\n",
+		fprintf(stderr,
+			"%s(): len %d playing_via_mythtv %d close_mythtv %d\n",
 		       __FUNCTION__, len, playing_via_mythtv, close_mythtv);
 
-		if (r) {
-			cmyth_release(r);
-			mythtv_livetv_stop();
-		} else {
-			cmyth_release(f);
-			pthread_mutex_lock(&myth_mutex);
-			mythtv_close_file();
-			pthread_mutex_unlock(&myth_mutex);
+		if (close_mythtv) {
+			if (recorder) {
+				mythtv_livetv_stop();
+			}
+			if (file) {
+				mythtv_close_file();
+			}
 		}
 
 		if ((len == -EPIPE) || (len == -ECONNRESET) ||

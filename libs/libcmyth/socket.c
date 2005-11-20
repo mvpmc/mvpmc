@@ -97,7 +97,7 @@ cmyth_send_message(cmyth_conn_t conn, char *request)
 		return -ENOMEM;
 	}
 	sprintf(msg, "%-8d%s", reqlen, request);
-	cmyth_dbg(CMYTH_DBG_DEBUG, "%s: sending message '%s'\n",
+	cmyth_dbg(CMYTH_DBG_PROTO, "%s: sending message '%s'\n",
 		  __FUNCTION__, msg);
 	reqlen += 8;
 	do {
@@ -188,7 +188,7 @@ cmyth_rcv_length(cmyth_conn_t conn)
 		rtot += r;
 	} while (rtot < 8);
 	ret = atoi(buf);
-	cmyth_dbg(CMYTH_DBG_DEBUG, "%s: buffer is '%s' ret = %d\n",
+	cmyth_dbg(CMYTH_DBG_PROTO, "%s: buffer is '%s' ret = %d\n",
 		  __FUNCTION__, buf, ret);
 	return ret;
 }
@@ -402,7 +402,7 @@ cmyth_rcv_string(cmyth_conn_t conn, int *err, char *buf, int buflen, int count)
 			break;
 		}
 	}
-	cmyth_dbg(CMYTH_DBG_DEBUG, "%s: string received '%s'\n",
+	cmyth_dbg(CMYTH_DBG_PROTO, "%s: string received '%s'\n",
 		  __FUNCTION__, buf);
 	return consumed;
 }
