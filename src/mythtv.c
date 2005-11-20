@@ -778,7 +778,7 @@ add_episodes(mvp_widget_t *widget, char *item, int load)
 			list_all = 0;
 			if ((strcmp(subtitle, " ") == 0) ||
 			    (subtitle[0] == '\0'))
-				subtitle = "<no subtitle>";
+				subtitle = cmyth_strdup("<no subtitle>");
 			mvpw_add_menu_item(widget, (char*)subtitle, (void*)n,
 					   &item_attr);
 			episodes++;
