@@ -361,6 +361,7 @@ main(int argc, char **argv)
 	config->osd_progress = osd_settings.progress;
 	config->osd_timecode = osd_settings.timecode;
 	config->brightness = root_bright;
+	config->mythtv_sort = mythtv_sort;
 	config->mythtv_tcp_control = mythtv_tcp_control;
 	config->mythtv_tcp_program = mythtv_tcp_program;
 	config->av_audio_output = AUD_OUTPUT_STEREO;

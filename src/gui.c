@@ -369,6 +369,28 @@ static mvpw_text_attr_t settings_ip_title_attr = {
 	.border_size = 0,
 };
 
+static mvpw_text_attr_t settings_sort_attr = {
+	.wrap = 0,
+	.justify = MVPW_TEXT_LEFT,
+	.margin = 4,
+	.font = FONT_STANDARD,
+	.fg = MVPW_BLACK,
+	.bg = MVPW_WHITE,
+	.border = MVPW_BLACK,
+	.border_size = 2,
+};
+
+static mvpw_text_attr_t settings_sort_title_attr = {
+	.wrap = 0,
+	.justify = MVPW_TEXT_CENTER,
+	.margin = 4,
+	.font = FONT_STANDARD,
+	.fg = MVPW_WHITE,
+	.bg = MVPW_BLUE,
+	.border = MVPW_BLACK,
+	.border_size = 0,
+};
+
 static mvpw_text_attr_t settings_help_attr = {
 	.wrap = 1,
 	.justify = MVPW_TEXT_LEFT,
@@ -669,6 +691,12 @@ theme_attr_t theme_attr[] = {
 	{ .name = "settings_ip_title",
 	  .type = WIDGET_TEXT,
 	  .attr.text = &settings_ip_title_attr },
+	{ .name = "settings_sort",
+	  .type = WIDGET_TEXT,
+	  .attr.text = &settings_sort_attr },
+	{ .name = "settings_sort_title",
+	  .type = WIDGET_TEXT,
+	  .attr.text = &settings_sort_title_attr },
 	{ .name = "settings_help",
 	  .type = WIDGET_TEXT,
 	  .attr.text = &settings_help_attr },
@@ -760,6 +788,7 @@ static mvp_widget_t *settings_ip_label;
 static mvp_widget_t *settings_ip_title;
 static mvp_widget_t *settings_ip_old[4];
 static mvp_widget_t *settings_ip_new[4];
+static mvp_widget_t *settings_mythtv_sort;
 static mvp_widget_t *settings_check;
 static mvp_widget_t *settings_nocheck;
 static mvp_widget_t *settings_mclient;
@@ -925,6 +954,7 @@ typedef enum {
 
 typedef enum {
 	SETTINGS_MYTHTV_IP = 1,
+	SETTINGS_MYTHTV_SORT,
 	SETTINGS_MYTHTV_TCP_PROGRAM,
 	SETTINGS_MYTHTV_TCP_CONTROL,
 } settings_mythtv_t;
@@ -1346,6 +1376,50 @@ settings_ip_change_mclient(char *buf)
 	strncpy(config->mclient_ip, buf, sizeof(config->mclient_ip));
 }
 
+static void
+settings_mythtv_sort_key_callback(mvp_widget_t *widget, char key)
+{
+        char buf[18];
+        int change = 0;
+
+        switch (key) {
+        case MVPW_KEY_EXIT:
+                mvpw_hide(widget);
+                mvpw_show(settings_mythtv);
+                mvpw_focus(settings_mythtv);
+		mythtv_sort_dirty = 1;
+                break;
+        case MVPW_KEY_UP:
+        case MVPW_KEY_RIGHT:
+                mythtv_sort = (mythtv_sort + 1) % MYTHTV_NUM_SORTS;
+                change = 1;
+                break;
+        case MVPW_KEY_DOWN:
+        case MVPW_KEY_LEFT:
+		if (mythtv_sort==0)
+			mythtv_sort = MYTHTV_NUM_SORTS -1;
+		else
+			mythtv_sort = mythtv_sort - 1;
+                change = 1;
+                break;
+        }
+
+        if (change) {
+		switch (mythtv_sort) {
+		case MYTHTV_SORT_DATE_RECORDED:
+	                snprintf(buf, sizeof(buf), "%s", "Date Recorded");
+        	        mvpw_set_dialog_text(settings_mythtv_sort, buf);
+			break;
+		case MYTHTV_SORT_ORIGINAL_AIRDATE:
+	                snprintf(buf, sizeof(buf), "%s", "Original Air Date");
+        	        mvpw_set_dialog_text(settings_mythtv_sort, buf);
+			break;
+		}
+		config->mythtv_sort = mythtv_sort;
+		config->bitmask |= CONFIG_MYTHTV_SORT;
+        }
+
+}
 static void
 settings_ip_key_callback(mvp_widget_t *widget, char key)
 {
@@ -2491,7 +2565,7 @@ settings_select_callback(mvp_widget_t *widget, char *item, void *key)
 static void
 mythtv_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
-	char buf[16];
+	char buf[18];
 	int old[4] = { 0, 0, 0, 0 };
 	int i;
 	uint32_t c;
@@ -2527,6 +2601,19 @@ mythtv_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mvpw_show(settings_help);
 		mvpw_show(settings_ip);
 		mvpw_focus(settings_ip);
+		break;
+	case SETTINGS_MYTHTV_SORT:
+		switch (mythtv_sort) {
+		case MYTHTV_SORT_DATE_RECORDED:
+			snprintf(buf, sizeof(buf), "%s", "Date Recorded");
+			break;
+		case MYTHTV_SORT_ORIGINAL_AIRDATE:
+			snprintf(buf, sizeof(buf), "%s", "Original Air Date");
+			break;
+		}
+		mvpw_set_dialog_text(settings_mythtv_sort, buf);
+		mvpw_show(settings_mythtv_sort);
+		mvpw_focus(settings_mythtv_sort);
 		break;
 	case SETTINGS_MYTHTV_TCP_PROGRAM:
 		snprintf(buf, sizeof(buf), "%d", mythtv_tcp_program);
@@ -2953,6 +3040,9 @@ settings_init(void)
 			   "MythTV IP Address",
 			   (void*)SETTINGS_MYTHTV_IP, &settings_item_attr);
 	mvpw_add_menu_item(settings_mythtv,
+			   "MythTV Program Sort Order",
+			   (void*)SETTINGS_MYTHTV_SORT, &settings_item_attr);
+	mvpw_add_menu_item(settings_mythtv,
 			   "Control TCP Receive Buffer",
 			   (void*)SETTINGS_MYTHTV_TCP_CONTROL,
 			   &settings_item_attr);
@@ -3089,6 +3179,19 @@ settings_init(void)
 	mvpw_set_dialog_title(settings_mythtv_control,
 			      "MythTV Control TCP Receive Buffer");
 	mvpw_set_dialog_text(settings_mythtv_control, "");
+
+	h = 2 * FONT_HEIGHT(settings_dialog_attr);
+	settings_mythtv_sort = mvpw_create_dialog(NULL, x, y, w, h,
+						settings_dialog_attr.bg,
+						settings_dialog_attr.border,
+						settings_dialog_attr.border_size);
+	mvpw_set_dialog_attr(settings_mythtv_sort,
+			     &settings_dialog_attr);
+	mvpw_set_key(settings_mythtv_sort,
+		     settings_mythtv_sort_key_callback);
+	mvpw_set_dialog_title(settings_mythtv_sort,
+			      "MythTV Program Sort Order");
+	mvpw_set_dialog_text(settings_mythtv_sort, "");
 
 	h = 2 * FONT_HEIGHT(settings_dialog_attr);
 	settings_mythtv_program = mvpw_create_dialog(NULL, x, y, w, h,

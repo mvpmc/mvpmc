@@ -53,6 +53,12 @@ typedef enum {
    MVP_READ_THREAD_IDLE = 1,
 } mvp_notify_t;
 
+#define MYTHTV_NUM_SORTS 2
+typedef enum {
+	MYTHTV_SORT_DATE_RECORDED = 0,
+	MYTHTV_SORT_ORIGINAL_AIRDATE,
+} mvp_myth_sort;
+
 typedef struct {
 	int type;
 	int visible;
@@ -168,6 +174,8 @@ extern int running_mythtv;
 extern int mythtv_main_menu;
 extern int mythtv_tcp_control;
 extern int mythtv_tcp_program;
+extern int mythtv_sort;
+extern int mythtv_sort_dirty;
 
 extern int fd_audio, fd_video;
 extern int fd;

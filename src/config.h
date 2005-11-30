@@ -50,6 +50,7 @@
 #define CONFIG_MCLIENT_IP	0x00040000
 #define CONFIG_PLAYBACK_OSD	0x00080000
 #define CONFIG_PLAYBACK_PAUSE	0x00100000
+#define CONFIG_MYTHTV_SORT	0x00200000
 
 /*
  * The config_t structure will hold all the user settings that can survive
@@ -80,6 +81,7 @@ typedef struct {
 	char			mclient_ip[64];
 	int			playback_osd;
 	int			playback_pause;
+	int			mythtv_sort;
 } config_t;
 
 extern config_t *config;
@@ -108,6 +110,7 @@ extern config_t *config;
 #define CONFIG_ITEM_MCLIENT_IP		0x0013
 #define CONFIG_ITEM_PLAYBACK_OSD	0x0014
 #define CONFIG_ITEM_PLAYBACK_PAUSE	0x0015
+#define CONFIG_ITEM_MYTHTV_SORT		0x0016
 
 /*
  * The flags in config_list_t

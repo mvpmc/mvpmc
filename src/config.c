@@ -256,6 +256,7 @@ add_item(config_list_t *list, int type)
 		ITEM_STRING(MCLIENT_IP, mclient_ip);
 		ITEM_FIXED(PLAYBACK_OSD, playback_osd);
 		ITEM_FIXED(PLAYBACK_PAUSE, playback_pause);
+		ITEM_FIXED(MYTHTV_SORT, mythtv_sort);
 	default:
 		goto err;
 		break;
@@ -335,6 +336,7 @@ get_item(config_item_t *item, int override)
 		ITEM_STRING(MCLIENT_IP, mclient_ip);
 		ITEM_FIXED(PLAYBACK_OSD, playback_osd);
 		ITEM_FIXED(PLAYBACK_PAUSE, playback_pause);
+		ITEM_FIXED(MYTHTV_SORT, mythtv_sort);
 	default:
 		return -1;
 		break;
@@ -401,6 +403,8 @@ save_config_file(char *file)
 	if (add_item(list, CONFIG_ITEM_PLAYBACK_OSD) < 0)
 		goto err;
 	if (add_item(list, CONFIG_ITEM_PLAYBACK_PAUSE) < 0)
+		goto err;
+	if (add_item(list, CONFIG_ITEM_MYTHTV_SORT) < 0) 
 		goto err;
 
 	list->crc = 0;
@@ -495,6 +499,8 @@ set_config(void)
 		seek_osd_timeout = config->playback_osd;
 	if (config->bitmask & CONFIG_PLAYBACK_PAUSE)
 		pause_osd = config->playback_pause;
+	if (config->bitmask & CONFIG_MYTHTV_SORT) 
+		mythtv_sort = config->mythtv_sort;
 }
 
 int

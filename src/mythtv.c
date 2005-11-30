@@ -151,6 +151,8 @@ static char *hilite_path = NULL;
 
 int mythtv_tcp_control = 4096;
 int mythtv_tcp_program = 0;
+int mythtv_sort = 0;
+int mythtv_sort_dirty = 1;
 
 static video_callback_t mythtv_functions = {
 	.open      = mythtv_open,
@@ -640,6 +642,7 @@ load_episodes(void)
 	cmyth_proglist_t ep_list = cmyth_hold(episode_plist);
 	cmyth_conn_t ctrl = cmyth_hold(control);
 	int ret = 0;
+	int count = 0;
 
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
 		    __FUNCTION__, __FILE__, __LINE__);
@@ -653,13 +656,23 @@ load_episodes(void)
 			goto err;
 		}
 		episode_dirty = 0;
+		mythtv_sort_dirty = 1;
 	} else {
 		fprintf(stderr, "Using cached episode data\n");
 		ep_list = cmyth_hold(episode_plist);
 	}
 	fprintf(stderr, "'cmyth_proglist_get_all_recorded' worked\n");
 
-	ret = cmyth_proglist_get_count(ep_list);
+	count = cmyth_proglist_get_count(episode_plist);
+
+	/* Sort on first load and when setting changes or list update makes the sort dirty */
+	if(mythtv_sort_dirty) {
+		printf("Sort for Dirty List\n");
+		cmyth_proglist_sort(episode_plist, count, mythtv_sort);
+		mythtv_sort_dirty = 0;
+	}
+
+	return count;
 
     err:
 	cmyth_release(ep_list);
@@ -761,15 +774,28 @@ add_episodes(mvp_widget_t *widget, char *item, int load)
 		count = cmyth_proglist_get_count(ep_list);
 	}
 
+	if ((strcmp(prog, "All - Newest first") == 0) || 
+		(strcmp(prog, "All - Oldest first") == 0)) 
+	{
+		printf("Sort for Newest/Oldest First\n");
+		cmyth_proglist_sort(episode_plist, count, 
+			MYTHTV_SORT_DATE_RECORDED);
+		mythtv_sort_dirty = 1;
+	}
+	/* else the dirty flag causes the sort in load_episodes to 
+	 * be triggered when returning to the episode list.  There 
+	 * is no need to sort again here.  The side affect is that 
+         * moving from Oldest to Newest causes two sorts in a row */
+		
 	for (i = 0; i < count; ++i) {
 		char full[256];
 		cmyth_proginfo_t ep_prog = NULL;
 
-		if (strcmp(prog, "All - Newest first") == 0) {
-			ep_prog = cmyth_proglist_get_item(ep_list,
-							  count - i - 1);
-		} else {
-			ep_prog = cmyth_proglist_get_item(ep_list, i);
+		if (strcmp(prog, "All - Newest first") == 0) { 
+			ep_prog = cmyth_proglist_get_item(episode_plist,
+							       count-i-1);
+		} else { 
+			ep_prog = cmyth_proglist_get_item(episode_plist, i);
 		}
 		title = cmyth_proginfo_title(ep_prog);
 		subtitle = cmyth_proginfo_subtitle(ep_prog);
@@ -1822,6 +1848,7 @@ mythtv_proginfo(char *buf, int size)
 		 "Description: %s\n"
 		 "Start: %s\n"
 		 "End: %s\n"
+		 "Original Air Date: %s\n"
 		 "Category: %s\n"
 		 "Channel: %s\n"
 		 "Series ID: %s\n"
@@ -1832,6 +1859,7 @@ mythtv_proginfo(char *buf, int size)
 		 description,
 		 start,
 		 end,
+		 airdate,
 		 category,
 		 channame,
 		 seriesid,
