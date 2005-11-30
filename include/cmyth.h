@@ -468,6 +468,8 @@ extern int cmyth_proglist_delete_item(cmyth_proglist_t pl,
 
 extern int cmyth_proglist_get_count(cmyth_proglist_t pl);
 
+extern int cmyth_proglist_sort(cmyth_proglist_t pl, int count, int sort);
+
 /*
  * -----------------------------------------------------------------
  * File Transfer Operations

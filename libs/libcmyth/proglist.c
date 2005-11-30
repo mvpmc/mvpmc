@@ -464,3 +464,171 @@ cmyth_proglist_get_conflicting(cmyth_conn_t control)
 	}
 	return proglist;
 }
+
+/*
+ * sort_timestamp(const void *a, const void *b)
+ *
+ * Scope: PRIVATE
+ *
+ * Description
+ *
+ * Return an integer value to specify the relative position of the timestamp
+ * This is a helper function for the sort function called by qsort.  It will
+ * sort any of the timetstamps for the qsort functions 
+ *
+ * Return Value:
+ *
+ * Same Date/Time: 0
+ * Date a > b: 1
+ * Date a < b: -1
+ *
+ */
+static int sort_timestamp(cmyth_timestamp_t X, cmyth_timestamp_t Y)
+{
+
+	if (X->timestamp_year > Y->timestamp_year)
+		return 1;
+	else if (X->timestamp_year < Y->timestamp_year)
+		return -1;
+	else /* X->timestamp_year == Y->timestamp_year */
+	{
+		if (X->timestamp_month > Y->timestamp_month)
+			return 1;
+		else if (X->timestamp_month < Y->timestamp_month)
+			return -1;
+		else /* X->timestamp_month == Y->timestamp_month */
+		{
+			if (X->timestamp_day > Y->timestamp_day)
+				return 1;
+			else if (X->timestamp_day < Y->timestamp_day)
+				return -1;
+			else /* X->timestamp_day == Y->timestamp_day */ 
+			{
+				if (X->timestamp_hour > Y->timestamp_hour)
+					return 1;
+				else if (X->timestamp_hour < Y->timestamp_hour)
+					return -1;
+				else /* X->timestamp_hour == Y->timestamp_hour */
+				{
+					if (X->timestamp_minute > Y->timestamp_minute)
+						return 1;
+					else if (X->timestamp_minute < Y->timestamp_minute)
+						return -1;
+					else /* X->timestamp_minute == Y->timestamp_minute */
+					{
+						if (X->timestamp_second > Y->timestamp_second)
+							return 1;
+						else if (X->timestamp_second < Y->timestamp_second)
+							return -1;
+						else /* X->timestamp_second == Y->timestamp_second */
+							return 0;
+					}
+				}
+			}
+		}
+	}
+}
+
+/*
+ * recorded_compare(const void *a, const void *b)
+ *
+ * Scope: PRIVATE
+ *
+ * Description
+ *
+ * Return an integer value to a qsort function to specify the relative
+ * position of the recorded date 
+ *
+ * Return Value:
+ * 
+ * Same Day: 0
+ * Date a > b: 1
+ * Date a < b: -1
+ *
+ */
+static int
+recorded_compare(const void *a, const void *b)
+{
+	const cmyth_proginfo_t x = *(cmyth_proginfo_t *)a;
+	const cmyth_proginfo_t y = *(cmyth_proginfo_t *)b;
+	cmyth_timestamp_t X = x->proginfo_rec_start_ts;
+	cmyth_timestamp_t Y = y->proginfo_rec_start_ts;
+
+	return sort_timestamp(X, Y);
+}
+
+/*
+ * airdate_compare(const void *a, const void *b)
+ *
+ * Scope: PRIVATE
+ *
+ * Description
+ *
+ * Return an integer value to a qsort function to specify the relative
+ * position of the original airdate
+ *
+ * Return Value:
+ * 
+ * Same Day: 0
+ * Date a > b: 1
+ * Date a < b: -1
+ *
+ */
+static int
+airdate_compare(const void *a, const void *b)
+{
+	const cmyth_proginfo_t x = *(cmyth_proginfo_t *)a;
+	const cmyth_proginfo_t y = *(cmyth_proginfo_t *)b;
+	const cmyth_timestamp_t X = x->proginfo_originalairdate;
+	const cmyth_timestamp_t Y = y->proginfo_originalairdate;
+
+	return sort_timestamp(X, Y);
+}
+
+/*
+ * cmyth_proglist_sort(cmyth_proglist_t pl, int count, int sort)
+ *
+ * Scope: PUBLIC
+ *
+ * Description
+ *
+ * Sort the epispde list by mythtv_sort setting. Check to ensure that the 
+ * program list is not null and pass the proglist_list to the qsort function
+ *
+ * Return Value:
+ * 
+ * Success = 0
+ * Failure = -1
+ */ 
+int 
+cmyth_proglist_sort(cmyth_proglist_t pl, int count, int sort)
+{
+        if (!pl) {
+                cmyth_dbg(CMYTH_DBG_ERROR, "%s: NULL program list\n",
+                          __FUNCTION__);
+                return -1;
+        }
+        if (!pl->proglist_list) {
+                cmyth_dbg(CMYTH_DBG_ERROR, "%s: NULL list\n",
+                          __FUNCTION__);
+                return -1;
+        }
+
+	cmyth_dbg(CMYTH_DBG_ERROR,
+                          "cmyth_proglist_sort\n");
+
+	switch (sort) {
+		case 0: /* MYTHTV_SORT_DATE_RECORDED:	Default Date Recorded */
+			qsort((cmyth_proginfo_t)pl->proglist_list, count, sizeof(pl->proglist_list) , recorded_compare);
+			break;
+		case 1: /* MYTHTV_SORT_ORIGINAL_AIRDATE:	Default Date Recorded */
+			qsort((cmyth_proginfo_t)pl->proglist_list, count, sizeof(pl->proglist_list) , airdate_compare);
+			break;
+		default: 
+			printf("Unsupported MythTV sort type\n");
+	}
+
+	cmyth_dbg(CMYTH_DBG_ERROR,
+                          "end cmyth_proglist_sort\n");
+	return 0;
+}
