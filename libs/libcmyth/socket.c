@@ -1167,6 +1167,9 @@ cmyth_rcv_timestamp(cmyth_conn_t conn, int *err, cmyth_timestamp_t *ts,
         if ((strlen(tbuf) == 1) && (tbuf[0] = ' '))
                 return consumed;
 
+	if (*ts)
+		cmyth_release(*ts);
+
 	*ts = cmyth_timestamp_from_string(tbuf);
 	if (*ts == NULL) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
@@ -1235,6 +1238,8 @@ cmyth_rcv_datetime(cmyth_conn_t conn, int *err, cmyth_timestamp_t *ts,
 			  __FUNCTION__, *err);
 		return consumed;
 	}
+	if (*ts)
+		cmyth_release(*ts);
 	*ts = cmyth_datetime_from_string(tbuf);
 	if (*ts == NULL) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
