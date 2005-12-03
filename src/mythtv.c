@@ -1129,7 +1129,7 @@ pending_hilite_callback(mvp_widget_t *widget,
 int
 mythtv_pending(mvp_widget_t *widget)
 {
-	cmyth_conn_t ctrl = cmyth_hold(control);
+	cmyth_conn_t ctrl;
 	cmyth_proglist_t pnd_list;
 	int i, count, ret = 0;
 	int days = 0, last_day = 0, displayed = 0;
@@ -1143,9 +1143,9 @@ mythtv_pending(mvp_widget_t *widget)
 	if (mythtv_verify() < 0) {
 		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1}\n",
 			    __FUNCTION__, __FILE__, __LINE__);
-		cmyth_release(ctrl);
 		return -1;
 	}
+	ctrl = cmyth_hold(control);
 
 	busy_start();
 
