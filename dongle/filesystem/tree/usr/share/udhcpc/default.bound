@@ -1,0 +1,43 @@
+#!/bin/sh
+
+#RESOLV_CONF="/etc/udhcpc/resolv.conf"
+RESOLV_CONF="/etc/resolv.conf"
+
+[ -n "$broadcast" ] && BROADCAST="broadcast $broadcast"
+[ -n "$subnet" ] && NETMASK="netmask $subnet"
+
+/sbin/ifconfig $interface $ip $BROADCAST $NETMASK
+
+if [ -n "$router" ]
+then
+        echo "deleting routers"
+        while /sbin/route del default gw 0.0.0.0 dev $interface
+        do :
+        done
+
+        for i in $router
+        do
+           echo "Adding router $i for interface $interface"
+           /sbin/route add default gw $i dev $interface
+        done
+fi
+
+echo -n > $RESOLV_CONF
+[ -n "$domain" ] && echo domain $domain >> $RESOLV_CONF
+for i in $dns
+do
+        echo adding dns $i
+        echo nameserver $i >> $RESOLV_CONF
+done
+
+# Add Special Routes
+route add -net 127.0.0.0 netmask 255.0.0.0 dev lo
+route add -net 255.255.255.255 netmask 255.255.255.255 dev $interface
+
+#create environment file
+cat <<EOF > /etc/udhcpc.config
+DONGLE=$boot_file
+SERVER=${siaddr:-$serverid}
+IP=$ip
+HNAME=$hostname
+EOF

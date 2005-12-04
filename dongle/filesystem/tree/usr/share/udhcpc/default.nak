@@ -1,0 +1,3 @@
+#!/bin/sh
+
+echo Received a NAK: $message
