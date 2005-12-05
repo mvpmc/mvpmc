@@ -33,6 +33,7 @@
 #include <sys/stat.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
+#include <getopt.h>
 
 #include <mvp_widget.h>
 #include <mvp_av.h>
@@ -49,6 +50,23 @@
 
 #include "display.h"
 #include "mclient.h"
+
+static struct option opts[] = {
+	{ "aspect", required_argument, 0, 'a' },
+	{ "config", required_argument, 0, 'F' },
+	{ "iee", required_argument, 0, 'd' },
+	{ "mclient", required_argument, 0, 'c' },
+	{ "mode", required_argument, 0, 'm' },
+	{ "mythtv", required_argument, 0, 's' },
+	{ "mythtv-debug", no_argument, 0, 'M' },
+	{ "no-reboot", no_argument, 0, 0 },
+	{ "no-settings", no_argument, 0, 0 },
+	{ "theme", required_argument, 0, 't' },
+	{ 0, 0, 0, 0 }
+};
+
+int settings_disable = 0;
+int reboot_disable = 0;
 
 #define VNC_SERVERPORT (5900)    /* Offset to VNC server for regular connections */
 
@@ -309,6 +327,7 @@ main(int argc, char **argv)
 	uint32_t accel = MM_ACCEL_DJBFFT;
 	char *theme_file = NULL;
 	struct stat sb;
+	int opt_index;
 #ifndef MVPMC_HOST
 	unsigned long start = (unsigned long)sbrk(0);
 #endif
@@ -375,9 +394,18 @@ main(int argc, char **argv)
 	 * Parse the command line options.  These settings must override
 	 * the settings from all other sources.
 	 */
-	while ((c=getopt(argc, argv,
-			 "a:b:C:c:d:D:f:F:hi:m:Mo:r:R:s:S:t:")) != -1) {
+	while ((c=getopt_long(argc, argv,
+			      "a:b:C:c:d:D:f:F:hi:m:Mo:r:R:s:S:t:",
+			      opts, &opt_index)) != -1) {
 		switch (c) {
+		case 0:
+			if (strcmp(opts[opt_index].name, "no-settings") == 0) {
+				settings_disable = 1;
+			}
+			if (strcmp(opts[opt_index].name, "no-reboot") == 0) {
+				reboot_disable = 1;
+			}
+			break;
 		case 'a':
 			if (strcmp(optarg, "4:3cco") == 0) {
 				aspect = AV_ASPECT_4x3_CCO;

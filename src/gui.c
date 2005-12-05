@@ -4031,8 +4031,9 @@ main_menu_items(void)
 				   (void*)MM_REPLAYTV, &item_attr);
 	mvpw_add_menu_item(main_menu, "Filesystem",
 			   (void*)MM_FILESYSTEM, &item_attr);
-	mvpw_add_menu_item(main_menu, "Settings",
-			   (void*)MM_SETTINGS, &item_attr);
+	if (!settings_disable)
+		mvpw_add_menu_item(main_menu, "Settings",
+				   (void*)MM_SETTINGS, &item_attr);
 	mvpw_add_menu_item(main_menu, "About",
 			   (void*)MM_ABOUT, &item_attr);
 	if (mclient_server)
@@ -4041,13 +4042,15 @@ main_menu_items(void)
 	if (strnlen(vnc_server, 254))
 		mvpw_add_menu_item(main_menu, "VNC",
 			   (void*)MM_VNC, &item_attr);
+	if (!reboot_disable) {
 #ifdef MVPMC_HOST
-	mvpw_add_menu_item(main_menu, "Exit",
-			   (void*)MM_EXIT, &item_attr);
+		mvpw_add_menu_item(main_menu, "Exit",
+				   (void*)MM_EXIT, &item_attr);
 #else
-	mvpw_add_menu_item(main_menu, "Reboot",
-			   (void*)MM_EXIT, &item_attr);
+		mvpw_add_menu_item(main_menu, "Reboot",
+				   (void*)MM_EXIT, &item_attr);
 #endif
+	}
 }
 
 int

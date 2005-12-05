@@ -418,6 +418,9 @@ extern char *screen_capture_file;
 extern mvp_widget_t *ct_text_box;
 extern mvp_widget_t *settings;
 
+extern int settings_disable;
+extern int reboot_disable;
+
 extern unsigned short viewport_edges[4];
 
 extern void mythtv_browser_expose(mvp_widget_t *widget);
