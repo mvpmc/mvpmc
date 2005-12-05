@@ -171,6 +171,7 @@
     <color type="title_bg">darkslategray</color>
     <color type="title_fg">seashell3</color>
     <style type="hilite">square</style>
+    <color type="checkbox">seashell3</color>
     <font>large</font>
   </widget>
 

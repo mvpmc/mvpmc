@@ -169,6 +169,7 @@
     <color type="hilite_bg">gray30</color>
     <color type="hilite_fg">white</color>
     <style type="hilite">square</style>
+    <color type="checkbox">orange3</color>
     <font>standard</font>
   </widget>
 

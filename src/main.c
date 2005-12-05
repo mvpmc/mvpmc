@@ -238,13 +238,15 @@ spawn_child(void)
 		}
 
 		while (1) {
+			unsigned short key;
+
 			FD_ZERO(&fds);
 			FD_SET(fd, &fds);
 			to.tv_sec = 1;
 			to.tv_usec = 0;
 
+			key = 0;
 			if (select(fd+1, &fds, NULL, NULL, &to) > 0) {
-				unsigned short key;
 
 				read(fd, &key, sizeof(key));
 				read(fd, &key, sizeof(key));
@@ -253,11 +255,11 @@ spawn_child(void)
 					power = !power;
 
 					if (power == 0) {
-						printf("Power OFF\n");
 						kill(-child, SIGINT);
 						usleep(5000);
 						kill(-child, SIGKILL);
 						av_set_led(0);
+						printf("Power OFF\n");
 					} else {
 						printf("Power ON\n");
 						av_set_led(1);

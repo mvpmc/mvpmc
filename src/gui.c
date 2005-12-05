@@ -195,6 +195,7 @@ static mvpw_menu_item_attr_t mythtv_popup_item_attr = {
 	.selectable = 1,
 	.fg = MVPW_GREEN,
 	.bg = MVPW_BLACK,
+	.checkbox_fg = MVPW_PURPLE,
 };
 
 static mvpw_menu_item_attr_t item_attr = {
@@ -829,6 +830,7 @@ mvp_widget_t *mythtv_description;
 mvp_widget_t *mythtv_channel;
 mvp_widget_t *mythtv_record;
 mvp_widget_t *mythtv_popup;
+mvp_widget_t *mythtv_popup_check;
 mvp_widget_t *mythtv_info;
 mvp_widget_t *mythtv_info_text;
 mvp_widget_t *pause_widget;
@@ -980,8 +982,11 @@ enum {
 	MYTHTV_POPUP_REC_INFO,
 	MYTHTV_POPUP_LIVE_INFO,
 	MYTHTV_POPUP_CANCEL,
+	MYTHTV_POPUP_FILTER,
 	MYTHTV_POPUP_TUNER,		/* needs to be last */
 };
+
+static int mythtv_filter = 0;
 
 static void settings_display_mode_callback(mvp_widget_t*, char*, void*);
 
@@ -1755,6 +1760,12 @@ mythtv_popup_select_callback(mvp_widget_t *widget, char *item, void *key)
 	case MYTHTV_POPUP_CANCEL:
 		mvpw_hide(mythtv_popup);
 		break;
+	case MYTHTV_POPUP_FILTER:
+		mythtv_filter = !mythtv_filter;
+		mvpw_check_menu_item(widget, key, mythtv_filter);
+		mythtv_pending_filter(mythtv_browser, mythtv_filter);
+		mvpw_focus(widget);
+		break;
 	}
 }
 
@@ -1858,6 +1869,28 @@ mythtv_key_callback(mvp_widget_t *widget, char key)
 		mvpw_focus(mythtv_popup);
 	}
 
+	if ((key == MVPW_KEY_MENU) &&
+	    (mythtv_state == MYTHTV_STATE_PENDING)) {
+		mvpw_set_menu_title(mythtv_popup_check, "Pending Menu");
+		mvpw_clear_menu(mythtv_popup_check);
+		mythtv_popup_item_attr.select = mythtv_popup_select_callback;
+		mythtv_popup_item_attr.fg = mythtv_popup_attr.fg;
+		mythtv_popup_item_attr.bg = mythtv_popup_attr.bg;
+		mythtv_popup_item_attr.selectable = 1;
+		mythtv_popup_item_attr.checkbox_fg = mythtv_popup_attr.checkbox_fg;
+		mvpw_add_menu_item(mythtv_popup_check, "Filter by title",
+				   (void*)MYTHTV_POPUP_FILTER,
+				   &mythtv_popup_item_attr);
+		mythtv_popup_item_attr.selectable = 1;
+		mvpw_menu_hilite_item(mythtv_popup_check,
+				      (void*)MYTHTV_POPUP_FILTER);
+		mvpw_check_menu_item(mythtv_popup_check,
+				     (void*)MYTHTV_POPUP_FILTER,
+				     mythtv_filter);
+		mvpw_show(mythtv_popup_check);
+		mvpw_focus(mythtv_popup_check);
+	}
+
 	if ((key == MVPW_KEY_FULL) || (key == MVPW_KEY_PREV_CHAN)) {
 		if (video_playing) {
 			mvpw_hide(mythtv_logo);
@@ -1914,11 +1947,11 @@ static void
 mythtv_popup_key_callback(mvp_widget_t *widget, char key)
 {
 	if (key == MVPW_KEY_MENU) {
-		mvpw_hide(mythtv_popup);
+		mvpw_hide(widget);
 	}
 
 	if (key == MVPW_KEY_EXIT) {
-		mvpw_hide(mythtv_popup);
+		mvpw_hide(widget);
 	}
 }
 
@@ -3535,6 +3568,7 @@ myth_menu_select_callback(mvp_widget_t *widget, char *item, void *key)
 	case 1:
 		busy_start();
 		mythtv_state = MYTHTV_STATE_PENDING;
+		mythtv_filter = 0;
 		if (mythtv_pending(mythtv_browser) == 0) {
 			mvpw_show(mythtv_browser);
 
@@ -3696,12 +3730,20 @@ myth_browser_init(void)
 					mythtv_popup_attr.bg,
 					mythtv_popup_attr.border,
 					mythtv_popup_attr.border_size);
+	mythtv_popup_check = mvpw_create_menu(NULL, x, y, w, h,
+					      mythtv_popup_attr.bg,
+					      mythtv_popup_attr.border,
+					      mythtv_popup_attr.border_size);
 
+	mythtv_popup_attr.checkboxes = 0;
 	mvpw_set_menu_attr(mythtv_popup, &mythtv_popup_attr);
+	mythtv_popup_attr.checkboxes = 1;
+	mvpw_set_menu_attr(mythtv_popup_check, &mythtv_popup_attr);
 
 	mvpw_set_menu_title(mythtv_popup, "Recording Menu");
 
 	mvpw_set_key(mythtv_popup, mythtv_popup_key_callback);
+	mvpw_set_key(mythtv_popup_check, mythtv_popup_key_callback);
 
 	/*
 	 * mythtv show info
@@ -3726,6 +3768,7 @@ myth_browser_init(void)
 	mvpw_raise(mythtv_browser);
 	mvpw_raise(mythtv_menu);
 	mvpw_raise(mythtv_popup);
+	mvpw_raise(mythtv_popup_check);
 	mvpw_raise(mythtv_info);
 
 	mvpw_set_expose_callback(mythtv_browser, mythtv_browser_expose);
@@ -4382,7 +4425,7 @@ osd_init(void)
 					     description_attr.bg,
 					     description_attr.border,
 					     description_attr.border_size);
-	mvpw_set_text_attr(fb_program_widget, &mythtv_description_attr);
+	mvpw_set_text_attr(fb_program_widget, &description_attr);
 	mvpw_set_text_str(fb_program_widget, "");
 
 	/*

@@ -1054,6 +1054,7 @@ pending_hilite_callback(mvp_widget_t *widget,
 		cmyth_proglist_t pnd_list = cmyth_hold(pending_plist);
 
 		prog = cmyth_proglist_get_item(pnd_list, n);
+		CHANGE_GLOBAL_REF(hilite_prog, prog);
 
 		status = cmyth_proginfo_rec_status(prog);
 		description = (char*)cmyth_proginfo_description(prog);
@@ -1129,6 +1130,12 @@ pending_hilite_callback(mvp_widget_t *widget,
 int
 mythtv_pending(mvp_widget_t *widget)
 {
+	return mythtv_pending_filter(widget, 0);
+}
+
+int
+mythtv_pending_filter(mvp_widget_t *widget, int filter)
+{
 	cmyth_conn_t ctrl;
 	cmyth_proglist_t pnd_list;
 	int i, count, ret = 0;
@@ -1137,6 +1144,12 @@ mythtv_pending(mvp_widget_t *widget)
 	time_t t, rec_t, last_t = 0;
 	struct tm *tm, rec_tm;
 	char buf[64];
+	char *filter_title = NULL;
+
+	if (filter) {
+		printf("filter pending schedule\n");
+		filter_title = (char*)cmyth_proginfo_title(hilite_prog);
+	}
 
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
 		    __FUNCTION__, __FILE__, __LINE__);
@@ -1245,7 +1258,7 @@ mythtv_pending(mvp_widget_t *widget)
 		 * If the recording ends in the past, don't show it.
 		 */
 		if (rec_t < t)
-			continue;
+			goto release;
 
 		card_id = cmyth_proginfo_card_id(prog);
 		snprintf(card, sizeof(card), "%ld", card_id);
@@ -1318,13 +1331,14 @@ mythtv_pending(mvp_widget_t *widget)
 
 		rec_t = mktime(&rec_tm);
 
-		snprintf(buf, sizeof(buf),
-			 "%.2d/%.2d  %.2d:%.2d   %s   %s  -  %s",
-			 month, day, hour, minute, type, title, subtitle);
-
-		mvpw_add_menu_item(widget, buf, (void*)i, &item_attr);
-		cmyth_release(subtitle);
-		cmyth_release(title);
+		if (!filter || (strcmp(title, filter_title) == 0)) {
+			snprintf(buf, sizeof(buf),
+				 "%.2d/%.2d  %.2d:%.2d   %s   %s  -  %s",
+				 month, day, hour, minute, type,
+				 title, subtitle);
+			mvpw_add_menu_item(widget, buf, (void*)i, &item_attr);
+			displayed++;
+		}
 
 		if ((rec_t > last_t) && (rec_tm.tm_mday != last_day)) {
 			days++;
@@ -1332,9 +1346,13 @@ mythtv_pending(mvp_widget_t *widget)
 			last_t = rec_t;
 		}
 
-		displayed++;
+	release:
+		cmyth_release(subtitle);
+		cmyth_release(title);
 	}
 	cmyth_release(prog);
+	if (filter_title)
+		cmyth_release(filter_title);
 
 	snprintf(buf, sizeof(buf),
 		 "Recording Schedule - %d shows over %d day%s",

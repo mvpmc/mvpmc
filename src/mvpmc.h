@@ -324,6 +324,7 @@ extern int mythtv_forget(void);
 extern int mythtv_proginfo(char *buf, int size);
 extern void mythtv_start_thumbnail(void);
 extern int mythtv_pending(mvp_widget_t *widget);
+extern int mythtv_pending_filter(mvp_widget_t *widget, int filter);
 extern void mythtv_test_exit(void);
 extern int mythtv_proginfo_livetv(char *buf, int size);
 extern int mythtv_livetv_tuners(int*, int*);
