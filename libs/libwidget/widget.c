@@ -842,6 +842,9 @@ mvpw_visible(const mvp_widget_t *widget)
 {
 	GR_WINDOW_INFO info;
 
+	if (widget == NULL)
+		return 0;
+
 	GrGetWindowInfo(widget->wid, &info);
 
 	if (info.realized)
