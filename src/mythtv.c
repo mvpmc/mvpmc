@@ -3231,6 +3231,7 @@ mythtv_browser_expose(mvp_widget_t *widget)
 			goto out;
 		printf("myth browser expose: episodes\n");
 		mythtv_update(widget);
+		mythtv_set_popup_menu(MYTHTV_STATE_EPISODES);
 		if (prog) {
 			int i;
 

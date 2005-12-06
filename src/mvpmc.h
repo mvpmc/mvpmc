@@ -209,6 +209,7 @@ extern int fb_update(mvp_widget_t*);
 extern int mythtv_update(mvp_widget_t*);
 extern int mythtv_livetv_menu(void);
 extern int mythtv_program_runtime(void);
+extern void mythtv_set_popup_menu(mythtv_state_t state);
 
 extern void video_callback(mvp_widget_t*, char);
 extern void video_thumbnail(int on);
