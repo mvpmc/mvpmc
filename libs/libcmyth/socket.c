@@ -1876,7 +1876,7 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 		buf->proginfo_seriesid = cmyth_strdup(tmp_str);
 	}
 
-	if (buf->proginfo_version >= 12) {
+	if (buf->proginfo_version >= 8) {
 		/*
 		 * Get programid (string)
 		 */
