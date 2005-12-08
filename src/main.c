@@ -103,6 +103,7 @@ av_demux_mode_t demux_mode;
 
 int (*DEMUX_PUT)(demux_handle_t*, void*, int);
 int (*DEMUX_WRITE_VIDEO)(demux_handle_t*, int);
+int (*DEMUX_WRITE_AUDIO)(demux_handle_t*, int);
 
 #define DATA_SIZE (1024*1024)
 static char *data = NULL;
@@ -686,11 +687,13 @@ main(int argc, char **argv)
 	if (demux_mode == AV_DEMUX_ON) {
 		DEMUX_PUT = demux_put;
 		DEMUX_WRITE_VIDEO = demux_write_video;
+		DEMUX_WRITE_AUDIO = demux_write_audio;
 		pthread_create(&audio_write_thread, &thread_attr,
 			       audio_write_start, NULL);
 	} else {
 		DEMUX_PUT = buffer_put;
 		DEMUX_WRITE_VIDEO = buffer_write;
+		DEMUX_WRITE_AUDIO = buffer_write;
 		if ((data=malloc(DATA_SIZE)) == NULL) {
 			perror("malloc()");
 			exit(1);

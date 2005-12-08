@@ -469,6 +469,16 @@ static mvpw_text_attr_t busy_text_attr = {
 	.border_size = 2,
 };
 
+static mvpw_text_attr_t thruput_text_attr = {
+	.wrap = 1,
+	.justify = MVPW_TEXT_CENTER,
+	.margin = 6,
+	.font = FONT_STANDARD,
+	.fg = MVPW_BLACK,
+	.bg = MVPW_WHITE,
+	.border_size = 0,
+};
+
 static mvpw_graph_attr_t splash_graph_attr = {
 	.min = 0,
 	.max = 20,
@@ -844,6 +854,7 @@ mvp_widget_t *offset_bar;
 mvp_widget_t *bps_widget;
 mvp_widget_t *time_widget;
 mvp_widget_t *spu_widget;
+mvp_widget_t *thruput_widget;
 
 mvp_widget_t *shows_widget;
 mvp_widget_t *episodes_widget;
@@ -985,6 +996,7 @@ enum {
 	MYTHTV_POPUP_CANCEL,
 	MYTHTV_POPUP_FILTER,
 	MYTHTV_POPUP_UPCOMING,
+	MYTHTV_POPUP_THRUPUT,
 	MYTHTV_POPUP_TUNER,		/* needs to be last */
 };
 
@@ -1535,6 +1547,20 @@ themes_key_callback(mvp_widget_t *widget, char key)
 }
 
 static void
+thruput_key_callback(mvp_widget_t *widget, char key)
+{
+	switch (key) {
+	case MVPW_KEY_EXIT:
+		end_thruput_test();
+		mvpw_hide(widget);
+		break;
+	case MVPW_KEY_STOP:
+		end_thruput_test();
+		break;
+	}
+}
+
+static void
 themes_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
 	char buf[256];
@@ -1580,6 +1606,16 @@ fb_menu_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mvpw_set_dialog_text(volume_dialog, buf);
 		mvpw_show(volume_dialog);
 		mvpw_focus(volume_dialog);
+		break;
+	case 3:
+		if (is_video(current_hilite)) {
+			printf("start throughput testing...\n");
+			mvpw_hide(widget);
+			start_thruput_test();
+			fb_thruput();
+		} else {
+			gui_error("Throughput test only works on videos!");
+		}
 		break;
 	default:
 		break;
@@ -1775,6 +1811,12 @@ mythtv_popup_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mythtv_pending_filter(mythtv_browser, mythtv_filter);
 		mythtv_set_popup_menu(MYTHTV_STATE_PENDING);
 		break;
+	case MYTHTV_POPUP_THRUPUT:
+		printf("start throughput testing...\n");
+		mvpw_hide(widget);
+		start_thruput_test();
+		mythtv_thruput();
+		break;
 	}
 }
 
@@ -1860,6 +1902,10 @@ mythtv_set_popup_menu(mythtv_state_t state)
 		mvpw_add_menu_item(mythtv_popup_nocheck,
 				   "Show Upcoming Episodes",
 				   (void*)MYTHTV_POPUP_UPCOMING,
+				   &mythtv_popup_item_attr);
+		mvpw_add_menu_item(mythtv_popup_nocheck,
+				   "Perform Throughput Test",
+				   (void*)MYTHTV_POPUP_THRUPUT,
 				   &mythtv_popup_item_attr);
 		mvpw_add_menu_item(mythtv_popup_nocheck, "Cancel",
 				   (void*)MYTHTV_POPUP_CANCEL,
@@ -2198,6 +2244,8 @@ file_browser_init(void)
 			   (void*)1, &fb_menu_item_attr);
 	mvpw_add_menu_item(fb_menu, "Volume",
 			   (void*)2, &fb_menu_item_attr);
+	mvpw_add_menu_item(fb_menu, "Throughput Test",
+			   (void*)3, &fb_menu_item_attr);
 
 	return 0;
 }
@@ -3766,7 +3814,7 @@ myth_browser_init(void)
 	 * mythtv popup menu
 	 */
 	w = 400;
-	h = 6 * FONT_HEIGHT(mythtv_popup_attr);
+	h = 7 * FONT_HEIGHT(mythtv_popup_attr);
 	x = (si.cols - w) / 2;
 	y = (si.rows - h) / 2;
 
@@ -5026,6 +5074,25 @@ busy_init(void)
 	pthread_create(&busy_thread, &thread_attr_small, busy_loop, NULL);
 }
 
+void
+thruput_init(void)
+{
+	int w, h, x, y;
+
+	w = 400;
+	h = 6 * FONT_HEIGHT(thruput_text_attr);
+	x = (si.cols - w) / 2;
+	y = (si.rows - h) / 2;
+
+	thruput_widget = mvpw_create_text(NULL, x, y, w, h,
+					  thruput_text_attr.bg,
+					  thruput_text_attr.border,
+					  thruput_text_attr.border_size);
+	mvpw_set_text_attr(thruput_widget, &thruput_text_attr);
+
+	mvpw_set_key(thruput_widget, thruput_key_callback);
+}
+
 static void
 capture_screenshot(void)
 {
@@ -5143,6 +5210,7 @@ gui_init(char *server, char *replaytv)
 	warn_init();
 	screensaver_init();
 	mclient_init();
+	thruput_init();
 
 	mvpw_destroy(splash);
 	mvpw_destroy(splash_graph);

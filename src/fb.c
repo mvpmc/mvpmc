@@ -523,3 +523,23 @@ fb_shuffle(void)
 
 	printf("shuffle playlist created\n");
 }
+
+void
+fb_thruput(void)
+{
+	char path[256];
+
+	switch_hw_state(MVPMC_STATE_FILEBROWSER);
+
+	sprintf(path, "%s/%s", cwd, current_hilite);
+
+	if (current)
+		free(current);
+	current = strdup(path);
+
+	video_functions = &file_functions;
+
+	demux_reset(handle);
+	demux_attr_reset(handle);
+	video_play(NULL);
+}

@@ -3250,3 +3250,30 @@ mythtv_browser_expose(mvp_widget_t *widget)
 	if (prog)
 		cmyth_release(prog);
 }
+
+void
+mythtv_thruput(void)
+{
+	cmyth_proginfo_t hi_prog = cmyth_hold(hilite_prog);
+
+	switch_hw_state(MVPMC_STATE_MYTHTV);
+
+	if (mythtv_recdir) {
+		video_functions = &file_functions;
+	} else {
+		video_functions = &mythtv_functions;
+	}
+
+	while (video_reading)
+		;
+
+	CHANGE_GLOBAL_REF(current_prog, hi_prog);
+
+	printf("reset demuxer and play video...\n");
+
+	demux_reset(handle);
+	demux_attr_reset(handle);
+	video_play(root);
+
+	cmyth_release(hi_prog);
+}

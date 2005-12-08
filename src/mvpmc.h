@@ -160,6 +160,7 @@ extern int root_bright;
 extern int volume;
 
 extern char *current;
+extern char *current_hilite;
 extern char *mythtv_recdir;
 extern char *mythtv_ringbuf;
 
@@ -309,6 +310,7 @@ extern demux_handle_t *handle;
 
 extern int (*DEMUX_PUT)(demux_handle_t*, void*, int);
 extern int (*DEMUX_WRITE_VIDEO)(demux_handle_t*, int);
+extern int (*DEMUX_WRITE_AUDIO)(demux_handle_t*, int);
 
 extern int mythtv_livetv_stop(void);
 extern int mythtv_channel_up(void);
@@ -330,6 +332,7 @@ extern void mythtv_test_exit(void);
 extern int mythtv_proginfo_livetv(char *buf, int size);
 extern int mythtv_livetv_tuners(int*, int*);
 extern void mythtv_livetv_select(int);
+extern void mythtv_thruput(void);
 
 extern void playlist_prev(void);
 extern void playlist_stop(void);
@@ -343,6 +346,7 @@ extern void busy_start(void);
 extern void busy_end(void);
 
 extern void fb_start_thumbnail(void);
+extern void fb_thruput(void);
 
 typedef enum {
 	WIDGET_DIALOG,
@@ -425,4 +429,8 @@ extern int reboot_disable;
 extern unsigned short viewport_edges[4];
 
 extern void mythtv_browser_expose(mvp_widget_t *widget);
+
+extern void start_thruput_test(void);
+extern void end_thruput_test(void);
+extern mvp_widget_t *thruput_widget;
 #endif /* MVPMC_H */

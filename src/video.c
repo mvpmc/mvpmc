@@ -86,6 +86,10 @@ static volatile int muted = 0;
 static int zoomed = 0;
 static int display_on = 0, display_on_alt = 0;
 
+static volatile int thruput = 0;
+static volatile int thruput_count = 0;
+static struct timeval thruput_start;
+
 int fd_audio, fd_video;
 demux_handle_t *handle;
 ts_demux_handle_t *tshandle;
@@ -1284,6 +1288,7 @@ video_read_start(void *arg)
 			else {
 				tsbuf = tsbuf_static;
 				tslen = video_functions->read(tsbuf, sizeof(tsbuf_static));
+				thruput_count += tslen;
 			}
 			inbuf = inbuf_static;
 
@@ -1587,7 +1592,7 @@ audio_write_start(void *arg)
 		case AUDIO_MODE_MPEG1_PES:
 		case AUDIO_MODE_MPEG2_PES:
 		case AUDIO_MODE_ES:
-			if ((len=demux_write_audio(handle, fd_audio)) > 0)
+			if ((len=DEMUX_WRITE_AUDIO(handle, fd_audio)) > 0)
 				pthread_cond_broadcast(&video_cond);
 			else
 				pthread_cond_wait(&video_cond, &mutex);
@@ -1629,4 +1634,83 @@ audio_write_start(void *arg)
 	}
 
 	return NULL;
+}
+
+static int 
+demux_write_video_nop(demux_handle_t *handle, int fd)
+{
+	static int null = -1;
+	int len;
+
+	if (null < 0)
+		null = open("/dev/null", O_WRONLY);
+
+	len = demux_write_video(handle, null);
+
+	return len;
+}
+
+static int 
+demux_write_audio_nop(demux_handle_t *handle, int fd)
+{
+	static int null = -1;
+	int len;
+
+	if (null < 0)
+		null = open("/dev/null", O_WRONLY);
+
+	len = demux_write_audio(handle, null);
+
+	return len;
+}
+
+void
+start_thruput_test(void)
+{
+	switch_hw_state(MVPMC_STATE_NONE);
+
+	DEMUX_WRITE_VIDEO = demux_write_video_nop;
+	DEMUX_WRITE_AUDIO = demux_write_audio_nop;
+
+	thruput = 1;
+
+	gettimeofday(&thruput_start, NULL);
+
+	mvpw_set_text_str(thruput_widget, "Press STOP to end test.");
+	mvpw_show(thruput_widget);
+	mvpw_focus(thruput_widget);
+}
+
+void
+end_thruput_test(void)
+{
+	struct timeval thruput_end, delta;
+	char buf[256];
+	float rate, sec;
+
+	if (thruput == 0)
+		return;
+
+	gettimeofday(&thruput_end, NULL);
+
+	timersub(&thruput_end, &thruput_start, &delta);
+
+	sec = ((float)delta.tv_sec + (delta.tv_usec / 1000000.0));
+	rate = (float)thruput_count / sec;
+	rate = (rate * 8) / (1024 * 1024);
+
+	snprintf(buf, sizeof(buf),
+		 "Bytes: %d\nSeconds: %5.2f\nThroughput: %5.2f mb/s",
+		 thruput_count, sec, rate);
+	printf("thruput test:\n%s\n", buf);
+
+	switch_hw_state(MVPMC_STATE_NONE);
+
+	DEMUX_WRITE_VIDEO = demux_write_video;
+	DEMUX_WRITE_AUDIO = demux_write_audio;
+
+	thruput = 0;
+	thruput_count = 0;
+
+	mvpw_set_text_str(thruput_widget, buf);
 }
