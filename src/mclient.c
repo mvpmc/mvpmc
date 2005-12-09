@@ -135,6 +135,7 @@ typedef struct
     int head;
     int tail;
     int size;
+    int playmode;
 } ring_buf;
 
 /* lookup table to convert the VFD charset to Latin-1 */
@@ -185,8 +186,6 @@ ring_buf *outbuf;
  */
 void *recvbuf;
 
-int playmode = 3;
-
 static int debug = 0;
 
 /*
@@ -196,7 +195,7 @@ int display = 1;
 
 struct in_addr *server_addr_mclient = NULL;
 
-char slimp3_display[DISPLAY_SIZE];
+char slimp3_display[DISPLAY_SIZE + 1];
 
 /* Mutex for sending on socket */
 pthread_mutex_t mclient_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -501,6 +500,13 @@ receive_mpeg_data (int s, receive_mpeg_header * data, int bytes_read)
 {
     static int seq_history = 0;
     int message_length = 0;
+    static int rec_seq = 0;   // for use in ack test
+
+    rec_seq = ntohs(data->seq);
+    if (seq_history > rec_seq) {
+        // reset on server or client reboots or when SlimServer ushort resets at 64k
+        seq_history = -1;
+    }
 
     if (debug)
     {
@@ -528,14 +534,14 @@ receive_mpeg_data (int s, receive_mpeg_header * data, int bytes_read)
     }
 
     /*
-     * Set tail pointer to value received from server.
+     * Set head pointer to value received from server.
      */
-    outbuf->head = ntohs ((data->wptr) << 1);
+//    outbuf->head = ntohs((data->wptr) << 1 );  // mclient can control head
 
     /*
      * Store play mode into global variable.
      */
-    playmode = data->control;
+    outbuf->playmode = data->control;
 
     /*
      * Must be some header bytes we need to get rid of.
@@ -546,7 +552,10 @@ receive_mpeg_data (int s, receive_mpeg_header * data, int bytes_read)
      * If this is a new sequence (new data) then
      * add it to the input buffer.
      */
-    if (seq_history != ntohs (data->seq))
+
+//  Don't procees when 0 (sendEmptyChunk from SlimServer) or if it has already been buffered
+
+    if (message_length != 0 &&  seq_history < ntohs(data->seq)  )
     {
         /*
          * Keep history of seq so next time
@@ -559,6 +568,7 @@ receive_mpeg_data (int s, receive_mpeg_header * data, int bytes_read)
         /*
          * Check if there is room at the end of the buffer for the new data.
          */
+
         if ((outbuf->head + message_length) <= OUT_BUF_SIZE)
         {
             /*
@@ -570,6 +580,11 @@ receive_mpeg_data (int s, receive_mpeg_header * data, int bytes_read)
              * Move head by number of bytes read.
              */
             outbuf->head += message_length;
+
+            if (outbuf->head == OUT_BUF_SIZE )
+            {
+                outbuf->head = 0;
+            }
         }
         else
         {
@@ -588,15 +603,20 @@ receive_mpeg_data (int s, receive_mpeg_header * data, int bytes_read)
             outbuf->head = (message_length - (OUT_BUF_SIZE - outbuf->head));
         }
     }
+
     /*
      * Send ack back to server.
      */
-    send_ack (s, ntohs (data->seq));
+//  if a new bigger rec_seq has been received, don't re-ack an outdated packet
+    if (seq_history <= rec_seq )
+    {
+        send_ack (s, ntohs (data->seq));
+    }
 }
 
 
 void
-send_mpeg_data (int s, receive_mpeg_header * data)
+send_mpeg_data (void)
 {
     int amount_written = 0;
     int afd;
@@ -604,7 +624,7 @@ send_mpeg_data (int s, receive_mpeg_header * data)
     /*
      * Play control (play, pause & stop).
      */
-    switch (data->control)
+    switch (outbuf->playmode)
     {
     case 0:
         /*
@@ -707,32 +727,34 @@ send_mpeg_data (int s, receive_mpeg_header * data)
                             }
                         }
                         else
+                        {
                             /// Just in case...
-                        if (amount_written < 0)
-                        {
-                            printf
-                                ("mclinet:WARNING (2), the write returned a negative value:%d\n",
-                                 amount_written);
-                        }
-                        /*
-                         * We were able to use some or all of
-                         * the data.  Find out which the case might be.
-                         */
-                        if (amount_written == outbuf->head)
-                        {
+                            if (amount_written < 0)
+                            {
+                                printf
+                                    ("mclinet:WARNING (2), the write returned a negative value:%d\n",
+                                     amount_written);
+                            }
                             /*
-                             * We wrote all of it.
+                             * We were able to use some or all of
+                             * the data.  Find out which the case might be.
                              */
-                            outbuf->tail = outbuf->head;
-                        }
-                        else
-                        {
-                            /*
-                             * The amount written was not zero and it was not up to the 
-                             * head pointer.  Adjust the tail to only account for the 
-                             * portion of the buffer consumed.
-                             */
-                            outbuf->tail = amount_written;
+                            if (amount_written == outbuf->head)
+                            {
+                                /*
+                                 * We wrote all of it.
+                                 */
+                                outbuf->tail = outbuf->head;
+                            }
+                            else
+                            {
+                                /*
+                                 * The amount written was not zero and it was not up to the 
+                                 * head pointer.  Adjust the tail to only account for the 
+                                 * portion of the buffer consumed.
+                                 */
+                                outbuf->tail = amount_written;
+                            }
                         }
                     }
                     else
@@ -799,9 +821,9 @@ send_mpeg_data (int s, receive_mpeg_header * data)
 
     case 3:
         /*
-         * STOP: Do not play, and reset head to beginning of buffer.
+         * STOP: Do not play, and reset tail to beginning of buffer.
          */
-        av_reset ();
+//        av_reset ();  audio reset unnecessary
         outbuf->tail = 0;
         break;
 
@@ -872,11 +894,11 @@ mclient_idle_callback (mvp_widget_t * widget)
             printf ("mclient:TEST:new&old are same new:%s old:%s state:%d\n", newstring,
                     oldstring, send_display_data_state);
         snprintf (display_message, sizeof (display_message), "Line1:%40.40s\n",
-                  &slimp3_display[0]);
+                  &newstring[0]);
         display_send (display_message);
 
         snprintf (display_message, sizeof (display_message), "Line2:%40.40s\n",
-                  &slimp3_display[64]);
+                  &newstring[41]);
         display_send (display_message);
 
         send_display_data_state = 0;
@@ -949,7 +971,7 @@ receive_display_data (char *ddram, unsigned short *data, int bytes_read)
                     c = ' ';
                 }
             }
-            if (addr <= DISPLAY_SIZE)
+            if (addr < DISPLAY_SIZE)
             {
                 ddram[addr++] = c;
             }
@@ -979,8 +1001,8 @@ receive_display_data (char *ddram, unsigned short *data, int bytes_read)
             case 0x16:         /* cursor right */
             case 0x17:         /* cursor right */
                 addr++;
-                if (addr > DISPLAY_SIZE)
-                    addr = DISPLAY_SIZE;
+                if (addr >= DISPLAY_SIZE)
+                    addr = DISPLAY_SIZE - 1;
                 break;
             default:
                 if ((c & 0x80) == 0x80)
@@ -1162,6 +1184,12 @@ mclient_loop_thread (void *arg)
             av_play ();
 
             /*
+             * Initialize the play mode to "not start playing"
+             * and "clear the buffer".
+             */
+            outbuf->playmode = 3;
+
+            /*
              * Stay in loop processing server's audio data
              * until we give up the audio hardware.
              */
@@ -1181,7 +1209,7 @@ mclient_loop_thread (void *arg)
                  * Wait until we receive data from server or up to 100ms
                  * (1/10 of a second).
                  */
-                mclient_tv.tv_usec = 1000;
+                mclient_tv.tv_usec = 100000;
 
                 if (select (n + 1, &read_fds, NULL, NULL, &mclient_tv) == -1)
                 {
@@ -1207,7 +1235,7 @@ mclient_loop_thread (void *arg)
                  * can send more data to the hardware, if there has been a remote control
                  * key press or if we have exited out of the music client.
                  */
-                send_mpeg_data (s, recvbuf);
+                send_mpeg_data ();
             }
 
             /*
@@ -1218,6 +1246,7 @@ mclient_loop_thread (void *arg)
             /*
              * Free up the alloc'd memory.
              */
+            free (outbuf->buf);
             free (outbuf);
             free (recvbuf);
         }
