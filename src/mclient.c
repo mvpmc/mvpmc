@@ -535,8 +535,11 @@ receive_mpeg_data (int s, receive_mpeg_header * data, int bytes_read)
 
     /*
      * Set head pointer to value received from server.
+     * (Server needs this control when switching between
+     * programs (i.e. when switching between tracks).)
      */
 //    outbuf->head = ntohs((data->wptr) << 1 );  // mclient can control head
+    outbuf->head = ntohs((data->wptr) << 1 );  // ### 20051209  Let's try to let the server do this again.
 
     /*
      * Store play mode into global variable.
@@ -822,8 +825,10 @@ send_mpeg_data (void)
     case 3:
         /*
          * STOP: Do not play, and reset tail to beginning of buffer.
+         * (Server needs this control when switching between programs.)
          */
 //        av_reset ();  audio reset unnecessary
+        av_reset (); // ### 20051209  Let's try putting it back.
         outbuf->tail = 0;
         break;
 
