@@ -2268,6 +2268,7 @@ mythtv_livetv_start(int *tuner)
 			}
 			if(cmyth_recorder_is_recording(rec) == 1) {
 				cmyth_release(rec);
+				rec = NULL;
 				continue;
 			}
 			id = tuner[i];
@@ -2706,12 +2707,12 @@ livetv_select_callback(mvp_widget_t *widget, char *item, void *key)
 
 	if (cmyth_recorder_pause(rec) < 0) {
 		fprintf(stderr, "channel change (pause) failed\n");
-		goto out;
+		goto unlock;
 	}
 
 	if (cmyth_recorder_set_channel(rec, channame) < 0) {
 		fprintf(stderr, "channel change failed!\n");
-		goto out;
+		goto unlock;
 	}
 
 	loc_prog = cmyth_recorder_get_cur_proginfo(rec);
@@ -2739,14 +2740,16 @@ livetv_select_callback(mvp_widget_t *widget, char *item, void *key)
 	}
 	mvpw_menu_hilite_item(mythtv_browser, key);
 
+ unlock:
+	pthread_mutex_unlock(&myth_mutex);
+	busy_end();
+
  out:
 	cmyth_release(ctrl);
 	cmyth_release(rec);
 	cmyth_release(channame);
-	pthread_mutex_unlock(&myth_mutex);
-	busy_end();
 	changing_channel = 0;
-	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) }\n",
 		    __FUNCTION__, __FILE__, __LINE__);
 }
 
@@ -2810,6 +2813,7 @@ get_livetv_programs_rec(int id, struct livetv_prog **list, int *n, int *p)
 
 	if (cur_id != id) {
 		cmyth_release(rec);
+		rec = NULL;
 		if ((rec = cmyth_conn_get_recorder_from_num(ctrl,
 							    id)) == NULL) {
 			fprintf(stderr,
@@ -2827,11 +2831,32 @@ get_livetv_programs_rec(int id, struct livetv_prog **list, int *n, int *p)
 
 	cur = cmyth_recorder_get_cur_proginfo(rec);
 	if (cur == NULL) {
+		int i;
+		char channame[32];
+
+		fprintf(stderr, "problem getting current proginfo!\n");
+
+		/*
+		 * mythbackend must not be tuned in to a channel, so keep
+		 * changing channels until we find a valid one, or until
+		 * we decide to give up.
+		 */
+		for (i=1; i<1000; i++) {
+			snprintf(channame, sizeof(channame), "%d", i);
+			if (cmyth_recorder_set_channel(rec, channame) < 0) {
+				continue;
+			}
+			cur = cmyth_recorder_get_next_proginfo(rec, cur, 1);
+			if (cur != NULL)
+				break;
+		}
+	}
+	if (cur == NULL) {
 		fprintf(stderr, "get program info failed!\n");
 		cmyth_release(rec);
 		cmyth_release(ctrl);
 		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1}\n",
-			    __FUNCTION__, __FILE__, __LINE__);
+			  __FUNCTION__, __FILE__, __LINE__);
 		return -1;
 	}
 	
