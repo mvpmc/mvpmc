@@ -1110,6 +1110,18 @@ cmyth_recorder_get_next_program_info(cmyth_recorder_t rec,
 		goto out;
 	}
 
+	/*
+	 * if the program info is blank, return an error
+	 */
+	if ((strlen(title) == 0) && (strlen(subtitle) == 0) &&
+	    (strlen(desc) == 0) && (strlen(channelname) == 0) &&
+	    (strlen(chanid) == 0)) {
+                cmyth_dbg(CMYTH_DBG_ERROR,
+                          "%s: blank channel found\n", __FUNCTION__);
+		ret = -1;
+		goto out;
+	}
+
 	next_prog->proginfo_title = cmyth_strdup(title);
 	next_prog->proginfo_subtitle = cmyth_strdup(subtitle);
 	next_prog->proginfo_description = cmyth_strdup(desc);
@@ -1182,6 +1194,7 @@ cmyth_recorder_get_next_proginfo(cmyth_recorder_t rec,
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_recorder_get_next_program_info()\n",
 			  __FUNCTION__);
+		cmyth_release(ret);
 		return NULL;
 	}
 	return ret;
