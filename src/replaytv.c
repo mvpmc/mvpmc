@@ -63,8 +63,8 @@
 //+***********************************************
 //    logging / debugging
 //+***********************************************
-#define LOGINFO	(rtv_debug & 0x00010000)
-#define LOGTRC		(rtv_debug & 0x00020000)
+#define LOGINFO   (rtv_debug & 0x00010000)
+#define LOGTRC    (rtv_debug & 0x00020000)
 
 #define RTV_PRT(fmt, args...) fprintf(stdout, fmt, ## args) 
 
@@ -101,9 +101,9 @@ extern mvpw_text_attr_t rtv_seek_osd_attr;
 
 // show browser popup window list item attributes
 static mvpw_menu_item_attr_t rtv_show_popup_item_attr = {
-	.selectable = 1,
-	.fg = MVPW_GREEN,
-	.bg = MVPW_BLACK,
+   .selectable = 1,
+   .fg = MVPW_GREEN,
+   .bg = MVPW_BLACK,
 };
 
 // show browser list item attributes. (colors control unselected list items)
@@ -138,10 +138,11 @@ typedef enum rtv_menu_level_t
 
 typedef enum rtv_show_popup_menu_action_t
 {
-   RTV_SHOW_POPUP_CANCEL   = 0,
-   RTV_SHOW_POPUP_PLAY_FB  = 1,
-   RTV_SHOW_POPUP_PLAY     = 2,
-   RTV_SHOW_POPUP_DELETE   = 3
+   RTV_SHOW_POPUP_CANCEL       = 0,
+   RTV_SHOW_POPUP_PLAY_FB      = 1,
+   RTV_SHOW_POPUP_PLAY         = 2,
+   RTV_SHOW_POPUP_DELETE       = 3,
+   RTV_SHOW_POPUP_THRUPUT_TEST = 4
 } rtv_show_popup_menu_action_t;
 
 typedef enum rtv_play_state_t
@@ -197,16 +198,17 @@ static long long rtv_seek(long long, int);
 static long long rtv_size(void);
 static void rtv_notify(mvp_notify_t);
 static int  rtv_video_key(char);
-static void rtv_release_show_resources(void);
+static int rtv_halt_stream(void);
 
 video_callback_t replaytv_functions = {
-   .open      = rtv_open,
-   .read      = NULL,
-   .read_dynb = rtv_video_queue_read,
-   .seek      = rtv_seek,
-   .size      = rtv_size,
-   .notify    = rtv_notify,
-	.key       = rtv_video_key,
+   .open        = rtv_open,
+   .read        = NULL,
+   .read_dynb   = rtv_video_queue_read,
+   .seek        = rtv_seek,
+   .size        = rtv_size,
+   .notify      = rtv_notify,
+   .key         = rtv_video_key,
+   .halt_stream = rtv_halt_stream,
 };
 
 //+***********************************************
@@ -484,7 +486,7 @@ static int calc_string_window_sz(char *str, int font_id, int *width, int *height
 //
 static int rtv_video_queue_write(char *buf, int off, int len)
 {
-	//printf("------------->>> IN %s\n", __FUNCTION__);
+   //printf("------------->>> IN %s\n", __FUNCTION__);
    sem_wait(&rtv_video_state.vidq.sem_not_full);
    pthread_mutex_lock(&rtv_video_state.vidq.queue_lock);
   
@@ -496,7 +498,7 @@ static int rtv_video_queue_write(char *buf, int off, int len)
 
    pthread_mutex_unlock(&rtv_video_state.vidq.queue_lock);
    sem_post(&rtv_video_state.vidq.sem_not_empty);
-	return(len);
+   return(len);
 }
 
 static void rtv_video_queue_flush(void)
@@ -564,7 +566,7 @@ static int get_current_vid_time(unsigned int *current_vid_time)
    // Not first seek and the hw is showing a zero video timestamp.
    // return the last saved video time
    //
-	*current_vid_time = rtv_video_state.seek_info.vid_time;
+   *current_vid_time = rtv_video_state.seek_info.vid_time;
    return(0);
 }
 
@@ -625,16 +627,16 @@ static int find_commercial_break(int fwd, int cur_sec, int max_sec, int *break_s
 //
 static int rtv_open(void)
 {
-	//printf("------------->>> IN %s\n", __FUNCTION__);
-	return 0;
+   //printf("------------->>> IN %s\n", __FUNCTION__);
+   return 0;
 }
 
 // seek callback
 //
 static long long rtv_seek(long long offset, int whence)
 {
-	//printf("------------->>> IN %s %lld\n", __FUNCTION__, rtv_video_state.pos);
-	return (rtv_video_state.pos);
+   //printf("------------->>> IN %s %lld\n", __FUNCTION__, rtv_video_state.pos);
+   return (rtv_video_state.pos);
 }
 
 // read callback
@@ -666,15 +668,15 @@ static int rtv_video_queue_read(char **bufp, int len)
 
    pthread_mutex_unlock(&rtv_video_state.vidq.queue_lock);
    sem_post(&rtv_video_state.vidq.sem_not_full);
-	return (buflen);
+   return (buflen);
 }
 
 // file size callback
 //
 static long long rtv_size(void)
 {
-	//printf("------------->>> IN %s: %lld\n", __FUNCTION__, rtv_video_state.show_p->file_info->size);
-	return(rtv_video_state.show_p->file_info->size);
+   //printf("------------->>> IN %s: %lld\n", __FUNCTION__, rtv_video_state.show_p->file_info->size);
+   return(rtv_video_state.show_p->file_info->size);
 }
 
 // rtv_notify()
@@ -730,8 +732,8 @@ static int rtv_video_key(char key)
    char  timestamp_str[20];
 
    RTV_DBGLOG(LOGTRC, "%s: Enter: key=%d\n", __FUNCTION__, key);
-	switch (key) {
-	case MVPW_KEY_ZERO ... MVPW_KEY_NINE:
+   switch (key) {
+   case MVPW_KEY_ZERO ... MVPW_KEY_NINE:
       if ( !(rtv_video_state.processing_jump_input) ) {
          strcpy(seek_str, " 000");
       }
@@ -747,8 +749,8 @@ static int rtv_video_key(char key)
       mvpw_set_timer(rtv_seek_osd_widget[0], seek_osd_timer_callback, 3000);
       rc = 1;
       break;
-	case MVPW_KEY_GO:
-	case MVPW_KEY_GREEN:      
+   case MVPW_KEY_GO:
+   case MVPW_KEY_GREEN:      
       //printf("-->%s: handle: jump\n", __FUNCTION__);
       if ( rtv_video_state.processing_jump_input ) {
          int tmp;
@@ -766,8 +768,8 @@ static int rtv_video_key(char key)
       }
       rc = 1;
       break;
-	case MVPW_KEY_REPLAY:
-	case MVPW_KEY_REWIND:
+   case MVPW_KEY_REPLAY:
+   case MVPW_KEY_REWIND:
       get_current_vid_time(&cur_secs);
       printf("-->%s: handle: key='%c'  ct=%d\n", __FUNCTION__, key, cur_secs);
 
@@ -811,7 +813,7 @@ static int rtv_video_key(char key)
       jump = 1; 
       rc   = 1;
       break;
-	case MVPW_KEY_SKIP:
+   case MVPW_KEY_SKIP:
       get_current_vid_time(&cur_secs);
       printf("-->%s: handle: key='%c'  ct=%d\n", __FUNCTION__, key, cur_secs);
 
@@ -849,20 +851,20 @@ static int rtv_video_key(char key)
       jump = 1; 
       rc   = 1;
       break;
-	case MVPW_KEY_LEFT:
-	case MVPW_KEY_RIGHT:
-	case MVPW_KEY_UP:
-	case MVPW_KEY_DOWN:
+   case MVPW_KEY_LEFT:
+   case MVPW_KEY_RIGHT:
+   case MVPW_KEY_UP:
+   case MVPW_KEY_DOWN:
       printf("-->%s: noaction: key='%c'\n", __FUNCTION__, key);
       rc = 1;
-		break;
-	case MVPW_KEY_FFWD:
+      break;
+   case MVPW_KEY_FFWD:
       if ( (rtv_video_state.show_p->quality != RTV_QUALITY_STANDARD) && 
            (atoi(current_rtv_device->device.modelNumber) != 4999)   ) {
          printf("RTV: 2X-FFWD not allowed for Medium/Highres shows\n");
          rc = 1;
       }
-		break;
+      break;
 
    case MVPW_KEY_YELLOW:
       get_current_vid_time(&cur_secs);
@@ -903,9 +905,9 @@ static int rtv_video_key(char key)
       }
       rc = 1;
       break;
-	default:
-		break;
-	}
+   default:
+      break;
+   }
 
    if ( invalid_seek ) {
       sprintf(seek_str, " XXX");
@@ -985,6 +987,18 @@ static int rtv_video_key(char key)
    
    return(rc);
 }
+
+// halt_streamcallback
+//
+static int rtv_halt_stream(void)
+{
+   RTV_DBGLOG(LOGTRC, "%s: Enter\n", __FUNCTION__);
+   video_stop_play();
+   rtv_abort_read();
+   video_clear();                //kick video.c
+   return 0;
+}
+
 
 //+*************************************
 //   file processing functions
@@ -1117,6 +1131,7 @@ static void play_show(const rtv_show_export_t *show, int start_gop)
    rtv_ndx_22_record_t  ndx22_rec;
 
    RTV_DBGLOG(LOGTRC, "%s: Enter\n", __FUNCTION__);
+
    devinfo = (rtv_device_info_t*)&(current_rtv_device->device); //cast to override volatile warning
 
    mvpw_hide(rtv_show_browser);
@@ -1292,8 +1307,55 @@ ndx_4k_done:
    // Play the show
    //
    printf("Playing file: %s\n", show->file_name);  
+   switch_hw_state(MVPMC_STATE_REPLAYTV);
    av_play();
    demux_reset(handle);
+
+   pthread_create(&rtv_stream_read_thread, NULL, thread_read_start, (void*)show->file_name);
+   rtv_video_state.show_p                = show;
+   rtv_video_state.play_state            = RTV_VID_PLAYING;
+   rtv_video_state.processing_jump_input = 0;
+   video_play(NULL); // kick video.c 
+}
+
+static void thruput_test(const rtv_show_export_t *show)
+{
+   rtv_device_info_t   *devinfo;
+   char                 show_name[MAX_FILENAME_LEN];
+   rtv_fs_file_t        fileinfo;
+   int                  rc;
+
+   RTV_DBGLOG(LOGTRC, "%s: Enter\n", __FUNCTION__);
+   devinfo = (rtv_device_info_t*)&(current_rtv_device->device); //cast to override volatile warning
+
+
+   // Clear video state struct
+   //
+   memset(&rtv_video_state, 0, sizeof(rtv_selected_show_state_t));
+   
+   // Make sure the mpg file exists
+   //
+   sprintf(show_name, "/Video/%s", show->file_name);
+   rc = rtv_get_file_info(devinfo, show_name, &fileinfo );
+   rtv_free_file_info(&fileinfo);
+   if ( rc != 0 ) {
+      //
+      // Show is in the guide but the mpg doesn't exist.
+      // Actually this means we were able to stat the file when the guide was pulled
+      // but it is gone now. Must have been deleted.
+      //
+      char buf[128];
+      printf("ERROR: mpg file not present in rtv filesystem.\n");
+      snprintf(buf, sizeof(buf), "ERROR: mpg file not present in rtv filesystem. ");
+      gui_error(buf);
+      return;
+   }
+
+   printf("Thruput Test: file: %s\n", show->file_name);  
+   start_thruput_test();
+   switch_hw_state(MVPMC_STATE_REPLAYTV);
+   demux_reset(handle);
+   demux_attr_reset(handle);
 
    pthread_create(&rtv_stream_read_thread, NULL, thread_read_start, (void*)show->file_name);
    rtv_video_state.show_p                = show;
@@ -1367,7 +1429,7 @@ static void rtv_guide_hilite_callback(mvp_widget_t *widget, char *item, void *ke
    char                *line_ary[NUM_EPISODE_LINES-2];
    int                  x;
 
-	if (hilite) {
+   if (hilite) {
       pos  = strp;
       show = (rtv_show_export_t*)key;
       rtv_video_state.show_p = show;  //update the show pointer in the global struct.
@@ -1444,8 +1506,8 @@ static void rtv_guide_hilite_callback(mvp_widget_t *widget, char *item, void *ke
       }
       mvpw_hide(rtv_episode_description);
       mvpw_show(rtv_episode_description);
-	} else {
-	}
+   } else {
+   }
 }
 
 // rtv_guide_select_callback()
@@ -1561,7 +1623,7 @@ static void rtv_device_hilite_callback(mvp_widget_t *widget, char *item, void *k
    char              buf[256];
 
 
-	if (hilite) {
+   if (hilite) {
 
       // Pull volume info for the Video directory. If we get an error the RTV's time is probably off by more
       // than 40 seconds from ours.
@@ -1642,8 +1704,8 @@ static void rtv_device_hilite_callback(mvp_widget_t *widget, char *item, void *k
       //
       mvpw_hide(rtv_device_descr.container);
       mvpw_show(rtv_device_descr.container);
-	} else {
-	}
+   } else {
+   }
 }
 
 //  rtv_device_select_callback()
@@ -1725,12 +1787,12 @@ static int rtv_back_to_device_menu(mvp_widget_t *widget)
 // hide for MENU or EXIT key presses.
 static void sub_window_key_callback(mvp_widget_t *widget, char key)
 {
-	if (key == MVPW_KEY_MENU) {
-		mvpw_hide(widget);
-	}
-	else if (key == MVPW_KEY_EXIT) {
-		mvpw_hide(widget);
-	}
+   if (key == MVPW_KEY_MENU) {
+      mvpw_hide(widget);
+   }
+   else if (key == MVPW_KEY_EXIT) {
+      mvpw_hide(widget);
+   }
 }
 
 // msg_win_delete_callback()
@@ -1786,15 +1848,15 @@ static void delete_show_from_guide( unsigned int show_idx )
 //
 static void rtv_show_popup_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
-	int          which = (int)key;
+   int          which = (int)key;
    int          rc, in_use;
    unsigned int show_idx = 0, play_gop;
    char         delete_msg[512];
 
-	switch (which) {
+   switch (which) {
 
-	case RTV_SHOW_POPUP_PLAY:
-		printf("Popup Play\n");
+   case RTV_SHOW_POPUP_PLAY:
+      printf("Popup Play\n");
 
       //cast rtv_guide_export_t & rtv_device_info_t to override volatile warnings
       //
@@ -1823,16 +1885,22 @@ static void rtv_show_popup_select_callback(mvp_widget_t *widget, char *item, voi
       }
       mvpw_hide(rtv_show_popup);
       play_show(rtv_video_state.show_p, play_gop);
-		break;
+      break;
 
-	case RTV_SHOW_POPUP_PLAY_FB:
-		printf("Popup Play From Beginning\n");
+   case RTV_SHOW_POPUP_PLAY_FB:
+      printf("Popup Play From Beginning\n");
       mvpw_hide(rtv_show_popup);
       play_show(rtv_video_state.show_p, 0);
-		break;
+      break;
 
-	case RTV_SHOW_POPUP_DELETE:
-		printf("Popup Delete\n");
+   case RTV_SHOW_POPUP_THRUPUT_TEST:
+      printf("Thruput Test\n");
+      mvpw_hide(rtv_show_popup);
+      thruput_test(rtv_video_state.show_p);
+      break;
+
+   case RTV_SHOW_POPUP_DELETE:
+      printf("Popup Delete\n");
       if ( get_show_idx((rtv_guide_export_t*)&(current_rtv_device->guide), rtv_video_state.show_p, &show_idx) != 0 ) {
          return;
       }
@@ -1871,12 +1939,12 @@ static void rtv_show_popup_select_callback(mvp_widget_t *widget, char *item, voi
          }
          delete_show_from_guide(show_idx);         
       }
-		break;
+      break;
 
-	case RTV_SHOW_POPUP_CANCEL:
-		mvpw_hide(rtv_show_popup);
-		break;
-	} //switch
+   case RTV_SHOW_POPUP_CANCEL:
+      mvpw_hide(rtv_show_popup);
+      break;
+   } //switch
 }
 
 // Bound as rtv_show_browser widget callback
@@ -1885,8 +1953,8 @@ static void rtv_show_browser_key_callback(mvp_widget_t *widget, char key)
 {
  
    //printf("JBH: key===%c\n", key);
-	switch (key) {
-	case MVPW_KEY_EXIT:
+   switch (key) {
+   case MVPW_KEY_EXIT:
       // Back/Exit
       //
       rtv_back_to_device_menu(widget);
@@ -1900,6 +1968,7 @@ static void rtv_show_browser_key_callback(mvp_widget_t *widget, char key)
       rtv_show_popup_item_attr.select = rtv_show_popup_select_callback;
       mvpw_add_menu_item(rtv_show_popup, "Play",                (void*)RTV_SHOW_POPUP_PLAY, &rtv_show_popup_item_attr);
       mvpw_add_menu_item(rtv_show_popup, "Play from Beginning", (void*)RTV_SHOW_POPUP_PLAY_FB, &rtv_show_popup_item_attr);
+      mvpw_add_menu_item(rtv_show_popup, "Thruput Test",        (void*)RTV_SHOW_POPUP_THRUPUT_TEST, &rtv_show_popup_item_attr);
       mvpw_add_menu_item(rtv_show_popup, "Delete",              (void*)RTV_SHOW_POPUP_DELETE, &rtv_show_popup_item_attr);
       mvpw_add_menu_item(rtv_show_popup, "Cancel",              (void*)RTV_SHOW_POPUP_CANCEL, &rtv_show_popup_item_attr);
       mvpw_show(rtv_show_popup);
@@ -2191,7 +2260,7 @@ int replay_gui_init(void)
    
    mvpw_get_screen_info(&scr_info);
    
-	rtv_menu_bg = mvpw_create_container(NULL, 0, 0, scr_info.cols, scr_info.rows, MVPW_BLACK, 0, 0);
+   rtv_menu_bg = mvpw_create_container(NULL, 0, 0, scr_info.cols, scr_info.rows, MVPW_BLACK, 0, 0);
 
    // init replaytv logo image
    //
@@ -2244,9 +2313,9 @@ int replay_gui_init(void)
 
    // Set up NUM_EPISODE_LINES for episode description and place in a container widget 
    //
-	rtv_episode_description = mvpw_create_container(NULL, x, container_y, w, h*NUM_EPISODE_LINES, MVPW_BLACK, 0, 0);
+   rtv_episode_description = mvpw_create_container(NULL, x, container_y, w, h*NUM_EPISODE_LINES, MVPW_BLACK, 0, 0);
    for ( i=0; i < NUM_EPISODE_LINES; i++ ) {
-      rtv_episode_line[i] = mvpw_create_text(rtv_episode_description, 0, h*i, w, h, rtv_episode_descr_attr.bg, 0, 0);	
+      rtv_episode_line[i] = mvpw_create_text(rtv_episode_description, 0, h*i, w, h, rtv_episode_descr_attr.bg, 0, 0);   
       mvpw_set_text_attr(rtv_episode_line[i], &rtv_episode_descr_attr);
       mvpw_set_text_str(rtv_episode_line[i], "");
       mvpw_show(rtv_episode_line[i]);
@@ -2267,45 +2336,45 @@ int replay_gui_init(void)
    w = scr_info.cols - x - 50; // width between logo x:start and right side of screen
    h = mvpw_font_height(rtv_device_descr_attr.font);
 
-	rtv_device_descr.container = mvpw_create_container(NULL, x, container_y + h, w, h*3, MVPW_BLACK, 0, 0);
+   rtv_device_descr.container = mvpw_create_container(NULL, x, container_y + h, w, h*3, MVPW_BLACK, 0, 0);
 
-   rtv_device_descr.name = mvpw_create_text(rtv_device_descr.container, 0, h*0, w/2, h, rtv_device_descr_attr.bg, 0, 0);	
+   rtv_device_descr.name = mvpw_create_text(rtv_device_descr.container, 0, h*0, w/2, h, rtv_device_descr_attr.bg, 0, 0);   
    mvpw_set_text_attr(rtv_device_descr.name, &rtv_device_descr_attr);
    mvpw_set_text_str(rtv_device_descr.name, "");
    mvpw_show(rtv_device_descr.name);
 
-   rtv_device_descr.model = mvpw_create_text(rtv_device_descr.container, 0, h*1, w/2, h, rtv_device_descr_attr.bg, 0, 0);	
+   rtv_device_descr.model = mvpw_create_text(rtv_device_descr.container, 0, h*1, w/2, h, rtv_device_descr_attr.bg, 0, 0);  
    mvpw_set_text_attr(rtv_device_descr.model, &rtv_device_descr_attr);
    mvpw_set_text_str(rtv_device_descr.model, "");
    mvpw_show(rtv_device_descr.model);
 
-   rtv_device_descr.ipaddr = mvpw_create_text(rtv_device_descr.container, 0, h*2, w/2, h, rtv_device_descr_attr.bg, 0, 0);	
+   rtv_device_descr.ipaddr = mvpw_create_text(rtv_device_descr.container, 0, h*2, w/2, h, rtv_device_descr_attr.bg, 0, 0); 
    mvpw_set_text_attr(rtv_device_descr.ipaddr, &rtv_device_descr_attr);
    mvpw_set_text_str(rtv_device_descr.ipaddr, "");
    mvpw_show(rtv_device_descr.ipaddr);
 
-   rtv_device_descr.capacity = mvpw_create_text(rtv_device_descr.container, w/2, h*0, w/2, h, rtv_device_descr_attr.bg, 0, 0);	
+   rtv_device_descr.capacity = mvpw_create_text(rtv_device_descr.container, w/2, h*0, w/2, h, rtv_device_descr_attr.bg, 0, 0);   
    mvpw_set_text_attr(rtv_device_descr.capacity, &rtv_device_descr_attr);
    mvpw_set_text_str(rtv_device_descr.capacity, "");
    mvpw_show(rtv_device_descr.capacity);
 
    i = mvpw_font_width(rtv_device_descr_attr.font, "XXX%");
-   rtv_device_descr.percentage = mvpw_create_text(rtv_device_descr.container, w-20-i, h*0, i, h, rtv_device_descr_attr.bg, 0, 0);	
+   rtv_device_descr.percentage = mvpw_create_text(rtv_device_descr.container, w-20-i, h*0, i, h, rtv_device_descr_attr.bg, 0, 0);   
    mvpw_set_text_attr(rtv_device_descr.percentage, &rtv_device_descr_attr);
    mvpw_set_text_str(rtv_device_descr.percentage, "");
    mvpw_show(rtv_device_descr.percentage);
    
    rtv_device_descr.graph = mvpw_create_graph(rtv_device_descr.container, w/2, h*1, (w/2)-20, h, 
                                               rtv_discspace_graph_attr.bg, rtv_discspace_graph_attr.border, rtv_discspace_graph_attr.border_size);
-	mvpw_set_graph_attr(rtv_device_descr.graph, &rtv_discspace_graph_attr);
+   mvpw_set_graph_attr(rtv_device_descr.graph, &rtv_discspace_graph_attr);
    mvpw_show(rtv_device_descr.graph);
 
-   rtv_device_descr.inuse = mvpw_create_text(rtv_device_descr.container, w/2, h*2, w/4, h, rtv_device_descr_attr.bg, 0, 0);	
+   rtv_device_descr.inuse = mvpw_create_text(rtv_device_descr.container, w/2, h*2, w/4, h, rtv_device_descr_attr.bg, 0, 0);   
    mvpw_set_text_attr(rtv_device_descr.inuse, &rtv_device_descr_attr);
    mvpw_set_text_str(rtv_device_descr.inuse, "");
    mvpw_show(rtv_device_descr.inuse);
    
-   rtv_device_descr.free = mvpw_create_text(rtv_device_descr.container, w-(w/4), h*2, w/4, h, rtv_device_descr_attr.bg, 0, 0);	
+   rtv_device_descr.free = mvpw_create_text(rtv_device_descr.container, w-(w/4), h*2, w/4, h, rtv_device_descr_attr.bg, 0, 0);   
    mvpw_set_text_attr(rtv_device_descr.free, &rtv_device_descr_attr);
    mvpw_set_text_str(rtv_device_descr.free, "");
    mvpw_show(rtv_device_descr.free);
@@ -2332,57 +2401,57 @@ int replay_gui_init(void)
 
    // int the show browser popup window
    //
-	w = 200;
-	h = 200;
-	x = (si.cols - w) * 2 / 3;
-	y = (si.rows - h) / 4;
+   w = 200;
+   h = 200;
+   x = (si.cols - w) * 2 / 3;
+   y = (si.rows - h) / 4;
 
-	rtv_show_popup = mvpw_create_menu(NULL, x, y, w, h,
+   rtv_show_popup = mvpw_create_menu(NULL, x, y, w, h,
                                 rtv_show_popup_attr.bg, rtv_show_popup_attr.border,
                                 rtv_show_popup_attr.border_size);
 
-	//rtv_show_popup_attr.font = fontid;
-	rtv_show_popup_item_attr.fg = rtv_show_popup_attr.fg;
-	rtv_show_popup_item_attr.bg = rtv_show_popup_attr.bg;
+   //rtv_show_popup_attr.font = fontid;
+   rtv_show_popup_item_attr.fg = rtv_show_popup_attr.fg;
+   rtv_show_popup_item_attr.bg = rtv_show_popup_attr.bg;
 
-	mvpw_set_menu_attr(rtv_show_popup, &rtv_show_popup_attr);
+   mvpw_set_menu_attr(rtv_show_popup, &rtv_show_popup_attr);
    
-	mvpw_set_menu_title(rtv_show_popup, "Show Menu");
-	mvpw_set_bg(rtv_show_popup, MVPW_BLACK);   
-	mvpw_set_key(rtv_show_popup, sub_window_key_callback);
+   mvpw_set_menu_title(rtv_show_popup, "Show Menu");
+   mvpw_set_bg(rtv_show_popup, MVPW_BLACK);   
+   mvpw_set_key(rtv_show_popup, sub_window_key_callback);
    
    // init seek_osd window
    //
    //rtv_seek_osd_attr.font = fontid;
    h = mvpw_font_height(rtv_seek_osd_attr.font);
    w = mvpw_font_width(rtv_seek_osd_attr.font, " XXXXX XXXXXX ");
-	rtv_seek_osd_widget[0] = mvpw_create_text(NULL, 50, 25, w, h, 
+   rtv_seek_osd_widget[0] = mvpw_create_text(NULL, 50, 25, w, h, 
                                              rtv_seek_osd_attr.bg, 
                                              rtv_seek_osd_attr.border, 
                                              rtv_seek_osd_attr.border_size);
-	rtv_seek_osd_widget[1] = mvpw_create_text(NULL, 50, 25, w, h,  
+   rtv_seek_osd_widget[1] = mvpw_create_text(NULL, 50, 25, w, h,  
                                              rtv_seek_osd_attr.bg, 
                                              rtv_seek_osd_attr.border, 
                                              rtv_seek_osd_attr.border_size);
-	mvpw_set_text_attr(rtv_seek_osd_widget[0], &rtv_seek_osd_attr);
-	mvpw_set_text_attr(rtv_seek_osd_widget[1], &rtv_seek_osd_attr);
-	mvpw_set_text_str(rtv_seek_osd_widget[0], "");
-	mvpw_set_text_str(rtv_seek_osd_widget[1], "12:34:56");
-	mvpw_attach(clock_widget, rtv_seek_osd_widget[0], MVPW_DIR_RIGHT);
-	mvpw_attach( rtv_seek_osd_widget[0], rtv_seek_osd_widget[1], MVPW_DIR_DOWN);
+   mvpw_set_text_attr(rtv_seek_osd_widget[0], &rtv_seek_osd_attr);
+   mvpw_set_text_attr(rtv_seek_osd_widget[1], &rtv_seek_osd_attr);
+   mvpw_set_text_str(rtv_seek_osd_widget[0], "");
+   mvpw_set_text_str(rtv_seek_osd_widget[1], "12:34:56");
+   mvpw_attach(clock_widget, rtv_seek_osd_widget[0], MVPW_DIR_RIGHT);
+   mvpw_attach( rtv_seek_osd_widget[0], rtv_seek_osd_widget[1], MVPW_DIR_DOWN);
 
    //
    mvpw_raise(rtv_show_browser);
    mvpw_raise(rtv_device_menu);
-	mvpw_raise(rtv_show_popup);
+   mvpw_raise(rtv_show_popup);
    return(0);
 }
 
 void replaytv_exit(void)
 {
    RTV_DBGLOG(LOGTRC, "%s: Enter\n", __FUNCTION__);
-	/*
-	 * XXX: This needs to shut down replaytv if playback is started from
-	 *      some other piece of mvpmc.
-	 */
+   /*
+    * XXX: This needs to shut down replaytv if playback is started from
+    *      some other piece of mvpmc.
+    */
 }

@@ -43,8 +43,10 @@
 
 #if 0
 #define PRINTF(x...) printf(x)
+#define TRC(fmt, args...) printf(fmt, ## args) 
 #else
 #define PRINTF(x...)
+#define TRC(fmt, args...) 
 #endif
 
 /* #define STREAM_TEST 1 */
@@ -121,6 +123,7 @@ video_callback_t file_functions = {
 	.size      = file_size,
 	.notify    = NULL,
 	.key       = NULL,
+	.halt_stream = NULL,
 };
 
 volatile video_callback_t *video_functions = NULL;
@@ -246,6 +249,7 @@ video_set_root(void)
 void
 video_play(mvp_widget_t *widget)
 {
+	TRC("%s\n", __FUNCTION__);
 	mvpw_set_idle(NULL);
 
 	if (demux_spu_get_id(handle) < 0)
@@ -264,6 +268,7 @@ void
 video_clear(void)
 {
 	int cnt;
+	TRC("%s\n", __FUNCTION__);
 	if (fd >= 0)
 		close(fd);
 	fd = -1;
@@ -1227,6 +1232,7 @@ video_read_start(void *arg)
 				sent_idle_notify = 1;
 			}
 			pthread_cond_wait(&video_cond, &mutex);
+			TRC("%s: past pthread_cond_wait(&video_cond, &mutex)\n", __FUNCTION__);
 		}
 
 #ifdef STREAM_TEST
@@ -1288,8 +1294,8 @@ video_read_start(void *arg)
 			else {
 				tsbuf = tsbuf_static;
 				tslen = video_functions->read(tsbuf, sizeof(tsbuf_static));
-				thruput_count += tslen;
 			}
+			thruput_count += tslen;
 			inbuf = inbuf_static;
 
 			if (tsmode == TS_MODE_UNKNOWN) {
@@ -1693,6 +1699,10 @@ end_thruput_test(void)
 
 	gettimeofday(&thruput_end, NULL);
 
+	if ( video_functions->halt_stream != NULL ) {
+ 		video_functions->halt_stream();
+	}
+   
 	timersub(&thruput_end, &thruput_start, &delta);
 
 	sec = ((float)delta.tv_sec + (delta.tv_usec / 1000000.0));

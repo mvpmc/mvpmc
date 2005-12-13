@@ -75,6 +75,7 @@ typedef struct {
 	void (*notify)(mvp_notify_t);      // For mvp code to notify client of whatever
 	int (*key)(char);                  // Client specific handling of keypresses during video play.
                                       // Client should return 1 if it handled the keypress. Else return 0
+	int (*halt_stream)(void);          // Notify client to halt streaming
 } video_callback_t;
 
 typedef struct playlist_struct playlist_t;

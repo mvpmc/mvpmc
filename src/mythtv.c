@@ -162,6 +162,7 @@ static video_callback_t mythtv_functions = {
 	.size      = mythtv_size,
 	.notify    = NULL,
 	.key       = NULL,
+	.halt_stream = NULL,
 };
 
 static video_callback_t livetv_functions = {
@@ -172,6 +173,7 @@ static video_callback_t livetv_functions = {
 	.size      = livetv_size,
 	.notify    = NULL,
 	.key       = NULL,
+	.halt_stream = NULL,
 };
 
 mythtv_color_t mythtv_colors = {
