@@ -30,6 +30,12 @@ do
         echo nameserver $i >> $RESOLV_CONF
 done
 
+if [ -n "$router" ]
+then
+        echo "setting hostname"
+        /bin/hostname $hostname
+fi
+
 # Add Special Routes
 route add -net 127.0.0.0 netmask 255.0.0.0 dev lo
 route add -net 255.255.255.255 netmask 255.255.255.255 dev $interface
