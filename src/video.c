@@ -259,6 +259,8 @@ video_play(mvp_widget_t *widget)
 
 	video_set_root();
 
+	muted = 0;
+	paused = 0;
 	video_reopen = 1;
 	video_playing = 1;
 	pthread_cond_broadcast(&video_cond);
