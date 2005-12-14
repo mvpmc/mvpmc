@@ -30,7 +30,7 @@ do
         echo nameserver $i >> $RESOLV_CONF
 done
 
-if [ -n "$router" ]
+if [ -n "$hostname" ]
 then
         echo "setting hostname"
         /bin/hostname $hostname
