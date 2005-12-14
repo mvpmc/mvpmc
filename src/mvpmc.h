@@ -415,6 +415,7 @@ extern void switch_gui_state(mvpmc_state_t new);
 extern void fb_exit(void);
 extern void mythtv_exit(void);
 extern void replaytv_exit(void);
+extern void replaytv_atexit(void);
 
 extern mvpmc_state_t hw_state;
 extern mvpmc_state_t gui_state;

@@ -825,7 +825,7 @@ switch_gui_state(mvpmc_state_t new)
 void
 atexit_handler(void)
 {
-	printf("%s(): state %d\n", __FUNCTION__, hw_state);
+	printf("%s(): hw_state=%d gui_state=%d\n", __FUNCTION__, hw_state, gui_state);
 
 	switch (hw_state) {
 	case MVPMC_STATE_NONE:
@@ -836,6 +836,20 @@ atexit_handler(void)
 		mythtv_atexit();
 		break;
 	case MVPMC_STATE_REPLAYTV:
+		break;
+	case MVPMC_STATE_MCLIENT:
+		break;
+	}
+
+	switch (gui_state) {
+	case MVPMC_STATE_NONE:
+		break;
+	case MVPMC_STATE_FILEBROWSER:
+		break;
+	case MVPMC_STATE_MYTHTV:
+		break;
+	case MVPMC_STATE_REPLAYTV:
+		replaytv_atexit();
 		break;
 	case MVPMC_STATE_MCLIENT:
 		break;

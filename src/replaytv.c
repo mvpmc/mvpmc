@@ -2450,8 +2450,17 @@ int replay_gui_init(void)
 void replaytv_exit(void)
 {
    RTV_DBGLOG(LOGTRC, "%s: Enter\n", __FUNCTION__);
-   /*
-    * XXX: This needs to shut down replaytv if playback is started from
-    *      some other piece of mvpmc.
-    */
+
+   // Nothing to do here
+   //
+}
+
+void replaytv_atexit(void)
+{
+   RTV_DBGLOG(LOGTRC, "%s: Enter\n", __FUNCTION__);
+
+   // mvpmc is being killed.
+   // halt the SSDP server so SSDP goodbye's get sent out.
+   //
+   rtv_halt_discovery_server();
 }
