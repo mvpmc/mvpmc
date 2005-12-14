@@ -1918,6 +1918,8 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 	}
 
 	if (buf->proginfo_version >= 12) {
+		char stars[16];
+
 		/*
 		 * Get stars (string)
 		 */
@@ -1931,7 +1933,8 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 		}
 		if (buf->proginfo_stars)
 			cmyth_release(buf->proginfo_stars);
-		buf->proginfo_stars = cmyth_strdup(tmp_str);
+		snprintf(stars, sizeof(stars), "%3.1f", atof(tmp_str) * 4.0);
+		buf->proginfo_stars = cmyth_strdup(stars);
 	}
 
 	if (buf->proginfo_version >= 12) {
