@@ -1454,7 +1454,7 @@ cmyth_recorder_end_stream(cmyth_recorder_t rec)
 char*
 cmyth_recorder_get_filename(cmyth_recorder_t rec)
 {
-	static char buf[128];
+	char buf[64], *ret;
 
 	if (!rec) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: no recorder connection\n",
@@ -1464,7 +1464,9 @@ cmyth_recorder_get_filename(cmyth_recorder_t rec)
 
 	snprintf(buf, sizeof(buf), "ringbuf%d.nuv", rec->rec_id);
 
-	return buf;
+	ret = cmyth_strdup(buf);
+
+	return ret;
 }
 
 int
