@@ -756,8 +756,6 @@ add_episodes(mvp_widget_t *widget, char *item, int load)
 		    __FUNCTION__, __FILE__, __LINE__);
 	busy_start();
 
-	pthread_mutex_lock(&myth_mutex);
-
 	mythtv_state = MYTHTV_STATE_EPISODES;
 
 	item_attr.select = show_select_callback;
@@ -837,8 +835,6 @@ add_episodes(mvp_widget_t *widget, char *item, int load)
 	mvpw_set_menu_title(widget, buf);
 	cmyth_release(prog);
 
-	pthread_mutex_unlock(&myth_mutex);
-
 	busy_end();
 	cmyth_release(ep_list);
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) }\n",
@@ -870,8 +866,6 @@ add_shows(mvp_widget_t *widget)
 	item_attr.fg = mythtv_attr.fg;
 	item_attr.bg = mythtv_attr.bg;
 
-	pthread_mutex_lock(&myth_mutex);
-
 	count = load_episodes();
 	ep_list  = cmyth_hold(episode_plist);
 	for (i = 0; i < count; ++i) {
@@ -900,7 +894,6 @@ add_shows(mvp_widget_t *widget)
 		mvpw_add_menu_item(widget, titles[i], (void*)n+2, &item_attr);
 		cmyth_release(titles[i]);
 	}
-	pthread_mutex_unlock(&myth_mutex);
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) }\n",
 		    __FUNCTION__, __FILE__, __LINE__);
 }
@@ -925,6 +918,7 @@ mythtv_update(mvp_widget_t *widget)
 	}
 
 	busy_start();
+	pthread_mutex_lock(&myth_mutex);
 
 	if (mythtv_state == MYTHTV_STATE_EPISODES) {
 		cmyth_proginfo_t hi_prog = cmyth_hold(hilite_prog);
@@ -964,16 +958,12 @@ mythtv_update(mvp_widget_t *widget)
 
 	mvpw_set_menu_title(widget, "MythTV");
 	mvpw_clear_menu(widget);
-	busy_start();
 	add_shows(widget);
-	busy_end();
 
 	snprintf(buf, sizeof(buf), "Total shows: %d", show_count);
 	mvpw_set_text_str(shows_widget, buf);
 	snprintf(buf, sizeof(buf), "Total episodes: %d", episode_count);
 	mvpw_set_text_str(episodes_widget, buf);
-
-	pthread_mutex_lock(&myth_mutex);
 
 	if (cmyth_conn_get_freespace(control, &total, &used) == 0) {
 		snprintf(buf, sizeof(buf),
@@ -982,8 +972,6 @@ mythtv_update(mvp_widget_t *widget)
 			 100.0-((float)used/total)*100.0);
 		mvpw_set_text_str(freespace_widget, buf);
 	}
-
-	pthread_mutex_unlock(&myth_mutex);
 
 	mvpw_hide(mythtv_channel);
 	mvpw_hide(mythtv_date);
@@ -998,6 +986,7 @@ mythtv_update(mvp_widget_t *widget)
  out:
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) 0}\n",
 		    __FUNCTION__, __FILE__, __LINE__);
+	pthread_mutex_unlock(&myth_mutex);
 	busy_end();
 
 	return 0;
@@ -1163,7 +1152,6 @@ mythtv_pending_filter(mvp_widget_t *widget, int filter)
 	ctrl = cmyth_hold(control);
 
 	busy_start();
-
 	pthread_mutex_lock(&myth_mutex);
 
 	t = time(NULL);
@@ -1361,12 +1349,11 @@ mythtv_pending_filter(mvp_widget_t *widget, int filter)
 		 displayed, days, (days == 1) ? "" : "s");
 	mvpw_set_menu_title(widget, buf);
  out:
-	pthread_mutex_unlock(&myth_mutex);
-
 	cmyth_release(ctrl);
 	cmyth_release(pnd_list);
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) %d}\n",
 		    __FUNCTION__, __FILE__, __LINE__, ret);
+	pthread_mutex_unlock(&myth_mutex);
 	busy_end();
 
 	return ret;
@@ -1489,14 +1476,10 @@ control_start(void *arg)
 		fprintf(stderr, "mythtv control thread sleeping...(pid %d)\n",
 			pid);
 		while ((file == NULL) && (recorder == NULL)) {
-			fprintf(stderr,
-				"Waiting for stream, recorder = %p, "
-				"file = %p)\n", recorder, file);
 			pthread_cond_wait(&cond, &mutex);
-			fprintf(stderr,
-				"Got stream recorder = %p, file = %p)\n",
-				recorder, file);
 		}
+		fprintf(stderr, "Got stream recorder = %p, file = %p)\n",
+			recorder, file);
 		if (file)
 			printf("%s(): starting file playback\n", __FUNCTION__);
 		if (recorder)
@@ -2384,15 +2367,17 @@ mythtv_livetv_start(int *tuner)
 	add_osd_widget(mythtv_program_widget, OSD_PROGRAM,
 		       osd_settings.program, NULL);
 	mvpw_hide(mythtv_description);
-	running_mythtv = 1;
 
+	CHANGE_GLOBAL_REF(recorder, ring);
+#if 0
+	cmyth_release(ctrl);
+	cmyth_release(rec);
+#endif
+	cmyth_release(ring);
+	running_mythtv = 1;
 	pthread_mutex_unlock(&myth_mutex);
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) 0}\n",
 		    __FUNCTION__, __FILE__, __LINE__);
-	cmyth_release(ctrl);
-	cmyth_release(rec);
-	CHANGE_GLOBAL_REF(recorder, ring);
-	cmyth_release(ring);
 	return 0;
 
  err:
