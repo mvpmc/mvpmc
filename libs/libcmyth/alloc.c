@@ -49,6 +49,12 @@
 #include <string.h>
 #include <stdio.h>
 
+#ifdef DEBUG
+#include <assert.h>
+#define ALLOC_MAGIC 0xef37a45d
+#define GUARD_MAGIC 0xe3
+#endif /* DEBUG */
+
 /*
  * struct refcounter
  *
@@ -70,10 +76,19 @@
  *       before each allocation and will affect the alignment of pointers.
  */
 typedef struct refcounter {
+#ifdef DEBUG
+	unsigned int magic;
+#endif /* DEBUG */
 	cmyth_atomic_t refcount;
 	size_t length;
 	destroy_t destroy;
 } refcounter_t;
+
+#ifdef DEBUG
+typedef struct {
+	unsigned char magic;
+} guard_t;
+#endif /* DEBUG */
 
 #define CMYTH_REFCNT(p) ((refcounter_t *)(((unsigned char *)(p)) - sizeof(refcounter_t)))
 #define CMYTH_DATA(r) (((unsigned char *)(r)) + sizeof(refcounter_t))
@@ -99,7 +114,12 @@ typedef struct refcounter {
 void *
 cmyth_allocate(size_t len)
 {
+#ifdef DEBUG
+	void *block = malloc(sizeof(refcounter_t) + len + sizeof(guard_t));
+	guard_t *guard;
+#else
 	void *block = malloc(sizeof(refcounter_t) + len);
+#endif /* DEBUG */
 	void *ret = CMYTH_DATA(block);
 	refcounter_t *ref = (refcounter_t *)block;
 
@@ -108,6 +128,12 @@ cmyth_allocate(size_t len)
 	if (block) {
 		memset(block, 0, sizeof(refcounter_t) + len);
 		cmyth_atomic_set(&ref->refcount, 1);
+#ifdef DEBUG
+		ref->magic = ALLOC_MAGIC;
+		guard = (guard_t*)((unsigned long)block +
+				   sizeof(refcounter_t) + len);
+		guard->magic = GUARD_MAGIC;
+#endif /* DEBUG */
 		ref->destroy = NULL;
 		ref->length = len;
 		cmyth_dbg(CMYTH_DBG_DEBUG, "%s(%d, ret = %p, ref = %p) }\n",
@@ -144,6 +170,9 @@ cmyth_reallocate(void *p, size_t len)
 
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s(%d, ret = %p, ref = %p) {\n",
 		  __FUNCTION__, len, ret, ref);
+#ifdef DEBUG
+	assert(ref->magic == ALLOC_MAGIC);
+#endif /* DEBUG */
 	if (p && ret) {
 		memcpy(ret, p, ref->length);
 		cmyth_set_destroy(ret, ref->destroy);
@@ -181,6 +210,9 @@ cmyth_set_destroy(void *data, destroy_t func)
 
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s(%p, func = %p, ref = %p) {\n",
 		  __FUNCTION__, data, func, ref);
+#ifdef DEBUG
+	assert(ref->magic == ALLOC_MAGIC);
+#endif /* DEBUG */
 	if (data) {
 		ref->destroy = func;
 	}
@@ -255,9 +287,18 @@ cmyth_hold(void *p)
 {
 	void *block = CMYTH_REFCNT(p);
 	refcounter_t *ref = block;
+#ifdef DEBUG
+	guard_t *guard;
+#endif /* DEBUG */
 
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s(%p) {\n", __FUNCTION__, p);
 	if (p) {
+#ifdef DEBUG
+		assert(ref->magic == ALLOC_MAGIC);
+		guard = (guard_t*)((unsigned long)block +
+				   sizeof(refcounter_t) + ref->length);
+		assert(guard->magic == GUARD_MAGIC);
+#endif /* DEBUG */
 		cmyth_atomic_inc(&ref->refcount);
 	}
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s(%p) }\n", __FUNCTION__, p);
@@ -285,6 +326,9 @@ cmyth_release(void *p)
 {
 	void *block = CMYTH_REFCNT(p);
 	refcounter_t *ref = block;
+#ifdef DEBUG
+	guard_t *guard;
+#endif /* DEBUG */
 
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s(%p) {\n", __FUNCTION__, p);
 	if (p) {
@@ -292,6 +336,12 @@ cmyth_release(void *p)
 			  "%s:%d %s(%p,ref = %p,refcount = %p,length = %d)\n",
 			  __FILE__, __LINE__, __FUNCTION__,
 			  p, ref, ref->refcount, ref->length);
+#ifdef DEBUG
+		assert(ref->magic == ALLOC_MAGIC);
+		guard = (guard_t*)((unsigned long)block +
+				   sizeof(refcounter_t) + ref->length);
+		assert(guard->magic == GUARD_MAGIC);
+#endif /* DEBUG */
 		if (cmyth_atomic_dec_and_test(&ref->refcount)) {
 			/*
 			 * Last reference, destroy the structure (if
@@ -304,8 +354,15 @@ cmyth_release(void *p)
 			cmyth_dbg(CMYTH_DBG_DEBUG,
 				  "%s:%d %s() -- free it\n",
 				  __FILE__, __LINE__, __FUNCTION__);
+#ifdef DEBUG
+			ref->magic = 0;
+			guard->magic = 0;
+#endif /* DEBUG */
 			free(block);
 		}
+		if (ref->refcount < 0)
+			fprintf(stderr, "*** %s(): %p refcount %d ***\n",
+				__FUNCTION__, p, ref->refcount);
 	}
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s(%p) }\n", __FUNCTION__, p);
 }
