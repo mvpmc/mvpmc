@@ -117,6 +117,11 @@ struct mvpmod_iocrw {
 #define VIDEO_SEG2           VIDEO_DCR_BASE + 0x37
 #define VIDEO_SEG3           VIDEO_DCR_BASE + 0x38
 #define VIDEO_FRAME_BUF      VIDEO_DCR_BASE + 0x39
+#define VIDEO_UNKNOWN_3A     VIDEO_DCR_BASE + 0x3a
+#define VIDEO_LETTERBOX_OFFSET     VIDEO_DCR_BASE + 0x3b
+#define VIDEO_UNKNOWN_3C     VIDEO_DCR_BASE + 0x3c
+#define VIDEO_UNKNOWN_3D     VIDEO_DCR_BASE + 0x3d
+#define VIDEO_UNKNOWN_3E     VIDEO_DCR_BASE + 0x3e
 #define VIDEO_RB_SIZE        VIDEO_DCR_BASE + 0x3f
 
 

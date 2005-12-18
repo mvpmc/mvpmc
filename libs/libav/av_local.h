@@ -39,4 +39,6 @@ extern av_aspect_t aspect;
 extern int init_mtd1(void);
 extern int set_output_method(void);
 
+#define AV_DEBUG(x) printf("%s: %s\n", __FUNCTION__,(x));fflush(stdout);
+
 #endif /* AV_LOCAL_H */

@@ -468,6 +468,8 @@ parse_video_frame(demux_handle_t *handle, unsigned char *buf, int len)
 				vi = &handle->attr.video.stats.info.video;
 				vi->width = w;
 				vi->height = h;
+				if(aspect != vi->aspect || pts < vi->aspect_pts)
+				    vi->aspect_pts = pts;
 				vi->aspect = aspect;
 				vi->frame_rate = frame_rate;
 				ret = 0;

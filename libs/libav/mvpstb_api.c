@@ -124,6 +124,22 @@ int dcr_write(unsigned long regaddr, unsigned int data)
 }
 
 /*******************************************************************************
+   Name:  mvpstb_set_lbox_offset
+   Description: Sets the offset for letterboxed output, seems to be in
+   		lines per field
+   Return:      
+*******************************************************************************/  
+int mvpstb_set_lbox_offset(unsigned int offset)
+{
+    return(dcr_write(VIDEO_LETTERBOX_OFFSET,offset));
+}
+
+int mvpstb_get_lbox_offset(unsigned int *offset)
+{
+    return(dcr_read(VIDEO_LETTERBOX_OFFSET,offset));
+}
+
+/*******************************************************************************
    Name:  mvpmod_start_audit
    Description: 
    Return:      

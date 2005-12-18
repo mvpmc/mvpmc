@@ -55,9 +55,11 @@ av_init(void)
 	if (init_mtd1() < 0)
 		return -1;
 
-	if ((fd_video=open("/dev/vdec_dev", O_RDWR|O_NONBLOCK)) < 0)
+    	if (fd_video < 0 )
+	    if ((fd_video=open("/dev/vdec_dev", O_RDWR|O_NONBLOCK)) < 0)
 		return -1;
-	if ((fd_audio=open("/dev/adec_mpg", O_RDWR|O_NONBLOCK)) < 0)
+	if (fd_audio < 0)
+	    if ((fd_audio=open("/dev/adec_mpg", O_RDWR|O_NONBLOCK)) < 0)
 		return -1;
 
 	ioctl(fd_video, AV_SET_VID_DENC, 1);

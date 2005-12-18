@@ -54,6 +54,9 @@ typedef enum {
 	AV_ASPECT_16x9_AUTO = 3
 } av_aspect_t;
 
+#define IS_16x9(x) ((x)== AV_ASPECT_16x9 || (x) == AV_ASPECT_16x9_AUTO)
+#define IS_4x3(x) ((x)== AV_ASPECT_4x3 || (x) == AV_ASPECT_4x3_CCO)
+
 typedef enum {
 	AV_AUDIO_STREAM_ES,
 	AV_AUDIO_STREAM_PCM,
@@ -174,5 +177,7 @@ int mvpstb_set_video_sync(int on);
 int mvpstb_set_audio_sync(int on);
 int mvpmod_start_audit(unsigned long interval_ms);
 int mvpmod_stop_audit(void);
+int mvpstb_set_lbox_offset(unsigned int offset);
+int mvpstb_get_lbox_offset(unsigned int *offset);
 
 #endif /* MVP_AV_H */

@@ -31,7 +31,8 @@
 #include "stb.h"
 #include "av_local.h"
 
-static av_aspect_t letterbox = 0;
+static av_aspect_t vid_aspect = 0;
+static vid_disp_mode_t vid_dispmode = 0;
 static int output = -1;
 
 static av_audio_output_t audio_output = AV_AUDIO_MPEG;
@@ -168,6 +169,21 @@ av_get_output(void)
 	return output;
 }
 
+int
+av_init_letterbox(void)
+{
+    int height,y;
+    if(av_get_mode() == AV_MODE_PAL)
+	height = 576;
+    else
+	height = 480;
+    y = (((height*4)/16))/2;
+    /* STB seems to want offset/field, rather than offset/frame */
+    y /=2;
+    return mvpstb_set_lbox_offset(y);
+}
+
+
 /*
  * av_set_video_aspect() - set the aspect ratio of the video being played
  *
@@ -180,9 +196,11 @@ av_get_output(void)
 int
 av_set_video_aspect(av_aspect_t wide)
 {
-	letterbox = wide;
-
-	return 0;
+    /* Don't actually need to do anything with this, but store the value
+     * for potential future use
+     */
+    vid_aspect = wide;
+    return 0;
 }
 
 /*
@@ -197,7 +215,7 @@ av_set_video_aspect(av_aspect_t wide)
 av_aspect_t
 av_get_video_aspect(void)
 {
-	return letterbox;
+	return vid_aspect;
 }
 
 /*
@@ -249,21 +267,34 @@ av_set_mode(av_mode_t mode)
 int
 av_set_aspect(av_aspect_t ratio)
 {
-  	if ((ratio != AV_ASPECT_4x3) && (ratio != AV_ASPECT_16x9) &&
-	    (ratio != AV_ASPECT_4x3_CCO) && (ratio != AV_ASPECT_16x9_AUTO))
-		return -1;
-
-	if ((ratio == AV_ASPECT_16x9) || (ratio == AV_ASPECT_16x9_AUTO)) {
-		if (ioctl(fd_video, AV_SET_VID_RATIO, AV_ASPECT_16x9) < 0)
-			return -1;
-	} else {
-		if (ioctl(fd_video, AV_SET_VID_RATIO, AV_ASPECT_4x3) < 0)
-			return -1;
-	}
-
-	aspect = ratio;
-
-	return 0;
+    vid_disp_mode_t new_dispmode;
+    av_aspect_t new_display_aspect;
+    switch(ratio)
+    {
+	case AV_ASPECT_16x9:
+	case AV_ASPECT_16x9_AUTO:
+	    new_display_aspect = AV_ASPECT_16x9;
+	    new_dispmode = VID_DISPMODE_NORM;
+	    break;
+	case AV_ASPECT_4x3_CCO:
+	    new_dispmode = VID_DISPMODE_NORM;
+	    new_display_aspect = AV_ASPECT_4x3;
+	    break;
+	case AV_ASPECT_4x3:
+	    av_init_letterbox();
+	    new_dispmode = VID_DISPMODE_LETTERBOX;
+	    new_display_aspect = AV_ASPECT_4x3;
+	    break;
+	default:
+	    return -1;
+    }
+    if (ioctl(fd_video, AV_SET_VID_RATIO, new_display_aspect) < 0)
+	return -1;
+    if (ioctl(fd_video, AV_SET_VID_MODE, new_dispmode) < 0)
+	return -1;
+    aspect = ratio;
+    vid_dispmode = new_dispmode;
+    return 0;
 }
 
 /*
@@ -657,7 +688,7 @@ av_move(int x, int y, int video_mode)
 	ioctl(fd_video, AV_SET_VID_POSITION, &pos_d);
 	
 	if (video_mode == 0)
-		ioctl(fd_video, AV_SET_VID_MODE, letterbox);
+		ioctl(fd_video, AV_SET_VID_MODE, vid_dispmode);
 	else
 		ioctl(fd_video, AV_SET_VID_MODE, video_mode);
 
