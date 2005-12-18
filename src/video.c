@@ -58,6 +58,7 @@ struct timeval      done_tv;
 #endif 
 
 #define SEEK_FUDGE	2
+#define ASPECT_FUDGE	0
 
 static char inbuf_static[VIDEO_BUFF_SIZE * 3 / 2];
 static char tsbuf_static[VIDEO_BUFF_SIZE]; 
@@ -1400,58 +1401,50 @@ video_read_start(void *arg)
 		}
 
 		if(vi->aspect != current_aspect || set_aspect) {
-		  printf("Aspect: %d\n", vi->aspect);
-		  if (vi->aspect != 0) {
+		  int do_change = 1;
+		  pts_sync_data_t pts;
+
+		  /*If we're not in here for the first time wait until
+		   *the System Time Clock of the video decoder reaches the 
+		   *defined Presentation Time Stamp of the aspect change
+		   */
+		  if(!set_aspect)
+		  {
+		      get_video_sync(&pts);
+		      if(vi->aspect_pts > pts.stc + ASPECT_FUDGE)
+			  do_change = 0;
+		  }
+		  if (do_change)
+		  {
+		    printf("Changing to aspect %d at 0x%llx\n",vi->aspect,pts.stc);
+		    if (vi->aspect != 0) {
+			/* av_set_video_aspect is a bit of a no-op nowadays...
+			 * do it anyway incase libav needs to know the video
+			 * aspect in future*/
 			if (vi->aspect == 3) {
 			        printf("Source video aspect ratio: 16:9\n");
-			        switch (av_get_aspect()) {
-				case AV_ASPECT_16x9:
-				     printf("Setting output to 16:9\n");
-				     av_set_video_aspect(1);
-				     break;
-				case AV_ASPECT_16x9_AUTO:
-				     printf("Setting output to 16:9 Full Height Anamorphic with 16:9 WSS Widget\n");
-				     av_set_video_aspect(7);     // 16:9 full-height anamorphic output
+				av_set_video_aspect(AV_ASPECT_16x9);
+				if(av_get_aspect() == AV_ASPECT_16x9_AUTO)
+				{
+				     printf("Switching WSS signal\n");
 				     mvpw_hide(wss_4_3_image);
 				     mvpw_show(wss_16_9_image);
-				     break;
-
-				case AV_ASPECT_4x3_CCO:
-				     printf("Setting output to 4:3 Centre-Cut-Out\n");
-				     av_set_video_aspect(0);    // 4:3 Centre-cut-out output
-				     break;
-
-				case AV_ASPECT_4x3:
-				default:
-				     printf("Setting output to 16:9 Letterbox in 4:3 Raster\n");
-				     av_set_video_aspect(1);    // 16:9 Letterbox in a 4:3 Raster output
-				     av_move(0, 59, 0);
-				     break;
 				}
-
 			} else {
 			        printf("Source video aspect ratio: 4:3\n");
-				switch (av_get_aspect()) {
-				case AV_ASPECT_16x9:
-				     printf("Setting output to 16:9\n");
-				     av_set_video_aspect(1);
-				     break;
-				case AV_ASPECT_16x9_AUTO:
-				     printf("Setting output to 4:3 Full Height with 4:3 WSS Widget\n");
-				     av_set_video_aspect(0);     // 16:9 full-height anamorphic output
+				av_set_video_aspect(AV_ASPECT_4x3);
+				if(av_get_aspect() == AV_ASPECT_16x9_AUTO)
+				{
+				     printf("Switching WSS signal\n");
 				     mvpw_hide(wss_16_9_image);
 				     mvpw_show(wss_4_3_image);
-				     break;
-				default:
-				     printf("Setting output to 4:3\n");
-				     av_set_video_aspect(0);
-				     break;
 				}
 			}
 			current_aspect = vi->aspect;
 			set_aspect = 0;
-		  } else {
-		    printf("Video aspect reported as ZERO - not changing setting\n");
+		    } else {
+		        printf("Video aspect reported as ZERO - not changing setting\n");
+		    }
 		  }
 		}
 	} //while

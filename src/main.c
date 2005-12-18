@@ -323,7 +323,8 @@ main(int argc, char **argv)
 {
 	int c, i;
 	char *font = NULL;
-	int mode = -1, output = -1, aspect = -1;
+	int mode = -1, output = -1;
+	int aspect = AV_ASPECT_4x3;
 	int width, height;
 	uint32_t accel = MM_ACCEL_DJBFFT;
 	char *theme_file = NULL;
@@ -370,6 +371,7 @@ main(int argc, char **argv)
 	}
 #endif
 	memset(config, 0, sizeof(*config));
+	config->firsttime = 1;
 	config->magic = CONFIG_MAGIC;
 
 	/*
@@ -616,11 +618,18 @@ main(int argc, char **argv)
 		fprintf(stderr, "failed to initialize av hardware!\n");
 		exit(1);
 	}
-   
+
 	/*
 	 * Update the config settings from the shared memory region.
 	 */
 	set_config();
+
+	if(config->firsttime)
+	{
+	    config->firsttime = 0;
+	    fprintf(stderr,"Re-starting to convince aspect ratio stuff to work...\n");
+	    re_exec();
+	}
 
 	if (rtv_init_str) {
 		replaytv_init(rtv_init_str);

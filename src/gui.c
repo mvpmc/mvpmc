@@ -2859,7 +2859,8 @@ settings_av_mode_callback(mvp_widget_t *widget, char *item, void *key)
 static void
 settings_av_aspect_callback(mvp_widget_t *widget, char *item, void *key)
 {
-	if ((av_aspect_t)key == av_get_aspect())
+	av_aspect_t old_aspect = av_get_aspect();
+	if ((av_aspect_t)key == old_aspect)
 		return;
 	if (((av_aspect_t)key != AV_ASPECT_4x3) &&
 	    ((av_aspect_t)key != AV_ASPECT_4x3_CCO) &&
@@ -2873,6 +2874,10 @@ settings_av_aspect_callback(mvp_widget_t *widget, char *item, void *key)
 
 	config->av_aspect = (int)key;
 	config->bitmask |= CONFIG_ASPECT;
+	if(IS_4x3(old_aspect) && IS_16x9((av_aspect_t)key))
+	    re_exec();
+	if(IS_16x9(old_aspect) && IS_4x3((av_aspect_t)key))
+	    re_exec();
 }
 
 static void

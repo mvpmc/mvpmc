@@ -227,10 +227,29 @@ static unsigned int dcr_get(unsigned long reg)
 
    rc = dcr_read(reg, &data);
    if ( rc ) {
-      printf("ERROR: %s: rc=%d: %s\n", __FUNCTION__, errno, strerror(errno));
+      printf("ERROR: %s: rc=%d, errno=%d: %s\n", __FUNCTION__, rc, errno, strerror(errno));
       return(0);
    }
    return(data);
+}
+
+static int reg_set(int argc, char **argv)
+{
+    unsigned long addr;
+    unsigned int value;
+    int rc;
+    if ( argc != 3 ) {
+      PRT( "   %s  reg value\n",argv[0]);
+      return(0);
+    }
+
+    addr = STRTOHEX(argv[1]);
+    value = STRTOHEX(argv[2]);
+    rc = dcr_write(addr,value);
+    if ( rc ) {
+      printf("ERROR: %s: rc=%d, errno=%d: %s\n", __FUNCTION__, rc, errno, strerror(errno));;
+    }
+    return(rc);
 }
 
 #define DCR_READ_PRT(x) printf("%-20s (%04x) = 0x%08x\n", ""#x"", x, dcr_get(x))
@@ -268,6 +287,7 @@ static int video_reg_dmp(int argc, char **argv)
    DCR_READ_PRT(VIDEO_VCLIP_LEN);
    DCR_READ_PRT(VIDEO_BLOCK_SIZE);
    DCR_READ_PRT(VIDEO_SRC_ADR);
+   DCR_READ_PRT(VIDEO_USERDATA_BASE);
    DCR_READ_PRT(VIDEO_VBI_BASE);
    DCR_READ_PRT(VIDEO_UNKNOWN_2D);
    DCR_READ_PRT(VIDEO_UNKNOWN_2E);
@@ -280,7 +300,11 @@ static int video_reg_dmp(int argc, char **argv)
    DCR_READ_PRT(VIDEO_SEG1);
    DCR_READ_PRT(VIDEO_SEG2);
    DCR_READ_PRT(VIDEO_SEG3);
-   DCR_READ_PRT(VIDEO_USERDATA_BASE);
+   DCR_READ_PRT(VIDEO_UNKNOWN_3A);
+   DCR_READ_PRT(VIDEO_LETTERBOX_OFFSET);
+   DCR_READ_PRT(VIDEO_UNKNOWN_3C);
+   DCR_READ_PRT(VIDEO_UNKNOWN_3D);
+   DCR_READ_PRT(VIDEO_UNKNOWN_3E);
    DCR_READ_PRT(VIDEO_RB_SIZE);
    DCR_READ_PRT(VIDEO_FRAME_BUF);
 
@@ -851,6 +875,7 @@ static void interpExport (char *cmdName,
 static void initDebug (void)
 {
    interpExport("mm",          mem_ops,           0, MAX_PARMS, "read/write kernel space");
+   interpExport("regset",      reg_set,           0, MAX_PARMS, "set register");
    interpExport("vdmp",        video_reg_dmp,     0, MAX_PARMS, "dump video registers");
    interpExport("admp",        audio_reg_dmp,     0, MAX_PARMS, "dump audio registers");
    interpExport("avp",         dmp_avpos,         0, MAX_PARMS, "Audio/Video position registers");
