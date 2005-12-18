@@ -1305,7 +1305,9 @@ video_read_start(void *arg)
 			  if (tslen > 0) {
                             tsmode = ts_demux_is_ts(tshandle, tsbuf, tslen);
 			    printf("auto detection transport stream returned %d\n", tsmode);
-                          }
+			    if (tsmode == TS_MODE_NO)
+			      len = tslen;
+			  }
 			} else if (tsmode == TS_MODE_NO) {
 			  len = tslen;
 			} else {
