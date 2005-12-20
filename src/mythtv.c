@@ -1815,7 +1815,7 @@ mythtv_proginfo(char *buf, int size)
 	char airdate[256], start[256], end[256];
 	char *ptr;
 	char *title, *subtitle, *description, *category, *channame;
-	char *seriesid, *programid, *stars;
+	char *seriesid, *programid, *stars, *recgroup;
 	cmyth_proginfo_t hi_prog = cmyth_hold(hilite_prog);
 
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
@@ -1845,6 +1845,7 @@ mythtv_proginfo(char *buf, int size)
 	seriesid = cmyth_proginfo_seriesid(hi_prog);
 	programid = cmyth_proginfo_programid(hi_prog);
 	stars = cmyth_proginfo_stars(hi_prog);
+	recgroup = cmyth_proginfo_recgroup(hi_prog);
 	snprintf(buf, size,
 		 "Title: %s\n"
 		 "Subtitle: %s\n"
@@ -1853,6 +1854,7 @@ mythtv_proginfo(char *buf, int size)
 		 "End: %s\n"
 		 "Original Air Date: %s\n"
 		 "Category: %s\n"
+		 "Recording Group: %s\n"
 		 "Channel: %s\n"
 		 "Series ID: %s\n"
 		 "Program ID: %s\n"
@@ -1864,6 +1866,7 @@ mythtv_proginfo(char *buf, int size)
 		 end,
 		 airdate,
 		 category,
+		 recgroup,
 		 channame,
 		 seriesid,
 		 programid,
@@ -1876,6 +1879,7 @@ mythtv_proginfo(char *buf, int size)
 	cmyth_release(seriesid);
 	cmyth_release(programid);
 	cmyth_release(stars);
+	cmyth_release(recgroup);
 	cmyth_release(hi_prog);
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) 0}\n",
 		    __FUNCTION__, __FILE__, __LINE__);
