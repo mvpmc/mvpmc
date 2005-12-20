@@ -2149,3 +2149,14 @@ cmyth_proginfo_card_id(cmyth_proginfo_t prog)
 
 	return prog->proginfo_card_id;
 }
+
+char *
+cmyth_proginfo_recgroup(cmyth_proginfo_t prog)
+{
+	if (!prog) {
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: NULL program information\n",
+			  __FUNCTION__);
+		return NULL;
+	}
+	return cmyth_hold(prog->proginfo_recgroup);
+}
