@@ -172,6 +172,9 @@ key(mvp_widget_t *widget, char c)
 	void *k;
 	char *str;
 
+	if (widget->data.menu.nitems == 0)
+		return;
+
 	switch (c) {
 #ifdef MVPW_KEY_RED
 	case MVPW_KEY_RED:
@@ -189,6 +192,16 @@ key(mvp_widget_t *widget, char c)
 			change_items(widget, i);
 
 			hilite_item(widget, i, 1);
+		}
+		else
+		{
+		    hilite_item(widget,widget->data.menu.current,0);
+		    widget->data.menu.current = widget->data.menu.nitems -1;
+		    j = widget->data.menu.nitems - widget->data.menu.rows;
+		    if(j < 0)
+			j = 0;
+		    change_items(widget,j);
+		    hilite_item(widget,widget->data.menu.current,1);
 		}
 		break;
 #ifdef MVPW_KEY_YELLOW
@@ -214,13 +227,21 @@ key(mvp_widget_t *widget, char c)
 
 			hilite_item(widget, i, 1);
 		}
+		else
+		{
+		    hilite_item(widget,widget->data.menu.current,0);
+		    widget->data.menu.current = 0;
+		    change_items(widget,widget->data.menu.current);
+		    hilite_item(widget,widget->data.menu.current,1);
+		}
 		break;
 	case MVPW_KEY_UP:
-		if (widget->data.menu.current > 0) {
 			i = widget->data.menu.current - 1;
-			while ((i >= 0) &&
-			       !(widget->data.menu.items[i].selectable)) {
-				i--;
+			while ((i < 0)
+				  || !(widget->data.menu.items[i].selectable)) {
+			    if(i < 0)
+				i = widget->data.menu.nitems;
+			    i--;
 			}
 			hilite_item(widget, widget->data.menu.current, 0);
 
@@ -228,16 +249,21 @@ key(mvp_widget_t *widget, char c)
 
 			i = widget->data.menu.current;
 			if (widget->data.menu.items[i].widget == NULL)
-				change_items(widget, i);
+			{
+				j = i;
+				if(j > widget->data.menu.nitems - widget->data.menu.rows)
+				    j = widget->data.menu.nitems - widget->data.menu.rows;
+				change_items(widget, j);
+			}
 
 			hilite_item(widget, i, 1);
-		}
 		break;
 	case MVPW_KEY_DOWN:
-		if (widget->data.menu.current < (widget->data.menu.nitems-1)) {
 			i = widget->data.menu.current + 1;
-			while ((i < widget->data.menu.nitems) &&
+			while ((i >= widget->data.menu.nitems) ||
 			       !(widget->data.menu.items[i].selectable)) {
+				if( i >= widget->data.menu.nitems)
+				    i = -1;
 				i++;
 			}
 			if (i >= widget->data.menu.nitems)
@@ -249,11 +275,14 @@ key(mvp_widget_t *widget, char c)
 
 			i = widget->data.menu.current;
 			if (widget->data.menu.items[i].widget == NULL)
-				change_items(widget,
-					     i - widget->data.menu.rows + 1);
+			{
+				j = i - widget->data.menu.rows + 1;
+				if(j < 0)
+				    j = 0;
+				change_items(widget,j);
+			}
 
 			hilite_item(widget, i, 1);
-		}
 		break;
 	case MVPW_KEY_OK:
 		if (widget->data.menu.current < widget->data.menu.nitems) {
