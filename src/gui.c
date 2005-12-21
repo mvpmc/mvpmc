@@ -2874,10 +2874,12 @@ settings_av_aspect_callback(mvp_widget_t *widget, char *item, void *key)
 
 	config->av_aspect = (int)key;
 	config->bitmask |= CONFIG_ASPECT;
+#ifndef MVPMC_HOST
 	if(IS_4x3(old_aspect) && IS_16x9((av_aspect_t)key))
 	    re_exec();
 	if(IS_16x9(old_aspect) && IS_4x3((av_aspect_t)key))
 	    re_exec();
+#endif
 }
 
 static void

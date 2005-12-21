@@ -82,7 +82,9 @@ typedef struct {
 	int			playback_osd;
 	int			playback_pause;
 	int			mythtv_sort;
+#ifndef MVPMC_HOST
 	int			firsttime;/*First run since powerup?*/
+#endif
 } config_t;
 
 extern config_t *config;

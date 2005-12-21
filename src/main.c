@@ -371,7 +371,9 @@ main(int argc, char **argv)
 	}
 #endif
 	memset(config, 0, sizeof(*config));
+#ifndef MVPMC_HOST
 	config->firsttime = 1;
+#endif
 	config->magic = CONFIG_MAGIC;
 
 	/*
@@ -624,12 +626,14 @@ main(int argc, char **argv)
 	 */
 	set_config();
 
+#ifndef MVPMC_HOST
 	if(config->firsttime)
 	{
 	    config->firsttime = 0;
 	    fprintf(stderr,"Re-starting to convince aspect ratio stuff to work...\n");
 	    re_exec();
 	}
+#endif
 
 	if (rtv_init_str) {
 		replaytv_init(rtv_init_str);
