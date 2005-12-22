@@ -40,6 +40,7 @@
 
 #include "mvpmc.h"
 #include "replaytv.h"
+#include "config.h"
 
 #if 0
 #define PRINTF(x...) printf(x)
@@ -260,6 +261,7 @@ video_play(mvp_widget_t *widget)
 
 	video_set_root();
 
+	av_set_aspect(config->av_aspect);
 	muted = 0;
 	paused = 0;
 	video_reopen = 1;
@@ -799,7 +801,12 @@ video_callback(mvp_widget_t *widget, char key)
 		break;
 	case MVPW_KEY_FULL:
 	case MVPW_KEY_PREV_CHAN:
-		av_set_video_aspect(1-av_get_video_aspect());
+		if(IS_4x3(av_get_aspect())) {
+			if(av_get_aspect() == AV_ASPECT_4x3_CCO)
+				av_set_aspect(AV_ASPECT_4x3);
+			else
+				av_set_aspect(AV_ASPECT_4x3_CCO);
+		}
 		break;
 	case MVPW_KEY_CHAN_UP:
 	case MVPW_KEY_UP:
