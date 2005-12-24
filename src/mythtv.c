@@ -154,6 +154,8 @@ int mythtv_tcp_program = 0;
 int mythtv_sort = 0;
 int mythtv_sort_dirty = 1;
 
+show_sort_t show_sort = SHOW_TITLE;
+
 static video_callback_t mythtv_functions = {
 	.open      = mythtv_open,
 	.read      = mythtv_read,
@@ -746,7 +748,7 @@ episode_index(cmyth_proginfo_t episode)
 static void
 add_episodes(mvp_widget_t *widget, char *item, int load)
 {
-	char *title, *subtitle;
+	char *name, *title, *subtitle;
 	int count, i, n = 0, episodes = 0;
 	char buf[256];
 	char *prog;
@@ -797,22 +799,32 @@ add_episodes(mvp_widget_t *widget, char *item, int load)
 		} else { 
 			ep_prog = cmyth_proglist_get_item(episode_plist, i);
 		}
+
 		title = cmyth_proginfo_title(ep_prog);
+
+		switch (show_sort) {
+		case SHOW_TITLE:
+			name = cmyth_hold(title);
+			break;
+		case SHOW_CATEGORY:
+			name = cmyth_proginfo_category(ep_prog);
+			break;
+		case SHOW_RECGROUP:
+			name = cmyth_proginfo_recgroup(ep_prog);
+			break;
+		default:
+			name = NULL;
+			break;
+		}
+
 		subtitle = cmyth_proginfo_subtitle(ep_prog);
 
-		if (strcmp(title, prog) == 0) {
+		if ((name == title) && (strcmp(name, prog) == 0)) {
 			list_all = 0;
 			if ((strcmp(subtitle, " ") == 0) ||
 			    (subtitle[0] == '\0'))
 				subtitle = cmyth_strdup("<no subtitle>");
 			mvpw_add_menu_item(widget, (char*)subtitle, (void*)n,
-					   &item_attr);
-			episodes++;
-		} else if (strcmp(prog, "All - Oldest first") == 0) {
-			list_all = 1;
-			snprintf(full, sizeof(full), "%s - %s",
-				 title, subtitle);
-			mvpw_add_menu_item(widget, full, (void*)n,
 					   &item_attr);
 			episodes++;
 		} else if (strcmp(prog, "All - Newest first") == 0) {
@@ -822,7 +834,16 @@ add_episodes(mvp_widget_t *widget, char *item, int load)
 			mvpw_add_menu_item(widget, full, (void*)count-n-1,
 					   &item_attr);
 			episodes++;
+		} else if ((strcmp(prog, "All - Oldest first") == 0) ||
+			   ((name != title) && (strcmp(name, prog) == 0))) {
+			list_all = 1;
+			snprintf(full, sizeof(full), "%s - %s",
+				 title, subtitle);
+			mvpw_add_menu_item(widget, full, (void*)n,
+					   &item_attr);
+			episodes++;
 		}
+		cmyth_release(name);
 		cmyth_release(title);
 		cmyth_release(subtitle);
 		cmyth_release(ep_prog);
@@ -870,7 +891,23 @@ add_shows(mvp_widget_t *widget)
 	ep_list  = cmyth_hold(episode_plist);
 	for (i = 0; i < count; ++i) {
 		cmyth_proginfo_t prog = cmyth_proglist_get_item(ep_list, i);
-		char *title = cmyth_proginfo_title(prog);
+		char *title;
+
+		switch (show_sort) {
+		case SHOW_TITLE:
+			title = cmyth_proginfo_title(prog);
+			break;
+		case SHOW_CATEGORY:
+			title = cmyth_proginfo_category(prog);
+			break;
+		case SHOW_RECGROUP:
+			title = cmyth_proginfo_recgroup(prog);
+			break;
+		default:
+			title = NULL;
+			break;
+		}
+
 		for (j=0; j<n; j++)
 			if (strcmp(title, titles[j]) == 0)
 				break;
@@ -960,7 +997,18 @@ mythtv_update(mvp_widget_t *widget)
 	mvpw_clear_menu(widget);
 	add_shows(widget);
 
-	snprintf(buf, sizeof(buf), "Total shows: %d", show_count);
+	switch (show_sort) {
+	case SHOW_TITLE:
+		snprintf(buf, sizeof(buf), "Total shows: %d", show_count);
+		break;
+	case SHOW_CATEGORY:
+		snprintf(buf, sizeof(buf), "Total categories: %d", show_count);
+		break;
+	case SHOW_RECGROUP:
+		snprintf(buf, sizeof(buf), "Total recording groups: %d",
+			 show_count);
+		break;
+	}
 	mvpw_set_text_str(shows_widget, buf);
 	snprintf(buf, sizeof(buf), "Total episodes: %d", episode_count);
 	mvpw_set_text_str(episodes_widget, buf);

@@ -59,6 +59,12 @@ typedef enum {
 	MYTHTV_SORT_ORIGINAL_AIRDATE,
 } mvp_myth_sort;
 
+typedef enum {
+	SHOW_TITLE,
+	SHOW_CATEGORY,
+	SHOW_RECGROUP,
+} show_sort_t;
+
 typedef struct {
 	int type;
 	int visible;
@@ -435,4 +441,6 @@ extern void mythtv_browser_expose(mvp_widget_t *widget);
 extern void start_thruput_test(void);
 extern void end_thruput_test(void);
 extern mvp_widget_t *thruput_widget;
+
+extern show_sort_t show_sort;
 #endif /* MVPMC_H */

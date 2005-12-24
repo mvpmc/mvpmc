@@ -256,6 +256,7 @@ static mvpw_menu_attr_t mythtv_popup_attr = {
 	.border = MVPW_DARKGREY2,
 	.border_size = 2,
 	.margin = 4,
+	.checkbox_fg = MVPW_PURPLE,
 };
 
 static mvpw_text_attr_t mythtv_info_attr = {
@@ -997,6 +998,9 @@ enum {
 	MYTHTV_POPUP_FILTER,
 	MYTHTV_POPUP_UPCOMING,
 	MYTHTV_POPUP_THRUPUT,
+	MYTHTV_POPUP_LIST_TITLE,
+	MYTHTV_POPUP_LIST_CATEGORY,
+	MYTHTV_POPUP_LIST_RECGROUP,
 	MYTHTV_POPUP_TUNER,		/* needs to be last */
 };
 
@@ -1817,6 +1821,33 @@ mythtv_popup_select_callback(mvp_widget_t *widget, char *item, void *key)
 		start_thruput_test();
 		mythtv_thruput();
 		break;
+	case MYTHTV_POPUP_LIST_TITLE:
+		show_sort = SHOW_TITLE;
+		mvpw_check_menu_item(widget, key, 1);
+		mvpw_check_menu_item(widget,
+				     (void*)MYTHTV_POPUP_LIST_CATEGORY, 0);
+		mvpw_check_menu_item(widget,
+				     (void*)MYTHTV_POPUP_LIST_RECGROUP, 0);
+		mythtv_update(mythtv_browser);
+		break;
+	case MYTHTV_POPUP_LIST_CATEGORY:
+		show_sort = SHOW_CATEGORY;
+		mvpw_check_menu_item(widget, key, 1);
+		mvpw_check_menu_item(widget,
+				     (void*)MYTHTV_POPUP_LIST_TITLE, 0);
+		mvpw_check_menu_item(widget,
+				     (void*)MYTHTV_POPUP_LIST_RECGROUP, 0);
+		mythtv_update(mythtv_browser);
+		break;
+	case MYTHTV_POPUP_LIST_RECGROUP:
+		show_sort = SHOW_RECGROUP;
+		mvpw_check_menu_item(widget, key, 1);
+		mvpw_check_menu_item(widget,
+				     (void*)MYTHTV_POPUP_LIST_CATEGORY, 0);
+		mvpw_check_menu_item(widget,
+				     (void*)MYTHTV_POPUP_LIST_TITLE, 0);
+		mythtv_update(mythtv_browser);
+		break;
 	}
 }
 
@@ -1882,6 +1913,26 @@ mythtv_set_popup_menu(mythtv_state_t state)
 		mythtv_popup = mythtv_popup_check;
 		break;
 	case MYTHTV_STATE_PROGRAMS:
+		mvpw_set_menu_title(mythtv_popup_check, "Programs Menu");
+		mvpw_clear_menu(mythtv_popup_check);
+		mythtv_popup_item_attr.select = mythtv_popup_select_callback;
+		mythtv_popup_item_attr.fg = mythtv_popup_attr.fg;
+		mythtv_popup_item_attr.bg = mythtv_popup_attr.bg;
+		mythtv_popup_item_attr.selectable = 1;
+		mythtv_popup_item_attr.checkbox_fg = mythtv_popup_attr.checkbox_fg;
+		mvpw_add_menu_item(mythtv_popup_check, "Sort By Title",
+				   (void*)MYTHTV_POPUP_LIST_TITLE,
+				   &mythtv_popup_item_attr);
+		mvpw_add_menu_item(mythtv_popup_check, "Sort By Category",
+				   (void*)MYTHTV_POPUP_LIST_CATEGORY,
+				   &mythtv_popup_item_attr);
+		mvpw_add_menu_item(mythtv_popup_check, "Sort By Recording Group",
+				   (void*)MYTHTV_POPUP_LIST_RECGROUP,
+				   &mythtv_popup_item_attr);
+		mvpw_check_menu_item(mythtv_popup_check,
+				     (void*)(MYTHTV_POPUP_LIST_TITLE+show_sort),
+				     1);
+		mythtv_popup = mythtv_popup_check;
 		break;
 	case MYTHTV_STATE_EPISODES:
 		mvpw_set_menu_title(mythtv_popup_nocheck, "Recording Menu");
@@ -1961,8 +2012,7 @@ mythtv_key_callback(mvp_widget_t *widget, char key)
 	if ((key == MVPW_KEY_MENU) &&
 	    (mythtv_state == MYTHTV_STATE_EPISODES)) {
 		printf("mythtv popup menu\n");
-		if (mythtv_popup == NULL)
-			mythtv_set_popup_menu(mythtv_state);
+		mythtv_set_popup_menu(mythtv_state);
 		mvpw_show(mythtv_popup);
 		mvpw_focus(mythtv_popup);
 	}
@@ -1976,6 +2026,13 @@ mythtv_key_callback(mvp_widget_t *widget, char key)
 
 	if ((key == MVPW_KEY_MENU) &&
 	    (mythtv_state == MYTHTV_STATE_PENDING)) {
+		mythtv_set_popup_menu(mythtv_state);
+		mvpw_show(mythtv_popup_check);
+		mvpw_focus(mythtv_popup_check);
+	}
+
+	if ((key == MVPW_KEY_MENU) &&
+	    (mythtv_state == MYTHTV_STATE_PROGRAMS)) {
 		mythtv_set_popup_menu(mythtv_state);
 		mvpw_show(mythtv_popup_check);
 		mvpw_focus(mythtv_popup_check);
