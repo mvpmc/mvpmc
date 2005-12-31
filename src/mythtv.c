@@ -705,7 +705,20 @@ episode_exists(char *title)
 
 	for (i = 0; i < count; ++i) {
 		prog = cmyth_proglist_get_item(ep_list, i);
-		t = cmyth_proginfo_title(prog);
+		switch (show_sort) {
+		case SHOW_TITLE:
+			t = cmyth_proginfo_title(prog);
+			break;
+		case SHOW_CATEGORY:
+			t = cmyth_proginfo_category(prog);
+			break;
+		case SHOW_RECGROUP:
+			t = cmyth_proginfo_recgroup(prog);
+			break;
+		default:
+			t = NULL;
+			break;
+		}
 		cmyth_release(prog);
 		if (strcmp(title, t) == 0) {
 			cmyth_dbg(CMYTH_DBG_DEBUG,
@@ -836,7 +849,10 @@ add_episodes(mvp_widget_t *widget, char *item, int load)
 			episodes++;
 		} else if ((strcmp(prog, "All - Oldest first") == 0) ||
 			   ((name != title) && (strcmp(name, prog) == 0))) {
-			list_all = 1;
+			if (strcmp(prog, "All - Oldest first") == 0)
+				list_all = 1;
+			else
+				list_all = 0;
 			snprintf(full, sizeof(full), "%s - %s",
 				 title, subtitle);
 			mvpw_add_menu_item(widget, full, (void*)n,
@@ -962,7 +978,17 @@ mythtv_update(mvp_widget_t *widget)
 		char *title = NULL;
 		int count;
 
-		title=cmyth_proginfo_title(hi_prog);
+		switch (show_sort) {
+		case SHOW_TITLE:
+			title=cmyth_proginfo_title(hi_prog);
+			break;
+		case SHOW_CATEGORY:
+			title=cmyth_proginfo_category(hi_prog);
+			break;
+		case SHOW_RECGROUP:
+			title=cmyth_proginfo_recgroup(hi_prog);
+			break;
+		}
 		cmyth_release(hi_prog);
 		if (!list_all)
 			fprintf(stderr, "checking for more episodes of '%s'\n",
