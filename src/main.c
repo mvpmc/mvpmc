@@ -511,6 +511,8 @@ main(int argc, char **argv)
 			break;
 		case 's':
 			mythtv_server = strdup(optarg);
+			strcpy(config->mythtv_ip, optarg);
+			config->bitmask |= CONFIG_MYTHTV_IP;
 			break;
 		case 'D':
 			if (sscanf(optarg, "%[^:]:%d", vnc_server, &vnc_port) != 2) {
@@ -545,6 +547,8 @@ main(int argc, char **argv)
 		case 'c':
 			mclient_type = MCLIENT;
 			mclient_server = strdup(optarg);
+			strcpy(config->mclient_ip, optarg);
+			config->bitmask |= CONFIG_MCLIENT_IP;
 			break;
 		default:
 			print_help(argv[0]);

@@ -1448,15 +1448,20 @@ settings_ip_key_callback(mvp_widget_t *widget, char key)
 {
 	static int which = 0;
 	static unsigned char new[4];
-	int tmp;
+	int tmp, i;
 	char buf[64];
 	mvpw_text_attr_t attr;
 	uint32_t c;
 
 	switch (key) {
 	case MVPW_KEY_OK:
-		snprintf(buf, sizeof(buf), "%d.%d.%d.%d",
-			 new[0], new[1], new[2], new[3]);
+		buf[0] = '\0';
+		for (i=0; i<4; i++) {
+			char *num = mvpw_get_text_str(settings_ip_new[i]);
+			strcat(buf, num);
+			if (i != 3)
+				strcat(buf, ".");
+		}
 		settings_ip_change(buf);
 		main_menu_items();
 		mvpw_menu_hilite_item(main_menu, (void*)MM_SETTINGS);
