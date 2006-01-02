@@ -257,6 +257,7 @@ add_item(config_list_t *list, int type)
 		ITEM_FIXED(PLAYBACK_OSD, playback_osd);
 		ITEM_FIXED(PLAYBACK_PAUSE, playback_pause);
 		ITEM_FIXED(MYTHTV_SORT, mythtv_sort);
+		ITEM_FIXED(MYTHTV_PROGRAMS, mythtv_programs);
 	default:
 		goto err;
 		break;
@@ -337,6 +338,7 @@ get_item(config_item_t *item, int override)
 		ITEM_FIXED(PLAYBACK_OSD, playback_osd);
 		ITEM_FIXED(PLAYBACK_PAUSE, playback_pause);
 		ITEM_FIXED(MYTHTV_SORT, mythtv_sort);
+		ITEM_FIXED(MYTHTV_PROGRAMS, mythtv_programs);
 	default:
 		return -1;
 		break;
@@ -405,6 +407,8 @@ save_config_file(char *file)
 	if (add_item(list, CONFIG_ITEM_PLAYBACK_PAUSE) < 0)
 		goto err;
 	if (add_item(list, CONFIG_ITEM_MYTHTV_SORT) < 0) 
+		goto err;
+	if (add_item(list, CONFIG_ITEM_MYTHTV_PROGRAMS) < 0) 
 		goto err;
 
 	list->crc = 0;
@@ -501,6 +505,8 @@ set_config(void)
 		pause_osd = config->playback_pause;
 	if (config->bitmask & CONFIG_MYTHTV_SORT) 
 		mythtv_sort = config->mythtv_sort;
+	if (config->bitmask & CONFIG_MYTHTV_PROGRAMS) 
+		show_sort = config->mythtv_programs;
 }
 
 int

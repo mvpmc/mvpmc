@@ -38,7 +38,15 @@ typedef enum {
 	MYTHTV_STATE_PROGRAMS,
 	MYTHTV_STATE_EPISODES,
 	MYTHTV_STATE_LIVETV,
+	MYTHTV_STATE_UPCOMING,
 } mythtv_state_t;
+
+typedef enum {
+	MYTHTV_FILTER_NONE,
+	MYTHTV_FILTER_TITLE,
+	MYTHTV_FILTER_RECORD,
+	MYTHTV_FILTER_RECORD_CONFLICT,
+} mythtv_filter_t;
 
 typedef enum {
 	OSD_BITRATE = 1,
@@ -59,6 +67,7 @@ typedef enum {
 	MYTHTV_SORT_ORIGINAL_AIRDATE,
 } mvp_myth_sort;
 
+#define MYTHTV_NUM_SORTS_PROGRAMS 3
 typedef enum {
 	SHOW_TITLE,
 	SHOW_CATEGORY,
@@ -334,7 +343,7 @@ extern int mythtv_forget(void);
 extern int mythtv_proginfo(char *buf, int size);
 extern void mythtv_start_thumbnail(void);
 extern int mythtv_pending(mvp_widget_t *widget);
-extern int mythtv_pending_filter(mvp_widget_t *widget, int filter);
+extern int mythtv_pending_filter(mvp_widget_t *widget, mythtv_filter_t filter);
 extern void mythtv_test_exit(void);
 extern int mythtv_proginfo_livetv(char *buf, int size);
 extern int mythtv_livetv_tuners(int*, int*);

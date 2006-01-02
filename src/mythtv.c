@@ -1195,11 +1195,11 @@ pending_hilite_callback(mvp_widget_t *widget,
 int
 mythtv_pending(mvp_widget_t *widget)
 {
-	return mythtv_pending_filter(widget, 0);
+	return mythtv_pending_filter(widget, MYTHTV_FILTER_NONE);
 }
 
 int
-mythtv_pending_filter(mvp_widget_t *widget, int filter)
+mythtv_pending_filter(mvp_widget_t *widget, mythtv_filter_t filter)
 {
 	cmyth_conn_t ctrl;
 	cmyth_proglist_t pnd_list;
@@ -1211,9 +1211,20 @@ mythtv_pending_filter(mvp_widget_t *widget, int filter)
 	char buf[64];
 	char *filter_title = NULL;
 
-	if (filter) {
-		printf("filter pending schedule\n");
+	switch (filter) {
+	case MYTHTV_FILTER_NONE:
+		printf("do not filter pending schedule\n");
+		break;
+	case MYTHTV_FILTER_TITLE:
+		printf("title filter pending schedule\n");
 		filter_title = (char*)cmyth_proginfo_title(hilite_prog);
+		break;
+	case MYTHTV_FILTER_RECORD:
+		printf("recording filter pending schedule\n");
+		break;
+	case MYTHTV_FILTER_RECORD_CONFLICT:
+		printf("recording/conflict filter pending schedule\n");
+		break;
 	}
 
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
@@ -1278,6 +1289,7 @@ mythtv_pending_filter(mvp_widget_t *widget, int filter)
 		char start[256], end[256];
 		char buf[256], card[16];
 		char *ptr;
+		int display = 0;
 
 		cmyth_release(prog);
 		prog = cmyth_proglist_get_item(pending_plist, i);
@@ -1395,7 +1407,26 @@ mythtv_pending_filter(mvp_widget_t *widget, int filter)
 
 		rec_t = mktime(&rec_tm);
 
-		if (!filter || (strcmp(title, filter_title) == 0)) {
+		switch (filter) {
+		case MYTHTV_FILTER_NONE:
+			display = 1;
+			break;
+		case MYTHTV_FILTER_TITLE:
+			if (strcmp(title, filter_title) == 0)
+				display = 1;
+			break;
+		case MYTHTV_FILTER_RECORD_CONFLICT:
+			if (status == RS_CONFLICT)
+				display = 1;
+			/* fall through */
+		case MYTHTV_FILTER_RECORD:
+			if ((status == RS_RECORDING) ||
+			    (status == RS_WILL_RECORD))
+				display = 1;
+			break;
+		}
+
+		if (display) {
 			snprintf(buf, sizeof(buf),
 				 "%.2d/%.2d  %.2d:%.2d   %s   %s  -  %s",
 				 month, day, hour, minute, type,
@@ -2187,12 +2218,15 @@ mythtv_read(char *buf, int len)
 			ret = cmyth_file_get_block(f, buf+tot, len-tot);
 		}
 		if (ret <= 0) {
+			if (tot == 0)
+				tot = ret;
 			fprintf(stderr, "%s: get block failed\n",
 				__FUNCTION__);
 			break;
 		}
 		tot += ret;
 	}
+
 	cmyth_release(f);
 	cmyth_release(r);
 	PRINTF("cmyth got block of size %d (out of %d)\n", tot, len);
@@ -3305,6 +3339,7 @@ mythtv_browser_expose(mvp_widget_t *widget)
 	case MYTHTV_STATE_MAIN:
 		break;
 	case MYTHTV_STATE_PENDING:
+	case MYTHTV_STATE_UPCOMING:
 		if (!pending_dirty)
 			goto out;
 		printf("myth browser expose: pending\n");

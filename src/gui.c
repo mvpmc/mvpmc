@@ -801,6 +801,7 @@ static mvp_widget_t *settings_ip_title;
 static mvp_widget_t *settings_ip_old[4];
 static mvp_widget_t *settings_ip_new[4];
 static mvp_widget_t *settings_mythtv_sort;
+static mvp_widget_t *settings_mythtv_sort_programs;
 static mvp_widget_t *settings_check;
 static mvp_widget_t *settings_nocheck;
 static mvp_widget_t *settings_mclient;
@@ -972,6 +973,7 @@ typedef enum {
 	SETTINGS_MYTHTV_SORT,
 	SETTINGS_MYTHTV_TCP_PROGRAM,
 	SETTINGS_MYTHTV_TCP_CONTROL,
+	SETTINGS_MYTHTV_PROGRAMS,
 } settings_mythtv_t;
 
 enum {
@@ -995,7 +997,9 @@ enum {
 	MYTHTV_POPUP_REC_INFO,
 	MYTHTV_POPUP_LIVE_INFO,
 	MYTHTV_POPUP_CANCEL,
-	MYTHTV_POPUP_FILTER,
+	MYTHTV_POPUP_FILTER_TITLE,
+	MYTHTV_POPUP_FILTER_RECORD,
+	MYTHTV_POPUP_FILTER_RECORD_CONFLICT,
 	MYTHTV_POPUP_UPCOMING,
 	MYTHTV_POPUP_THRUPUT,
 	MYTHTV_POPUP_LIST_TITLE,
@@ -1004,7 +1008,7 @@ enum {
 	MYTHTV_POPUP_TUNER,		/* needs to be last */
 };
 
-static int mythtv_filter = 0;
+static mythtv_filter_t mythtv_filter = MYTHTV_FILTER_NONE;
 
 static void settings_display_mode_callback(mvp_widget_t*, char*, void*);
 
@@ -1443,6 +1447,58 @@ settings_mythtv_sort_key_callback(mvp_widget_t *widget, char key)
         }
 
 }
+
+static void
+settings_mythtv_sort_programs_key_callback(mvp_widget_t *widget, char key)
+{
+        char buf[32];
+        int change = 0;
+
+        switch (key) {
+        case MVPW_KEY_EXIT:
+                mvpw_hide(widget);
+                mvpw_show(settings_mythtv);
+                mvpw_focus(settings_mythtv);
+                break;
+        case MVPW_KEY_UP:
+        case MVPW_KEY_RIGHT:
+                show_sort = (show_sort + 1) % MYTHTV_NUM_SORTS_PROGRAMS;
+                change = 1;
+                break;
+        case MVPW_KEY_DOWN:
+        case MVPW_KEY_LEFT:
+		if (show_sort == 0)
+			show_sort = MYTHTV_NUM_SORTS_PROGRAMS - 1;
+		else
+			show_sort = show_sort - 1;
+                change = 1;
+                break;
+        }
+
+        if (change) {
+		switch (show_sort) {
+		case SHOW_TITLE:
+	                snprintf(buf, sizeof(buf), "%s", "Title");
+        	        mvpw_set_dialog_text(settings_mythtv_sort_programs,
+					     buf);
+			break;
+		case SHOW_CATEGORY:
+	                snprintf(buf, sizeof(buf), "%s", "Category");
+        	        mvpw_set_dialog_text(settings_mythtv_sort_programs,
+					     buf);
+			break;
+		case SHOW_RECGROUP:
+	                snprintf(buf, sizeof(buf), "%s", "Recording Group");
+        	        mvpw_set_dialog_text(settings_mythtv_sort_programs,
+					     buf);
+			break;
+		}
+		config->mythtv_programs = show_sort;
+		config->bitmask |= CONFIG_MYTHTV_PROGRAMS;
+        }
+
+}
+
 static void
 settings_ip_key_callback(mvp_widget_t *widget, char key)
 {
@@ -1766,6 +1822,7 @@ static void
 mythtv_popup_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
 	int which = (int)key;
+	int filter;
 	char buf[1024];
 
 	switch (which) {
@@ -1807,18 +1864,73 @@ mythtv_popup_select_callback(mvp_widget_t *widget, char *item, void *key)
 	case MYTHTV_POPUP_CANCEL:
 		mvpw_hide(mythtv_popup);
 		break;
-	case MYTHTV_POPUP_FILTER:
-		mythtv_filter = !mythtv_filter;
-		mvpw_check_menu_item(widget, key, mythtv_filter);
+	case MYTHTV_POPUP_FILTER_TITLE:
+		if (mythtv_filter == MYTHTV_FILTER_TITLE) {
+			mythtv_filter = MYTHTV_FILTER_NONE;
+			filter = 0;
+		} else {
+			mythtv_filter = MYTHTV_FILTER_TITLE;
+			filter = 1;
+			mvpw_check_menu_item(mythtv_popup_check,
+					     (void*)MYTHTV_POPUP_FILTER_RECORD,
+					     0);
+			mvpw_check_menu_item(mythtv_popup_check,
+					     (void*)MYTHTV_POPUP_FILTER_RECORD_CONFLICT,
+					     0);
+		}
+		mvpw_check_menu_item(widget, key, filter);
+		mythtv_pending_filter(mythtv_browser, mythtv_filter);
+		mvpw_focus(widget);
+		break;
+	case MYTHTV_POPUP_FILTER_RECORD:
+		if (mythtv_filter == MYTHTV_FILTER_RECORD) {
+			mythtv_filter = MYTHTV_FILTER_NONE;
+			filter = 0;
+		} else {
+			mythtv_filter = MYTHTV_FILTER_RECORD;
+			filter = 1;
+			mvpw_check_menu_item(mythtv_popup_check,
+					     (void*)MYTHTV_POPUP_FILTER_TITLE,
+					     0);
+			mvpw_check_menu_item(mythtv_popup_check,
+					     (void*)MYTHTV_POPUP_FILTER_RECORD_CONFLICT,
+					     0);
+		}
+		mvpw_check_menu_item(widget, key, filter);
+		mythtv_pending_filter(mythtv_browser, mythtv_filter);
+		mvpw_focus(widget);
+		break;
+	case MYTHTV_POPUP_FILTER_RECORD_CONFLICT:
+		if (mythtv_filter == MYTHTV_FILTER_RECORD_CONFLICT) {
+			mythtv_filter = MYTHTV_FILTER_NONE;
+			filter = 0;
+		} else {
+			mythtv_filter = MYTHTV_FILTER_RECORD_CONFLICT;
+			filter = 1;
+			mvpw_check_menu_item(mythtv_popup_check,
+					     (void*)MYTHTV_POPUP_FILTER_TITLE,
+					     0);
+			mvpw_check_menu_item(mythtv_popup_check,
+					     (void*)MYTHTV_POPUP_FILTER_RECORD,
+					     0);
+		}
+		mvpw_check_menu_item(widget, key, filter);
 		mythtv_pending_filter(mythtv_browser, mythtv_filter);
 		mvpw_focus(widget);
 		break;
 	case MYTHTV_POPUP_UPCOMING:
 		mvpw_hide(widget);
-		mythtv_filter = 1;
-		mvpw_check_menu_item(widget, key, mythtv_filter);
-		mythtv_pending_filter(mythtv_browser, mythtv_filter);
 		mythtv_set_popup_menu(MYTHTV_STATE_PENDING);
+		mythtv_state = MYTHTV_STATE_UPCOMING;
+		mythtv_filter = MYTHTV_FILTER_TITLE;
+		mvpw_check_menu_item(mythtv_popup_check,
+				     (void*)MYTHTV_POPUP_FILTER_RECORD,
+				     0);
+		mvpw_check_menu_item(mythtv_popup_check,
+				     (void*)MYTHTV_POPUP_FILTER_RECORD_CONFLICT,
+				     0);
+		mvpw_check_menu_item(mythtv_popup_check, key, 1);
+		mythtv_pending_filter(mythtv_browser, mythtv_filter);
 		break;
 	case MYTHTV_POPUP_THRUPUT:
 		printf("start throughput testing...\n");
@@ -1828,6 +1940,8 @@ mythtv_popup_select_callback(mvp_widget_t *widget, char *item, void *key)
 		break;
 	case MYTHTV_POPUP_LIST_TITLE:
 		show_sort = SHOW_TITLE;
+		config->bitmask &= CONFIG_MYTHTV_PROGRAMS;
+		config->mythtv_programs = show_sort;
 		mvpw_check_menu_item(widget, key, 1);
 		mvpw_check_menu_item(widget,
 				     (void*)MYTHTV_POPUP_LIST_CATEGORY, 0);
@@ -1837,6 +1951,8 @@ mythtv_popup_select_callback(mvp_widget_t *widget, char *item, void *key)
 		break;
 	case MYTHTV_POPUP_LIST_CATEGORY:
 		show_sort = SHOW_CATEGORY;
+		config->bitmask &= CONFIG_MYTHTV_PROGRAMS;
+		config->mythtv_programs = show_sort;
 		mvpw_check_menu_item(widget, key, 1);
 		mvpw_check_menu_item(widget,
 				     (void*)MYTHTV_POPUP_LIST_TITLE, 0);
@@ -1846,6 +1962,8 @@ mythtv_popup_select_callback(mvp_widget_t *widget, char *item, void *key)
 		break;
 	case MYTHTV_POPUP_LIST_RECGROUP:
 		show_sort = SHOW_RECGROUP;
+		config->bitmask &= CONFIG_MYTHTV_PROGRAMS;
+		config->mythtv_programs = show_sort;
 		mvpw_check_menu_item(widget, key, 1);
 		mvpw_check_menu_item(widget,
 				     (void*)MYTHTV_POPUP_LIST_CATEGORY, 0);
@@ -1861,12 +1979,13 @@ mythtv_set_popup_menu(mythtv_state_t state)
 {
 	int tuners[16], busy[16];
 	int i, count;
+	int filter = 0;
 	char buf[32];
 
 	switch (state) {
 	case MYTHTV_STATE_LIVETV:
 		count = mythtv_livetv_tuners(tuners, busy);
-		printf("mythtv popup menu\n");
+		printf("mythtv livetv popup menu\n");
 		mvpw_set_menu_title(mythtv_popup_nocheck, "LiveTV Menu");
 		mvpw_clear_menu(mythtv_popup_nocheck);
 		mythtv_popup_item_attr.select = mythtv_popup_select_callback;
@@ -1896,6 +2015,8 @@ mythtv_set_popup_menu(mythtv_state_t state)
 		mythtv_popup = mythtv_popup_nocheck;
 		break;
 	case MYTHTV_STATE_PENDING:
+	case MYTHTV_STATE_UPCOMING:
+		printf("mythtv pending popup menu\n");
 		mvpw_set_menu_title(mythtv_popup_check, "Pending Menu");
 		mvpw_clear_menu(mythtv_popup_check);
 		mythtv_popup_item_attr.select = mythtv_popup_select_callback;
@@ -1904,17 +2025,49 @@ mythtv_set_popup_menu(mythtv_state_t state)
 		mythtv_popup_item_attr.selectable = 1;
 		mythtv_popup_item_attr.checkbox_fg = mythtv_popup_attr.checkbox_fg;
 		mvpw_add_menu_item(mythtv_popup_check, "Filter by title",
-				   (void*)MYTHTV_POPUP_FILTER,
+				   (void*)MYTHTV_POPUP_FILTER_TITLE,
+				   &mythtv_popup_item_attr);
+		mvpw_add_menu_item(mythtv_popup_check, "Filter by Will Record",
+				   (void*)MYTHTV_POPUP_FILTER_RECORD,
+				   &mythtv_popup_item_attr);
+		mvpw_add_menu_item(mythtv_popup_check,
+				   "Filter by Will Record/Conflict",
+				   (void*)MYTHTV_POPUP_FILTER_RECORD_CONFLICT,
 				   &mythtv_popup_item_attr);
 		mvpw_add_menu_item(mythtv_popup_check, "Show Info",
 				   (void*)MYTHTV_POPUP_REC_INFO,
 				   &mythtv_popup_item_attr);
 		mythtv_popup_item_attr.selectable = 1;
 		mvpw_menu_hilite_item(mythtv_popup_check,
-				      (void*)MYTHTV_POPUP_FILTER);
+				      (void*)MYTHTV_POPUP_FILTER_TITLE);
 		mvpw_check_menu_item(mythtv_popup_check,
-				     (void*)MYTHTV_POPUP_FILTER,
-				     mythtv_filter);
+				     (void*)MYTHTV_POPUP_FILTER_TITLE,
+				     0);
+		mvpw_check_menu_item(mythtv_popup_check,
+				     (void*)MYTHTV_POPUP_FILTER_RECORD,
+				     0);
+		mvpw_check_menu_item(mythtv_popup_check,
+				     (void*)MYTHTV_POPUP_FILTER_RECORD_CONFLICT,
+				     0);
+		mvpw_check_menu_item(mythtv_popup_check,
+				     (void*)MYTHTV_POPUP_REC_INFO,
+				     0);
+		switch (mythtv_filter) {
+		case MYTHTV_FILTER_NONE:
+			break;
+		case MYTHTV_FILTER_TITLE:
+			filter = MYTHTV_POPUP_FILTER_TITLE;
+			break;
+		case MYTHTV_FILTER_RECORD:
+			filter = MYTHTV_POPUP_FILTER_RECORD;
+			break;
+		case MYTHTV_FILTER_RECORD_CONFLICT:
+			filter = MYTHTV_POPUP_FILTER_RECORD_CONFLICT;
+			break;
+		}
+		if (filter)
+			mvpw_check_menu_item(mythtv_popup_check,
+					     (void*)filter, 1);
 		mythtv_popup = mythtv_popup_check;
 		break;
 	case MYTHTV_STATE_PROGRAMS:
@@ -2015,8 +2168,15 @@ mythtv_key_callback(mvp_widget_t *widget, char key)
 	}
 
 	if ((key == MVPW_KEY_MENU) &&
+	    (mythtv_state == MYTHTV_STATE_UPCOMING)) {
+		mythtv_set_popup_menu(mythtv_state);
+		mvpw_show(mythtv_popup);
+		mvpw_focus(mythtv_popup);
+	}
+
+	if ((key == MVPW_KEY_MENU) &&
 	    (mythtv_state == MYTHTV_STATE_EPISODES)) {
-		printf("mythtv popup menu\n");
+		printf("mythtv episode popup menu\n");
 		mythtv_set_popup_menu(mythtv_state);
 		mvpw_show(mythtv_popup);
 		mvpw_focus(mythtv_popup);
@@ -2802,6 +2962,22 @@ mythtv_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mvpw_show(settings_mythtv_sort);
 		mvpw_focus(settings_mythtv_sort);
 		break;
+	case SETTINGS_MYTHTV_PROGRAMS:
+		switch (show_sort) {
+		case SHOW_TITLE:
+			snprintf(buf, sizeof(buf), "%s", "Title");
+			break;
+		case SHOW_CATEGORY:
+			snprintf(buf, sizeof(buf), "%s", "Category");
+			break;
+		case SHOW_RECGROUP:
+			snprintf(buf, sizeof(buf), "%s", "Recording Group");
+			break;
+		}
+		mvpw_set_dialog_text(settings_mythtv_sort_programs, buf);
+		mvpw_show(settings_mythtv_sort_programs);
+		mvpw_focus(settings_mythtv_sort_programs);
+		break;
 	case SETTINGS_MYTHTV_TCP_PROGRAM:
 		snprintf(buf, sizeof(buf), "%d", mythtv_tcp_program);
 		mvpw_set_dialog_text(settings_mythtv_program, buf);
@@ -3234,8 +3410,11 @@ settings_init(void)
 			   "MythTV IP Address",
 			   (void*)SETTINGS_MYTHTV_IP, &settings_item_attr);
 	mvpw_add_menu_item(settings_mythtv,
-			   "MythTV Program Sort Order",
+			   "MythTV Episode Sort Order",
 			   (void*)SETTINGS_MYTHTV_SORT, &settings_item_attr);
+	mvpw_add_menu_item(settings_mythtv,
+			   "MythTV Program Sort Order",
+			   (void*)SETTINGS_MYTHTV_PROGRAMS, &settings_item_attr);
 	mvpw_add_menu_item(settings_mythtv,
 			   "Control TCP Receive Buffer",
 			   (void*)SETTINGS_MYTHTV_TCP_CONTROL,
@@ -3384,8 +3563,21 @@ settings_init(void)
 	mvpw_set_key(settings_mythtv_sort,
 		     settings_mythtv_sort_key_callback);
 	mvpw_set_dialog_title(settings_mythtv_sort,
-			      "MythTV Program Sort Order");
+			      "MythTV Episode Sort Order");
 	mvpw_set_dialog_text(settings_mythtv_sort, "");
+
+	h = 2 * FONT_HEIGHT(settings_dialog_attr);
+	settings_mythtv_sort_programs = mvpw_create_dialog(NULL, x, y, w, h,
+							   settings_dialog_attr.bg,
+							   settings_dialog_attr.border,
+							   settings_dialog_attr.border_size);
+	mvpw_set_dialog_attr(settings_mythtv_sort_programs,
+			     &settings_dialog_attr);
+	mvpw_set_key(settings_mythtv_sort_programs,
+		     settings_mythtv_sort_programs_key_callback);
+	mvpw_set_dialog_title(settings_mythtv_sort_programs,
+			      "MythTV Program Sort Order");
+	mvpw_set_dialog_text(settings_mythtv_sort_programs, "");
 
 	h = 2 * FONT_HEIGHT(settings_dialog_attr);
 	settings_mythtv_program = mvpw_create_dialog(NULL, x, y, w, h,
@@ -3729,7 +3921,7 @@ myth_menu_select_callback(mvp_widget_t *widget, char *item, void *key)
 	case 1:
 		busy_start();
 		mythtv_state = MYTHTV_STATE_PENDING;
-		mythtv_filter = 0;
+		mythtv_filter = MYTHTV_FILTER_NONE;
 		if (mythtv_pending(mythtv_browser) == 0) {
 			mvpw_show(mythtv_browser);
 

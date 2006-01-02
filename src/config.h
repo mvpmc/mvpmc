@@ -51,6 +51,7 @@
 #define CONFIG_PLAYBACK_OSD	0x00080000
 #define CONFIG_PLAYBACK_PAUSE	0x00100000
 #define CONFIG_MYTHTV_SORT	0x00200000
+#define CONFIG_MYTHTV_PROGRAMS	0x00400000
 
 /*
  * The config_t structure will hold all the user settings that can survive
@@ -85,6 +86,7 @@ typedef struct {
 #ifndef MVPMC_HOST
 	int			firsttime;/*First run since powerup?*/
 #endif
+	show_sort_t		mythtv_programs;
 } config_t;
 
 extern config_t *config;
@@ -114,6 +116,7 @@ extern config_t *config;
 #define CONFIG_ITEM_PLAYBACK_OSD	0x0014
 #define CONFIG_ITEM_PLAYBACK_PAUSE	0x0015
 #define CONFIG_ITEM_MYTHTV_SORT		0x0016
+#define CONFIG_ITEM_MYTHTV_PROGRAMS	0x0017
 
 /*
  * The flags in config_list_t
