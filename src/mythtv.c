@@ -2246,7 +2246,7 @@ mythtv_size(void)
 	struct timeval now;
 	long long ret;
 	static volatile int failed = 0;
-	cmyth_proginfo_t loc_prog = cmyth_hold(current_prog);	
+	cmyth_proginfo_t loc_prog = cmyth_hold(current_prog), new_prog = NULL;
 	cmyth_conn_t ctrl = cmyth_hold(control);
 
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
@@ -2264,11 +2264,11 @@ mythtv_size(void)
 	}
 	pthread_mutex_lock(&myth_mutex);
 
-	loc_prog = cmyth_proginfo_get_detail(ctrl, loc_prog);
+	new_prog = cmyth_proginfo_get_detail(ctrl, loc_prog);
 	/*
 	 * If get detail fails, use the value in the file structure.
 	 */
-	if (loc_prog == NULL) {
+	if (new_prog == NULL) {
 		if (!failed) {
 			fprintf(stderr,
 				"%s(): cmyth_proginfo_get_detail() failed!\n",
@@ -2281,16 +2281,17 @@ mythtv_size(void)
 
 	failed = 0;
 
-	ret = cmyth_proginfo_length(loc_prog);
+	ret = cmyth_proginfo_length(new_prog);
 
 	memcpy(&last, &now, sizeof(last));
-	CHANGE_GLOBAL_REF(current_prog, loc_prog);
+	CHANGE_GLOBAL_REF(current_prog, new_prog);
 	CHANGE_GLOBAL_REF(prog, current_prog);
 
  unlock:
 	pthread_mutex_unlock(&myth_mutex);
 	cmyth_release(ctrl);
 	cmyth_release(loc_prog);
+	cmyth_release(new_prog);
 
  out:
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) %lld}\n",
