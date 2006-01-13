@@ -313,7 +313,7 @@ cmyth_proginfo_dup(cmyth_proginfo_t p)
 	ret->proginfo_source_id = p->proginfo_source_id;
 	ret->proginfo_card_id = p->proginfo_card_id;
 	ret->proginfo_input_id = p->proginfo_input_id;
-	ret->proginfo_rec_priority = p->proginfo_rec_priority;
+	ret->proginfo_rec_priority = cmyth_hold(p->proginfo_rec_priority);
 	ret->proginfo_rec_status = p->proginfo_rec_status;
 	ret->proginfo_record_id = p->proginfo_record_id;
 	ret->proginfo_rec_type = p->proginfo_rec_type;
@@ -2049,18 +2049,15 @@ cmyth_proginfo_get_detail(cmyth_conn_t control, cmyth_proginfo_t p)
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_proginfo_dup() failed\n",
 			  __FUNCTION__);
-		cmyth_release(p);
 		return NULL;
 	}
 	if (cmyth_proginfo_fill(control, ret) < 0) {
 		cmyth_release(ret);
-		cmyth_release(p);
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_proginfo_fill() failed\n",
 			  __FUNCTION__);
 		return NULL;
 	}
-	cmyth_release(p);
 	return ret;
 }
 
