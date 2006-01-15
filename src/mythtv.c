@@ -39,6 +39,7 @@
 #include <cmyth.h>
 
 #include "mvpmc.h"
+#include "config.h"
 
 #if 0
 #define PRINTF(x...) printf(x)
@@ -185,6 +186,29 @@ mythtv_color_t mythtv_colors = {
 	.pending_conflict	= MVPW_YELLOW,
 	.pending_other		= MVPW_BLACK,
 };
+
+static void
+add_recgroup(char *recgroup)
+{
+	int i;
+
+	for (i=0; i<MYTHTV_RG_MAX; i++) {
+		if (strcmp(config->mythtv_recgroup[i].label, recgroup) == 0) {
+			return;
+		}
+	}
+
+	for (i=0; i<MYTHTV_RG_MAX; i++) {
+		if (config->mythtv_recgroup[i].label[0] == '\0') {
+			printf("Add recgroup: %s\n", recgroup);
+			snprintf(config->mythtv_recgroup[i].label,
+				 sizeof(config->mythtv_recgroup[i].label),
+				 recgroup);
+			config->bitmask |= CONFIG_MYTHTV_RECGROUP;
+			return;
+		}
+	}
+}
 
 static int
 string_compare(const void *a, const void *b)
@@ -647,6 +671,7 @@ load_episodes(void)
 	cmyth_conn_t ctrl = cmyth_hold(control);
 	int ret = 0;
 	int count = 0;
+	int i;
 
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
 		    __FUNCTION__, __FILE__, __LINE__);
@@ -674,6 +699,22 @@ load_episodes(void)
 		printf("Sort for Dirty List\n");
 		cmyth_proglist_sort(episode_plist, count, mythtv_sort);
 		mythtv_sort_dirty = 0;
+	}
+
+	/*
+	 * Save all known recording groups
+	 */
+	for (i=0; i<count; i++) {
+		char *recgroup;
+		cmyth_proginfo_t prog;
+
+		prog = cmyth_proglist_get_item(episode_plist, i);
+		recgroup = cmyth_proginfo_recgroup(prog);
+
+		add_recgroup(recgroup);
+
+		cmyth_release(prog);
+		cmyth_release(recgroup);
 	}
 
 	return count;
@@ -803,14 +844,29 @@ add_episodes(mvp_widget_t *widget, char *item, int load)
          * moving from Oldest to Newest causes two sorts in a row */
 		
 	for (i = 0; i < count; ++i) {
-		char full[256];
+		char full[256], *recgroup;
 		cmyth_proginfo_t ep_prog = NULL;
+		int j, hide = 0;
 
 		if (strcmp(prog, "All - Newest first") == 0) { 
 			ep_prog = cmyth_proglist_get_item(episode_plist,
 							       count-i-1);
 		} else { 
 			ep_prog = cmyth_proglist_get_item(episode_plist, i);
+		}
+
+		recgroup = cmyth_proginfo_recgroup(ep_prog);
+		for (j=0; j<MYTHTV_RG_MAX; j++) {
+			if (strcmp(recgroup,
+				   config->mythtv_recgroup[j].label) == 0) {
+				hide = config->mythtv_recgroup[j].hide;
+			}
+		}
+		cmyth_release(recgroup);
+
+		if (hide) {
+			cmyth_release(ep_prog);
+			continue;
 		}
 
 		title = cmyth_proginfo_title(ep_prog);
@@ -837,14 +893,14 @@ add_episodes(mvp_widget_t *widget, char *item, int load)
 			if ((strcmp(subtitle, " ") == 0) ||
 			    (subtitle[0] == '\0'))
 				subtitle = cmyth_strdup("<no subtitle>");
-			mvpw_add_menu_item(widget, (char*)subtitle, (void*)n,
+			mvpw_add_menu_item(widget, (char*)subtitle, (void*)i,
 					   &item_attr);
 			episodes++;
 		} else if (strcmp(prog, "All - Newest first") == 0) {
 			list_all = 2;
 			snprintf(full, sizeof(full), "%s - %s",
 				 title, subtitle);
-			mvpw_add_menu_item(widget, full, (void*)count-n-1,
+			mvpw_add_menu_item(widget, full, (void*)count-i-1,
 					   &item_attr);
 			episodes++;
 		} else if ((strcmp(prog, "All - Oldest first") == 0) ||
@@ -855,7 +911,7 @@ add_episodes(mvp_widget_t *widget, char *item, int load)
 				list_all = 0;
 			snprintf(full, sizeof(full), "%s - %s",
 				 title, subtitle);
-			mvpw_add_menu_item(widget, full, (void*)n,
+			mvpw_add_menu_item(widget, full, (void*)i,
 					   &item_attr);
 			episodes++;
 		}
@@ -867,7 +923,7 @@ add_episodes(mvp_widget_t *widget, char *item, int load)
 	}
 
 	snprintf(buf, sizeof(buf), "%s - %d episode", prog, episodes);
-	if (episodes > 1)
+	if (episodes != 1)
 		strcat(buf, "s");
 	mvpw_set_menu_title(widget, buf);
 	cmyth_release(prog);
@@ -904,38 +960,52 @@ add_shows(mvp_widget_t *widget)
 	item_attr.bg = mythtv_attr.bg;
 
 	count = load_episodes();
+	episode_count = 0;
 	ep_list  = cmyth_hold(episode_plist);
 	for (i = 0; i < count; ++i) {
 		cmyth_proginfo_t prog = cmyth_proglist_get_item(ep_list, i);
-		char *title;
+		char *title = NULL, *recgroup;
+		int hide = 0;
 
-		switch (show_sort) {
-		case SHOW_TITLE:
-			title = cmyth_proginfo_title(prog);
-			break;
-		case SHOW_CATEGORY:
-			title = cmyth_proginfo_category(prog);
-			break;
-		case SHOW_RECGROUP:
-			title = cmyth_proginfo_recgroup(prog);
-			break;
-		default:
-			title = NULL;
-			break;
+		recgroup = cmyth_proginfo_recgroup(prog);
+		for (j=0; j<MYTHTV_RG_MAX; j++) {
+			if (strcmp(recgroup,
+				   config->mythtv_recgroup[j].label) == 0) {
+				hide = config->mythtv_recgroup[j].hide;
+			}
 		}
+		cmyth_release(recgroup);
 
-		for (j=0; j<n; j++)
-			if (strcmp(title, titles[j]) == 0)
+		if (!hide) {
+			switch (show_sort) {
+			case SHOW_TITLE:
+				title = cmyth_proginfo_title(prog);
 				break;
-		if (j == n) {
-			titles[n] = cmyth_hold(title);
-			n++;
+			case SHOW_CATEGORY:
+				title = cmyth_proginfo_category(prog);
+				break;
+			case SHOW_RECGROUP:
+				title = cmyth_proginfo_recgroup(prog);
+				break;
+			default:
+				title = NULL;
+				break;
+			}
+			
+			for (j=0; j<n; j++)
+				if (strcmp(title, titles[j]) == 0)
+					break;
+			if (j == n) {
+				titles[n] = cmyth_hold(title);
+				n++;
+			}
+			episode_count++;
 		}
+
 		cmyth_release(prog);
 		cmyth_release(title);
 	}
 	cmyth_release(ep_list);
-	episode_count = count;
 	show_count = n;
 
 	qsort(titles, n, sizeof(char*), string_compare);

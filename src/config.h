@@ -26,6 +26,11 @@
 
 #define CONFIG_MAGIC		0x434f4e46
 
+typedef struct {
+	char label[64];
+	int hide;
+} config_mythtv_rg_t;
+
 /*
  * The bit definitions for the config_t bitmask
  */
@@ -52,6 +57,9 @@
 #define CONFIG_PLAYBACK_PAUSE	0x00100000
 #define CONFIG_MYTHTV_SORT	0x00200000
 #define CONFIG_MYTHTV_PROGRAMS	0x00400000
+#define CONFIG_MYTHTV_RECGROUP	0x00800000
+
+#define MYTHTV_RG_MAX	32
 
 /*
  * The config_t structure will hold all the user settings that can survive
@@ -87,6 +95,7 @@ typedef struct {
 	int			firsttime;/*First run since powerup?*/
 #endif
 	show_sort_t		mythtv_programs;
+	config_mythtv_rg_t	mythtv_recgroup[MYTHTV_RG_MAX];
 } config_t;
 
 extern config_t *config;
@@ -117,6 +126,8 @@ extern config_t *config;
 #define CONFIG_ITEM_PLAYBACK_PAUSE	0x0015
 #define CONFIG_ITEM_MYTHTV_SORT		0x0016
 #define CONFIG_ITEM_MYTHTV_PROGRAMS	0x0017
+#define CONFIG_ITEM_MYTHTV_RG_HIDE	0x0018
+#define CONFIG_ITEM_MYTHTV_RG_SHOW	0x0019
 
 /*
  * The flags in config_list_t

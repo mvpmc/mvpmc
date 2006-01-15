@@ -795,6 +795,7 @@ static mvp_widget_t *settings_mythtv_control;
 static mvp_widget_t *settings_mythtv_program;
 static mvp_widget_t *settings_playback_osd;
 static mvp_widget_t *settings_playback_pause;
+static mvp_widget_t *settings_mythtv_recgroup;
 static mvp_widget_t *settings_ip;
 static mvp_widget_t *settings_ip_label;
 static mvp_widget_t *settings_ip_title;
@@ -974,6 +975,7 @@ typedef enum {
 	SETTINGS_MYTHTV_TCP_PROGRAM,
 	SETTINGS_MYTHTV_TCP_CONTROL,
 	SETTINGS_MYTHTV_PROGRAMS,
+	SETTINGS_MYTHTV_RECGROUP_FILTER,
 } settings_mythtv_t;
 
 enum {
@@ -1324,6 +1326,18 @@ settings_mythtv_program_key_callback(mvp_widget_t *widget, char key)
 			config->mythtv_tcp_program = mythtv_tcp_program;
 			config->bitmask |= CONFIG_MYTHTV_PROGRAM;
 		}
+	}
+}
+
+static void
+settings_mythtv_rg_key_callback(mvp_widget_t *widget, char key)
+{
+	switch (key) {
+	case MVPW_KEY_EXIT:
+		mvpw_hide(widget);
+		mvpw_show(settings_mythtv);
+		mvpw_focus(settings_mythtv);
+		break;
 	}
 }
 
@@ -1816,6 +1830,21 @@ playlist_key_callback(mvp_widget_t *widget, char key)
 		mvpw_set_timer(volume_dialog, timer_hide, 3000);
 		break;
 	}
+}
+
+static void
+mythtv_rg_select_callback(mvp_widget_t *widget, char *item, void *key)
+{
+	int i = (int)key;
+
+	if (config->mythtv_recgroup[i].hide) {
+		printf("show recgroup '%s'\n", item);
+		config->mythtv_recgroup[i].hide = 0;
+	} else {
+		printf("hide recgroup '%s'\n", item);
+		config->mythtv_recgroup[i].hide = 1;
+	}
+	mvpw_check_menu_item(widget, key, config->mythtv_recgroup[i].hide);
 }
 
 static void
@@ -2990,6 +3019,24 @@ mythtv_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mvpw_show(settings_mythtv_control);
 		mvpw_focus(settings_mythtv_control);
 		break;
+	case SETTINGS_MYTHTV_RECGROUP_FILTER:
+		mvpw_clear_menu(settings_mythtv_recgroup);
+		settings_item_attr.hilite = NULL;
+		settings_item_attr.select = mythtv_rg_select_callback;
+		for (i=0; i<MYTHTV_RG_MAX; i++) {
+			if (config->mythtv_recgroup[i].label[0]) {
+				mvpw_add_menu_item(settings_mythtv_recgroup,
+						   config->mythtv_recgroup[i].label,
+						   (void*)i,
+						   &settings_item_attr);
+				mvpw_check_menu_item(settings_mythtv_recgroup,
+						     (void*)i,
+						     config->mythtv_recgroup[i].hide);
+			}
+		}
+		mvpw_show(settings_mythtv_recgroup);
+		mvpw_focus(settings_mythtv_recgroup);
+		break;
 	}
 }
 
@@ -3423,6 +3470,25 @@ settings_init(void)
 			   "Program TCP Receive Buffer",
 			   (void*)SETTINGS_MYTHTV_TCP_PROGRAM,
 			   &settings_item_attr);
+	mvpw_add_menu_item(settings_mythtv,
+			   "Recording Group Filtering",
+			   (void*)SETTINGS_MYTHTV_RECGROUP_FILTER,
+			   &settings_item_attr);
+
+	/*
+	 * mythtv recording group menu
+	 */
+	settings_mythtv_recgroup = mvpw_create_menu(NULL, x, y, w, h,
+						    settings_attr.bg,
+						    settings_attr.border,
+						    settings_attr.border_size);
+	settings_attr.checkboxes = 1;
+	mvpw_set_menu_attr(settings_mythtv_recgroup, &settings_attr);
+	settings_attr.checkboxes = 0;
+	mvpw_set_menu_title(settings_mythtv_recgroup,
+			    "Recording Group Filter");
+	mvpw_set_key(settings_mythtv_recgroup,
+		     settings_mythtv_rg_key_callback);
 
 	/*
 	 * mclient settings menu
@@ -4382,8 +4448,9 @@ main_menu_items(void)
 	if (replaytv_server)
 		mvpw_add_menu_item(main_menu, "ReplayTV",
 				   (void*)MM_REPLAYTV, &item_attr);
-	mvpw_add_menu_item(main_menu, "Filesystem",
-			   (void*)MM_FILESYSTEM, &item_attr);
+	if (!filebrowser_disable)
+		mvpw_add_menu_item(main_menu, "Filesystem",
+				   (void*)MM_FILESYSTEM, &item_attr);
 	if (!settings_disable)
 		mvpw_add_menu_item(main_menu, "Settings",
 				   (void*)MM_SETTINGS, &item_attr);

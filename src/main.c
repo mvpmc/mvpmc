@@ -59,6 +59,7 @@ static struct option opts[] = {
 	{ "mode", required_argument, 0, 'm' },
 	{ "mythtv", required_argument, 0, 's' },
 	{ "mythtv-debug", no_argument, 0, 'M' },
+	{ "no-filebrowser", no_argument, 0, 0 },
 	{ "no-reboot", no_argument, 0, 0 },
 	{ "no-settings", no_argument, 0, 0 },
 	{ "theme", required_argument, 0, 't' },
@@ -67,6 +68,7 @@ static struct option opts[] = {
 
 int settings_disable = 0;
 int reboot_disable = 0;
+int filebrowser_disable = 0;
 
 #define VNC_SERVERPORT (5900)    /* Offset to VNC server for regular connections */
 
@@ -188,6 +190,10 @@ print_help(char *prog)
 	printf("\t-D display\tVNC server IP address[:display]\n");
 	printf("\t-t file   \tXML theme file\n");
 	printf("\t-c server \tslimdevices musicClient server IP address\n");
+	printf("\n");
+	printf("\t--no-filebrowser\n");
+	printf("\t--no-reboot\n");
+	printf("\t--no-settings\n");
 }
 
 /*
@@ -409,6 +415,9 @@ main(int argc, char **argv)
 			}
 			if (strcmp(opts[opt_index].name, "no-reboot") == 0) {
 				reboot_disable = 1;
+			}
+			if (strcmp(opts[opt_index].name, "no-filebrowser") == 0) {
+				filebrowser_disable = 1;
 			}
 			break;
 		case 'a':

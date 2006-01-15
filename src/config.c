@@ -173,15 +173,18 @@ static int
 save_config_to_file(config_list_t *config, char *file, int compress)
 {
 	config_list_t *ptr = NULL;
-	int fd = -1;
+	int fd = -1, ret = -1;
 	int len, tot;
 
 	if (((config->flags & CONFIG_FLAGS_COMPRESSED) == 0) && compress) {
 		len = CONFIG_MAX_COMPRESSED_SIZE + sizeof(*ptr);
-		if ((ptr=(config_list_t*)malloc(len)) == NULL)
+		if ((ptr=(config_list_t*)malloc(len)) == NULL) {
+			ret = -__LINE__;
 			goto fail;
+		}
 		memset(ptr, 0, len);
 		if (config_compress(config, ptr) < 0) {
+			ret = -__LINE__;
 			goto fail;
 		}
 	} else {
@@ -189,6 +192,7 @@ save_config_to_file(config_list_t *config, char *file, int compress)
 	}
 
 	if ((fd=open(file, O_CREAT|O_TRUNC|O_WRONLY, 0644)) < 0) {
+		ret = -__LINE__;
 		goto fail;
 	}
 
@@ -197,10 +201,14 @@ save_config_to_file(config_list_t *config, char *file, int compress)
 
 	while (tot < len) {
 		int rc = write(fd, ptr, len-tot);
-		if (rc <= 0)
+		if (rc <= 0) {
+			ret = -__LINE__;
 			goto fail;
+		}
 		tot += rc;
 	}
+
+	ret = 0;
 
  fail:
 	if (fd >= 0)
@@ -208,15 +216,16 @@ save_config_to_file(config_list_t *config, char *file, int compress)
 	if (ptr && (ptr != config))
 		free(ptr);
 	
-	return 0;
+	return ret;
 }
 
 static int
 add_item(config_list_t *list, int type)
 {
 	config_item_t *item = NULL;
-	int len;
+	int len = 0, i;
 	void *ptr;
+	char *buf = NULL;
 
 #define ITEM_FIXED(x, y) \
 	case CONFIG_ITEM_##x:\
@@ -258,6 +267,40 @@ add_item(config_list_t *list, int type)
 		ITEM_FIXED(PLAYBACK_PAUSE, playback_pause);
 		ITEM_FIXED(MYTHTV_SORT, mythtv_sort);
 		ITEM_FIXED(MYTHTV_PROGRAMS, mythtv_programs);
+	case CONFIG_ITEM_MYTHTV_RG_HIDE:
+		if ((config->bitmask & CONFIG_MYTHTV_RECGROUP) == 0)
+			return 0;
+		if ((buf=(char*)malloc(4096)) == NULL)
+			goto err;
+		memset(buf, 0, 4096);
+		for (i=0; i<MYTHTV_RG_MAX; i++) {
+			if (config->mythtv_recgroup[i].label[0] &&
+			    config->mythtv_recgroup[i].hide) {
+				if ((len + strlen(config->mythtv_recgroup[i].label)) >= 4096)
+					break;
+				strcat(buf+len, config->mythtv_recgroup[i].label);
+				len += strlen(config->mythtv_recgroup[i].label) + 1;
+			}
+		}
+		ptr = (void*)buf;
+		break;
+	case CONFIG_ITEM_MYTHTV_RG_SHOW:
+		if ((config->bitmask & CONFIG_MYTHTV_RECGROUP) == 0)
+			return 0;
+		if ((buf=(char*)malloc(4096)) == NULL)
+			goto err;
+		memset(buf, 0, 4096);
+		for (i=0; i<MYTHTV_RG_MAX; i++) {
+			if (config->mythtv_recgroup[i].label[0] &&
+			    !config->mythtv_recgroup[i].hide) {
+				if ((len + strlen(config->mythtv_recgroup[i].label)) >= 4096)
+					break;
+				strcat(buf+len, config->mythtv_recgroup[i].label);
+				len += strlen(config->mythtv_recgroup[i].label) + 1;
+			}
+		}
+		ptr = (void*)buf;
+		break;
 	default:
 		goto err;
 		break;
@@ -265,6 +308,9 @@ add_item(config_list_t *list, int type)
 
 #undef ITEM_FIXED
 #undef ITEM_STRING
+
+	if (len == 0)
+		goto out;
 
 	if ((item=(config_item_t*)malloc(sizeof(*item)+len)) == NULL)
 		return -1;
@@ -278,6 +324,10 @@ add_item(config_list_t *list, int type)
 
 	free(item);
 
+ out:
+	if (buf)
+		free(buf);
+
 	return 0;
 
  err:
@@ -290,7 +340,8 @@ add_item(config_list_t *list, int type)
 static int
 get_item(config_item_t *item, int override)
 {
-	int len;
+	int len, i;
+	char *ptr;
 
 #define ITEM_FIXED(x, y) \
 	case CONFIG_ITEM_##x: \
@@ -339,6 +390,31 @@ get_item(config_item_t *item, int override)
 		ITEM_FIXED(PLAYBACK_PAUSE, playback_pause);
 		ITEM_FIXED(MYTHTV_SORT, mythtv_sort);
 		ITEM_FIXED(MYTHTV_PROGRAMS, mythtv_programs);
+	case CONFIG_ITEM_MYTHTV_RG_HIDE:
+	case CONFIG_ITEM_MYTHTV_RG_SHOW:
+		config->bitmask |= CONFIG_MYTHTV_RECGROUP;
+		len = item->buflen;
+		ptr = item->buf;
+		i = 0;
+		while ((len > 0) && (i < MYTHTV_RG_MAX)) {
+			if (config->mythtv_recgroup[i].label[0]) {
+				i++;
+				continue;
+			}
+			if (strlen(ptr) <
+			    sizeof(config->mythtv_recgroup[i].label)) {
+				printf("HIDE: %d len %d label '%s'\n",
+				       i, len, ptr);
+				strncpy(config->mythtv_recgroup[i].label,
+					ptr, strlen(ptr));
+				if (item->type == CONFIG_ITEM_MYTHTV_RG_HIDE)
+					config->mythtv_recgroup[i].hide = 1;
+				i++;
+			}
+			len -= strlen(ptr) + 1;
+			ptr += strlen(ptr) + 1;
+		}
+		break;
 	default:
 		return -1;
 		break;
@@ -354,7 +430,7 @@ int
 save_config_file(char *file)
 {
 	config_list_t *list;
-	int compress = 1;
+	int compress = 1, ret;
 
 	if ((list=(config_list_t*)malloc(CONFIG_MAX_SIZE+sizeof(*list))) == NULL)
 		return -1;
@@ -410,6 +486,10 @@ save_config_file(char *file)
 		goto err;
 	if (add_item(list, CONFIG_ITEM_MYTHTV_PROGRAMS) < 0) 
 		goto err;
+	if (add_item(list, CONFIG_ITEM_MYTHTV_RG_HIDE) < 0) 
+		goto err;
+	if (add_item(list, CONFIG_ITEM_MYTHTV_RG_SHOW) < 0) 
+		goto err;
 
 	list->crc = 0;
 	list->version = CONFIG_VERSION;
@@ -421,8 +501,10 @@ save_config_file(char *file)
 	if (list->buflen < 1024)
 		compress = 0;
 
-	if (save_config_to_file(list, file, compress) < 0)
+	if ((ret=save_config_to_file(list, file, compress)) < 0) {
+		fprintf(stderr, "config file failed with error %d\n", ret);
 		goto err;
+	}
 
 	free(list);
 

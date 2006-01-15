@@ -442,6 +442,7 @@ extern mvp_widget_t *settings;
 
 extern int settings_disable;
 extern int reboot_disable;
+extern int filebrowser_disable;
 
 extern unsigned short viewport_edges[4];
 
