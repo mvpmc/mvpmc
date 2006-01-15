@@ -63,7 +63,7 @@ static int dir_count = 0;
 int
 is_video(char *item)
 {
-	char *wc[] = { ".mpg", ".mpeg", ".nuv", ".vob", NULL };
+	char *wc[] = { ".mpg", ".mpeg", ".nuv", ".ts", ".vob", NULL };
 	int i = 0;
 
 	while (wc[i] != NULL) {
