@@ -394,7 +394,7 @@ get_item(config_item_t *item, int override)
 	case CONFIG_ITEM_MYTHTV_RG_SHOW:
 		config->bitmask |= CONFIG_MYTHTV_RECGROUP;
 		len = item->buflen;
-		ptr = item->buf;
+		ptr = (char*)item->buf;
 		i = 0;
 		while ((len > 0) && (i < MYTHTV_RG_MAX)) {
 			if (config->mythtv_recgroup[i].label[0]) {
