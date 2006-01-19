@@ -396,6 +396,9 @@ mythtv_close_file(void)
 	if (playing_via_mythtv && file) {
 		fprintf(stderr, "%s(): closing file\n", __FUNCTION__);
 		CHANGE_GLOBAL_REF(file, NULL);
+	}
+
+	if (current_prog) {
 		fprintf(stderr, "%s(): releasing current prog\n",
 			__FUNCTION__);
 		CHANGE_GLOBAL_REF(current_prog, NULL);
