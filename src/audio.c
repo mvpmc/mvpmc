@@ -896,6 +896,10 @@ audio_init(void)
 	return 0;
 
  fail:
+	if (!playlist) {
+		gui_error("Unable to play audio file!\n");
+	}
+
 	return -1;
 }
 
@@ -940,6 +944,7 @@ audio_start(void *arg)
 		       current && !audio_stop)
 			;
 
+	fail:
 		if (!audio_stop && playlist) {
 			close(fd);
 			playlist_next();
@@ -949,7 +954,6 @@ audio_start(void *arg)
 			}
 		}
 
-	fail:
 		printf("Done with audio file\n");
 
 		close(fd);

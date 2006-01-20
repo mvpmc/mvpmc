@@ -1678,7 +1678,7 @@ fb_menu_select_callback(mvp_widget_t *widget, char *item, void *key)
 
 	switch ((int)key) {
 	case 1:
-		fb_shuffle();
+		fb_shuffle(1);
 		break;
 	case 2:
 		snprintf(buf, sizeof(buf), "%d", volume);
@@ -1695,6 +1695,9 @@ fb_menu_select_callback(mvp_widget_t *widget, char *item, void *key)
 		} else {
 			gui_error("Throughput test only works on videos!");
 		}
+		break;
+	case 4:
+		fb_shuffle(0);
 		break;
 	default:
 		break;
@@ -1782,6 +1785,8 @@ playlist_key_callback(mvp_widget_t *widget, char key)
 		mvpw_hide(widget);
 		mvpw_show(file_browser);
 		mvpw_focus(file_browser);
+		if (!audio_playing)
+			playlist_clear();
 		break;
 	case MVPW_KEY_SKIP:
 		audio_stop = 1;
@@ -2493,6 +2498,8 @@ file_browser_init(void)
 	fb_menu_item_attr.bg = fb_popup_attr.bg;
 	mvpw_add_menu_item(fb_menu, "Shuffle Play",
 			   (void*)1, &fb_menu_item_attr);
+	mvpw_add_menu_item(fb_menu, "Play All",
+			   (void*)4, &fb_menu_item_attr);
 	mvpw_add_menu_item(fb_menu, "Volume",
 			   (void*)2, &fb_menu_item_attr);
 	mvpw_add_menu_item(fb_menu, "Throughput Test",

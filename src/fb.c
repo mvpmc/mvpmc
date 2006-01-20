@@ -168,6 +168,11 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 		current_pl = NULL;
 	}
 
+	if (current_pl && (playlist == NULL)) {
+		free(current_pl);
+		current_pl = NULL;
+	}
+
 	printf("%s(): path '%s'\n", __FUNCTION__, path);
 	if (current && (strcmp(path, current) == 0)) {
 		printf("selected current item\n");
@@ -457,20 +462,25 @@ fb_exit(void)
 	audio_clear();
 	video_clear();
 	av_stop();
+	if (!mvpw_visible(playlist_widget))
+		playlist_clear();
 }
 
 void
-fb_shuffle(void)
+fb_shuffle(int shuffle)
 {
 	char **item, *tmp;
 	int i, j, k, n;
+
+	if (shuffle)
+		mvpw_set_menu_title(playlist_widget, "Shuffle Play");
+	else
+		mvpw_set_menu_title(playlist_widget, "Play All");
 
 	if (file_count == 0) {
 		gui_error("No files exist in this directory.");
 		return;
 	}
-
-	printf("start shuffle playback...\n");
 
 	if (file_count > 256)
 		n = 256;
@@ -493,7 +503,7 @@ fb_shuffle(void)
 		return;
 	}
 
-	if (n > 1) {
+	if (shuffle && (n > 1)) {
 		for (i=0; i<1024; i++) {
 			j = rand() % n;
 			k = rand() % n;
@@ -503,7 +513,7 @@ fb_shuffle(void)
 		}
 	}
 
-	printf("created shuffle playlist of %d songs\n", n);
+	printf("created playlist of %d songs\n", n);
 
 	switch_hw_state(MVPMC_STATE_FILEBROWSER);
 	video_functions = &file_functions;
@@ -515,13 +525,14 @@ fb_shuffle(void)
 
 	playlist_create(item, n, cwd);
 
-	mvpw_set_text_str(fb_name, "Shuffle Play");
+	if (shuffle)
+		mvpw_set_text_str(fb_name, "Shuffle Play");
+	else
+		mvpw_set_text_str(fb_name, "Play All");
 
 	mvpw_show(fb_progress);
 	mvpw_set_timer(fb_progress, fb_osd_update, 500);
 	playlist_play(NULL);
-
-	printf("shuffle playlist created\n");
 }
 
 void

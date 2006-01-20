@@ -235,7 +235,7 @@ extern void mythtv_show_widgets(void);
 extern void mythtv_program(mvp_widget_t *widget);
 
 extern void fb_program(mvp_widget_t *widget);
-extern void fb_shuffle(void);
+extern void fb_shuffle(int);
 
 extern void re_exec(void);
 extern void power_toggle(void);

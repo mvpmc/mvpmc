@@ -474,8 +474,10 @@ void playlist_stop(void)
 
 void playlist_clear(void)
 {
-  /* todo: call audio_clear or video_clear if playing*/
-  free_playlist();
+	if (playlist_head) {
+		free_playlist();
+		printf("%s(): playlist cleared\n", __FUNCTION__);
+	}
 }
 
 void playlist_create(char **item, int n, char *cwd)
@@ -511,7 +513,6 @@ void playlist_create(char **item, int n, char *cwd)
 
 	playlist_head = pl_head;
 	playlist = pl_head;
-	mvpw_set_menu_title(playlist_widget, "Shuffle Play");
 	pthread_mutex_unlock(&mutex);
 
 	playlist_change(playlist);
