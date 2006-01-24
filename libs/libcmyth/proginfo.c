@@ -247,6 +247,7 @@ cmyth_proginfo_create(void)
 	ret->proginfo_version = 12;
         ret->proginfo_hasairdate = 0;
 	ret->proginfo_timestretch = NULL;
+	ret->proginfo_unknown_2 = NULL;
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s }\n", __FUNCTION__);
 	return ret;
 
@@ -332,6 +333,7 @@ cmyth_proginfo_dup(cmyth_proginfo_t p)
 	ret->proginfo_version = p->proginfo_version;
         ret->proginfo_hasairdate = p->proginfo_hasairdate;
 	ret->proginfo_timestretch = cmyth_hold(p->proginfo_timestretch);
+	ret->proginfo_unknown_2 = p->proginfo_unknown_2;
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s }\n", __FUNCTION__);
 	return ret;
 }
@@ -448,7 +450,61 @@ delete_command(cmyth_conn_t control, cmyth_proginfo_t prog, char *cmd)
 	cmyth_datetime_to_string(lastmodified_dt, prog->proginfo_lastmodified);
 
 	
-	if (control->conn_version >= 18) {
+	if (control->conn_version >= 25) {
+		sprintf(buf,
+			"%s 0[]:[]"
+			"%s[]:[]%s[]:[]%s[]:[]%s[]:[]%ld[]:[]"
+			"%s[]:[]%s[]:[]%s[]:[]%s[]:[]%lld[]:[]"
+			"%lld[]:[]%s[]:[]%s[]:[]%s[]:[]%ld[]:[]"
+			"%ld[]:[]%s[]:[]%ld[]:[]%ld[]:[]%ld[]:[]"
+			"%s[]:[]%ld[]:[]%ld[]:[]%ld[]:[]%ld[]:[]"
+			"%ld[]:[]%s[]:[]%s[]:[]%ld[]:[]%ld[]:[]"
+			"%s[]:[]%s[]:[]%s[]:[]%s[]:[]"
+			"%s[]:[]%s[]:[]%s[]:[]%s[]:[]%ld[]:[]%s[]:[]%s[]:[]",
+			cmd,
+			prog->proginfo_title,
+			prog->proginfo_subtitle,
+			prog->proginfo_description,
+			prog->proginfo_category,
+			prog->proginfo_chanId,
+			prog->proginfo_chanstr,
+			prog->proginfo_chansign,
+			prog->proginfo_chanicon,
+			prog->proginfo_url,
+			prog->proginfo_Length >> 32,
+			(prog->proginfo_Length & 0xffffffff),
+			start_ts_dt,
+			end_ts_dt,
+			prog->proginfo_unknown_0,
+			prog->proginfo_recording,
+			prog->proginfo_override,
+			prog->proginfo_hostname,
+			prog->proginfo_source_id,
+			prog->proginfo_card_id,
+			prog->proginfo_input_id,
+			prog->proginfo_rec_priority,
+			prog->proginfo_rec_status,
+			prog->proginfo_record_id,
+			prog->proginfo_rec_type,
+			prog->proginfo_rec_dups,
+			prog->proginfo_unknown_1,
+			rec_start_ts_dt,
+			rec_end_ts_dt,
+			prog->proginfo_repeat,
+			prog->proginfo_program_flags,
+			prog->proginfo_recgroup,
+			prog->proginfo_chancommfree,
+			prog->proginfo_chan_output_filters,
+			prog->proginfo_seriesid,
+			prog->proginfo_programid,
+			lastmodified_dt,
+			prog->proginfo_stars,
+			originalairdate_dt,
+			prog->proginfo_hasairdate,
+			prog->proginfo_timestretch,
+			prog->proginfo_unknown_2); 
+	}
+	else if (control->conn_version >= 18) {
 		sprintf(buf,
 			"%s 0[]:[]"
 			"%s[]:[]%s[]:[]%s[]:[]%s[]:[]%ld[]:[]"
@@ -841,7 +897,58 @@ cmyth_proginfo_string(cmyth_proginfo_t prog)
 	cmyth_timestamp_to_string(originalairdate,
 				  prog->proginfo_originalairdate);
 	cmyth_timestamp_to_string(lastmodified, prog->proginfo_lastmodified);
-	if (prog->proginfo_version >= 18) {
+	
+	if (prog->proginfo_version >= 25) {
+		sprintf(ret,
+			"%s[]:[]%s[]:[]%s[]:[]%s[]:[]%ld[]:[]"
+			"%s[]:[]%s[]:[]%s[]:[]%s[]:[]"
+			"%lld[]:[]%lld[]:[]%s[]:[]%s[]:[]%s[]:[]"
+			"%ld[]:[]%ld[]:[]%s[]:[]%ld[]:[]%ld[]:[]"
+			"%ld[]:[]%s[]:[]%ld[]:[]%ld[]:[]%ld[]:[]"
+			"%ld[]:[]%ld[]:[]%s[]:[]%s[]:[]%ld[]:[]"
+			"%ld[]:[]%s[]:[]%s[]:[]%s[]:[]"
+			"%s[]:[]%s[]:[]%s[]:[]%s[]:[]%s[]:[]%ld[]:[]%s[]:[]",
+			prog->proginfo_title,
+			prog->proginfo_subtitle,
+			prog->proginfo_description,
+			prog->proginfo_category,
+			prog->proginfo_chanId,
+			prog->proginfo_chanstr,
+			prog->proginfo_chansign,
+			prog->proginfo_chanicon,
+			prog->proginfo_url,
+			prog->proginfo_Length >> 32,
+			(prog->proginfo_Length & 0xffffffff),
+			start_ts,
+			end_ts,
+			prog->proginfo_unknown_0,
+			prog->proginfo_recording,
+			prog->proginfo_override,
+			prog->proginfo_hostname,
+			prog->proginfo_source_id,
+			prog->proginfo_card_id,
+			prog->proginfo_input_id,
+			prog->proginfo_rec_priority,
+			prog->proginfo_rec_status,
+			prog->proginfo_record_id,
+			prog->proginfo_rec_type,
+			prog->proginfo_rec_dups,
+			prog->proginfo_unknown_1,
+			rec_start_ts,
+			rec_end_ts,
+			prog->proginfo_repeat,
+			prog->proginfo_program_flags,
+			prog->proginfo_recgroup,
+			prog->proginfo_chancommfree,
+			prog->proginfo_chan_output_filters,
+			prog->proginfo_seriesid,
+			prog->proginfo_programid,
+			lastmodified,
+			prog->proginfo_stars,
+			originalairdate,
+			prog->proginfo_hasairdate,
+			prog->proginfo_unknown_2); }
+		else if (prog->proginfo_version >= 18) {
 		sprintf(ret,
 			"%s[]:[]%s[]:[]%s[]:[]%s[]:[]%ld[]:[]"
 			"%s[]:[]%s[]:[]%s[]:[]%s[]:[]"
@@ -1708,7 +1815,60 @@ fill_command(cmyth_conn_t control, cmyth_proginfo_t prog, char *cmd)
 				 prog->proginfo_originalairdate);
 	cmyth_datetime_to_string(lastmodified_dt, prog->proginfo_lastmodified);
 
-	if (control->conn_version >= 18) {
+	if (control->conn_version >= 25) {
+		sprintf(buf,
+			"%s %s[]:[]0[]:[]"
+			"%s[]:[]%s[]:[]%s[]:[]%s[]:[]%ld[]:[]"
+			"%s[]:[]%s[]:[]%s[]:[]%s[]:[]%lld[]:[]"
+			"%lld[]:[]%s[]:[]%s[]:[]%s[]:[]%ld[]:[]"
+			"%ld[]:[]%s[]:[]%ld[]:[]%ld[]:[]%ld[]:[]"
+			"%s[]:[]%ld[]:[]%ld[]:[]%ld[]:[]%ld[]:[]"
+			"%ld[]:[]%s[]:[]%s[]:[]%ld[]:[]%ld[]:[]"
+			"%s[]:[]%s[]:[]%s[]:[]%s[]:[]"
+			"%s[]:[]%s[]:[]%s[]:[]%s[]:[]%ld[]:[]%s[]:[]%s[]:[]",
+			cmd, host,
+			prog->proginfo_title,
+			prog->proginfo_subtitle,
+			prog->proginfo_description,
+			prog->proginfo_category,
+			prog->proginfo_chanId,
+			prog->proginfo_chanstr,
+			prog->proginfo_chansign,
+			prog->proginfo_chanicon,
+			prog->proginfo_url,
+			prog->proginfo_Length >> 32,
+			(prog->proginfo_Length & 0xffffffff),
+			start_ts_dt,
+			end_ts_dt,
+			prog->proginfo_unknown_0,
+			prog->proginfo_recording,
+			prog->proginfo_override,
+			prog->proginfo_hostname,
+			prog->proginfo_source_id,
+			prog->proginfo_card_id,
+			prog->proginfo_input_id,
+			prog->proginfo_rec_priority,
+			prog->proginfo_rec_status,
+			prog->proginfo_record_id,
+			prog->proginfo_rec_type,
+			prog->proginfo_rec_dups,
+			prog->proginfo_unknown_1,
+			rec_start_ts_dt,
+			rec_end_ts_dt,
+			prog->proginfo_repeat,
+			prog->proginfo_program_flags,
+			prog->proginfo_recgroup,
+			prog->proginfo_chancommfree,
+			prog->proginfo_chan_output_filters,
+			prog->proginfo_seriesid,
+			prog->proginfo_programid,
+			lastmodified_dt,
+			prog->proginfo_stars,
+			originalairdate_dt,
+			prog->proginfo_hasairdate,
+			prog->proginfo_timestretch,
+			prog->proginfo_unknown_2); }
+	else if (control->conn_version >= 18) {
 		sprintf(buf,
 			"%s %s[]:[]0[]:[]"
 			"%s[]:[]%s[]:[]%s[]:[]%s[]:[]%ld[]:[]"
