@@ -2821,7 +2821,7 @@ livetv_select_callback(mvp_widget_t *widget, char *item, void *key)
 
 	switch_hw_state(MVPMC_STATE_MYTHTV);
 
-	if (mythtv_recdir)
+	if (mythtv_ringbuf)
 		video_functions = &file_functions;
 	else
 		video_functions = &livetv_functions;
