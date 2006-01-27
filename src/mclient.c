@@ -216,6 +216,35 @@ void mclient_audio_play (mvp_widget_t * widget);
 unsigned char *mac_address_ptr;
 struct ifreq ifr;
 
+/*
+ * Lookup table to adjust the volume contol - make it sound
+ * more like a normal volume control.
+ *
+ * Mvpmc vol range appears to be between 220 to 255.
+ */
+unsigned char volume_adj[] = {
+    225, 225, 226, 226, 227, 227, 228, 228, 229, 229,
+    230, 230, 231, 231, 232, 232, 233, 233, 234, 234,
+    235, 236, 237, 238, 239, 240, 241, 242, 243, 244,
+    245, 246, 247, 248, 249, 250, 251, 252, 253, 254,
+    255
+};
+
+/*
+ * Volume data received from the server.
+ */
+unsigned int volume_server[] = {
+    0x0, 0x147, 0x51e, 0xb85, 0x147a,
+    0x2000, 0x2e14, 0x3eb8, 0x51eb, 0x67ae,
+    0x8000, 0x9ae1, 0xb851, 0xd851, 0xfae1,
+    0x12000, 0x147ae, 0x171eb, 0x19eb8, 0x1ce14,
+    0x20000, 0x2347a, 0x26b85, 0x2a51e, 0x2e147,
+    0x32000, 0x36147, 0x3a51e, 0x3eb85, 0x4347a,
+    0x48000, 0x4ce14, 0x51eb8, 0x571eb, 0x5c7ae,
+    0x62000, 0x67ae1, 0x6d851, 0x73851, 0x79ae1,
+    0x80000
+};
+
 ring_buf *
 ring_buf_create (int size)
 {
@@ -286,8 +315,8 @@ send_ack (int s, unsigned short seq)
 
     if (debug)
     {
-        printf ("\nmclient:pkt.wptr:%8.8d pkt.rptr:%8.8d handle:%d\n", pkt.wptr, pkt.rptr,
-                s);
+        printf ("\nmclient:pkt.wptr:%8.8d pkt.rptr:%8.8d handle:%d\n", pkt.wptr,
+                pkt.rptr, s);
         printf ("=> sending ack for %d\n", seq);
     }
 
@@ -479,14 +508,6 @@ curses2ir (int key)
          */
         ///    case '+': ir = 0x7689f807; break; /* size */
         ///    case '*': ir = 0x768904fb; break; /* brightness */
-
-///    Let's try running vol cntrl through the server.
-///    case MVPW_KEY_VOL_UP:
-///    case MVPW_KEY_VOL_DOWN:
-///     volume_key_callback(volume_dialog, key);
-///     mvpw_show(volume_dialog);
-///     mvpw_set_timer(volume_dialog, mvpw_hide, 3000);
-///     break;
     }
     if (ir != 0)
         send_ir (mclient_socket, 0xff, ir, 16);
@@ -500,10 +521,11 @@ receive_mpeg_data (int s, receive_mpeg_header * data, int bytes_read)
 {
     static int seq_history = 0;
     int message_length = 0;
-    static int rec_seq = 0;   // for use in ack test
+    static int rec_seq = 0;     // for use in ack test
 
-    rec_seq = ntohs(data->seq);
-    if (seq_history > rec_seq) {
+    rec_seq = ntohs (data->seq);
+    if (seq_history > rec_seq)
+    {
         // reset on server or client reboots or when SlimServer ushort resets at 64k
         seq_history = -1;
     }
@@ -538,8 +560,7 @@ receive_mpeg_data (int s, receive_mpeg_header * data, int bytes_read)
      * (Server needs this control when switching between
      * programs (i.e. when switching between tracks).)
      */
-//    outbuf->head = ntohs((data->wptr) << 1 );  // mclient can control head
-    outbuf->head = ntohs((data->wptr) << 1 );  // ### 20051209  Let's try to let the server do this again.
+    outbuf->head = ntohs ((data->wptr) << 1); // ### 20051209  Let's try to let the server do this again.
 
     /*
      * Store play mode into global variable.
@@ -554,11 +575,11 @@ receive_mpeg_data (int s, receive_mpeg_header * data, int bytes_read)
     /*
      * If this is a new sequence (new data) then
      * add it to the input buffer.
+     *
+     * Don't procees when 0 (sendEmptyChunk from SlimServer) or if it has 
+     * already been buffered.
      */
-
-//  Don't procees when 0 (sendEmptyChunk from SlimServer) or if it has already been buffered
-
-    if (message_length != 0 &&  seq_history < ntohs(data->seq)  )
+    if (message_length != 0 && seq_history < ntohs (data->seq))
     {
         /*
          * Keep history of seq so next time
@@ -584,7 +605,7 @@ receive_mpeg_data (int s, receive_mpeg_header * data, int bytes_read)
              */
             outbuf->head += message_length;
 
-            if (outbuf->head == OUT_BUF_SIZE )
+            if (outbuf->head == OUT_BUF_SIZE)
             {
                 outbuf->head = 0;
             }
@@ -609,9 +630,10 @@ receive_mpeg_data (int s, receive_mpeg_header * data, int bytes_read)
 
     /*
      * Send ack back to server.
+     * (If a new bigger rec_seq has been received, don't re-ack 
+     * an outdated packet.)
      */
-//  if a new bigger rec_seq has been received, don't re-ack an outdated packet
-    if (seq_history <= rec_seq )
+    if (seq_history <= rec_seq)
     {
         send_ack (s, ntohs (data->seq));
     }
@@ -623,6 +645,7 @@ send_mpeg_data (void)
 {
     int amount_written = 0;
     int afd;
+    static int playmode_history = 0;
 
     /*
      * Play control (play, pause & stop).
@@ -827,14 +850,18 @@ send_mpeg_data (void)
          * STOP: Do not play, and reset tail to beginning of buffer.
          * (Server needs this control when switching between programs.)
          */
-//        av_reset ();  audio reset unnecessary
-        av_reset (); // ### 20051209  Let's try putting it back.
+        if (playmode_history != 3)
+        {
+            av_reset ();
+        }
+
         outbuf->tail = 0;
         break;
 
     default:
         break;
     }
+    playmode_history = outbuf->playmode;
 }
 
 
@@ -884,8 +911,8 @@ mclient_idle_callback (mvp_widget_t * widget)
     if ((strncmp (newstring, oldstring, 40) != 0) && (send_display_data_state == 0))
     {
         if (debug)
-            printf ("mclient:TEST:new&old are diff new:%s old:%s state:%d\n", newstring,
-                    oldstring, send_display_data_state);
+            printf ("mclient:TEST:new&old are diff new:%s old:%s state:%d\n",
+                    newstring, oldstring, send_display_data_state);
         /*
          * But, wait until server animation has stopped before deciding
          * to send data.
@@ -896,14 +923,14 @@ mclient_idle_callback (mvp_widget_t * widget)
     if ((strncmp (newstring, oldstring, 40) == 0) && (send_display_data_state == 1))
     {
         if (debug)
-            printf ("mclient:TEST:new&old are same new:%s old:%s state:%d\n", newstring,
-                    oldstring, send_display_data_state);
-        snprintf (display_message, sizeof (display_message), "Line1:%40.40s\n",
-                  &newstring[0]);
+            printf ("mclient:TEST:new&old are same new:%s old:%s state:%d\n",
+                    newstring, oldstring, send_display_data_state);
+        snprintf (display_message, sizeof (display_message),
+                  "Line1:%40.40s\n", &newstring[0]);
         display_send (display_message);
 
-        snprintf (display_message, sizeof (display_message), "Line2:%40.40s\n",
-                  &newstring[41]);
+        snprintf (display_message, sizeof (display_message),
+                  "Line2:%40.40s\n", &newstring[41]);
         display_send (display_message);
 
         send_display_data_state = 0;
@@ -1037,13 +1064,15 @@ receive_volume_data (unsigned short *data, int bytes_read)
     unsigned short vol_2, vol_1, vol_0;
     unsigned short addr_hi, addr_lo;
     uint addr;
-    ulong vol_data;
+    ulong vol_server;
+    uint vol_mvpmc;
+    int i;
 
     /*
      * Verify i2c Address for chan 1.
      *
      * Data starts at byte 18 (9), addres is at 32 (16)
-     * vol_data at 38 (18).
+     * vol_server at 38 (18).
      */
     addr_hi = data[16] & 0xff00;
     addr_lo = data[17] & 0xff00;
@@ -1057,19 +1086,53 @@ receive_volume_data (unsigned short *data, int bytes_read)
         vol_2 = (data[21]) & 0xff00;
         vol_1 = (data[18]) & 0xff00;
         vol_0 = (data[19]) & 0xff00;
-        vol_data = ((vol_2 << 8) + (vol_1) + (vol_0 >> 8));
+        vol_server = ((vol_2 << 8) + (vol_1) + (vol_0 >> 8));
         /*
          * Mvpmc vol range appears to be between 220 to 255.  Find a
-         * best fit for our vol_data we receive from the server.
+         * best fit for our vol_server we receive from the server.
          * (If we could, we might do better if we used the square
-         * root of vol_data.))
-         * Note, using the following equation results in identical
-         * mvpmc vol levels for different mvpmc values.
+         * root of vol_server.))
          */
-        vol_data = 238 + ((17.0 * vol_data) / 0x80000);
-        if (av_set_volume (vol_data) < 0)
+        vol_mvpmc = 0;
+        i = 0;
+        while ((volume_server[i] != vol_server) & (i <= 40))
+        {
+            i++;
+        }
+        vol_mvpmc = volume_adj[i];
+
+        {
+            av_state_t state;
+
+            av_get_state (&state);
+
+            /*
+             * If vol_40 is zero, set mute.
+             */
+            if ((i == 0) & (state.mute == 0))
+            {
+                if (av_mute () == 1)
+                {
+                    mvpw_show (mute_widget);
+                }
+            }
+
+            /*
+             * If vol_40 is changed and not 0, clear mute.
+             */
+            if ((i != 0) & (state.mute == 1))
+            {
+                if (av_mute () == 0)
+                {
+                    mvpw_hide (mute_widget);
+                }
+            }
+        }
+	if (debug)
+	  printf ("mclient:vol_raw:%5x vol_data:%d i:%d\n", (uint) vol_server, vol_mvpmc, i);
+        if (av_set_volume (vol_mvpmc) < 0)
             printf ("mclient:error:volume could not be set\n");
-        volume = vol_data;
+        volume = vol_mvpmc;
     }
 }
 
@@ -1364,8 +1427,8 @@ int
 music_client (void)
 {
     printf ("mclient:Starting mclient pthread.\n");
-    pthread_create (&mclient_loop_thread_handle, &thread_attr_small, mclient_loop_thread,
-                    NULL);
+    pthread_create (&mclient_loop_thread_handle, &thread_attr_small,
+                    mclient_loop_thread, NULL);
 
     mvpw_set_dialog_text (mclient,
                           "Update text lines....................... \n line 2................................... \n line 3................................... \n");

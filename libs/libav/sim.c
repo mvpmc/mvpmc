@@ -167,6 +167,12 @@ av_get_output(void)
 	return AV_OUTPUT_COMPOSITE;
 }
 
+int
+av_get_state(av_state_t *state)
+{
+	return 0;
+}
+
 av_aspect_t
 av_get_aspect(void)
 {
