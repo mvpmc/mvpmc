@@ -442,6 +442,20 @@ hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 		hi_prog = cmyth_proglist_get_item(ep_list, (int)key);
 		CHANGE_GLOBAL_REF(hilite_prog, hi_prog);
 
+/*  SAMPLE CODE TO USE BOOKMARK FUNCTIONS -- not in correct place, I know,
+*		but this is where I tested it....
+*	To Retrieve bookmark:
+*		long long bookmark;
+*		cmyth_conn_t ctrl=cmyth_hold(control);
+*		bookmark = cmyth_get_bookmark(ctrl, hi_prog);
+*		cmyth_dbg(CMYTH_DBG_DEBUG, "retrieved bookmark, value: %qd \n",
+*			bookmark);
+*		cmyth_release(ctrl);
+*	To set bookmark:
+*		bookmark = 9999;
+*		int msgret;
+*		msgret = cmyth_set_bookmark(ctrl, hi_prog, bookmark);
+*/
 		channame = cmyth_proginfo_channame(hi_prog);
 		if (channame) {
 			mvpw_set_text_str(mythtv_channel, channame);
