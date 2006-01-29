@@ -213,13 +213,14 @@ static int build_playlist_from_file(const char *filename)
 	if(ch<0){
 	  done=1;
 	}
-	if(ch<0 || ch=='\n'){
+	if(ch<0 || ch=='\n'|| ch=='\r'){
 	  ch = '\0';
 	}
 	tmpbuf[sz] = ch;
 	sz++;
 	if(ch=='\0'){
 	  /*fprintf(stderr,"playlist line %d: %s %s\n",count,cwd,tmpbuf);*/
+
 	  switch (tmpbuf[0]) {
 	  case '#':
 	    if ((sep=strchr(tmpbuf, ':')) != NULL) {
@@ -247,9 +248,14 @@ static int build_playlist_from_file(const char *filename)
 			  ptr = strrchr(pl_item->filename, '\\');
 		  }
 		  else{
-			pl_item->filename = (char*)malloc(strlen(cwd)+strlen(tmpbuf)+2);
-			sprintf(pl_item->filename,"%s/%s",cwd,tmpbuf);
-			ptr = tmpbuf;
+			  if (strncmp(tmpbuf,"http://",7)==0) {
+				  pl_item->filename = strdup(tmpbuf);
+			  } 
+			  else {
+				  pl_item->filename = (char*)malloc(strlen(cwd)+strlen(tmpbuf)+2);
+				  sprintf(pl_item->filename,"%s/%s",cwd,tmpbuf);
+			  }
+			  ptr = tmpbuf;
 		  }
 		  if (seconds)
 		    pl_item->seconds = seconds;
@@ -305,6 +311,7 @@ playlist_idle(mvp_widget_t *widget)
 {
   playlist_file_t playlist_type;
   static playlist_t *pl_item = NULL;
+  int rc = 0;
 
   if (playlist == NULL && current!=NULL) {
 	if(playlist_current){
@@ -314,7 +321,7 @@ playlist_idle(mvp_widget_t *widget)
 	current = NULL;
 	switch ((playlist_type=get_playlist_type(playlist_current))) {
 	case PLAYLIST_FILE_FILELIST:
-	  if(build_playlist_from_file(playlist_current)<0){
+	  if((rc=build_playlist_from_file(playlist_current))<0){
 		free(playlist_current);
 		playlist_current=NULL;
 	  }
@@ -322,11 +329,18 @@ playlist_idle(mvp_widget_t *widget)
 	case PLAYLIST_FILE_UNKNOWN:
 	  return;
 	  break;
-	}
-	
+	}	
 	if(playlist){
-	  /* play first item */
-	  playlist_change(playlist);
+		if (strncasecmp(playlist->filename,"http://",7)==0) {
+			if (rc==1 ) {
+				/* play first item */
+				current = strdup(playlist->filename);
+				audio_play(NULL);
+			}
+		} else {
+			/* play first item */
+			playlist_change(playlist);
+		}
 	}
 	pl_item = playlist;
 	mvpw_set_timer(playlist_widget, playlist_idle, 100);
@@ -335,24 +349,29 @@ playlist_idle(mvp_widget_t *widget)
 		  /* done parsing ID3 info */
 		  mvpw_set_timer(playlist_widget, NULL, 0);
 	  } else {
-		  ID3 *info;
 
-		  info = create_ID3(NULL);
-		  if (parse_file_ID3(info, (unsigned char*)pl_item->filename) == 0) {
-			  char artist[64], title[64], buf[128];
-			  char *p;
+		  if (strncasecmp(pl_item->filename,"http://",7)) {
+			  ID3 *info;
 
-			  snprintf(artist, sizeof(artist), info->artist);
-			  snprintf(title, sizeof(title), info->title);
-			  p = artist + strlen(artist) - 1;
-			  while (*p == ' ')
-				  *(p--) = '\0';
-			  snprintf(buf, sizeof(buf), "%s - %s", artist, title);
-
-			  mvpw_menu_change_item(playlist_widget,
-						pl_item->key, buf);
+			  info = create_ID3(NULL);
+			  if (parse_file_ID3(info, (unsigned char*)pl_item->filename) == 0) {
+				  char artist[64], title[64], buf[128];
+				  char *p;
+    
+				  snprintf(artist, sizeof(artist),
+					   info->artist);
+				  snprintf(title, sizeof(title), info->title);
+				  p = artist + strlen(artist) - 1;
+				  while (*p == ' ')
+					  *(p--) = '\0';
+				  snprintf(buf, sizeof(buf), "%s - %s",
+					   artist, title);
+    
+				  mvpw_menu_change_item(playlist_widget,
+							pl_item->key, buf);
+			  }
+			  destroy_ID3(info);
 		  }
-		  destroy_ID3(info);
 
 		  pl_item = pl_item->next;
 	  }
@@ -394,49 +413,53 @@ static void playlist_change(playlist_t *next)
    * MP3 file.
    */
   {
-    int rc = 0;
+    if (strncasecmp(playlist->filename,"http://",7)) {
+        int rc = 0;
+    
+        ID3 *info= create_ID3(NULL);
+    
+        if (!(info = create_ID3(info))) 
+          {
+    	printf("Create Failed\n");
+          }
+    
+        if ((rc = parse_file_ID3(info, (unsigned char*)playlist->filename))) 
+          {
+    	printf("File: %s\n", playlist->filename);
+    	printf("MP3 ID3 Failed with code %d\n", rc);
+          } else {
+    	if (info->mask & TITLE_TAG )
+    	  printf("Title %s \n", info->title);
+    	if (info->mask & ARTIST_TAG )
+    	  printf("Artist %s \n", info->artist);
+    	if (info->mask & ALBUM_TAG )
+    	  printf("Album %s \n", info->album);
+    	if (info->mask & YEAR_TAG )
+    	  printf("Year %s \n", info->year);
+    	if (info->mask & COMMENT_TAG )
+    	  printf("Comment %s \n", info->comment);
+    	if (info->mask & TRACK_TAG )
+    	  printf("Track %s\n", info->track);
+    	if (info->mask & GENRE_TAG )
+    	  printf("Genre %s \n", info->genre);
+    	printf("Version %s \n", info->version);
+          }
+    
+        snprintf(display_message,DISPLAY_MESG_SIZE,"\nTitle:%s \nArtist:%s \nAlbum:%s \n", info->title, info->artist, info->album);
+    
+        display_send(display_message);
 
-    ID3 *info= create_ID3(NULL);
-
-    if (!(info = create_ID3(info))) 
-      {
-	printf("Create Failed\n");
-      }
-
-    if ((rc = parse_file_ID3(info, (unsigned char*)playlist->filename))) 
-      {
-	printf("File: %s\n", playlist->filename);
-	printf("MP3 ID3 Failed with code %d\n", rc);
-      } else {
-	if (info->mask & TITLE_TAG )
-	  printf("Title %s \n", info->title);
-	if (info->mask & ARTIST_TAG )
-	  printf("Artist %s \n", info->artist);
-	if (info->mask & ALBUM_TAG )
-	  printf("Album %s \n", info->album);
-	if (info->mask & YEAR_TAG )
-	  printf("Year %s \n", info->year);
-	if (info->mask & COMMENT_TAG )
-	  printf("Comment %s \n", info->comment);
-	if (info->mask & TRACK_TAG )
-	  printf("Track %s\n", info->track);
-	if (info->mask & GENRE_TAG )
-	  printf("Genre %s \n", info->genre);
-	printf("Version %s \n", info->version);
-      }
-
-    snprintf(display_message,DISPLAY_MESG_SIZE,"\nTitle:%s \nArtist:%s \nAlbum:%s \n", info->title, info->artist, info->album);
-
-    display_send(display_message);
-
-    if (destroy_ID3(info)) 
-      {
-	printf("Destroy Failed\n");
-      }
+        if (destroy_ID3(info)) 
+          {
+    	printf("Destroy Failed\n");
+          }
+    }
   }
 
   current = strdup(playlist->filename);
-  if (is_video(current)) {
+  if (strncasecmp(playlist->filename,"http://",7)==0) {
+	audio_play(NULL);
+  } else if (is_video(current)) {
 	mvpw_set_timer(root, video_play, 50);
   } else if (is_audio(current)) {
 	audio_play(NULL);

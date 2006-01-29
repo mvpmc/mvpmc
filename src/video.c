@@ -21,6 +21,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <dirent.h>
 #include <glob.h>
@@ -68,6 +69,7 @@ pthread_cond_t video_cond = PTHREAD_COND_INITIALIZER;
 static sem_t   write_threads_idle_sem;
 
 int fd = -1;
+extern int http_playing;
 
 static av_stc_t seek_stc;
 static int seek_seconds;
@@ -547,6 +549,7 @@ enable_osd(void)
 	case MVPMC_STATE_REPLAYTV:
 		set_osd_callback(OSD_PROGRAM, replaytv_osd_proginfo_update);
 		break;
+	case MVPMC_STATE_HTTP:
 	case MVPMC_STATE_FILEBROWSER:
 		set_osd_callback(OSD_PROGRAM, fb_program);
 		break;
@@ -636,10 +639,12 @@ video_callback(mvp_widget_t *widget, char key)
 			replaytv_back_from_video();
 			break;
 		case MVPMC_STATE_FILEBROWSER:
+		case MVPMC_STATE_HTTP:
 			if (playlist) {
 				mvpw_show(fb_progress);
 				mvpw_show(playlist_widget);
 				mvpw_focus(playlist_widget);
+				http_playing = 0;
 			} else {
 				mvpw_show(fb_progress);
 				mvpw_show(file_browser);
@@ -1115,11 +1120,14 @@ do_seek(void)
 static long long
 file_size(void)
 {
-	struct stat64 sb;
-
-	fstat64(fd, &sb);
-
-	return sb.st_size;
+	if ( http_playing == 0 ) {
+		struct stat64 sb;
+    
+		fstat64(fd, &sb);
+		return sb.st_size;    
+	} else {
+		return 40000000;
+	}
 }
 
 static long long
@@ -1156,20 +1164,27 @@ file_open(void)
 	audio_selected = 0;
 	audio_checks = 0;
 
-	if (video_reopen == 1)
-		audio_clear();
-
-	close(fd);
+	if ( http_playing == 0 ) {
+		if (video_reopen == 1)
+			audio_clear();
+		
+		close(fd);
+	}
 
 	pthread_kill(video_write_thread, SIGURG);
 	pthread_kill(audio_write_thread, SIGURG);
 
-	if ((fd=open(current, O_RDONLY|O_LARGEFILE)) < 0) {
-		printf("Open failed errno %d file %s\n", errno, current);
-		video_reopen = 0;
-		return -1;
+	if ( http_playing == 0 ) {
+		if ((fd=open(current, O_RDONLY|O_LARGEFILE)) < 0) {
+			printf("Open failed errno %d file %s\n",
+			       errno, current);
+			video_reopen = 0;
+			return -1;
+		}
+		printf("opened %s\n", current);
+	} else {
+		printf("http opened %s\n", current);
 	}
-	printf("opened %s\n", current);
 
 	if (video_reopen == 1) {
 		av_set_audio_output(AV_AUDIO_MPEG);
@@ -1303,7 +1318,11 @@ video_read_start(void *arg)
 			}
 			else {
 				tsbuf = tsbuf_static;
-				tslen = video_functions->read(tsbuf, sizeof(tsbuf_static));
+                do {
+			tslen = video_functions->read(tsbuf,
+						      sizeof(tsbuf_static));
+                } while ( tslen==-1 && errno==EAGAIN);
+                // printf("tslen %d\n",tslen);
 			}
 			thruput_count += tslen;
 			inbuf = inbuf_static;
@@ -1329,7 +1348,7 @@ video_read_start(void *arg)
 
 			n = 0;
 
-			if ((len == 0) && playlist) {
+			if ((len == 0) && playlist && http_playing !=1) {
 				video_reopen = 2;
 				playlist_next();
 			}
@@ -1425,35 +1444,36 @@ video_read_start(void *arg)
 		  }
 		  if (do_change)
 		  {
-		    printf("Changing to aspect %d at 0x%llx\n",vi->aspect,pts.stc);
-		    if (vi->aspect != 0) {
-			/* av_set_video_aspect is a bit of a no-op nowadays...
-			 * do it anyway incase libav needs to know the video
-			 * aspect in future*/
-			if (vi->aspect == 3) {
-			        printf("Source video aspect ratio: 16:9\n");
-				av_set_video_aspect(AV_ASPECT_16x9);
-				if(av_get_aspect() == AV_ASPECT_16x9_AUTO)
-				{
-				     printf("Switching WSS signal\n");
-				     mvpw_hide(wss_4_3_image);
-				     mvpw_show(wss_16_9_image);
-				}
-			} else {
-			        printf("Source video aspect ratio: 4:3\n");
-				av_set_video_aspect(AV_ASPECT_4x3);
-				if(av_get_aspect() == AV_ASPECT_16x9_AUTO)
-				{
-				     printf("Switching WSS signal\n");
-				     mvpw_hide(wss_16_9_image);
-				     mvpw_show(wss_4_3_image);
-				}
-			}
-			current_aspect = vi->aspect;
-			set_aspect = 0;
-		    } else {
-		        printf("Video aspect reported as ZERO - not changing setting\n");
-		    }
+			  printf("Changing to aspect %d at 0x%llx\n",
+				 vi->aspect,pts.stc);
+			  if (vi->aspect != 0) {
+				  /* av_set_video_aspect is a bit of a no-op nowadays...
+				   * do it anyway incase libav needs to know the video
+				   * aspect in future*/
+				  if (vi->aspect == 3) {
+					  printf("Source video aspect ratio: 16:9\n");
+					  av_set_video_aspect(AV_ASPECT_16x9);
+					  if(av_get_aspect() == AV_ASPECT_16x9_AUTO)
+					  {
+						  printf("Switching WSS signal\n");
+						  mvpw_hide(wss_4_3_image);
+						  mvpw_show(wss_16_9_image);
+					  }
+				  } else {
+					  printf("Source video aspect ratio: 4:3\n");
+					  av_set_video_aspect(AV_ASPECT_4x3);
+					  if(av_get_aspect() == AV_ASPECT_16x9_AUTO)
+					  {
+						  printf("Switching WSS signal\n");
+						  mvpw_hide(wss_16_9_image);
+						  mvpw_show(wss_4_3_image);
+					  }
+				  }
+				  current_aspect = vi->aspect;
+				  set_aspect = 0;
+			  } else {
+				  printf("Video aspect reported as ZERO - not changing setting\n");
+			  }
 		  }
 		}
 	} //while

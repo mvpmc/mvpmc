@@ -30,6 +30,7 @@ typedef enum {
 	MVPMC_STATE_FILEBROWSER,
 	MVPMC_STATE_REPLAYTV,
 	MVPMC_STATE_MCLIENT,
+	MVPMC_STATE_HTTP,
 } mvpmc_state_t;
 
 typedef enum {

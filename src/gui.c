@@ -2333,6 +2333,9 @@ popup_key_callback(mvp_widget_t *widget, char key)
 static void
 mclient_key_callback(mvp_widget_t *widget, char key)
 {
+	if (gui_state != MVPMC_STATE_MCLIENT)
+		return;
+
         if(key == MVPW_KEY_EXIT)
 	{
 	        mvpw_hide(widget);
@@ -5121,7 +5124,7 @@ screensaver_timer(mvp_widget_t *widget)
 	int x, y;
 
 
-	if(gui_state == MVPMC_STATE_MCLIENT)
+	if(gui_state == MVPMC_STATE_MCLIENT || gui_state == MVPMC_STATE_HTTP)
 	{
 		mvpw_get_widget_info(mclient, &info);
 		mvpw_set_timer(screensaver, screensaver_timer, 10000);
@@ -5137,7 +5140,7 @@ screensaver_timer(mvp_widget_t *widget)
 	x = rand() % (si.cols - info.w);
 	y = rand() % (si.rows - info.h);
 
-	if(gui_state == MVPMC_STATE_MCLIENT)
+	if(gui_state == MVPMC_STATE_MCLIENT|| gui_state == MVPMC_STATE_HTTP )
 	{
 		mvpw_moveto(mclient, x, y);
 		mvpw_expose(screensaver);
@@ -5160,7 +5163,7 @@ screensaver_event(mvp_widget_t *widget, int activate)
 		 * If mclient hardware active, use it's display as 
 		 * part of screen saver.
 		 */
-		if(gui_state == MVPMC_STATE_MCLIENT)
+		if(gui_state == MVPMC_STATE_MCLIENT || gui_state == MVPMC_STATE_HTTP)
 		{
 			/*
 			 * Save mclient position when we return from
@@ -5188,7 +5191,7 @@ screensaver_event(mvp_widget_t *widget, int activate)
 		 * If mclient hardware active, revert back to
 		 * mclient gui from screen saver mode.
 		 */
-		if(gui_state == MVPMC_STATE_MCLIENT)
+		if(gui_state == MVPMC_STATE_MCLIENT || gui_state == MVPMC_STATE_HTTP)
 		{
 			mvpw_hide(mclient);
 			mvpw_reparent(mclient, NULL);
@@ -5197,11 +5200,15 @@ screensaver_event(mvp_widget_t *widget, int activate)
 			 * Only show mclient widget if mclient has control
 			 * of the gui.
 			 */
-			if(gui_state == MVPMC_STATE_MCLIENT)
+			if(gui_state == MVPMC_STATE_MCLIENT || gui_state == MVPMC_STATE_HTTP )
 			{
 				mvpw_raise(mclient);
-				mvpw_show(mclient);
-				mvpw_focus(mclient);
+				if(gui_state == MVPMC_STATE_MCLIENT ) {
+					mvpw_show(mclient);
+					mvpw_focus(mclient);
+				} else {
+					mvpw_focus(playlist_widget);
+				}
 			}
 		}
 		else

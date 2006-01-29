@@ -821,6 +821,7 @@ switch_hw_state(mvpmc_state_t new)
 	case MVPMC_STATE_NONE:
 		break;
 	case MVPMC_STATE_FILEBROWSER:
+	case MVPMC_STATE_HTTP:
 		fb_exit();
 		break;
 	case MVPMC_STATE_MYTHTV:
@@ -857,6 +858,7 @@ atexit_handler(void)
 	case MVPMC_STATE_NONE:
 		break;
 	case MVPMC_STATE_FILEBROWSER:
+	case MVPMC_STATE_HTTP:
 		break;
 	case MVPMC_STATE_MYTHTV:
 		mythtv_atexit();
@@ -870,6 +872,7 @@ atexit_handler(void)
 	switch (gui_state) {
 	case MVPMC_STATE_NONE:
 		break;
+	case MVPMC_STATE_HTTP:
 	case MVPMC_STATE_FILEBROWSER:
 		break;
 	case MVPMC_STATE_MYTHTV:
