@@ -271,8 +271,8 @@ struct cmyth_proginfo {
         unsigned long proginfo_hasairdate;
 	char *proginfo_host;
 	unsigned long proginfo_version;
-	char *proginfo_timestretch; /* new in v18 */
-	char *proginfo_unknown_2;  /* new in V25 */
+	char *proginfo_playgroup; /* new in v18 */
+	char *proginfo_recpriority_2;  /* new in V25 */
 };
 
 struct cmyth_proglist {

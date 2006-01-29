@@ -1974,7 +1974,7 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 	
 	if (buf->proginfo_version >= 18) {
 		/*
-		 * Get timestretch (string)
+		 * Get playgroup (string)
 		 */
 		consumed = cmyth_rcv_string(conn, err, tmp_str,
 					    sizeof(tmp_str) - 1, count);
@@ -1984,13 +1984,13 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 			failed = "cmyth_rcv_string";
 			goto fail;
 		}
-		if (buf->proginfo_timestretch)
-			cmyth_release(buf->proginfo_timestretch);
-		buf->proginfo_timestretch = cmyth_strdup(tmp_str);
+		if (buf->proginfo_playgroup)
+			cmyth_release(buf->proginfo_playgroup);
+		buf->proginfo_playgroup = cmyth_strdup(tmp_str);
 	}
 	if (buf->proginfo_version >= 25) {
 		/*
-		 * Get proginfo_unknown_2 (string)
+		 * Get proginfo_recpriority_2 (string)
 		 */
 		consumed = cmyth_rcv_string(conn, err,
 					    tmp_str, sizeof(tmp_str) - 1,
@@ -2001,9 +2001,9 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 			failed = "cmyth_rcv_string";
 			goto fail;
 		}
-		if (buf->proginfo_unknown_2)
-			cmyth_release(buf->proginfo_unknown_2);
-		buf->proginfo_unknown_2 = cmyth_strdup(tmp_str);
+		if (buf->proginfo_recpriority_2)
+			cmyth_release(buf->proginfo_recpriority_2);
+		buf->proginfo_recpriority_2 = cmyth_strdup(tmp_str);
 	}
 	
  

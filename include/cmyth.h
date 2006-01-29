@@ -500,4 +500,13 @@ extern int cmyth_file_select(cmyth_file_t file, struct timeval *timeout);
  */
 extern cmyth_freespace_t cmyth_freespace_create(void);
 
+/*
+ * -------
+ * Bookmark,Commercial Skip Operations
+ * -------
+ */
+extern long long cmyth_get_bookmark(cmyth_conn_t conn, cmyth_proginfo_t prog);
+extern int cmyth_set_bookmark(cmyth_conn_t conn, cmyth_proginfo_t prog,
+	long long bookmark);
+
 #endif /* __CMYTH_H */

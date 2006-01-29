@@ -124,8 +124,8 @@ cmyth_proginfo_destroy(cmyth_proginfo_t p)
 	if (p->proginfo_host) {
 		cmyth_release(p->proginfo_host);
 	}
-	if (p->proginfo_timestretch) {
-		cmyth_release(p->proginfo_timestretch);
+	if (p->proginfo_playgroup) {
+		cmyth_release(p->proginfo_playgroup);
 	}
 	if (p->proginfo_lastmodified) {
 		cmyth_release(p->proginfo_lastmodified);
@@ -246,8 +246,8 @@ cmyth_proginfo_create(void)
 	ret->proginfo_stars = NULL;
 	ret->proginfo_version = 12;
         ret->proginfo_hasairdate = 0;
-	ret->proginfo_timestretch = NULL;
-	ret->proginfo_unknown_2 = NULL;
+	ret->proginfo_playgroup = NULL;
+	ret->proginfo_recpriority_2 = NULL;
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s }\n", __FUNCTION__);
 	return ret;
 
@@ -332,8 +332,8 @@ cmyth_proginfo_dup(cmyth_proginfo_t p)
 	ret->proginfo_stars = cmyth_hold(p->proginfo_stars);
 	ret->proginfo_version = p->proginfo_version;
         ret->proginfo_hasairdate = p->proginfo_hasairdate;
-	ret->proginfo_timestretch = cmyth_hold(p->proginfo_timestretch);
-	ret->proginfo_unknown_2 = p->proginfo_unknown_2;
+	ret->proginfo_playgroup = cmyth_hold(p->proginfo_playgroup);
+	ret->proginfo_recpriority_2 = p->proginfo_recpriority_2;
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s }\n", __FUNCTION__);
 	return ret;
 }
@@ -501,8 +501,8 @@ delete_command(cmyth_conn_t control, cmyth_proginfo_t prog, char *cmd)
 			prog->proginfo_stars,
 			originalairdate_dt,
 			prog->proginfo_hasairdate,
-			prog->proginfo_timestretch,
-			prog->proginfo_unknown_2); 
+			prog->proginfo_playgroup,
+			prog->proginfo_recpriority_2); 
 	}
 	else if (control->conn_version >= 18) {
 		sprintf(buf,
@@ -555,7 +555,7 @@ delete_command(cmyth_conn_t control, cmyth_proginfo_t prog, char *cmd)
 			prog->proginfo_stars,
 			originalairdate_dt,
 			prog->proginfo_hasairdate,
-			prog->proginfo_timestretch); 
+			prog->proginfo_playgroup); 
 	}
 	else if (control->conn_version >= 15) {
 		sprintf(buf,
@@ -947,7 +947,7 @@ cmyth_proginfo_string(cmyth_proginfo_t prog)
 			prog->proginfo_stars,
 			originalairdate,
 			prog->proginfo_hasairdate,
-			prog->proginfo_unknown_2); }
+			prog->proginfo_recpriority_2); }
 		else if (prog->proginfo_version >= 18) {
 		sprintf(ret,
 			"%s[]:[]%s[]:[]%s[]:[]%s[]:[]%ld[]:[]"
@@ -997,7 +997,7 @@ cmyth_proginfo_string(cmyth_proginfo_t prog)
 			prog->proginfo_stars,
 			originalairdate,
 			prog->proginfo_hasairdate,
-			prog->proginfo_timestretch); }
+			prog->proginfo_playgroup); }
 	else if (prog->proginfo_version >= 15) {
 		sprintf(ret,
 			"%s[]:[]%s[]:[]%s[]:[]%s[]:[]%ld[]:[]"
@@ -1394,14 +1394,14 @@ cmyth_proginfo_stars(cmyth_proginfo_t prog)
 }
 
 char *
-cmyth_proginfo_timestretch(cmyth_proginfo_t prog)
+cmyth_proginfo_playgroup(cmyth_proginfo_t prog)
 {
 	if (!prog) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: NULL timestretch\n",
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: NULL playgroup\n",
 			  __FUNCTION__);
 		return NULL;
 	}
-	return cmyth_hold(prog->proginfo_timestretch);
+	return cmyth_hold(prog->proginfo_playgroup);
 }
 
 cmyth_timestamp_t
@@ -1866,8 +1866,8 @@ fill_command(cmyth_conn_t control, cmyth_proginfo_t prog, char *cmd)
 			prog->proginfo_stars,
 			originalairdate_dt,
 			prog->proginfo_hasairdate,
-			prog->proginfo_timestretch,
-			prog->proginfo_unknown_2); }
+			prog->proginfo_playgroup,
+			prog->proginfo_recpriority_2); }
 	else if (control->conn_version >= 18) {
 		sprintf(buf,
 			"%s %s[]:[]0[]:[]"
@@ -1919,7 +1919,7 @@ fill_command(cmyth_conn_t control, cmyth_proginfo_t prog, char *cmd)
 			prog->proginfo_stars,
 			originalairdate_dt,
 			prog->proginfo_hasairdate,
-			prog->proginfo_timestretch); }
+			prog->proginfo_playgroup); }
 	else if (control->conn_version >= 15) {
 		sprintf(buf,
 			"%s %s[]:[]0[]:[]"
