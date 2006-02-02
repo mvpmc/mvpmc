@@ -407,10 +407,10 @@ add_files(mvp_widget_t *fbw)
 {
 	char *wc[] = { "*.mpg", "*.mpeg", "*.mp3", "*.nuv", "*.vob", "*.gif",
 		       "*.bmp", "*.m3u", "*.jpg", "*.jpeg", "*.png", "*.wav",
-		       "*.ac3", "*.ogg", NULL };
+		       "*.ac3", "*.ogg", "*.ts", NULL };
 	char *WC[] = { "*.MPG", "*.MPEG", "*.MP3", "*.NUV", "*.VOB", "*.GIF",
 		       "*.BMP", "*.M3U", "*.JPG", "*.JPEG", "*.PNG", "*.WAV",
-		       "*.AC3", "*.OGG", NULL };
+		       "*.AC3", "*.OGG", "*.TS", NULL };
 
 	item_attr.select = select_callback;
 	item_attr.hilite = hilite_callback;
