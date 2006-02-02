@@ -2328,6 +2328,8 @@ mythtv_read(char *buf, int len)
 static long long
 mythtv_size(void)
 {
+	static int unchanged = 0;
+	static long long size = 0;
 	static struct timeval last = { 0, 0 };
 	static cmyth_proginfo_t prog = NULL;
 	struct timeval now;
@@ -2336,8 +2338,6 @@ mythtv_size(void)
 	cmyth_proginfo_t loc_prog = cmyth_hold(current_prog), new_prog = NULL;
 	cmyth_conn_t ctrl = cmyth_hold(control);
 
-	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
-		    __FUNCTION__, __FILE__, __LINE__);
 	gettimeofday(&now, NULL);
 
 	/*
@@ -2349,6 +2349,20 @@ mythtv_size(void)
 		ret = cmyth_proginfo_length(loc_prog);
 		goto out;
 	}
+	/*
+	 * If the size value is not changing, then the recording is not
+	 * still in-progress, and we can simply believe the current value.
+	 */
+	if ((prog == loc_prog) && unchanged) {
+		ret = cmyth_proginfo_length(loc_prog);
+		goto out;
+	}
+	if (prog != loc_prog) {
+		size = 0;
+		unchanged = 0;
+	}
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
+		    __FUNCTION__, __FILE__, __LINE__);
 	pthread_mutex_lock(&myth_mutex);
 
 	new_prog = cmyth_proginfo_get_detail(ctrl, loc_prog);
@@ -2370,19 +2384,27 @@ mythtv_size(void)
 
 	ret = cmyth_proginfo_length(new_prog);
 
+	if (ret == size) {
+		unchanged = 1;
+	} else {
+		size = ret;
+	}
+
 	memcpy(&last, &now, sizeof(last));
 	CHANGE_GLOBAL_REF(current_prog, new_prog);
 	CHANGE_GLOBAL_REF(prog, current_prog);
 
  unlock:
 	pthread_mutex_unlock(&myth_mutex);
-	cmyth_release(ctrl);
-	cmyth_release(loc_prog);
-	cmyth_release(new_prog);
 
- out:
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) %lld}\n",
 		    __FUNCTION__, __FILE__, __LINE__, ret);
+
+ out:
+	cmyth_release(new_prog);
+	cmyth_release(loc_prog);
+	cmyth_release(ctrl);
+
 	return ret;
 }
 
