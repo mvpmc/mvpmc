@@ -1186,7 +1186,6 @@ static void
 iw_key_callback(mvp_widget_t *widget, char key)
 {
 	mvpw_hide(widget);
-	mvpw_image_destroy(widget);
 	mvpw_show(file_browser);
 	mvpw_focus(file_browser);
 }
