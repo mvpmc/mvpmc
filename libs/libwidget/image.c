@@ -59,51 +59,36 @@ int
 mvpw_set_image(mvp_widget_t *widget, char *file)
 {
 	GR_GC_ID gc;
-	GR_IMAGE_ID iid;
-	GR_IMAGE_INFO iif;
 	GR_WINDOW_ID pid;
 	GR_WINDOW_ID wid;
 	GR_WM_PROPERTIES props;
-	GR_SCREEN_INFO si;
 	int width, height;
 
-	if (widget->data.image.pid)
-		GrDestroyWindow(widget->data.image.pid);
-	if (widget->data.image.wid)
-		GrDestroyWindow(widget->data.image.wid);
-	widget->data.image.wid = 0;
-	widget->data.image.pid = 0;
+	wid = widget->data.image.wid;
+	pid = widget->data.image.pid;
 
-	if ((iid=GrLoadImageFromFile(file, 0)) == 0)
-		return -1;
+	width = widget->width;
+	height = widget->height;
 
-        GrGetImageInfo(iid, &iif);
-	GrGetScreenInfo(&si);
-	if (iif.width > si.cols)
-		width = si.cols;
-	else
-		width = iif.width;
-	if (iif.height > si.cols)
-		height = si.rows;
-	else
-		height = iif.height;
-
-	pid = GrNewPixmap(width, height, NULL);
+	if (pid == 0)
+		pid = GrNewPixmap(width, height, NULL);
         gc = GrNewGC();
-        GrDrawImageToFit(pid, gc, 0, 0, width, height, iid);
+	GrDrawImageFromFile(pid, gc, 0, 0, width, height, file, 0);
         GrDestroyGC(gc);
-        GrFreeImage(iid);
 
-        wid = GrNewWindowEx(GR_WM_PROPS_APPWINDOW|GR_WM_PROPS_NOAUTOMOVE, NULL,
-                            widget->wid, 0, 0, width, height,
-			    0xff00ff00);
-	GrSetBackgroundPixmap(wid, pid, GR_BACKGROUND_CENTER);
+	if (wid == 0) {
+		wid = GrNewWindowEx(GR_WM_PROPS_APPWINDOW|
+				    GR_WM_PROPS_NOAUTOMOVE,
+				    NULL, widget->wid, 0, 0, width, height,
+				    0xff00ff00);
+		GrSetBackgroundPixmap(wid, pid, GR_BACKGROUND_CENTER);
 
-        props.flags = GR_WM_FLAGS_PROPS;
-        props.props = GR_WM_PROPS_NODECORATE;
-        GrSetWMProperties(wid, &props);
+		props.flags = GR_WM_FLAGS_PROPS;
+		props.props = GR_WM_PROPS_NODECORATE;
+		GrSetWMProperties(wid, &props);
 
-	GrMapWindow(wid);
+		GrMapWindow(wid);
+	}
 
 	widget->data.image.wid = wid;
 	widget->data.image.pid = pid;
