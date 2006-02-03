@@ -1016,7 +1016,7 @@ audio_start(void *arg)
 			mvpw_focus(root);
 			screensaver_disable();
 			mvpw_set_timer(root, video_play, 50);
-			break;
+			continue;
 		} else  {
 			audio_type = AUDIO_FILE_UNKNOWN;
 		}
