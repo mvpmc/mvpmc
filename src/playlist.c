@@ -232,7 +232,6 @@ static int build_playlist_from_file(const char *filename)
 		  if (name)
 		    free(name);
 		  name = strdup(sep + 1);
-		  printf("EXTINF: name '%s'\n", name);
 		}
 	      }
 	    }
