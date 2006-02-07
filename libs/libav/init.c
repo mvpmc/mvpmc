@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2004, Jon Gettler
+ *  Copyright (C) 2004, 2005, 2006, Jon Gettler
  *  http://mvpmc.sourceforge.net/
  *
  *  This library is free software; you can redistribute it and/or
@@ -35,8 +35,8 @@ int fd_audio = -1;
 int paused = 0;
 int muted = 0;
 int ffwd = 0;
-av_mode_t vid_mode;
-av_aspect_t aspect;
+av_mode_t vid_mode = AV_MODE_NTSC;
+av_aspect_t aspect = AV_ASPECT_4x3;
 
 /*
  * av_init() - initialze the audio/video devices
@@ -52,8 +52,7 @@ av_init(void)
 {
 	int video_mode = 0, audio_mode = 2;
 
-	if (init_mtd1() < 0)
-		return -1;
+	init_mtd1();
 
     	if (fd_video < 0 )
 	    if ((fd_video=open("/dev/vdec_dev", O_RDWR|O_NONBLOCK)) < 0)
