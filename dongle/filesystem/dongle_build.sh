@@ -105,7 +105,7 @@ cp -f /etc/localtime fs/etc
 RAMDISK_SIZE=`du -ks fs | cut -f 1`
 let RAMDISK_SIZE=$RAMDISK_SIZE+300
 if [ $RAMDISK_SIZE -gt 4096 ] ; then
-	echo "ramdisk too big"
+	error "ramdisk too big"
 fi
 
 #
