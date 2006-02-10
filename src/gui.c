@@ -808,6 +808,7 @@ static mvp_widget_t *settings_nocheck;
 static mvp_widget_t *settings_mclient;
 static mvp_widget_t *settings_playback;
 static mvp_widget_t *settings_help;
+static mvp_widget_t *settings_startup;
 static mvp_widget_t *sub_settings;
 static mvp_widget_t *screensaver_dialog;
 static mvp_widget_t *about;
@@ -929,17 +930,6 @@ mvp_widget_t *focus_widget;
 mvpw_screen_info_t si;
 
 enum {
-	MM_EXIT,
-	MM_MYTHTV,
-	MM_FILESYSTEM,
-	MM_ABOUT,
-	MM_VNC,
-	MM_SETTINGS,
-	MM_REPLAYTV,
-	MM_MCLIENT,
-};
-
-enum {
 	SETTINGS_MODE,
 	SETTINGS_OUTPUT,
 	SETTINGS_FLICKER,
@@ -960,6 +950,7 @@ typedef enum {
 	SETTINGS_MAIN_PLAYBACK,
 	SETTINGS_MAIN_SAVE,
 	SETTINGS_MAIN_VIEWPORT,
+	SETTINGS_MAIN_STARTUP,
 } settings_main_t;
 
 typedef enum {
@@ -977,6 +968,17 @@ typedef enum {
 	SETTINGS_MYTHTV_PROGRAMS,
 	SETTINGS_MYTHTV_RECGROUP_FILTER,
 } settings_mythtv_t;
+
+typedef enum {
+	SETTINGS_STARTUP_MYTHTV= 1,
+	SETTINGS_STARTUP_FILESYSTEM,
+	SETTINGS_STARTUP_ABOUT,
+	SETTINGS_STARTUP_VNC,
+	SETTINGS_STARTUP_SETTINGS,
+	SETTINGS_STARTUP_REPLAYTV,
+	SETTINGS_STARTUP_MCLIENT,
+	SETTINGS_STARTUP_ENDOFLIST,
+} settings_startup_t;
 
 enum {
 	SETTINGS_OSD_BRIGHTNESS = 1,
@@ -1025,6 +1027,11 @@ osd_settings_t osd_settings = {
 	.program	= 1,
 	.timecode	= 1,
 };
+
+/*
+ * Holds startup application selection for OSD menu.
+ */
+int startup_selection = 0;
 
 void
 add_osd_widget(mvp_widget_t *widget, int type, int visible,
@@ -1374,6 +1381,37 @@ settings_playback_osd_key_callback(mvp_widget_t *widget, char key)
 			config->bitmask |= CONFIG_PLAYBACK_OSD;
 		}
 	}
+}
+
+static void
+settings_startup_key_callback(mvp_widget_t *widget, char key)
+{
+	switch (key) {
+	case MVPW_KEY_EXIT:
+		mvpw_hide(widget);
+		mvpw_show(settings);
+		mvpw_focus(settings);
+		break;
+	case MVPW_KEY_UP:
+	case MVPW_KEY_RIGHT:
+		startup_selection--;
+		break;
+	case MVPW_KEY_DOWN:
+	case MVPW_KEY_LEFT:
+		startup_selection++;
+		break;
+	case MVPW_KEY_OK:
+		break;
+	}
+
+	/*
+	 * To keep the "OSD cursor" and our "place" in sync with each
+	 * other we need to stay within range of our available options.
+	 */
+	if (startup_selection < 0)
+		startup_selection = (SETTINGS_STARTUP_ENDOFLIST - 2);
+	if (startup_selection > (SETTINGS_STARTUP_ENDOFLIST - 2))
+		startup_selection = 0;
 }
 
 static void
@@ -2944,6 +2982,10 @@ settings_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mvpw_show(settings_playback);
 		mvpw_focus(settings_playback);
 		break;
+	case SETTINGS_MAIN_STARTUP:
+		mvpw_show(settings_startup);
+		mvpw_focus(settings_startup);
+		break;
 	}
 }
 
@@ -3046,6 +3088,27 @@ mythtv_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mvpw_show(settings_mythtv_recgroup);
 		mvpw_focus(settings_mythtv_recgroup);
 		break;
+	}
+}
+
+static void
+startup_select_callback(mvp_widget_t *widget, char *item, void *key)
+{
+	startup_selection = (int)key;
+
+	mvpw_check_menu_item(widget, (void*)SETTINGS_STARTUP_MYTHTV - 1, 0);
+	mvpw_check_menu_item(widget, (void*)SETTINGS_STARTUP_FILESYSTEM - 1, 0);
+	mvpw_check_menu_item(widget, (void*)SETTINGS_STARTUP_ABOUT - 1, 0);
+	mvpw_check_menu_item(widget, (void*)SETTINGS_STARTUP_VNC - 1, 0);
+	mvpw_check_menu_item(widget, (void*)SETTINGS_STARTUP_SETTINGS - 1, 0);
+	mvpw_check_menu_item(widget, (void*)SETTINGS_STARTUP_REPLAYTV - 1, 0);
+	mvpw_check_menu_item(widget, (void*)SETTINGS_STARTUP_MCLIENT - 1, 0);
+
+	mvpw_check_menu_item(widget, (void*)(startup_selection), 1);
+
+	if (config->startup_selection != startup_selection) {
+		config->startup_selection = startup_selection;
+		config->bitmask |= CONFIG_STARTUP_SELECT;
 	}
 }
 
@@ -3369,6 +3432,8 @@ settings_init(void)
 			   &settings_item_attr);
 	mvpw_add_menu_item(settings, "Themes",
 			   (void*)SETTINGS_MAIN_THEMES, &settings_item_attr);
+	mvpw_add_menu_item(settings, "Startup Specific Application",
+			   (void*)SETTINGS_MAIN_STARTUP, &settings_item_attr);
 	if (config_file)
 		mvpw_add_menu_item(settings, "Viewport",
 				   (void*)SETTINGS_MAIN_VIEWPORT,
@@ -3574,6 +3639,65 @@ settings_init(void)
 			   "Enable",
 			   (void*)1, &settings_item_attr);
 	mvpw_check_menu_item(settings_playback_pause, (void*)pause_osd, 1);
+
+
+
+
+
+
+	/*
+	 * startup settings menu
+	 */
+	settings_startup = mvpw_create_menu(NULL, x, y, w, h,
+					     settings_attr.bg,
+					     settings_attr.border,
+					     settings_attr.border_size);
+	settings_attr.checkboxes = 1;
+	mvpw_set_menu_attr(settings_startup, &settings_attr);
+	mvpw_set_menu_title(settings_startup, "Startup Settings");
+	mvpw_set_key(settings_startup, settings_startup_key_callback);
+
+	settings_item_attr.hilite = NULL;
+	settings_item_attr.select = startup_select_callback;
+
+	mvpw_add_menu_item(settings_startup,
+			   "Startup MythTV",
+			   (void*)0, &settings_item_attr);
+	mvpw_add_menu_item(settings_startup,
+			   "Startup Filesystem",
+			   (void*)1, &settings_item_attr);
+	mvpw_add_menu_item(settings_startup,
+			   "Startup About",
+			   (void*)2, &settings_item_attr);
+	mvpw_add_menu_item(settings_startup,
+			   "Startup VNC",
+			   (void*)3, &settings_item_attr);
+	mvpw_add_menu_item(settings_startup,
+			   "Startup Settings",
+			   (void*)4, &settings_item_attr);
+	mvpw_add_menu_item(settings_startup,
+			   "Startup ReplayTV",
+			   (void*)5, &settings_item_attr);
+	mvpw_add_menu_item(settings_startup,
+			   "Startup MClient",
+			   (void*)6, &settings_item_attr);
+       /*
+        * If there was a "--startup <feature>" option present on the
+        * command line, this call will mark that feature when displayed
+	* in the Settings Menu.
+        *
+        * Don't call this function if exit is the option, this value
+        * was used as a default "null" value.
+        */
+	if(startup_this_feature != MM_EXIT)
+	{
+		mvpw_check_menu_item(settings_startup, (void*)(startup_this_feature - 1), 1);
+	}
+
+
+
+
+
 
 	/*
 	 * settings menu with checkboxes
@@ -5521,6 +5645,8 @@ gui_init(char *server, char *replaytv)
 	char buf[128];
 	demux_attr_t *attr;
 
+	extern size_t strnlen(const char*, size_t);
+
 	snprintf(buf, sizeof(buf), "Initializing GUI");
 	mvpw_set_text_str(splash, buf);
 	mvpw_expose(splash);
@@ -5574,5 +5700,129 @@ gui_init(char *server, char *replaytv)
 
 	mvpw_keystroke_callback(key_callback);
 
+       /*
+        * If there was a "--startup <feature>" option present on the command
+        * line, setting the callback here will start the feature selected.
+        *
+        * Don't set the callback if exit is the option, this value
+        * was used as a default "null" value.
+        *
+	* Do not allow MVPMC to startup (boot into) an application that 
+	* has not been configured.
+	*/
+	switch(startup_this_feature)
+	{
+	case MM_MYTHTV:
+		if (mythtv_server)
+		{
+			mvpw_hide(setup_image);
+			mvpw_hide(fb_image);
+			mvpw_hide(replaytv_image);
+			mvpw_hide(about_image);
+			mvpw_hide(exit_image);
+
+			mvpw_show(mythtv_image);
+		
+			mvpw_menu_hilite_item(main_menu, (void*)startup_this_feature);
+
+	                main_select_callback(NULL, NULL, (void *)startup_this_feature);
+		}
+		break;
+	case MM_REPLAYTV:
+		if (replaytv_server)
+		{
+			mvpw_hide(setup_image);
+			mvpw_hide(fb_image);
+			mvpw_hide(mythtv_image);
+			mvpw_hide(about_image);
+			mvpw_hide(exit_image);
+
+			mvpw_show(replaytv_image);
+		
+			mvpw_menu_hilite_item(main_menu, (void*)startup_this_feature);
+
+	                main_select_callback(NULL, NULL, (void *)startup_this_feature);
+		}
+		break;
+	case MM_FILESYSTEM:
+		if (!filebrowser_disable)
+		{
+			mvpw_hide(setup_image);
+			mvpw_hide(mythtv_image);
+			mvpw_hide(replaytv_image);
+			mvpw_hide(about_image);
+			mvpw_hide(exit_image);
+
+			mvpw_show(fb_image);
+		
+			mvpw_menu_hilite_item(main_menu, (void*)startup_this_feature);
+
+	                main_select_callback(NULL, NULL, (void *)startup_this_feature);
+		}
+		break;
+	case MM_SETTINGS:
+		if (!settings_disable)
+		{
+			mvpw_hide(fb_image);
+			mvpw_hide(mythtv_image);
+			mvpw_hide(replaytv_image);
+			mvpw_hide(about_image);
+			mvpw_hide(exit_image);
+
+			mvpw_show(setup_image);
+		
+			mvpw_menu_hilite_item(main_menu, (void*)startup_this_feature);
+
+	                main_select_callback(NULL, NULL, (void *)startup_this_feature);
+		}
+		break;
+	case MM_ABOUT:
+		mvpw_hide(setup_image);
+		mvpw_hide(fb_image);
+		mvpw_hide(mythtv_image);
+		mvpw_hide(replaytv_image);
+		mvpw_hide(exit_image);
+
+		mvpw_show(about_image);
+		
+		mvpw_focus(main_menu);
+
+		mvpw_menu_hilite_item(main_menu, (void*)startup_this_feature);
+
+                main_select_callback(NULL, NULL, (void *)startup_this_feature);
+		break;
+	case MM_MCLIENT:
+		if (mclient_server)
+		{
+			mvpw_hide(setup_image);
+			mvpw_hide(mythtv_image);
+			mvpw_hide(replaytv_image);
+			mvpw_hide(about_image);
+			mvpw_hide(exit_image);
+
+			mvpw_show(fb_image);
+		
+			mvpw_menu_hilite_item(main_menu, (void*)startup_this_feature);
+
+	                main_select_callback(NULL, NULL, (void *)startup_this_feature);
+		}
+		break;
+	case MM_VNC:
+		if (strnlen(vnc_server, 254))
+		{
+			mvpw_hide(fb_image);
+			mvpw_hide(mythtv_image);
+			mvpw_hide(replaytv_image);
+			mvpw_hide(about_image);
+			mvpw_hide(exit_image);
+
+			mvpw_show(setup_image);
+		
+			mvpw_menu_hilite_item(main_menu, (void*)startup_this_feature);
+
+	                main_select_callback(NULL, NULL, (void *)startup_this_feature);
+		}
+		break;
+        }
 	return 0;
 }

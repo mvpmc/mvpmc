@@ -589,6 +589,8 @@ set_config(void)
 		mythtv_sort = config->mythtv_sort;
 	if (config->bitmask & CONFIG_MYTHTV_PROGRAMS) 
 		show_sort = config->mythtv_programs;
+	if (config->bitmask & CONFIG_STARTUP_SELECT) 
+		startup_selection = config->startup_selection;
 }
 
 int

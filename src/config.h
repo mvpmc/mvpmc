@@ -58,6 +58,7 @@ typedef struct {
 #define CONFIG_MYTHTV_SORT	0x00200000
 #define CONFIG_MYTHTV_PROGRAMS	0x00400000
 #define CONFIG_MYTHTV_RECGROUP	0x00800000
+#define CONFIG_STARTUP_SELECT	0x01000000
 
 #define MYTHTV_RG_MAX	32
 
@@ -96,6 +97,7 @@ typedef struct {
 #endif
 	show_sort_t		mythtv_programs;
 	config_mythtv_rg_t	mythtv_recgroup[MYTHTV_RG_MAX];
+	int			startup_selection;
 } config_t;
 
 extern config_t *config;

@@ -63,12 +63,18 @@ static struct option opts[] = {
 	{ "no-reboot", no_argument, 0, 0 },
 	{ "no-settings", no_argument, 0, 0 },
 	{ "theme", required_argument, 0, 't' },
+	{ "startup", required_argument, 0, 0},
 	{ 0, 0, 0, 0 }
 };
 
 int settings_disable = 0;
 int reboot_disable = 0;
 int filebrowser_disable = 0;
+/*
+ * Let's use the "exit" option for "no startup
+ * option selected" as no one would choose this.
+ */
+int startup_this_feature = MM_EXIT;
 
 #define VNC_SERVERPORT (5900)    /* Offset to VNC server for regular connections */
 
@@ -194,6 +200,7 @@ print_help(char *prog)
 	printf("\t--no-filebrowser\n");
 	printf("\t--no-reboot\n");
 	printf("\t--no-settings\n");
+	printf("\t--startup \t(replaytv, mythtv, mclient)\n");
 }
 
 /*
@@ -419,6 +426,37 @@ main(int argc, char **argv)
 			if (strcmp(opts[opt_index].name, "no-filebrowser") == 0) {
 				filebrowser_disable = 1;
 			}
+			if (strcmp (opts[opt_index].name, "startup") == 0)
+			  {
+			    if (strcmp (optarg, "replaytv") == 0)
+			      {
+				startup_this_feature = MM_REPLAYTV;
+			      }
+			    else if (strcmp (optarg, "mythtv") == 0)
+			      {
+				startup_this_feature = MM_MYTHTV;
+			      }
+			    else if (strcmp (optarg, "mclient") == 0)
+			      {
+				startup_this_feature = MM_MCLIENT;
+			      }
+			    else if (strcmp (optarg, "vnc") == 0)
+			      {
+				startup_this_feature = MM_VNC;
+			      }
+			    else if (strcmp (optarg, "settings") == 0)
+			      {
+				startup_this_feature = MM_SETTINGS;
+			      }
+			    else if (strcmp (optarg, "about") == 0)
+			      {
+				startup_this_feature = MM_ABOUT;
+			      }
+			    else if (strcmp (optarg, "filesystem") == 0)
+			      {
+				startup_this_feature = MM_FILESYSTEM;
+			      }
+			  }
 			break;
 		case 'a':
 			if (strcmp(optarg, "4:3cco") == 0) {

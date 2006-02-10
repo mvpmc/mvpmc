@@ -168,6 +168,8 @@ extern mvp_widget_t *vnc_widget;
 
 extern mvp_widget_t *volume_dialog;
 
+extern mvp_widget_t *mclient_fullscreen;
+
 extern void volume_key_callback(mvp_widget_t *widget, char key);
 
 extern void timer_hide(mvp_widget_t *widget);
@@ -444,6 +446,7 @@ extern mvp_widget_t *settings;
 extern int settings_disable;
 extern int reboot_disable;
 extern int filebrowser_disable;
+extern int startup_this_feature;
 
 extern unsigned short viewport_edges[4];
 
@@ -454,4 +457,18 @@ extern void end_thruput_test(void);
 extern mvp_widget_t *thruput_widget;
 
 extern show_sort_t show_sort;
+
+enum {
+	MM_EXIT,
+	MM_MYTHTV,
+	MM_FILESYSTEM,
+	MM_ABOUT,
+	MM_VNC,
+	MM_SETTINGS,
+	MM_REPLAYTV,
+	MM_MCLIENT,
+};
+
+extern int startup_selection;
+
 #endif /* MVPMC_H */
