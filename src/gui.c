@@ -5725,6 +5725,9 @@ gui_init(char *server, char *replaytv)
 		
 			mvpw_menu_hilite_item(main_menu, (void*)startup_this_feature);
 
+			snprintf(display_message, sizeof(display_message),
+				  "File:%s\n", "MythTV");
+
 	                main_select_callback(NULL, NULL, (void *)startup_this_feature);
 		}
 		break;
@@ -5740,6 +5743,9 @@ gui_init(char *server, char *replaytv)
 			mvpw_show(replaytv_image);
 		
 			mvpw_menu_hilite_item(main_menu, (void*)startup_this_feature);
+
+			snprintf(display_message, sizeof(display_message),
+				  "File:%s\n", "ReplayTV");
 
 	                main_select_callback(NULL, NULL, (void *)startup_this_feature);
 		}
@@ -5757,6 +5763,9 @@ gui_init(char *server, char *replaytv)
 		
 			mvpw_menu_hilite_item(main_menu, (void*)startup_this_feature);
 
+			snprintf(display_message, sizeof(display_message),
+				  "File:%s\n", "File System");
+
 	                main_select_callback(NULL, NULL, (void *)startup_this_feature);
 		}
 		break;
@@ -5772,6 +5781,9 @@ gui_init(char *server, char *replaytv)
 			mvpw_show(setup_image);
 		
 			mvpw_menu_hilite_item(main_menu, (void*)startup_this_feature);
+
+			snprintf(display_message, sizeof(display_message),
+				 "File:%s\n", "Settings");
 
 	                main_select_callback(NULL, NULL, (void *)startup_this_feature);
 		}
@@ -5789,6 +5801,9 @@ gui_init(char *server, char *replaytv)
 
 		mvpw_menu_hilite_item(main_menu, (void*)startup_this_feature);
 
+		snprintf(display_message, sizeof(display_message),
+			  "File:%s\n", "About");
+
                 main_select_callback(NULL, NULL, (void *)startup_this_feature);
 		break;
 	case MM_MCLIENT:
@@ -5803,6 +5818,9 @@ gui_init(char *server, char *replaytv)
 			mvpw_show(fb_image);
 		
 			mvpw_menu_hilite_item(main_menu, (void*)startup_this_feature);
+
+			snprintf(display_message, sizeof(display_message),
+				  "File:%s\n", "Music Client");
 
 	                main_select_callback(NULL, NULL, (void *)startup_this_feature);
 		}
@@ -5820,9 +5838,14 @@ gui_init(char *server, char *replaytv)
 		
 			mvpw_menu_hilite_item(main_menu, (void*)startup_this_feature);
 
+			snprintf(display_message, sizeof(display_message),
+				  "File:%s\n", "VNC");
+
 	                main_select_callback(NULL, NULL, (void *)startup_this_feature);
 		}
 		break;
         }
 	return 0;
 }
+
+

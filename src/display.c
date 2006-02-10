@@ -237,8 +237,10 @@ display_send(char *msg)
    */
   if((client_socket_descriptor = socket(AF_INET, SOCK_STREAM, 0)) < 0)
     {
-      perror("client: socket");
-      exit(1);
+///###      perror("client: socket");
+///###      exit(1);
+      printf("Problem:display:Unable to get client socket descriptor.\n");
+      return;
     }
 
   /*
@@ -246,8 +248,10 @@ display_send(char *msg)
    */
   if(uname(&myname) < 0)
     {
-      perror("uname: myname");
-      exit(1);
+///###      perror("uname: myname");
+///###      exit(1);
+      printf("Problem:display:Unable to find my own name.\n");
+      return;
     }
 
   /*
@@ -255,8 +259,10 @@ display_send(char *msg)
    */
   if((hptr = gethostbyname( myname.nodename )) == NULL)
     {
-      perror("gethostbyname error");
-      exit(1);
+///###      perror("gethostbyname error");
+///###      exit(1);
+      printf("Problem:display:Unable to get host info.\n");
+      return;
     }
 
   /*
@@ -282,8 +288,10 @@ display_send(char *msg)
 
   if(connect(client_socket_descriptor, (struct sockaddr *)&client_sain, sizeof(client_sain)) < 0)
     {
-      perror("client: connect");
-      exit(1);
+///###      perror("client: connect");
+///###      exit(1);
+      printf("Problem:display:Unable to connect to the display process.\n");
+      return;
     }
 
   send(client_socket_descriptor, msg, strlen(msg), 0);
