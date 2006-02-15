@@ -70,6 +70,9 @@ static struct option opts[] = {
 int settings_disable = 0;
 int reboot_disable = 0;
 int filebrowser_disable = 0;
+
+extern char cwd[];
+
 /*
  * Let's use the "exit" option for "no startup
  * option selected" as no one would choose this.
@@ -347,6 +350,9 @@ main(int argc, char **argv)
 	unsigned long start = (unsigned long)sbrk(0);
 #endif
 
+	char *optparm;
+	char optarg_tmp[1024];
+
 	/*
 	 * Initialize to a known state before
 	 * eval command line.
@@ -417,6 +423,18 @@ main(int argc, char **argv)
 			      opts, &opt_index)) != -1) {
 		switch (c) {
 		case 0:
+			/*
+			 * Copy the parsed argument and look for
+			 * parameters (which follow the ':' char).
+			 */
+			snprintf(optarg_tmp,1024,"%s",optarg);
+			optparm = NULL;
+			optparm = strchr(optarg_tmp,':');
+			if (optparm != NULL) {
+				*optparm = 0;
+				optparm++;
+			}
+
 			if (strcmp(opts[opt_index].name, "no-settings") == 0) {
 				settings_disable = 1;
 			}
@@ -426,37 +444,41 @@ main(int argc, char **argv)
 			if (strcmp(opts[opt_index].name, "no-filebrowser") == 0) {
 				filebrowser_disable = 1;
 			}
-			if (strcmp (opts[opt_index].name, "startup") == 0)
-			  {
-			    if (strcmp (optarg, "replaytv") == 0)
-			      {
-				startup_this_feature = MM_REPLAYTV;
-			      }
-			    else if (strcmp (optarg, "mythtv") == 0)
-			      {
-				startup_this_feature = MM_MYTHTV;
-			      }
-			    else if (strcmp (optarg, "mclient") == 0)
-			      {
-				startup_this_feature = MM_MCLIENT;
-			      }
-			    else if (strcmp (optarg, "vnc") == 0)
-			      {
-				startup_this_feature = MM_VNC;
-			      }
-			    else if (strcmp (optarg, "settings") == 0)
-			      {
-				startup_this_feature = MM_SETTINGS;
-			      }
-			    else if (strcmp (optarg, "about") == 0)
-			      {
-				startup_this_feature = MM_ABOUT;
-			      }
-			    else if (strcmp (optarg, "filesystem") == 0)
-			      {
-				startup_this_feature = MM_FILESYSTEM;
-			      }
-			  }
+			if (strcmp (opts[opt_index].name, "startup") == 0) {
+			/*
+			 * Decode the "startup" option parameter.
+			 */
+				if (strcmp (optarg_tmp, "replaytv") == 0) {
+					startup_this_feature = MM_REPLAYTV;
+			      	}
+			    	else if (strcmp (optarg_tmp, "mythtv") == 0) {
+					startup_this_feature = MM_MYTHTV;
+			      	}
+			    	else if (strcmp (optarg_tmp, "mclient") == 0) {
+					startup_this_feature = MM_MCLIENT;
+			      	}
+			    	else if (strcmp (optarg_tmp, "vnc") == 0) {
+					startup_this_feature = MM_VNC;
+			      	}
+			    	else if (strcmp (optarg_tmp, "settings") == 0) {
+					startup_this_feature = MM_SETTINGS;
+			      	}
+			    	else if (strcmp (optarg_tmp, "about") == 0) {
+					startup_this_feature = MM_ABOUT;
+				}
+			    	else if (strcmp (optarg_tmp, "filesystem") == 0) {
+					startup_this_feature = MM_FILESYSTEM;
+					/*
+					 * Decode the "filesystem" option parameter.
+					 */
+					if(optparm != NULL) {
+						if (strncmp (optparm, "file=", strlen("file=")) == 0) {
+							optparm += strlen("file=");
+							snprintf(cwd,1024,"%s",optparm);
+						}
+					}
+			      	}
+			}
 			break;
 		case 'a':
 			if (strcmp(optarg, "4:3cco") == 0) {

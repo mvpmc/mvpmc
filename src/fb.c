@@ -47,7 +47,7 @@ static mvpw_menu_item_attr_t item_attr = {
 	.checkbox_fg = MVPW_GREEN,
 };
 
-static char cwd[1024] = "/";
+char cwd[1024] = "/";
 
 static void add_dirs(mvp_widget_t*);
 static void add_files(mvp_widget_t*);

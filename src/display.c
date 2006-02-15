@@ -1471,7 +1471,7 @@ void
 display_iee_16x1()
 {
 
-  char total_line1_and_line2[100];
+  static char total_line1_and_line2[100];
 
 #if 0
   printf("READY/SCROLL Busy:%d Mes:%d/%d Title:%d/%d art:%d/%d alb:%d/%d file:%d/%d/%s time:%d/0\n",
