@@ -1010,8 +1010,8 @@ audio_start(void *arg)
 			av_reset();
 
 			mvpw_set_timer(playlist_widget, NULL, 0);
-			mvpw_hide(playlist_widget);
 			mvpw_hide(fb_progress);
+			mvpw_hide(playlist_widget);
 			video_set_root();
 			mvpw_focus(root);
 			screensaver_disable();
@@ -1050,6 +1050,10 @@ typedef enum {
 	CONTENT_PODCAST,
 	CONTENT_UNKNOWN,
 	CONTENT_REDIRECT,
+	CONTENT_200,
+	CONTENT_UNSUPPORTED,
+	CONTENT_ERROR,
+	CONTENT_TRYHOST,
 } content_type_t;
 
 typedef enum {
@@ -1061,9 +1065,8 @@ typedef enum {
 
 typedef enum {
 	HTTP_INIT,
-	HTTP_RESPONSE,
-	HTTP_DATA,
-	HTTP_PARSE,
+	HTTP_HEADER,
+	HTTP_CONTENT,
 	HTTP_RETRY,
 	HTTP_UNKNOWN,
 } http_state_type_t;
@@ -1110,6 +1113,7 @@ int http_metadata(char *metaString,int metaWork,int metaData);
 // note using Winamp now for testing
 
 #define  GET_STRING "GET %s HTTP/1.0\r\nHost: %s\r\nUser-Agent: WinampMPEG/5.1\r\nAccept: */*\r\nIcy-MetaData:1\r\nConnection: close\r\n\r\n"
+#define  GET_M3U "GET %s HTTP/1.0\r\nHost: %s\r\nUser-Agent: WinampMPEG/5.1\r\nAccept: */*\r\n\r\n"
 #define  GET_LIVE365 "GET /cgi-bin/api_login.cgi?action=login&org=live365&remember=Y&member_name=%s HTTP/1.0\r\nUser-Agent: Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.8) Gecko/20051111 Firefox/1.5 \r\nHost: www.live365.com\r\nAccept: */*\r\nConnection: Keep-Alive\r\n\r\n"
 
 
@@ -1217,7 +1221,7 @@ int http_main(void)
     char host_name[MAX_URL_LEN];
 
     int counter=0;
-    int  NumberOfEntries=1;
+    int  NumberOfEntries=0;
     int  curNumberOfEntries=0;
     int live365Login = 0;
     static char cookie[MAX_URL_LEN]={""};
@@ -1239,6 +1243,8 @@ int http_main(void)
                                        "audio/x-mpeg-url","audio/m3u","audio/x-m3u", NULL};
     static char * ContentAudio[] = {"audio/mpeg","audio/x-mpeg","audio/mpg",NULL};
 
+    FILE * instream;
+    char *rcs;
 
     retcode = 1;
     
@@ -1251,17 +1257,20 @@ int http_main(void)
     }
 
     http_state_type_t stateGet = HTTP_UNKNOWN;
+    ContentType = CONTENT_UNKNOWN;
 
     snprintf(url[0],MAX_URL_LEN,"%s",current);
     curNumberOfEntries = 1;
+    NumberOfEntries=1;
+    shoutcastDisplay[0]=0;
 
     while (retcode == 1 && ++counter < 5 ) {
         
         if ( curNumberOfEntries <= 0 ) {
-            mvpw_set_text_str(fb_name, "Invalid playlist");
+            mvpw_set_text_str(fb_name, "Empty playlist");
             // no valid http in playlist
             retcode = -1;
-            continue;
+            break;
         }
         
         printf("%s\n",url[curNumberOfEntries-1]);
@@ -1306,16 +1315,24 @@ int http_main(void)
         remoteHost = gethostbyname(host_name);
 //        printf("%s\n",remoteHost->h_name);
         if (remoteHost!=NULL) {
-            
+                        
             if (live365Login == 0 ) { 
-                snprintf(get_buf,MAX_URL_LEN,GET_STRING,scpage,remoteHost->h_name);
+                if (NumberOfEntries==1 && strcmp(remoteHost->h_name,scname)) {
+                    snprintf(url[1],MAX_URL_LEN,"http://%s:%s%s",remoteHost->h_name,scport,scpage);
+                    NumberOfEntries=2;
+                }
+                if (strstr(scpage,".m3u")==NULL ) {
+                    snprintf(get_buf,MAX_URL_LEN,GET_STRING,scpage,scname);
+                } else {
+                    snprintf(get_buf,MAX_URL_LEN,GET_M3U,scpage,scname);
+                }
             } else {
                 if (snprintf(get_buf,MAX_URL_LEN,GET_LIVE365,getenv("LIVE365DATA")) >= MAX_URL_LEN-1) {
                     retcode = -1;
                     continue;
                 }
             }
-//            printf("%s %s\n",scname,get_buf);
+//            printf("%s\n%s\n",scname,get_buf);
 
 
             httpsock = socket(AF_INET, SOCK_STREAM, 0);
@@ -1329,21 +1346,20 @@ int http_main(void)
             stream_tv.tv_sec = 10;
             int optionsize = sizeof(stream_tv);
             setsockopt(httpsock, SOL_SOCKET, SO_SNDTIMEO, &stream_tv, optionsize);
-//                                printf("Option = %d\n",option);
-
 
             mvpw_set_text_str(fb_name, "Connecting to server");
 
             retcode = connect(httpsock, (struct sockaddr *)&server_addr,sizeof(server_addr));
             if (retcode != 0) {
-                printf("connect() failed \n");
+                printf("connect() failed %d\n",retcode);
                 mvpw_set_text_str(fb_name, "Connection Error");
                 retcode = -2;
+                instream = NULL;
+                audio_stop = 1;
+                ContentType = CONTENT_ERROR;
                 break;
             }
-            
-
-            
+                        
             // Send a GET to the Web server
             
             mvpw_set_text_str(fb_name, "Sending GET request");
@@ -1354,78 +1370,81 @@ int http_main(void)
                 break;
             }
 
-    
-            // Receive from the Web server
-            //  - The return code from recv() is the number of bytes received
-//            int whereami;
-//            int line_start = 0 ;
-//            int buflen = whereami = STREAM_PACKET_SIZE;
-            
-            FILE * instream;
-
             stateGet = HTTP_INIT;
+            statusGet = 0;
             playlistType = PLAYLIST_NONE;
             contentLength = 0;
             metaInt = 0;
             bitRate[0]=0;
-
+            retcode = -2;
 
             instream = fdopen(httpsock,"rb");
             setbuf(instream,NULL);
-
-            char *rcs;            
             rcs = fgets(line_data,LINE_SIZE-1,instream);
-            ptr = strrchr (line_data,'\r');
-            if (ptr!=NULL) {
-                *ptr =0;
-            }
-            printf("%s\n",line_data);
+            while ( rcs != NULL && !ferror(instream) && !feof(instream ) ) {
 
-
-            if (line_data[0]==0) {
-                retcode = -2;
-                break;
-            } else {
-                ptr = line_data;
-                while (*ptr!=0 && *ptr!=0x20) {
-                    ptr++;
-                }
-                if (*ptr==0x20) {
-                    sscanf(ptr,"%d",&statusGet);
-                }
-                if (statusGet != 200 && statusGet != 302) {
-                    if ( NumberOfEntries > 1 && NumberOfEntries < curNumberOfEntries ) {
-                        // try next
-                        curNumberOfEntries++;
-                        close(httpsock);
-                        continue;
-                    } else {
-                        mvpw_set_text_str(fb_name, line_data);
+                if (stateGet == HTTP_INIT ) {
+                    ptr = strrchr (line_data,'\r');
+                    if (ptr!=NULL) {
+                        *ptr =0;
+                    }
+                    printf("%s\n",line_data);
+        
+                    if (line_data[0]==0) {
+                        ContentType = CONTENT_UNKNOWN;
                         retcode = -2;
                         break;
+                    } else {
+                        ptr = line_data;
+                        while (*ptr!=0 && *ptr!=0x20) {
+                            ptr++;
+                        }
+                        if (*ptr==0x20) {
+                            sscanf(ptr,"%d",&statusGet);
+                        }
+                        if (statusGet != 200 && statusGet != 301 && statusGet != 302) {
+                            if ( ContentType != CONTENT_TRYHOST && NumberOfEntries > 1 && NumberOfEntries > curNumberOfEntries ) {
+                                ContentType = CONTENT_TRYHOST;
+                            } else {
+                                mvpw_set_text_str(fb_name, line_data);
+                                ContentType = CONTENT_ERROR;
+                                retcode = -2;
+                            }
+                            break;
+                        }
+                    }
+                    if (strcmp(line_data,"ICY 200 OK")==0) {
+                        // default shoutcast to mp3 when none found
+                        ContentType = CONTENT_MP3;
+                    } else if (strcmp(line_data,"200")==0) {
+                        // default shoutcast to mp3 when none found
+                        ContentType = CONTENT_200;
+                    } else {
+                        ContentType = CONTENT_UNKNOWN;
+                    }
+                    stateGet = HTTP_HEADER;
+                    if ( shoutcastDisplay[0] ) {
+                        mvpw_set_text_str(fb_name,shoutcastDisplay);
+                    } else {
+                        mvpw_set_text_str(fb_name,scname);
                     }
                 }
-            }
-            mvpw_set_text_str(fb_name, scname);
 
-
-            if (strcmp(line_data,"ICY 200 OK")==0) {
-                // default shoutcast to mp3 when none found
-                ContentType = CONTENT_MP3;
-            } else {
-                ContentType = CONTENT_UNKNOWN;
-            }
-
-            stateGet = HTTP_RESPONSE;
-            retcode = -2;
-            while ( rcs != NULL && !ferror(instream) && !feof(instream ) ) {
                 rcs = fgets(line_data,LINE_SIZE-1,instream);
-                if (rcs==NULL) {
-                    printf("fget() failed \n");
+                if (rcs==NULL && errno != 0) {
+                    if (stateGet != HTTP_RETRY) {
+                        printf("fget() failed %d\n",errno);
+                        switch (errno) {
+                            case EBADF:
+                                mvpw_set_text_str(fb_name, "Error opening stream");
+                                break;
+                            default:
+                                mvpw_set_text_str(fb_name, "General stream error");
+                                break;
+                        }
+                    }
                     continue;
                 }
-
-
                 ptr = strrchr (line_data,'\r');
                 if (ptr!=NULL) {
                     *ptr =0;
@@ -1438,18 +1457,29 @@ int http_main(void)
                 printf("%s\n",line_data);
                 
                 if ( line_data[0]==0x0a || line_data[0]==0x0d || line_data[0]==0) {
-                    if (ContentType==CONTENT_MP3 || ContentType==CONTENT_OGG || ContentType==CONTENT_MPG || statusGet==302) {
+                    if (ContentType == CONTENT_UNSUPPORTED || ContentType==CONTENT_MP3 || ContentType==CONTENT_OGG || ContentType==CONTENT_MPG || stateGet==HTTP_RETRY) {
                         // stream the following audio data or redirect
                         break;
-                    } else {
-                        if (stateGet!=HTTP_DATA) {
-                            stateGet = HTTP_PARSE;                        
+                    } else if (ContentType == CONTENT_200) {
+                        // expect real data next time 
+                        stateGet = HTTP_INIT;
+                        rcs = fgets(line_data,LINE_SIZE-1,instream);
+                        if (rcs==NULL) {
+                            printf("fget() #2 failed %d\n",errno);
+                            mvpw_set_text_str(fb_name, "Unexpected end of data");
                         }
+                        continue;
+                    } else {
+                        stateGet = HTTP_CONTENT;
                         continue;
                     }
 
+                } else {
+                    if (ContentType == CONTENT_200) {
+                        ContentType = CONTENT_UNKNOWN;
+                    }
                 }
-                if (stateGet == HTTP_RESPONSE ) {
+                if (stateGet == HTTP_HEADER ) {
                     // parse response
 
                     if (strncasecmp(line_data,"Content-Length:",15)==0) {
@@ -1476,6 +1506,7 @@ int http_main(void)
                             }
                             if (ContentType!=CONTENT_PLAYLIST) {
                                 i = 0;
+                                ContentType = CONTENT_UNSUPPORTED;
                                 while (ContentAudio[i]!=NULL) {
                                     ptr = strstr(line_data,ContentAudio[i]);
                                     if (ptr!=NULL) {                    
@@ -1519,30 +1550,43 @@ int http_main(void)
                         mvpw_set_text_str(fb_name, &line_data[9]);
                         mvpw_menu_change_item(playlist_widget,playlist->key, &line_data[9]);
                         snprintf(shoutcastDisplay,40,&line_data[9]);
+                    } else if (strncasecmp (line_data,"x-audiocast-name:",17)==0 ) {
+                       line_data[70]=0;
+                       mvpw_set_text_str(fb_name, &line_data[17]);
+                       mvpw_menu_change_item(playlist_widget,playlist->key, &line_data[17]);
+                       snprintf(shoutcastDisplay,40,&line_data[17]);
                     } else if (strncasecmp (line_data, "icy-br:",6)==0) {
                         snprintf(bitRate,10,"kbps%s",&line_data[6]);
-                    } else if ( statusGet==302) {
+                    } else if (strncasecmp (line_data, "x-audiocast-bitrate:",20)==0) {
+                        snprintf(bitRate,10,"kbps%s",&line_data[20]);
+                    } else if ( statusGet==301 || statusGet==302 ) {
                         if (strncasecmp (line_data,"Location:" ,9 )==0) {
                             ptr = strstr(line_data,"http://");
                             if (ptr!=NULL &&  (strlen(ptr) < MAX_URL_LEN) ) {
-//                                free(current);
-//                                current = strdup(ptr);
                                 snprintf(url[0],MAX_URL_LEN,"%s",ptr);
                                 stateGet=HTTP_RETRY;
                                 ContentType = CONTENT_REDIRECT;
+                            } else {
+                                mvpw_set_text_str(fb_name, "No redirection");
+                                ContentType = CONTENT_ERROR;
+                                break;
                             }
                         }
                     }
 
                 } else {
-                    // parse non-audio data
+                    // parse non-audio content
                     if (playlistType == PLAYLIST_NONE) {
                         ptr = strstr(line_data,"[playlist]");
                         if (ptr!=NULL) {
                             playlistType = PLAYLIST_SHOUT;
                             ContentType = CONTENT_PLAYLIST;
                             curNumberOfEntries = -1;   // start again
-                            NumberOfEntries = 1;
+                            NumberOfEntries = 1; // in case NumberOfEntries= not found
+                        } else if (strncmp(line_data,"Too many requests.",18) == 0 ){
+                            mvpw_set_text_str(fb_name, line_data);
+                            ContentType = CONTENT_ERROR;
+                            break;
                         }
                     } else if (strncmp(line_data,"File",4)==0 && line_data[5]=='=') {
                         if ( strncasecmp(&line_data[6],"http://",7)==0 && strlen(&line_data[6]) < MAX_URL_LEN ) {                        
@@ -1552,12 +1596,10 @@ int http_main(void)
                                     curNumberOfEntries = 0;
                                     NumberOfEntries = 1;
                                 }
-//                                free(current);
-//                                current = strdup(&line_data[6]);
                                 snprintf(url[curNumberOfEntries],MAX_URL_LEN,"%s",&line_data[6]);
                                 curNumberOfEntries++;
                                 stateGet = HTTP_RETRY;
-                                if (curNumberOfEntries == NumberOfEntries ) {
+                                if (curNumberOfEntries == NumberOfEntries || curNumberOfEntries == MAX_PLAYLIST ) {
                                     // no need for any more
                                     break;
                                 }
@@ -1567,9 +1609,14 @@ int http_main(void)
                         }
                     } else if (strncasecmp(line_data,"NumberOfEntries=",16)==0) {
                         if (curNumberOfEntries == -1 ) {
-                            // only read the first entry
+                            // only read the first NumberOfEntries
                             NumberOfEntries= atoi(&line_data[16]);
-                            curNumberOfEntries=0;
+                            if (NumberOfEntries==0) {
+                                mvpw_set_text_str(fb_name, "Empty playlist");
+                                ContentType = CONTENT_ERROR;
+                                break;
+                            }
+                            curNumberOfEntries = 0;
                         }
                     } else if (playlistType == PLAYLIST_M3U && strncasecmp(line_data,"http://",7) == 0 && strlen(line_data) < MAX_URL_LEN) {
                         if (curNumberOfEntries <= MAX_PLAYLIST ) {
@@ -1579,8 +1626,6 @@ int http_main(void)
                                 NumberOfEntries = 0;
 
                             }
-//                            free(current);
-//                            current = strdup(line_data);
                             snprintf(url[curNumberOfEntries],MAX_URL_LEN,"%s",line_data);
                             curNumberOfEntries++;
                             NumberOfEntries++;
@@ -1590,32 +1635,41 @@ int http_main(void)
                                 break;
                             }
                         }
-                    } else if (playlistType == PLAYLIST_PODCAST && (ptr=strstr(line_data,".mp3")) != NULL && strstr(line_data,"url") != NULL && (ptr1=strstr(line_data,"http://")) != NULL ) {
-                        if (curNumberOfEntries <= MAX_PLAYLIST ) {
-                            if (ptr1 < ptr && ((ptr - ptr1 + 4) < MAX_URL_LEN) ){
-                                if (curNumberOfEntries == -1 ) {
-                                    // assume 1 before number of entries
-                                    curNumberOfEntries = 0;
-                                    NumberOfEntries = 0;
-    
+                    } else if (playlistType == PLAYLIST_PODCAST) {
+                        if ( (ptr=strstr(line_data,".mp3")) != NULL && strstr(line_data,"url") != NULL && (ptr1=strstr(line_data,"http://")) != NULL ) {
+                            if (curNumberOfEntries <= MAX_PLAYLIST ) {
+                                if (ptr1 < ptr && ((ptr - ptr1 + 4) < MAX_URL_LEN) ){
+                                    if (curNumberOfEntries == -1 ) {
+                                        // assume 1 before number of entries
+                                        curNumberOfEntries = 0;
+                                        NumberOfEntries = 0;
+        
+                                    }
+                                    *(ptr+4)=0;
+                                    snprintf(url[curNumberOfEntries],MAX_URL_LEN,"%s",ptr1);
+                                    curNumberOfEntries++;
+                                    NumberOfEntries++;
+                                    stateGet = HTTP_RETRY;
+                                    break;
                                 }
-                                *(ptr+4)=0;
-//                                free(current);
-//                                current = strdup(ptr1);
-                                snprintf(url[curNumberOfEntries],MAX_URL_LEN,"%s",ptr1);
-                                curNumberOfEntries++;
-                                NumberOfEntries++;
-                                stateGet = HTTP_RETRY;
-                                break;
+    
                             }
-
+                        } else if ((ptr=strstr(line_data,"<title>")) != NULL  && (ptr1=strstr(line_data,"</title>")) != NULL ) {
+                            if ( ptr < ptr1 ) {
+                                ptr+= 7;
+                                *ptr1 = 0;
+                                snprintf(shoutcastDisplay,40,ptr);
+                            }
+                            
                         }
-                    }
+                    }                
                 }
 
             }
+
 //            printf("%d %d %d %d %d %d\n",line_data[0],ContentType,stateGet,retcode,statusGet,curNumberOfEntries);
-            if ( ferror(instream) ) {
+            if (ContentType!= CONTENT_ERROR && ferror(instream) ) {
+                mvpw_set_text_str(fb_name, "Server connection ended");
                 retcode = -2;
             } else {
                 switch (ContentType) {
@@ -1661,7 +1715,6 @@ int http_main(void)
                             // try again
                             curNumberOfEntries = 1;
                             printf("Retry %d %s\n",curNumberOfEntries,url[curNumberOfEntries-1]);
-                            stateGet = HTTP_UNKNOWN;
                             close(httpsock);
                             retcode = 1;
                         } else {
@@ -1669,16 +1722,31 @@ int http_main(void)
                         }
                         break;
                     case CONTENT_UNKNOWN:
-                    default:
-                        mvpw_set_text_str(fb_name, "No valid content");
+                    case CONTENT_UNSUPPORTED:
+                        mvpw_set_text_str(fb_name, "No supported content found");
                         retcode = -2;
+                        audio_stop = 1;
                         break;
-    
+                    case CONTENT_TRYHOST:
+                        if (curNumberOfEntries < NumberOfEntries) {
+                            // try next
+                            curNumberOfEntries++;
+                            close(httpsock);
+                            printf("Host Retry %d %s\n",curNumberOfEntries,url[curNumberOfEntries-1]);
+                        } else {
+                            retcode = -2;
+                        }
+                        break;
+                    case CONTENT_ERROR:
+                    default:
+                        // allow message above;
+                        retcode = -2;
+                        audio_stop = 1;
+                        break;
                 }
                 
             }
         } else {
-            printf("host_name %s not found %d\n",host_name,errno);
             mvpw_set_text_str(fb_name, "DNS Trouble Check /etc/resolv.conf");
             retcode = -1;
         }
@@ -1877,7 +1945,7 @@ int http_read_stream(unsigned int httpsock,int metaInt,int offset)
                                 http_buffer(message_len-metaStart,metaStart);
                                 metaRead = metaRead - (message_len-metaStart);
                             } else {
-        //                                    printf("meta int 0\n");
+//                                    printf("meta int 0\n");
                             }
 
 
@@ -1910,7 +1978,7 @@ int http_read_stream(unsigned int httpsock,int metaInt,int offset)
                                 memcpy(metaString,recvbuf+metaRead+1,message_len-metaRead);
                                 metaIgnored = message_len-metaRead;
                                 metaStart -= message_len;
-        //                                    printf("ignore %d %d\n",metaStart,metaIgnored);
+//                                    printf("ignore %d %d\n",metaStart,metaIgnored);
                                 metaRead = metaInt + metaStart;
                             }
                         }
@@ -1949,6 +2017,7 @@ int http_read_stream(unsigned int httpsock,int metaInt,int offset)
                     }
                 }
             } else {
+                dataFlag++;
                 message_len = recv (httpsock, peekBuffer, STREAM_PACKET_SIZE,MSG_PEEK);
                 usleep(10000);
             }
