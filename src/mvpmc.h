@@ -126,6 +126,8 @@ extern mvp_widget_t *mythtv_description;
 extern mvp_widget_t *mythtv_channel;
 extern mvp_widget_t *mythtv_record;
 extern mvp_widget_t *mythtv_popup;
+extern void mythtv_clear_channel();
+extern void mythtv_key_callback(mvp_widget_t *widget, char key);
 extern mvp_widget_t *root;
 extern mvp_widget_t *iw;
 extern mvp_widget_t *pause_widget;

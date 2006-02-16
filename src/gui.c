@@ -900,6 +900,9 @@ static int screensaver_enabled = 0;
 volatile int screensaver_timeout = 60;
 volatile int screensaver_default = -1;
 
+int chan_digit_cnt = 0;
+char chan_num[4] =  "\0\0\0";
+
 enum {
 	EDGE_TOP = 0,
 	EDGE_LEFT = 1,
@@ -2199,10 +2202,20 @@ mythtv_set_popup_menu(mythtv_state_t state)
 	}
 }
 
-static void
+
+void
 mythtv_key_callback(mvp_widget_t *widget, char key)
 {
-	if (key == MVPW_KEY_EXIT) {
+
+	// if we are changing channel based number keys then need to backup
+	// one digit if we get exit key
+	if (key == MVPW_KEY_EXIT && chan_digit_cnt > 0)
+	{
+		chan_digit_cnt--;
+		chan_num[chan_digit_cnt] = '\0';
+		mvpw_select_via_text(widget,chan_num);
+	}
+	else if (key == MVPW_KEY_EXIT) {
 		if (mythtv_state == MYTHTV_STATE_LIVETV) {
 			printf("return from livetv to myth main menu!\n");
 			mvpw_hide(mythtv_browser);
@@ -2215,6 +2228,7 @@ mythtv_key_callback(mvp_widget_t *widget, char key)
 
 			mythtv_main_menu = 1;
 			mythtv_state = MYTHTV_STATE_MAIN;
+			mythtv_clear_channel();
 		} else {
 			mythtv_popup = NULL;
 			mvpw_hide(mythtv_record);
@@ -2318,12 +2332,36 @@ mythtv_key_callback(mvp_widget_t *widget, char key)
 	case MVPW_KEY_RIGHT:
 	case MVPW_KEY_PAUSE:
 	case MVPW_KEY_MUTE:
-	case MVPW_KEY_ZERO ... MVPW_KEY_NINE:
 	case MVPW_KEY_VOL_UP:
 	case MVPW_KEY_VOL_DOWN:
 		video_callback(widget, key);
 		break;
+	case MVPW_KEY_ZERO ... MVPW_KEY_NINE:
+		//BKP change to allow digit based channel selection
+		printf("In mythtv_key_callback and got number key %c \n",key);
+		if(mythtv_state == MYTHTV_STATE_LIVETV)
+		{
+			if( chan_digit_cnt < (sizeof(chan_num) -1))
+			{
+// BKP add ifdef host thing because on host key is a ascii 9 !!!
+				chan_num[chan_digit_cnt++] = '0'+key;
+				mvpw_select_via_text(widget,chan_num);
+			}
+		}
+		else
+		{
+			video_callback(widget, key);
+		}
+			
+		break;
 	}
+}
+
+
+void mythtv_clear_channel()
+{
+	chan_digit_cnt = 0;
+	memset(chan_num,'\0',sizeof(chan_num));
 }
 
 static void

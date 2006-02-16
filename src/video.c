@@ -560,24 +560,9 @@ enable_osd(void)
 }
 
 void
-video_callback(mvp_widget_t *widget, char key)
+back_to_guide_menu()
 {
-	int jump;
-	long long offset, size;
-	pts_sync_data_t async, vsync;
-
-	if (!video_playing)
-		return;
-
-	if ( video_functions->key != NULL ) {
-		if ( video_functions->key(key) == 1 ) {
-			return;
-		}
-	}
-
-	switch (key) {
-	case MVPW_KEY_STOP:
-	case MVPW_KEY_EXIT:
+	
 		disable_osd();
 		if ( !running_replaytv ) {
 			video_thumbnail(1);
@@ -660,7 +645,31 @@ video_callback(mvp_widget_t *widget, char key)
 			break;
 		}
 		mvpw_expose(root);
+}
+
+		
+void
+video_callback(mvp_widget_t *widget, char key)
+{
+	int jump;
+	long long offset, size;
+	pts_sync_data_t async, vsync;
+
+	if (!video_playing)
+		return;
+
+	if ( video_functions->key != NULL ) {
+		if ( video_functions->key(key) == 1 ) {
+			return;
+		}
+	}
+
+	switch (key) {
+	case MVPW_KEY_STOP:
+	case MVPW_KEY_EXIT:
+		back_to_guide_menu();
 		break;
+		
 	case MVPW_KEY_PAUSE:
 		if (av_pause()) {
 			mvpw_show(pause_widget);
@@ -764,15 +773,20 @@ video_callback(mvp_widget_t *widget, char key)
 		}
 		break;
 	case MVPW_KEY_ZERO ... MVPW_KEY_NINE:
-		size = video_functions->size();
-		jump_target = -1;
-		jumping = 1;
-		pthread_kill(video_write_thread, SIGURG);
-		pthread_kill(audio_write_thread, SIGURG);
-		jump = key;
-		jump_target = size * (jump / 10.0);
-		pthread_cond_broadcast(&video_cond);
-		timed_osd(seek_osd_timeout*1000);
+		if (mythtv_livetv) {
+			back_to_guide_menu();
+			mythtv_key_callback(mythtv_browser,  key);
+                } else {
+			size = video_functions->size();
+			jump_target = -1;
+			jumping = 1;
+			pthread_kill(video_write_thread, SIGURG);
+			pthread_kill(audio_write_thread, SIGURG);
+			jump = key;
+			jump_target = size * (jump / 10.0);
+			pthread_cond_broadcast(&video_cond);
+			timed_osd(seek_osd_timeout*1000);
+		}
 		break;
 	case MVPW_KEY_MENU:
 		mvpw_show(popup_menu);
