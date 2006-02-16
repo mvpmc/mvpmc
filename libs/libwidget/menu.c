@@ -165,6 +165,31 @@ hilite_item(mvp_widget_t *widget, int which, int hilite)
 	return 0;
 }
 
+// BKP added to allow selection of menu item by lable
+void
+mvpw_select_via_text(mvp_widget_t *widget, char text[])
+{
+	int i;
+	char *str;
+
+	for (i=0; i<widget->data.menu.nitems; i++) 
+	{
+		str = widget->data.menu.items[i].label;
+		if( strncmp( str, text, strlen(text)) == 0)
+		{
+			break;
+		}
+	}
+        if ( i < widget->data.menu.nitems)
+	{
+                    hilite_item(widget,widget->data.menu.current,0);
+                    widget->data.menu.current = i;
+                    change_items(widget,i);
+                    hilite_item(widget,widget->data.menu.current,1);
+        }
+}
+
+
 static void
 key(mvp_widget_t *widget, char c)
 {

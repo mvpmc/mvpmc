@@ -160,6 +160,9 @@ extern mvp_widget_t *mvpw_create_menu(mvp_widget_t *parent,
 				      int x, int y, int w, int h,
 				      uint32_t bg, uint32_t border_color,
 				      int border_size);
+extern void mvpw_select_via_text(mvp_widget_t *widget, char text[]);
+
+	
 extern void mvpw_set_menu_attr(mvp_widget_t *widget, mvpw_menu_attr_t *attr);
 extern void mvpw_get_menu_attr(mvp_widget_t *widget, mvpw_menu_attr_t *attr);
 extern int mvpw_set_menu_title(mvp_widget_t *widget, char *title);
