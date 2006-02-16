@@ -50,6 +50,7 @@
 
 #include "mvpmc.h"
 #include "mclient.h"
+#include "display.h"
 #include "config.h"
 
 static int
@@ -267,6 +268,7 @@ add_item(config_list_t *list, int type)
 		ITEM_FIXED(PLAYBACK_PAUSE, playback_pause);
 		ITEM_FIXED(MYTHTV_SORT, mythtv_sort);
 		ITEM_FIXED(MYTHTV_PROGRAMS, mythtv_programs);
+		ITEM_FIXED(DISPLAY_TYPE, display_type);
 	case CONFIG_ITEM_MYTHTV_RG_HIDE:
 		if ((config->bitmask & CONFIG_MYTHTV_RECGROUP) == 0)
 			return 0;
@@ -390,6 +392,7 @@ get_item(config_item_t *item, int override)
 		ITEM_FIXED(PLAYBACK_PAUSE, playback_pause);
 		ITEM_FIXED(MYTHTV_SORT, mythtv_sort);
 		ITEM_FIXED(MYTHTV_PROGRAMS, mythtv_programs);
+		ITEM_FIXED(DISPLAY_TYPE, display_type);
 	case CONFIG_ITEM_MYTHTV_RG_HIDE:
 	case CONFIG_ITEM_MYTHTV_RG_SHOW:
 		config->bitmask |= CONFIG_MYTHTV_RECGROUP;
@@ -489,6 +492,8 @@ save_config_file(char *file)
 	if (add_item(list, CONFIG_ITEM_MYTHTV_RG_HIDE) < 0) 
 		goto err;
 	if (add_item(list, CONFIG_ITEM_MYTHTV_RG_SHOW) < 0) 
+		goto err;
+	if (add_item(list, CONFIG_ITEM_DISPLAY_TYPE) < 0) 
 		goto err;
 
 	list->crc = 0;
@@ -591,6 +596,8 @@ set_config(void)
 		show_sort = config->mythtv_programs;
 	if (config->bitmask & CONFIG_STARTUP_SELECT) 
 		startup_selection = config->startup_selection;
+	if (config->bitmask & CONFIG_DISPLAY_TYPE) 
+		display_type = config->display_type;
 }
 
 int

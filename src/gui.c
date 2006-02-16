@@ -3410,6 +3410,9 @@ settings_display_mode_callback(mvp_widget_t *widget, char *item, void *key)
 	mvpw_check_menu_item(settings_check, (void*)display_type, 0);
 	mvpw_check_menu_item(settings_check, key, 1);
 	display_type = (int)key;
+
+	config->bitmask |= CONFIG_DISPLAY_TYPE;
+	config->display_type = (int)key;
 }
 
 static int

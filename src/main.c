@@ -835,17 +835,17 @@ main(int argc, char **argv)
 	pthread_create(&audio_thread, &thread_attr_small,
 		       audio_start, NULL);
 
-	if (gui_init(mythtv_server, replaytv_server) < 0) {
-		fprintf(stderr, "failed to initialize gui!\n");
-		exit(1);
-	}
-
 #ifndef MVPMC_HOST
 	if (display_init() < 0) {
 		fprintf(stderr, "failed to initialize display driver!\n");
 		exit(1);
 	}
 #endif
+
+	if (gui_init(mythtv_server, replaytv_server) < 0) {
+		fprintf(stderr, "failed to initialize gui!\n");
+		exit(1);
+	}
 
 	if (music_client() < 0) {
 		fprintf(stderr, "failed to start up music client!\n");
