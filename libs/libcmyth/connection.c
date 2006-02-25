@@ -1021,6 +1021,13 @@ cmyth_conn_get_free_recorder_count(cmyth_conn_t conn)
 		return -1;
 	}
 
+	if (conn->conn_version >= 20) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			"%s: LiveTV not supported with myth protocol %lu\n",
+			__FUNCTION__, conn->conn_version);
+		return -2;
+	}
+
 	pthread_mutex_lock(&mutex);
 
 	snprintf(msg, sizeof(msg), "GET_FREE_RECORDER_COUNT");
