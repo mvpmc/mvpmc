@@ -3218,7 +3218,9 @@ get_livetv_programs(void)
 
 	if ((c=cmyth_conn_get_free_recorder_count(ctrl)) < 0) {
 		fprintf(stderr, "unable to get free recorder\n");
-		mythtv_shutdown(1);
+		if (c == -2) {
+			gui_error("LiveTV with this version of MythTV is not supported");
+		}
 		cmyth_release(ctrl);
 		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -2}\n",
 			    __FUNCTION__, __FILE__, __LINE__);
