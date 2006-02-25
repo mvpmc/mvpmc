@@ -78,6 +78,10 @@
 typedef struct refcounter {
 #ifdef DEBUG
 	unsigned int magic;
+	struct refcounter *next;
+	const char *file;
+	const char *func;
+	int line;
 #endif /* DEBUG */
 	cmyth_atomic_t refcount;
 	size_t length;
@@ -92,6 +96,103 @@ typedef struct {
 
 #define CMYTH_REFCNT(p) ((refcounter_t *)(((unsigned char *)(p)) - sizeof(refcounter_t)))
 #define CMYTH_DATA(r) (((unsigned char *)(r)) + sizeof(refcounter_t))
+
+#if defined(DEBUG)
+#define CMYTH_ALLOC_BINS	101
+static refcounter_t *ref_list[CMYTH_ALLOC_BINS];
+#endif /* DEBUG */
+
+#if defined(DEBUG)
+static inline void
+cmyth_ref_remove(refcounter_t *ref)
+{
+	int bin;
+	refcounter_t *r, *p;
+
+	bin = ((unsigned long)ref >> 2) % CMYTH_ALLOC_BINS;
+
+	r = ref_list[bin];
+	p = NULL;
+
+	while (r && (r != ref)) {
+		p = r;
+		r = r->next;
+	}
+
+	assert(r == ref);
+
+	if (p) {
+		p->next = r->next;
+	} else {
+		ref_list[bin] = r->next;
+	}
+}
+
+static inline void
+cmyth_ref_add(refcounter_t *ref)
+{
+	int bin;
+
+	bin = ((unsigned long)ref >> 2) % CMYTH_ALLOC_BINS;
+
+	ref->next = ref_list[bin];
+	ref_list[bin] = ref;
+}
+
+static struct alloc_type {
+	const char *file;
+	const char *func;
+	int line;
+	int count;
+} alloc_list[128];
+
+void
+cmyth_alloc_show(void)
+{
+	int i, j;
+	int types = 0, bytes = 0, count = 0;
+	refcounter_t *r;
+
+	for (i=0; i<CMYTH_ALLOC_BINS; i++) {
+		r = ref_list[i];
+
+		while (r) {
+			for (j=0; (j<types) && (j<128); j++) {
+				if ((alloc_list[j].file == r->file) &&
+				    (alloc_list[j].func == r->func) &&
+				    (alloc_list[j].line == r->line)) {
+					alloc_list[j].count++;
+					break;
+				}
+			}
+			if (j == types) {
+				alloc_list[j].file = r->file;
+				alloc_list[j].func = r->func;
+				alloc_list[j].line = r->line;
+				alloc_list[j].count = 1;
+				types++;
+			}
+			bytes += r->length + sizeof(*r);
+			count++;
+			r = r->next;
+		}
+	}
+
+	printf("cmyth allocation count: %d\n", count);
+	printf("cmyth allocation bytes: %d\n", bytes);
+	printf("cmyth unique allocation types: %d\n", types);
+	for (i=0; i<types; i++) {
+		printf("ALLOC: %s %s():%d  count %d\n",
+		       alloc_list[i].file, alloc_list[i].func,
+		       alloc_list[i].line, alloc_list[i].count);
+	}
+}
+#else
+void
+cmyth_alloc_show(void)
+{
+}
+#endif /* DEBUG */
 
 /*
  * cmyth_allocate(size_t len)
@@ -112,7 +213,7 @@ typedef struct {
  * Failure: A NULL pointer.
  */
 void *
-cmyth_allocate(size_t len)
+cmyth_allocate_data(size_t len, const char *file, const char *func, int line)
 {
 #ifdef DEBUG
 	void *block = malloc(sizeof(refcounter_t) + len + sizeof(guard_t));
@@ -130,9 +231,13 @@ cmyth_allocate(size_t len)
 		cmyth_atomic_set(&ref->refcount, 1);
 #ifdef DEBUG
 		ref->magic = ALLOC_MAGIC;
+		ref->file = file;
+		ref->func = func;
+		ref->line = line;
 		guard = (guard_t*)((unsigned long)block +
 				   sizeof(refcounter_t) + len);
 		guard->magic = GUARD_MAGIC;
+		cmyth_ref_add(ref);
 #endif /* DEBUG */
 		ref->destroy = NULL;
 		ref->length = len;
@@ -357,6 +462,8 @@ cmyth_release(void *p)
 #ifdef DEBUG
 			ref->magic = 0;
 			guard->magic = 0;
+			cmyth_ref_remove(ref);
+			ref->next = NULL;
 #endif /* DEBUG */
 			free(block);
 		}

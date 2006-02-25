@@ -104,10 +104,17 @@ typedef struct cmyth_file *cmyth_file_t;
 extern void cmyth_release(void *p);
 extern void *cmyth_hold(void *p);
 extern char *cmyth_strdup(char *str);
-extern void *cmyth_allocate(size_t len);
+extern void *cmyth_allocate_data(size_t len, const char *file, const char *func, int line);
 extern void *cmyth_reallocate(void *p, size_t len);
 typedef void (*destroy_t)(void *p);
 extern void cmyth_set_destroy(void *block, destroy_t func);
+extern void cmyth_alloc_show(void);
+
+#if defined(DEBUG)
+#define cmyth_allocate(x) cmyth_allocate_data(x, __FILE__, __FUNCTION__, __LINE__)
+#else
+#define cmyth_allocate(x) cmyth_allocate_data(x, NULL, NULL, 0)
+#endif
 
 
 /*
