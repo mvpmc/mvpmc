@@ -386,6 +386,8 @@ mythtv_shutdown(int display)
 		    (hw_state == MVPMC_STATE_MYTHTV))
 			gui_error("MythTV connection lost!");
 	}
+
+	cmyth_alloc_show();
 }
 
 static void
@@ -692,7 +694,9 @@ load_episodes(void)
 
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
 		    __FUNCTION__, __FILE__, __LINE__);
-	if ((episode_plist == NULL) || episode_dirty) {
+	if ((ep_list == NULL) || episode_dirty) {
+		if (ep_list)
+			cmyth_release(ep_list);
 		ep_list = cmyth_proglist_get_all_recorded(ctrl);
 		CHANGE_GLOBAL_REF(episode_plist, ep_list);
 
@@ -705,16 +709,15 @@ load_episodes(void)
 		mythtv_sort_dirty = 1;
 	} else {
 		fprintf(stderr, "Using cached episode data\n");
-		ep_list = cmyth_hold(episode_plist);
 	}
 	fprintf(stderr, "'cmyth_proglist_get_all_recorded' worked\n");
 
-	count = cmyth_proglist_get_count(episode_plist);
+	count = cmyth_proglist_get_count(ep_list);
 
 	/* Sort on first load and when setting changes or list update makes the sort dirty */
 	if(mythtv_sort_dirty) {
 		printf("Sort for Dirty List\n");
-		cmyth_proglist_sort(episode_plist, count, mythtv_sort);
+		cmyth_proglist_sort(ep_list, count, mythtv_sort);
 		mythtv_sort_dirty = 0;
 	}
 
@@ -725,7 +728,7 @@ load_episodes(void)
 		char *recgroup;
 		cmyth_proginfo_t prog;
 
-		prog = cmyth_proglist_get_item(episode_plist, i);
+		prog = cmyth_proglist_get_item(ep_list, i);
 		recgroup = cmyth_proginfo_recgroup(prog);
 
 		add_recgroup(recgroup);
@@ -734,10 +737,14 @@ load_episodes(void)
 		cmyth_release(recgroup);
 	}
 
+	cmyth_release(ep_list);
+	cmyth_release(ctrl);
+
 	return count;
 
     err:
 	cmyth_release(ep_list);
+	cmyth_release(ctrl);
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) }\n",
 		    __FUNCTION__, __FILE__, __LINE__);
 	return ret;
@@ -2783,6 +2790,8 @@ mythtv_atexit(void)
 	fprintf(stderr, "%s(): end exit processing...\n", __FUNCTION__);
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) }\n",
 		    __FUNCTION__, __FILE__, __LINE__);
+
+	cmyth_alloc_show();
 }
 
 int
