@@ -302,13 +302,33 @@ static int server_open_port(char *host, int port)
 
 //+***********************************************************************************************
 //  Name:  server_process_connection
+//
+// If we don't have a device entry for the requesting address then attempt to get the info.
+// Only process the http connection request if it is dvarchive. We need to do this to get dvarchive
+// into either RTV 4K or 5K mode. We don't want to respond to a real RTV because it will 
+// make us show up as a networked RTV.
+//
 //+***********************************************************************************************
-static int server_process_connection(int fd, rtv_device_t *rtv)
+#define X_USERAGENT_STR "X-User-Agent: "
+#define X_HOSTADDR_STR "X-Host-Addr: "
+static int server_process_connection(int fd, const char *socket_ip_addr_str)
 {
-   int                errno_sav, len;
+   int                dva_request = 0;
+
+   int                errno_sav, len, new_entry;
    char               rxbuff[TCP_BUF_SZ+1], txbuff[TCP_BUF_SZ+1];
+   rtv_device_t      *rtv;
+   char              *str_p;
+   char               ip_addr_str[INET_ADDRSTRLEN+1];
+
 
    RTV_DBGLOG(RTVLOG_DSCVR, "%s: Enter...\n", __FUNCTION__);
+
+   // Read the request.
+   // Attempt to pull IP address from XHOSTADDR string.
+   // For DVArchive, we need to use the XHOSTADDR IP in the request instead of the socket's IP because 
+   // DVArchive running on an aliased IP address sends requests from the primary IP instaed of aliased IP.
+   //
    if ( (len = read(fd, rxbuff, TCP_BUF_SZ)) < 0 ) {
       errno_sav = errno;
       RTV_ERRLOG("%s: read failed: %d=>%s\n", __FUNCTION__, errno_sav, strerror(errno_sav) );
@@ -316,7 +336,55 @@ static int server_process_connection(int fd, rtv_device_t *rtv)
    }
 
    rxbuff[len] = '\0';
-   RTV_DBGLOG(RTVLOG_DSCVR, "%s\n", rxbuff);
+   RTV_DBGLOG(RTVLOG_DSCVR, "%s: rx=%s\n", __FUNCTION__, rxbuff);
+
+   if ( (str_p = strstr(rxbuff, X_HOSTADDR_STR)) != NULL ) {
+
+      // DVArchive. get IP address from X+HOSTADDR string.
+      //
+      str_p += strlen(X_HOSTADDR_STR); 
+      strncpy(ip_addr_str, str_p, INET_ADDRSTRLEN);
+      ip_addr_str[INET_ADDRSTRLEN] = '\0';
+      dva_request = 1;
+   }
+   else {
+
+      // ReplayTV. Get IP address from socket.
+      //
+      strcpy(ip_addr_str, socket_ip_addr_str);
+   }
+
+
+  // See if we have the device-info for the box making the request.
+  // If not attempt to get it.
+  //
+   rtv = rtv_get_device_struct(ip_addr_str, &new_entry);
+   if ( new_entry ) {
+      RTV_DBGLOG(RTVLOG_DSCVR, "%s (%d): ----- attempt rtv_get_device_info(): for IP=%s ------\n\n", __FUNCTION__, __LINE__, ip_addr_str);
+      if ( rtv_get_device_info(ip_addr_str, NULL, &rtv) != 0 ) {
+         RTV_ERRLOG("%s: Failed rtv_get_device_info() for IP=%s\n", __FUNCTION__, ip_addr_str);
+         return(-EILSEQ);
+      }
+
+      RTV_DBGLOG(RTVLOG_DSCVR, "%s: rtv_get_device_info() IP=%s: PASSED\n", __FUNCTION__, ip_addr_str);
+      if ( atoi(rtv->device.modelNumber) != 4999 ) {
+         // Not DVArchive. Go ahead and mark it as discovered.
+         // We don't consider DVArchive discovered until it has requested the guide.
+         //
+         rtv->device.autodiscovered = 1;
+         num_rtv_discovered++;
+      }
+   }
+   
+   if ( !(dva_request) ) {
+      RTV_DBGLOG(RTVLOG_DSCVR, "%s: Dropping Non-DVArchive request\n", __FUNCTION__);
+      return(-ENOTSUP);
+   }
+
+   // Process the http request
+   //
+   RTV_DBGLOG(RTVLOG_DSCVR, "%s: Processing DVArchive request.\n", __FUNCTION__);
+
    if ( strstr(rxbuff, "Device_Descr.xml") != NULL ) {
       if ( rtv_globals.rtv_emulate_mode == RTV_DEVICE_4K ) {
          len = make_dev_descr_resp( txbuff, TCP_BUF_SZ, local_ip_address, local_hostname, rtv_idns.sn_4k, rtv_idns.uuid_4k);
@@ -385,10 +453,12 @@ static int process_ssdp_response( const char *ip_addr, char *resp )
    } 
    memcpy(query_str, pt1, pt2 - pt1);
    query_str[pt2-pt1] = '\0';
-   RTV_DBGLOG(RTVLOG_DSCVR, "%s: query_str: %s: l=%d\n\n", __FUNCTION__, query_str, strlen(query_str));
+   RTV_DBGLOG(RTVLOG_DSCVR, "%s: resp=%s\n", __FUNCTION__, resp);
+   RTV_DBGLOG(RTVLOG_DSCVR, "%s: query_str=%s: l=%d\n\n", __FUNCTION__, query_str, strlen(query_str));
    
    // Query the device
    //
+   RTV_DBGLOG(RTVLOG_DSCVR, "%s: attempt rtv_get_device_info() IP=%s\n", __FUNCTION__, ip_addr);
    if ( (rc = rtv_get_device_info(ip_addr, query_str, &rtv)) == 0 ) {
       if ( atoi(rtv->device.modelNumber) != 4999 ) {
          // Not DVArchive. Go ahead and mark it as discovered
@@ -397,6 +467,10 @@ static int process_ssdp_response( const char *ip_addr, char *resp )
          rtv->device.autodiscovered = 1;
          num_rtv_discovered++;         
       }
+      RTV_DBGLOG(RTVLOG_DSCVR, "%s: rtv_get_device_info() IP=%s: PASSED\n", __FUNCTION__, ip_addr);
+   }
+   else {
+      RTV_DBGLOG(RTVLOG_DSCVR, "%s: rtv_get_device_info() IP=%s: FAILED\n", __FUNCTION__, ip_addr);
    }
    return(rc);
 }
@@ -424,7 +498,7 @@ static void* rtv_discovery_thread(void *arg)
    int child_count = 0;
 
 	int                ssdp_sendfd, resp_recvfd, recv_mcastfd, http_listen_fd, cli_fd;
-   int                tmp, rc, len, errno_sav, new_entry;
+   int                tmp, rc, len, errno_sav;
    socklen_t          addrlen;
 	struct sockaddr_in ssdp_addr, resp_addr, local_addr, recv_addr, cliaddr;
    struct ip_mreq     mreq;
@@ -435,7 +509,6 @@ static void* rtv_discovery_thread(void *arg)
    char               ip_addr[INET_ADDRSTRLEN+1];
    char               *uuid_str;
    time_t             tim;
-   rtv_device_t      *rtv;
    sigset_t           sigs;
    struct timeval     tv;
    fd_item_t          fd_item;
@@ -591,37 +664,37 @@ static void* rtv_discovery_thread(void *arg)
        default:
           // Process the FD needing attention
           if ( FD_ISSET(resp_recvfd, &rfds) ) {
-             RTV_DBGLOG(RTVLOG_DSCVR, "FSSET: resp_recvfd: %s\n", tm_buf);
+             RTV_DBGLOG(RTVLOG_DSCVR, "%s: FDSET: resp_recvfd (SSDP): %s\n", __FUNCTION__, tm_buf);
              len = sizeof(recv_addr);
              rc = recvfrom(resp_recvfd, buff, SSDP_BUF_SZ, 0, (struct sockaddr*)&recv_addr, &len);
              if ( rc < 1 ) {
                 errno_sav = errno;
-                RTV_ERRLOG("recv resp_recvfd: %d=>%s\n", errno_sav, strerror(errno_sav));
+                RTV_ERRLOG("%s: recv resp_recvfd (SSDP): %d=>%s\n", __FUNCTION__, errno_sav, strerror(errno_sav));
                 goto error;
              }
              
              inet_ntop(AF_INET, &(recv_addr.sin_addr), ip_addr, INET_ADDRSTRLEN);
-             RTV_DBGLOG(RTVLOG_DSCVR, "recvfrom IP: %s\n", ip_addr);
+             RTV_DBGLOG(RTVLOG_DSCVR, "%s: SSDP recvfrom IP: %s\n", __FUNCTION__, ip_addr);
              buff[rc] = '\0';
-             RTV_DBGLOG(RTVLOG_DSCVR, "%s", buff);
+             RTV_DBGLOG(RTVLOG_DSCVR, "%s: SSDP rx-msg=%s", __FUNCTION__, buff);
              process_ssdp_response(ip_addr, buff);
           }
           else if ( FD_ISSET(recv_mcastfd, &rfds) ) {
-             RTV_DBGLOG(RTVLOG_DSCVR, "FSSET: recv_mcastfd: %s\n", tm_buf);
+             RTV_DBGLOG(RTVLOG_DSCVR, "%s: FDSET: MCAST_FD: %s\n", __FUNCTION__, tm_buf);
              len = sizeof(recv_addr);
              rc = recvfrom(recv_mcastfd, buff, SSDP_BUF_SZ, 0, (struct sockaddr*)&recv_addr, &len);
              if ( rc < 1 ) {
                 errno_sav = errno;
-                RTV_ERRLOG("recv recv_mcastfd: %d=>%s\n", errno_sav, strerror(errno_sav));
+                RTV_ERRLOG("%s: recv MCAST_FD: %d=>%s\n", __FUNCTION__, errno_sav, strerror(errno_sav));
                 goto error;
              }
 
-             RTV_DBGLOG(RTVLOG_DSCVR, "recvfrom IP: %s\n", inet_ntoa(recv_addr.sin_addr));
+             RTV_DBGLOG(RTVLOG_DSCVR, "%s: MCAST_FD: recvfrom IP: %s\n", __FUNCTION__, inet_ntoa(recv_addr.sin_addr));
              buff[rc] = '\0';
-             RTV_DBGLOG(RTVLOG_DSCVR, "%s", buff);
+             RTV_DBGLOG(RTVLOG_DSCVR, "%s: MCAST-BUF=%s", __FUNCTION__, buff);
           }
           else if ( FD_ISSET(http_listen_fd, &rfds) ) {
-             RTV_DBGLOG(RTVLOG_DSCVR, "FSSET: http_listen_fd: %s\n", tm_buf);
+             RTV_DBGLOG(RTVLOG_DSCVR, "%s: FDSET: http_listen_fd: %s\n", __FUNCTION__, tm_buf);
 
              // Accept the connection
              //
@@ -640,40 +713,10 @@ static void* rtv_discovery_thread(void *arg)
              inet_ntop(AF_INET, &(cliaddr.sin_addr), ip_addr, INET_ADDRSTRLEN);
              RTV_DBGLOG(RTVLOG_DSCVR, "%s: ----- http connection from IP: %s ------\n\n", __FUNCTION__, ip_addr);
 
-             // If we don't have a device entry for this address then attempt to get the info.
-             // Only process the connection if it is dvarchive. We need to do this to get dvarchive
-             // into either RTV 4K or 5K mode. We don't want to respond to a real RTV because it will 
-             // make us show up as a networked RTV.
-             //
-             rtv = rtv_get_device_struct(ip_addr, &new_entry);
-             if ( new_entry ) {
-                if ( (rc = rtv_get_device_info(ip_addr, NULL, &rtv)) != 0 ) {
-                   // Just close the fd and don't worry about it.
-                   //
-                   close(cli_fd);
-                   break;
-                }
-                else {
-                   // Should have passed with new_entry=0
-                   //
-                   if ( atoi(rtv->device.modelNumber) != 4999 ) {
-                      // Not DVArchive. Go ahead and mark it as discovered.
-                      // We don't consider DVArchive discovered until it has requested the guide.
-                      //
-                      rtv->device.autodiscovered = 1;
-                      num_rtv_discovered++;
-                      close(cli_fd);
-                      break;
-                   }
-                }
-             }
-             
-             if ( atoi(rtv->device.modelNumber) != 4999 ) {
+             if ( server_process_connection(cli_fd, ip_addr) < 0 ) {
                 close(cli_fd);
                 break;
-             }
-
-             server_process_connection(cli_fd, rtv);               
+             } 
           }
           else {
              RTV_ERRLOG("discover select: invalid FD\n");
