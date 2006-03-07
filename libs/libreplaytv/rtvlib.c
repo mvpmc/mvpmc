@@ -48,11 +48,13 @@ rtv_device_t *rtv_get_device_struct(const char *ipaddr, int *new)
          }
       }
       else if ( strcmp(rtv_devices.rtv[x].device.ipaddr, ipaddr) == 0 ) {
+         //printf("%s: existing entry: idx=%d\n", __FUNCTION__, x);
          return(&(rtv_devices.rtv[x])); //Existing entry
       }
    }
    if ( first_null_idx != -1 ) {
       *new = 1;
+      //printf("%s: new entry: idx=%d\n", __FUNCTION__, first_null_idx);
       return(&(rtv_devices.rtv[first_null_idx]));
    }
    return(NULL);

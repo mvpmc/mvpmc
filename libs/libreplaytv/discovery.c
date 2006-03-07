@@ -313,6 +313,7 @@ static int server_open_port(char *host, int port)
 #define X_HOSTADDR_STR "X-Host-Addr: "
 static int server_process_connection(int fd, const char *socket_ip_addr_str)
 {
+   char               eos_seq[4] = {'\r', '\n', '\r', '\n'};
    int                dva_request = 0;
 
    int                errno_sav, len, new_entry;
@@ -329,22 +330,53 @@ static int server_process_connection(int fd, const char *socket_ip_addr_str)
    // For DVArchive, we need to use the XHOSTADDR IP in the request instead of the socket's IP because 
    // DVArchive running on an aliased IP address sends requests from the primary IP instaed of aliased IP.
    //
-   if ( (len = read(fd, rxbuff, TCP_BUF_SZ)) < 0 ) {
-      errno_sav = errno;
-      RTV_ERRLOG("%s: read failed: %d=>%s\n", __FUNCTION__, errno_sav, strerror(errno_sav) );
-      return(-errno_sav);
+   len = 0;
+   while ( 1 ) {
+      int rxlen;
+
+      if ( (rxlen = read(fd, &(rxbuff[len]), TCP_BUF_SZ-len)) < 0 ) {
+         errno_sav = errno;
+         RTV_ERRLOG("%s: read failed: %d=>%s\n", __FUNCTION__, errno_sav, strerror(errno_sav) );
+         return(-errno_sav);
+      }
+      len += rxlen;
+ 
+      if ( len < 4 ) {
+         // Too small. bail.
+         //
+         RTV_ERRLOG("%s: message to small: sz=%d\n", __FUNCTION__, len);
+         return(-EILSEQ);
+      }
+
+      // Check for end of message: \r\n\r\n
+      //
+      if ( strncmp(&rxbuff[len-4],  eos_seq, 4) == 0 ) {
+         break;
+      }
    }
+
+//   if ( (len = read(fd, rxbuff, TCP_BUF_SZ)) < 0 ) {
+//      errno_sav = errno;
+//      RTV_ERRLOG("%s: read failed: %d=>%s\n", __FUNCTION__, errno_sav, strerror(errno_sav) );
+//      return(-errno_sav);
+//   }
 
    rxbuff[len] = '\0';
    RTV_DBGLOG(RTVLOG_DSCVR, "%s: rx=%s\n", __FUNCTION__, rxbuff);
 
    if ( (str_p = strstr(rxbuff, X_HOSTADDR_STR)) != NULL ) {
+      char *p2;
 
       // DVArchive. get IP address from X+HOSTADDR string.
       //
-      str_p += strlen(X_HOSTADDR_STR); 
-      strncpy(ip_addr_str, str_p, INET_ADDRSTRLEN);
-      ip_addr_str[INET_ADDRSTRLEN] = '\0';
+      str_p += strlen(X_HOSTADDR_STR);
+      if ( (p2 = strchr(str_p, '\r')) == NULL ) {
+         RTV_ERRLOG("%s: Invalid x-host string format: (%s)\n", __FUNCTION__, rxbuff);
+         return(-EILSEQ);
+      }
+
+      strncpy(ip_addr_str, str_p, p2-str_p);
+      ip_addr_str[p2-str_p] = '\0';
       dva_request = 1;
    }
    else {
@@ -377,7 +409,7 @@ static int server_process_connection(int fd, const char *socket_ip_addr_str)
    }
    
    if ( !(dva_request) ) {
-      RTV_DBGLOG(RTVLOG_DSCVR, "%s: Dropping Non-DVArchive request\n", __FUNCTION__);
+      RTV_DBGLOG(RTVLOG_DSCVR, "%s: Dropping Non-DVArchive request: %s\n", __FUNCTION__, ip_addr_str);
       return(-ENOTSUP);
    }
 
@@ -713,7 +745,7 @@ static void* rtv_discovery_thread(void *arg)
              inet_ntop(AF_INET, &(cliaddr.sin_addr), ip_addr, INET_ADDRSTRLEN);
              RTV_DBGLOG(RTVLOG_DSCVR, "%s: ----- http connection from IP: %s ------\n\n", __FUNCTION__, ip_addr);
 
-             if ( server_process_connection(cli_fd, ip_addr) < 0 ) {
+             if ( (errno_sav = server_process_connection(cli_fd, ip_addr)) < 0 ) {
                 close(cli_fd);
                 break;
              } 

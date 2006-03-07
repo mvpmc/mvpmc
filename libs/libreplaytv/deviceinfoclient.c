@@ -223,11 +223,14 @@ int rtv_get_device_info(const char *address, char *queryStr, rtv_device_t **devi
    rtv_device_t      *rtv;
    rtv_device_info_t *devinfo;
 
+   RTV_DBGLOG(RTVLOG_DSCVR, "%s: Enter: address=%s: current_rtv_cnt=%d\n", __FUNCTION__, address, rtv_devices.num_rtvs);
+
    *device_p  = NULL;
    rtv     = rtv_get_device_struct(address, &new_entry);
    devinfo = &(rtv->device);
 
    if ( !(new_entry) ) {
+      RTV_DBGLOG(RTVLOG_DSCVR, "%s: address=%s already exists in device struct. Decrement count.\n", __FUNCTION__, address);
       rtv_devices.num_rtvs--;
    } 
 
@@ -243,12 +246,13 @@ int rtv_get_device_info(const char *address, char *queryStr, rtv_device_t **devi
    
    if ( queryStr == NULL ) {
       sprintf(url, "http://%s/Device_Descr.xml", address);
+      RTV_DBGLOG(RTVLOG_DSCVR, "%s: Build default query str: %s\n", __FUNCTION__, url);
    }
    else {
       strncpy(url, queryStr, 511);
+      RTV_DBGLOG(RTVLOG_DSCVR, "%s: Use supplied query str: %s\n", __FUNCTION__, url);
    }
    
-   RTV_DBGLOG(RTVLOG_GUIDE, "%s: url=%s\n", __FUNCTION__, url); 
    hc = hc_start_request(url);
    if (!hc) {
       RTV_ERRLOG("%s: hc_start_request(): %d=>%s\n", __FUNCTION__, errno, strerror(errno));
@@ -274,8 +278,12 @@ int rtv_get_device_info(const char *address, char *queryStr, rtv_device_t **devi
    if ( (rc = parse_version_info(devinfo)) != 0 ) {
       
    }
+
    *device_p = rtv;
    rtv_devices.num_rtvs++;
+   if ( RTVLOG_DSCVR ) {
+      rtv_print_device_info(devinfo);
+   }
    return (rc);
 }
 
