@@ -1,0 +1,28 @@
+#!/usr/bin/python
+#
+# $Id: SConscript 20 2006-03-14 05:26:56Z gettler $
+#
+# build third-party libraries
+#
+
+import os
+
+Import('env')
+
+target = env['TARG']
+
+zlib = env.SConscript('zlib/SConscript')
+png = env.SConscript('libpng/SConscript')
+jpg = env.SConscript('jpeg/SConscript')
+mw = env.SConscript('microwindows/SConscript')
+a52 = env.SConscript('a52dec/SConscript')
+expat = env.SConscript('expat/SConscript')
+dvb = env.SConscript('libdvbpsi/SConscript')
+id3 = env.SConscript('libid3/SConscript')
+tremor = env.SConscript('Tremor/SConscript')
+
+env.Depends(png, zlib)
+env.Depends(mw, png)
+env.Depends(mw, jpg)
+
+Return('mw')

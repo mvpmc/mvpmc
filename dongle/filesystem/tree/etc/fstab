@@ -1,4 +1,4 @@
 #
-# $Id$
+# $Id: fstab,v 1.1 2004/10/15 03:49:41 gettler Exp $
 #
 /proc           /proc   proc    defaults        0       0

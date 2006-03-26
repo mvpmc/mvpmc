@@ -1,0 +1,142 @@
+diff -Naur linux-2.4.21.org/Documentation/Configure.help linux-2.4.21.new/Documentation/Configure.help
+--- linux-2.4.21.org/Documentation/Configure.help	2003-07-08 16:38:17.113326152 -0700
++++ linux-2.4.21.new/Documentation/Configure.help	2003-07-10 10:57:46.919672136 -0700
+@@ -16406,6 +16406,34 @@
+ 
+   If you don't know what all this is about, say N.
+ 
++CIFS (Common Internet File System) support
++CONFIG_CIFS
++  This is the client VFS module for the Common Internet File System
++  (CIFS) protocol which is the successor to the Server Message Block 
++  (SMB) protocol, the native file sharing mechanism for most early
++  PC operating systems.  CIFS is fully supported by current network
++  file servers such as Windows 2000, Windows 2003 (including  
++  Windows XP) as well by Samba (which provides excellent CIFS
++  server support for Linux and many other operating systems).  
++  The smbfs module should be used instead of this cifs module for
++  mounting to older SMB servers such as OS/2.  The smbfs and cifs
++  modules can coexist and do not conflict.
++
++  The intent of this module is to provide the most advanced network
++  file system function for CIFS compliant servers, including better
++  POSIX compliance, secure per-user session establishment, high
++  performance safe distributed caching (oplock), optional packet
++  signing, Unicode support and other internationalization improvements
++  For more information see the project page at
++  http://us1.samba.org/samba/Linux_CIFS_client.html 
++
++CIFS Debugging
++CONFIG_CIFS_DEBUG
++  If you are experiencing any problems with the CIFS filesystem, say
++  Y here.  This will result in additional debugging messages to be
++  written to the system log.  Under normal circumstances, this
++  results in very little overhead.  
++
+ SMB file system support (to mount Windows shares etc.)
+ CONFIG_SMB_FS
+   SMB (Server Message Block) is the protocol Windows for Workgroups
+diff -Naur linux-2.4.21.org/Documentation/filesystems/00-INDEX linux-2.4.21.new/Documentation/filesystems/00-INDEX
+--- linux-2.4.21.org/Documentation/filesystems/00-INDEX	2003-07-08 16:38:17.149320680 -0700
++++ linux-2.4.21.new/Documentation/filesystems/00-INDEX	2003-07-10 10:45:47.262076720 -0700
+@@ -10,6 +10,8 @@
+ 	- info for the BeOS file system (BFS)
+ bfs.txt
+ 	- info for the SCO UnixWare Boot Filesystem (BFS).
++cifs.txt
++	- info on the Common Internet File System (CIFS)
+ coda.txt
+ 	- description of the CODA filesystem.
+ cramfs.txt
+diff -Naur linux-2.4.21.org/Documentation/filesystems/cifs.txt linux-2.4.21.new/Documentation/filesystems/cifs.txt
+--- linux-2.4.21.org/Documentation/filesystems/cifs.txt	1969-12-31 16:00:00.000000000 -0800
++++ linux-2.4.21.new/Documentation/filesystems/cifs.txt	2003-07-10 11:20:53.549872304 -0700
+@@ -0,0 +1,51 @@
++  This is the client VFS module for the Common Internet File System
++  (CIFS) protocol which is the successor to the Server Message Block 
++  (SMB) protocol, the native file sharing mechanism for most early
++  PC operating systems.  CIFS is fully supported by current network
++  file servers such as Windows 2000, Windows 2003 (including  
++  Windows XP) as well by Samba (which provides excellent CIFS
++  server support for Linux and many other operating systems), so
++  this network filesystem client can mount to a wide variety of
++  servers.  The smbfs module should be used instead of this cifs module
++  for mounting to older SMB servers such as OS/2.  The smbfs and cifs
++  modules can coexist and do not conflict.  The CIFS VFS filesystem
++  module is designed to work well with servers that implement the
++  newer versions (dialects) of the SMB/CIFS protocol such as Samba, 
++  the program written by Andrew Tridgell that turns any Unix host 
++  into a SMB/CIFS file server.
++
++  The intent of this module is to provide the most advanced network
++  file system function for CIFS compliant servers, including better
++  POSIX compliance, secure per-user session establishment, high
++  performance safe distributed caching (oplock), optional packet
++  signing, large files, Unicode support and other internationalization
++  improvements. Since both Samba server and this filesystem client support
++  the CIFS Unix extensions, the combination can provide a reasonable 
++  alternative to NFSv4 for fileserving in some Linux to Linux environments,
++  not just in Linux to Windows environments.
++
++  This filesystem has an optional mount utility (mount.cifs) that can
++  be obtained from the project page and installed in the path in the same
++  directory with the other mount helpers (such as mount.smbfs). 
++  Mounting using the cifs filesystem without installing the mount helper
++  requires specifying the server's ip address.
++
++  For Linux 2.4:
++    mount //anything/here /mnt_target -o
++            user=username,pass=password,unc=//ip_address_of_server/sharename
++
++  For Linux 2.5: 
++    mount //ip_address_of_server/sharename /mnt_target -o user=username, pass=password
++
++
++  For more information on the module see the project page at
++
++      http://us1.samba.org/samba/Linux_CIFS_client.html 
++
++  For more information on CIFS see:
++
++      http://www.snia.org/tech_activities/CIFS
++
++  or the Samba site:
++     
++      http://www.samba.org
+diff -Naur linux-2.4.21.org/fs/Config.in linux-2.4.21.new/fs/Config.in
+--- linux-2.4.21.org/fs/Config.in	2003-07-08 16:38:21.792614792 -0700
++++ linux-2.4.21.new/fs/Config.in	2003-07-10 10:42:00.642528128 -0700
++++ ./Config.in 2004-06-08 15:32:47.000000000 -0500
+@@ -133,6 +133,10 @@
+      define_bool CONFIG_LOCKD_V4 y
+    fi
+
++   dep_tristate 'CIFS support (advanced network filesystem for Samba, Window and other CIFS compliant servers)' CONFIG_CIFS $CONFIG_INET
++   dep_mbool '  CIFS statistics' CONFIG_CIFS_STATS $CONFIG_CIFS
++   dep_mbool '  CIFS POSIX Protocol Extensions' CONFIG_CIFS_POSIX $CONFIG_CIFS
++
+    dep_tristate 'SMB file system support (to mount Windows shares etc.)' CONFIG_SMB_FS $CONFIG_INET
+    if [ "$CONFIG_SMB_FS" != "n" ]; then
+       bool '  Use a default NLS' CONFIG_SMB_NLS_DEFAULT
+diff -Naur linux-2.4.21.org/fs/Makefile linux-2.4.21.new/fs/Makefile
+--- linux-2.4.21.org/fs/Makefile	2003-07-08 16:38:21.792614792 -0700
++++ linux-2.4.21.new/fs/Makefile	2003-07-10 10:43:50.070892488 -0700
+@@ -40,6 +40,7 @@
+ subdir-$(CONFIG_VFAT_FS)	+= vfat
+ subdir-$(CONFIG_BFS_FS)		+= bfs
+ subdir-$(CONFIG_ISO9660_FS)	+= isofs
++subdir-$(CONFIG_CIFS)		+= cifs
+ subdir-$(CONFIG_DEVFS_FS)	+= devfs
+ subdir-$(CONFIG_HFS_FS)		+= hfs
+ subdir-$(CONFIG_VXFS_FS)	+= freevxfs
+diff -Naur linux-2.4.21.org/fs/nls/Config.in linux-2.4.21.new/fs/nls/Config.in
+--- linux-2.4.21.org/fs/nls/Config.in	2003-07-08 16:38:24.057270512 -0700
++++ linux-2.4.21.new/fs/nls/Config.in	2003-07-10 10:42:45.779666240 -0700
+@@ -11,6 +11,7 @@
+ 
+ # msdos and Joliet want NLS
+ if [ "$CONFIG_JOLIET" = "y" -o "$CONFIG_FAT_FS" != "n" \
++	-o "$CONFIG_CIFS" != "n" \
+ 	-o "$CONFIG_NTFS_FS" != "n" -o "$CONFIG_NCPFS_NLS" = "y" \
+ 	-o "$CONFIG_SMB_NLS" = "y" -o "$CONFIG_JFS_FS" != "n" \
+ 	-o "$CONFIG_BEFS_FS" != "n" ]; then

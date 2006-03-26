@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $Id$
+# $Id: nfsmount.sh,v 1.1 2004/10/15 03:49:41 gettler Exp $
 #
 
 SERVER=$1

@@ -1,0 +1,58 @@
+#!/usr/bin/python
+#
+# $Id: SConscript 20 2006-03-14 05:26:56Z gettler $
+#
+# build a52dec
+#
+
+import os
+
+Import('env')
+
+home = os.environ['HOME']
+cc = env['CC']
+downloads = env['DOWNLOADS']
+target = env['TARG']
+
+if target == 'mvp':
+  cross = '-c ' + env['CROSS']
+else:
+  cross = ''
+
+file = downloads + '/a52dec-snapshot.tar.gz'
+
+e = Environment()
+e.Tool('WGet', toolpath=['../../../scons'])
+
+def GetSourceFile(url, output_dir, env):
+  '''
+  Create a node for a file retrieved via wget.
+  This node can be used as a dependency in other rules.
+  '''
+  # Nab everything after the last slash as the filename
+  basefilename = str(url)[str( url).rfind(os.sep) + 1:]
+  munged = output_dir + os.sep + basefilename + os.sep + url
+  node = env.SourceCode( munged, env.WGet() )
+  return node
+
+url = 'http://liba52.sourceforge.net/files/a52dec-snapshot.tar.gz'
+pwd = os.getcwd()
+
+dl = GetSourceFile(url, '#' + downloads, e)
+
+build = env.Command('../../install/' + target + '/lib/liba52.a', 0,
+                    'scons/build_lib.sh -d ' + pwd + '/' + target +
+                    '/a52dec-0.7.5-cvs -i ' + file + ' ' +
+                    cross + ' ' +
+                    '-I ' + pwd + '/../../install/' + target + ' ' +
+                    "-C '--host=powerpc --enable-fixed'")
+
+env.Depends(build, dl)
+
+env.SideEffect(['../../install/' + target + '/include/a52dec/a52.h',
+                '../../install/' + target + '/include/a52dec/attributes.h',
+                '../../install/' + target + '/include/a52dec/audio_out.h',
+                '../../install/' + target + '/include/a52dec/mm_accel.h'],
+               build)
+
+Return('build')

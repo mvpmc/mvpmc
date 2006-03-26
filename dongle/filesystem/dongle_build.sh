@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $Id$
+# $Id: dongle_build.sh,v 1.6 2006/02/10 13:49:47 stuart Exp $
 #
 # Copyright (C) 2004,2005 Jon Gettler
 # http://mvpmc.sourceforge.net/
@@ -17,7 +17,7 @@
 # found in $PATH.  For objcopy and ld, set $CROSS to point to their prefix.
 #
 
-#set -x
+set -ex
 
 TMP="tmpdir"
 RAMDISK="ramdisk"
@@ -62,11 +62,11 @@ $OBJCOPY -O elf32-powerpc \
 	--set-section-flags=.ramdisk=contents,alloc,load,readonly,data \
 	--add-section=.image=${KERN} \
 	--set-section-flags=.image=contents,alloc,load,readonly,data \
-	kernel_files/dummy.o ${TMP}/image.o
-$LD -T kernel_files/ld.script -Ttext 0x00400000 -Bstatic -o ${TMP}/zvmlinux.initrd kernel_files/head.o kernel_files/relocate.o  kernel_files/misc-embedded.o kernel_files/misc-common.o kernel_files/string.o kernel_files/util.o kernel_files/embed_config.o kernel_files/ns16550.o ${TMP}/image.o kernel_files/zlib.a
+	filesystem/kernel_files/dummy.o ${TMP}/image.o
+$LD -T filesystem/kernel_files/ld.script -Ttext 0x00400000 -Bstatic -o ${TMP}/zvmlinux.initrd filesystem/kernel_files/head.o filesystem/kernel_files/relocate.o  filesystem/kernel_files/misc-embedded.o filesystem/kernel_files/misc-common.o filesystem/kernel_files/string.o filesystem/kernel_files/util.o filesystem/kernel_files/embed_config.o filesystem/kernel_files/ns16550.o ${TMP}/image.o filesystem/kernel_files/zlib.a
 $OBJCOPY -O elf32-powerpc ${TMP}/zvmlinux.initrd ${TMP}/zvmlinux.initrd -R .comment -R .stab -R .stabstr \
 	-R .sysmap
-mktree ${TMP}/zvmlinux.initrd ${OUTFILE} || error "mktree failed"
+../tools/mktree/mktree ${TMP}/zvmlinux.initrd ${OUTFILE} || error "mktree failed"
 }
 
 while [ "$1" ] ; do
@@ -85,24 +85,26 @@ while [ "$1" ] ; do
 	esac
 done
 
-if [[ "$DONGLE" = "" || "$OUTFILE" = "" ]] ; then
-	print_help
-	exit 1
-fi
+#if [[ "$DONGLE" = "" || "$OUTFILE" = "" ]] ; then
+#	print_help
+#	exit 1
+#fi
 
-./dongle_split.pl $DONGLE || error "dongle split failed"
-mv ramdisk ramdisk.gz || error "move failed"
-gunzip ramdisk.gz
-mv ramdisk vmlinux $TMP
+#./dongle_split.pl $DONGLE || error "dongle split failed"
+#mv ramdisk ramdisk.gz || error "move failed"
+#gunzip ramdisk.gz
+#mv ramdisk vmlinux $TMP
 
 #
 # Copy the kernel libraries into the fs dir
 #
-mkdir -p fs/lib/modules/2.4.17_mvl21-vdongle/misc
-/sbin/debugfs -f fs_cmd ${TMP}/ramdisk
-cp -f /etc/localtime fs/etc
+#mkdir -p fs/lib/modules/2.4.17_mvl21-vdongle/misc
+#/sbin/debugfs -f fs_cmd ${TMP}/ramdisk
+#cp -f /etc/localtime fs/etc
+mkdir -p filesystem/install/lib/modules/2.4.17_mvl21-vdongle/misc
+cp filesystem/hcw/linux-2.4.17/*.o filesystem/install/lib/modules/2.4.17_mvl21-vdongle/misc
 
-RAMDISK_SIZE=`du -ks fs | cut -f 1`
+RAMDISK_SIZE=`du -ks filesystem/install | cut -f 1`
 let RAMDISK_SIZE=$RAMDISK_SIZE+300
 if [ $RAMDISK_SIZE -gt 4096 ] ; then
 	error "ramdisk too big"
@@ -111,15 +113,15 @@ fi
 #
 # Create the ramdisk out of the fs directory
 #
-genext2fs -d fs -b ${RAMDISK_SIZE} -D devtable ${RAMDISK} || error "genext2fs failed"
+../tools/genext2fs/genext2fs-1.4rc1/genext2fs -d filesystem/install -b ${RAMDISK_SIZE} -D filesystem/devtable ${RAMDISK} || error "genext2fs failed"
 
 gzip $RAMDISK
 
-make_dongle kernel_files/vmlinux.gz ${RAMDISK}.gz
+make_dongle filesystem/kernel_files/vmlinux.gz ${RAMDISK}.gz
 
 rm -f ${RAMDISK}.gz
 rm -rf $TMP
-rm boot_loader
+#rm boot_loader
 
 echo "Success"
 

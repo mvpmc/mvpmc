@@ -1,5 +1,5 @@
 #
-# $Id$
+# $Id: inittab,v 1.1 2004/10/15 03:49:41 gettler Exp $
 #
 ::sysinit:/etc/rcS
 ::restart:/sbin/init

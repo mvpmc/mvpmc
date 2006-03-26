@@ -1,0 +1,57 @@
+#!/usr/bin/python
+#
+# $Id: SConscript 20 2006-03-14 05:26:56Z gettler $
+#
+# build libpng
+#
+
+import os
+
+Import('env')
+
+home = os.environ['HOME']
+cc = env['CC']
+downloads = env['DOWNLOADS']
+target = env['TARG']
+
+if target == 'mvp':
+  cross = '-c ' + env['CROSS']
+  host = '--host=powerpc'
+else:
+  cross = ''
+  host = ''
+
+file = downloads + '/libpng-1.2.6-config.tar.gz'
+
+e = Environment()
+e.Tool('WGet', toolpath=['../../../scons'])
+
+def GetSourceFile(url, output_dir, env):
+  '''
+  Create a node for a file retrieved via wget.
+  This node can be used as a dependency in other rules.
+  '''
+  # Nab everything after the last slash as the filename
+  basefilename = str(url)[str( url).rfind(os.sep) + 1:]
+  munged = output_dir + os.sep + basefilename + os.sep + url
+  node = env.SourceCode( munged, env.WGet() )
+  return node
+
+url = 'http://download.sourceforge.net/libpng/libpng-1.2.6-config.tar.gz'
+pwd = os.getcwd()
+inc = '../../../../install/' + target + '/include'
+lib = '../../../../install/' + target + '/lib'
+
+dl = GetSourceFile(url, '#' + downloads, e)
+
+build = env.Command('../../install/' + target + '/lib/libpng.a', 0,
+                    'scons/build_lib.sh -d ' + pwd + '/' + target +
+                    '/libpng-1.2.6-config -i ' + file + ' ' +
+                    cross + ' ' +
+                    '-I ' + pwd + '/../../install/' + target + ' '
+                    '-C "' + host + ' CFLAGS=-I' + inc +
+                    ' LDFLAGS=-L' + lib + '"')
+
+env.Depends(build, dl)
+
+Return('build')

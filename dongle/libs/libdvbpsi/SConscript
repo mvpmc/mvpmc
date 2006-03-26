@@ -1,0 +1,63 @@
+#!/usr/bin/python
+#
+# $Id: SConscript 20 2006-03-14 05:26:56Z gettler $
+#
+# build libdvbpsi
+#
+
+import os
+
+Import('env')
+
+home = os.environ['HOME']
+cc = env['CC']
+downloads = env['DOWNLOADS']
+target = env['TARG']
+
+if target == 'mvp':
+  cross = '-c ' + env['CROSS']
+  host = '--host=powerpc'
+  Carg = '-C '
+else:
+  cross = ''
+  host = ''
+  Carg = ''
+
+file = downloads + '/libdvbpsi4-0.1.5.tar.gz'
+
+e = Environment()
+e.Tool('WGet', toolpath=['../../../scons'])
+
+def GetSourceFile(url, output_dir, env):
+  '''
+  Create a node for a file retrieved via wget.
+  This node can be used as a dependency in other rules.
+  '''
+  # Nab everything after the last slash as the filename
+  basefilename = str(url)[str( url).rfind(os.sep) + 1:]
+  munged = output_dir + os.sep + basefilename + os.sep + url
+  node = env.SourceCode( munged, env.WGet() )
+  return node
+
+url = 'http://download.videolan.org/pub/libdvbpsi/0.1.5/libdvbpsi4-0.1.5.tar.gz'
+pwd = os.getcwd()
+
+dl = GetSourceFile(url, '#' + downloads, e)
+
+build = env.Command('../../install/' + target + '/lib/libdvbpsi.a', 0,
+                    'scons/build_lib.sh -d ' + pwd + '/' + target +
+                    '/libdvbpsi4-0.1.5 -i ' + file + ' ' +
+                    cross + ' ' +
+                    '-I ' + pwd + '/../../install/' + target + ' ' +
+                    Carg + host)
+
+env.Depends(build, dl)
+
+env.SideEffect(['../../install/' + target + '/include/dvbpsi/dvbpsi.h',
+                '../../install/' + target + '/include/dvbpsi/psi.h',
+                '../../install/' + target + '/include/dvbpsi/descriptor.h',
+                '../../install/' + target + '/include/dvbpsi/pat.h',
+                '../../install/' + target + '/include/dvbpsi/pmt.h'],
+                build)
+
+Return('build')
