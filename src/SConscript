@@ -13,7 +13,7 @@ target = mvp['TARG']
 toplevel = mvp['TOPLEVEL']
 bindir = mvp['INSTBINDIR']
 
-mvp.Replace(CCFLAGS = '-D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE')
+mvp.Append(CCFLAGS = ' -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE')
 
 version = os.system(toplevel + '/src/version.sh ' + toplevel + '/src')
 
