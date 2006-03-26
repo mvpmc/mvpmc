@@ -280,7 +280,7 @@ extern void add_osd_widget(mvp_widget_t *widget, int type, int visible,
 
 extern osd_widget_t osd_widgets[];
 
-extern inline int
+static inline int
 set_osd_callback(int type, void (*callback)(mvp_widget_t*))
 {
 	int i = 0;

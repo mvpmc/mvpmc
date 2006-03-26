@@ -13,6 +13,8 @@ env = Environment (ENV = os.environ)
 
 target = ARGUMENTS.get('TARGET', Platform())
 
+env.Replace(CCFLAGS = '-O3 -g -Wall -Werror')
+
 crosstool = '/opt/crosstool'
 
 #

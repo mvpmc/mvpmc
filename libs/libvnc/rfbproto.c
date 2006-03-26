@@ -142,7 +142,6 @@ InitialiseRFBConnection(int sock)
     char *reason;
     CARD8 challenge[CHALLENGESIZE];
     char *passwd;
-    int i;
     rfbClientInitMsg ci;
 
     /* if the connection is immediately closed, don't report anything, so

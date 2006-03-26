@@ -1,7 +1,5 @@
 #!/usr/bin/python
 #
-# $Id: SConscript 20 2006-03-14 05:26:56Z gettler $
-#
 # build microwindows
 #
 
@@ -13,6 +11,7 @@ home = os.environ['HOME']
 cc = env['CC']
 downloads = env['DOWNLOADS']
 target = env['TARG']
+machine = os.uname()[4]
 
 if target == 'mvp':
   cross = '-c ' + env['CROSS']
@@ -23,7 +22,10 @@ else:
   cross = ''
   host = ''
   Carg = ''
-  patches = '-p patches/microwindows-0.91_host.patch'
+  if machine == 'ppc':
+    patches = '-p patches/microwindows-0.91_host_be.patch'
+  else:
+    patches = '-p patches/microwindows-0.91_host_le.patch'
 
 file = downloads + '/microwindows-src-0.91.tar.gz'
 

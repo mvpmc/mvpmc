@@ -9,16 +9,19 @@ dir = env['BUILD_DIR']
 target = env['TARG']
 libdir = env['INSTLIBDIR']
 cppflags = env['CPPFLAGS']
+vnc = env.Copy()
+
+vnc.Replace(CCFLAGS = '-O3 -g')
 
 if target == 'host':
 	cppflags = ''
 
 src = [ 'd3des.c', 'nanox.c', 'rfbproto.c', 'sockets.c', 'vncauth.c' ]
 
-lib = env.StaticLibrary('vnc', src,
+lib = vnc.StaticLibrary('vnc', src,
                         CPPFLAGS = cppflags,
                         CPPPATH = [ env['INCDIR'], env['INSTINCDIR'], '.' ])
 
-inst = env.Install(libdir, lib)
+inst = vnc.Install(libdir, lib)
 
 Return('inst')
