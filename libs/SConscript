@@ -1,0 +1,18 @@
+#!/usr/bin/python
+#
+# $Id: SConscript 20 2006-03-14 05:26:56Z gettler $
+#
+
+Import('env')
+
+target = env['TARG']
+dir = env['BUILD_DIR']
+
+SConscript('libav/SConscript', build_dir='libav/'+dir, duplicate=0)
+SConscript('libcmyth/SConscript', build_dir='libcmyth/'+dir, duplicate=0)
+SConscript('libdemux/SConscript', build_dir='libdemux/'+dir, duplicate=0)
+SConscript('libosd/SConscript', build_dir='libosd/'+dir, duplicate=0)
+SConscript('libreplaytv/SConscript', build_dir='libreplaytv/'+dir, duplicate=0)
+SConscript('libts_demux/SConscript', build_dir='libts_demux/'+dir, duplicate=0)
+SConscript('libvnc/SConscript', build_dir='libvnc/'+dir, duplicate=0)
+SConscript('libwidget/SConscript', build_dir='libwidget/'+dir, duplicate=0)

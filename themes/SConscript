@@ -1,0 +1,17 @@
+#!/usr/bin/python
+#
+# $Id: SConscript 20 2006-03-14 05:26:56Z gettler $
+#
+
+import os
+
+Import ('env')
+
+sharedir = env['INSTSHAREDIR']
+
+themes = [ 'default.xml', 'easy.xml', 'none.xml', 'orange.xml', 'replaytv.xml',
+           'settings_1.xml', 'settings_2.xml', 'theme.xml' ]
+
+inst = env.Install(sharedir, themes)
+
+Return('inst')

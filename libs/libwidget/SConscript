@@ -1,0 +1,20 @@
+#!/usr/bin/python
+#
+# $Id: SConscript 20 2006-03-14 05:26:56Z gettler $
+#
+
+Import ('env')
+
+dir = env['BUILD_DIR']
+target = env['TARG']
+libdir = env['INSTLIBDIR']
+
+src = [ 'bitmap.c', 'checkbox.c', 'container.c', 'dialog.c', 'graph.c',
+        'image.c', 'menu.c', 'surface.c', 'text.c', 'widget.c' ]
+
+lib = env.StaticLibrary('widget', src,
+                        CPPPATH = [ env['INCDIR'], env['INSTINCDIR'], '.' ])
+
+inst = env.Install(libdir, lib)
+
+Return('inst')

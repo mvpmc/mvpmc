@@ -1,0 +1,21 @@
+#!/usr/bin/python
+#
+# $Id: SConscript 20 2006-03-14 05:26:56Z gettler $
+#
+
+Import ('env')
+
+dir = env['BUILD_DIR']
+target = env['TARG']
+libdir = env['INSTLIBDIR']
+
+if target == 'mvp':
+    src = [ 'av.c', 'init.c', 'io.c', 'mtd.c', 'mvpstb_api.c' ]
+else:
+    src = [ 'sim.c' ]
+
+lib = env.StaticLibrary('av', src, CPPPATH = env['INCDIR'])
+
+inst = env.Install(libdir, lib)
+
+Return('inst')

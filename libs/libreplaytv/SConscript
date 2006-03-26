@@ -1,0 +1,31 @@
+#!/usr/bin/python
+#
+# $Id: SConscript 20 2006-03-14 05:26:56Z gettler $
+#
+
+Import ('env')
+
+dir = env['BUILD_DIR']
+target = env['TARG']
+libdir = env['INSTLIBDIR']
+incdir = env['INSTINCDIR']
+
+rtv = env.Copy()
+
+rtv.Replace(CCFLAGS = '-DBIGFILE_BY_STDIO -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -D__unix__')
+
+src = [ 'bigfile.c', 'crypt.c', 'crypt-test.c', 'deviceinfoclient.c',
+        'discovery.c', 'dump.c', 'evtfileparser.c', 'guideclient.c',
+        'guideparser.c', 'headend.c', 'httpclient.c', 'httpfsclient.c',
+        'ndxclient.c', 'netclient.c', 'rtv.c', 'rtvlib.c', 'rtvmpegtool.c',
+        'rtv_shell.c', 'sleep.c',
+        'MD5/md5_dgst.c' ]
+
+lib = rtv.StaticLibrary('replaytv', src,
+                        CPPPATH = [ env['INCDIR'], env['INSTINCDIR'],
+                                    '.', 'MD5', 'shell' ])
+
+rtv.Install(incdir, 'rtvlib.h')
+inst = rtv.Install(libdir, lib)
+
+Return('inst')
