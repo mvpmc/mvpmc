@@ -1,7 +1,5 @@
 #!/usr/bin/python
 #
-# $Id: SConstruct 19 2006-03-14 05:24:19Z gettler $
-#
 # SCons build script for mvpmc
 # http://mvpmc.sourceforge.net/
 #
@@ -43,6 +41,7 @@ elif target == 'kernel':
 	cross = crosstool + '/' + gcc + '/' + powerpc + '/bin/' + prefix
 	env.Replace(CROSS = cross)
 	env.Replace(CC = cross + 'gcc')
+	cppflags = ''
 else:
 	print "Unknown target %s"%target
 	sys.exit(1)
@@ -80,8 +79,8 @@ if target == 'kernel':
 	if os.path.exists(cc) == 0:
 		print "build kernel cross-compiler"
 		gcc = env.SConscript('tools/toolchains/glibc/SConscript')
-	env.SConscript('dongle/kernel/linux-2.4.17/SConscript')
-	# XXX: kernel modules
+		env.Depends(kern, gcc)
+	kern = env.SConscript('dongle/kernel/linux-2.4.17/SConscript')
 else:
 	#
 	# do the application build

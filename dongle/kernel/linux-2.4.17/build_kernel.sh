@@ -32,4 +32,6 @@ make distclean
 cp ../../patches/kernel_dot_config .config
 make oldconfig
 make dep
-make znetboot
+make zImage
+
+../../../../filesystem/kernel_copy.sh `pwd` ../../../../filesystem/kernel_files
