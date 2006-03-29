@@ -1,0 +1,55 @@
+MediaMVP Media Center
+=====================
+
+The MediaMVP Media Center (mvpmc) is an audio/video player for
+the Hauppauge MediaMVP.
+
+
+Prerequisites
+-------------
+
+In order to build mvpmc, you will need to make sure you have the
+following installed on your system:
+
+	- scons (http://www.scons.org/)
+
+
+Building
+--------
+
+To build a new dongle.bin.mvpmc file, which you can boot on your
+MediaMVP via DHCP, use the following command:
+
+	$ make mvp
+
+
+To build a new mvpmc binary which you can run on your host system,
+use the following command:
+
+	$ make host
+
+
+To build a new linux kernel, use the following command:
+
+	$ make kernel
+
+
+To build source code HTML documentation with doxygen, use the following
+command:
+
+	$ make docs
+
+
+Getting Help
+------------
+
+You can get help from the following:
+
+	mvpmc project site:
+		http://mvpmc.sourceforge.net/
+
+	mvpmc project mailing lists:
+		http://sourceforge.net/mail/?group_id=103474
+
+	mvpmc project forums:
+		http://sourceforge.net/forum/?group_id=103474
