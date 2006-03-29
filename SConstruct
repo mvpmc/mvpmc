@@ -38,7 +38,10 @@ elif target == 'kernel':
 	powerpc = 'powerpc-405-linux-gnu'
 	gcc = 'gcc-3.2.3-glibc-2.2.5'
 	prefix = powerpc + '-'
-	cross = crosstool + '/' + gcc + '/' + powerpc + '/bin/' + prefix
+	cross = crosstool + '/' + powerpc + '/' + gcc + '/bin/' + prefix
+	cc = cross + 'gcc'
+	if os.path.exists(cc) == 0:
+		cross = crosstool + '/' + gcc + '/' + powerpc + '/bin/' + prefix
 	env.Replace(CROSS = cross)
 	env.Replace(CC = cross + 'gcc')
 	cppflags = ''

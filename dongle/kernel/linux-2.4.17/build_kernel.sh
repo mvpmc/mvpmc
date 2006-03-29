@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $Id$
+# build a linux kernel
 #
 
 set -ex
@@ -11,9 +11,10 @@ CROSS=$2
 rm -rf mvpdist
 
 mkdir -p $TARBALLS_DIR
-if [ ! -a $TARBALLS_DIR/mvpdist1.1.21315.tgz ] ; then
-    tar -xzf $TARBALLS_DIR/mvpdist1.1.21315.tgz
+if [[ ! -a $TARBALLS_DIR/mvpdist1.1.21315.tgz ]] ; then
+    wget -O $TARBALLS_DIR/mvpdist1.1.21315.tgz ftp://167.206.143.11/latest/MediaMVPsrc/mvpdist1.1.21315.tgz
 fi
+tar -xzf $TARBALLS_DIR/mvpdist1.1.21315.tgz
 
 cd mvpdist/kernel
 
@@ -33,5 +34,7 @@ cp ../../patches/kernel_dot_config .config
 make oldconfig
 make dep
 make zImage
+make modules
 
 ../../../../filesystem/kernel_copy.sh `pwd` ../../../../filesystem/kernel_files
+cp drivers/mvpstb/mvpstb_mod.o ../../../../filesystem/tree/lib/modules/2.4.17_mvl21-vdongle/misc
