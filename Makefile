@@ -19,6 +19,10 @@ kernel:
 docs:
 	doxygen Doxyfile
 
+cscope:
+	find src libs include -name \*.c -or -name \*.h > cscope.files
+	cscope -b -q -k
+
 clean:
 	scons -c TARGET=mvp
 	scons -c TARGET=host
@@ -36,3 +40,4 @@ distclean: clean
 	rm -rf `find . -name .sconsign -type f`
 	rm -rf home
 	rm -rf doc/html
+	rm -rf cscope*
