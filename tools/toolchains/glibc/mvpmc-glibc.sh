@@ -23,6 +23,12 @@ export TARBALLS_DIR RESULT_TOP
 GCC_LANGUAGES="c,c++"
 export GCC_LANGUAGES
 
+# make sure the user can install the cross compiler
+if [[ ! -w $RESULT_TOP ]] ; then
+    echo "Cannot build the cross-compiler, since $RESULT_TOP is not writable!"
+    exit 1
+fi
+
 #eval `cat gcc-3.4.1-glibc-2.3.3.dat powerpc-405.dat` sh all.sh
 eval `cat gcc-3.2.3-glibc-2.2.5.dat powerpc-405.dat` sh all.sh
 

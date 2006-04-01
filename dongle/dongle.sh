@@ -1,7 +1,5 @@
 #!/bin/sh
 #
-# $Id$
-#
 # Build the dongle.bin file
 #
 

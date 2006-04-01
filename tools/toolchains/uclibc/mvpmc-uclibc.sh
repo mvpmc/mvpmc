@@ -41,6 +41,12 @@ export TARBALLS_DIR RESULT_TOP
 GCC_LANGUAGES="c,c++"
 export GCC_LANGUAGES
 
+# make sure the user can install the cross compiler
+if [[ ! -w $RESULT_TOP ]] ; then
+    echo "Cannot build the cross-compiler, since $RESULT_TOP is not writable!"
+    exit 1
+fi
+
 # turn off shell exit since we know the next command will fail
 set +e
 
