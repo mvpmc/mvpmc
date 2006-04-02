@@ -34,8 +34,9 @@ expose(mvp_widget_t *widget)
 
 	GrClearArea(widget->wid, 0, 0, 0, 0, 1);
 
-	for (i=0; i<widget->data.container.nitems; i++)
-		mvpw_expose(widget->data.container.widgets[i]);
+	for (i=0; i<widget->data.container.max_items; i++)
+		if (widget->data.container.widgets[i])
+			mvpw_expose(widget->data.container.widgets[i]);
 }
 
 static void
@@ -43,8 +44,12 @@ destroy(mvp_widget_t *widget)
 {
 	int i;
 
-	for (i=0; i<widget->data.container.nitems; i++)
-		mvpw_destroy(widget->data.container.widgets[i]);
+	for (i=0; i<widget->data.container.max_items; i++)
+		if (widget->data.container.widgets[i])
+			mvpw_destroy(widget->data.container.widgets[i]);
+
+	if (widget->data.container.widgets)
+		free(widget->data.container.widgets);
 }
 
 static void
@@ -58,19 +63,45 @@ static int
 add_child(mvp_widget_t *parent, mvp_widget_t *child)
 {
 	int i = 0;
+	mvp_widget_t **list;
 
-	while (parent->data.container.widgets[i])
-		i++;
+	list = parent->data.container.widgets;
 
-	parent->data.container.widgets[i] = child;
-	
-	return 0;
+	if (parent->data.container.nitems == parent->data.container.max_items) {
+		list = realloc(list, sizeof(*list)*(parent->data.container.max_items+32));
+		if (list)
+			parent->data.container.widgets = list;
+		else
+			return -1;
+		memset(list+parent->data.container.max_items, 0, sizeof(*list)*32);
+		parent->data.container.max_items += 32;
+	}
+
+	for (i=0; i<parent->data.container.max_items; i++) {
+		if (parent->data.container.widgets[i] == NULL) {
+			parent->data.container.widgets[i] = child;
+			parent->data.container.nitems++;
+			return 0;
+		}
+	}
+
+	return -1;
 }
 
 static int
 remove_child(mvp_widget_t *parent, mvp_widget_t *child)
 {
-	return 0;
+	int i = 0;
+
+	for (i=0; i<parent->data.container.max_items; i++) {
+		if (parent->data.container.widgets[i] == child) {
+			parent->data.container.widgets[i] = NULL;
+			parent->data.container.nitems--;
+			return 0;
+		}
+	}
+	
+	return -1;
 }
 
 mvp_widget_t*
@@ -78,16 +109,13 @@ mvpw_create_container(mvp_widget_t *parent,
 		      int x, int y, int w, int h,
 		      uint32_t bg, uint32_t border_color, int border_size)
 {
-	mvp_widget_t *widget, **list;
+	mvp_widget_t *widget;
 
 	widget = mvpw_create(parent, x, y, w, h, bg,
 			     border_color, border_size);
 
 	widget->event_mask &= ~GR_EVENT_MASK_EXPOSURE;
 	GrSelectEvents(widget->wid, widget->event_mask);
-
-	list = malloc(sizeof(*list)*32);
-	memset(list, 0, sizeof(*list)*32);
 
 	if (widget == NULL)
 		return NULL;
@@ -100,8 +128,6 @@ mvpw_create_container(mvp_widget_t *parent,
 	widget->destroy = destroy;
 
 	memset(&widget->data, 0, sizeof(widget->data));
-
-	widget->data.container.widgets = list;
 
 	return widget;
 }

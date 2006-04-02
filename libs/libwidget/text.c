@@ -28,6 +28,13 @@
 #include "widget.h"
 
 static void
+destroy(mvp_widget_t *widget)
+{
+	if (widget->data.text.str)
+		free (widget->data.text.str);
+}
+
+static void
 expose(mvp_widget_t *widget)
 {
 	GR_GC_ID gc, gcr;
@@ -241,6 +248,7 @@ mvpw_create_text(mvp_widget_t *parent,
 
 	widget->type = MVPW_TEXT;
 	widget->expose = expose;
+	widget->destroy = destroy;
 
 	memset(&widget->data, 0, sizeof(widget->data));
 

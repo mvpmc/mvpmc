@@ -367,6 +367,7 @@ add_dirs(mvp_widget_t *fbw)
 			i++;
 		}
 	}
+	globfree(&gb);
 }
 
 static int
@@ -396,6 +397,7 @@ do_glob(mvp_widget_t *fbw, char *wc[])
 				i++;
 			}
 		}
+		globfree(&gb);
 		w++;
 	}
 

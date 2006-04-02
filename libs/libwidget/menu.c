@@ -38,6 +38,7 @@ destroy(mvp_widget_t *widget)
 	int i;
 	char *str;
 	void *key;
+	mvp_widget_t *w1, *w2;
 
 	for (i=0; i<widget->data.menu.nitems; i++) {
 		if (widget->data.menu.items[i].destroy) {
@@ -45,10 +46,18 @@ destroy(mvp_widget_t *widget)
 			key = widget->data.menu.items[i].key;
 			widget->data.menu.items[i].destroy(widget, str, key);
 		}
+		if (widget->data.menu.items[i].label)
+			free(widget->data.menu.items[i].label);
+	}
+	
+	w1 = widget->data.menu.first_widget;
+	while (w1) {
+		w2 = w1->attach[MVPW_DIR_DOWN];
+		mvpw_destroy(w1->attach[MVPW_DIR_LEFT]);
+		mvpw_destroy(w1);
+		w1 = w2;
 	}
 
-	if (widget->data.menu.container_widget)
-		mvpw_destroy(widget->data.menu.container_widget);
 	if (widget->data.menu.title_widget)
 		mvpw_destroy(widget->data.menu.title_widget);
 
@@ -60,48 +69,45 @@ static void
 change_items(mvp_widget_t *widget, int first)
 {
 	int i;
-	mvp_widget_t *cw, *cbw;
+	mvp_widget_t *fw, *cbw;
 
 	if (first < 0)
 		first = 0;
 
+	fw = widget->data.menu.first_widget;
+
 	for (i=0; i<widget->data.menu.nitems; i++) {
-		cbw = widget->data.menu.items[i].checkbox;
-		if (cbw) {
-			mvpw_set_checkbox(cbw, 0);
-			mvpw_expose(cbw);
-		}
 		widget->data.menu.items[i].widget = NULL;
 		widget->data.menu.items[i].checkbox = NULL;
 	}
 
-	cw = widget->data.menu.container_widget;
-	for (i=0; i<widget->data.menu.rows; i++) {
-		if (i >= widget->data.menu.nitems)
-			break;
-		widget->data.menu.items[first].widget =
-			cw->data.container.widgets[i];
-		widget->data.menu.items[first].checkbox =
-			cw->data.container.widgets[i]->attach[MVPW_DIR_LEFT];
-		mvpw_set_bg(widget->data.menu.items[first].widget,
-			    widget->data.menu.items[first].bg);
-		mvpw_set_text_fg(widget->data.menu.items[first].widget,
-				 widget->data.menu.items[first].fg);
-		if (first >= widget->data.menu.nitems)
-			mvpw_set_text_str(cw->data.container.widgets[i], "");
-		else
-			mvpw_set_text_str(cw->data.container.widgets[i],
-					  widget->data.menu.items[first].label);
-		if (widget->data.menu.items[first].checkbox) {
-			cbw = widget->data.menu.items[first].checkbox;
-			mvpw_set_checkbox(cbw,
-					  widget->data.menu.items[first].checked);
-			mvpw_set_checkbox_fg(cbw,
-					     widget->data.menu.items[first].checkbox_fg);
-			mvpw_expose(cbw);
+	while (fw) {
+		cbw = fw->attach[MVPW_DIR_LEFT];
+		if (first >= widget->data.menu.nitems) {
+			mvpw_set_bg(fw, widget->data.menu.bg);
+			mvpw_set_text_fg(fw, widget->data.menu.fg);
+			mvpw_set_text_str(fw, "");
+			if (cbw) {
+				mvpw_set_checkbox(cbw, 0);
+				mvpw_set_checkbox_fg(cbw, widget->data.menu.fg);
+				mvpw_expose(cbw);
+			}
+			mvpw_expose(fw);
+		} else {
+			widget->data.menu.items[first].widget = fw;
+			widget->data.menu.items[first].checkbox = cbw;
+			mvpw_set_bg(fw, widget->data.menu.items[first].bg);
+			mvpw_set_text_fg(fw, widget->data.menu.items[first].fg);
+			mvpw_set_text_str(fw, widget->data.menu.items[first].label);
+			if (cbw) {
+				mvpw_set_checkbox(cbw, widget->data.menu.items[first].checked);
+				mvpw_set_checkbox_fg(cbw, widget->data.menu.items[first].checkbox_fg);
+				mvpw_expose(cbw);
+			}
+			mvpw_expose(fw);
 		}
-		mvpw_expose(cw->data.container.widgets[i]);
 		first++;
+		fw = fw->attach[MVPW_DIR_DOWN];
 	}
 }
 
@@ -357,8 +363,8 @@ mvpw_add_menu_item(mvp_widget_t *widget, char *label, void *key,
 	GR_COORD w, h;
 	GR_COLOR bg, border_color;
 	GR_FONT_INFO finfo;
-	mvp_widget_t *cw;
-	mvp_widget_t *tw = NULL, *cbw = NULL;
+	mvp_widget_t *tw = NULL, *cbw = NULL, *pw = NULL;
+	typeof(widget->data.menu.items) items;
 	mvpw_text_attr_t attr = {
 		.wrap = 0,
 		.justify = MVPW_TEXT_LEFT,
@@ -372,77 +378,65 @@ mvpw_add_menu_item(mvp_widget_t *widget, char *label, void *key,
 	attr.fg = widget->data.menu.fg;
 	attr.margin = widget->data.menu.margin;
 
-	if (widget->data.menu.nitems == 0) {
-		if ((widget->data.menu.items=
-		     malloc(sizeof(*widget->data.menu.items)*32)) == NULL)
-			return -1;
-		memset(widget->data.menu.items, 0,
-		       sizeof(*widget->data.menu.items)*32);
-		widget->data.menu.max_items = 32;
-
-		w = widget->width;
-		if (widget->data.menu.title_widget)
-			h = widget->height -
-				widget->data.menu.title_widget->height;
-		else
-			h = widget->height;
-		bg = widget->bg;
-		border_color = widget->border_color;
-		border_size = widget->border_size;
-
-		cw = mvpw_create_container(widget, 0, 0, w, h, bg,
-					   border_color, border_size);
-
-		if (widget->data.menu.title_widget)
-			mvpw_attach(widget->data.menu.title_widget, cw,
-				    MVPW_DIR_DOWN);
-
-		mvpw_show(cw);
-
-		widget->data.menu.container_widget = cw;
-	}
-
-	if (widget->data.menu.nitems == widget->data.menu.max_items) {
-		int sz = widget->data.menu.nitems + 32;
-
-		if ((widget->data.menu.items=
-		     realloc(widget->data.menu.items,
-			     sizeof(*widget->data.menu.items)*sz)) == NULL)
-			return -1;
-		memset(widget->data.menu.items+widget->data.menu.nitems,0, 32);
-
-		widget->data.menu.max_items = sz;
-	}
-
 	i = widget->data.menu.nitems;
-
-	cw = widget->data.menu.container_widget;
+	if (i == widget->data.menu.max_items) {
+		int sz = 32;
+		items = widget->data.menu.items;
+		items = realloc(items, sizeof(*items)*(i+sz));
+		if (!items)
+			return -1;
+		memset(items+i, 0, sizeof(*items)*sz);
+		widget->data.menu.items = items;
+		widget->data.menu.max_items = i+sz;
+	}
 
 	GrGetFontInfo(widget->data.menu.font, &finfo);
 	w = widget->width;
 	h = finfo.height + (2 * attr.margin);
 
 	if (widget->data.menu.rows == 0)
-		widget->data.menu.rows = cw->height / h;
+		widget->data.menu.rows = (widget->height - (widget->data.menu.title_widget ? widget->data.menu.title_widget->height : 0)) / h;
 
 	if (i >= widget->data.menu.rows)
 		goto out;
 
+	pw = widget->data.menu.title_widget;
+	tw = widget->data.menu.first_widget;
+	while (i-- && tw) {
+		pw = tw;
+		tw = tw->attach[MVPW_DIR_DOWN];
+	}
+	i = widget->data.menu.nitems;
+
+	if (tw) {
+		cbw = tw->attach[MVPW_DIR_LEFT];
+		goto show;
+	}
+
 	border_size = 0;
 	bg = widget->bg;
 	border_color = widget->border_color;
-
 	if (widget->data.menu.checkboxes) {
-		cbw = mvpw_create_checkbox(cw, 0, 0, h, h, bg,
+		cbw = mvpw_create_checkbox(widget, 0, 0, h, h, bg,
 					   border_color, border_size);
-		tw = mvpw_create_text(cw, h, 0, w-h, h, bg,
+		tw = mvpw_create_text(widget, h, 0, w-h, h, bg,
 				      border_color, border_size);
 		mvpw_attach(cbw, tw, MVPW_DIR_RIGHT);
 	} else {
-		tw = mvpw_create_text(cw, 0, 0, w, h, bg,
+		tw = mvpw_create_text(widget, 0, 0, w, h, bg,
 				      border_color, border_size);
 	}
 
+	if (!widget->data.menu.first_widget)
+		widget->data.menu.first_widget = tw;
+	if (pw) {
+		if (pw == widget->data.menu.title_widget && cbw)
+			mvpw_attach(pw, cbw, MVPW_DIR_DOWN);
+		else
+			mvpw_attach(pw, tw, MVPW_DIR_DOWN);
+	}
+
+show:
 	if (i == widget->data.menu.current) {
 		attr.fg = widget->data.menu.hilite_fg;
 		if (widget->data.menu.rounded) {
@@ -463,12 +457,6 @@ mvpw_add_menu_item(mvp_widget_t *widget, char *label, void *key,
 	attr.font = widget->data.menu.font;
 	mvpw_set_text_attr(tw, &attr);
 	mvpw_set_text_str(tw, label);
-
-	if (i != 0)
-		mvpw_attach(widget->data.menu.items[i-1].widget,
-			    tw, MVPW_DIR_DOWN);
-
-	cw->add_child(cw, tw);
 
 	mvpw_show(tw);
 	if (cbw)
@@ -618,6 +606,8 @@ mvpw_set_menu_title(mvp_widget_t *widget, char *title)
 
 	mvpw_show(tw);
 
+	if (widget->data.menu.title_widget)
+		mvpw_destroy(widget->data.menu.title_widget);
 	widget->data.menu.title_widget = tw;
 
 	return 0;
@@ -681,31 +671,37 @@ mvpw_clear_menu(mvp_widget_t *widget)
 	int i;
 	char *str;
 	void *key;
+	mvp_widget_t *w1, *w2;
 
 	if (widget == NULL)
 		return;
 
 	for (i=0; i<widget->data.menu.nitems; i++) {
-		str = widget->data.menu.items[i].label;
 		if (widget->data.menu.items[i].destroy) {
+			str = widget->data.menu.items[i].label;
 			key = widget->data.menu.items[i].key;
 			widget->data.menu.items[i].destroy(widget, str, key);
 		}
-		if (str)
-			free(str);
-		widget->data.menu.items[i].label = NULL;
-		if (widget->data.menu.items[i].widget) {
-			mvpw_set_text_str(widget->data.menu.items[i].widget,
-					  "");
-			mvpw_expose(widget->data.menu.items[i].widget);
-		}
-		memset(widget->data.menu.items+i, 0,
-		       sizeof(*(widget->data.menu.items+i)));
+		if (widget->data.menu.items[i].label)
+			free(widget->data.menu.items[i].label);
 	}
 
+	w1 = widget->data.menu.first_widget;
+	while (w1) {
+		w2 = w1->attach[MVPW_DIR_DOWN];
+		if (w1->attach[MVPW_DIR_LEFT])
+			mvpw_destroy(w1->attach[MVPW_DIR_LEFT]);
+		mvpw_destroy(w1);
+		w1 = w2;
+	}
+	widget->data.menu.first_widget = NULL;
+
+	if (widget->data.menu.title_widget)
+		widget->data.menu.title_widget->attach[MVPW_DIR_DOWN] = NULL;
 	if (widget->data.menu.items)
 		free(widget->data.menu.items);
 	widget->data.menu.items = NULL;
+	widget->data.menu.max_items = 0;
 	widget->data.menu.nitems = 0;
 	widget->data.menu.current = 0;
 }

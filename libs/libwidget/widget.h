@@ -78,7 +78,7 @@ typedef struct {
 	int		 margin;
 
 	mvp_widget_t	*title_widget;
-	mvp_widget_t	*container_widget;
+	mvp_widget_t	*first_widget;
 
 	struct menu_item_s {
 		char		 *label;
