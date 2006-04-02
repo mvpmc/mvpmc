@@ -30,6 +30,7 @@ if [[ ! -w $RESULT_TOP ]] ; then
 fi
 
 #eval `cat gcc-3.4.1-glibc-2.3.3.dat powerpc-405.dat` sh all.sh
-eval `cat gcc-3.2.3-glibc-2.2.5.dat powerpc-405.dat` sh all.sh
+#eval `cat gcc-3.2.3-glibc-2.2.5.dat powerpc-405.dat` sh all.sh
+eval `cat gcc-2.95.3-glibc-2.2.5.dat powerpc-405.dat` sh all.sh
 
 exit 0

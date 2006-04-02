@@ -36,7 +36,7 @@ elif target == 'host':
 elif target == 'kernel':
 	print "kernel build"
 	powerpc = 'powerpc-405-linux-gnu'
-	gcc = 'gcc-3.2.3-glibc-2.2.5'
+	gcc = 'gcc-2.95.3-glibc-2.2.5'
 	prefix = powerpc + '-'
 	cross = crosstool + '/' + powerpc + '/' + gcc + '/bin/' + prefix
 	cc = cross + 'gcc'
