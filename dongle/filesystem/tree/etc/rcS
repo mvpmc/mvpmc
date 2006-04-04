@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $Id: rcS,v 1.7 2005/10/02 00:15:34 honeycut Exp $
+# $Id: rcS,v 1.9 2005/12/17 17:57:55 gettler Exp $
 #
 
 #
@@ -38,8 +38,23 @@ TZ=CST+6CDT,M4.1.0/2,M10.5.0/2; export TZ
 udhcpc
 . /etc/udhcpc.config
 
-echo "${IP}    ${HNAME}" >> /etc/hosts
-tftp -g -l /tmp/themes/default.xml -r ${DONGLE}.xml ${SERVER}
-tftp -g -l /etc/dongle.config -r ${DONGLE}.config ${SERVER}
-. /etc/dongle.config
+if [ "$HNAME" = "" ] ; then
+    hostname $IP
+fi
 
+echo "${IP}    ${HNAME}" >> /etc/hosts
+tftp -g -l /etc/dongle.config -r ${DONGLE}.config ${SERVER}
+tftp -g -l /tmp/themes/default.xml -r ${DONGLE}.xml ${SERVER}
+. /etc/dongle.config
+if [ -z "`pidof mvpmc`" ] ; then
+    if [ -z $SERVER ] ; then
+        if [ -z $HOST ] ; then
+	    mvpmc -s $IP -c $IP -R "ip=discover" --startup setup --web-port 80          
+        else
+	    mvpmc -s $HOST -c $HOST --vlc $HOST -R "ip=discover" --web-port 80
+        fi    
+    else        
+	mvpmc -s $SERVER -c $SERVER --vlc $SERVER -R "ip=discover" --web-port 80
+    fi
+fi
+cd /

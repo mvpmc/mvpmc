@@ -17,7 +17,7 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#ident "$Id$"
+#ident "$Id: gui.c,v 1.101 2006/02/16 03:04:19 gettler Exp $"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -26,6 +26,7 @@
 #include <pthread.h>
 #include <signal.h>
 #include <fcntl.h>
+#include <sys/utsname.h>
 
 #ifndef MVPMC_HOST
 #include <sys/reboot.h>
@@ -1744,7 +1745,7 @@ fb_menu_select_callback(mvp_widget_t *widget, char *item, void *key)
 	}
 }
 
-static void
+void
 fb_key_callback(mvp_widget_t *widget, char key)
 {
 	switch (key) {
@@ -1804,8 +1805,8 @@ fb_key_callback(mvp_widget_t *widget, char key)
 	}
 }
 
-static void
-fb_menu_key_callback(mvp_widget_t *widget, char key)
+static
+void fb_menu_key_callback(mvp_widget_t *widget, char key)
 {
 	switch (key) {
 	case MVPW_KEY_EXIT:
@@ -1817,7 +1818,7 @@ fb_menu_key_callback(mvp_widget_t *widget, char key)
 	}
 }
 
-static void
+void
 playlist_key_callback(mvp_widget_t *widget, char key)
 {
 	switch (key) {
@@ -4805,6 +4806,8 @@ about_init(void)
 		"Servers: MythTV, ReplayTV, NFS, CIFS, VNC, SlimServer, "
 		"HTTP\n";
 
+    struct utsname myname;
+
 	splash_update("Creating about dialog");
 
 	h = 10 * FONT_HEIGHT(about_attr);
@@ -4813,13 +4816,18 @@ about_init(void)
 	x = (si.cols - w) / 2;
 	y = (si.rows - h) / 2;
 
+    if(uname(&myname) < 0 ) {
+        // should have been tested
+    }
+
+
 	if (version[0] == '\0') {
 		snprintf(text, sizeof(text),
-			 "MediaMVP Media Center\n%s\n%s", compile_time, buf);
+			 "MediaMVP Media Center\n%s\nIP %s\n%s", compile_time, myname.nodename, buf);
 	} else {
 		snprintf(text, sizeof(text),
-			 "MediaMVP Media Center\nVersion %s\n%s\n%s",
-			 version, compile_time, buf);
+			 "MediaMVP Media Center\nVersion %s\n%s\nIP %s\n%s",
+			 version, compile_time, myname.nodename, buf);
 	}
 
 	about = mvpw_create_dialog(NULL, x, y, w, h,

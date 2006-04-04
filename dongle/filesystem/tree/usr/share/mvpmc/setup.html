@@ -1,0 +1,242 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Strict//EN" "http://www.w3.org/TR/htm401/DTD/strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+<head>
+	<meta http-equiv="content-type" content="text/html; charset=iso-8859-1" />
+      <meta http-equiv="expires" content="0"  />    
+	<meta name="author" content="Jon Gettler" />
+	<title>MediaMVP Media Center Configuration</title>	
+	<link rel="stylesheet" type="text/css" title="Default" href="mvpmc.css" />
+	<link rel="alternate stylesheet" type="text/css" title="Minimal" href="minimal.css" />
+</head>
+<body>
+<div id="container">
+    <div id="intro">
+        <div id="pageHeader">
+            <h1><span>mvpmc Configuration</span></h1>
+        </div>
+    </div>
+    <div id="supportingText">
+      <div class="title">
+          <h3><span>MediaMVP Media Center Configuration</span></h3>
+      </div>
+
+<div class="item">
+
+<h2>1. <a href="#s1">General Setup</a></h2>
+<h2>2. <a href="#s2">Internet Radio &amp; Playlist Setup</a></h2>
+<h2>3. <a href="#s3">Shared Folders</a></h2>
+<h2>4. <a href="#s4">Status</a></h2>
+
+</div>
+<div class="item">
+<h3><span><a name="s4">Status</a></span></h3>
+<h4><!--mvpmc ID="800" --></h4>
+</div>
+<div class="item">
+<h3><span><a name="s1">General Setup</a></span></h3>
+<FORM method = "POST" ACTION="config">
+<BR />
+<TABLE BORDER="1">
+<TR><TD>
+<PRE>                                               
+      Time zone: <INPUT TYPE="TEXT" NAME="400" <!--mvpmc ID="400" --> SIZE=31 MAXLENGTH=30 >
+    
+    Time Server: <INPUT TYPE="TEXT" NAME="401" <!--mvpmc ID="401" --> SIZE=50 MAXLENGTH=63 >  <BUTTON TYPE=SUBMIT NAME="SetTime" Value="Yes">Set Time</BUTTON>
+
+        Enable : MythTV <INPUT TYPE="checkbox" NAME="600" <!--mvpmc ID="600" --> /> ReplayTV <INPUT TYPE="checkbox" NAME="601" <!--mvpmc ID="601" --> /> MClient      <INPUT TYPE="checkbox" NAME="602" <!--mvpmc ID="602" --> /> VNC <INPUT TYPE="checkbox" NAME="603" <!--mvpmc ID="603" --> />
+                 Reboot <INPUT TYPE="checkbox" NAME="604" <!--mvpmc ID="604" --> /> Settings <INPUT TYPE="checkbox" NAME="605" <!--mvpmc ID="605" --> /> File Browser <INPUT TYPE="checkbox" NAME="606" <!--mvpmc ID="606" --> /> VLC <INPUT TYPE="checkbox" NAME="607" <!--mvpmc ID="607" --> /> MPLAYER <INPUT TYPE="checkbox" NAME="608" <!--mvpmc ID="608" --> />
+
+   Startup Item: <SELECT NAME="505">
+	<OPTION Value=0 <!--mvpmc ID="620" --> /> Main Menu
+	<OPTION Value=1 <!--mvpmc ID="621" --> /> MythTV
+	<OPTION Value=2 <!--mvpmc ID="622" --> /> File Browser
+	<OPTION Value=4 <!--mvpmc ID="624" --> /> VNC
+	<OPTION Value=5 <!--mvpmc ID="625" --> /> Settings
+	<OPTION Value=6 <!--mvpmc ID="626" --> /> ReplayTV
+	<OPTION Value=7 <!--mvpmc ID="627" --> /> MClient
+	</SELECT>
+
+ Startup Folder: <INPUT TYPE="TEXT" NAME="500" <!--mvpmc ID="500" --> SIZE=50 MAXLENGTH=63>
+      
+  SlimServer IP: <INPUT TYPE="TEXT" NAME="ipslim" <!--mvpmc ID="501" --> DISABLED SIZE=16 MAXLENGTH=15>
+
+    VideoLAN IP: <INPUT TYPE="TEXT" NAME="526" <!--mvpmc ID="526" --> SIZE=16 MAXLENGTH=15> 
+
+         VNC IP: <INPUT TYPE="TEXT" NAME="502" <!--mvpmc ID="502" --> SIZE=16 MAXLENGTH=15> VNC Port: <INPUT TYPE="TEXT" NAME="503" <!--mvpmc ID="503" --> SIZE=6 MAXLENGTH=5>
+
+      MythTV IP: <INPUT TYPE="TEXT" NAME="mythip" <!--mvpmc ID="504" --> DISABLED  SIZE=16 MAXLENGTH=15> <INPUT TYPE="checkbox" NAME="609" <!--mvpmc ID="609" --> > Myth Protocol Debug Mode
+  Recording Dir: <INPUT TYPE="TEXT" NAME="506" <!--mvpmc ID="506" --> SIZE=50 MAXLENGTH=63>  
+    Ring Buffer: <INPUT TYPE="TEXT" NAME="507" <!--mvpmc ID="507" --> SIZE=50 MAXLENGTH=63>
+
+ Screen Capture: <INPUT TYPE="TEXT" NAME="508" <!--mvpmc ID="508" --> SIZE=50 MAXLENGTH=63>
+
+      Image Dir: <INPUT TYPE="TEXT" NAME="509" <!--mvpmc ID="509" --> SIZE=50 MAXLENGTH=63>
+
+  ReplayTV Init: <INPUT TYPE="TEXT" NAME="510" <!--mvpmc ID="510" --> SIZE=16 MAXLENGTH=15>
+
+           Font: <INPUT TYPE="TEXT" NAME="511" <!--mvpmc ID="511" --> SIZE=20 MAXLENGTH=63>
+           
+ Live365 userid: <INPUT TYPE="TEXT" NAME="512" <!--mvpmc ID="512" --> SIZE=16 MAXLENGTH=32> password: <INPUT TYPE="PASSWORD" NAME="513" <!--mvpmc ID="513" --> SIZE=16 MAXLENGTH=32>
+           
+   Web Playlist: <SELECT NAME="514">
+    <OPTION value="0/default" <!--mvpmc ID="700" -->/>Default
+    <option value="1/group1" <!--mvpmc ID="701" -->/>Playlist A
+    <option value="2/group2" <!--mvpmc ID="702" -->/>Playlist B
+    <option value="3/group3" <!--mvpmc ID="703" -->/>Playlist C
+    <option value="4/group4" <!--mvpmc ID="704" -->/>Playlist D
+    <option value="5/60s" <!--mvpmc ID="705" --> />1960s
+    <option value="6/70s" <!--mvpmc ID="706" --> />1970s
+    <option value="7/80s" <!--mvpmc ID="707" --> />1980s
+    <option value="8/90s" <!--mvpmc ID="708" --> />1990s
+    <option value="9/2000" <!--mvpmc ID="709" --> />21st Century    
+    <option value="10/alternative" <!--mvpmc ID="710" -->/>Alternative
+    <option value="11/ambient" <!--mvpmc ID="711" -->/>Ambient
+    <option value="12/blues" <!--mvpmc ID="712" --> />Blues
+    <option value="13/celtic" <!--mvpmc ID="713" --> />Celtic
+    <option value="14/chill" <!--mvpmc ID="714" --> />Chill
+    <option value="15/classical" <!--mvpmc ID="715" --> />Classical
+    <option value="16/college" <!--mvpmc ID="716" --> />College
+    <option value="17/comedy" <!--mvpmc ID="717" --> />Comedy
+    <option value="18/country" <!--mvpmc ID="718" --> />Country
+    <option value="19/dance" <!--mvpmc ID="719" --> />Dance    
+    <option value="20/disco" <!--mvpmc ID="720" --> />Disco
+    <option value="21/drum" <!--mvpmc ID="721" --> />Drum &amp; Bass
+    <option value="22/electronic" <!--mvpmc ID="722" --> />Electronic
+    <option value="23/folk" <!--mvpmc ID="723" --> />Folk
+    <option value="24/funk" <!--mvpmc ID="724" --> />Funk
+    <option value="25/goth" <!--mvpmc ID="725" --> />Goth
+    <option value="26/hiphop" <!--mvpmc ID="726" --> />Hip Hop
+    <option value="27/house" <!--mvpmc ID="727" --> />House
+    <option value="28/indie" <!--mvpmc ID="728" --> />Indie
+    <option value="29/industrial" <!--mvpmc ID="729" --> />Industrial
+    <option value="30/jazz" <!--mvpmc ID="730" --> />Jazz
+    <option value="31/metal" <!--mvpmc ID="731" --> />Metal
+    <option value="32/oldies" <!--mvpmc ID="732" --> />Oldies
+    <option value="33/podcast" <!--mvpmc ID="733" --> />Podcasts    
+    <option value="34/pop" <!--mvpmc ID="734" --> />Pop
+    <option value="35/punk" <!--mvpmc ID="735" --> />Punk
+    <option value="36/rhythm" <!--mvpmc ID="736" --> />R &amp; B
+    <option value="37/random" <!--mvpmc ID="737" --> />Random
+    <option value="38/rap" <!--mvpmc ID="738" --> />Rap
+    <option value="39/reggae" <!--mvpmc ID="739" --> />Reggae
+    <option value="40/rock" <!--mvpmc ID="740" --> />Rock
+    <option value="41/soul" <!--mvpmc ID="741" --> />Soul
+    <option value="42/soundtrack" <!--mvpmc ID="740" --> />Soundtracks
+    <option value="43/techno" <!--mvpmc ID="741" --> />Techno
+    <option value="44/top 40" <!--mvpmc ID="742" --> />Top 40
+    <option value="45/trance" <!--mvpmc ID="743" --> />Trance
+    <option value="46/world" <!--mvpmc ID="744" --> />World
+</SELECT>
+</PRE>    
+</TD></TR> 
+</TABLE>
+<br />
+<INPUT TYPE="SUBMIT" VALUE="Update Config"> <INPUT TYPE="reset" VALUE="Reset"> 
+</FORM>
+</div>
+<div class="item">
+<h3><span><a name="s2">Internet Radio &amp; Playlist Setup</a></span></h3>
+<br />
+<FORM method = "POST" ACTION="radio">
+<BUTTON TYPE="SUBMIT" NAME="Control" VALUE="Power">Power Off</BUTTON> <BUTTON TYPE="SUBMIT" NAME="Control" VALUE="Restart">Restart</BUTTON> <BUTTON TYPE="SUBMIT" NAME="Control" VALUE="Stop">Stop</BUTTON> <BUTTON TYPE="SUBMIT" NAME="Control" VALUE="Exit">Exit/Back</BUTTON>
+<BR /><BR />
+<TABLE BORDER="1">
+<TBODY>
+<!--mvpmc ID="1000" -->
+<T/BODY>
+</TABLE>
+<br />
+<INPUT TYPE="SUBMIT" VALUE="Update Radio" <!--mvpmc ID="1001" --> > <INPUT TYPE="reset" VALUE="Reset"> 
+</FORM>
+</div>
+<div class="item">
+<h3><span><a name="s3">Sample Script</A></span></h3>
+<br />
+<FORM method = "POST" ACTION="mount">
+<TABLE BORDER="1">
+<TR><TD>
+<PRE>
+
+         User ID: <INPUT TYPE="text" NAME="515" <!--mvpmc ID="515" -->  MAXLENGTH=15> Password: <INPUT TYPE="password" NAME="516" <!--mvpmc ID="516" --> MAXLENGTH=15>
+
+ Video Server IP: <INPUT TYPE="text" NAME="517" <!--mvpmc ID="517" --> SIZE=16 MAXLENGTH=15>
+    mvpmc Folder: <INPUT TYPE="text" NAME="520" <!--mvpmc ID="520" --> SIZE=50 MAXLENGTH=63>
+     Host Folder: <INPUT TYPE="text" NAME="523" <!--mvpmc ID="523" --> SIZE=50 MAXLENGTH=63>
+
+ Audio Server IP: <INPUT TYPE="text" NAME="518" <!--mvpmc ID="518" --> SIZE=16 MAXLENGTH=15>
+    mvpmc Folder: <INPUT TYPE="text" NAME="521" <!--mvpmc ID="521" --> SIZE=50 MAXLENGTH=15>
+     Host Folder: <INPUT TYPE="text" NAME="524" <!--mvpmc ID="524" --> SIZE=50 MAXLENGTH=63>
+
+     Playlist IP: <INPUT TYPE="text" NAME="519" <!--mvpmc ID="519" --> SIZE=16 MAXLENGTH=15>
+    mvpmc Folder: <INPUT TYPE="text" NAME="522" <!--mvpmc ID="522" --> SIZE=50 MAXLENGTH=15>
+     Host Folder: <INPUT TYPE="text" NAME="525" <!--mvpmc ID="525" --> SIZE=50 MAXLENGTH=63>
+
+<TEXTAREA NAME="script" ROWS=6 COLS=90 READONLY>
+</TEXTAREA>
+</PRE>
+</TR></TD>
+</TABLE>
+<br />
+<INPUT TYPE="SUBMIT" NAME="Share" VALUE="Save"> <INPUT TYPE="reset" VALUE="Reset"> <INPUT TYPE="submit" NAME="Share" VALUE="Run"> 
+</FORM>
+</div>
+<div id="linkList">
+  <div id="linkList2">
+    <div id="lselect">
+      <h3 class="select">
+      <span>
+      Project Links
+      </span>
+      </h3>
+      <ul>
+        <li>
+          <a class="link" href="http://mvpmc.sourceforge.net/idx.php?pg=main">Home</a>
+        </li>
+        <li>
+          <a class="link" href="http://mvpmc.sourceforge.net/idx.php?pg=faq">FAQ</a>
+        </li>
+        <li>
+          <a class="link" href="http://mvpmc.sourceforge.net/mvpmc-HOWTO-singlehtml.html">HOWTO</a>
+        </li>
+        <li>
+          <a class="link" href="http://mvpmc.sourceforge.net/windows/mvpmc_windoze_howto.html">Windows HOWTO</a>
+        </li>
+        <li>
+          <a class="link" href="http://mvpmc.sourceforge.net/replaytv/replaytv.html">ReplayTV HOWTO</a>
+        </li>
+        <li>
+          <a class="link" href="http://mvpmc.sourceforge.net/mvpmc_hardware_howto.html">Hardware HOWTO</a>
+        </li>
+        <li>
+          <a class="link" href="http://mvpmc.sourceforge.net/idx.php?pg=downloads">Downloads</a>
+        </li>
+        <li>
+          <a class="link" href="http://mvpmc.sourceforge.net/idx.php?pg=screenshots">Screenshots</a>
+        </li>
+        <li>
+          <a class="link" href="http://sourceforge.net/projects/mvpmc/">Project summary</a>
+        </li>
+        <li>
+          <a class="link" href="http://sourceforge.net/mail/?group_id=103474">Mailing 
+          lists</a>
+        </li>
+        <li>
+          <a class="link" href="http://sourceforge.net/forum/?group_id=103474">Forums</a>
+        </li>
+        <li>
+          <a class="link" href="http://sourceforge.net/tracker/?atid=634920&amp;group_id=103474">Bug 
+          Tracker</a>
+        </li>
+        <li>
+          <a class="link" href="http://sourceforge.net/cvs/?group_id=103474">CVS 
+          repository</a>
+        </li>
+      </ul>
+    </div>
+  </div>
+</div>
+</div>
+</div>
+</body>
+</html>
+

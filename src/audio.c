@@ -20,7 +20,7 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#ident "$Id$"
+#ident "$Id: audio.c,v 1.21 2006/02/03 06:02:57 gettler Exp $"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -33,6 +33,7 @@
 #include <string.h>
 #include <assert.h>
 #include <sys/time.h>
+#include <time.h>
 #include <pthread.h>
 #include <signal.h>
 #include <errno.h>
@@ -44,6 +45,7 @@
 #include <fcntl.h>
 
 extern int errno;
+extern char *vlc_server;
 
 #include <mvp_widget.h>
 #include <mvp_av.h>
@@ -62,12 +64,37 @@ extern int errno;
 static int http_play(int afd);
 long bytesRead;
 #define  STREAM_PACKET_SIZE  1448     
+int is_streaming(char *url);
+
+typedef enum {
+	OGG_STATE_UNKNOWN,
+	OGG_STATE_BOS,
+	OGG_STATE_OPEN,
+	OGG_STATE_LASTPAGE,
+	OGG_STATE_NEWPAGE,
+	OGG_STATE_PLAYNEWPAGE,
+	OGG_STATE_EOS,
+} ogg_state_t;
+
 
 static char pcmout[4096];
 static OggVorbis_File vf;
 static int current_section;
+int OggStreamState = OGG_STATE_UNKNOWN;
 static vorbis_info *vi;
+struct my_oggHeader {
+    char magic[4];
+    char version;
+    char type;
+    long long granule_position;
+    unsigned short bitstream_serial_number;
+    unsigned short page_sequence_number;
+    unsigned short CRC_checksum;
+    char page_segments;
+};
 static FILE *oggfile;
+char shoutcastDisplay[41];
+
 
 #define BSIZE		(1024*32)
 #define AC3_SIZE	(1024*512)
@@ -96,6 +123,9 @@ typedef enum {
 } audio_file_t;
 
 int http_playing = 0;
+int using_helper = 0;
+int mplayer_helper_connect(FILE *outlog,char *url,int stopme);
+int vlc_connect(FILE *log,char *url,int type);
 
 static audio_file_t audio_type;
 
@@ -201,6 +231,9 @@ find_chunk(int fd,char searchid[5])
 	return size;
 }
 
+
+static int ogg_setup(void);
+
 static int
 ogg_play(int afd)
 {
@@ -218,11 +251,12 @@ ogg_play(int afd)
 	if (do_read) {
 		if (http_playing==1) {
 			do {
-				ret = ov_read(&vf, pcmout,STREAM_PACKET_SIZE,
+				ret = ov_read(&vf, pcmout,sizeof(pcmout),
 					      &current_section);
+//                printf("ret %d %d\n",ret,current_section);
 				bytesRead+=ret;
-			} while (ret == OV_HOLE );
-		} else {
+			} while (ret == OV_HOLE );            
+        } else {
 			ret = ov_read(&vf, pcmout, sizeof(pcmout),
 				      &current_section);
 		}
@@ -230,11 +264,16 @@ ogg_play(int afd)
 		len = 0;
 	}
 
-	if (ret == 0) {
+    if (OggStreamState==OGG_STATE_NEWPAGE) {
+        OggStreamState=OGG_STATE_PLAYNEWPAGE;
+        return 0;
+    }
+
+    if (ret == 0) {
 		fprintf(stderr, "EOF during ogg read...\n");
 		goto next;
-	} else if (ret < 0) {
-		fprintf(stderr, "Error during ogg read...\n");
+	} else if (ret < 0 ) {
+		fprintf(stderr, "Error during ogg read...%d\n",ret);
 		goto next;
 	} else {
 		do {
@@ -250,20 +289,23 @@ ogg_play(int afd)
 	}
 
 	do_read = 1;
-
-	/*
-	 * We shouldn't have any problem filling up the hardware audio buffer,
-	 * so keep processing the file until we're forced to block.
-	 */
-	return 0;
+    
+    /*
+     * We shouldn't have any problem filling up the hardware audio buffer,
+     * so keep processing the file until we're forced to block.
+     */ 
+    
+    return 0;
 
  full:
+
 	do_read = 0;
 	usleep(1000);
 	return 0;
 
  next:
-    http_playing = 0;
+        http_playing = 0;
+        OggStreamState = OGG_STATE_EOS;
 	return -1;
 }
 
@@ -392,6 +434,12 @@ audio_player(int reset, int afd)
 {
 	int ret = -1;
 
+    if (OggStreamState==OGG_STATE_PLAYNEWPAGE) {
+        if ( ogg_setup() ) {
+            return -1;
+        }
+    }
+
 	switch (audio_type) {
 	case AUDIO_FILE_AC3:
 		if (audio_output_mode == AUD_OUTPUT_STEREO) {
@@ -412,7 +460,7 @@ audio_player(int reset, int afd)
 	case AUDIO_FILE_MP3:
 		ret = mp3_play(afd);
 		break;
-	case AUDIO_FILE_HTTP_MP3:
+    case AUDIO_FILE_HTTP_MP3:
 		ret = http_play(afd);
 		break;
 	case AUDIO_FILE_OGG:
@@ -432,7 +480,7 @@ get_audio_type(char *path)
 {
 	char *suffix;
 
-	if (strstr(path,"http://")!=NULL ) {
+	if (is_streaming(path) >=0 ) {
 		if (audio_type != AUDIO_FILE_HTTP_OGG ) {
 			return AUDIO_FILE_HTTP_MP3;
 		} else {
@@ -506,23 +554,201 @@ wav_setup(void)
 	return 0;
 }
 
+size_t ogg_read_callback(void *ptr, size_t byteSize, size_t sizeToRead, void *datasource) 
+{
+    static char readBuffer[STREAM_PACKET_SIZE];
+    static size_t bytesRemaining=0;
+
+    size_t result;
+    size_t toRead;
+    size_t i;
+    char *dataptr,*outptr;
+    struct my_oggHeader *header;
+
+    if (OggStreamState == OGG_STATE_UNKNOWN) {
+        bytesRemaining = 0;
+        OggStreamState = 0;
+    } else if ( OggStreamState==OGG_STATE_NEWPAGE) {
+        printf ("assume eos but shouldn't happen\n");
+        return 0;
+    }
+    toRead = byteSize*sizeToRead;
+    if ( toRead > STREAM_PACKET_SIZE ) {
+        toRead = STREAM_PACKET_SIZE;
+    }  
+    if (bytesRemaining < toRead) {
+       // fill buffer from stream
+        result = fread(&readBuffer[bytesRemaining],1,toRead-bytesRemaining,datasource);
+        if (result <= 0 ) {
+             printf ("ogg stream error\n");
+             return result;
+        }
+        result += bytesRemaining;
+        bytesRemaining = 0;
+    } else {
+        result = toRead;
+        bytesRemaining-=toRead;
+    }
+
+    // check for possible last page ogg header
+    // i will be location of nextOgg header after the last page
+    dataptr = readBuffer;
+    outptr = ptr;
+    for (i=0;i<result-5;i++) {
+        if (memcmp(dataptr,"OggS",4)==0) {
+            if ( OggStreamState!=OGG_STATE_LASTPAGE) {
+                header = (struct my_oggHeader *) dataptr;
+                /*
+                if (i <1000) {
+                    printf("OggS %x %d %x %x %d\n",header->type,i,header->bitstream_serial_number,header->page_sequence_number,result);
+                }
+                */
+                if ( header->type == 4 || header->type == 5 ) {
+                    // found last page now wait for next ogg header
+                    OggStreamState = OGG_STATE_LASTPAGE;
+                }
+            } else {
+                // could be in second pass
+                OggStreamState = OGG_STATE_NEWPAGE;
+                bytesRemaining += (result - i);
+                result = i;
+                break;
+            }
+        }
+        *outptr = *dataptr;
+        outptr++;
+        dataptr++;
+    }
+    if ( OggStreamState!=OGG_STATE_NEWPAGE) {
+        // check for possible split OggS header in last 5 bytes
+        outptr--;
+        for (;i<result;i++){
+            outptr++;
+            if (memcmp(dataptr,"OggS\0",result-i)==0) {
+                bytesRemaining += (result-i);
+                result = i;
+                // most of the time it will be the last element 'O'
+                readBuffer[0] = *dataptr;
+//                printf("%c %d\n",*dataptr,result-i);
+                break;
+            } 
+            *outptr = *dataptr;
+            dataptr++;
+        } 
+    }
+    if (bytesRemaining > 1 ) {
+//        printf("result = %d %d\n",result,bytesRemaining);
+        memcpy(readBuffer,&readBuffer[result],bytesRemaining);    
+
+    }
+    /*
+    fprintf(crap,"--martin--");
+    fwrite(ptr,1,result,crap);
+    fflush(crap);
+    */
+    return result;
+}
+
+int ogg_seek_callback(void *datasource, ogg_int64_t offset, int whence) {
+    int result = -1;
+    return result;
+}
+
+int ogg_close_callback(void *datasource) 
+{
+    // must close oggfile outside of code;
+    return 0;
+}
+
+long ogg_tell_callback(void *datasource) 
+{
+    return -1;
+} 
+
+
+
 static int
 ogg_setup(void)
 {
-	oggfile = fdopen(fd, "r");
-	if (ov_open(oggfile, &vf, NULL, 0) < 0) {
-		fprintf(stderr, "Failed to open Ogg file %s\n", current);
-		return -1;
-	}
-	vi = ov_info(&vf, -1);
+    int i,rc;
 
-	printf("Bitstream is %d channel, %ldHz\n", vi->channels, vi->rate);
+    if (OggStreamState!=OGG_STATE_PLAYNEWPAGE) {
+        oggfile = fdopen(fd, "rb");
+    } else {
+        ov_clear(&vf);
+    }
 
-	av_set_audio_output(AV_AUDIO_PCM);
-	if (av_set_pcm_param(vi->rate, 0, vi->channels, 0, 16) < 0)
-		return -1;
+    if (http_playing==1) {
+        ov_callbacks ogg_callbacks;
+        ogg_callbacks.read_func =  ogg_read_callback;
+        ogg_callbacks.close_func = ogg_close_callback;
+        ogg_callbacks.seek_func = ogg_seek_callback;
+        rc = ov_open_callbacks(oggfile, &vf, NULL, 0,ogg_callbacks);
+    } else {
+        rc = ov_open(oggfile, &vf, NULL, 0);
+    }
 
-	return 0;
+    if ( rc < 0 ) {
+	    fprintf(stderr, "Failed to open Ogg file %s %d\n", current,rc);
+        OggStreamState = OGG_STATE_UNKNOWN;
+        if (http_playing==1) {
+            audio_stop = 1;
+        }
+	    return -1;
+    }
+    vi = ov_info(&vf, -1);
+    printf("Bitstream is %d channel, %ldHz\n", vi->channels, vi->rate);
+
+
+    if (http_playing==1) {
+        vorbis_comment* comment;
+        char artist[30];
+        char title[60];
+        artist[0]=title[0]=0;
+        comment = ov_comment (&vf, -1);
+        if (comment != NULL ) {
+            if (comment->comments !=0 ) {
+                for (i = 0; i < comment->comments; ++i) {
+                    if (strncasecmp(comment->user_comments[i],"ARTIST=",7)==0 ){
+                        snprintf(artist,30,"%s",&comment->user_comments[i][7]);
+                        if (title[0]!=0) {
+                            break;
+                        }
+                    } else if (strncasecmp(comment->user_comments[i],"TITLE=",6)==0 ){
+                        snprintf(title,60,"%s",&comment->user_comments[i][6]);
+                        if (artist[0]!=0) {
+                            break;
+                        }
+
+                    }
+                }
+                char my_display[60];
+                if (artist[0]!=0 ) {
+                    snprintf(my_display,60,"%s - %s",artist,title);
+                } else if (title[0]!=0) {
+                    snprintf(my_display,60,"%s",title);
+                } else {
+                    strcpy(my_display,"missing");
+                }
+                printf("%s\n",my_display);
+                mvpw_set_text_str(fb_name,my_display);
+            }
+        }
+    }
+
+    if (OggStreamState==OGG_STATE_UNKNOWN) {
+	    av_set_audio_output(AV_AUDIO_PCM);
+        if (av_set_pcm_param(vi->rate, 0, vi->channels, 0, 16) < 0) {
+            OggStreamState = OGG_STATE_UNKNOWN;
+            return -1;
+        }
+    } else {
+        /* hopefully stream should have same bit rate  don't want to kill 
+           audio in the buffer
+        */
+    }
+    OggStreamState = OGG_STATE_OPEN;
+    return 0;
 }
 
 void
@@ -541,8 +767,26 @@ audio_clear(void)
 
 	if (oggfile != NULL) {
 		ov_clear(&vf);
+            if (OggStreamState != OGG_STATE_UNKNOWN) {
+                fclose(oggfile);
+            }
 		oggfile = NULL;
 	}
+    if ( using_helper > 0 ) {
+        if (http_playing != 0) {
+            http_playing = 0;
+        }        
+        FILE *outlog;
+        outlog = fopen("/usr/share/mvpmc/connect.log","a");
+        if ( using_helper == 1 ) {
+            mplayer_helper_connect(outlog,NULL,1);
+        }
+        vlc_connect(outlog,NULL,1);
+        if ( using_helper == 1 ) {
+            mplayer_helper_connect(outlog,NULL,2);
+        }
+        fclose(outlog);
+    }
 }
 
 void
@@ -866,7 +1110,7 @@ sighandler(int sig)
 static int
 audio_init(void)
 {   
-	if ( strstr(current,"http://") == NULL   ) {
+	if ( is_streaming(current) < 0    ) {
 		if ((fd=open(current, O_RDONLY|O_LARGEFILE|O_NDELAY)) < 0) {
 			goto fail;
 		}
@@ -991,18 +1235,20 @@ audio_start(void *arg)
 
 		if (audio_init() != 0)
 			goto fail;
-
-		afd = av_audio_fd();
+		
+        afd = av_audio_fd();
 
 		audio_playing = 1;
 		audio_stop = 0;
+        OggStreamState = OGG_STATE_UNKNOWN;
 
-		while (((done=audio_player(0, afd)) == 0) &&
+
+		while (( (done=audio_player(0, afd)) == 0)  &&
 		       current && !audio_stop)
 			; 
-
 		if ( audio_type == AUDIO_FILE_HTTP_INIT_OGG ) {
 			audio_type = AUDIO_FILE_HTTP_OGG;
+            mvpw_set_timer(playlist_widget, NULL, 100);
 			http_playing = 1;
 			goto repeat;
 		} else if ( audio_type == VIDEO_FILE_HTTP_MPG ) {
@@ -1015,15 +1261,19 @@ audio_start(void *arg)
 			video_set_root();
 			mvpw_focus(root);
 			screensaver_disable();
-			mvpw_set_timer(root, video_play, 50);
+			mvpw_set_timer(root, video_play, 50);            
 			continue;
+		} else if ( audio_type == AUDIO_FILE_HTTP_OGG ) {
+			http_playing = 0;
+	        OggStreamState = OGG_STATE_UNKNOWN;
+			audio_type = AUDIO_FILE_UNKNOWN;
 		} else  {
 			audio_type = AUDIO_FILE_UNKNOWN;
 		}
 
 	fail:
 		if (!audio_stop && playlist) {
-			if (strncasecmp(current,"http://",7) ) {
+			if (is_streaming(current) != 0 ) {
 				close(fd);
 			}
 			playlist_next();
@@ -1050,17 +1300,24 @@ typedef enum {
 	CONTENT_PODCAST,
 	CONTENT_UNKNOWN,
 	CONTENT_REDIRECT,
-	CONTENT_200,
-	CONTENT_UNSUPPORTED,
-	CONTENT_ERROR,
-	CONTENT_TRYHOST,
+    CONTENT_200,
+    CONTENT_UNSUPPORTED,
+    CONTENT_ERROR,
+    CONTENT_TRYHOST,
+    CONTENT_NEXTURL,
+    CONTENT_GET_SHOUTCAST,
+    CONTENT_AAC,
+    CONTENT_DIVX,
 } content_type_t;
 
 typedef enum {
-	PLAYLIST_SHOUT,
-	PLAYLIST_M3U,
-	PLAYLIST_PODCAST,
-	PLAYLIST_NONE,
+    PLAYLIST_SHOUT,
+    PLAYLIST_M3U,
+    PLAYLIST_PODCAST,
+    PLAYLIST_ASX,
+    PLAYLIST_ASX_REFERENCE,
+    PLAYLIST_NONE,
+    PLAYLIST_RA,
 } playlist_type_t;
 
 typedef enum {
@@ -1100,10 +1357,12 @@ extern int local_paused;
 int http_read_stream(unsigned int socket,int metaInt,int offset);
 
 int http_main(void);
+void strencode( char* to, size_t tosize, const char* from );
+
 void http_osd_update(mvp_widget_t *widget);
 void http_buffer(int message_length,int offset);
 int http_metadata(char *metaString,int metaWork,int metaData);
-
+int create_shoutcast_playlist(int limit);
 
 #define  LINE_SIZE 256 
 #define  MAX_URL_LEN 275
@@ -1112,10 +1371,12 @@ int http_metadata(char *metaString,int metaWork,int metaData);
 
 // note using Winamp now for testing
 
-#define  GET_STRING "GET %s HTTP/1.0\r\nHost: %s\r\nUser-Agent: WinampMPEG/5.1\r\nAccept: */*\r\nIcy-MetaData:1\r\nConnection: close\r\n\r\n"
+#define  GET_STRING     "GET %s HTTP/1.0\r\nHost: %s\r\nUser-Agent: WinampMPEG/5.1\r\nAccept: */*\r\nIcy-MetaData:1\r\nConnection: close\r\n\r\n"
+#define  GET_OGG_STRING "GET %s HTTP/1.0\r\nHost: %s\r\nUser-Agent: WinampMPEG/5.1\r\nAccept: */*\r\nConnection: close\r\n\r\n"
 #define  GET_M3U "GET %s HTTP/1.0\r\nHost: %s\r\nUser-Agent: WinampMPEG/5.1\r\nAccept: */*\r\n\r\n"
 #define  GET_LIVE365 "GET /cgi-bin/api_login.cgi?action=login&org=live365&remember=Y&member_name=%s HTTP/1.0\r\nUser-Agent: Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.8) Gecko/20051111 Firefox/1.5 \r\nHost: www.live365.com\r\nAccept: */*\r\nConnection: Keep-Alive\r\n\r\n"
 
+#define  GET_ASF_STRING "GET %s HTTP/1.0\r\nAccept: */*\r\nUser-Agent: NSPlayer/10.0.0.3802\r\nHost: %s\r\n%sPragma: no-cache,rate=1.000,stream-time=0,stream-offset=0:0,max-duration=0\r\nPragma: xClientGUID={3300AD50-2C39-46c0-AE0A-da6f4029b4c09b70}\r\nConnection: Close\r\n\r\n"
 
 int bufferFull;
 char bitRate[10];
@@ -1153,42 +1414,47 @@ void http_osd_update(mvp_widget_t *widget)
 static int http_play(int afd)
 {
     int rc = 0;
-    char *ptr,*ptr1;
+    char *ptr;
     if (afd==-1) {
-        if (current) {           
-            ptr = strstr(current,"http://");
-            if (ptr!=NULL) {
-                if (strlen(ptr) < MAX_URL_LEN ) {
-                    rc = 0;
-                    if (ptr!=current) {
-                        // this logic is only for unpatched playlist.c remove directory
-                        ptr1 = strdup(ptr);
-                        free(current);
-                        current = ptr1;
-                    }
-                    mvpw_set_timer(playlist_widget, http_osd_update, 500);
-                } else {
-                    rc = -1;
-                }
+        if (current  && is_streaming(current)>=0) {
+            /*
+            char *enc;
+	        static char encoded_name[MAX_URL_LEN];
+            ptr = current;
+            enc = encoded_name;
+            while (*ptr!=0 && *ptr!=';') {
+                *enc = *ptr;
+                ptr++;
+                enc++;
+            }
+            if (*ptr==':') {
+                *enc = *ptr;
+                ptr++;
+                enc++;
+            }
+		    strencode( enc, MAX_URL_LEN , ptr );
+            printf("%s\n",encoded_name);
+            free(current);
+            current = strdup(encoded_name);
+            */
+            if (strlen(current) < MAX_URL_LEN ) {
+                rc = 0;
+                mvpw_set_timer(playlist_widget, http_osd_update, 500);
+            } else {
+                rc = -1;
             }
         } else {
             rc = -1;
         }
     } else {
-        if (current && strncmp(current,"http://",7)==0 ) {
-            ptr = current;
-            while (*ptr!=0) {
-                if (*ptr=='\n' || *ptr=='\r') {
-                    *ptr=0;
-                }
-                ptr++;
+        if (current && is_streaming(current)>=0 ) {
+            ptr = strpbrk (current,"\r\n");
+            if (ptr!=NULL) {
+                *ptr=0;
             }
             mvpw_set_text_str(fb_name, current);
             outbuf = ring_buf_create(OUT_BUF_SIZE);
             recvbuf = (void*)calloc(1, RECV_BUF_SIZE);
-            
-//            local_paused = av_pause();
-    
             http_main();
             free(outbuf->buf);
             free(outbuf);
@@ -1202,19 +1468,22 @@ static int http_play(int afd)
     return rc;
 }
 
-char shoutcastDisplay[41];
+
+#define VLC_HTTP_PORT "5212"
+#define SHOUTCAST_DOWNLOAD "http://www.shoutcast.com/sbin/newxml.phtml?"
+
+FILE *shoutOut;
 
 int http_main(void)
 {
 
     struct sockaddr_in server_addr;          
-    char get_buf[MAX_URL_LEN];    
-//    unsigned char buffer[STREAM_PACKET_SIZE];     
+    char get_buf[1024];    
     int  retcode;
     content_type_t ContentType;
     int httpsock=-1;
     int flags = 0;
-  
+
     char url[MAX_PLAYLIST][MAX_URL_LEN];
 
     char scname[MAX_URL_LEN],scport[MAX_URL_LEN],scpage[MAX_URL_LEN];
@@ -1222,7 +1491,7 @@ int http_main(void)
 
     int counter=0;
     int  NumberOfEntries=0;
-    int  curNumberOfEntries=0;
+    int  curEntry=0;
     int live365Login = 0;
     static char cookie[MAX_URL_LEN]={""};
     char user[MAX_URL_LEN],password[MAX_URL_LEN];
@@ -1238,13 +1507,22 @@ int http_main(void)
 
     struct hostent* remoteHost;
     int result;
-    playlist_type_t playlistType;
-    static char * ContentPlaylist[] = {"audio/x-scpls","audio/mpegurl","audio/mpeg-url","audio/x-mpegurl",
-                                       "audio/x-mpeg-url","audio/m3u","audio/x-m3u", NULL};
-    static char * ContentAudio[] = {"audio/mpeg","audio/x-mpeg","audio/mpg",NULL};
+    playlist_type_t playlistType = PLAYLIST_NONE;
+    static char * ContentPlaylist[] = {
+        "audio/scpls","audio/x-scpls",
+        "audio/x-pn-realaudio",
+        "audio/mpegurl","audio/mpeg-url","audio/x-mpegurl",                                      
+        "audio/x-mpeg-url","audio/m3u","audio/x-m3u", NULL
+    };
 
-    FILE * instream;
+
+    static char * ContentAudio[] = {"audio/aacp","audio/mpeg","audio/x-mpeg","audio/mpg",NULL};
+
+    FILE *instream,*outlog;
     char *rcs;
+    int using_vlc = 0;
+    
+    using_helper = 0;
 
     retcode = 1;
     
@@ -1257,36 +1535,87 @@ int http_main(void)
     }
 
     http_state_type_t stateGet = HTTP_UNKNOWN;
-    ContentType = CONTENT_UNKNOWN;
+
+    int streamType=0;
+
+    if (strncmp(current,SHOUTCAST_DOWNLOAD,sizeof(SHOUTCAST_DOWNLOAD)-1)==0 ) {
+        ContentType = CONTENT_GET_SHOUTCAST;
+    } else {
+        ContentType = CONTENT_UNKNOWN;
+    }
 
     snprintf(url[0],MAX_URL_LEN,"%s",current);
-    curNumberOfEntries = 1;
+
+    curEntry = 1;
     NumberOfEntries=1;
     shoutcastDisplay[0]=0;
 
+    outlog = fopen("/usr/share/mvpmc/connect.log","w");
+
+    if (outlog == NULL) outlog = stdout;
+
+    strcpy(cookie,"");
     while (retcode == 1 && ++counter < 5 ) {
         
-        if ( curNumberOfEntries <= 0 ) {
+        if ( curEntry <= 0 ) {
             mvpw_set_text_str(fb_name, "Empty playlist");
             // no valid http in playlist
             retcode = -1;
             break;
         }
-        
-        printf("%s\n",url[curNumberOfEntries-1]);
+       
+        fprintf(outlog,"Connecting to %s\n",url[curEntry-1]);
+
+        streamType = is_streaming(url[curEntry-1]);
+
+        if ( streamType > 0 || ContentType == CONTENT_AAC || ContentType == CONTENT_DIVX ) {
+            if (ContentType==CONTENT_AAC) {
+                using_helper = mplayer_helper_connect(outlog,url[curEntry-1],3);
+            } else {
+                using_helper = mplayer_helper_connect(outlog,url[curEntry-1],0);
+            }
+            if ( using_helper < 0 ) {
+                retcode = -1;
+                using_vlc = 0;
+                break;
+            } else if ( using_helper == 1) {
+                printf("Now playing\n");
+                snprintf(url[curEntry-1],MAX_URL_LEN,"/tmp/mvpmcdump.wav");
+            } else {
+                using_helper = 0;
+            }
+            int vlcType = 0;
+            if (ContentType==CONTENT_DIVX || streamType == 100) {
+                vlcType = 100;
+            }
+            if (vlc_connect(outlog,url[curEntry-1],vlcType) < 0 ) {
+                retcode = -1;
+                using_vlc = 0;
+                break;
+            }
+            
+            snprintf(url[curEntry-1],MAX_URL_LEN,"http://%s:%s",vlc_server,VLC_HTTP_PORT);
+            using_vlc = 1;
+            if (ContentType==CONTENT_DIVX || streamType == 100) {
+                ContentType = CONTENT_DIVX;
+            } else {
+                ContentType = CONTENT_MP3;
+            }
+            fprintf(outlog,"Using VLC on %s\n",url[curEntry-1]);
+        }
 
         live365Login = 0;
 
-        if ( strstr(url[curNumberOfEntries-1],".live365.")!=NULL &&  strstr(url[curNumberOfEntries-1],"sessionid=")==NULL) {
+        if ( strstr(url[curEntry-1],".live365.")!=NULL &&  strstr(url[curEntry-1],"sessionid=")==NULL) {
             if (cookie[0] == 0 ) {
                 if (getenv("LIVE365DATA")!=NULL) {                    
                     live365Login = 1;
                 } 
             } else {
-                ptr = strdup(url[curNumberOfEntries-1]);
-                snprintf(url[curNumberOfEntries-1],MAX_URL_LEN,"%s?%s",ptr,cookie);
+                ptr = strdup(url[curEntry-1]);
+                snprintf(url[curEntry-1],MAX_URL_LEN,"%s?%s",ptr,cookie);
                 free(ptr);
-                printf("connect to %s\n",url[curNumberOfEntries-1]);
+                fprintf(outlog,"Live365 Connect to %s\n",url[curEntry-1]);
             }
         }
 
@@ -1296,9 +1625,9 @@ int http_main(void)
             scpage[0]=0;
 
             // no size checks use same len for all
-            result = sscanf(url[curNumberOfEntries-1],"http://%[^:/]:%[^//]%s",scname,scport,scpage);
+            result = sscanf(url[curEntry-1],"http://%[^:/]:%[^//]%s",scname,scport,scpage);
             if (result==1) {
-                result = sscanf(url[curNumberOfEntries-1],"http://%[^/]%s",scname,scpage);
+                result = sscanf(url[curEntry-1],"http://%[^/]%s",scname,scpage);
                 strcpy(scport,"80");
             }
             if (scpage[0]==0) {
@@ -1322,7 +1651,11 @@ int http_main(void)
                     NumberOfEntries=2;
                 }
                 if (strstr(scpage,".m3u")==NULL ) {
-                    snprintf(get_buf,MAX_URL_LEN,GET_STRING,scpage,scname);
+                    if (strstr(scpage,".asf")==NULL && strstr(scpage,".asx")==NULL && cookie[0]==0 ) {
+                        snprintf(get_buf,MAX_URL_LEN,GET_STRING,scpage,scname);
+                    } else {
+                        snprintf(get_buf,1024,GET_ASF_STRING,scpage,scname,cookie);
+                    }
                 } else {
                     snprintf(get_buf,MAX_URL_LEN,GET_M3U,scpage,scname);
                 }
@@ -1344,6 +1677,7 @@ int http_main(void)
             struct timeval stream_tv;
 
             stream_tv.tv_sec = 10;
+            stream_tv.tv_usec = 0;
             int optionsize = sizeof(stream_tv);
             setsockopt(httpsock, SOL_SOCKET, SO_SNDTIMEO, &stream_tv, optionsize);
 
@@ -1351,44 +1685,50 @@ int http_main(void)
 
             retcode = connect(httpsock, (struct sockaddr *)&server_addr,sizeof(server_addr));
             if (retcode != 0) {
-                printf("connect() failed %d\n",retcode);
+                fprintf(outlog,"connect() failed %d\n",retcode);
                 mvpw_set_text_str(fb_name, "Connection Error");
-                retcode = -2;
                 instream = NULL;
-                audio_stop = 1;
-                ContentType = CONTENT_ERROR;
-                break;
-            }
-                        
-            // Send a GET to the Web server
-            
-            mvpw_set_text_str(fb_name, "Sending GET request");
-
-            if (send(httpsock, get_buf, strlen(get_buf), 0) != strlen(get_buf) ){
-                printf("send() failed \n");
+                rcs = NULL;
+                if ( NumberOfEntries > curEntry ) {
+                    stateGet=HTTP_RETRY;
+                    ContentType = CONTENT_NEXTURL;
+                } else {
+                    retcode = -2;
+                    ContentType = CONTENT_ERROR;
+                    audio_stop = 1;
+                }
+            } else {
+                            
+                // Send a GET to the Web server
+                
+                mvpw_set_text_str(fb_name, "Sending GET request");
+    
+                if (send(httpsock, get_buf, strlen(get_buf), 0) != strlen(get_buf) ){
+                    fprintf(outlog,"send() failed \n");
+                    retcode = -2;
+                    break;
+                }
+    
+                stateGet = HTTP_INIT;
+                statusGet = 0;
+                playlistType = PLAYLIST_NONE;
+                contentLength = 0;
+                metaInt = 0;
+                bitRate[0]=0;
                 retcode = -2;
-                break;
+    
+                instream = fdopen(httpsock,"rb");
+                setbuf(instream,NULL);
+                rcs = fgets(line_data,LINE_SIZE-1,instream);
             }
-
-            stateGet = HTTP_INIT;
-            statusGet = 0;
-            playlistType = PLAYLIST_NONE;
-            contentLength = 0;
-            metaInt = 0;
-            bitRate[0]=0;
-            retcode = -2;
-
-            instream = fdopen(httpsock,"rb");
-            setbuf(instream,NULL);
-            rcs = fgets(line_data,LINE_SIZE-1,instream);
-            while ( rcs != NULL && !ferror(instream) && !feof(instream ) ) {
+            while ( rcs != NULL ) {
 
                 if (stateGet == HTTP_INIT ) {
                     ptr = strrchr (line_data,'\r');
                     if (ptr!=NULL) {
                         *ptr =0;
                     }
-                    printf("%s\n",line_data);
+                    fprintf(outlog,"%s\n",line_data);
         
                     if (line_data[0]==0) {
                         ContentType = CONTENT_UNKNOWN;
@@ -1403,7 +1743,7 @@ int http_main(void)
                             sscanf(ptr,"%d",&statusGet);
                         }
                         if (statusGet != 200 && statusGet != 301 && statusGet != 302) {
-                            if ( ContentType != CONTENT_TRYHOST && NumberOfEntries > 1 && NumberOfEntries > curNumberOfEntries ) {
+                            if ( ContentType != CONTENT_TRYHOST && NumberOfEntries > 1 && NumberOfEntries > curEntry ) {
                                 ContentType = CONTENT_TRYHOST;
                             } else {
                                 mvpw_set_text_str(fb_name, line_data);
@@ -1420,7 +1760,7 @@ int http_main(void)
                         // default shoutcast to mp3 when none found
                         ContentType = CONTENT_200;
                     } else {
-                        ContentType = CONTENT_UNKNOWN;
+//                        ContentType = CONTENT_UNKNOWN;
                     }
                     stateGet = HTTP_HEADER;
                     if ( shoutcastDisplay[0] ) {
@@ -1445,19 +1785,16 @@ int http_main(void)
                     }
                     continue;
                 }
-                ptr = strrchr (line_data,'\r');
-                if (ptr!=NULL) {
-                    *ptr =0;
-                }
-                ptr = strrchr (line_data,'\n');
+                ptr = strpbrk (line_data,"\r\n");
                 if (ptr!=NULL) {
                     *ptr =0;
                 }
               
-                printf("%s\n",line_data);
+                fprintf(outlog,"%s\n",line_data);
                 
                 if ( line_data[0]==0x0a || line_data[0]==0x0d || line_data[0]==0) {
-                    if (ContentType == CONTENT_UNSUPPORTED || ContentType==CONTENT_MP3 || ContentType==CONTENT_OGG || ContentType==CONTENT_MPG || stateGet==HTTP_RETRY) {
+                    if (ContentType == CONTENT_UNSUPPORTED || ContentType==CONTENT_MP3 || ContentType==CONTENT_OGG || ContentType==CONTENT_MPG || stateGet==HTTP_RETRY 
+                        || ContentType==CONTENT_GET_SHOUTCAST || ContentType==CONTENT_AAC) {
                         // stream the following audio data or redirect
                         break;
                     } else if (ContentType == CONTENT_200) {
@@ -1485,20 +1822,26 @@ int http_main(void)
                     if (strncasecmp(line_data,"Content-Length:",15)==0) {
                         sscanf(&line_data[15],"%ld",&contentLength);
                     } else if (strncasecmp(line_data,"Content-Type",12)==0) {
-
                         if ( strstr(line_data,"audio/") != NULL ) {                            
                             i = 0;
                             // have to do this one first some audio would match playlists
                             while (ContentPlaylist[i]!=NULL) {
                                 ptr = strstr(line_data,ContentPlaylist[i]);
                                 if (ptr!=NULL) {
-                                    if (i!=0) {
-                                        playlistType = PLAYLIST_M3U;
-                                    } else {
-                                        playlistType = PLAYLIST_SHOUT;
+                                    switch (i) {
+                                        case 0:
+                                        case 1:
+                                            playlistType = PLAYLIST_SHOUT;
+                                            break;
+                                        case 2:
+                                            playlistType = PLAYLIST_RA;
+                                            break;
+                                        default:
+                                            playlistType = PLAYLIST_M3U;
+                                            break;
                                     }
                                     ContentType = CONTENT_PLAYLIST;
-                                    curNumberOfEntries = -1;   // start again
+                                    curEntry = -1;   // start again
                                     break;
                                 } else {
                                     i++;
@@ -1509,47 +1852,78 @@ int http_main(void)
                                 ContentType = CONTENT_UNSUPPORTED;
                                 while (ContentAudio[i]!=NULL) {
                                     ptr = strstr(line_data,ContentAudio[i]);
-                                    if (ptr!=NULL) {                    
-                                        ContentType = CONTENT_MP3;
+                                    if (ptr!=NULL) {
+                                        if (i==0) {
+                                            stateGet=HTTP_RETRY;
+                                            ContentType = CONTENT_AAC;
+                                        } else {
+                                            ContentType = CONTENT_MP3;
+                                        }                                       
                                         break;
                                     } else {
                                         i++;
                                     }
-                                }
+                                }                            
                             }
                         } else if ( strstr(line_data,"application/ogg") != NULL ) {
                             ContentType = CONTENT_OGG;
                         } else if ( strstr(line_data,"video/mpeg") != NULL ) {
                             ContentType = CONTENT_MPG;
+                        } else if ( strstr(line_data,"video/divx") != NULL  || strstr(line_data,"video/divx") != NULL ) {
+                            ContentType = CONTENT_DIVX;
+                            stateGet=HTTP_RETRY;
+                        } else if ( strstr(line_data,"video/x-ms-asf") != NULL || strstr(line_data,"application/asx") != NULL ) {
+                            playlistType = PLAYLIST_ASX;
+                            ContentType = CONTENT_PLAYLIST;
+                            curEntry = -1;   // start again
+                        } else if ( strstr(line_data,"application/vnd.ms.wms-hdr.asfv1") != NULL || strstr(line_data,"application/x-mms-framed") != NULL ) {
+                            if (strncmp(url[curEntry-1],"http://",7)==0) {
+                                snprintf(url[0],MAX_URL_LEN,"mmsh%s",&url[curEntry-1][4]);
+                                ContentType = CONTENT_REDIRECT;
+                                stateGet=HTTP_RETRY;
+                            }
                         } else if ( playlistType == PLAYLIST_NONE && (strstr(line_data,"text/xml") != NULL || strstr(line_data,"application/xml") != NULL ) ) {
                             // try and find podcast data
                             ContentType = CONTENT_PODCAST;
                             playlistType = PLAYLIST_PODCAST ;
-                            curNumberOfEntries = -1;   // start again
-                        } else {
+                            curEntry = -1;   // start again
+                        } else if (ContentType != CONTENT_GET_SHOUTCAST) {
                             ContentType = CONTENT_UNKNOWN;
                         } 
 
                     } else if (strncasecmp (line_data, "icy-metaint:", 12)==0) {
                         sscanf(&line_data[12],"%d",&metaInt);
-//                        printf("Metadata interval %d\n",metaInt);
-                    } else if (live365Login==1 && strncasecmp (line_data, "Set-Cookie:",11)==0) {
-                        ptr = strstr(line_data,"sessionid=");
-                        if (ptr!=NULL) {
-                            ContentType = CONTENT_REDIRECT;
-                            sscanf(ptr,"%[^%]%[^;]",user,password);
-                            snprintf(cookie,MAX_URL_LEN,"%s:%s",user,&password[3]);
-                            printf("%s\n",cookie);
-                            stateGet=HTTP_RETRY;
-                            live365Login = 2;
-                            break;
-
+                    } else if (strncasecmp (line_data, "Set-Cookie:",11)==0) {
+			            if (live365Login==1 ) { 
+                            ptr = strstr(line_data,"sessionid=");
+                            if (ptr!=NULL) {
+                                ContentType = CONTENT_REDIRECT;
+                                sscanf(ptr,"%[^%]%[^;]",user,password);
+                                snprintf(cookie,MAX_URL_LEN,"%s:%s",user,&password[3]);
+                                printf("%s\n",cookie);
+                                stateGet=HTTP_RETRY;
+                                live365Login = 2;
+                                break;
+                            }
+                        } else {
+                            ptr = &line_data[11];
+                            while (*ptr == ' ') ptr++;
+                            char *p1;
+                            p1 = strchr(ptr,';');
+                            if (p1!=NULL ) *p1 = 0;
+                            snprintf(cookie,MAX_URL_LEN,"Cookie: %s\r\n",ptr);
+                            printf("%s",cookie);
                         }
                     } else if (strncasecmp (line_data, "icy-name:",9)==0) {
                         line_data[70]=0;
-                        mvpw_set_text_str(fb_name, &line_data[9]);
-                        mvpw_menu_change_item(playlist_widget,playlist->key, &line_data[9]);
-                        snprintf(shoutcastDisplay,40,&line_data[9]);
+                        char *icyn;
+                        icyn = &line_data[9];
+                        while (*icyn==' ') { 
+                            icyn++;
+                        }
+                        mvpw_set_text_str(fb_name,icyn );
+                        mvpw_menu_change_item(playlist_widget,playlist->key, icyn);
+                        snprintf(shoutcastDisplay,40,icyn);
                     } else if (strncasecmp (line_data,"x-audiocast-name:",17)==0 ) {
                        line_data[70]=0;
                        mvpw_set_text_str(fb_name, &line_data[17]);
@@ -1573,191 +1947,306 @@ int http_main(void)
                             }
                         }
                     }
-
                 } else {
                     // parse non-audio content
-                    if (playlistType == PLAYLIST_NONE) {
-                        ptr = strstr(line_data,"[playlist]");
-                        if (ptr!=NULL) {
-                            playlistType = PLAYLIST_SHOUT;
-                            ContentType = CONTENT_PLAYLIST;
-                            curNumberOfEntries = -1;   // start again
-                            NumberOfEntries = 1; // in case NumberOfEntries= not found
-                        } else if (strncmp(line_data,"Too many requests.",18) == 0 ){
-                            mvpw_set_text_str(fb_name, line_data);
-                            ContentType = CONTENT_ERROR;
-                            break;
-                        }
-                    } else if (strncmp(line_data,"File",4)==0 && line_data[5]=='=') {
-                        if ( strncasecmp(&line_data[6],"http://",7)==0 && strlen(&line_data[6]) < MAX_URL_LEN ) {                        
-                            if (curNumberOfEntries <= MAX_PLAYLIST ) {
-                                if (curNumberOfEntries == -1 ) {
-                                    // assume 1 before number of entries
-                                    curNumberOfEntries = 0;
-                                    NumberOfEntries = 1;
-                                }
-                                snprintf(url[curNumberOfEntries],MAX_URL_LEN,"%s",&line_data[6]);
-                                curNumberOfEntries++;
-                                stateGet = HTTP_RETRY;
-                                if (curNumberOfEntries == NumberOfEntries || curNumberOfEntries == MAX_PLAYLIST ) {
-                                    // no need for any more
-                                    break;
-                                }
-
-
-                            }
-                        }
-                    } else if (strncasecmp(line_data,"NumberOfEntries=",16)==0) {
-                        if (curNumberOfEntries == -1 ) {
-                            // only read the first NumberOfEntries
-                            NumberOfEntries= atoi(&line_data[16]);
-                            if (NumberOfEntries==0) {
-                                mvpw_set_text_str(fb_name, "Empty playlist");
+                    switch (playlistType ) {
+                        case PLAYLIST_NONE:
+                            ptr = strstr(line_data,"[playlist]");
+                            if (ptr!=NULL) {
+                                playlistType = PLAYLIST_SHOUT;
+                                ContentType = CONTENT_PLAYLIST;
+                                curEntry = -1;   // start again
+                                NumberOfEntries = 1; // in case NumberOfEntries= not found
+                            } else if (strncmp(line_data,"Too many requests.",18) == 0 ){
+                                mvpw_set_text_str(fb_name, line_data);
                                 ContentType = CONTENT_ERROR;
-                                break;
+                            } else if ( strncasecmp(line_data,"<ASX VERSION=",13) == 0 ) {
+                                // probably video/x-ms-asf
+                                playlistType = PLAYLIST_ASX;
+                                ContentType = CONTENT_PLAYLIST;
+                                curEntry = -1;   // start again
+                                NumberOfEntries = 1; // in case NumberOfEntries= not found
                             }
-                            curNumberOfEntries = 0;
-                        }
-                    } else if (playlistType == PLAYLIST_M3U && strncasecmp(line_data,"http://",7) == 0 && strlen(line_data) < MAX_URL_LEN) {
-                        if (curNumberOfEntries <= MAX_PLAYLIST ) {
-                            if (curNumberOfEntries == -1 ) {
-                                // assume 1 before number of entries
-                                curNumberOfEntries = 0;
-                                NumberOfEntries = 0;
+
+                            break;
+                        case PLAYLIST_SHOUT:
+                            if (strncmp(line_data,"File",4)==0 && line_data[5]=='=') {
+                                if ( is_streaming(&line_data[6])>=0 && strlen(&line_data[6]) < MAX_URL_LEN ) {
+                                    if (curEntry <= MAX_PLAYLIST ) {
+                                        if (curEntry == -1 ) {
+                                            // assume 1 before number of entries
+                                            curEntry = 0;
+                                            NumberOfEntries = 1;
+                                        }
+                                        snprintf(url[curEntry],MAX_URL_LEN,"%s",&line_data[6]);
+                                        curEntry++;
+                                        stateGet = HTTP_RETRY;
+                                    }
+                                }
+                            } else if (strncasecmp(line_data,"NumberOfEntries=",16)==0) {
+                                if (curEntry == -1 ) {
+                                     // only read the first NumberOfEntries
+                                    NumberOfEntries= atoi(&line_data[16]);
+                                    if (NumberOfEntries==0) {
+                                        mvpw_set_text_str(fb_name, "Empty playlist");
+                                        ContentType = CONTENT_ERROR;
+                                    } else {
+	                                    curEntry = 0;
+                                    }
+                                }
+                            }
+                            break;
+                        case PLAYLIST_M3U:
+                            if ( strncmp(line_data,"http://",7) == 0 && strlen(line_data) < MAX_URL_LEN ) {
+                                if (curEntry <= MAX_PLAYLIST ) {
+                                    if (curEntry == -1 ) {
+                                    // assume 1 before number of entries
+                                        curEntry = 0;
+                                        NumberOfEntries = 0;
+                                    }
+                                }
+                                snprintf(url[curEntry],MAX_URL_LEN,"%s",line_data);
+                                curEntry++;
+                                NumberOfEntries++;
+                                stateGet = HTTP_RETRY;
+                            }
+                            break;
+                        case PLAYLIST_RA:
+                            if ( strncmp(line_data,"rtsp://",7) == 0 && strlen(line_data) < MAX_URL_LEN ) {
+                                if (curEntry <= MAX_PLAYLIST ) {
+                                    if (curEntry == -1 ) {
+                                    // assume 1 before number of entries
+                                        curEntry = 0;
+                                        NumberOfEntries = 0;
+                                    }
+                                }
+                                snprintf(url[curEntry],MAX_URL_LEN,"%s",line_data);
+                                curEntry++;
+                                NumberOfEntries++;
+                                stateGet = HTTP_RETRY;
+                            }
+                            break;
+                        case PLAYLIST_PODCAST:
+                            if ( (ptr=strstr(line_data,".mp3")) != NULL && strstr(line_data,"url") != NULL && (ptr1=strstr(line_data,"http://")) != NULL ) {
+                                if (curEntry <= MAX_PLAYLIST ) {
+                                    if (ptr1 < ptr && ((ptr - ptr1 + 4) < MAX_URL_LEN) ){
+                                        if (curEntry == -1 ) {
+                                            // assume 1 before number of entries
+                                            curEntry = 0;
+                                            NumberOfEntries = 0;
+                                        }
+                                        *(ptr+4)=0;
+                                        snprintf(url[curEntry],MAX_URL_LEN,"%s",ptr1);
+                                        curEntry++;
+                                        NumberOfEntries++;
+                                        stateGet = HTTP_RETRY;
+                                        break;
+                                    }
+                                }
+                            } else if ((ptr=strstr(line_data,"<title>")) != NULL  && (ptr1=strstr(line_data,"</title>")) != NULL ) {
+                                if ( ptr < ptr1 ) {
+                                    ptr+= 7;
+                                    *ptr1 = 0;
+                                    snprintf(shoutcastDisplay,40,"%s",ptr);
+                                }   
+                            }
+                            break;
+                        case PLAYLIST_ASX:
+                            if (strstr(line_data,"[Reference]") !=NULL ) {
+                                playlistType = PLAYLIST_ASX_REFERENCE;
+                            } else {
+                                ptr = strstr(line_data,"<ref href=");
+                                if (ptr==NULL){
+                                    ptr = strstr(line_data,"<REF HREF=");
+                                }
+                                if (ptr==NULL){
+                                    ptr = strstr(line_data,"<ref HREF=");
+                                }
+
+                                if (ptr!=NULL){
+                                    ptr+=11;
+                                    char *z;
+                                    z = strchr(ptr,'"');
+                                    if (z!=NULL) {
+                                        *z = 0;
+                                    }
+                                    if (is_streaming(ptr) >= 0 ) {
+                                        if (curEntry <= MAX_PLAYLIST ) {
+                                            if (curEntry == -1 ) {
+                                                // assume 1 before number of entries
+                                                curEntry = 0;
+                                                NumberOfEntries = 1;
+                                            }
+                                            snprintf(url[curEntry],MAX_URL_LEN,"%s",ptr);
+                                            curEntry++;
+                                            stateGet = HTTP_RETRY;
+                                        }
+                                    }
+                                }
 
                             }
-                            snprintf(url[curNumberOfEntries],MAX_URL_LEN,"%s",line_data);
-                            curNumberOfEntries++;
-                            NumberOfEntries++;
-                            stateGet = HTTP_RETRY;
-                            if (curNumberOfEntries == MAX_PLAYLIST ) {
-                                // no need for any more
-                                break;
-                            }
-                        }
-                    } else if (playlistType == PLAYLIST_PODCAST) {
-                        if ( (ptr=strstr(line_data,".mp3")) != NULL && strstr(line_data,"url") != NULL && (ptr1=strstr(line_data,"http://")) != NULL ) {
-                            if (curNumberOfEntries <= MAX_PLAYLIST ) {
-                                if (ptr1 < ptr && ((ptr - ptr1 + 4) < MAX_URL_LEN) ){
-                                    if (curNumberOfEntries == -1 ) {
-                                        // assume 1 before number of entries
-                                        curNumberOfEntries = 0;
-                                        NumberOfEntries = 0;
-        
+                            break;
+                        case PLAYLIST_ASX_REFERENCE:
+                            if (strncmp(line_data,"Ref",3)==0 && line_data[4]=='=') {
+                                if ( is_streaming(&line_data[5])>=0 && strlen(&line_data[5]) < MAX_URL_LEN ) {
+                                    if (curEntry <= MAX_PLAYLIST ) {
+                                        if (curEntry == -1 ) {
+                                            // assume 1 before number of entries
+                                            curEntry = 0;
+                                            NumberOfEntries = 1;
+                                        }
+                                        snprintf(url[curEntry],MAX_URL_LEN,"%s",&line_data[5]);
+                                        curEntry++;
+                                        stateGet = HTTP_RETRY;
                                     }
-                                    *(ptr+4)=0;
-                                    snprintf(url[curNumberOfEntries],MAX_URL_LEN,"%s",ptr1);
-                                    curNumberOfEntries++;
-                                    NumberOfEntries++;
-                                    stateGet = HTTP_RETRY;
-                                    break;
                                 }
-    
                             }
-                        } else if ((ptr=strstr(line_data,"<title>")) != NULL  && (ptr1=strstr(line_data,"</title>")) != NULL ) {
-                            if ( ptr < ptr1 ) {
-                                ptr+= 7;
-                                *ptr1 = 0;
-                                snprintf(shoutcastDisplay,40,ptr);
-                            }
-                            
-                        }
-                    }                
+                            break;
+                         default:
+                            break;
+                    }
+                    if ( ContentType == CONTENT_ERROR || curEntry == MAX_PLAYLIST ) {
+                        // no need for any more or an error
+                        break;
+                    }
                 }
 
             }
 
-//            printf("%d %d %d %d %d %d\n",line_data[0],ContentType,stateGet,retcode,statusGet,curNumberOfEntries);
-            if (ContentType!= CONTENT_ERROR && ferror(instream) ) {
-                mvpw_set_text_str(fb_name, "Server connection ended");
-                retcode = -2;
-            } else {
-                switch (ContentType) {
-                    case CONTENT_MP3:
-                        // good streaming data
-                        // this data doesn't make it to mpg or ogg streams change to use fdopen etc.
-    
-                        // memcpy(recvbuf,&buffer[line_start],buflen - whereami);
-                        // http_buffer(buflen - whereami,0);
-                        
-    
-                        if (fcntl(httpsock, F_SETFL, flags | O_NONBLOCK) != 0) {
-                            printf("nonblock fcntl failed \n");
-                        } else {
-                            http_read_stream(httpsock,metaInt,0);
-                        }
-                        retcode = -2;
-                        break;
-                    case CONTENT_OGG:
-                        fd = httpsock;
-                        audio_type = AUDIO_FILE_HTTP_INIT_OGG;
-                        retcode = 3;
-                        break;
-                    case CONTENT_MPG:
-                        if (fcntl(httpsock, F_SETFL, flags | O_NONBLOCK) != 0) {
-                            printf("nonblock fcntl failed \n");
-                        }
+//            printf("%d %d %d %d %d %d\n",line_data[0],ContentType,stateGet,retcode,statusGet,curEntry);
+           
+            switch (ContentType) {
+                case CONTENT_MP3:
+                    // good streaming mp3 data
+                    fclose(outlog);
+                    outlog = NULL;
+                    shoutOut = fopen("/usr/share/mvpmc/played.log","w");
+                    fprintf(shoutOut,"MediaMVP Media Center Song History\n%s\n%s\n\n%s\n\n",shoutcastDisplay,url[curEntry-1],"Played @ Song Title");
+                    fflush(shoutOut);
 
-                        fd = httpsock;
-                        int option = 65534; 
-                        setsockopt(httpsock, SOL_SOCKET, SO_RCVBUF, &option, sizeof(option));
-    //                    option = 0;
-    //                    int optionsize = sizeof(int);
-    //                    getsockopt(httpsock, SOL_SOCKET, SO_RCVBUF, &option, &optionsize);
-    //                    printf("Option = %d\n",option);
-                        audio_type = VIDEO_FILE_HTTP_MPG;
-                        retcode = 3;
-                        break;
-                    case CONTENT_PLAYLIST:
-                    case CONTENT_PODCAST:
-                    case CONTENT_REDIRECT:
-                        if (stateGet == HTTP_RETRY) {
-                            // try again
-                            curNumberOfEntries = 1;
-                            printf("Retry %d %s\n",curNumberOfEntries,url[curNumberOfEntries-1]);
-                            close(httpsock);
-                            retcode = 1;
-                        } else {
-                            retcode = -2;
-                        }
-                        break;
-                    case CONTENT_UNKNOWN:
-                    case CONTENT_UNSUPPORTED:
-                        mvpw_set_text_str(fb_name, "No supported content found");
+                    if (fcntl(httpsock, F_SETFL, flags | O_NONBLOCK) != 0) {
+                        printf("nonblock fcntl failed \n");
+                    } else {
+                        http_read_stream(httpsock,metaInt,0);
+                    }
+                    fclose(shoutOut);
+                    retcode = -2;
+                    break;
+                case CONTENT_OGG:
+                    fclose(outlog);
+                    outlog = NULL;
+                    fd = httpsock;
+                    audio_type = AUDIO_FILE_HTTP_INIT_OGG;
+                    retcode = 3;
+                    break;
+                case CONTENT_MPG:
+                    // this data doesn't make it to mpg or ogg streams change to use fdopen etc.
+                    if (fcntl(httpsock, F_SETFL, flags | O_NONBLOCK) != 0) {
+                        printf("nonblock fcntl failed \n");
+                    }
+
+                    fd = httpsock;
+                    int option = 65534; 
+                    setsockopt(httpsock, SOL_SOCKET, SO_RCVBUF, &option, sizeof(option));
+//                    option = 0;
+//                    int optionsize = sizeof(int);
+//                    getsockopt(httpsock, SOL_SOCKET, SO_RCVBUF, &option, &optionsize);
+                    audio_type = VIDEO_FILE_HTTP_MPG;
+                    retcode = 3;
+                    break;
+                case CONTENT_GET_SHOUTCAST:
+                    fclose(outlog);
+                    outlog = NULL;                    
+                    fd = httpsock;
+                    shoutOut = fdopen(fd, "rb");
+                    create_shoutcast_playlist(25);
+                    fclose(shoutOut);
+                    retcode = -2;
+                    break;
+                case CONTENT_PLAYLIST:
+                case CONTENT_PODCAST:
+                case CONTENT_REDIRECT:
+                case CONTENT_AAC:
+                case CONTENT_DIVX:
+                    if (stateGet == HTTP_RETRY) {
+                        // try again
+                        curEntry = 1;
+                        fprintf(outlog,"Redirect %d %s\n",curEntry,url[curEntry-1]);
+                        close(httpsock);
+                        retcode = 1;
+                    } else {
                         retcode = -2;
-                        audio_stop = 1;
-                        break;
-                    case CONTENT_TRYHOST:
-                        if (curNumberOfEntries < NumberOfEntries) {
-                            // try next
-                            curNumberOfEntries++;
-                            close(httpsock);
-                            printf("Host Retry %d %s\n",curNumberOfEntries,url[curNumberOfEntries-1]);
-                        } else {
-                            retcode = -2;
-                        }
-                        break;
-                    case CONTENT_ERROR:
-                    default:
-                        // allow message above;
+                    }
+                    break;
+                case CONTENT_UNKNOWN:
+                case CONTENT_UNSUPPORTED:
+                    mvpw_set_text_str(fb_name, "No supported content found");
+                    retcode = -2;
+                    audio_stop = 1;
+                    break;
+                case CONTENT_TRYHOST:
+                        close(httpsock);
+                case CONTENT_NEXTURL:
+                    if (curEntry < NumberOfEntries) {
+                        // try next
+                        curEntry++;
+                        fprintf(outlog,"Retry %d %s\n",curEntry,url[curEntry-1]);
+                        retcode = 1;
+                    } else {
+                        fclose(outlog);                 
                         retcode = -2;
-                        audio_stop = 1;
-                        break;
-                }
-                
+                    }
+                    break;
+                case CONTENT_ERROR:
+                default:
+                    // allow message above;
+                    retcode = -2;
+                    audio_stop = 1;
+                    break;
             }
         } else {
             mvpw_set_text_str(fb_name, "DNS Trouble Check /etc/resolv.conf");
             retcode = -1;
         }
     }
+    
+    if (using_helper==1) {
+        if (outlog==NULL) {
+            outlog = fopen("/usr/share/mvpmc/connect.log","a");
+        }
+        mplayer_helper_connect(outlog,NULL,1);
+    }
+
+    if (using_vlc==1){
+        if  (audio_type != VIDEO_FILE_HTTP_MPG) {
+            if (outlog==NULL) {
+                outlog = fopen("/usr/share/mvpmc/connect.log","a");
+            }
+            vlc_connect(outlog,NULL,1);
+            using_vlc = 0;
+        } else {
+            using_helper = 2;
+        }
+    }
+    if (using_helper==1) {
+        // delete tmp file
+        mplayer_helper_connect(outlog,NULL,2);
+        using_helper = 0;
+    }
+
+    if (outlog!=NULL) {
+        fclose(outlog);
+    }
+
+
     if (contentLength==0 && audio_stop == 0 ) {
         audio_stop = 1;
     }
 
-    if (retcode == -2 || retcode == 2) {
+    if (retcode == -2 || retcode == 2) {                       
         close(httpsock);
     }
+
     if (gui_state == MVPMC_STATE_HTTP ) {
         mvpw_hide(mclient);
         gui_state = MVPMC_STATE_FILEBROWSER;
@@ -1768,9 +2257,7 @@ int http_main(void)
 
 void http_buffer(int message_length, int offset)
 {
-    if (message_length == 0 ) {
-//        printf("sendEmptyChunk\n");
-    } else {
+    if (message_length != 0 ) {
         bytesRead+=message_length;
         /*
          * Check if there is room at the end of the buffer for the new data.
@@ -1822,7 +2309,7 @@ int http_metadata(char *metaString,int metaWork,int metaData)
             *fc = 0;
         } else  if ((fc = strstr(buffer,"';"))!=NULL) {
             *fc= 0;
-        }        
+        } 
         if (strcmp(metaString,&buffer[13])) {
             ptr = &buffer[13];
 //            printf("md |%s|\n",ptr);
@@ -1832,6 +2319,11 @@ int http_metadata(char *metaString,int metaWork,int metaData)
             } while (*ptr==' ' && ptr != &buffer[13]);
             if (ptr != &buffer[13]) {
                 snprintf(metaString,MAX_META_LEN,"%s",&buffer[13]);
+                time_t tm;
+                tm = time(NULL);
+                strftime(buffer,MAX_META_LEN,"%H:%M:%S", localtime(&tm));
+                fprintf(shoutOut,"%s %s\n",buffer,metaString);
+                fflush(shoutOut);
                 retcode = 0;
             } else {
                 retcode = 3;
@@ -1862,6 +2354,8 @@ int http_read_stream(unsigned int httpsock,int metaInt,int offset)
     char peekBuffer[STREAM_PACKET_SIZE];
 
     char metaString[4081];
+    char metaTemp[4081];
+
     char mclientDisplay[140];
 
     int message_len=offset;
@@ -1975,10 +2469,12 @@ int http_read_stream(unsigned int httpsock,int metaInt,int offset)
                                 }
                             } else {
                                 /* skip rest */
-                                memcpy(metaString,recvbuf+metaRead+1,message_len-metaRead);
+                                memcpy(metaTemp,recvbuf+metaRead+1,message_len-metaRead);
                                 metaIgnored = message_len-metaRead;
+                                metaTemp[metaIgnored-1]=0;
+                                printf("mt 1 %s\n",metaTemp);
                                 metaStart -= message_len;
-//                                    printf("ignore %d %d\n",metaStart,metaIgnored);
+//                                printf("ignore %s %d %d\n",metaString,metaStart,metaIgnored);
                                 metaRead = metaInt + metaStart;
                             }
                         }
@@ -1997,15 +2493,14 @@ int http_read_stream(unsigned int httpsock,int metaInt,int offset)
                             if ((metaRead-message_len) > metaInt ) {
                                 /* all recv was meta data skip it all */
                                 metaStart = metaRead - metaInt;                                
-                                memcpy(metaString+metaIgnored,recvbuf,metaStart);
+                                memcpy(metaTemp+metaIgnored-1,recvbuf,metaStart);
                                 metaRead-=message_len;
                                 metaIgnored += metaStart;
                                 printf("ignore 2 %d\n",metaRead);
                             } else {
                                 metaStart = metaRead - metaInt;
-                                memcpy(metaString+metaIgnored,recvbuf,metaStart);
+                                memcpy(metaTemp+metaIgnored-1,recvbuf,metaStart);
                                 metaRead-=metaStart;
-//                              printf("ignored %-64.64s|%d %d %d\n",metaString,metaRead,metaStart,metaIgnored);
                                 http_buffer(message_len-metaStart,metaStart);
                                 metaRead -= (message_len - metaStart);
 
@@ -2034,8 +2529,362 @@ int http_read_stream(unsigned int httpsock,int metaInt,int offset)
 
 //    printf("message %d buff %d stop %d\n",message_len,bufferFull,audio_stop);
 
+    return  retcode;
+}
+
+#include <ctype.h>
+
+#define VLC_VLM_PORT "4212"
+
+#define VLC_MP3_TRANSCODE "setup mvpmc output #transcode{acodec=mp3,ab=128,channels=2}:duplicate{dst=std{access=http,mux=raw,url=:%s}}\r\n"
+#define VLC_DIVX_TRANSCODE "setup mvpmc output #transcode{vcodec=mp2v,vb=2048,scale=1,acodec=mpga,ab=192,channels=2}:duplicate{dst=std{access=http,mux=ts,dst=:%s}}\r\n"
+
+
+int vlc_connect(FILE *outlog,char *url,int ContentType)
+{
+    struct sockaddr_in server_addr; 
+    struct hostent* remoteHost;
+    char vlc_port[5];
+    FILE *instream;
+    unsigned char line_data[LINE_SIZE];
+    int vlc_sock=-1;
+    int i;
+    char *ptr;
+
+
+    char *vlc_connects[]= {
+        NULL,
+        "del mvpmc\r\n",
+        "new mvpmc broadcast enabled\r\n",
+        "setup mvpmc input %s\r\n",
+        NULL,
+        "setup mvpmc option sout-http-mime=%s/mpeg\r\n",
+        "control mvpmc play\r\n"
+    };
+
+
+
+    int rc;
+
+    int retcode=-1;
+
+    remoteHost = gethostbyname(vlc_server);
+
+    if (remoteHost!=NULL) {
+     
+        vlc_sock = socket(AF_INET, SOCK_STREAM, 0);
+
+        server_addr.sin_family = AF_INET;
+        strcpy(vlc_port,VLC_VLM_PORT);
+        server_addr.sin_port = htons(atoi(vlc_port));
+
+        memcpy ((char *) &server_addr.sin_addr, (char *) remoteHost->h_addr, remoteHost->h_length);
+        
+        struct timeval stream_tv;
+        memset((char *)&stream_tv,0,sizeof(struct timeval));
+        stream_tv.tv_sec = 6;
+        int optionsize = sizeof(stream_tv);
+
+        setsockopt(vlc_sock, SOL_SOCKET, SO_SNDTIMEO, &stream_tv, optionsize);
+        mvpw_set_text_str(fb_name, "Connecting to vlc");
+    
+        retcode = connect(vlc_sock, (struct sockaddr *)&server_addr,sizeof(server_addr));
+
+        if (retcode == 0) {
+            instream = fdopen(vlc_sock,"r+b");
+            setbuf(instream,NULL);
+
+            for (i=0;i < 7 ;i++) {
+                rc=recv(vlc_sock, line_data, LINE_SIZE-1, 0);
+                if ( feof(instream) || ferror(instream) ) break;
+                if (rc != -1 ) {
+                    line_data[rc]=0;
+                    ptr=strchr(line_data,0xff);
+                    if (ptr!=0) {
+                        *ptr=0;
+                    }
+                    fprintf(outlog,"%s",line_data);
+                    if (ContentType==2) {
+                        break;
+                    }
+                    switch (i) {
+                        case 0:
+                            fprintf(instream,"admin\r\n");
+                            fprintf(outlog,"admin\n");
+                            if (ContentType==0 || ContentType==100) {
+                                i++;
+                            }
+                            break;
+                        case 1:
+                            fprintf(instream,vlc_connects[i]);
+                            fprintf(outlog,vlc_connects[i],url);
+                            ContentType = 2;
+                            break;
+                        case 3:
+                            fprintf(instream,vlc_connects[i],url);
+                            fprintf(outlog,vlc_connects[i],url);
+                            break;
+                        case 4:
+                            if ( ContentType == 100 ) {
+                                fprintf(instream,VLC_DIVX_TRANSCODE,VLC_HTTP_PORT);
+                                fprintf(outlog,VLC_DIVX_TRANSCODE,VLC_HTTP_PORT);
+                            } else {
+                                fprintf(instream,VLC_MP3_TRANSCODE,VLC_HTTP_PORT);
+                                fprintf(outlog,VLC_MP3_TRANSCODE,VLC_HTTP_PORT);
+                            }
+                            break;
+                        case 5:
+                            if (ContentType == 100) {
+                                fprintf(instream,vlc_connects[i],"video");
+                                fprintf(outlog,vlc_connects[i],"video");
+                            } else {
+                                fprintf(instream,vlc_connects[i],"audio");
+                                fprintf(outlog,vlc_connects[i],"audio");
+                            }
+                            break;
+                        case 2:
+                            if (strncmp(current,"vlc://",6) == 0 ) {
+                                fprintf(instream,"load %s",&current[6]);
+                                fprintf(outlog,"load %s",&current[6]);
+                                ContentType = 2;
+                                break;
+                            }
+                        default:
+                            fprintf(instream,vlc_connects[i]);
+                            fprintf(outlog,vlc_connects[i]);
+                            break;
+                    }
+                } else {
+                    break;
+                }
+            }
+            close(vlc_sock);            
+            usleep(2000);
+        } else {
+            mvpw_set_text_str(fb_name, "VLC connection timeout");
+            printf("Cannot connect to %s:%s\n",vlc_server,vlc_port);
+            retcode = -1;
+        }
+    } else {
+        mvpw_set_text_str(fb_name, "VLC/VLM setup error");
+        printf("Cannot find %s:%s\n",vlc_server,vlc_port);
+        retcode = -1;
+    }
     return retcode;
 }
 
 
+int is_streaming(char *url)
+{
+    char *types[]= {
+        "http://",
+        "vlc://",
+        "mms://",
+        "mmsh://",
+        "rtsp://",
+        NULL
+    };
+    int i=0;
+    int retcode = -1;
+    char *ptr;
+    ptr = strstr(url,"://");
+    if ( ptr!=NULL ){
+        while (types[i]!=NULL) {
+            if (strncmp(url,types[i],strlen(types[i]) )==0) {
+                retcode = i;
+                break;
+            }
+            i++;
+        }
+    }
+    if (retcode == -1 && strstr(url,".divx") !=NULL ) {
+        retcode = 100;
+    }
+    return retcode;
+}
+
+#define SHOUTCAST_TUNEIN "http://www.shoutcast.com/sbin/tunein-station.pls?id=%s"
+
+int fixTitle(char *title,char *src);
+
+int create_shoutcast_playlist(int limit)
+{
+    char title[256];
+    char url[256];
+    char *p,*ptr;
+    char in_buffer[2048];
+    int j = 0;
+    FILE *outfile;
+
+    ptr = strrchr(current,'?');
+    ptr++;
+    if (*ptr=='g') {
+        p = strrchr(ptr,'=');
+        ptr = ++p;
+    }
+    snprintf(title,256,"%s",ptr);
+    p = strchr(title,'=');
+    if (p!=NULL) *p = 0;
+
+    snprintf(url,256,"/usr/playlist/%s.m3u",title);
+    outfile = fopen(url,"w");
+      
+    fprintf(outfile,"#EXTM3U\n");
+    while (fgets(in_buffer,2048,shoutOut) != NULL ) {
+        if (strstr(in_buffer,"mt=\"audio/mpeg")!=NULL) {
+            p = strstr(in_buffer,"name=\"");
+            if (p!=NULL) {
+                p+=6;
+                ptr = strchr(p,'"');
+                if (ptr!=NULL) {
+                    *ptr = 0;
+                    ptr++;
+                    fixTitle(title,p);
+                    title[59]=0;
+                    p = strstr(ptr,"id=\"");
+                    p+=4;
+                    if (p!=NULL) {
+                        ptr = strchr(p,'"');
+                        if (ptr!=NULL) {
+                            *ptr=0;
+                            snprintf(url,256,SHOUTCAST_TUNEIN,p);
+                            fprintf(outfile,"#EXTINF:-1,%s\n%s\n",title,url);
+                            if(++j==limit) break;
+                        }
+                    }
+                }
+            }
+        }
+
+    }
+    fclose(outfile);
+    return 0;
+}
+
+int fixTitle(char *title,char *src)
+{
+    char *ptr;
+    ptr = src;
+    while (*ptr!=0) {
+        if (*ptr=='&') {
+            if (strncmp(ptr,"&amp;",5)){
+                ptr +=5;
+                *title = '&';
+                title++;
+                continue;
+            } else if (strncmp(ptr,"&#42",4)){
+                ptr +=4;
+                *title = '*';
+                continue;
+            } else if (strncmp(ptr,"&#124",5)){
+                ptr +=4;
+                *title = '|';
+                continue;
+            }
+        }
+        *title = *ptr;
+        ptr++;
+        title++;
+
+    }
+    *title = 0;
+    return 0;
+}
+
+
+int mplayer_helper_connect(FILE *outlog,char *url,int stopme)
+{
+    struct sockaddr_in server_addr; 
+    struct hostent* remoteHost;
+    char mvpmc_helper_port[5];
+    FILE *instream;
+    unsigned char line_data[LINE_SIZE];
+    int mvpmc_helper_sock=-1;
+
+    int size;
+
+
+    int retcode=-1;
+
+    if (stopme == 0 && strncmp(url,"rtsp:",5) != 0) {
+        return 0;
+    }
+
+    remoteHost = gethostbyname(vlc_server);
+
+    if (remoteHost!=NULL) {
+     
+        mvpmc_helper_sock = socket(AF_INET, SOCK_STREAM, 0);
+
+        server_addr.sin_family = AF_INET;
+        strcpy(mvpmc_helper_port,VLC_VLM_PORT);
+        server_addr.sin_port = htons(atoi(mvpmc_helper_port)+1);
+
+        memcpy ((char *) &server_addr.sin_addr, (char *) remoteHost->h_addr, remoteHost->h_length);
+        
+        struct timeval stream_tv;
+        memset((char *)&stream_tv,0,sizeof(struct timeval));
+        stream_tv.tv_sec = 6;
+        int optionsize = sizeof(stream_tv);
+
+        setsockopt(mvpmc_helper_sock, SOL_SOCKET, SO_SNDTIMEO, &stream_tv, optionsize);
+        mvpw_set_text_str(fb_name, "Connecting to mvpmc helper");
+    
+        retcode = connect(mvpmc_helper_sock, (struct sockaddr *)&server_addr,sizeof(server_addr));
+
+        if (retcode == 0) {
+            instream = fdopen(mvpmc_helper_sock,"r+b");
+            setbuf(instream,NULL);
+            switch (stopme) {
+                case 0:
+                case 3:
+                    mvpw_set_text_str(fb_name, "Waiting for mplayer");
+                    size = snprintf(line_data,LINE_SIZE-1,"loadfile %s",url);
+                    break;
+                case 1:
+                    size = snprintf(line_data,LINE_SIZE-1,"quit");
+                    break;
+                case 2:
+                    size = snprintf(line_data,LINE_SIZE-1,"cleanup");
+                    break;
+            }
+            size=send(mvpmc_helper_sock, line_data, strlen(line_data), 0);
+
+            while (1) {
+                size=recv(mvpmc_helper_sock, line_data, LINE_SIZE-1, 0);
+                if (size > 0 ) {
+                    line_data[size]=0;
+                    if ( strncmp(line_data,"Buffering",9)==0 ) {
+                        line_data[40]=0;
+                        mvpw_set_text_str(fb_name,line_data );
+                    } else {
+                        fprintf(outlog,"helper: %s %d\n",line_data,size);
+                        if (strncasecmp(line_data,"Error",5)==0 ) {
+                            mvpw_set_text_str(fb_name, "mplayer error");
+                            retcode = -1;
+                        } else {
+                            retcode = 1;
+                            sleep(1);
+                        }
+                        break;
+                    }
+                } else if (size < 0 )  {
+                    mvpw_set_text_str(fb_name, "mplayer unhandled error");
+                    retcode = size;
+                    break;
+                }
+            }
+            close(mvpmc_helper_sock);
+        } else {
+            mvpw_set_text_str(fb_name, "mplayer connection timeout");
+            printf("Cannot connect to %s:%s\n",vlc_server,mvpmc_helper_port);
+            retcode = -1;
+        }
+    } else {
+        mvpw_set_text_str(fb_name, "mplayer setup error");
+        printf("Cannot find %s:%d\n",vlc_server,server_addr.sin_port);
+        retcode = -1;
+    }
+    return retcode;
+}
 

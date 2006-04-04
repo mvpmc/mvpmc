@@ -57,6 +57,7 @@ static pthread_once_t init_control = PTHREAD_ONCE_INIT;
 playlist_t *playlist=NULL, *playlist_head = NULL;
 
 static void playlist_change(playlist_t *next);
+int is_streaming(char *url);
 
 static void select_callback(mvp_widget_t *widget, char *item, void *key)
 {
@@ -247,7 +248,7 @@ static int build_playlist_from_file(const char *filename)
 			  ptr = strrchr(pl_item->filename, '\\');
 		  }
 		  else{
-			  if (strncmp(tmpbuf,"http://",7)==0) {
+			  if ( is_streaming(tmpbuf) >= 0 ) {
 				  pl_item->filename = strdup(tmpbuf);
 			  } 
 			  else {
@@ -330,7 +331,7 @@ playlist_idle(mvp_widget_t *widget)
 	  break;
 	}	
 	if(playlist){
-		if (strncasecmp(playlist->filename,"http://",7)==0) {
+		if (is_streaming(playlist->filename)>=0) {
 			if (rc==1 ) {
 				/* play first item */
 				current = strdup(playlist->filename);
@@ -349,7 +350,7 @@ playlist_idle(mvp_widget_t *widget)
 		  mvpw_set_timer(playlist_widget, NULL, 0);
 	  } else {
 
-		  if (strncasecmp(pl_item->filename,"http://",7)) {
+		  if (is_streaming(pl_item->filename) >=0 ) {
 			  ID3 *info;
 
 			  info = create_ID3(NULL);
@@ -412,7 +413,7 @@ static void playlist_change(playlist_t *next)
    * MP3 file.
    */
   {
-    if (strncasecmp(playlist->filename,"http://",7)) {
+    if (is_streaming (playlist->filename) < 0 ) {
         int rc = 0;
     
         ID3 *info= create_ID3(NULL);
@@ -456,7 +457,7 @@ static void playlist_change(playlist_t *next)
   }
 
   current = strdup(playlist->filename);
-  if (strncasecmp(playlist->filename,"http://",7)==0) {
+  if (is_streaming(playlist->filename)>=0) {
 	audio_play(NULL);
   } else if (is_video(current)) {
 	mvpw_set_timer(root, video_play, 50);
@@ -539,3 +540,4 @@ void playlist_create(char **item, int n, char *cwd)
 
 	playlist_change(playlist);
 }
+

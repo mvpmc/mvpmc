@@ -17,7 +17,7 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#ident "$Id$"
+#ident "$Id: video.c,v 1.76 2006/02/16 01:11:40 gettler Exp $"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -52,7 +52,7 @@
 #endif
 
 /* #define STREAM_TEST 1 */
-#ifdef STREAM_TEST
+#ifdef STREAM_TEST 
 unsigned int stream_test_cnt     = 0;
 int          stream_test_started = 0;
 struct timeval      start_tv;
@@ -629,7 +629,6 @@ back_to_guide_menu()
 				mvpw_show(fb_progress);
 				mvpw_show(playlist_widget);
 				mvpw_focus(playlist_widget);
-				http_playing = 0;
 			} else {
 				mvpw_show(fb_progress);
 				mvpw_show(file_browser);
@@ -1362,7 +1361,7 @@ video_read_start(void *arg)
 
 			n = 0;
 
-			if ((len == 0) && playlist && http_playing !=1) {
+            if (len == 0 && playlist ) {
 				video_reopen = 2;
 				playlist_next();
 			}

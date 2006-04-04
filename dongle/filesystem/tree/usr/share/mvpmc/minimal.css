@@ -1,0 +1,125 @@
+/*
+ * minimal mvpmc CSS
+ */
+
+body, h3, li, p, ul { font-size: 1em; margin: 0; padding: 0; }
+
+a, a:link, a:visited, a:hover, a:active { color: blue; }
+a:hover { text-decoration: none; }
+.accesskey { text-decoration: underline; }
+
+body {
+        padding-bottom: 50px;
+}
+
+h3 {
+	font-weight: normal;
+}
+#container {
+	position: relative;
+	z-index: 99;
+}
+
+p {
+	line-height: 1.5em;
+	margin-bottom: 1em;
+}
+
+#pageHeader {
+        height: 79px;
+        font-weight: bold;
+        font-size: 1.5em;
+	color: blue;
+}
+
+#quickSummary {
+}
+
+
+#preamble, #quickSummary {
+        margin-left: 219px;
+        margin-top: 10px;
+        width: 530px;
+}
+
+#intro {
+}
+
+#supportingText {
+	margin-left: 230px;
+	width: 500px;
+	z-index: 100;
+}
+
+#preamble .p3, #explanation, #participation, #benefits, #requirements {
+        margin-bottom: 1em;
+        padding-bottom: 37px;
+}
+
+#requirements { margin-right: 160px; }
+
+#linkList {
+        font-weight: bold;
+        left: 0;
+        overflow: hidden;
+        position: absolute;
+        top: 80px;
+        width: 180px;
+	margin: 20px;
+	padding-bottom: 100px;
+}
+
+#lselect a { display: block; }
+#lselect a.link { display: inline; }
+
+#linkList a:hover { text-decoration: underline; }
+
+#linkList a.link {
+        font-size: 1em;
+        font-style: normal;
+        font-weight: bold;
+}
+
+#linkList h3 {
+        font-style: normal;
+        padding-top: 0.5em;
+        text-align: center;
+        text-transform: uppercase;
+        font-weight: bold;
+        font-size: 1.5em;
+}
+
+#linkList li {
+	padding-left: 15px;
+}
+#lselect {
+}
+#larchives {
+}
+#lselect li {
+}
+#larchives li, #lresources li, #sf {
+}
+
+.title h3 {
+        font-weight: bold;
+	font-size: 2em;
+}
+
+.item h3 {
+        font-weight: bold;
+	font-size: 1.5em;
+}
+
+.item ul {
+	padding-left: 15px;
+}
+
+.item pre {
+	background: lightblue;
+	border: 3px solid black;
+}
+
+.redlink {
+	color: red !important;
+}
