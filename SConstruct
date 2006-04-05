@@ -40,9 +40,6 @@ elif target == 'kernel':
 	prefix = powerpc + '-'
 	cross = crosstool + '/' + powerpc + '/' + gcc + '/bin/' + prefix
 	cc = cross + 'gcc'
-	# newer crosstools reversed the directory order
-	if os.path.exists(cc) == 0:
-		cross = crosstool + '/' + gcc + '/' + powerpc + '/bin/' + prefix
 	env.Replace(CROSS = cross)
 	env.Replace(CC = cross + 'gcc')
 	cppflags = ''
@@ -83,7 +80,6 @@ if target == 'kernel':
 	if os.path.exists(cc) == 0:
 		print "build kernel cross-compiler"
 		gcc = env.SConscript('tools/toolchains/glibc/SConscript')
-		env.Depends(kern, gcc)
 	kern = env.SConscript('dongle/kernel/linux-2.4.17/SConscript')
 else:
 	#
