@@ -1,0 +1,22 @@
+--- mvpdist/kernel/arch/ppc/boot/simple/head.S	2003-11-13 16:14:34.000000000 -0600
++++ mvpdist_new/kernel/arch/ppc/boot/simple/head.S	2006-04-06 18:46:39.000000000 -0500
+@@ -47,6 +47,19 @@
+ 	.long	bootrom_cmdline		# address of *bootrom_cmdline
+ #endif
+ 
++hcwmvp_start:
++	.long	0x48435720		# 'HCW '
++	.long	0x4d565000		# 'MVP\0'
++	.long	(hcwmvp_end - hcwmvp_start)
++	.long	0x00010000		# header version
++	.long	0x01010000		# compatible version
++	.long	0x8080ff03		# version 128.128.255 alpha
++	.long	0
++	.long	0
++	.long	0
++	.long	0
++hcwmvp_end:
++
+ start_:
+ #ifdef CONFIG_FORCE
+ 	/* We have some really bad firmware.  We must disable the L1
