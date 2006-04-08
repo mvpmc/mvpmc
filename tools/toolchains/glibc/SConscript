@@ -8,7 +8,5 @@ Import('env')
 cc = env['CC']
 pwd = os.getcwd()
 
-#glibc = env.Command(cc, 0, 'cd ' + pwd + ' && ./mvpmc-glibc.sh ' + cc)
-#Return('glibc')
-
-os.system('cd ' + pwd + ' && ./mvpmc-glibc.sh ' + cc)
+glibc = env.Command(cc, 0, 'cd ' + pwd + ' && ./mvpmc-glibc.sh ' + cc)
+Return('glibc')

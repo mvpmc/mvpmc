@@ -47,3 +47,5 @@ build = env.Command('../../install/' + target + '/bin/busybox', 0,
 env.Depends(build, [ 'patches/busybox_config.patch',
                      'patches/busybox-1.00.patch' ])
 env.Depends(build, dl)
+
+Return('build')

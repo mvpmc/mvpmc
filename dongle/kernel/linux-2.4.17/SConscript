@@ -14,4 +14,6 @@ pwd = os.getcwd()
 
 downloads = home + '/downloads'
 
-os.system(pwd + '/build_kernel.sh ' + downloads + ' ' + cross)
+kernel = env.Command(pwd + '../../filesystem/kernel_files/vmlinux.gz', 0, 'cd ' + pwd + ' && ./build_kernel.sh ' + downloads + ' ' + cross)
+Return('kernel')
+

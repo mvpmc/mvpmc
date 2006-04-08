@@ -34,7 +34,7 @@ fi
 #eval `cat gcc-3.2.3-glibc-2.2.5.dat powerpc-405.dat` sh all.sh
 #eval `cat gcc-2.95.3-glibc-2.2.5.dat powerpc-405.dat` sh all.sh
 
-zcat $TALLBARS_DIR/crosstool-0.25-ppc405-gcc2.patch.gz |patch -p1
+zcat $TARBALLS_DIR/crosstool-0.25-ppc405-gcc2.patch.gz |patch -p1
 sh < ./mvp-ppc405.sh
 
 exit 0

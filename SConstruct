@@ -77,10 +77,11 @@ if target == 'kernel':
 	# do the kernel build
 	#
 	cc = env['CC']
+	kern = env.SConscript('dongle/kernel/linux-2.4.17/SConscript')
 	if os.path.exists(cc) == 0:
 		print "build kernel cross-compiler"
 		gcc = env.SConscript('tools/toolchains/glibc/SConscript')
-	kern = env.SConscript('dongle/kernel/linux-2.4.17/SConscript')
+		env.Depends(kern, gcc)
 else:
 	#
 	# do the application build
@@ -116,6 +117,7 @@ else:
 			env.Depends(libs, gcc)
 			env.Depends(mvplibs, gcc)
 			env.Depends(mvpmc, gcc)
+			env.Depends(apps, gcc)
 
 	#
 	# Build the dongle.bin file
