@@ -36,13 +36,10 @@ elif target == 'host':
 elif target == 'kernel':
 	print "kernel build"
 	powerpc = 'powerpc-405-linux-gnu'
-	gcc = 'gcc-3.2.3-glibc-2.2.5'
+	gcc = 'gcc-2.95.3-glibc-2.2.5'
 	prefix = powerpc + '-'
 	cross = crosstool + '/' + powerpc + '/' + gcc + '/bin/' + prefix
 	cc = cross + 'gcc'
-	# newer crosstools reversed the directory order
-	if os.path.exists(cc) == 0:
-		cross = crosstool + '/' + gcc + '/' + powerpc + '/bin/' + prefix
 	env.Replace(CROSS = cross)
 	env.Replace(CC = cross + 'gcc')
 	cppflags = ''
@@ -80,11 +77,11 @@ if target == 'kernel':
 	# do the kernel build
 	#
 	cc = env['CC']
+	kern = env.SConscript('dongle/kernel/linux-2.4.17/SConscript')
 	if os.path.exists(cc) == 0:
 		print "build kernel cross-compiler"
 		gcc = env.SConscript('tools/toolchains/glibc/SConscript')
 		env.Depends(kern, gcc)
-	kern = env.SConscript('dongle/kernel/linux-2.4.17/SConscript')
 else:
 	#
 	# do the application build
@@ -120,6 +117,7 @@ else:
 			env.Depends(libs, gcc)
 			env.Depends(mvplibs, gcc)
 			env.Depends(mvpmc, gcc)
+			env.Depends(apps, gcc)
 
 	#
 	# Build the dongle.bin file

@@ -21,6 +21,7 @@ cd mvpdist/kernel
 patch -p1 < ../../patches/cifs_24.patch
 patch -p2 < ../../patches/mvpstb_mod.patch
 patch -p2 < ../../patches/printk.c.patch
+patch -p2 < ../../patches/hcwmvp_header.patch
 
 tar -xzf ../../patches/fs_cifs.tgz
 tar -xzf ../../patches/mvpstb.tar.gz
