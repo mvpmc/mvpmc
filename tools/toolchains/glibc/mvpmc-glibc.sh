@@ -1,4 +1,9 @@
 #!/bin/sh
+#
+# Build gcc 2.95.3.  Newer gcc compilers do not work, so please use gcc 3.2
+# or earlier.
+#
+#
 
 if [ "$1" != "" ] ; then
     GCC_PATH=$1
@@ -7,6 +12,21 @@ fi
 unset CC
 if [ -x /usr/bin/gcc32 ] ; then
     export CC=/usr/bin/gcc32
+fi
+
+if [ "$CC" = "" ] ; then
+    VER=`gcc -v 2>&1 | grep version | cut -f3 -d' '`
+    MAJOR=${VER%%.*}
+    SUB=${VER#*.}
+    MINOR=${SUB%%.*}
+    if [[ $MAJOR -eq 3 && $MINOR -gt 2 ]] ; then
+	echo "Cannot build the cross-compiler with gcc $VER.  Install gcc 3.2."
+	exit 1
+    fi
+    if [ $MAJOR -gt 3 ] ; then
+	echo "Cannot build the cross-compiler with gcc $VER.  Install gcc 3.2."
+	exit 1
+    fi
 fi
 
 set -ex
