@@ -67,7 +67,7 @@ diff -ruN microwindows-0.91-orig/src/Configs/config.mvp microwindows-0.91/src/Co
 +####################################################################
 +MICROWIN                 = Y
 +NANOX                    = Y
-+SHAREDLIBS               = Y
++SHAREDLIBS               = N
 +OBJFRAMEWORK             = N
 +
 +
@@ -1422,78 +1422,6 @@ diff -ruN microwindows-0.91-orig/src/drivers/kbd_irm.c microwindows-0.91/src/dri
 +	}
 +	return 0;
 +}
-diff -ruN microwindows-0.91-orig/src/drivers/Makefile.orig microwindows-0.91/src/drivers/Makefile.orig
---- microwindows-0.91-orig/src/drivers/Makefile.orig	1969-12-31 18:00:00.000000000 -0600
-+++ microwindows-0.91/src/drivers/Makefile.orig	2003-09-09 22:19:44.000000000 -0500
-@@ -0,0 +1,26 @@
-+##############################################################################
-+# Microwindows template Makefile
-+# Copyright (c) 2000 Martin Jolicoeur, Greg Haerr
-+# Portions Copyright (c) 2002 by Koninklijke Philips Electronics N.V.
-+##############################################################################
-+
-+ifndef MW_DIR_SRC
-+MW_DIR_SRC := $(CURDIR)/..
-+endif
-+MW_DIR_RELATIVE := drivers/
-+include $(MW_DIR_SRC)/Path.rules
-+include $(CONFIG)
-+
-+############################# targets section ################################
-+
-+# If you want to create a library with the objects files, define the name here
-+LIBNAME = libmwdrivers.a
-+#LIBNAMESO = libmwdrivers.so
-+
-+OBJS := $(MW_DIR_OBJ)/drivers/obsolete.o
-+
-+######################### Makefile.rules section #############################
-+
-+include $(MW_DIR_SRC)/Makefile.rules
-+
-+######################## Tools targets section ###############################
-diff -ruN microwindows-0.91-orig/src/drivers/Makefile.rej microwindows-0.91/src/drivers/Makefile.rej
---- microwindows-0.91-orig/src/drivers/Makefile.rej	1969-12-31 18:00:00.000000000 -0600
-+++ microwindows-0.91/src/drivers/Makefile.rej	2005-08-12 20:42:55.000000000 -0500
-@@ -0,0 +1,38 @@
-+***************
-+*** 23,28 ****
-+  ifneq ($(ARCH), ELKS)
-+  ifneq ($(ARCH), DJGPP)
-+  
-+  ifeq ($(EM8400), Y)
-+  OBJS += scr_em84xx.o genfont.o genmem.o
-+  endif
-+--- 23,32 ----
-+  ifneq ($(ARCH), ELKS)
-+  ifneq ($(ARCH), DJGPP)
-+  
-++ ifeq ($(MVPOSD), Y)
-++ OBJS += scr_mvposd.o genfont.o genmem.o
-++ endif
-++ 
-+  ifeq ($(EM8400), Y)
-+  OBJS += scr_em84xx.o genfont.o genmem.o
-+  endif
-+***************
-+*** 192,197 ****
-+  #
-+  ifneq ($(PIPEKBD), Y)
-+  
-+  ifeq ($(TTYKBD), Y)
-+  OBJS += kbd_tty.o
-+  endif
-+--- 196,205 ----
-+  #
-+  ifneq ($(PIPEKBD), Y)
-+  
-++ ifeq ($(IRMKBD), Y)
-++ OBJS += kbd_irm.o
-++ endif
-++ 
-+  ifeq ($(TTYKBD), Y)
-+  OBJS += kbd_tty.o
-+  endif
 diff -ruN microwindows-0.91-orig/src/drivers/Objects.rules microwindows-0.91/src/drivers/Objects.rules
 --- microwindows-0.91-orig/src/drivers/Objects.rules	2004-05-18 14:09:39.000000000 -0500
 +++ microwindows-0.91/src/drivers/Objects.rules	2005-08-12 21:06:21.000000000 -0500
@@ -1889,78 +1817,3 @@ diff -ruN microwindows-0.91-orig/src/drivers/scr_mvposd.c microwindows-0.91/src/
 +   SVGA_setpalette( psd, 0,256,local_palette );
 +}
 +#endif
-diff -ruN microwindows-0.91-orig/src/engine/Makefile.orig microwindows-0.91/src/engine/Makefile.orig
---- microwindows-0.91-orig/src/engine/Makefile.orig	1969-12-31 18:00:00.000000000 -0600
-+++ microwindows-0.91/src/engine/Makefile.orig	2003-09-09 22:19:45.000000000 -0500
-@@ -0,0 +1,27 @@
-+##############################################################################
-+# Microwindows template Makefile
-+# Copyright (c) 2000 Martin Jolicoeur, Greg Haerr
-+# Portions Copyright (c) 2002 Koninklijke Philips Electronics N.V.
-+##############################################################################
-+
-+ifndef MW_DIR_SRC
-+MW_DIR_SRC := $(CURDIR)/..
-+endif
-+MW_DIR_RELATIVE := engine/
-+include $(MW_DIR_SRC)/Path.rules
-+include $(CONFIG)
-+
-+############################# targets section ################################
-+
-+# If you want to create a library with the objects files, define the name here
-+LIBNAME = libmwengine.a
-+#LIBNAMESO = libmwengine.so
-+
-+OBJS := $(MW_DIR_OBJ)/engine/obsolete.o
-+
-+
-+######################### Makefile.rules section #############################
-+
-+include $(MW_DIR_SRC)/Makefile.rules
-+
-+######################## Tools targets section ###############################
-diff -ruN microwindows-0.91-orig/src/fonts/Makefile.orig microwindows-0.91/src/fonts/Makefile.orig
---- microwindows-0.91-orig/src/fonts/Makefile.orig	1969-12-31 18:00:00.000000000 -0600
-+++ microwindows-0.91/src/fonts/Makefile.orig	2003-09-11 21:09:54.000000000 -0500
-@@ -0,0 +1,40 @@
-+##############################################################################
-+# Microwindows template Makefile
-+# Copyright (c) 2000 Martin Jolicoeur, Greg Haerr
-+##############################################################################
-+
-+ifndef MW_DIR_SRC
-+MW_DIR_SRC := $(CURDIR)/..
-+endif
-+MW_DIR_RELATIVE := fonts/
-+include $(MW_DIR_SRC)/Path.rules
-+include $(CONFIG)
-+
-+############################# targets section ################################
-+
-+# If you want to create a library with the objects files, define the name here
-+LIBNAME = libmwfonts.a
-+#LIBNAMESO = libmwfonts.so
-+
-+OBJS := $(MW_DIR_OBJ)/fonts/obsolete.o
-+
-+######################### Makefile.rules section #############################
-+
-+include $(MW_DIR_SRC)/Makefile.rules
-+
-+######################## Tools targets section ###############################
-+
-+.PHONY: realclean
-+
-+realclean: clean
-+ifeq ($(MW_DIR_OBJ),$(MW_DIR_SRC))
-+	$(RM) \
-+		$(MW_DIR_OBJ)/fonts/helvB10.c \
-+		$(MW_DIR_OBJ)/fonts/helvB12.c \
-+		$(MW_DIR_OBJ)/fonts/helvR10.c \
-+		$(MW_DIR_OBJ)/fonts/timBI18.c \
-+		$(MW_DIR_OBJ)/fonts/X5x7.c \
-+		$(MW_DIR_OBJ)/fonts/X6x13.c
-+endif
-+
-+
