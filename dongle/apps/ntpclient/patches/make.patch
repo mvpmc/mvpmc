@@ -1,0 +1,15 @@
+diff -ruN ntpclient-orig/Makefile ntpclient/Makefile
+--- ntpclient-orig/Makefile	2003-05-18 13:41:25.000000000 -0500
++++ ntpclient/Makefile	2006-04-15 08:35:45.000000000 -0500
+@@ -22,5 +22,11 @@
+ 
+ adjtimex: adjtimex.o
+ 
++install: all
++	cp -f ntpclient $(INSTALL_PREFIX)/bin
++
+ clean:
+ 	rm -f ntpclient adjtimex *.o
++
++oldconfig:
++

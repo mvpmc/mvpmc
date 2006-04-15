@@ -1,8 +1,6 @@
 #!/usr/bin/python
 #
-# $Id: SConscript 20 2006-03-14 05:26:56Z gettler $
-#
-# build busybox
+# build ntpclient
 #
 
 import os
@@ -15,7 +13,7 @@ cross = env['CROSS']
 downloads = env['DOWNLOADS']
 target = env['TARG']
 
-file = downloads + '/busybox-1.00.tar.bz2'
+file = downloads + '/ntpclient_2003_194.tar.gz'
 
 e = Environment()
 e.Tool('WGet', toolpath=['../../../scons'])
@@ -31,22 +29,18 @@ def GetSourceFile(url, output_dir, env):
   node = env.SourceCode( munged, env.WGet() )
   return node
 
-url = 'http://busybox.net/downloads/busybox-1.00.tar.bz2'
+url = 'http://doolittle.icarus.com/ntpclient/ntpclient_2003_194.tar.gz'
 pwd = os.getcwd()
 
 dl = GetSourceFile(url, '#' + downloads, e)
 
-build = env.Command('../../install/' + target + '/bin/busybox', 0,
+build = env.Command('../../install/' + target + '/bin/ntpclient', 0,
                     'scons/build_app.sh -d ' + pwd + '/' + target +
-                    '/busybox-1.00 -i ' + file + ' ' +
+                    '/ntpclient -i ' + file + ' ' +
                     '-c ' + cross + ' ' +
-                    '-I ' + pwd + '/../../install/' + target + ' ' +
-                    '-p patches/busybox_config.patch ' +
-                    '-p patches/busybox_ntp.patch ' +
-                    '-p patches/busybox-1.00.patch')
+                    '-I ' + pwd + '/../../install/' + target + ' '
+                    '-p patches/make.patch')
 
-env.Depends(build, [ 'patches/busybox_config.patch',
-                     'patches/busybox-1.00.patch' ])
 env.Depends(build, dl)
 
 Return('build')

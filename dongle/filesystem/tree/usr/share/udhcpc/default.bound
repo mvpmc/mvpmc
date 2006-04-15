@@ -46,4 +46,5 @@ DONGLE=$boot_file
 SERVER=${siaddr:-$serverid}
 IP=$ip
 HNAME=$hostname
+NTP=$ntpsrv
 EOF

@@ -11,7 +11,7 @@ echo STRIP $STRIP
 
 DIRS="bin sbin usr/bin usr/sbin lib dev proc var usr/share usr/share/mvpmc usr/share/udhcpc etc tmp"
 
-BIN="ash busybox cat chgrp chmod chown cp date dd df dmesg echo false fgrep grep hostname kill ln login ls mkdir mknod more mount msh mv netstat pidof ping ps pwd rm rmdir sh sleep sync touch true umount uname mvpmc"
+BIN="ash busybox cat chgrp chmod chown cp date dd df dmesg echo false fgrep grep hostname kill ln login ls mkdir mknod more mount msh mv netstat pidof ping ps pwd rm rmdir sh sleep sync touch true umount uname mvpmc ntpclient"
 
 SBIN="adjtimex halt ifconfig init insmod klogd losetup lsmod modprobe mount.cifs poweroff reboot rmmod route syslogd udhcpc"
 

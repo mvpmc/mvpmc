@@ -42,6 +42,14 @@ if [ "$HNAME" = "" ] ; then
     hostname $IP
 fi
 
+#
+# connect to the ntp server, if one exists
+#
+if [ "$NTP" != "" ] ; then
+    /bin/ntpclient -s -h $NTP
+    /bin/ntpclient -d -l -h $NTP &
+fi
+
 echo "${IP}    ${HNAME}" >> /etc/hosts
 tftp -g -l /etc/dongle.config -r ${DONGLE}.config ${SERVER}
 tftp -g -l /tmp/themes/default.xml -r ${DONGLE}.xml ${SERVER}
