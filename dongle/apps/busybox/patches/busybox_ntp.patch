@@ -1,0 +1,12 @@
+diff -ruN busybox-1.00-orig/networking/udhcp/options.c busybox-1.00/networking/udhcp/options.c
+--- busybox-1.00-orig/networking/udhcp/options.c	2004-03-15 02:29:01.000000000 -0600
++++ busybox-1.00/networking/udhcp/options.c	2006-04-15 08:22:43.000000000 -0500
+@@ -32,7 +32,7 @@
+ 	{"ipttl",	OPTION_U8,				0x17},
+ 	{"mtu",		OPTION_U16,				0x1a},
+ 	{"broadcast",	OPTION_IP | OPTION_REQ,			0x1c},
+-	{"ntpsrv",	OPTION_IP | OPTION_LIST,		0x2a},
++	{"ntpsrv",	OPTION_IP | OPTION_LIST | OPTION_REQ,	0x2a},
+ 	{"wins",	OPTION_IP | OPTION_LIST,		0x2c},
+ 	{"requestip",	OPTION_IP,				0x32},
+ 	{"lease",	OPTION_U32,				0x33},
