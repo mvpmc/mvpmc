@@ -159,6 +159,8 @@ extern int av_deactivate(void);
 extern int av_get_volume(void);
 extern int av_set_volume(int volume);
 
+extern int av_colorbars(int on);
+
 #define AV_VOLUME_MAX	255
 #define AV_VOLUME_MIN	0
 

@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2004, 2005, Jon Gettler
+ *  Copyright (C) 2004, 2005, 2006, Jon Gettler
  *  http://mvpmc.sourceforge.net/
  *
  * This program is free software; you can redistribute it and/or modify
@@ -810,7 +810,6 @@ static mvp_widget_t *settings_mclient;
 static mvp_widget_t *settings_playback;
 static mvp_widget_t *settings_help;
 static mvp_widget_t *settings_startup;
-static mvp_widget_t *sub_settings;
 static mvp_widget_t *screensaver_dialog;
 static mvp_widget_t *about;
 mvp_widget_t *mclient;
@@ -901,6 +900,8 @@ static int screensaver_enabled = 0;
 volatile int screensaver_timeout = 60;
 volatile int screensaver_default = -1;
 
+static int colorbars = 0;
+
 int chan_digit_cnt = 0;
 char chan_num[4] =  "\0\0\0";
 
@@ -962,6 +963,7 @@ typedef enum {
 	SETTINGS_AV_VIDEO_OUTPUT,
 	SETTINGS_AV_AUDIO_OUTPUT,
 	SETTINGS_AV_ASPECT,
+	SETTINGS_AV_COLORBARS,
 } settings_av_t;
 
 typedef enum {
@@ -1644,6 +1646,15 @@ settings_item_key_callback(mvp_widget_t *widget, char key)
 static void
 settings_av_key_callback(mvp_widget_t *widget, char key)
 {
+	if (colorbars) {
+		colorbars = 0;
+		av_colorbars(0);
+		mvpw_hide(widget);
+		mvpw_show(settings_av);
+		mvpw_focus(settings_av);
+		return;
+	}
+
 	switch (key) {
 	case MVPW_KEY_EXIT:
 		mvpw_hide(widget);
@@ -2881,7 +2892,6 @@ colortest_callback(mvp_widget_t *widget, char key)
 		switch_gui_state(MVPMC_STATE_NONE);
 		mvpw_show(mvpmc_logo);
 		mvpw_show(settings);
-		mvpw_show(sub_settings);
 		mvpw_focus(settings);
 		return;
 	}
@@ -2937,7 +2947,6 @@ static void
 run_colortest(void)
 {
 	mvpw_hide(settings);
-	mvpw_hide(sub_settings);
 	mvpw_hide(mvpmc_logo);
 	mvpw_set_key(root, colortest_callback);
 	colortest_draw(ct_globals.fg_idx, ct_globals.bg_idx);
@@ -3392,6 +3401,10 @@ settings_av_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mvpw_check_menu_item(settings_check,
 				     (void*)av_get_output(), 1);
 		break;
+	case SETTINGS_AV_COLORBARS:
+		colorbars = 1;
+		av_colorbars(1);
+		break;
 	}
 
 	mvpw_show(settings_check);
@@ -3513,6 +3526,11 @@ settings_init(void)
 	mvpw_add_menu_item(settings_av, "Video Output",
 			   (void*)SETTINGS_AV_VIDEO_OUTPUT,
 			   &settings_item_attr);
+#ifndef MVPMC_HOST
+	mvpw_add_menu_item(settings_av, "Show Video Colorbars",
+			   (void*)SETTINGS_AV_COLORBARS,
+			   &settings_item_attr);
+#endif
 
 	/*
 	 * osd settings menu
@@ -4412,7 +4430,6 @@ main_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mvpw_hide(setup_image);
 
 		mvpw_show(settings);
-		mvpw_show(sub_settings);
 		mvpw_focus(settings);
 		break;
 	case MM_MYTHTV:

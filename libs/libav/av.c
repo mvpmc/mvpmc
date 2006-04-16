@@ -920,3 +920,9 @@ av_set_volume(int volume)
 
 	return 0;
 }
+
+int
+av_colorbars(int on)
+{
+	return ioctl(fd_video, AV_SET_VID_COLORBAR, on);
+}

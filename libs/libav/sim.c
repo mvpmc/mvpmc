@@ -331,3 +331,9 @@ mvpmod_stop_audit(void)
 {
    return 0;
 }
+
+int
+av_colorbars(int on)
+{
+	return 0;
+}
