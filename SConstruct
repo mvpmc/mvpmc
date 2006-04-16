@@ -125,6 +125,8 @@ else:
 	if target == 'mvp':
 		dongle = env.SConscript('dongle/SConscript')
 		env.Depends(dongle, mvpmc)
+		env.Depends(dongle, apps)
+		env.Depends(dongle, libs)
 		env.Depends(dongle, themes)
 		env.Depends(dongle, images)
 
