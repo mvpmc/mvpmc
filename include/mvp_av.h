@@ -161,6 +161,8 @@ extern int av_set_volume(int volume);
 
 extern int av_colorbars(int on);
 
+extern int av_empty(void);
+
 #define AV_VOLUME_MAX	255
 #define AV_VOLUME_MIN	0
 
@@ -181,5 +183,7 @@ int mvpmod_start_audit(unsigned long interval_ms);
 int mvpmod_stop_audit(void);
 int mvpstb_set_lbox_offset(unsigned int offset);
 int mvpstb_get_lbox_offset(unsigned int *offset);
+int mvpstb_audio_end(void);
+int mvpstb_video_end(void);
 
 #endif /* MVP_AV_H */

@@ -926,3 +926,17 @@ av_colorbars(int on)
 {
 	return ioctl(fd_video, AV_SET_VID_COLORBAR, on);
 }
+
+int
+av_empty(void)
+{
+	int a, v;
+
+	a = mvpstb_audio_end();
+	v = mvpstb_video_end();
+
+	if ((a == -1) || (v == -1))
+		return -1;
+
+	return a && v;
+}

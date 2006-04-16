@@ -280,3 +280,28 @@ int mvpstb_set_audio_sync(int on)
    return(ioctl(mvpstb_fd, MVPMOD_SET_SYNC, &pdb));
 }
 
+int mvpstb_audio_end(void)
+{
+	int wlr;
+
+	if (dcr_read(AUDIO_DSP_STATUS, &wlr) < 0)
+		return -1;
+
+	if (wlr == 0)
+		return 1;
+	else
+		return 0;
+}
+
+int mvpstb_video_end(void)
+{
+	int wlr;
+
+	if (dcr_read(VIDEO_CLIP_WLR, &wlr) < 0)
+		return -1;
+
+	if (wlr == 0)
+		return 1;
+	else
+		return 0;
+}

@@ -337,3 +337,9 @@ av_colorbars(int on)
 {
 	return 0;
 }
+
+int
+av_empty(void)
+{
+	return 1;
+}
