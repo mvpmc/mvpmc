@@ -14,6 +14,11 @@ following installed on your system:
 	- scons (http://www.scons.org/)
 
 
+If you do not currently have the cross-compilers installed on your
+system, they will be built as needed.  However, you need to be able
+to write to /opt/crosstool in order for the compilers to build.
+
+
 Building
 --------
 
@@ -34,23 +39,15 @@ To build a new linux kernel, use the following command:
 	$ make kernel
 
 
-To build the toolchains needed to build binaries for the MediaMVP,
-you will need to create a writeable "/opt/crosstool" directory on
-your build system.
-
-To build the uclibc cross-compiler (needed for userland binaries):
-
-	$ ( cd tools/toolchains/uclibc ; ./mvpmc-uclibc.sh )
-
-To build the glibc cross-compiler (needed for recompiling the kernel):
-
-	$ ( cd tools/toolchains/glibc ; ./mvpmc-glibc.sh )
-
-
 To build source code HTML documentation with doxygen, use the following
 command:
 
 	$ make docs
+
+
+To build a cscope database, use the following command:
+
+	$ make cscope
 
 
 Getting Help
