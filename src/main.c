@@ -1073,7 +1073,7 @@ www_mvpmc_start(void *arg) {
     /* variables for connection management */
     int listenfd;          /* listening socket */
     int connfd;            /* connection socked */
-    int clientlen;         /* byte size of client's address */
+    unsigned int clientlen;/* byte size of client's address */
     int optval;            /* flag value for setsockopt */
     struct sockaddr_in serveraddr; /* server's addr */
     struct sockaddr_in clientaddr; /* client addr */
@@ -1772,7 +1772,7 @@ int mvp_config_general(char *line)
             tzset();
             pthread_mutex_lock (&web_server_mutex);
             if (fork()==0) {
-                rc = execlp("/usr/sbin/rdate","rdate", "-s", web_config.time_server, 0);
+                rc = execlp("/usr/sbin/rdate","rdate", "-s", web_config.time_server, (char *)NULL);
             }
             pthread_mutex_unlock (&web_server_mutex);
             setTime = 1;

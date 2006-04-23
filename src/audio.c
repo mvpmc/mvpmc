@@ -2546,7 +2546,7 @@ int vlc_connect(FILE *outlog,char *url,int ContentType)
     struct hostent* remoteHost;
     char vlc_port[5];
     FILE *instream;
-    unsigned char line_data[LINE_SIZE];
+    char line_data[LINE_SIZE];
     int vlc_sock=-1;
     int i;
     char *ptr;
@@ -2798,7 +2798,7 @@ int mplayer_helper_connect(FILE *outlog,char *url,int stopme)
     struct hostent* remoteHost;
     char mvpmc_helper_port[5];
     FILE *instream;
-    unsigned char line_data[LINE_SIZE];
+    char line_data[LINE_SIZE];
     int mvpmc_helper_sock=-1;
 
     int size;
