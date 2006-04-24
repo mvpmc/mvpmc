@@ -57,3 +57,6 @@ cp -d install/mvp/linuxrc filesystem/install
 find filesystem/install -name .svn | xargs rm -rf
 
 filesystem/dongle_build.sh -o ../dongle.bin.mvpmc -k filesystem/kernel_files
+
+dd if=../dongle.bin.mvpmc of=../dongle.bin.mvpmc.ver bs=1 count=40 skip=52
+
