@@ -52,7 +52,15 @@ static inline unsigned
 __cmyth_atomic_increment(cmyth_atomic_t *ref)
 {
 	cmyth_atomic_t __val;
-#if defined __i386__ || defined __i486__ || defined __i586__ || defined __i686__
+#if defined __i486__ || defined __i586__ || defined __i686__
+	__asm__ __volatile__(
+		"lock xaddl %0, (%1);"
+		"     inc   %0;"
+		: "=r" (__val)
+		: "r" (ref), "0" (0x1)
+		: "cc", "memory"
+		);
+#elif defined __i386__
 	asm volatile (".byte 0xf0, 0x0f, 0xc1, 0x02" /*lock; xaddl %eax, (%edx) */
 		      : "=a" (__val)
 		      : "0" (1), "m" (*ref), "d" (ref)
@@ -84,13 +92,15 @@ static inline unsigned
 __cmyth_atomic_decrement(cmyth_atomic_t *ref)
 {
 	cmyth_atomic_t __val;
-#if defined __i386__ || defined __i486__ || defined __i586__ || defined __i686__
-	/*
-	 * This opcode exists as a .byte instead of as a mnemonic for the
-	 * benefit of SCO OpenServer 5.  The system assembler (which is
-	 * essentially required on this target) can't assemble xaddl in
-	 * COFF mode.
-	 */
+#if defined __i486__ || defined __i586__ || defined __i686__
+	__asm__ __volatile__(
+		"lock xaddl %0, (%1);"
+		"     inc   %0;"
+		: "=r" (__val)
+		: "r" (ref), "0" (0x1)
+		: "cc", "memory"
+		);
+#elif defined __i386__
 	asm volatile (".byte 0xf0, 0x0f, 0xc1, 0x02" /*lock; xaddl %eax, (%edx) */
 		      : "=a" (__val)
 		      : "0" (-1), "m" (*ref), "d" (ref)
