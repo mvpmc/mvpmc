@@ -824,6 +824,7 @@ static mvp_widget_t *busy_widget;
 static mvp_widget_t *busy_graph;
 static mvp_widget_t *themes_menu;
 static mvp_widget_t *fb_menu;
+static mvp_widget_t *pl_menu;
 static mvp_widget_t *viewport;
 static mvp_widget_t *vp[4];
 static mvp_widget_t *vp_text;
@@ -1756,6 +1757,28 @@ fb_menu_select_callback(mvp_widget_t *widget, char *item, void *key)
 	}
 }
 
+static void
+pl_menu_select_callback(mvp_widget_t *widget, char *item, void *key)
+{
+	char buf[256];
+
+	mvpw_hide(widget);
+
+	switch ((int)key) {
+	case 1:
+		playlist_randomize();
+		break;
+	case 2:
+		snprintf(buf, sizeof(buf), "%d", volume);
+		mvpw_set_dialog_text(volume_dialog, buf);
+		mvpw_show(volume_dialog);
+		mvpw_focus(volume_dialog);
+		break;
+	default:
+		break;
+	}
+}
+
 void
 fb_key_callback(mvp_widget_t *widget, char key)
 {
@@ -1829,6 +1852,19 @@ void fb_menu_key_callback(mvp_widget_t *widget, char key)
 	}
 }
 
+static
+void pl_menu_key_callback(mvp_widget_t *widget, char key)
+{
+	switch (key) {
+	case MVPW_KEY_EXIT:
+	case MVPW_KEY_MENU:
+		mvpw_hide(widget);
+		mvpw_show(playlist_widget);
+		mvpw_focus(playlist_widget);
+		break;
+	}
+}
+
 void
 playlist_key_callback(mvp_widget_t *widget, char key)
 {
@@ -1885,6 +1921,10 @@ playlist_key_callback(mvp_widget_t *widget, char key)
 		volume_key_callback(volume_dialog, key);
 		mvpw_show(volume_dialog);
 		mvpw_set_timer(volume_dialog, timer_hide, 3000);
+		break;
+	case MVPW_KEY_MENU:
+		mvpw_show(pl_menu);
+		mvpw_focus(pl_menu);
 		break;
 	}
 }
@@ -2601,7 +2641,7 @@ file_browser_init(void)
 static int
 playlist_init(void)
 {
-	int h, h2, w;
+	int h, h2, w, x, y;
 
 	splash_update("Creating playlist");
 	
@@ -2627,6 +2667,30 @@ playlist_init(void)
 
 	mvpw_set_key(playlist_widget, playlist_key_callback);
 
+	/*
+	 * playlist popup menu
+	 */
+	h = 5 * FONT_HEIGHT(fb_popup_attr);
+	w = 275;
+	x = (si.cols - w) / 2;
+	y = (si.rows - h) / 2;
+
+	pl_menu = mvpw_create_menu(NULL, x, y, w, h,
+				   fb_popup_attr.bg, fb_popup_attr.border,
+				   fb_popup_attr.border_size);
+
+	mvpw_set_menu_attr(pl_menu, &fb_popup_attr);
+	mvpw_set_menu_title(pl_menu, "Playlist Menu");
+
+	mvpw_set_key(pl_menu, pl_menu_key_callback);
+
+	fb_menu_item_attr.select = pl_menu_select_callback;
+	fb_menu_item_attr.fg = fb_popup_attr.fg;
+	fb_menu_item_attr.bg = fb_popup_attr.bg;
+	mvpw_add_menu_item(pl_menu, "Shuffle Playlist",
+			   (void*)1, &fb_menu_item_attr);
+	mvpw_add_menu_item(pl_menu, "Volume",
+			   (void*)2, &fb_menu_item_attr);
 	return 0;
 }
 
@@ -4814,7 +4878,7 @@ static int
 about_init(void)
 {
 	int h, w, x, y;
-	char text[256];
+	char text[256], host[64];
 	char buf[] = 
 		"http://mvpmc.sourceforge.net/\n\n"
 		"Audio: mp3, ogg, wav, ac3\n"
@@ -4822,8 +4886,7 @@ about_init(void)
 		"Images: bmp, gif, png, jpeg\n"
 		"Servers: MythTV, ReplayTV, NFS, CIFS, VNC, SlimServer, "
 		"HTTP\n";
-
-    struct utsname myname;
+	struct utsname myname;
 
 	splash_update("Creating about dialog");
 
@@ -4833,18 +4896,20 @@ about_init(void)
 	x = (si.cols - w) / 2;
 	y = (si.rows - h) / 2;
 
-    if(uname(&myname) < 0 ) {
-        // should have been tested
-    }
-
+	if(uname(&myname) < 0 ) {
+		strncpy(host, "UNKNOWN", sizeof(host));
+	} else {
+		strncpy(host, myname.nodename, sizeof(host));
+	}
 
 	if (version[0] == '\0') {
 		snprintf(text, sizeof(text),
-			 "MediaMVP Media Center\n%s\nIP %s\n%s", compile_time, myname.nodename, buf);
+			 "MediaMVP Media Center\n%s\nHostname: %s\n%s",
+			 compile_time, host, buf);
 	} else {
 		snprintf(text, sizeof(text),
-			 "MediaMVP Media Center\nVersion %s\n%s\nIP %s\n%s",
-			 version, compile_time, myname.nodename, buf);
+			 "MediaMVP Media Center\nVersion %s\n%s\nHostname: %s\n%s",
+			 version, compile_time, host, buf);
 	}
 
 	about = mvpw_create_dialog(NULL, x, y, w, h,

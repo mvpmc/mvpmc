@@ -829,3 +829,16 @@ mvpw_menu_change_item(mvp_widget_t *widget, void *key, char *label)
 
 	return -1;
 }
+
+void*
+mvpw_menu_get_hilite(mvp_widget_t *widget)
+{
+	int cur;
+
+	if (widget == NULL)
+		return NULL;
+
+	cur = widget->data.menu.current;
+
+	return widget->data.menu.items[cur].key;
+}

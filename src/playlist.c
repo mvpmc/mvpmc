@@ -123,6 +123,8 @@ static void free_playlist()
 	}
 	if (p->name)
 	  free(p->name);
+	if (p->label)
+	  free(p->label);
 	free(p);
   }
   if(playlist_current){
@@ -273,6 +275,7 @@ static int build_playlist_from_file(const char *filename)
 			  ptr[strlen(ptr)-1] = '\0';
 		  mvpw_add_menu_item(playlist_widget, ptr,
 				     pl_item->key, &item_attr);
+		  pl_item->label = strdup(ptr);
 		  if(pl_dest==NULL){
 			playlist = pl_item;
 		  }
@@ -369,6 +372,9 @@ playlist_idle(mvp_widget_t *widget)
     
 				  mvpw_menu_change_item(playlist_widget,
 							pl_item->key, buf);
+				  if (pl_item->label)
+					  free(pl_item->label);
+				  pl_item->label = strdup(buf);
 			  }
 			  destroy_ID3(info);
 		  }
@@ -389,6 +395,8 @@ static void playlist_change(playlist_t *next)
   if(!playlist){
 	return;
   }
+  pthread_mutex_lock(&mutex);
+
     playlist = next;
 
     if (playlist) {
@@ -403,7 +411,7 @@ static void playlist_change(playlist_t *next)
     free(current);
     current=NULL;
     if(!playlist){
-      return;
+	    goto out;
     }
   printf("playlist: play item '%s', file '%s' key %d\n",
 	 playlist->name, playlist->filename, (int)playlist->key);
@@ -469,6 +477,9 @@ static void playlist_change(playlist_t *next)
 	mvpw_show(iw);
   } else {
   }
+
+ out:
+  pthread_mutex_unlock(&mutex);
 }
 
 /* move to the next file in a playlist. if this is the first call,
@@ -532,6 +543,9 @@ void playlist_create(char **item, int n, char *cwd)
 		item_attr.select = select_callback;
 		mvpw_add_menu_item(playlist_widget, item[i],
 				   pl->key, &item_attr);
+		if (pl->label)
+			free(pl->label);
+		pl->label = strdup(item[i]);
 	}
 
 	playlist_head = pl_head;
@@ -541,3 +555,88 @@ void playlist_create(char **item, int n, char *cwd)
 	playlist_change(playlist);
 }
 
+void
+playlist_randomize(void)
+{
+	playlist_t *cur, *swap, *hilite = NULL;
+	int i, j, count, r, old;
+
+	pthread_mutex_lock(&mutex);
+
+	if (playlist_head == NULL) {
+		goto out;
+	}
+
+	old = (int)mvpw_menu_get_hilite(playlist_widget);
+
+	count = 0;
+	cur = playlist_head;
+	while (cur) {
+		if (old == count)
+			hilite = cur;
+		cur = cur->next;
+		count++;
+	}
+
+	if (hilite == NULL)
+		goto out;
+
+	cur = playlist_head;
+	for (i=0; i<count; i++) {
+		int swapped = 0;
+
+		swap = cur;
+		r = rand() % count;
+		for (j=0; j<r; j++) {
+			if (swap->next == NULL) {
+				swap = playlist_head;
+			} else {
+				swap = swap->next;
+			}
+		}
+		if (swap != cur) {
+			playlist_t tmp;
+
+			memcpy(&tmp, cur, sizeof(*cur));
+
+			cur->filename = swap->filename;
+			cur->name = swap->name;
+			cur->label = swap->label;
+			cur->seconds = swap->seconds;
+
+			swap->filename = tmp.filename;
+			swap->name = tmp.name;
+			swap->label = tmp.label;
+			swap->seconds = tmp.seconds;
+
+			if ((cur == hilite) && !swapped) {
+				hilite = swap;
+				swapped = 1;
+			}
+			if ((swap == hilite) && !swapped) {
+				hilite = cur;
+				swapped = 1;
+			}
+		}
+		cur = cur->next;
+	}
+
+	mvpw_clear_menu(playlist_widget);
+
+	cur = playlist_head;
+	for (i=0; i<count; i++) {
+		item_attr.select = select_callback;
+		cur->key = (void*)i;
+		mvpw_add_menu_item(playlist_widget, cur->label,
+				   cur->key, &item_attr);
+		if (hilite == cur)
+			old = i;
+		cur = cur->next;
+	}
+
+	mvpw_menu_hilite_item(playlist_widget, (void*)old);
+	playlist = hilite;
+
+ out:
+	pthread_mutex_unlock(&mutex);
+}

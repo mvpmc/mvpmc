@@ -99,6 +99,7 @@ typedef struct playlist_struct playlist_t;
 struct playlist_struct {
   char *filename;
   char *name;
+  char *label;
   int seconds;
   void *key;
   struct playlist_struct *next;
@@ -214,6 +215,7 @@ extern void video_play(mvp_widget_t*);
 extern void video_set_root(void);
 extern void playlist_play(mvp_widget_t*);
 extern void playlist_next();
+extern void playlist_randomize(void);
 
 extern int mythtv_init(char*, int);
 extern void mythtv_atexit(void);
