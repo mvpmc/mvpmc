@@ -255,6 +255,7 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 
 		audio_clear();
 		video_clear();
+		playlist_clear();
 
 		if (is_video(item)) {
 			if (key != NULL) {
