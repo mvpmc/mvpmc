@@ -68,6 +68,7 @@ static struct option opts[] = {
 	{ "theme", required_argument, 0, 't' },
 	{ "startup", required_argument, 0, 0},
 	{ "web-port", required_argument, 0, 0},
+	{ "version", no_argument, 0, 0},
 	{ "vlc", required_argument, 0, 0},
 	{ "no-mplayer", no_argument, 0, 0 },
 	{ 0, 0, 0, 0 }
@@ -475,6 +476,15 @@ main(int argc, char **argv)
        			    fprintf(stderr, "The port (%d) is not supported!\n",web_port);
 				    web_port = 0;
 				} 
+			}
+			if (strcmp(opts[opt_index].name, "version") == 0) {
+				printf("MediaMVP Media Center\n");
+				printf("http://mvpmc.sourceforge.net/\n");
+				if (version[0] != '\0') {
+					printf("Version: %s\n", version);
+				}
+				printf("Built: %s\n", compile_time);
+				exit(0);
 			}
 			if (strcmp(opts[opt_index].name, "vlc") == 0) {
 				vlc_server = strdup(optarg);
