@@ -1,6 +1,4 @@
 #
-# $Id: Makefile 19 2006-03-14 05:24:19Z gettler $
-#
 # MediaMVP Media Center (mvpmc)
 # http://mvpmc.sourceforge.net/
 #
@@ -28,6 +26,7 @@ clean:
 	scons -c TARGET=host
 	rm -rf `find libs -name obj -type d`
 	rm -rf `find src -name obj -type d`
+	rm dongle.bin.mvpmc.ver
 
 distclean: clean
 	rm -rf dongle/install
