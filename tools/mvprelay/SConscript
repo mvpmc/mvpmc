@@ -1,0 +1,11 @@
+#!/usr/bin/python
+#
+# Build mvprelay from the mvpserver project.
+#    http://vdr-mediamvp.sourceforge.net/mvpserver.html
+#
+
+import os
+
+mvprelay = Program('mvprelay', 'mvprelay.c')
+
+Return('mvprelay')
