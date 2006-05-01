@@ -42,8 +42,9 @@ typedef enum {
 	MYTHTV_STATE_UPCOMING,
 } mythtv_state_t;
 
+#define MYTHTV_NUM_FILTER 4
 typedef enum {
-	MYTHTV_FILTER_NONE,
+	MYTHTV_FILTER_NONE = 0,
 	MYTHTV_FILTER_TITLE,
 	MYTHTV_FILTER_RECORD,
 	MYTHTV_FILTER_RECORD_CONFLICT,
@@ -474,5 +475,7 @@ enum {
 };
 
 extern int startup_selection;
+
+extern mythtv_filter_t mythtv_filter;
 
 #endif /* MVPMC_H */

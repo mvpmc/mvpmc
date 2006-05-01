@@ -2,9 +2,7 @@
 #define MVPMC_CONFIG_H
 
 /*
- *  $Id$
- *
- *  Copyright (C) 2005, Jon Gettler
+ *  Copyright (C) 2005,2006, Jon Gettler
  *  http://mvpmc.sourceforge.net/
  *
  * This program is free software; you can redistribute it and/or modify
@@ -60,6 +58,7 @@ typedef struct {
 #define CONFIG_MYTHTV_RECGROUP	0x00800000
 #define CONFIG_STARTUP_SELECT	0x01000000
 #define CONFIG_DISPLAY_TYPE	0x02000000
+#define CONFIG_MYTHTV_FILTER	0x04000000
 
 #define MYTHTV_RG_MAX	32
 
@@ -100,6 +99,7 @@ typedef struct {
 	config_mythtv_rg_t	mythtv_recgroup[MYTHTV_RG_MAX];
 	int			startup_selection;
 	int			display_type;
+	mythtv_filter_t		mythtv_filter;
 } config_t;
 
 extern config_t *config;
@@ -133,6 +133,7 @@ extern config_t *config;
 #define CONFIG_ITEM_MYTHTV_RG_HIDE	0x0018
 #define CONFIG_ITEM_MYTHTV_RG_SHOW	0x0019
 #define CONFIG_ITEM_DISPLAY_TYPE	0x0020
+#define CONFIG_ITEM_MYTHTV_FILTER	0x0021
 
 /*
  * The flags in config_list_t

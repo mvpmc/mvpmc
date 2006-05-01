@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005, Jon Gettler
+ *  Copyright (C) 2005,2006, Jon Gettler
  *  http://mvpmc.sourceforge.net/
  *
  * This program is free software; you can redistribute it and/or modify
@@ -16,8 +16,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
-
-#ident "$Id$"
 
 /*
  * The config data will be stored either in a file, or in flash.  It is
@@ -269,6 +267,7 @@ add_item(config_list_t *list, int type)
 		ITEM_FIXED(MYTHTV_SORT, mythtv_sort);
 		ITEM_FIXED(MYTHTV_PROGRAMS, mythtv_programs);
 		ITEM_FIXED(DISPLAY_TYPE, display_type);
+		ITEM_FIXED(MYTHTV_FILTER, mythtv_filter);
 	case CONFIG_ITEM_MYTHTV_RG_HIDE:
 		if ((config->bitmask & CONFIG_MYTHTV_RECGROUP) == 0)
 			return 0;
@@ -393,6 +392,7 @@ get_item(config_item_t *item, int override)
 		ITEM_FIXED(MYTHTV_SORT, mythtv_sort);
 		ITEM_FIXED(MYTHTV_PROGRAMS, mythtv_programs);
 		ITEM_FIXED(DISPLAY_TYPE, display_type);
+		ITEM_FIXED(MYTHTV_FILTER, mythtv_filter);
 	case CONFIG_ITEM_MYTHTV_RG_HIDE:
 	case CONFIG_ITEM_MYTHTV_RG_SHOW:
 		config->bitmask |= CONFIG_MYTHTV_RECGROUP;
@@ -494,6 +494,8 @@ save_config_file(char *file)
 	if (add_item(list, CONFIG_ITEM_MYTHTV_RG_SHOW) < 0) 
 		goto err;
 	if (add_item(list, CONFIG_ITEM_DISPLAY_TYPE) < 0) 
+		goto err;
+	if (add_item(list, CONFIG_ITEM_MYTHTV_FILTER) < 0) 
 		goto err;
 
 	list->crc = 0;
@@ -598,6 +600,8 @@ set_config(void)
 		startup_selection = config->startup_selection;
 	if (config->bitmask & CONFIG_DISPLAY_TYPE) 
 		display_type = config->display_type;
+	if (config->bitmask & CONFIG_MYTHTV_FILTER) 
+		mythtv_filter = config->mythtv_filter;
 }
 
 int

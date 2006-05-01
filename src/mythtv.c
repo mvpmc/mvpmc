@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2004, 2005, Jon Gettler
+ *  Copyright (C) 2004, 2005, 2006, Jon Gettler
  *  http://mvpmc.sourceforge.net/
  *
  * This program is free software; you can redistribute it and/or modify
@@ -1289,7 +1289,7 @@ pending_hilite_callback(mvp_widget_t *widget,
 int
 mythtv_pending(mvp_widget_t *widget)
 {
-	return mythtv_pending_filter(widget, MYTHTV_FILTER_NONE);
+	return mythtv_pending_filter(widget, mythtv_filter);
 }
 
 int
