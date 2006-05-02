@@ -60,6 +60,12 @@ typedef enum {
 } osd_type_t;
 
 typedef enum {
+	PL_SHUFFLE = 1,
+	PL_REPEAT,
+	PL_VOLUME,
+} playlist_menu_t;
+
+typedef enum {
    MVP_READ_THREAD_IDLE = 1,
 } mvp_notify_t;
 
@@ -160,6 +166,7 @@ extern mvp_widget_t *demux_video;
 extern mvp_widget_t *demux_audio;
 
 extern mvp_widget_t *playlist_widget;
+extern mvp_widget_t *pl_menu;
 
 extern mvp_widget_t *fb_program_widget;
 extern mvp_widget_t *fb_progress;
@@ -188,6 +195,7 @@ extern char *mythtv_recdir;
 extern char *mythtv_ringbuf;
 
 extern playlist_t *playlist;
+extern int playlist_repeat;
 
 extern char *imagedir;
 

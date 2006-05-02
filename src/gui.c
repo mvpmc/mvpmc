@@ -825,7 +825,6 @@ static mvp_widget_t *busy_widget;
 static mvp_widget_t *busy_graph;
 static mvp_widget_t *themes_menu;
 static mvp_widget_t *fb_menu;
-static mvp_widget_t *pl_menu;
 static mvp_widget_t *viewport;
 static mvp_widget_t *vp[4];
 static mvp_widget_t *vp_text;
@@ -888,6 +887,7 @@ mvp_widget_t *demux_audio;
 mvp_widget_t *screensaver;
 
 mvp_widget_t *playlist_widget;
+mvp_widget_t *pl_menu;
 
 mvp_widget_t *fb_progress;
 mvp_widget_t *fb_name;
@@ -1820,17 +1820,21 @@ pl_menu_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
 	char buf[256];
 
-	mvpw_hide(widget);
-
 	switch ((int)key) {
-	case 1:
+	case PL_SHUFFLE:
+		mvpw_hide(widget);
 		playlist_randomize();
 		break;
-	case 2:
+	case PL_VOLUME:
+		mvpw_hide(widget);
 		snprintf(buf, sizeof(buf), "%d", volume);
 		mvpw_set_dialog_text(volume_dialog, buf);
 		mvpw_show(volume_dialog);
 		mvpw_focus(volume_dialog);
+		break;
+	case PL_REPEAT:
+		playlist_repeat = !playlist_repeat;
+		mvpw_check_menu_item(widget, key, playlist_repeat);
 		break;
 	default:
 		break;
@@ -2677,6 +2681,7 @@ file_browser_init(void)
 				   fb_popup_attr.bg, fb_popup_attr.border,
 				   fb_popup_attr.border_size);
 
+	fb_popup_attr.checkboxes = 0;
 	mvpw_set_menu_attr(fb_menu, &fb_popup_attr);
 	mvpw_set_menu_title(fb_menu, "File Browser Menu");
 
@@ -2738,6 +2743,7 @@ playlist_init(void)
 				   fb_popup_attr.bg, fb_popup_attr.border,
 				   fb_popup_attr.border_size);
 
+	fb_popup_attr.checkboxes = 1;
 	mvpw_set_menu_attr(pl_menu, &fb_popup_attr);
 	mvpw_set_menu_title(pl_menu, "Playlist Menu");
 
@@ -2747,9 +2753,11 @@ playlist_init(void)
 	fb_menu_item_attr.fg = fb_popup_attr.fg;
 	fb_menu_item_attr.bg = fb_popup_attr.bg;
 	mvpw_add_menu_item(pl_menu, "Shuffle Playlist",
-			   (void*)1, &fb_menu_item_attr);
+			   (void*)PL_SHUFFLE, &fb_menu_item_attr);
+	mvpw_add_menu_item(pl_menu, "Repeat",
+			   (void*)PL_REPEAT, &fb_menu_item_attr);
 	mvpw_add_menu_item(pl_menu, "Volume",
-			   (void*)2, &fb_menu_item_attr);
+			   (void*)PL_VOLUME, &fb_menu_item_attr);
 	return 0;
 }
 

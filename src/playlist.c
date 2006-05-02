@@ -56,6 +56,8 @@ static pthread_once_t init_control = PTHREAD_ONCE_INIT;
 
 playlist_t *playlist=NULL, *playlist_head = NULL;
 
+int playlist_repeat = 0;
+
 static void playlist_change(playlist_t *next);
 int is_streaming(char *url);
 
@@ -487,8 +489,14 @@ static void playlist_change(playlist_t *next)
 */
 void playlist_next()
 {
-  if (playlist)
-    playlist_change(playlist->next);
+	if (playlist) {
+		playlist_t *next = playlist->next;
+
+		if ((next == NULL) && (playlist_repeat))
+			next = playlist_head;
+
+		playlist_change(next);
+	}
 }
 
 void playlist_prev(void)
@@ -511,6 +519,8 @@ void playlist_clear(void)
 	if (playlist_head) {
 		free_playlist();
 		printf("%s(): playlist cleared\n", __FUNCTION__);
+		playlist_repeat = 0;
+		mvpw_check_menu_item(pl_menu, (void*)PL_REPEAT, 0);
 	}
 }
 
@@ -523,6 +533,8 @@ void playlist_create(char **item, int n, char *cwd)
 	pthread_mutex_lock(&mutex);
 
 	mvpw_clear_menu(playlist_widget);
+	playlist_repeat = 0;
+	mvpw_check_menu_item(pl_menu, (void*)PL_REPEAT, playlist_repeat);
 
 	pl_head = pl_prev = NULL;
 	for (i=0; i<n; i++) {
