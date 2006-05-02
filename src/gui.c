@@ -27,6 +27,8 @@
 #include <signal.h>
 #include <fcntl.h>
 #include <sys/utsname.h>
+#include <netdb.h>
+#include <arpa/inet.h>
 
 #ifndef MVPMC_HOST
 #include <sys/reboot.h>
@@ -5001,6 +5003,11 @@ about_init(void)
 		strncpy(host, "UNKNOWN", sizeof(host));
 	} else {
 		strncpy(host, myname.nodename, sizeof(host));
+        /* this is how to get the ip address if needed
+        struct hostent *hptr;   
+        hptr = gethostbyname( myname.nodename );
+        snprintf( host,sizeof(host), "%s",inet_ntoa(**((struct in_addr **)hptr->h_addr_list)));
+        */
 	}
 
 	if (version[0] == '\0') {

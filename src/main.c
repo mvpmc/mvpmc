@@ -1099,7 +1099,7 @@ www_mvpmc_start(void *arg) {
     struct stat sb;
     FILE* fp;
     struct dirent **dl;
-    static char mytoken[10]="^";
+    static char mytoken[20]="^";
 
 
     int contentType;
@@ -1160,13 +1160,21 @@ www_mvpmc_start(void *arg) {
         }
         contentType = 0;
         int conlen = 0;
+        int reset;
         char *ptr;
+        reset = 0;
+        int offset = 0;
 
         while ( fgets( line, sizeof(line), stream ) != (char*) 0 ) {
-
             if (strstr(line,"application/x-www-form-urlencoded")!=NULL ) {
                 contentType = 1;
             }
+            if (strncmp(line,"User-Agent",10)==0) {
+                if (strstr(line,"compatible; MSIE") != NULL ) {
+                    offset = 2;
+                }
+            }
+             
             
             ptr = strstr(line,"Content-Length:");
             if (ptr !=NULL ) {
@@ -1185,12 +1193,13 @@ www_mvpmc_start(void *arg) {
             send_error(stream, 501, "Not Implemented", (char*) 0, "That method is not implemented." );
             continue;
         }
-
-
         if ( contentType == 1 ) {
             contentType = 0;
             int cc;
-            cc = fread(line,sizeof(char),conlen,stream);
+            cc = fread(line,sizeof(char),conlen+offset,stream);
+            if (cc > conlen) {
+                cc = conlen;
+            }
             line[cc]=0;
             ptr = strstr(line,"token=");
             if ( ptr != NULL) {
@@ -1200,7 +1209,7 @@ www_mvpmc_start(void *arg) {
                     continue;
                 }
                 if (strcmp(path,"/radio")==0 ) {
-                    mvp_config_radio(line);                   
+                    reset = mvp_config_radio(line);                   
                 } else if (strcmp(path,"/config")==0 ) {
                     mvp_config_general(line);
                 } else if (strcmp(path,"/mount")==0 ) {
@@ -1216,7 +1225,11 @@ www_mvpmc_start(void *arg) {
             }
             send_headers(stream, 202, "OK", (char*) 0, "text/html", -1, sb.st_mtime );
             (void) fprintf(stream, "<html><body><H1>Changes accepted</H1><BR /><a href=\"%s\">%s</a></address>\n</body></html>\n", "/", "Return to configuration");
+            fflush(stream);
             fclose(stream);
+            if (reset==0x3d) {
+                config->playback_pause = reset;
+            }
             continue;
         }
 
@@ -1637,7 +1650,7 @@ int mvp_config_radio(char *line)
             break;
         case 2:
             if (*equals == 'P' ) {
-                config->playback_pause = 0x3d;
+                rc = 0x3d;
             } else if (gui_state == MVPMC_STATE_NONE || gui_state == MVPMC_STATE_FILEBROWSER || gui_state == MVPMC_STATE_HTTP ) {
                 switch (*equals){
                     case 'R':
@@ -1782,7 +1795,7 @@ int mvp_config_general(char *line)
             tzset();
             pthread_mutex_lock (&web_server_mutex);
             if (fork()==0) {
-                rc = execlp("/usr/sbin/rdate","rdate", "-s", web_config.time_server, (char *)NULL);
+                rc = execlp("/usr/sbin/rdate","rdate", "-s", web_config.time_server, (char *)0);
             }
             pthread_mutex_unlock (&web_server_mutex);
             setTime = 1;
@@ -2124,6 +2137,11 @@ void load_web_config(char *font)
         memset(&web_config, 0, sizeof(struct WEB_CONFIG_t));
         fread((char *)&web_config,sizeof(struct WEB_CONFIG_t),1,web_config_file);
         fclose(web_config_file);
+        char live_environ[75];
+        snprintf(live_environ,75,"%s&password=%s",web_config.live365_userid,web_config.live365_password);
+        setenv("LIVE365DATA",live_environ,1);
+        setenv("TZ",web_config.tz,1);
+
     } else {
         memset(&web_config, 0, sizeof(struct WEB_CONFIG_t));
         snprintf(web_config.tz,30,"%s",getenv("TZ"));
@@ -2156,13 +2174,11 @@ void load_web_config(char *font)
         if (vlc_server) {
 	        snprintf(web_config.vlc_server,64,"%s",vlc_server);
         }
+        if (getenv("LIVE365DATA")!=NULL) {
+            sscanf(getenv("LIVE365DATA"),"%32[^&]%*[^=]%*1s%32s",web_config.live365_userid,web_config.live365_password);
+        }
     }
-    setenv("TZ",web_config.tz,1);
     
-    char live_environ[75];
-    snprintf(live_environ,75,"%s&password=%s",web_config.live365_userid,web_config.live365_password);
-    setenv("LIVE365DATA",live_environ,1);
-
     if (IS_WEB_ENABLED(WEB_CONFIG_USE_VNC) && vnc_server[0]==0 ) {
         strcpy(vnc_server,web_config.vnc_server);
         vnc_port = web_config.vnc_port;

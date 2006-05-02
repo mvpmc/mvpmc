@@ -598,11 +598,6 @@ size_t ogg_read_callback(void *ptr, size_t byteSize, size_t sizeToRead, void *da
         if (memcmp(dataptr,"OggS",4)==0) {
             if ( OggStreamState!=OGG_STATE_LASTPAGE) {
                 header = (struct my_oggHeader *) dataptr;
-                /*
-                if (i <1000) {
-                    printf("OggS %x %d %x %x %d\n",header->type,i,header->bitstream_serial_number,header->page_sequence_number,result);
-                }
-                */
                 if ( header->type == 4 || header->type == 5 ) {
                     // found last page now wait for next ogg header
                     OggStreamState = OGG_STATE_LASTPAGE;
@@ -629,7 +624,6 @@ size_t ogg_read_callback(void *ptr, size_t byteSize, size_t sizeToRead, void *da
                 result = i;
                 // most of the time it will be the last element 'O'
                 readBuffer[0] = *dataptr;
-//                printf("%c %d\n",*dataptr,result-i);
                 break;
             } 
             *outptr = *dataptr;
@@ -637,15 +631,9 @@ size_t ogg_read_callback(void *ptr, size_t byteSize, size_t sizeToRead, void *da
         } 
     }
     if (bytesRemaining > 1 ) {
-//        printf("result = %d %d\n",result,bytesRemaining);
         memcpy(readBuffer,&readBuffer[result],bytesRemaining);    
 
     }
-    /*
-    fprintf(crap,"--martin--");
-    fwrite(ptr,1,result,crap);
-    fflush(crap);
-    */
     return result;
 }
 
@@ -785,6 +773,7 @@ audio_clear(void)
         if ( using_helper == 1 ) {
             mplayer_helper_connect(outlog,NULL,2);
         }
+        using_helper=0;
         fclose(outlog);
     }
 }
@@ -1110,6 +1099,8 @@ sighandler(int sig)
 static int
 audio_init(void)
 {   
+    static int old_audio_type = AUDIO_FILE_UNKNOWN;
+
 	if ( is_streaming(current) < 0    ) {
 		if ((fd=open(current, O_RDONLY|O_LARGEFILE|O_NDELAY)) < 0) {
 			goto fail;
@@ -1156,6 +1147,14 @@ audio_init(void)
 	}
 
 	av_play();
+
+    if (old_audio_type != audio_type ) {
+        while ( av_empty()==0 ) {
+            // empty audio buffer 
+            usleep(10000);
+        }
+        old_audio_type = audio_type;
+    }
 
 	switch (audio_type) {
 	case AUDIO_FILE_WAV:
@@ -2522,7 +2521,6 @@ int http_read_stream(unsigned int httpsock,int metaInt,int offset)
     } while ( (message_len > 0 || bufferFull > 1) && audio_stop == 0 );
     if (audio_stop == 0) {
         // empty audio buffer
-//        mvpw_set_text_str(fb_name, "Shutting Down");
         usleep(1000000);
     }
     bufferFull = 0;
@@ -2684,6 +2682,13 @@ int is_streaming(char *url)
         "rtsp://",
         NULL
     };
+    static char *vlcTypes[] = {
+        ".divx",
+        ".flv",
+        ".wmv",
+        "avi",
+        NULL
+    };
     int i=0;
     int retcode = -1;
     char *ptr;
@@ -2697,8 +2702,16 @@ int is_streaming(char *url)
             i++;
         }
     }
-    if (retcode == -1 && strstr(url,".divx") !=NULL ) {
-        retcode = 100;
+    if (retcode == -1) {
+        i = 0;
+        while (vlcTypes[i]!=NULL) {
+            if ( strstr(url,vlcTypes[i]) !=NULL ) {
+                retcode = 100;
+                break;
+            }
+            i++;
+        }
+
     }
     return retcode;
 }
