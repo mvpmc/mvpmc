@@ -80,6 +80,7 @@ int reboot_disable = 0;
 int filebrowser_disable = 0;
 int mplayer_disable = 0;
 int web_port = 0;
+int web_server;
 
 void reset_web_config(void);
 void load_web_config(char *font);
@@ -908,6 +909,7 @@ main(int argc, char **argv)
 		exit(1);
 	}
 	if (web_port) {
+        web_server = 1;
 	    pthread_create(&web_server_thread, &thread_attr_small,www_mvpmc_start, NULL);
 	}
 
@@ -962,6 +964,13 @@ switch_gui_state(mvpmc_state_t new)
 {
 	if (new == gui_state)
 		return;
+    
+    if (new==MVPMC_STATE_REPLAYTV && web_port==80) {
+        web_server = 0;
+    } else if (gui_state==MVPMC_STATE_REPLAYTV && web_port==80 ) {
+        web_server = 1;
+        pthread_create(&web_server_thread, &thread_attr_small,www_mvpmc_start, NULL);
+    }
 
 	printf("%s(): changing from %d to %d\n", __FUNCTION__, gui_state, new);
 
@@ -1137,177 +1146,205 @@ www_mvpmc_start(void *arg) {
     requestno = 0;
     file = NULL;
     printf("web server thread started (pid %d)\n", getpid());
-    for (;;) {
-        /* wait for a connection request */
-        connfd = accept(listenfd, (struct sockaddr *) &clientaddr, &clientlen);
-        if (connfd < 0)
-            error("ERROR on accept");
+                                                   
+    fd_set read_fds;
+    FD_ZERO (&read_fds);
 
-        requestno++;
+    while (web_server == 1) {
+        struct timeval tv;
 
-        /* open the child socket descriptor as a stream */
-        if ((stream = fdopen(connfd, "r+")) == NULL)
-            error("ERROR on fdopen");
+        int n1 = 0;
 
-        if ( fgets( line, sizeof(line), stream ) == (char*) 0 ) {
-            send_error(stream, 400, "Bad Request", (char*) 0, "No request found." );
-            continue;
-        }
-        printf("%s\n",line);
-        if ( sscanf( line, "%[^ ] %[^ ] %[^ ]", method, path, protocol ) != 3 ) {
-            send_error(stream, 400, "Bad Request", (char*) 0, "Can't parse request." );
-            continue;
-        }
-        contentType = 0;
-        int conlen = 0;
-        int reset;
-        char *ptr;
-        reset = 0;
-        int offset = 0;
+        FD_ZERO (&read_fds);
+        FD_SET (listenfd, &read_fds);
+        if (listenfd > n1)
+            n1 = listenfd;
 
-        while ( fgets( line, sizeof(line), stream ) != (char*) 0 ) {
-            if (strstr(line,"application/x-www-form-urlencoded")!=NULL ) {
-                contentType = 1;
+        /*
+         * Wait until we receive data from server or up to 100ms
+         * (1/10 of a second).
+         */
+
+        tv.tv_usec = 100000;
+
+        if (select (n1 + 1, &read_fds, NULL, NULL, &tv) == -1) {
+            if (errno != EINTR){
+                abort ();
             }
-            if (strncmp(line,"User-Agent",10)==0) {
-                if (strstr(line,"compatible; MSIE") != NULL ) {
-                    offset = 2;
-                }
-            }
-             
-            
-            ptr = strstr(line,"Content-Length:");
-            if (ptr !=NULL ) {
-                ptr+=15;
-                conlen = atoi(ptr);
-                if (conlen> 5000) {
-                    break;
-                }
-            }
-        
-            if ( strcmp( line, "\n" ) == 0 || strcmp( line, "\r\n" ) == 0 )
-                break;
         }
-
-        if ( conlen> 5000 || (strcasecmp( method, "get" ) != 0  && strcasecmp( method, "post" ) != 0) ) {
-            send_error(stream, 501, "Not Implemented", (char*) 0, "That method is not implemented." );
-            continue;
-        }
-        if ( contentType == 1 ) {
+        if (FD_ISSET (listenfd, &read_fds)) {
+            /* wait for a connection request */
+            connfd = accept(listenfd, (struct sockaddr *) &clientaddr, &clientlen);
+            if (connfd < 0)
+                error("ERROR on accept");
+    
+            requestno++;
+    
+            /* open the child socket descriptor as a stream */
+            if ((stream = fdopen(connfd, "r+")) == NULL)
+                error("ERROR on fdopen");
+    
+            if ( fgets( line, sizeof(line), stream ) == (char*) 0 ) {
+                send_error(stream, 400, "Bad Request", (char*) 0, "No request found." );
+                continue;
+            }
+            printf("%s\n",line);
+            if ( sscanf( line, "%[^ ] %[^ ] %[^ ]", method, path, protocol ) != 3 ) {
+                send_error(stream, 400, "Bad Request", (char*) 0, "Can't parse request." );
+                continue;
+            }
             contentType = 0;
-            int cc;
-            cc = fread(line,sizeof(char),conlen+offset,stream);
-            if (cc > conlen) {
-                cc = conlen;
-            }
-            line[cc]=0;
-            ptr = strstr(line,"token=");
-            if ( ptr != NULL) {
-                ptr+=6;
-                if (strncmp(ptr,mytoken,strlen(mytoken))!=0) {
-                    send_error(stream, 400, "Request Timeout", (char*) 0, "POST Outdated<BR />Please resubmit mvpmc update" );
-                    continue;
+            int conlen = 0;
+            int reset;
+            char *ptr;
+            reset = 0;
+            int offset = 0;
+    
+            while ( fgets( line, sizeof(line), stream ) != (char*) 0 ) {
+                if (strstr(line,"application/x-www-form-urlencoded")!=NULL ) {
+                    contentType = 1;
                 }
-                if (strcmp(path,"/radio")==0 ) {
-                    reset = mvp_config_radio(line);                   
-                } else if (strcmp(path,"/config")==0 ) {
-                    mvp_config_general(line);
-                } else if (strcmp(path,"/mount")==0 ) {
-                    mvp_config_script(line);                
-                } else {
-                    send_error(stream, 400, "Bad request", (char*) 0, "POST received not supported" );
-                    continue;                
-                }                
-            } else {
-                send_error(stream, 400, "Bad request", (char*) 0, "POST received but not accepted" );
-                continue;
-
-            }
-            send_headers(stream, 202, "OK", (char*) 0, "text/html", -1, sb.st_mtime );
-            (void) fprintf(stream, "<html><body><H1>Changes accepted</H1><BR /><a href=\"%s\">%s</a></address>\n</body></html>\n", "/", "Return to configuration");
-            fflush(stream);
-            fclose(stream);
-            if (reset==0x3d) {
-                config->playback_pause = reset;
-            }
-            continue;
-        }
-
-        if ( path[0] != '/' ) {
-            send_error(stream, 400, "Bad Request", (char*) 0, "Bad filename." );
-            continue;
-        }
-        file = &(path[1]);
-        strdecode( file, file );
-        if ( file[0] == '\0' ) {
-            file = "/usr/share/mvpmc/setup.html";
-        } else {
-            snprintf(method,256,"/usr/share/mvpmc/%s",file);
-            file = method;
-        }
-        len = strlen( file );
-        if ( strstr( file, ".." )!=NULL) {
-            send_error(stream,  400, "Bad Request", (char*) 0, "Illegal filename." );
-            continue;
-        }
-        if ( stat( file, &sb ) < 0 ) {
-            send_error(stream, 404, "Not Found", (char*) 0, "File not found." );
-            continue;
-        }
-        if ( S_ISDIR( sb.st_mode ) ) {
-            if ( file[len-1] != '/' ) {
-                (void) snprintf(
-                               location, sizeof(location), "Location: %s/", path );
-                send_error(stream, 302, "Found", location, "Directories must end with a slash." );
-                continue;
-            }
-            (void) snprintf( idx, sizeof(idx), "%sindex.html", file );
-            if ( stat( idx, &sb ) >= 0 ) {
-                file = idx;
-                goto do_file;
-            }
-            send_headers(stream, 200, "Ok", (char*) 0, "text/html", -1, sb.st_mtime );
-            (void) fprintf(stream,"<html><head><title>Index of %s</title></head>\n<body bgcolor=\"#99cc99\"><h4>Index of %s</h4>\n<pre>\n", file, file );
-            n = scandir( file, &dl, NULL, alphasort );
-            if ( n < 0 )
-                perror( "scandir" );
-            else
-                for ( i = 0; i < n; ++i )
-                    file_details(stream, file, dl[i]->d_name );
-            (void) fprintf(stream, "</pre>\n<hr>\n<address><a href=\"%s\">%s</a></address>\n</body></html>\n", SERVER_URL, SERVER_NAME );
-        } else {
-            do_file:
-            fp = fopen( file, "r" );
-            if ( fp == (FILE*) 0 ) {
-                send_error(stream, 403, "Forbidden", (char*) 0, "File is protected." );
-                continue;
-            }
-            send_headers(stream, 200, "Ok", (char*) 0, get_mime_type( file ), sb.st_size, sb.st_mtime );
-
-            if ( strcasecmp( method, "get" ) == 0   ) {
-                snprintf(mytoken,20,"%X*%X",rand(),rand());
-            }
-            if (strstr(file,".htm")==NULL ) {
-                int ich;
-                while ( ( ich = getc( fp ) ) != EOF ){
-                    fprintf(stream,"%c", ich );
-                }
-            } else {
-                while (fgets(location,1024,fp)!=NULL) {
-                    if (strstr(location,"<FORM method = \"POST\" ACTION=\"")!=NULL ) {
-                        fprintf(stream,"%s", location);
-                        fprintf(stream,"<input type=\"hidden\" name=\"token\" value=\"%s\" />\n",mytoken);
-                    } else {
-                        mvp_load_data(stream,location);
+                if (strncmp(line,"User-Agent",10)==0) {
+                    if (strstr(line,"compatible; MSIE") != NULL ) {
+                        offset = 2;
                     }
                 }
-
+                 
+                
+                ptr = strstr(line,"Content-Length:");
+                if (ptr !=NULL ) {
+                    ptr+=15;
+                    conlen = atoi(ptr);
+                    if (conlen> 5000) {
+                        break;
+                    }
+                }
+            
+                if ( strcmp( line, "\n" ) == 0 || strcmp( line, "\r\n" ) == 0 )
+                    break;
             }
+    
+            if ( conlen> 5000 || (strcasecmp( method, "get" ) != 0  && strcasecmp( method, "post" ) != 0) ) {
+                send_error(stream, 501, "Not Implemented", (char*) 0, "That method is not implemented." );
+                continue;
+            }
+            if ( contentType == 1 ) {
+                contentType = 0;
+                int cc;
+                cc = fread(line,sizeof(char),conlen+offset,stream);
+                if (cc > conlen) {
+                    cc = conlen;
+                }
+                line[cc]=0;
+                ptr = strstr(line,"token=");
+                if ( ptr != NULL) {
+                    ptr+=6;
+                    if (strncmp(ptr,mytoken,strlen(mytoken))!=0) {
+                        send_error(stream, 400, "Request Timeout", (char*) 0, "POST Outdated<BR />Please resubmit mvpmc update" );
+                        continue;
+                    }
+                    if (strcmp(path,"/radio")==0 ) {
+                        reset = mvp_config_radio(line);                   
+                    } else if (strcmp(path,"/config")==0 ) {
+                        mvp_config_general(line);
+                    } else if (strcmp(path,"/mount")==0 ) {
+                        mvp_config_script(line);                
+                    } else {
+                        send_error(stream, 400, "Bad request", (char*) 0, "POST received not supported" );
+                        continue;                
+                    }                
+                } else {
+                    send_error(stream, 400, "Bad request", (char*) 0, "POST received but not accepted" );
+                    continue;
+    
+                }
+                send_headers(stream, 202, "OK", (char*) 0, "text/html", -1, sb.st_mtime );
+                (void) fprintf(stream, "<html><body><H1>Changes accepted</H1><BR /><a href=\"%s\">%s</a></address>\n</body></html>\n", "/", "Return to configuration");
+                fflush(stream);
+                fclose(stream);
+                if (reset==0x3d) {
+                    config->playback_pause = reset;
+                }
+                continue;
+            }
+    
+            if ( path[0] != '/' ) {
+                send_error(stream, 400, "Bad Request", (char*) 0, "Bad filename." );
+                continue;
+            }
+            file = &(path[1]);
+            strdecode( file, file );
+            if ( file[0] == '\0' ) {
+                file = "/usr/share/mvpmc/setup.html";
+            } else {
+                snprintf(method,256,"/usr/share/mvpmc/%s",file);
+                file = method;
+            }
+            len = strlen( file );
+            if ( strstr( file, ".." )!=NULL) {
+                send_error(stream,  400, "Bad Request", (char*) 0, "Illegal filename." );
+                continue;
+            }
+            if ( stat( file, &sb ) < 0 ) {
+                send_error(stream, 404, "Not Found", (char*) 0, "File not found." );
+                continue;
+            }
+            if ( S_ISDIR( sb.st_mode ) ) {
+                if ( file[len-1] != '/' ) {
+                    (void) snprintf(
+                                   location, sizeof(location), "Location: %s/", path );
+                    send_error(stream, 302, "Found", location, "Directories must end with a slash." );
+                    continue;
+                }
+                (void) snprintf( idx, sizeof(idx), "%sindex.html", file );
+                if ( stat( idx, &sb ) >= 0 ) {
+                    file = idx;
+                    goto do_file;
+                }
+                send_headers(stream, 200, "Ok", (char*) 0, "text/html", -1, sb.st_mtime );
+                (void) fprintf(stream,"<html><head><title>Index of %s</title></head>\n<body bgcolor=\"#99cc99\"><h4>Index of %s</h4>\n<pre>\n", file, file );
+                n = scandir( file, &dl, NULL, alphasort );
+                if ( n < 0 )
+                    perror( "scandir" );
+                else
+                    for ( i = 0; i < n; ++i )
+                        file_details(stream, file, dl[i]->d_name );
+                (void) fprintf(stream, "</pre>\n<hr>\n<address><a href=\"%s\">%s</a></address>\n</body></html>\n", SERVER_URL, SERVER_NAME );
+            } else {
+                do_file:
+                fp = fopen( file, "r" );
+                if ( fp == (FILE*) 0 ) {
+                    send_error(stream, 403, "Forbidden", (char*) 0, "File is protected." );
+                    continue;
+                }
+                send_headers(stream, 200, "Ok", (char*) 0, get_mime_type( file ), sb.st_size, sb.st_mtime );
+    
+                if ( strcasecmp( method, "get" ) == 0   ) {
+                    snprintf(mytoken,20,"%X*%X",rand(),rand());
+                }
+                if (strstr(file,".htm")==NULL ) {
+                    int ich;
+                    while ( ( ich = getc( fp ) ) != EOF ){
+                        fprintf(stream,"%c", ich );
+                    }
+                } else {
+                    while (fgets(location,1024,fp)!=NULL) {
+                        if (strstr(location,"<FORM method = \"POST\" ACTION=\"")!=NULL ) {
+                            fprintf(stream,"%s", location);
+                            fprintf(stream,"<input type=\"hidden\" name=\"token\" value=\"%s\" />\n",mytoken);
+                        } else {
+                            mvp_load_data(stream,location);
+                        }
+                    }
+    
+                }
+            }
+    
+            /* clean up */
+            fclose(stream);
         }
-
-        /* clean up */
-        fclose(stream);
     }
+    close(listenfd);
     return NULL;
 
 }
