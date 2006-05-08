@@ -26,7 +26,8 @@ else:
 
 mvpmc = mvp.Program('mvpmc',
                     ['audio.c', 'colorlist.c', 'config.c', 'display.c', 'fb.c',
-                     'gui.c', 'main.c', 'mclient.c', 'mythtv.c', 'playlist.c',
+                     'gui.c', 'main.c', 'mclient.c', 'mclient_mvpmc.c',
+		     'mclient_cli.c', 'mythtv.c', 'playlist.c',
                      'replaytv.c', 'theme.c', 'video.c', 'version.c'],
                     CPPPATH = [ env['INCDIR'], env['INSTINCDIR'],
                                 '.', '../include' ],

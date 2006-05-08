@@ -1327,16 +1327,6 @@ typedef enum {
 	HTTP_UNKNOWN,
 } http_state_type_t;
 
-//=================================
-// thse should be in mclient.h
-typedef struct {
-	void * buf;
-	int head;
-	int tail;
-	int size;
-	int playmode;
-} ring_buf;
-
 ring_buf* ring_buf_create(int size);
 
 void send_mpeg_data(void);

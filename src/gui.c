@@ -91,6 +91,19 @@ mvpw_menu_attr_t fb_popup_attr = {
 	.margin = 4,
 };
 
+mvpw_menu_attr_t mclient_fullscreen_attr = {
+	.font = FONT_LARGE,
+	.fg = MVPW_LIGHTGREY,
+	.bg = MVPW_BLACK,
+	.hilite_fg = MVPW_WHITE,
+	.hilite_bg = MVPW_DARKGREY2,
+	.title_fg = MVPW_WHITE,
+	.title_bg = MVPW_MIDNIGHTBLUE,
+	.border_size = 0,
+	.border = MVPW_DARKGREY2,
+	.margin = 4,
+};
+
 static mvpw_menu_attr_t settings_attr = {
 	.font = FONT_STANDARD,
 	.fg = MVPW_BLACK,
@@ -226,6 +239,13 @@ static mvpw_menu_item_attr_t fb_menu_item_attr = {
 	.selectable = 1,
 	.fg = MVPW_BLACK,
 	.bg = MVPW_LIGHTGREY,
+	.checkbox_fg = MVPW_GREEN,
+};
+
+static mvpw_menu_item_attr_t mclient_fullscreen_menu_item_attr = {
+	.selectable = 0,
+	.fg = MVPW_LIGHTGREY, 
+	.bg = MVPW_BLACK,
 	.checkbox_fg = MVPW_GREEN,
 };
 
@@ -443,7 +463,7 @@ static mvpw_dialog_attr_t mclient_attr = {
 	.title_bg = MVPW_DARKGREY,
 	.modal = 0,
 	.border = MVPW_BLUE,
-	.border_size = 2,
+	.border_size = 0,
 	.margin = 4,
 	.justify_title = MVPW_TEXT_CENTER,
 	.justify_body = MVPW_TEXT_LEFT,
@@ -643,6 +663,9 @@ theme_attr_t theme_attr[] = {
 	{ .name = "mclient",
 	  .type = WIDGET_DIALOG,
 	  .attr.dialog = &mclient_attr },
+	{ .name = "mclient_fullscreen",
+	  .type = WIDGET_MENU,
+	  .attr.menu = &mclient_fullscreen_attr },
 	{ .name = "busy_graph",
 	  .type = WIDGET_GRAPH,
 	  .attr.graph = &busy_graph_attr },
@@ -816,6 +839,8 @@ static mvp_widget_t *settings_startup;
 static mvp_widget_t *screensaver_dialog;
 static mvp_widget_t *about;
 mvp_widget_t *mclient;
+mvp_widget_t *mclient_fullscreen;
+mvp_widget_t *fullscreen_progress;
 static mvp_widget_t *setup_image;
 static mvp_widget_t *fb_image;
 static mvp_widget_t *mythtv_image;
@@ -2530,6 +2555,11 @@ mclient_key_callback(mvp_widget_t *widget, char key)
 
         if(key == MVPW_KEY_EXIT)
 	{
+		/*
+		 * Hide the mclient's full screen and
+		 * the mclient.
+		 */
+		mvpw_hide(mclient_fullscreen); 
 	        mvpw_hide(widget);
 		/*
 		 * Give up the mclient GUI.
@@ -4628,6 +4658,9 @@ main_select_callback(mvp_widget_t *widget, char *item, void *key)
 		break;
 	case MM_MCLIENT:
 		mvpw_show(mclient);
+		mvpw_show(mclient_fullscreen);
+		mvpw_raise(mclient_fullscreen);
+		mvpw_raise(mclient);
 		mvpw_focus(mclient);
 
                 switch_gui_state(MVPMC_STATE_MCLIENT);
@@ -5067,6 +5100,59 @@ mclient_init(void)
 	mvpw_set_dialog_text(mclient, text);
 
 	mvpw_set_key(mclient, mclient_key_callback);
+
+	return 0;
+}
+
+static int
+mclient_fullscreen_init(void)
+{
+	int h, w, i;
+	int h2;
+
+	splash_update("Creating mclient_fullscreen dialog");
+
+	h = FONT_HEIGHT(mclient_fullscreen_attr);
+	w = si.cols - viewport_edges[EDGE_LEFT] - viewport_edges[EDGE_RIGHT];
+
+	h2 = si.rows - (h*3) - viewport_edges[EDGE_TOP] - viewport_edges[EDGE_BOTTOM];
+
+	mclient_fullscreen = mvpw_create_menu(NULL, 
+			viewport_edges[EDGE_LEFT],
+			viewport_edges[EDGE_TOP],
+			si.cols, si.rows,
+			mclient_fullscreen_attr.bg,
+		 	mclient_fullscreen_attr.border, 
+			mclient_fullscreen_attr.border_size);
+
+	mvpw_set_menu_attr(mclient_fullscreen, &mclient_fullscreen_attr);
+
+	mvpw_set_menu_title(mclient_fullscreen, "MClient");
+
+	/*
+	 * Later we will write mclient_fullscreen's own call back.  For now
+	 * we will use it for displaying only.
+	 */
+	mvpw_set_key(mclient_fullscreen, mclient_key_callback);
+
+	popup_item_attr.select = popup_select_callback;
+
+	/*
+	 * Define the full screen lines here.
+	 */
+	mvpw_add_menu_item(mclient_fullscreen, "Music Client",
+			   (void*)1, &mclient_fullscreen_menu_item_attr);
+	mvpw_add_menu_item(mclient_fullscreen, "Full Screen / Phase One: Read Only",
+			   (void*)2, &mclient_fullscreen_menu_item_attr);
+
+	/*
+	 * Define the rest of the lines here, then change them later as needed.
+	 */
+	for(i = 3; i < 15; i++)
+	{
+		mvpw_add_menu_item(mclient_fullscreen, "...",
+				   (void*)i, &mclient_fullscreen_menu_item_attr);
+	}
 
 	return 0;
 }
@@ -5917,6 +6003,7 @@ gui_init(char *server, char *replaytv)
 	warn_init();
 	screensaver_init();
 	mclient_init();
+	mclient_fullscreen_init();
 	thruput_init();
 
 	mvpw_destroy(splash);
