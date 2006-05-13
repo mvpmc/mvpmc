@@ -214,6 +214,19 @@
     <font>large</font>
   </widget>
 
+  <widget type="menu" name="mclient_fullscreen">
+    <color type="bg">midnightblue</color>
+    <color type="fg">seashell3</color>
+    <color type="hilite_bg">darkgoldenrod4</color>
+    <color type="hilite_fg">black</color>
+    <color type="title_bg">darkslategray</color>
+    <color type="title_fg">seashell3</color>
+    <style type="hilite">square</style>
+    <color type="border">black</color>
+    <style type="border_size">2</style>
+    <font>large</font>
+  </widget>
+
   <!--
      - Dialog widget settings
     -->

@@ -5148,9 +5148,15 @@ mclient_fullscreen_init(void)
 	/*
 	 * Define the rest of the lines here, then change them later as needed.
 	 */
-	for(i = 3; i < 15; i++)
+	for(i = 3; i < 10; i++)
 	{
 		mvpw_add_menu_item(mclient_fullscreen, "...",
+				   (void*)i, &mclient_fullscreen_menu_item_attr);
+	}
+
+	for(i = 10; i < 15; i++)
+	{
+		mvpw_add_menu_item(mclient_fullscreen, " ",
 				   (void*)i, &mclient_fullscreen_menu_item_attr);
 	}
 

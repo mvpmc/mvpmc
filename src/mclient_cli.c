@@ -517,9 +517,8 @@ cli_parse_playlist (mclient_cmd * response)
                          response->param[2]);
                 mvpw_menu_change_item (mclient_fullscreen,
                                        (void *) (cli_data.index_line + 2), string);
-///                    mvpw_menu_hilite_item (mclient_fullscreen,
-///                                           (void *) (cli_data.index_info + 2));
-
+                mvpw_menu_hilite_item (mclient_fullscreen,
+                                       (void *) (cli_data.index_info + 2));
             }
             else
             {
@@ -539,7 +538,7 @@ cli_parse_playlist (mclient_cmd * response)
                 /*
                  * Blank out empty lines.
                  */
-                while (cli_data.index_line < CLI_MAX_TRACKS)
+                while (cli_data.index_line <= CLI_MAX_TRACKS)
                 {
                     string[0] = '\0';
                     mvpw_menu_change_item (mclient_fullscreen,
@@ -589,7 +588,8 @@ cli_parse_display (mclient_cmd * response)
         debug ("mclient_cli:Length of response->param[1]:%d\n",
                strlen (response->param[1]));
 
-        if (strcmp (response->param[1], cli_data.title_history[0]) != 0)
+///        if (strcmp (response->param[1], cli_data.title_history[0]) != 0)
+        if (strncmp (response->param[1], cli_data.title_history[0], 49) != 0)
         {
             debug
                 ("mclient_cli:Top of history does NOT match current title cur:%s his:%s.\n",

@@ -255,6 +255,20 @@
     <font>large</font>
   </widget>
 
+  <!-- MCLIENT FULL SCREEN MENU -->
+  <widget type="menu" name="mclient_fullscreen">
+    <color type="bg" alpha="65%">darkred</color>
+    <color type="fg">white</color>
+    <color type="title_fg">white</color>
+    <color type="title_bg">darkslategray</color>
+    <color type="hilite_bg">yellow</color>
+    <color type="hilite_fg">black</color>
+    <style type="hilite">square</style>
+    <color type="checkbox">green</color>
+    <color type="border">yellow</color>
+    <style type="border_size">2</style>
+    <font>large</font>
+  </widget>
 
   <!-- FILE BROWSER POPUP -->
   <widget type="menu" name="fb_popup">

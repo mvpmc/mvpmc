@@ -186,6 +186,20 @@
     <font>large</font>
   </widget>
 
+  <widget type="menu" name="mclient_fullscreen">
+    <color type="bg" alpha="50%">red</color>
+    <color type="fg">white</color>
+    <color type="title_bg" alpha="50%">green</color>
+    <color type="title_fg">black</color>
+    <color type="hilite_bg">white</color>
+    <color type="hilite_fg">orange</color>
+    <style type="hilite">rounded</style>
+    <color type="checkbox">azure</color>
+    <color type="border">purple</color>
+    <style type="border_size">2</style>
+    <font>standard</font>
+  </widget>
+
   <!--
      - Dialog widget settings
     -->
