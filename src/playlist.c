@@ -74,9 +74,12 @@ static void select_callback(mvp_widget_t *widget, char *item, void *key)
       audio_clear();
       video_clear();
       av_reset();
-      playlist_change(pl);
-      audio_play(NULL);
+      if (playlist==NULL) {
+          // playlist has finished
+          playlist = pl;
+      } 
       mvpw_show(fb_progress);
+      playlist_change(pl);
       break;
     }
     pl = pl->next;
