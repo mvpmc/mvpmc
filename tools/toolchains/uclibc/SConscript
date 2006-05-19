@@ -10,6 +10,6 @@ Import('env')
 cc = env['CC']
 pwd = os.getcwd()
 
-uclibc = env.Command(cc, 0, 'cd ' + pwd + ' && ./mvpmc-uclibc.sh ' + cc)
+uclibc = os.system('cd ' + pwd + ' && ./mvpmc-uclibc.sh ' + cc)
 
 Return('uclibc')
