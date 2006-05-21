@@ -11,13 +11,13 @@ echo STRIP $STRIP
 
 DIRS="bin sbin usr/bin usr/sbin lib dev proc var usr/share usr/share/mvpmc usr/share/udhcpc etc tmp"
 
-BIN="ash busybox cat chgrp chmod chown cp date dd df dmesg echo false fgrep grep hostname kill ln login ls mkdir mknod more mount msh mv netstat pidof ping ps pwd rm rmdir sh sleep sync touch true umount uname mvpmc ntpclient"
+BIN="busybox mvpmc ntpclient"
 
-SBIN="adjtimex halt ifconfig init insmod klogd losetup lsmod modprobe mount.cifs poweroff reboot rmmod route syslogd udhcpc"
+SBIN=""
 
-USRBIN="[ basename clear cut dirname du env find free ftpget ftpput head id killall logger mesg nslookup reset sort strings tail test tftp time top tty uniq uptime which whoami yes"
+USRBIN=""
 
-USRSBIN="chroot rdate telnetd"
+USRSBIN=""
 
 rm -rf filesystem/install
 
@@ -31,23 +31,25 @@ cd ../..
 
 for i in $BIN ; do
     cp -d install/mvp/bin/$i filesystem/install/bin
+    $STRIP filesystem/install/bin/$i
 done
-$STRIP filesystem/install/bin/*
 
 for i in $SBIN ; do
     cp -d install/mvp/sbin/$i filesystem/install/sbin
+    $STRIP filesystem/install/sbin/$i
 done
-$STRIP filesystem/install/sbin/*
 
 for i in $USRBIN ; do
     cp -d install/mvp/usr/bin/$i filesystem/install/usr/bin
+    $STRIP filesystem/install/usr/bin/$i
 done
-$STRIP filesystem/install/usr/bin/*
 
 for i in $USRSBIN ; do
     cp -d install/mvp/usr/sbin/$i filesystem/install/usr/sbin
+    $STRIP filesystem/install/usr/sbin/$i
 done
-$STRIP filesystem/install/usr/sbin/*
+
+awk -F/ '{if(/^\/bin\/[^\/]+$/) { system("ln -s busybox filesystem/install" $0 ) } else {rp=sprintf("%" NF-2 "s", ""); gsub(/./,"../",rp); system("ln -sf " rp "bin/busybox filesystem/install" $0) }}' apps/busybox/mvp/busybox-*/busybox.links
 
 cp -d install/mvp/usr/share/mvpmc/* filesystem/install/usr/share/mvpmc
 cp -d install/mvp/linuxrc filesystem/install

@@ -15,7 +15,7 @@ cross = env['CROSS']
 downloads = env['DOWNLOADS']
 target = env['TARG']
 
-file = downloads + '/busybox-1.00.tar.bz2'
+file = downloads + '/busybox-1.1.3.tar.bz2'
 
 e = Environment()
 e.Tool('WGet', toolpath=['../../../scons'])
@@ -31,22 +31,21 @@ def GetSourceFile(url, output_dir, env):
   node = env.SourceCode( munged, env.WGet() )
   return node
 
-url = 'http://busybox.net/downloads/busybox-1.00.tar.bz2'
+url = 'http://busybox.net/downloads/busybox-1.1.3.tar.bz2'
 pwd = os.getcwd()
 
 dl = GetSourceFile(url, '#' + downloads, e)
 
 build = env.Command('../../install/' + target + '/bin/busybox', 0,
                     'scons/build_app.sh -d ' + pwd + '/' + target +
-                    '/busybox-1.00 -i ' + file + ' ' +
+                    '/busybox-1.1.3 -i ' + file + ' ' +
                     '-c ' + cross + ' ' +
                     '-I ' + pwd + '/../../install/' + target + ' ' +
                     '-p patches/busybox_config.patch ' +
-                    '-p patches/busybox_ntp.patch ' +
-                    '-p patches/busybox-1.00.patch')
+                    '-p patches/busybox-1.1.3.patch')
 
 env.Depends(build, [ 'patches/busybox_config.patch',
-                     'patches/busybox-1.00.patch' ])
+                     'patches/busybox-1.1.3.patch' ])
 env.Depends(build, dl)
 
 Return('build')
