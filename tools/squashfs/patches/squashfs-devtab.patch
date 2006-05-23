@@ -1,0 +1,411 @@
+diff -Nur squashfs2.2-r2.orig/README squashfs2.2-r2/README
+--- squashfs2.2-r2.orig/README	2005-09-09 01:18:13.000000000 +0200
++++ squashfs2.2-r2/README	2006-05-23 22:20:49.000000000 +0200
+@@ -108,6 +108,7 @@
+ -sort <sort_file>	sort files according to priorities in <sort_file>.  One
+ 			file or dir with priority per line.  Priority -32768 to
+ 			32767, default priority 0
++-if <inode_file>	list of inodes to add (eg. devices).
+ -ef <exclude_file>	list of exclude dirs/files.  One per line
+ 
+ Source1 source2 ... are the source directories/files containing the
+@@ -229,7 +230,42 @@
+ filesystem to be group owned by the specified gid.  The gid can be specified
+ either by name (i.e. "root") or by number.
+ 
+-3.4 Excluding files from the filesystem
++3.4 Creating inodes (devices) on the filesystem
++-----------------------------------------------
++
++The -if option allows to create device inodes on the filesystem without
++the need to be root to do some mknod.
++
++To achieve this, a text file describing the inodes need to be written.
++Each line describe an inode. The format of such a line is the following :
++  filename  type  perm  uid  gid  major  minor  0  0
++Meaning of each field :
++ - filename: the full name of the inode
++ - type: the device type (c for a character device and b for a block device)
++ - perm: the octal file permission (such as 660 meaning rw-rw----)
++ - uid: the numeric uid
++ - gid: the numeric gid
++ - major: the device major
++ - minor: the device minor
++ - 0: for compatibility with genext2fs
++ - 0: for compatibility with genext2fs
++
++Example of such a file (name it dev.txt) :
++/dev/console c 600 0 0 5 1
++/dev/ram0    b 660 0 0 1 0
++
++Using this file with mksquashfs is then as simple as
++
++%mksquashfs source output_fs -if dev.txt
++
++This will create the dev/console and dev/ram0 devices in the output_fs
++filesytem.
++
++Warning: this option won't create any directory, so you need to have all
++the used directory already created. In the above example, this mean that
++the source directory need to contain a dev directory.
++
++3.5 Excluding files from the filesystem
+ ---------------------------------------
+ 
+ The -e and -ef options allow files/directories to be specified which are
+@@ -255,7 +291,7 @@
+ Multiple -ef options can be specified on the command line, and the -ef
+ option can be used in conjuction with the -e option.
+ 
+-3.5 Appending to squashfs filesystems
++3.6 Appending to squashfs filesystems
+ -------------------------------------
+ 
+ Running squashfs with the destination directory containing an existing
+@@ -298,7 +334,7 @@
+ changed files will take extra room, the unchanged files will be detected as
+ duplicates.
+ 
+-3.6 Miscellaneous options
++3.7 Miscellaneous options
+ -------------------------
+ 
+ The -info option displays the files/directories as they are compressed and
+diff -Nur squashfs2.2-r2.orig/squashfs-tools/mksquashfs.c squashfs2.2-r2/squashfs-tools/mksquashfs.c
+--- squashfs2.2-r2.orig/squashfs-tools/mksquashfs.c	2005-09-09 00:34:28.000000000 +0200
++++ squashfs2.2-r2/squashfs-tools/mksquashfs.c	2006-05-23 22:15:46.000000000 +0200
+@@ -483,7 +483,7 @@
+ }
+ 
+ 
+-int create_inode(squashfs_inode *i_no, char *filename, int type, int byte_size, squashfs_block start_block, unsigned int offset, unsigned int *block_list, struct fragment *fragment, struct cached_dir_index *index, unsigned int i_count, unsigned int i_size)
++int create_inode(squashfs_inode *i_no, char *filename, int type, int byte_size, squashfs_block start_block, unsigned int offset, unsigned int *block_list, struct fragment *fragment, struct cached_dir_index *index, unsigned int i_count, unsigned int i_size, struct stat *st)
+ {
+ 	struct stat buf;
+ 	squashfs_inode_header inode_header;
+@@ -495,6 +495,8 @@
+ 		buf.st_uid = getuid();
+ 		buf.st_gid = getgid();
+ 		buf.st_mtime = time(NULL);
++	} else if(st) {
++		memcpy(&buf, st, sizeof(buf));
+ 	} else if(lstat(filename, &buf) == -1) {
+ 		char buffer[8192];
+ 		sprintf(buffer, "Cannot stat dir/file %s, ignoring", filename);
+@@ -788,10 +790,10 @@
+ 	}
+ 
+ 	if(dir->dir_is_ldir) {
+-		if(create_inode(inode, filename, SQUASHFS_LDIR_TYPE, dir_size, directory_block, directory_offset, NULL, NULL, dir->index, dir->i_count, dir->i_size) == FALSE)
++		if(create_inode(inode, filename, SQUASHFS_LDIR_TYPE, dir_size, directory_block, directory_offset, NULL, NULL, dir->index, dir->i_count, dir->i_size, NULL) == FALSE)
+ 			return FALSE;
+ 	} else {
+-		if(create_inode(inode, filename, SQUASHFS_DIR_TYPE, dir_size, directory_block, directory_offset, NULL, NULL, NULL, 0, 0) == FALSE)
++		if(create_inode(inode, filename, SQUASHFS_DIR_TYPE, dir_size, directory_block, directory_offset, NULL, NULL, NULL, 0, 0, NULL) == FALSE)
+ 			return FALSE;
+ 	}
+ 
+@@ -1189,7 +1191,7 @@
+ wr_inode:
+ 	free(c_buffer);
+ 	file_count ++;
+-	return create_inode(inode, filename, SQUASHFS_FILE_TYPE, read_size, start, blocks, block_listp, fragment, NULL, 0, 0);
++	return create_inode(inode, filename, SQUASHFS_FILE_TYPE, read_size, start, blocks, block_listp, fragment, NULL, 0, 0, NULL);
+ 
+ read_err:
+ 	perror("Error in reading file, skipping...");
+@@ -1253,10 +1255,11 @@
+ 	char *name;
+ 	char *pathname;
+ 	struct old_root_entry_info *data;
++	struct stat *st;
+ };
+ 
+ 
+-void inline add_dir_entry(char *name, char *pathname, void *data, struct directory *dir)
++void inline add_dir_entry(char *name, char *pathname, void *data, struct stat *st, struct directory *dir)
+ {
+ 		if((dir->count % DIR_ENTRIES) == 0)
+ 			if((dir->list = realloc(dir->list, (dir->count + DIR_ENTRIES) * sizeof(struct dir_ent *))) == NULL)
+@@ -1267,6 +1270,7 @@
+ 
+ 		dir->list[dir->count]->name = strdup(name);
+ 		dir->list[dir->count]->pathname = pathname != NULL ? strdup(pathname) : NULL;
++		dir->list[dir->count]->st = st;
+ 		dir->list[dir->count ++]->data = data;
+ 		dir->byte_count += strlen(name) + sizeof(squashfs_dir_entry);
+ }
+@@ -1302,7 +1306,7 @@
+ 
+ 	while((d_name = readdir(linuxdir)) != NULL) {
+ 		if(strcmp(d_name->d_name, ".") != 0 && strcmp(d_name->d_name, "..") != 0)
+-			add_dir_entry(d_name->d_name, NULL, NULL, dir);
++			add_dir_entry(d_name->d_name, NULL, NULL, NULL, dir);
+ 	}
+ 
+ 	closedir(linuxdir);
+@@ -1317,7 +1321,7 @@
+ 	char *basename, dir_name[8192];
+ 
+ 	for(i = 0; i < old_root_entries; i++)
+-		add_dir_entry(old_root_entry[i].name, "", &old_root_entry[i], dir);
++		add_dir_entry(old_root_entry[i].name, "", &old_root_entry[i], NULL, dir);
+ 
+ 	for(i = 0; i < source; i++) {
+ 		if((basename = getbase(source_path[i])) == NULL) {
+@@ -1334,7 +1338,7 @@
+ 			sprintf(dir_name, "%s_%d", basename, pass++);
+ 			ERROR("%s\n", dir_name);
+ 		}
+-		add_dir_entry(dir_name, source_path[i], NULL, dir);
++		add_dir_entry(dir_name, source_path[i], NULL, NULL, dir);
+ 	}
+ 	sort_directory(dir);
+ 	return 1;
+@@ -1349,7 +1353,7 @@
+ 	char dir_name[1024], filename[8192];
+ 
+ 	for(i = 0; i < old_root_entries; i++)
+-		add_dir_entry(old_root_entry[i].name, "", &old_root_entry[i], dir);
++		add_dir_entry(old_root_entry[i].name, "", &old_root_entry[i], NULL, dir);
+ 
+ 	if((linuxdir = opendir(pathname)) == NULL)
+ 		return 0;
+@@ -1369,7 +1373,7 @@
+ 			ERROR("%s\n", dir_name);
+ 		}
+ 		strcat(strcat(strcpy(filename, pathname), "/"), d_name->d_name);
+-		add_dir_entry(dir_name, filename, NULL, dir);
++		add_dir_entry(dir_name, filename, NULL, NULL, dir);
+ 	}
+ 
+ 	closedir(linuxdir);
+@@ -1378,11 +1382,12 @@
+ }
+ 
+ 
+-int linux_readdir(struct directory *dir, char **filename, char **dir_name)
++int linux_readdir(struct directory *dir, char **filename, char **dir_name, struct stat **st)
+ {
+ 	int current_count;
+ 
+-	while((current_count = dir->current_count++) < dir->count)
++	while((current_count = dir->current_count++) < dir->count) {
++		*st = dir->list[current_count]->st;
+ 		if(dir->list[current_count]->data)
+ 			add_dir(dir->list[current_count]->data->inode, dir->list[current_count]->name,
+ 				dir->list[current_count]->data->type, dir);
+@@ -1394,6 +1399,7 @@
+ 			*dir_name = dir->list[current_count]->name;
+ 			return 1;
+ 		}
++	}
+ 	return FALSE;	
+ }
+ 
+@@ -1416,9 +1422,50 @@
+ }
+ 
+ 
+-int dir_scan(squashfs_inode *inode, char *pathname, int (_opendir)(char *, struct directory *))
++struct inode {
++	char *path;
++	struct stat st;
++} *i_list;
++
++int i_count = 0;
++
++void add_inode(char *filename, int uid, int gid, int mode, char type, int major, int minor)
+ {
+-	struct stat buf;
++	if(i_count == 0)
++		i_list = malloc(sizeof(*i_list));
++	else
++		i_list = realloc(i_list, (i_count+1)*sizeof(*i_list));
++
++	i_list[i_count].path = strdup(filename);
++	i_list[i_count].st.st_mode = mode | (type == 'b' ? S_IFBLK : S_IFCHR);
++	i_list[i_count].st.st_uid = uid;
++	i_list[i_count].st.st_gid = gid;
++	i_list[i_count].st.st_rdev = makedev(major, minor);
++	i_count++;
++}
++
++void insert_inodes(struct directory *dir, char *destdir)
++{
++	int i, j, len = strlen(destdir);
++
++	for(i=0; i<i_count; i++)
++		if(!strncmp(i_list[i].path, destdir, len)) {
++			char *start = i_list[i].path + len;
++			if (!strchr(start, '/')) {
++				for (j=0; j<dir->count; j++)
++					if (!strcmp(dir->list[j]->name, start))
++						break;
++				if (j >= dir->count)
++					add_dir_entry(start, NULL, NULL, &i_list[i].st, dir);
++                          }
++		}
++	sort_directory(dir);
++}
++
++
++int dir_scan(squashfs_inode *inode, char *pathname, char *destdir, int (_opendir)(char *, struct directory *))
++{
++	struct stat buf, *st;
+ 	char filename2[8192], *filename = filename2, *dir_name;
+ 	int squashfs_type;
+ 	struct directory dir;
+@@ -1430,15 +1477,18 @@
+ 		ERROR("Could not open %s, skipping...\n", pathname);
+ 		goto error;
+ 	}
+-	
+-	while(linux_readdir(&dir, &filename, &dir_name) != FALSE) {
++	insert_inodes (&dir, destdir);
+ 
+-		if(lstat(filename, &buf) == -1) {
++	while(linux_readdir(&dir, &filename, &dir_name, &st) != FALSE) {
++
++		if(!st && lstat(filename, &buf) == -1) {
+ 			char buffer[8192];
+ 			sprintf(buffer, "Cannot stat dir/file %s, ignoring", filename);
+ 			perror(buffer);
+ 			continue;
+ 		}
++		if(st)
++			memcpy(&buf, st, sizeof(buf));
+ 		if(excluded(filename, &buf))
+ 			continue;
+ 
+@@ -1452,42 +1502,44 @@
+ 					result = get_sorted_inode(inode, &buf);
+ 				break;
+ 
+-			case S_IFDIR:
++			case S_IFDIR: {
++				char destd[8192];
++				sprintf (destd, "%s%s/", destdir, dir_name);
+ 				squashfs_type = SQUASHFS_DIR_TYPE;
+-				result = dir_scan(inode, filename, linux_opendir);
++				result = dir_scan(inode, filename, destd, linux_opendir);
+ 				break;
+-
++			}
+ 			case S_IFLNK:
+ 				squashfs_type = SQUASHFS_SYMLINK_TYPE;
+-				result = create_inode(inode, filename, squashfs_type, 0, 0, 0, NULL, NULL, NULL, 0, 0);
++				result = create_inode(inode, filename, squashfs_type, 0, 0, 0, NULL, NULL, NULL, 0, 0, st);
+ 				INFO("symbolic link %s inode 0x%llx\n", dir_name, *inode);
+ 				sym_count ++;
+ 				break;
+ 
+ 			case S_IFCHR:
+ 				squashfs_type = SQUASHFS_CHRDEV_TYPE;
+-				result = create_inode(inode, filename, squashfs_type, 0, 0, 0, NULL, NULL, NULL, 0, 0);
++				result = create_inode(inode, filename, squashfs_type, 0, 0, 0, NULL, NULL, NULL, 0, 0, st);
+ 				INFO("character device %s inode 0x%llx\n", dir_name, *inode);
+ 				dev_count ++;
+ 				break;
+ 
+ 			case S_IFBLK:
+ 				squashfs_type = SQUASHFS_BLKDEV_TYPE;
+-				result = create_inode(inode, filename, squashfs_type, 0, 0, 0, NULL, NULL, NULL, 0, 0);
++				result = create_inode(inode, filename, squashfs_type, 0, 0, 0, NULL, NULL, NULL, 0, 0, st);
+ 				INFO("block device %s inode 0x%llx\n", dir_name, *inode);
+ 				dev_count ++;
+ 				break;
+ 
+ 			case S_IFIFO:
+ 				squashfs_type = SQUASHFS_FIFO_TYPE;
+-				result = create_inode(inode, filename, squashfs_type, 0, 0, 0, NULL, NULL, NULL, 0, 0);
++				result = create_inode(inode, filename, squashfs_type, 0, 0, 0, NULL, NULL, NULL, 0, 0, st);
+ 				INFO("fifo %s inode 0x%llx\n", dir_name, *inode);
+ 				fifo_count ++;
+ 				break;
+ 
+ 			case S_IFSOCK:
+ 				squashfs_type = SQUASHFS_SOCKET_TYPE;
+-				result = create_inode(inode, filename, squashfs_type, 0, 0, 0, NULL, NULL, NULL, 0, 0);
++				result = create_inode(inode, filename, squashfs_type, 0, 0, 0, NULL, NULL, NULL, 0, 0, st);
+ 				INFO("unix domain socket %s inode 0x%llx\n", dir_name, *inode);
+ 				sock_count ++;
+ 				break;
+@@ -1630,6 +1682,11 @@
+ 				ERROR("%s: -b block size not power of two or not between 4096 and 64K\n", argv[0]);
+ 				exit(1);
+ 			}
++		} else if(strcmp(argv[i], "-if") == 0) {
++			if(++i == argc) {
++				ERROR("%s: -if missing filename\n", argv[0]);
++				exit(1);
++			}
+ 		} else if(strcmp(argv[i], "-ef") == 0) {
+ 			if(++i == argc) {
+ 				ERROR("%s: -ef missing filename\n", argv[0]);
+@@ -1775,6 +1832,7 @@
+ 			ERROR("-sort <sort_file>\tsort files according to priorities in <sort_file>.  One\n");
+ 			ERROR("\t\t\tfile or dir with priority per line.  Priority -32768 to\n");
+ 			ERROR("\t\t\t32767, default priority 0\n");
++			ERROR("-if <inode_file>\tlist of inodes to add (eg. devices).\n");
+ 			ERROR("-ef <exclude_file>\tlist of exclude dirs/files.  One per line\n");
+ 			exit(1);
+ 		}
+@@ -1828,6 +1886,24 @@
+ 		}
+ 	}
+ 
++	/* process the inode files */
++	for(i = source + 2; i < argc; i++)
++		if(strcmp(argv[i], "-if") == 0) {
++			FILE *fd;
++			char filename[16385], type;
++			int r, uid, gid, mode, major, minor;
++			if((fd = fopen(argv[++i], "r")) == NULL) {
++				perror("Could not open inode file...");
++				exit(1);
++			}
++			while((r=fscanf(fd, "/%16384s %c %o %d %d %d %d 0 0\n", filename, &type, &mode, &uid, &gid, &major, &minor)) != EOF)
++				if(r == 7)
++					add_inode(filename, uid, gid, mode, type, major, minor);
++			fclose(fd);
++		}
++		else if(strcmp(argv[i], "-b") == 0 || strcmp(argv[i], "-root-becomes") == 0 || strcmp(argv[i], "-sort") == 0 || strcmp(argv[i], "-ef") == 0)
++			i++;
++
+ 	/* process the exclude files - must be done afer destination file has been possibly created */
+ 	for(i = source + 2; i < argc; i++)
+ 		if(strcmp(argv[i], "-ef") == 0) {
+@@ -1842,7 +1918,7 @@
+ 			fclose(fd);
+ 		} else if(strcmp(argv[i], "-e") == 0)
+ 			break;
+-		else if(strcmp(argv[i], "-b") == 0 || strcmp(argv[i], "-root-becomes") == 0 || strcmp(argv[i], "-sort") == 0)
++		else if(strcmp(argv[i], "-b") == 0 || strcmp(argv[i], "-root-becomes") == 0 || strcmp(argv[i], "-sort") == 0 || strcmp(argv[i], "-if") == 0)
+ 			i++;
+ 
+ 	if(i != argc) {
+@@ -1860,7 +1936,7 @@
+ 			sorted ++;
+ 		} else if(strcmp(argv[i], "-e") == 0)
+ 			break;
+-		else if(strcmp(argv[i], "-b") == 0 || strcmp(argv[i], "-root-becomes") == 0 || strcmp(argv[i], "-ef") == 0)
++		else if(strcmp(argv[i], "-b") == 0 || strcmp(argv[i], "-root-becomes") == 0 || strcmp(argv[i], "-ef") == 0 || strcmp(argv[i], "-if") == 0)
+ 			i++;
+ 
+ 	if(delete) {
+@@ -1970,11 +2046,11 @@
+ 		sort_files_and_write(source, source_path);
+ 
+ 	if(delete && !keep_as_directory && source == 1 && S_ISDIR(buf.st_mode))
+-		dir_scan(&inode, source_path[0], linux_opendir);
++		dir_scan(&inode, source_path[0], "", linux_opendir);
+ 	else if(!keep_as_directory && source == 1 && S_ISDIR(buf.st_mode))
+-		dir_scan(&inode, source_path[0], single_opendir);
++		dir_scan(&inode, source_path[0], "", single_opendir);
+ 	else
+-		dir_scan(&inode, "", encomp_opendir);
++		dir_scan(&inode, "", "", encomp_opendir);
+ 	sBlk.root_inode = inode;
+ 	sBlk.inodes = inode_count;
+ 	sBlk.s_magic = SQUASHFS_MAGIC;

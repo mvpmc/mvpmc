@@ -131,14 +131,14 @@ else:
 		env.Depends(dongle, images)
 
 	#
-	# Build genext2fs and mktree and mvprelay
+	# Build squashfs and mktree and mvprelay
 	#
 	if target == 'mvp':
 		cc = env['CC']
-		genext2fs = env.SConscript('tools/genext2fs/SConscript')
+		squashfs = env.SConscript('tools/squashfs/SConscript')
 		mktree = env.SConscript('tools/mktree/SConscript')
 		mvprelay = env.SConscript('tools/mvprelay/SConscript')
-		env.Depends(dongle, genext2fs)
+		env.Depends(dongle, squashfs)
 		env.Depends(dongle, mktree)
 
 	#

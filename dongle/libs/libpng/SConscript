@@ -37,7 +37,7 @@ def GetSourceFile(url, output_dir, env):
   node = env.SourceCode( munged, env.WGet() )
   return node
 
-url = 'http://download.sourceforge.net/libpng/libpng-1.2.6-config.tar.gz'
+url = 'http://surfnet.dl.sourceforge.net/libpng/libpng-1.2.6-config.tar.gz'
 pwd = os.getcwd()
 inc = '../../../../install/' + target + '/include'
 lib = '../../../../install/' + target + '/lib'

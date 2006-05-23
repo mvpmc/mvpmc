@@ -7,6 +7,14 @@
 # Mount everything in /etc/fstab
 #
 /bin/umount -a
+
+mount -t tmpfs -o "size=1M" tmpfs /memory
+insmod unionfs
+mount -t unionfs -o dirs=/memory=rw:/=ro unionfs /union
+cd /union
+mkdir live
+pivot_root . live
+
 /bin/mount -a -o rw
 
 #

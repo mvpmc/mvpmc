@@ -103,23 +103,21 @@ done
 #cp -f /etc/localtime fs/etc
 mkdir -p filesystem/install/lib/modules/2.4.17_mvl21-vdongle/misc
 cp filesystem/hcw/linux-2.4.17/*.o filesystem/install/lib/modules/2.4.17_mvl21-vdongle/misc
-
-RAMDISK_SIZE=`du -ks filesystem/install | cut -f 1`
-let RAMDISK_SIZE=$RAMDISK_SIZE+300
-if [ $RAMDISK_SIZE -gt 4096 ] ; then
-	error "ramdisk too big"
-fi
+#awk '/^.dev/ {system("mknod -m" $3 " filesystem/install" $1 " " $2 " " $6 " " $7) ;}' filesystem/devtable
+mkdir -p filesystem/install/memory
+mkdir -p filesystem/install/union
 
 #
 # Create the ramdisk out of the fs directory
 #
-../tools/genext2fs/genext2fs-1.4rc1/genext2fs -d filesystem/install -b ${RAMDISK_SIZE} -D filesystem/devtable ${RAMDISK} || error "genext2fs failed"
+if [ -a $RAMDISK ] ; then
+	rm -rf $RAMDISK
+fi
+../tools/squashfs/squashfs2.2-r2/squashfs-tools/mksquashfs filesystem/install ${RAMDISK} -be -all-root -if filesystem/devtable || error "mksquashfs failed"
 
-gzip $RAMDISK
+make_dongle filesystem/kernel_files/vmlinux.gz ${RAMDISK}
 
-make_dongle filesystem/kernel_files/vmlinux.gz ${RAMDISK}.gz
-
-rm -f ${RAMDISK}.gz
+rm -f ${RAMDISK}
 rm -rf $TMP
 #rm boot_loader
 
