@@ -582,7 +582,9 @@ back_to_guide_menu()
 		display_on = 0;
 		zoomed = 0;
 		switch (gui_state) {
-		case MVPMC_STATE_NONE:
+        case MVPMC_STATE_NONE:
+        case MVPMC_STATE_EMULATE:
+
 			/*
 			 * XXX: redisplay the main menu?
 			 */

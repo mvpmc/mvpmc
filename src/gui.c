@@ -1013,6 +1013,7 @@ typedef enum {
 	SETTINGS_STARTUP_SETTINGS,
 	SETTINGS_STARTUP_REPLAYTV,
 	SETTINGS_STARTUP_MCLIENT,
+	SETTINGS_STARTUP_EMULATE,
 	SETTINGS_STARTUP_ENDOFLIST,
 } settings_startup_t;
 
@@ -2579,7 +2580,7 @@ mclient_key_callback(mvp_widget_t *widget, char key)
 static void
 vnc_key_callback(mvp_widget_t *widget, char key)
 {
-printf("key=%i\n",key);
+    printf("key=%i\n",key);
 	if( key==MVPW_KEY_EXIT || key==MVPW_KEY_POWER) {
        		GrUnregisterInput(rfbsock);
 	        close(rfbsock);
@@ -2604,7 +2605,7 @@ vnc_fdinput_callback(mvp_widget_t *widget, int fd)
 	if (!HandleRFBServerMessage()) {
 		printf("Error updating screen\n");
 		vnc_key_callback(widget, MVPW_KEY_EXIT);	
-        }
+    }
 	mvpw_expose(widget);
 }
 
@@ -2614,6 +2615,63 @@ vnc_timer_callback(mvp_widget_t *widget)
 //printf("timer callback\n");
 	SendIncrementalFramebufferUpdateRequest();
 }
+
+void mvp_server_delete(void);
+int mvp_server_init(void);
+
+static void
+mvp_key_callback(mvp_widget_t *widget, char key)
+{
+    static int hauppageKey[] = { 
+        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,    
+        0x09, 0x0a, 0x36, 0x24, 0x28, 0x1e, 0x37, 0x15,
+        0x11, 0x10, 0x35, 0x00, 0x33, 0x34, 0x32, 0x31,
+        0x2d, 0x2e, 0x2f, 0x00, 0x2c, 0x30, 0x2b, 0x20,
+        0x12, 0x13, 0x00, 0x00, 0x2a, 0x0d, 0x00, 0x00,
+        0x00, 0x27, 0x00, 0x00, 0x00, 0x00, 0x25, 0x00,
+        0x1c, 0x00, 0x0e, 0x00, 0x0f, 0x19, 0x1b, 0x1a,
+        0x26, 0x00, 0x00, 0x23, 0x29, 0x14
+    };
+
+    printf("key=%i\n",key);
+	if( key==MVPW_KEY_GO || key==MVPW_KEY_POWER) {
+       	GrUnregisterInput(rfbsock);
+        close(rfbsock);
+        if ( gui_state == MVPMC_STATE_EMULATE) {
+            usleep(100000);
+            mvp_server_delete();
+        }
+		mvpw_destroy(widget);
+		mvpw_show(main_menu);
+        mvpw_show(mvpmc_logo);
+        mvpw_focus(main_menu);
+		screensaver_enable();
+	} else {
+        int key1;
+        if (key > 0x61) {
+            key1 = key;
+        } else {
+            key1 = hauppageKey[(int)key];
+            if (key1==0) {
+                key1 = key;
+            }
+        }
+        printf("keymap %i = %x\n", key, key1);
+        SendKeyEvent(key1, -1);
+    }
+}
+
+static void
+mvp_fdinput_callback(mvp_widget_t *widget, int fd)
+{
+//printf("fdinput callback\n");
+	if (!HandleRFBServerMessage()) {
+		printf("Error updating screen\n");
+		mvp_key_callback(widget, MVPW_KEY_GO);	
+    }
+//	mvpw_expose(widget);
+}
+
 
 static int
 file_browser_init(void)
@@ -3330,6 +3388,7 @@ startup_select_callback(mvp_widget_t *widget, char *item, void *key)
 	mvpw_check_menu_item(widget, (void*)SETTINGS_STARTUP_FILESYSTEM - 1, 0);
 	mvpw_check_menu_item(widget, (void*)SETTINGS_STARTUP_ABOUT - 1, 0);
 	mvpw_check_menu_item(widget, (void*)SETTINGS_STARTUP_VNC - 1, 0);
+	mvpw_check_menu_item(widget, (void*)SETTINGS_STARTUP_EMULATE - 1, 0);
 	mvpw_check_menu_item(widget, (void*)SETTINGS_STARTUP_SETTINGS - 1, 0);
 	mvpw_check_menu_item(widget, (void*)SETTINGS_STARTUP_REPLAYTV - 1, 0);
 	mvpw_check_menu_item(widget, (void*)SETTINGS_STARTUP_MCLIENT - 1, 0);
@@ -3926,6 +3985,9 @@ settings_init(void)
 	mvpw_add_menu_item(settings_startup,
 			   "Startup MClient",
 			   (void*)6, &settings_item_attr);
+	mvpw_add_menu_item(settings_startup,
+			   "Startup Emulation",
+			   (void*)7, &settings_item_attr);
        /*
         * If there was a "--startup <feature>" option present on the
         * command line, this call will mark that feature when displayed
@@ -4663,22 +4725,26 @@ main_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mvpw_raise(mclient);
 		mvpw_focus(mclient);
 
-                switch_gui_state(MVPMC_STATE_MCLIENT);
+        switch_gui_state(MVPMC_STATE_MCLIENT);
 		pthread_cond_broadcast(&mclient_cond);
-                mvpw_set_timer(mclient, mclient_idle_callback, 100);
+        mvpw_set_timer(mclient, mclient_idle_callback, 100);
 		break;
-	case MM_VNC:
-	        printf("Connecting to %s %i\n", vnc_server, vnc_port);
+    case MM_VNC:
+	case MM_EMULATE:
+        if (k==MM_VNC) {
+    	    printf("Connecting to %s %i\n", vnc_server, vnc_port);
 
-	        if (!ConnectToRFBServer(vnc_server, vnc_port) ||
-		    !InitialiseRFBConnection(rfbsock)) {
-			char buf[256];
-			snprintf(buf, sizeof(buf),
-				 "Unable to connect to VNC at %s:%i",
-				 vnc_server, vnc_port);
-			gui_error(buf);
-			return;
+            if (!ConnectToRFBServer(vnc_server, vnc_port) ||
+    		    !InitialiseRFBConnection(rfbsock)) {
+    			char buf[256];
+    			snprintf(buf, sizeof(buf),
+    				 "Unable to connect to VNC at %s:%i",
+    				 vnc_server, vnc_port);
+    			gui_error(buf);
+    			return;
+            }
 		}
+
 		myFormat.bitsPerPixel = si.bpp;
 		myFormat.depth = si.bpp;
 #ifdef MVPMC_HOST
@@ -4712,9 +4778,15 @@ main_select_callback(mvp_widget_t *widget, char *item, void *key)
 				break;
 			}
 		}
-	        if (!SetFormatAndEncodings()) return;
-
-		printf("Connection Successful\n");
+		screensaver_disable();
+        if (k==MM_EMULATE) {
+		    switch_gui_state(MVPMC_STATE_EMULATE);
+            mvp_server_init();
+        } else {
+            if (!SetFormatAndEncodings()) return;
+        }
+        
+        printf("Connection Successful\n");
 
 #ifdef MVPMC_HOST
 		vnc_widget = mvpw_create_surface(NULL, 0, 0, si.cols, si.rows, 0, 0, 0, True);
@@ -4722,16 +4794,21 @@ main_select_callback(mvp_widget_t *widget, char *item, void *key)
 		vnc_widget = mvpw_create_surface(NULL, 30, 30, si.cols - 60, si.rows - 60, 0, 0, 0, False);
 		//vnc_widget = mvpw_create_surface(NULL, 60, 60, 200, 200, 0, 0, 0, True);
 #endif
-		screensaver_disable();
-		mvpw_set_key(vnc_widget, vnc_key_callback);
-		
+
+
 		mvpw_get_surface_attr(vnc_widget, &surface);
 		surface.fd = rfbsock;
-		mvpw_set_surface_attr(vnc_widget, &surface);
-		mvpw_set_fdinput(vnc_widget, vnc_fdinput_callback);	
 		GrRegisterInput(rfbsock); /* register the RFB socket */
-		mvpw_set_timer(vnc_widget, vnc_timer_callback, 100);
-		
+		mvpw_set_surface_attr(vnc_widget, &surface);
+        if (k==MM_EMULATE) {
+		    mvpw_set_timer(vnc_widget, vnc_timer_callback, 1000); 
+		    mvpw_set_key(vnc_widget, mvp_key_callback);
+		    mvpw_set_fdinput(vnc_widget, mvp_fdinput_callback);	
+        } else {
+		    mvpw_set_timer(vnc_widget, vnc_timer_callback, 100); 
+		    mvpw_set_key(vnc_widget, vnc_key_callback);
+		    mvpw_set_fdinput(vnc_widget, vnc_fdinput_callback);	
+        }
 		mvpw_hide(mvpmc_logo);
 		mvpw_hide(main_menu);
 		mvpw_show(vnc_widget);
@@ -4854,6 +4931,9 @@ main_menu_items(void)
 	if (strnlen(vnc_server, 254))
 		mvpw_add_menu_item(main_menu, "VNC",
 			   (void*)MM_VNC, &item_attr);
+	if (mvp_server)
+		mvpw_add_menu_item(main_menu, "Emulation Mode",
+				   (void*)MM_EMULATE, &item_attr);
 	if (!reboot_disable) {
 #ifdef MVPMC_HOST
 		mvpw_add_menu_item(main_menu, "Exit",
@@ -6172,6 +6252,25 @@ gui_init(char *server, char *replaytv)
 
 			snprintf(display_message, sizeof(display_message),
 				  "File:%s\n", "VNC");
+
+	                main_select_callback(NULL, NULL, (void *)startup_this_feature);
+		}
+		break;
+	case MM_EMULATE:
+		if (mvp_server)
+		{
+			mvpw_hide(fb_image);
+			mvpw_hide(mythtv_image);
+			mvpw_hide(replaytv_image);
+			mvpw_hide(about_image);
+			mvpw_hide(exit_image);
+
+			mvpw_show(setup_image);
+		
+			mvpw_menu_hilite_item(main_menu, (void*)startup_this_feature);
+
+			snprintf(display_message, sizeof(display_message),
+				  "File:%s\n", "Emulate");
 
 	                main_select_callback(NULL, NULL, (void *)startup_this_feature);
 		}

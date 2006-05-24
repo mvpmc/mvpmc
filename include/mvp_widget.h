@@ -419,7 +419,7 @@ mvpw_get_rgba(unsigned long c, unsigned char *r, unsigned char *g,
 #define	MVPW_KEY_POUND		14
 #define	MVPW_KEY_PREV_CHAN	18
 
-#define	MVPW_KEY_RADIO		101
+#define	MVPW_KEY_RADIO		29
 #endif /* MVPMC_HOST */
 
 #endif /* MVP_WIDGET_H */

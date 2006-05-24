@@ -25,7 +25,7 @@ else:
 	libx11 = []
 
 mvpmc = mvp.Program('mvpmc',
-                    ['audio.c', 'colorlist.c', 'config.c', 'display.c', 'fb.c',
+                    ['audio.c', 'colorlist.c', 'config.c', 'display.c', 'emulate.c', 'fb.c',
                      'gui.c', 'main.c', 'mclient.c', 'mclient_mvpmc.c',
 		     'mclient_cli.c', 'mythtv.c', 'playlist.c',
                      'replaytv.c', 'theme.c', 'video.c', 'version.c'],

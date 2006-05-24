@@ -1156,7 +1156,7 @@ diff -ruN microwindows-0.91-orig/src/Configs/config.mvp.x11 microwindows-0.91/sr
 diff -ruN microwindows-0.91-orig/src/drivers/kbd_irm.c microwindows-0.91/src/drivers/kbd_irm.c
 --- microwindows-0.91-orig/src/drivers/kbd_irm.c	1969-12-31 18:00:00.000000000 -0600
 +++ microwindows-0.91/src/drivers/kbd_irm.c	2005-08-12 20:42:55.000000000 -0500
-@@ -0,0 +1,265 @@
+@@ -0,0 +1,270 @@
 +/*
 + * Copyright (c) 1999 Greg Haerr <greg@censoft.com>
 + * Copyright (c) 1991 David I. Bell
@@ -1226,8 +1226,8 @@ diff -ruN microwindows-0.91-orig/src/drivers/kbd_irm.c microwindows-0.91/src/dri
 +#define	MUSIC_BUTTON		25
 +#define	PICTURES_BUTTON		26
 +#define	GUIDE_BUTTON		27
-+#define	TV_BUTTON		28
-+#define	RADIO_BUTTON		101
++#define	TV_BUTTON		    28
++#define	RADIO_BUTTON		29
 +#define	ASTERISK_BUTTON		10
 +#define	POUND_BUTTON		14
 +#define	PREV_CHAN_BUTTON	18
@@ -1344,6 +1344,11 @@ diff -ruN microwindows-0.91-orig/src/drivers/kbd_irm.c microwindows-0.91/src/dri
 +				case ASTERISK_BUTTON:
 +				case POUND_BUTTON:
 +				case PREV_CHAN_BUTTON:
++               case VIDEOS_BUTTON:
++               case MUSIC_BUTTON:
++               case PICTURES_BUTTON:
++               case GUIDE_BUTTON:
++               case TV_BUTTON:	
 +					*buf = key;
 +					break;
 +				/*

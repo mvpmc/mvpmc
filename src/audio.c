@@ -1324,9 +1324,11 @@ typedef enum {
 	HTTP_HEADER,
 	HTTP_CONTENT,
 	HTTP_RETRY,
+	HTTP_RETRY_LATER,
 	HTTP_UNKNOWN,
 } http_state_type_t;
 
+//=================================
 ring_buf* ring_buf_create(int size);
 
 void send_mpeg_data(void);
@@ -1486,6 +1488,7 @@ int http_main(void)
     char user[MAX_URL_LEN],password[MAX_URL_LEN];
 
     char line_data[LINE_SIZE];
+    char pod_data[LINE_SIZE];
     char *ptr,*ptr1;
     int i;
 
@@ -1507,7 +1510,7 @@ int http_main(void)
 
     static char * ContentAudio[] = {"audio/aacp","audio/mpeg","audio/x-mpeg","audio/mpg",NULL};
 
-    FILE *instream,*outlog;
+    FILE *instream,*outlog,*outcast;
     char *rcs;
     int using_vlc = 0;
     
@@ -1540,6 +1543,7 @@ int http_main(void)
     shoutcastDisplay[0]=0;
 
     outlog = fopen("/usr/share/mvpmc/connect.log","w");
+    outcast = NULL;
 
     if (outlog == NULL) outlog = stdout;
 
@@ -1731,7 +1735,7 @@ int http_main(void)
                         if (*ptr==0x20) {
                             sscanf(ptr,"%d",&statusGet);
                         }
-                        if (statusGet != 200 && statusGet != 301 && statusGet != 302) {
+                        if (statusGet != 200 && statusGet != 301 && statusGet != 302 && statusGet != 307) {
                             if ( ContentType != CONTENT_TRYHOST && NumberOfEntries > 1 && NumberOfEntries > curEntry ) {
                                 ContentType = CONTENT_TRYHOST;
                             } else {
@@ -1796,7 +1800,9 @@ int http_main(void)
                         }
                         continue;
                     } else {
+                        if (stateGet!=HTTP_RETRY_LATER) {
                         stateGet = HTTP_CONTENT;
+                        }
                         continue;
                     }
 
@@ -1922,7 +1928,7 @@ int http_main(void)
                         snprintf(bitRate,10,"kbps%s",&line_data[6]);
                     } else if (strncasecmp (line_data, "x-audiocast-bitrate:",20)==0) {
                         snprintf(bitRate,10,"kbps%s",&line_data[20]);
-                    } else if ( statusGet==301 || statusGet==302 ) {
+                    } else if ( statusGet==301 || statusGet==302 || statusGet==307 ) {
                         if (strncasecmp (line_data,"Location:" ,9 )==0) {
                             ptr = strstr(line_data,"http://");
                             if (ptr!=NULL &&  (strlen(ptr) < MAX_URL_LEN) ) {
@@ -2016,27 +2022,37 @@ int http_main(void)
                             }
                             break;
                         case PLAYLIST_PODCAST:
-                            if ( (ptr=strstr(line_data,".mp3")) != NULL && strstr(line_data,"url") != NULL && (ptr1=strstr(line_data,"http://")) != NULL ) {
-                                if (curEntry <= MAX_PLAYLIST ) {
-                                    if (ptr1 < ptr && ((ptr - ptr1 + 4) < MAX_URL_LEN) ){
+                            if ( strstr(line_data,"</rss>")!=NULL ) {
+                                stateGet = HTTP_RETRY;
+                            }
+                            if ( (ptr=strstr(line_data,".mp3")) != NULL && strstr(line_data,"enclosure url") != NULL && (ptr1=strstr(line_data,"http://")) != NULL ) {
+                                ptr+=4;
+                                *ptr=0;
+                                if (ptr1 < ptr && ((ptr1-ptr) < MAX_URL_LEN) ){
+                                    if (curEntry <= 0 ) {
                                         if (curEntry == -1 ) {
                                             // assume 1 before number of entries
                                             curEntry = 0;
                                             NumberOfEntries = 0;
+                                            outcast = fopen("/usr/playlist/outcast.m3u","w");
                                         }
-                                        *(ptr+4)=0;
                                         snprintf(url[curEntry],MAX_URL_LEN,"%s",ptr1);
                                         curEntry++;
                                         NumberOfEntries++;
-                                        stateGet = HTTP_RETRY;
-                                        break;
+                                        if (stateGet != HTTP_RETRY) {
+                                            stateGet = HTTP_RETRY_LATER;
+                                        }
                                     }
+                                    fprintf(outcast,"#EXTINF:-1,%s\n%s\n",pod_data,ptr1);
                                 }
                             } else if ((ptr=strstr(line_data,"<title>")) != NULL  && (ptr1=strstr(line_data,"</title>")) != NULL ) {
                                 if ( ptr < ptr1 ) {
                                     ptr+= 7;
                                     *ptr1 = 0;
+                                    if (curEntry <= 0 ) {
                                     snprintf(shoutcastDisplay,40,"%s",ptr);
+                                }   
+                                    snprintf(pod_data,LINE_SIZE,"%s",ptr);
                                 }   
                             }
                             break;
@@ -2226,7 +2242,9 @@ int http_main(void)
     if (outlog!=NULL) {
         fclose(outlog);
     }
-
+    if (outcast!=NULL) {
+        fclose(outcast);
+    }
 
     if (contentLength==0 && audio_stop == 0 ) {
         audio_stop = 1;

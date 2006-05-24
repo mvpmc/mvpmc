@@ -358,7 +358,7 @@ playlist_idle(mvp_widget_t *widget)
 		  mvpw_set_timer(playlist_widget, NULL, 0);
 	  } else {
 
-		  if (is_streaming(pl_item->filename) >=0 ) {
+		  if (is_streaming(pl_item->filename) < 0 ) {
 			  ID3 *info;
 
 			  info = create_ID3(NULL);

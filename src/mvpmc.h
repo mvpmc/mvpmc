@@ -31,6 +31,7 @@ typedef enum {
 	MVPMC_STATE_REPLAYTV,
 	MVPMC_STATE_MCLIENT,
 	MVPMC_STATE_HTTP,
+	MVPMC_STATE_EMULATE,
 } mvpmc_state_t;
 
 typedef enum {
@@ -122,6 +123,7 @@ extern volatile int video_playing;
 
 extern char *replaytv_server;
 extern char *mythtv_server;
+extern char *mvp_server;
 extern int mythtv_debug;
 extern volatile mythtv_state_t mythtv_state;
 
@@ -480,6 +482,7 @@ enum {
 	MM_SETTINGS,
 	MM_REPLAYTV,
 	MM_MCLIENT,
+    MM_EMULATE,
 };
 
 extern int startup_selection;

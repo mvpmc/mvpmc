@@ -71,6 +71,7 @@ static struct option opts[] = {
 	{ "version", no_argument, 0, 0},
 	{ "vlc", required_argument, 0, 0},
 	{ "no-mplayer", no_argument, 0, 0 },
+	{ "emulate", required_argument, 0, 0},
 	{ 0, 0, 0, 0 }
 };
 
@@ -79,7 +80,9 @@ int settings_disable = 0;
 int reboot_disable = 0;
 int filebrowser_disable = 0;
 int mplayer_disable = 0;
-int web_port = 0;
+
+/* this controls the default web server set to zero to disable */
+int web_port = 80;
 int web_server;
 
 void reset_web_config(void);
@@ -99,6 +102,7 @@ char *mythtv_server = NULL;
 char *replaytv_server = NULL;
 char *mclient_server = NULL;
 char *vlc_server = NULL;
+char *mvp_server = NULL;
 
 char vnc_server[256];
 int vnc_port = 0;
@@ -226,7 +230,7 @@ print_help(char *prog)
 	printf("\t--web-port port\tconfiguration port\n");
 	printf("\t--vlc server \tvlc IP address\n");
 	printf("\t--no-mplayer \tdisable mplayer\n");
-
+	printf("\t--emulation server \tIP address\n");
 }
 
 /*
@@ -437,7 +441,7 @@ main(int argc, char **argv)
 	config->av_aspect = AV_ASPECT_4x3;
 	config->av_mode = AV_MODE_PAL;
     vnc_server[0] = 0;
-
+        
 	/*
 	 * Parse the command line options.  These settings must override
 	 * the settings from all other sources.
@@ -490,6 +494,9 @@ main(int argc, char **argv)
 			if (strcmp(opts[opt_index].name, "vlc") == 0) {
 				vlc_server = strdup(optarg);
 			}
+			if (strcmp(opts[opt_index].name, "emulate") == 0) {
+				mvp_server = strdup(optarg);
+			}
 			if (strcmp (opts[opt_index].name, "startup") == 0) {
 			/*
 			 * Decode the "startup" option parameter.
@@ -505,6 +512,9 @@ main(int argc, char **argv)
 			      	}
 			    	else if (strcmp (optarg_tmp, "vnc") == 0) {
 					startup_this_feature = MM_VNC;
+			      	}
+			    	else if (strcmp (optarg_tmp, "emulate") == 0) {
+					startup_this_feature = MM_EMULATE;
 			      	}
 			    	else if (strcmp (optarg_tmp, "settings") == 0) {
                         #ifndef MVPMC_HOST
@@ -954,6 +964,8 @@ switch_hw_state(mvpmc_state_t new)
 	case MVPMC_STATE_MCLIENT:
 		mclient_exit();
 		break;
+    case MVPMC_STATE_EMULATE:
+        break;
 	}
 
 	hw_state = new;
@@ -996,6 +1008,9 @@ atexit_handler(void)
 		break;
 	case MVPMC_STATE_MCLIENT:
 		break;
+    case MVPMC_STATE_EMULATE:
+        break;
+
 	}
 
 	switch (gui_state) {
@@ -1011,6 +1026,9 @@ atexit_handler(void)
 		break;
 	case MVPMC_STATE_MCLIENT:
 		break;
+    case MVPMC_STATE_EMULATE:
+        break;
+
 	}
 
 	printf("%s(): exiting...\n", __FUNCTION__);
@@ -1509,6 +1527,7 @@ void strencode( char* to, size_t tosize, const char* from )
 #define WEB_CONFIG_NET_REMOTE2 524
 #define WEB_CONFIG_NET_REMOTE3 525
 #define WEB_CONFIG_VLC_SERVER  526
+#define WEB_CONFIG_MVP_SERVER  527
 
 #define WEB_CONFIG_USE_MYTH      600
 #define WEB_CONFIG_USE_REPLAY    601
@@ -1520,6 +1539,7 @@ void strencode( char* to, size_t tosize, const char* from )
 #define WEB_CONFIG_USE_VLC       607
 #define WEB_CONFIG_USE_MPLAYER   608
 #define WEB_CONFIG_USE_MYTHDEBUG 609
+#define WEB_CONFIG_USE_EMULATE   610
 
 #define WEB_CONFIG_START_MAIN    620
 #define WEB_CONFIG_START_MYTH    621
@@ -1528,6 +1548,7 @@ void strencode( char* to, size_t tosize, const char* from )
 #define WEB_CONFIG_START_SETTING 625
 #define WEB_CONFIG_START_REPLAY  626
 #define WEB_CONFIG_START_MCLIENT 627
+#define WEB_CONFIG_START_EMULATE 628
 
 
 
@@ -1567,6 +1588,7 @@ struct WEB_CONFIG_t {
     char share_password[16];
     struct shared_disk_t share_disk[3];
     char vlc_server[64];
+    char mvp_server[64];
 } web_config;
 
 #define IS_WEB_ENABLED(x) (web_config.bitmask & (1 << (x-WEB_CONFIG_USE_MYTH)) )
@@ -1802,6 +1824,9 @@ int mvp_config_general(char *line)
                 case WEB_CONFIG_VLC_SERVER:
                     snprintf(web_config.vlc_server,64,"%s",equals);
                     break;
+                case WEB_CONFIG_MVP_SERVER:
+                    snprintf(web_config.mvp_server,64,"%s",equals);
+                    break;
                 case WEB_CONFIG_USE_MYTH:
                 case WEB_CONFIG_USE_REPLAY:
                 case WEB_CONFIG_USE_MCLIENT:
@@ -1811,6 +1836,7 @@ int mvp_config_general(char *line)
                 case WEB_CONFIG_USE_FILE:
                 case WEB_CONFIG_USE_VLC:
                 case WEB_CONFIG_USE_MPLAYER:
+                case WEB_CONFIG_USE_EMULATE:
                     bitmask |= (1 << (id-WEB_CONFIG_USE_MYTH));
                     break;
                 case WEB_CONFIG_PLAYLIST:
@@ -1999,6 +2025,9 @@ int mvp_load_data(FILE *stream,char *line)
                             case WEB_CONFIG_VLC_SERVER:
                                 fprintf(stream,"VALUE=\"%s\"",web_config.vlc_server);
                                 break;
+                            case WEB_CONFIG_MVP_SERVER:
+                                fprintf(stream,"VALUE=\"%s\"",web_config.mvp_server);
+                                break;
                             case WEB_CONFIG_STATUS:
                                 tm = time(NULL);
                                 ptm = localtime(&tm);
@@ -2028,6 +2057,7 @@ int mvp_load_data(FILE *stream,char *line)
                             case WEB_CONFIG_USE_FILE:
                             case WEB_CONFIG_USE_VLC:
                             case WEB_CONFIG_USE_MPLAYER:
+                            case WEB_CONFIG_USE_EMULATE:
                                 if ( IS_WEB_ENABLED(id) ) {
                                     fprintf(stream," CHECKED");
                                 }
@@ -2188,7 +2218,7 @@ void load_web_config(char *font)
         strcpy(web_config.imagedir,"/usr/share/mvpmc");
         strcpy(web_config.font,"/etc/helvR10.fnt");
         
-        web_config.bitmask = 0xfffffff0;
+        web_config.bitmask = 0xfffffbf0;
        
         if (config->bitmask & CONFIG_MYTHTV_IP) {
             web_config.bitmask |=1;
@@ -2201,6 +2231,12 @@ void load_web_config(char *font)
         }
         if ( vnc_server[0] != 0 ) {
             web_config.bitmask |=8;
+	        snprintf(web_config.vlc_server,64,"%s",vlc_server);
+        }
+
+        if ( mvp_server != NULL ) {
+            web_config.bitmask |=1024;
+	        snprintf(web_config.mvp_server,64,"%s",mvp_server);
         }
 
         snprintf(web_config.playlist,64,"/usr/playlist/default.m3u");
@@ -2208,9 +2244,7 @@ void load_web_config(char *font)
         snprintf(web_config.share_disk[0].local_dir,64,"%s","/usr/video");
         snprintf(web_config.share_disk[1].local_dir,64,"%s","/usr/music");
         snprintf(web_config.share_disk[2].local_dir,64,"%s","/usr/playlist");
-        if (vlc_server) {
-	        snprintf(web_config.vlc_server,64,"%s",vlc_server);
-        }
+
         if (getenv("LIVE365DATA")!=NULL) {
             sscanf(getenv("LIVE365DATA"),"%32[^&]%*[^=]%*1s%32s",web_config.live365_userid,web_config.live365_password);
         }
@@ -2223,6 +2257,10 @@ void load_web_config(char *font)
 
     if (IS_WEB_ENABLED(WEB_CONFIG_USE_VLC) && vlc_server == NULL ) {
         vlc_server = strdup(web_config.vlc_server);
+    }
+    
+    if (IS_WEB_ENABLED(WEB_CONFIG_USE_EMULATE) && mvp_server == NULL ) {
+        mvp_server = strdup(web_config.mvp_server);
     }
 
     if (startup_this_feature == MM_EXIT) {
@@ -2300,6 +2338,10 @@ void load_web_config(char *font)
         filebrowser_disable = 1;
     } else {
         filebrowser_disable = 0;
+    }
+    if (NOT_WEB_ENABLED(WEB_CONFIG_USE_EMULATE) && mvp_server != NULL) {
+        free(mvp_server);
+        mvp_server = NULL;
     }
 }
 
