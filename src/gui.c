@@ -2098,6 +2098,8 @@ mythtv_popup_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mvpw_check_menu_item(widget, key, filter);
 		mythtv_pending_filter(mythtv_browser, mythtv_filter);
 		mvpw_focus(widget);
+		config->mythtv_filter = mythtv_filter;
+		config->bitmask |= CONFIG_MYTHTV_FILTER;
 		break;
 	case MYTHTV_POPUP_FILTER_RECORD:
 		if (mythtv_filter == MYTHTV_FILTER_RECORD) {
@@ -2116,6 +2118,8 @@ mythtv_popup_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mvpw_check_menu_item(widget, key, filter);
 		mythtv_pending_filter(mythtv_browser, mythtv_filter);
 		mvpw_focus(widget);
+		config->mythtv_filter = mythtv_filter;
+		config->bitmask |= CONFIG_MYTHTV_FILTER;
 		break;
 	case MYTHTV_POPUP_FILTER_RECORD_CONFLICT:
 		if (mythtv_filter == MYTHTV_FILTER_RECORD_CONFLICT) {
@@ -2134,6 +2138,8 @@ mythtv_popup_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mvpw_check_menu_item(widget, key, filter);
 		mythtv_pending_filter(mythtv_browser, mythtv_filter);
 		mvpw_focus(widget);
+		config->mythtv_filter = mythtv_filter;
+		config->bitmask |= CONFIG_MYTHTV_FILTER;
 		break;
 	case MYTHTV_POPUP_UPCOMING:
 		mvpw_hide(widget);
