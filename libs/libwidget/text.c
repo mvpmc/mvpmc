@@ -217,7 +217,7 @@ expose(mvp_widget_t *widget)
 			}
 			if (buf[strlen(buf)-1] == '\n')
 				buf[strlen(buf)-1] = '\0';
-			GrText(widget->wid, gc, x+indent, y-descent, buf, strlen(buf), 0);
+			GrText(widget->wid, gc, x+indent, y-descent, buf, strlen(buf), MWTF_UTF8);
 			y += h;
 
 			i += k;
@@ -226,7 +226,7 @@ expose(mvp_widget_t *widget)
 				i++;
 		}
 	} else {
-		GrText(widget->wid, gc, x+indent, y-descent, str, strlen(str), 0);
+		GrText(widget->wid, gc, x+indent, y-descent, str, strlen(str), MWTF_UTF8);
 	}
 
 	GrDestroyGC(gc);

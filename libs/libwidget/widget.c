@@ -26,6 +26,7 @@
 
 #include "mvp_widget.h"
 #include "widget.h"
+#include "utf8.h"
 
 #define HASH_BINS	31
 
@@ -534,16 +535,26 @@ mvpw_font_height(int font)
 	return finfo.height;
 }
 
+static void accumulate_width(void *closure, void *closure2, int c) {
+	int *w = (int *)closure2;
+
+	GR_FONT_INFO *finfo = (GR_FONT_INFO *)closure;
+
+	if (c < 256)
+		*w += finfo->widths[c];
+	else
+		*w += finfo->maxwidth;
+}
+
 int
 mvpw_font_width(int font, char *str)
 {
 	GR_FONT_INFO finfo;
-	int i, w = 0;
+	int w = 0;
 
 	GrGetFontInfo(font, &finfo);
 
-	for (i=0; i<strlen(str); i++)
-		w += finfo.widths[(int)str[i]];
+	utf8_for_each2(str, &accumulate_width, (void *)&finfo, (void *)&w);
 
 	return w;
 }
@@ -891,9 +902,9 @@ void
 mvpw_set_fdinput(mvp_widget_t *widget, void (*callback)(mvp_widget_t*, int))
 {
 	widget->event_mask |= GR_EVENT_MASK_FDINPUT;
-        GrSelectEvents(widget->wid, widget->event_mask);
+	GrSelectEvents(widget->wid, widget->event_mask);
 
-        widget->callback_fdinput = callback;
+	widget->callback_fdinput = callback;
 }	
 
 int
