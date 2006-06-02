@@ -90,6 +90,7 @@ int local_paused;
  */
 int cli_small_widget_timeout;
 int cli_small_widget_state = SHOW;
+int cli_fullscreen_widget_state = UNINITIALIZED;
 
 void mclient_audio_play (mvp_widget_t * widget);
 
@@ -175,7 +176,7 @@ receive_mpeg_data (int s, receive_mpeg_header * data, int bytes_read)
      * (Server needs this control when switching between
      * programs (i.e. when switching between tracks).)
      */
-    outbuf->head = ntohs ((data->wptr) << 1); // ### 20051209  Let's try to let the server do this again.
+    outbuf->head = ntohs ((data->wptr) << 1);
 
     /*
      * Store play mode into global variable.
@@ -439,6 +440,24 @@ send_mpeg_data (void)
                 }
             }
         }
+
+        /*
+         * If we are in PLAY mode, we probably do not want to reset the hardware
+         * audio buffer when we transition to STOP. But, as the server's CLI and 
+         * data/control interface are not necessaraly in sync, we need to wait before
+         * we can assume we do not need to reset the hardware buffer for the next
+         * PLAY to STOP transition.
+         *
+         * The small widget hide timer is perfect for this.  It starts when a button
+         * is pressed on the remote and clears several seconds later.
+         */
+        if ((reset_mclient_hardware_buffer == 1) &&
+            (cli_small_widget_timeout < time (NULL)))
+        {
+            printf
+                ("mclient_mvpmc:send_mpeg_data: Clear the HW buffer reset flag as we are still playing a song.\n");
+            reset_mclient_hardware_buffer = 0;
+        }
         break;
 
     case 1:
@@ -455,7 +474,8 @@ send_mpeg_data (void)
             local_paused = av_pause ();
             if (debug)
             {
-                printf ("mclient:UN-PAUSE returned:%d\n", local_paused);
+                printf ("mclient_mvpmc:send_mpeg_data: UN-PAUSE returned:%d\n",
+                        local_paused);
             }
         }
         break;
@@ -467,7 +487,20 @@ send_mpeg_data (void)
          */
         if (playmode_history != 3)
         {
-            av_reset ();
+            /*
+             * But only reset the buffer when the user is stopping or skipping around
+             * with either the remote or web interface.  Use the CLI from the server to
+             * detect these events.  As we don't know which stop indication will come first
+             * (the server's data/control or CLI port) have similar code in the CLI processing
+             * functions (we are in the data/control processing functions).
+             */
+            if (reset_mclient_hardware_buffer == 1)
+            {
+                printf
+                    ("mclient_mvpmc:send_mpeg_data: Resetting HW audio buffer from data/control functions.\n");
+                av_reset ();
+                reset_mclient_hardware_buffer = 0;
+            }
         }
 
         outbuf->tail = 0;
@@ -682,9 +715,7 @@ mclient_loop_thread (void *arg)
             cli_init ();
 
             /*
-             * Note, had to put the slowest event first.  Looks like faster events (i.e.
-             * events so fast there is one every scan) will block slower events from
-             * running.
+             * Get the socket handles for mclient ports (control-data & CLI).
              */
             printf ("mclient:Get socket handle for mclient_cli data\n");
             socket_handle_cli = cli_server_connect ();
@@ -718,7 +749,7 @@ mclient_loop_thread (void *arg)
                 struct timeval mclient_tv;
                 int n = 0;
 
-                if ((cli_small_widget_timeout < time (NULL)) &
+                if ((cli_small_widget_timeout < time (NULL)) &&
                     (cli_small_widget_state == SHOW))
                 {
                     /*
@@ -729,7 +760,7 @@ mclient_loop_thread (void *arg)
                     printf ("mclient_mvpmc:Small widget HIDE.\n");
                 }
 
-                if ((cli_small_widget_timeout > time (NULL)) &
+                if ((cli_small_widget_timeout > time (NULL)) &&
                     (cli_small_widget_state == HIDE))
                 {
                     /*
@@ -738,6 +769,17 @@ mclient_loop_thread (void *arg)
                     mvpw_raise (mclient);
                     cli_small_widget_state = SHOW;
                     printf ("mclient_mvpmc:Small widget SHOW.\n");
+                }
+
+                /*
+                 * Switch to "Now Playing" from "Up Next" after several seconds to
+                 * accomodate for the lag presented by the audio HW buffer.
+                 */
+                if ((now_playing_timeout < time (NULL)) && (now_playing_timeout != 0))
+                {
+                    cli_data.state = UPDATE_PLAYLIST_MINMINUS1 + 1;
+                    now_playing_timeout = 0;
+                    cli_update_playlist (socket_handle_cli);
                 }
 
                 /*
@@ -754,7 +796,7 @@ mclient_loop_thread (void *arg)
                 if (socket_handle_data > n)
                     n = socket_handle_data;
                 if (socket_handle_cli > n)
-                    n = socket_handle_data;
+                    n = socket_handle_cli;
 
                 /*
                  * Wait until we receive data from server or up to 100ms
@@ -817,6 +859,24 @@ mclient_loop_thread (void *arg)
                         printf
                             ("mclient_mvpmc:We found data to read on the socket_handle_cli handle.\n");
                     cli_read_data (socket_handle_cli);
+                }
+
+                /*
+                 * If this is the first time through, send a command to the CLI that will trigger
+                 * a CLI / fullscreen update.
+                 */
+                if (cli_fullscreen_widget_state == UNINITIALIZED)
+                {
+                    char cmd[MAX_CMD_SIZE];
+                    /*
+                     * Initialize the CLI state machine to the beginning of getting
+                     * playlist information.
+                     */
+                    cli_data.state = UPDATE_PLAYLIST_MINMINUS1 + 1;
+
+                    sprintf (cmd, "playlist 1\n");
+                    cli_send_packet (socket_handle_cli, cmd);
+                    cli_fullscreen_widget_state = INITIALIZED;
                 }
 
                 /*

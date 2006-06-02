@@ -71,13 +71,36 @@ enum
 };
 
 /*
- * Define small widget states.
+ * Define mclient's small widget states.
  */
 enum
 {
     SHOW = 0,
     HIDE,
 };
+
+/*
+ * Define mclient's large widget states.
+ */
+enum
+{
+    UNINITIALIZED = 0,
+    INITIALIZED,
+    PLAY_LISTS,
+    STREAMING_RADIO,
+};
+
+/*
+ * Define current state to display on OSD.
+ */
+enum
+{
+    STOP = 0,
+    PLAY,
+    PAUSE,
+    STREAMING,
+};
+
 
 typedef struct
 {
@@ -182,10 +205,13 @@ extern mvp_widget_t *mclient;
 extern char *mclient_server;
 extern int cli_server_connect (void);
 extern void cli_pick_starting_index (void);
-extern int cli_decode_response (char *, mclient_cmd *);
+extern void cli_decode_response (int, char *, mclient_cmd *);
 extern void cli_parse_playlist (mclient_cmd *);
 extern void cli_parse_display (mclient_cmd *);
 extern void cli_parse_player (mclient_cmd *);
+extern void cli_parse_button (mclient_cmd *);
+extern void cli_parse_response (int, mclient_cmd *);
+extern void cli_parse_parameters (mclient_cmd *, char **);
 
 
 /*
@@ -223,10 +249,26 @@ extern cli_data_type cli_data;
  */
 extern int cli_small_widget_timeout;
 extern int cli_small_widget_state;
+extern int cli_fullscreen_widget_state;
 
 /*
  * Tracks delays between identical CLI states.
  */
 extern int cli_identical_state_interval_timer;
+
+/*
+ * Tracks when user button press requires resetting audio hardware buffer.
+ */
+extern int reset_mclient_hardware_buffer;
+
+/*
+ * Tracks current state to display on OSD.
+ */
+extern int mclient_display_state;
+
+/*
+ * Tracks the switch from "Up Next" to "Now Playing".
+ */
+extern int now_playing_timeout;
 
 #endif /* MCLIENT_H */

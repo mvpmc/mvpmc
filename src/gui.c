@@ -5187,6 +5187,10 @@ mclient_init(void)
 
 	mvpw_set_key(mclient, mclient_key_callback);
 
+        reset_mclient_hardware_buffer = 0;
+
+	mclient_display_state = STOP;
+
 	return 0;
 }
 
@@ -5234,18 +5238,11 @@ mclient_fullscreen_init(void)
 	/*
 	 * Define the rest of the lines here, then change them later as needed.
 	 */
-	for(i = 3; i < 10; i++)
+	for(i = 3; i <= 10; i++)
 	{
 		mvpw_add_menu_item(mclient_fullscreen, "...",
 				   (void*)i, &mclient_fullscreen_menu_item_attr);
 	}
-
-	for(i = 10; i < 15; i++)
-	{
-		mvpw_add_menu_item(mclient_fullscreen, " ",
-				   (void*)i, &mclient_fullscreen_menu_item_attr);
-	}
-
 	return 0;
 }
 
@@ -5750,6 +5747,11 @@ screensaver_event(mvp_widget_t *widget, int activate)
 				} else {
 					mvpw_focus(playlist_widget);
 				}
+
+				/*
+				 * Initialize small widget hide time out.
+				 */
+				cli_small_widget_timeout = time (NULL) + 10;
 			}
 		}
 		else
