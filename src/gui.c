@@ -2615,67 +2615,43 @@ vnc_fdinput_callback(mvp_widget_t *widget, int fd)
 	mvpw_expose(widget);
 }
 
-static void
-vnc_timer_callback(mvp_widget_t *widget)
+void vnc_timer_callback(mvp_widget_t *widget)
 {
 //printf("timer callback\n");
 	SendIncrementalFramebufferUpdateRequest();
 }
 
-void mvp_server_delete(void);
 int mvp_server_init(void);
+int mvp_server_register(void);
+void mvp_server_stop(void);
+void mvp_server_cleanup(void);
+void mvp_server_remote_key(char key);
 
-static void
-mvp_key_callback(mvp_widget_t *widget, char key)
+
+static void mvp_key_callback(mvp_widget_t *widget, char key)
 {
-    static int hauppageKey[] = { 
-        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,    
-        0x09, 0x0a, 0x36, 0x24, 0x28, 0x1e, 0x37, 0x15,
-        0x11, 0x10, 0x35, 0x00, 0x33, 0x34, 0x32, 0x31,
-        0x2d, 0x2e, 0x2f, 0x00, 0x2c, 0x30, 0x2b, 0x20,
-        0x12, 0x13, 0x00, 0x00, 0x2a, 0x0d, 0x00, 0x00,
-        0x00, 0x27, 0x00, 0x00, 0x00, 0x00, 0x25, 0x00,
-        0x1c, 0x00, 0x0e, 0x00, 0x0f, 0x19, 0x1b, 0x1a,
-        0x26, 0x00, 0x00, 0x23, 0x29, 0x14
-    };
-
     printf("key=%i\n",key);
 	if( key==MVPW_KEY_GO || key==MVPW_KEY_POWER) {
        	GrUnregisterInput(rfbsock);
         close(rfbsock);
-        if ( gui_state == MVPMC_STATE_EMULATE) {
-            usleep(100000);
-            mvp_server_delete();
-        }
+        mvp_server_stop();
+        mvp_server_cleanup();
 		mvpw_destroy(widget);
 		mvpw_show(main_menu);
         mvpw_show(mvpmc_logo);
         mvpw_focus(main_menu);
 		screensaver_enable();
 	} else {
-        int key1;
-        if (key > 0x61) {
-            key1 = key;
-        } else {
-            key1 = hauppageKey[(int)key];
-            if (key1==0) {
-                key1 = key;
-            }
-        }
-        printf("keymap %i = %x\n", key, key1);
-        SendKeyEvent(key1, -1);
+        mvp_server_remote_key(key);
     }
 }
 
-static void
-mvp_fdinput_callback(mvp_widget_t *widget, int fd)
+void mvp_fdinput_callback(mvp_widget_t *widget, int fd)
 {
-//printf("fdinput callback\n");
 	if (!HandleRFBServerMessage()) {
 		printf("Error updating screen\n");
 		mvp_key_callback(widget, MVPW_KEY_GO);	
     }
-//	mvpw_expose(widget);
 }
 
 
@@ -4787,7 +4763,9 @@ main_select_callback(mvp_widget_t *widget, char *item, void *key)
 		screensaver_disable();
         if (k==MM_EMULATE) {
 		    switch_gui_state(MVPMC_STATE_EMULATE);
-            mvp_server_init();
+            if (mvp_server_init() == -1 ) {
+                return;
+            }
         } else {
             if (!SetFormatAndEncodings()) return;
         }
@@ -4801,13 +4779,13 @@ main_select_callback(mvp_widget_t *widget, char *item, void *key)
 		//vnc_widget = mvpw_create_surface(NULL, 60, 60, 200, 200, 0, 0, 0, True);
 #endif
 
-
-		mvpw_get_surface_attr(vnc_widget, &surface);
+        mvpw_get_surface_attr(vnc_widget, &surface);
 		surface.fd = rfbsock;
 		GrRegisterInput(rfbsock); /* register the RFB socket */
 		mvpw_set_surface_attr(vnc_widget, &surface);
         if (k==MM_EMULATE) {
-		    mvpw_set_timer(vnc_widget, vnc_timer_callback, 1000); 
+            mvp_server_register();
+		    mvpw_set_timer(vnc_widget, vnc_timer_callback, 100); 
 		    mvpw_set_key(vnc_widget, mvp_key_callback);
 		    mvpw_set_fdinput(vnc_widget, mvp_fdinput_callback);	
         } else {

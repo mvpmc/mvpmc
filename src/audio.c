@@ -116,6 +116,7 @@ typedef enum {
 	AUDIO_FILE_AC3,
 	AUDIO_FILE_WAV,
 	AUDIO_FILE_OGG,
+	AUDIO_FILE_MVP_MP3,
 	AUDIO_FILE_HTTP_MP3,
 	AUDIO_FILE_HTTP_INIT_OGG,
 	AUDIO_FILE_HTTP_OGG,
@@ -457,6 +458,7 @@ audio_player(int reset, int afd)
 	case AUDIO_FILE_WAV:
 		ret = wav_play(fd, afd, align, channels, bps);
 		break;
+    case AUDIO_FILE_MVP_MP3:
 	case AUDIO_FILE_MP3:
 		ret = mp3_play(afd);
 		break;
@@ -1101,13 +1103,19 @@ audio_init(void)
 {   
     static int old_audio_type = AUDIO_FILE_UNKNOWN;
 
-	if ( is_streaming(current) < 0    ) {
-		if ((fd=open(current, O_RDONLY|O_LARGEFILE|O_NDELAY)) < 0) {
-			goto fail;
-		}
-	}
-
-	switch ((audio_type=get_audio_type(current))) {
+    if (gui_state != MVPMC_STATE_EMULATE) {
+        if ( is_streaming(current) < 0    ) {
+            if ((fd=open(current, O_RDONLY|O_LARGEFILE|O_NDELAY)) < 0) {
+                goto fail;
+            }
+        }
+        audio_type=get_audio_type(current);
+    } else {
+        audio_type=AUDIO_FILE_MVP_MP3;
+        fd = open("/tmp/FIFO", O_RDONLY);
+    }
+	switch (audio_type) {
+	case AUDIO_FILE_MVP_MP3:
 	case AUDIO_FILE_HTTP_MP3:
 	case AUDIO_FILE_MP3:
 		av_set_audio_output(AV_AUDIO_MPEG);
@@ -1181,7 +1189,8 @@ audio_init(void)
 	case AUDIO_FILE_OGG:
 		ogg_play(-1);
 		break;
-	case AUDIO_FILE_MP3:
+    case AUDIO_FILE_MP3:
+    case AUDIO_FILE_MVP_MP3:
 		mp3_play(-1);
 		break;
 	case AUDIO_FILE_HTTP_MP3:

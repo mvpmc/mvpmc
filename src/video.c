@@ -130,6 +130,20 @@ video_callback_t file_functions = {
 	.halt_stream = NULL,
 };
 
+int mvp_file_read(char *,int);
+
+video_callback_t mvp_functions = {
+	.open      = file_open,
+	.read      = mvp_file_read,
+	.read_dynb = NULL,
+	.seek      = NULL,
+	.size      = NULL,
+	.notify    = NULL,
+	.key       = NULL,
+	.halt_stream = NULL,
+};
+
+
 volatile video_callback_t *video_functions = NULL;
 
 void video_play(mvp_widget_t *widget);
@@ -228,7 +242,7 @@ video_subtitle_check(mvp_widget_t *widget)
 	       mvpw_visible(ct_text_box) ||
 	       mvpw_visible(mythtv_menu))) {
 		video_thumbnail(0);
-	}
+	} 
 }
 
 int video_init(void)
@@ -1190,7 +1204,12 @@ file_open(void)
 	pthread_kill(audio_write_thread, SIGURG);
 
 	if ( http_playing == 0 ) {
-		if ((fd=open(current, O_RDONLY|O_LARGEFILE)) < 0) {
+        if (gui_state != MVPMC_STATE_EMULATE) {
+            fd=open(current, O_RDONLY|O_LARGEFILE);
+        } else {
+            fd = open("/tmp/FIFO", O_RDONLY);
+        }
+		if (fd < 0) {
 			printf("Open failed errno %d file %s\n",
 			       errno, current);
 			video_reopen = 0;
@@ -1211,11 +1230,14 @@ file_open(void)
 		ts_demux_reset(tshandle);
 		demux_attr_reset(handle);
 		demux_seek(handle);
-
-		if (si.rows == 480)
-			av_move(475, si.rows-60, 4);
-		else
-			av_move(475, si.rows-113, 4);
+        if (gui_state == MVPMC_STATE_EMULATE) {
+            video_thumbnail(0);
+        } else {
+    		if (si.rows == 480)
+    			av_move(475, si.rows-60, 4);
+    		else
+    			av_move(475, si.rows-113, 4);
+        }
 	
 		av_play();
 	}

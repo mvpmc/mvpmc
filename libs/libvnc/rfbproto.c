@@ -31,7 +31,6 @@
 #include <vncauth.h>
 #include <zlib.h>
 
-
 static Bool HandleHextileEncoding8(int x, int y, int w, int h);
 static Bool HandleHextileEncoding16(int x, int y, int w, int h);
 static Bool HandleHextileEncoding32(int x, int y, int w, int h);
@@ -45,6 +44,8 @@ rfbServerInitMsg rfbsi;
 Bool sendUpdateRequest;
 
 int endianTest = 1;
+
+int useHauppageExtentions;
 
 /*Iain*/
 char *programName = "mvpmc";
@@ -292,7 +293,7 @@ InitialiseRFBConnection(int sock)
     rfbsi.framebufferWidth = Swap16IfLE(rfbsi.framebufferWidth);
     
     rfbsi.framebufferHeight = Swap16IfLE(rfbsi.framebufferHeight);
-    
+   
     rfbsi.format.redMax = Swap16IfLE(rfbsi.format.redMax);
     rfbsi.format.greenMax = Swap16IfLE(rfbsi.format.greenMax);
     rfbsi.format.blueMax = Swap16IfLE(rfbsi.format.blueMax);
@@ -307,11 +308,8 @@ InitialiseRFBConnection(int sock)
     }
     if (updateRequestW == 0)
         updateRequestW = rfbsi.framebufferWidth - updateRequestX;
-    if (updateRequestH == 0) {
-//        updateRequestH = rfbsi.framebufferHeight - updateRequestY;
-        updateRequestH = 480 - updateRequestY;
-    }
-
+    if (updateRequestH == 0)
+        updateRequestH = rfbsi.framebufferHeight - updateRequestY;
 
     desktopName = malloc(rfbsi.nameLength + 1);
 
@@ -327,6 +325,8 @@ InitialiseRFBConnection(int sock)
 
     fprintf(stderr,"%s: VNC server default format:\n",programName);
     PrintPixelFormat(&rfbsi.format);
+
+    useHauppageExtentions = 0;
 
     return True;
 }
@@ -356,6 +356,7 @@ SetFormatAndEncodings()
         return False;
 
     se->type = rfbSetEncodings;
+    se->pad = 0;
     se->nEncodings = 0;
 
     for (i = 0; i < nExplicitEncodings; i++) {
@@ -374,6 +375,15 @@ SetFormatAndEncodings()
         encs[se->nEncodings++] = Swap32IfLE(rfbEncodingCoRRE);
     if (addRRE)
         encs[se->nEncodings++] = Swap32IfLE(rfbEncodingRRE);
+    
+    if (useHauppageExtentions==1) {
+        encs[se->nEncodings++] = Swap32IfLE(rfbEncodingHauppauge);
+        encs[se->nEncodings++] = Swap32IfLE(rfbEncodingHauppaugeAYVU);
+        encs[se->nEncodings++] = Swap32IfLE(rfbEncodingHauppauge2);
+        encs[se->nEncodings++] = Swap32IfLE(rfbEncodingAYVU);    
+        encs[se->nEncodings++] = Swap32IfLE(rfbEncodingRGBA);
+    }
+       
 
     len = sz_rfbSetEncodingsMsg + se->nEncodings * 4;
 
@@ -454,6 +464,9 @@ SendKeyEvent(CARD32 key, Bool down)
 
     ke.type = rfbKeyEvent;
     ke.down = down ? 1 : 0;
+    if (useHauppageExtentions==1) {
+        ke.pad = (int)Swap16IfLE(key);
+    }
     ke.key = Swap32IfLE(key);
     return WriteExact(rfbsock, (char *)&ke, sz_rfbKeyEventMsg);
 }
@@ -559,7 +572,6 @@ HandleRFBServerMessage()
                     switch (rect.encoding) {                        
                         case rfbEncodingHauppauge:
                             {
-                                printf("rfbEncodingHauppauge\n");
                                 CARD32  len;
                                 CARD8   *buf;
                                 CARD8   *out;
@@ -585,7 +597,7 @@ HandleRFBServerMessage()
                                     return False;
                                 }
 
-                                destlen = 640 * 480 * 2;
+                                destlen = 720 * 480 * 2;
                                 out = calloc(destlen,sizeof(char));
                                 if ( ( ret = uncompress(out,&destlen,buf,len) ) != 0 ) {
                                     printf("Ret bad %d\n",ret);
@@ -596,13 +608,11 @@ HandleRFBServerMessage()
                                 free(buf);
                                 RectangleUpdateYUV(rect.r.x, rect.r.y, rect.r.w, rect.r.h, out);
                                 free(out);
-                                UpdateFinished();
-                                sendUpdateRequest = True;
                                 break;
                             }
                         case rfbEncodingHauppaugeAYVU:
                             {
-                                printf("Hauppauge 2 untested\n");
+                                printf("Hauppauge 8 untested\n");
                                 CARD32  len;
                                 CARD8   *buf;
                                 CARD8   *out;
@@ -623,11 +633,14 @@ HandleRFBServerMessage()
                                     return False;
 
                                 buf = calloc(len,sizeof(char));
-                                out = calloc(640 * 480 * 2,sizeof(char));
-
-                                if ( !ReadExact(rfbsock,buf,len) )
+                                
+                                if ( !ReadExact(rfbsock,buf,len) ){
+                                    free(buf);
                                     return False;
-                                destlen = 640 * 480 * 2;
+                                }
+                                destlen = 720 * 480 * 2;
+                                out = calloc(destlen,sizeof(char));
+
                                 if ( ( ret = uncompress(out,&destlen,buf,len) ) != 0 ) {
                                     printf("Ret bad %d\n",ret);
                                     free(buf);
@@ -636,23 +649,35 @@ HandleRFBServerMessage()
                                 }
                                 free(buf);
 
-                                if (!ReadExact(rfbsock,(char *)&len,4) )
+                                if (!ReadExact(rfbsock,(char *)&len,4) ){
+                                    free(out);
                                     return False;
+                                }
+
                                 len = Swap32IfLE(len);
 
-                                if (!ReadExact(rfbsock,(char *)&fmt,2) )
+                                if (!ReadExact(rfbsock,(char *)&fmt,2) ){
+                                    free(out);
                                     return False;
+                                }
 
-                                if (!ReadExact(rfbsock,(char *)&bpp,2) )
+                                if (!ReadExact(rfbsock,(char *)&bpp,2) ){
+                                    free(out);
                                     return False;
-
+                                }
+                                
                                 buf = calloc(len,sizeof(char));
-                                out2 = calloc(640 * 480,sizeof(char));
-
-                                if ( !ReadExact(rfbsock,buf,len) )
+                                if ( !ReadExact(rfbsock,buf,len) ){
+                                    free(buf);
+                                    free(out);
                                     return False;
+
+                                }
+                                destlen = 768 * 576;
+                                out2 = calloc(destlen,sizeof(char));
+
                                 if ( ( ret = uncompress(out2,&destlen,buf,len) ) != 0 ) {
-                                    printf("Ret bad %d\n",ret);
+                                    printf("Ret alpha bad %d\n",ret);
                                     free(buf);
                                     free(out);
                                     free(out2);
@@ -661,14 +686,11 @@ HandleRFBServerMessage()
                                 free(buf);
                                 free(out2);
                                 RectangleUpdateYUV(rect.r.x, rect.r.y, rect.r.w, rect.r.h, out);
-                                free(out);
-                                UpdateFinished();
-                                sendUpdateRequest = True;
+                                free(out);                                
                                 break;
                             }
                         case rfbEncodingHauppauge2:
                             {
-                                printf("rfbEncodingHauppauge2\n");
                                 CARD32  len;
                                 CARD8   *buf;
                                 CARD8   *out1;
@@ -694,7 +716,7 @@ HandleRFBServerMessage()
                                     free(buf);
                                     return False;
                                 }
-                                destlen = 640 * 480;
+                                destlen = 720 * 480;
                                 out1 = calloc(destlen,sizeof(char));
 
                                 if ( ( ret = uncompress(out1,&destlen,buf,len) ) != 0 ) {
@@ -721,15 +743,14 @@ HandleRFBServerMessage()
                                 }                                    
 
                                 buf = calloc(len,sizeof(char));
-                                out2 = calloc(640 * 480,sizeof(char));
 
                                 if ( !ReadExact(rfbsock,buf,len) ){
                                     free(buf);
                                     free(out1);
-                                    free(out2);
                                     return False;
                                 }
-                                destlen = 640 * 480;
+                                destlen = 720 * 480;
+                                out2 = calloc(destlen,sizeof(char));
                                 if ( ( ret = uncompress(out2,&destlen,buf,len) ) != 0 ) {
                                     printf("Ret bad %d\n",ret);
                                     free(buf);
@@ -741,13 +762,10 @@ HandleRFBServerMessage()
                                 RectangleUpdateYUV2(rect.r.x, rect.r.y, rect.r.w, rect.r.h, out1,out2);
                                 free(out1);
                                 free(out2);
-                                UpdateFinished();
-                                sendUpdateRequest = True;
                                 break;
                             }
                         case rfbEncodingRGBA:
                             {
-                                printf("Hauppauge 4 untested\n");
                                 CARD32  len;
                                 CARD8   *buf;
                                 CARD8   *out;
@@ -758,28 +776,28 @@ HandleRFBServerMessage()
                                     return False;
                                 len = Swap32IfLE(len);
 
-
                                 buf = calloc(len,sizeof(char));
-                                out = calloc(640 * 480 * 2,sizeof(char));
 
-                                if ( !ReadExact(rfbsock,buf,len) )
+                                if ( !ReadExact(rfbsock,buf,len) ){
+                                    free(buf);
                                     return False;
-                                destlen = 640 * 480 * 2;
+                                }
+                                destlen = 720 * 480 * 2;
+                                out = calloc(destlen,sizeof(char));
+
                                 if ( ( ret = uncompress(out,&destlen,buf,len) ) != 0 ) {
                                     printf("Ret bad %d\n",ret);
                                     free(buf);
                                     free(out);
                                     return False;
                                 }
-
-                                RectangleUpdateARGB(rect.r.x, rect.r.y, rect.r.w, rect.r.h, out);
                                 free(buf);
+                                RectangleUpdateARGB(rect.r.x, rect.r.y, rect.r.w, rect.r.h, out);
                                 free(out);;
                                 break;
                             }
                         case rfbEncodingAYVU:
                             {
-                                printf("Hauppauge 5 untested\n");
                                 CARD32  len;
                                 CARD8   *buf;
                                 CARD8   *out;
@@ -790,25 +808,25 @@ HandleRFBServerMessage()
                                     return False;
                                 len = Swap32IfLE(len);
 
-
                                 buf = calloc(len,sizeof(char));
-                                out = calloc(640 * 480 * 2,sizeof(char));
 
-                                if ( !ReadExact(rfbsock,buf,len) )
+                                if ( !ReadExact(rfbsock,buf,len) ){
+                                    free(buf);
                                     return False;
-                                destlen = 640 * 480 * 2;
+                                }
+                                destlen = 720 * 480 * 2;
+                                out = calloc(destlen,sizeof(char));
+
                                 if ( ( ret = uncompress(out,&destlen,buf,len) ) != 0 ) {
                                     printf("Ret bad %d\n",ret);
                                     free(buf);
                                     free(out);
                                     return False;
                                 }
-
-                                RectangleUpdateAYVU(rect.r.x, rect.r.y, rect.r.w, rect.r.h, out);
                                 free(buf);
+                                RectangleUpdateAYVU(rect.r.x, rect.r.y, rect.r.w, rect.r.h, out);
                                 free(out);
-                                UpdateFinished();
-                                sendUpdateRequest = True;
+                               
                                 break;
                         case rfbEncodingRaw:
 
@@ -1106,12 +1124,21 @@ HandleRFBServerMessage()
                             return False;
                     }
                 }
-
+        		switch ( rect.encoding ) {
+            		case rfbEncodingHauppauge:
+            		case rfbEncodingHauppaugeAYVU:
+            		case rfbEncodingHauppauge2:
+            		case rfbEncodingRGBA:
+            		case rfbEncodingAYVU:
+                        UpdateFinished();
+            		    break;
+            		default:
+            		    break;
+        		}
                 sendUpdateRequest = True;
 
                 break;
             }
-
         case rfbBell:
             RFBBell(dpy,100);
             break;

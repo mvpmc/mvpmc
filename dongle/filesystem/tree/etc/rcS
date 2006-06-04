@@ -65,12 +65,12 @@ tftp -g -l /tmp/themes/default.xml -r ${DONGLE}.xml ${SERVER}
 if [ -z "`pidof mvpmc`" ] ; then
     if [ -z $SERVER ] ; then
         if [ -z $HOST ] ; then
-	    mvpmc -s $IP -c $IP -R "ip=discover" --startup setup --web-port 80          
+	    mvpmc -s $IP -c $IP -R "ip=discover" --startup setup --emulate ?          
         else
-	    mvpmc -s $HOST -c $HOST --vlc $HOST -R "ip=discover" --web-port 80
+	    mvpmc -s $HOST -c $HOST --vlc $HOST -R "ip=discover" --emulate ?
         fi    
     else        
-	mvpmc -s $SERVER -c $SERVER --vlc $SERVER -R "ip=discover" --web-port 80
+	mvpmc -s $SERVER -c $SERVER --vlc $SERVER -R "ip=discover" --emulate ?
     fi
 fi
 cd /

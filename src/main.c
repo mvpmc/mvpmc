@@ -82,7 +82,7 @@ int filebrowser_disable = 0;
 int mplayer_disable = 0;
 
 /* this controls the default web server set to zero to disable */
-int web_port = 80;
+int web_port = -1;
 int web_server;
 
 void reset_web_config(void);
@@ -230,7 +230,7 @@ print_help(char *prog)
 	printf("\t--web-port port\tconfiguration port\n");
 	printf("\t--vlc server \tvlc IP address\n");
 	printf("\t--no-mplayer \tdisable mplayer\n");
-	printf("\t--emulation server \tIP address\n");
+	printf("\t--emulation server \tIP address or ?\n");
 }
 
 /*
@@ -684,6 +684,13 @@ main(int argc, char **argv)
 			break;
 		}
 	}
+	if (web_port==-1) {
+        if ( settings_disable == 1) {
+            web_port = 0;
+        } else {
+            web_port = 80;
+        }
+    }
 
 #ifndef MVPMC_HOST
 	theme_parse(MASTER_THEME);
@@ -2218,7 +2225,7 @@ void load_web_config(char *font)
         strcpy(web_config.imagedir,"/usr/share/mvpmc");
         strcpy(web_config.font,"/etc/helvR10.fnt");
         
-        web_config.bitmask = 0xfffffbf0;
+        web_config.bitmask = 0xfffffb00;
        
         if (config->bitmask & CONFIG_MYTHTV_IP) {
             web_config.bitmask |=1;
@@ -2232,6 +2239,15 @@ void load_web_config(char *font)
         if ( vnc_server[0] != 0 ) {
             web_config.bitmask |=8;
 	        snprintf(web_config.vlc_server,64,"%s",vlc_server);
+        }
+        if (reboot_disable==0) {
+            web_config.bitmask |=16;
+        }
+        if (settings_disable==0) {
+            web_config.bitmask |=32;
+        }
+        if (filebrowser_disable==0) {
+            web_config.bitmask |=64;
         }
 
         if ( mvp_server != NULL ) {

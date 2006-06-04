@@ -135,6 +135,7 @@ typedef struct {
     char      *inbuf;
     int        inbuflen;
     int        inbufpos;
+    char       fileid[2];
 } stream_t;
 
 extern stream_t mystream;
