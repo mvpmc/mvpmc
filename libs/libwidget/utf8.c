@@ -38,26 +38,27 @@ void utf8_for_each2(char *string, per_character_helper2_t *fn, void *closure, vo
 	int stringlen = strlen(string);
 	int i;
 	for (i = 0; i < stringlen; i++) {
-		unsigned char x = string[i];
-		if (x >= 0xf0) {
-			int c = (x & 0x07) << 18;
-			c |= (x & 0x3f) << 12;
-			c |= (x & 0x3f) << 6;
-			c |= (x & 0x3f);
+		unsigned char *x = &(string[i]);
+		if ((*x) >= 0xf0) {
+			int c = ((*x) & 0x07) << 18;
+			c |= ((*(x+1)) & 0x3f) << 12;
+			c |= ((*(x+2)) & 0x3f) << 6;
+			c |= ((*(x+3)) & 0x3f);
+			i+=3;
 			fn(closure, closure2, c);
-		} else if (x >= 0xe0) {
-			int c = (x & 0x0f) << 12;
-			c |= (x & 0x3f) << 6;
-			c |= (x & 0x3f);
+		} else if ((*x) >= 0xe0) {
+			int c = ((*x) & 0x0f) << 12;
+			c |= ((*(x+1)) & 0x3f) << 6;
+			c |= ((*(x+2)) & 0x3f);
 			fn(closure, closure2, c);
 			i+=2;
-		} else if (x >= 0xc0) {
-			int c = (x & 0x1f) << 6;
-			c |= (x & 0x3f);
+		} else if ((*x) >= 0xc0) {
+			int c = ((*x) & 0x1f) << 6;
+			c |= ((*(x+1)) & 0x3f);
 			fn(closure, closure2, c);
 			i++;
 		} else {
-			fn(closure, closure2, x);
+			fn(closure, closure2, *x);
 		}
 	}
 }
