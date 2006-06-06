@@ -277,7 +277,11 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 		} else if (is_image(item)) {
 			mvpw_hide(widget);
 			printf("Displaying image '%s'\n", path);
-			mvpw_set_image(iw, path);
+			if (mvpw_load_image_jpeg(iw, path) == 0) {
+				mvpw_show_image_jpeg(iw);
+			} else {
+				mvpw_set_image(iw, path);
+			}
 			mvpw_show(iw);
 			mvpw_focus(iw);
 		} else if (is_playlist(item)) {
