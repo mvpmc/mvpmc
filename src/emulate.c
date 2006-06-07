@@ -1280,7 +1280,7 @@ Bool media_send_read(stream_t *stream)
     ptr = buf + 8;
     INT32_TO_BUF(stream->blocklen,ptr);
     
-    if (!WriteExact(stream->sock,buf,40) ) {
+    if (!WriteExact(stream->sock,(char*)buf,40) ) {
         return False;
     }
 
@@ -1301,7 +1301,7 @@ Bool media_send_step(stream_t *stream, Bool forward)
     buf[0] = MEDIA_STEP;
     buf[9] = forward ? 1 : 0;
 
-    if (!WriteExact(stream->sock,buf,40) ) {
+    if (!WriteExact(stream->sock,(char*)buf,40) ) {
         return False;
     }
 
@@ -1324,7 +1324,7 @@ Bool media_send_seek(stream_t *stream, int64_t offset)
     ptr = buf + 8;
     INT32_TO_BUF(offset,ptr);
 
-    if (!WriteExact(stream->sock,buf,40) ) {
+    if (!WriteExact(stream->sock,(char*)buf,40) ) {
         return False;
     }
 
@@ -1340,7 +1340,7 @@ Bool media_send_eight(stream_t *stream)
     memset(buf,0,sizeof(buf));
     buf[0] = MEDIA_8;
 
-    if (!WriteExact(stream->sock,buf,40) ) {
+    if (!WriteExact(stream->sock,(char*)buf,40) ) {
         return False;
     }
 
@@ -1359,7 +1359,7 @@ Bool media_send_stop(stream_t *stream)
     memcpy(buf+6,stream->fileid,2);
 
 
-    if (!WriteExact(stream->sock,buf,40) ) {
+    if (!WriteExact(stream->sock,(char*)buf,40) ) {
         return False;
     }
 
@@ -1374,7 +1374,7 @@ Bool media_read_message(stream_t *stream)
     u_int8_t   buf[40];
     u_int8_t  *ptr;
 
-    if (!ReadExact(stream->sock,buf,40) ) {
+    if (!ReadExact(stream->sock,(char*)buf,40) ) {
         return False;
     }
 
