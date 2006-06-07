@@ -10,7 +10,8 @@ target = env['TARG']
 libdir = env['INSTLIBDIR']
 
 src = [ 'bitmap.c', 'checkbox.c', 'container.c', 'dialog.c', 'graph.c',
-        'image.c', 'menu.c', 'surface.c', 'text.c', 'widget.c', 'utf8.c' ]
+        'image.c', 'menu.c', 'surface.c', 'text.c', 'widget.c', 'utf8.c',
+        'image_jpeg.c' ]
 
 lib = env.StaticLibrary('widget', src,
                         CPPPATH = [ env['INCDIR'], env['INSTINCDIR'], '.' ])
