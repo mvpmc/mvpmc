@@ -21,7 +21,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
-#include <setjmp.h>
 #include "device.h"
 #include "nano-X.h"
 #include "mvp_widget.h"
@@ -29,17 +28,17 @@
 #include "mvp_av.h"
 #include "jpeglib.h"
 
-static unsigned char *buffer;
-static long bufsize;
-static jmp_buf setjmp_buffer;
-static int fd;
-static unsigned int orient;
+unsigned char *buffer;
+long bufsize;
+int fd;
+unsigned int orient;
+int fatal_error;
 
 static void
 error_exit (j_common_ptr cinfo)
 {
+	fatal_error = 1;
 	(*cinfo->err->output_message) (cinfo);
-	longjmp(setjmp_buffer, cinfo->err->msg_code);
 }
 
 
@@ -72,7 +71,7 @@ skip_input_data(j_decompress_ptr cinfo, long num_bytes)
 	if (num_bytes >= cinfo->src->bytes_in_buffer) {
 		cinfo->src->next_input_byte = buffer;
 		cinfo->src->bytes_in_buffer = 0;
-		if( lseek(fd, num_bytes-cinfo->src->bytes_in_buffer, SEEK_CUR) == -1 ) longjmp(setjmp_buffer, -1);
+		lseek(fd, num_bytes-cinfo->src->bytes_in_buffer, SEEK_CUR);
 	} else {
 		cinfo->src->next_input_byte += num_bytes;
 		cinfo->src->bytes_in_buffer -= num_bytes;
@@ -180,12 +179,12 @@ mvpw_load_image_jpeg(mvp_widget_t *widget, char *file)
 	GR_GC_ID gc;
 	GR_WM_PROPERTIES props;
 	JSAMPROW rowptr[1];
-	unsigned char prefix[2];
 
 	wid = widget->data.image.wid;
 	pid = widget->data.image.pid;
 
 	ret = 0;
+	fatal_error = 0;
 
 	fd = open(file, O_RDONLY);
 	if (fd < 0 || fstat(fd, &s) < 0) {
@@ -194,18 +193,10 @@ mvpw_load_image_jpeg(mvp_widget_t *widget, char *file)
 		goto err0;
 	}
 
-	read(fd, prefix, 2);
-	if ((prefix[0] != 0xff) && (prefix[1] != 0xd8)) {
-		EPRINTF("Not a JPEG file\n");
-		ret = -1;
-		goto err0;
-	}
-	lseek(fd, 0, SEEK_SET);
-
 	bufsize = 65536;
 	buffer = malloc(bufsize);
 	if (!buffer) {
-		EPRINTF("%s: malloc(%ld) failure for buffer\n", __FUNCTION__, bufsize);
+		EPRINTF("%s: malloc(%d) failure for buffer\n", __FUNCTION__, bufsize);
 		ret = -1;
 		goto err1;
 	}
@@ -224,13 +215,6 @@ mvpw_load_image_jpeg(mvp_widget_t *widget, char *file)
 
 	cinfo.err = jpeg_std_error(&jerr);
 	jerr.error_exit = (void *) error_exit;
-	if ((ret = setjmp(setjmp_buffer))) {
-		EPRINTF("%s: error %d in libjpeg\n", __FUNCTION__, ret);
-		if( pimage->imagebits ) free(pimage->imagebits);
-		if( rowptr[0] ) free(rowptr[0]);
-		ret = 0;
-		goto err3;
-	}
 
 	jpeg_create_decompress(&cinfo);
 
@@ -243,17 +227,14 @@ mvpw_load_image_jpeg(mvp_widget_t *widget, char *file)
 
 	jpeg_set_marker_processor(&cinfo, JPEG_APP0+1, get_exif_orient);
 
-	jpeg_read_header(&cinfo, TRUE);
-
-	if (jpeg_has_multiple_scans(&cinfo) ) {
-		EPRINTF("%s: progressive JPEG needs too much memory\n", __FUNCTION__);
-		ret = 0;
+	if (jpeg_read_header(&cinfo, FALSE) == JPEG_REACHED_EOI) {
+		EPRINTF("%s: truncated file: %s\n", __FUNCTION__, file);
 		goto err3;
 	}
 
 	cinfo.out_color_space = JCS_RGB;
 	cinfo.quantize_colors = FALSE;
-	cinfo.dct_method = JDCT_FASTEST;
+	cinfo.dct_method = JDCT_ISLOW;
 	cinfo.do_fancy_upsampling = FALSE;
 	cinfo.two_pass_quantize = FALSE;
 
@@ -301,19 +282,16 @@ mvpw_load_image_jpeg(mvp_widget_t *widget, char *file)
 		break;
 	}
 
-	if( cinfo.image_height >= height*2 && cinfo.image_width >= width*2 ) {
-		if( cinfo.image_height >= height*4 && cinfo.image_width >= width*4 ) {
-			if( cinfo.image_height >= height*8 && cinfo.image_width >= width*8 ) {
-				cinfo.scale_denom = 8;
-			} else {
-				cinfo.scale_denom = 4;
-			}
-		} else {
-			cinfo.scale_denom = 2;
-		}
-	} else {
-		cinfo.scale_denom = 1;
-	}
+	cinfo.scale_num = 1;
+	cinfo.scale_denom = 8;
+
+	while( (cinfo.image_height*cinfo.scale_num < height*cinfo.scale_denom || cinfo.image_width*cinfo.scale_num < width*cinfo.scale_denom) && cinfo.scale_num<16 )
+		cinfo.scale_num++;
+
+	if (jpeg_has_multiple_scans(&cinfo) ) {
+ 		EPRINTF("%s: progressive JPEG, skipping: %s\n", __FUNCTION__, file);
+		goto err3;
+ 	}
 
 	jpeg_calc_output_dimensions(&cinfo);
 
@@ -356,6 +334,7 @@ mvpw_load_image_jpeg(mvp_widget_t *widget, char *file)
 	inc = (cinfo.output_height << 16) / height;
 	for( dst_row=0 ; dst_row<height; ++dst_row ) {
 		while (pos >= 0x10000L ) {
+			if(fatal_error) goto err5;
 			if(cinfo.output_scanline < cinfo.output_height)
 				jpeg_read_scanlines (&cinfo, rowptr, 1);
 			pos -= 0x10000L;
@@ -398,12 +377,15 @@ mvpw_load_image_jpeg(mvp_widget_t *widget, char *file)
 		}
 	}
 	while (cinfo.output_scanline < cinfo.output_height) {
+		if(fatal_error) goto err5;
 		jpeg_read_scanlines (&cinfo, rowptr, 1);
 	}
-
-	GrDestroyGC(gc);
+	if(fatal_error) goto err5;
 
 	jpeg_finish_decompress (&cinfo);
+
+err5:
+	GrDestroyGC(gc);
 
 	free(pimage->imagebits);
 

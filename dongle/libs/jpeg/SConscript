@@ -49,8 +49,10 @@ build = env.Command('../../install/' + target + '/lib/libjpeg.a', 0,
                     '/jpeg-6b -i ' + file + ' ' +
                     cross + ' ' +
                     '-I ' + pwd + '/../../install/' + target + ' ' +
-                    Carg + host)
+                    Carg + host + ' ' +
+                    '-p patches/jpegscale.patch ')
 
+env.Depends(build, [ 'patches/jpegscale.patch' ] )
 env.Depends(build, dl)
 
 Return('build')
