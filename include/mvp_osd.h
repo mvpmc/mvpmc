@@ -65,4 +65,23 @@ osd_rgba(unsigned char r, unsigned char g, unsigned char b, unsigned char a)
 	return (a<<24) | (r<<16) | (g<<8) | b;
 }
 
+
+
 #endif /* MVP_OSD_H */
+
+#ifndef FONT_H
+#define FONT_H
+
+/*
+ * This structure is for compatibility with bogl fonts.  Use bdftobogl to
+ * create new .c font files from X11 BDF fonts.
+ */
+typedef struct bogl_font {
+	char *name;			/* Font name. */
+	int height;			/* Height in pixels. */
+	unsigned long *content;		/* 32-bit right-padded bitmap array. */
+	short *offset;			/* 256 offsets into content. */
+	unsigned char *width;		/* 256 character widths. */
+} osd_font_t;
+
+#endif /* FONT_H */

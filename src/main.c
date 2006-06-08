@@ -72,6 +72,8 @@ static struct option opts[] = {
 	{ "vlc", required_argument, 0, 0},
 	{ "no-mplayer", no_argument, 0, 0 },
 	{ "emulate", required_argument, 0, 0},
+	{ "rfb-mode", required_argument, 0, 0},
+	{ "flicker", no_argument, 0, 0},
 	{ 0, 0, 0, 0 }
 };
 
@@ -80,9 +82,16 @@ int settings_disable = 0;
 int reboot_disable = 0;
 int filebrowser_disable = 0;
 int mplayer_disable = 0;
+int rfb_mode = 3;
+int flicker = 0;
 
 /* this controls the default web server set to zero to disable */
+#ifdef MVPMC_HOST
+int web_port = 0;
+#else
 int web_port = -1;
+#endif
+
 int web_server;
 
 void reset_web_config(void);
@@ -230,7 +239,10 @@ print_help(char *prog)
 	printf("\t--web-port port\tconfiguration port\n");
 	printf("\t--vlc server \tvlc IP address\n");
 	printf("\t--no-mplayer \tdisable mplayer\n");
+	printf("\n");
 	printf("\t--emulation server \tIP address or ?\n");
+	printf("\t--rfb-mode mode\t(0, 1, 2)\n");
+	printf("\t--flicker \tflicker mode on\n");
 }
 
 /*
@@ -496,6 +508,12 @@ main(int argc, char **argv)
 			}
 			if (strcmp(opts[opt_index].name, "emulate") == 0) {
 				mvp_server = strdup(optarg);
+			}
+			if (strcmp(opts[opt_index].name, "rfb") == 0) {
+				rfb_mode = atoi(optarg);
+			}
+			if (strcmp(opts[opt_index].name, "flicker") == 0) {
+				flicker = 1;
 			}
 			if (strcmp (opts[opt_index].name, "startup") == 0) {
 			/*
@@ -1535,6 +1553,8 @@ void strencode( char* to, size_t tosize, const char* from )
 #define WEB_CONFIG_NET_REMOTE3 525
 #define WEB_CONFIG_VLC_SERVER  526
 #define WEB_CONFIG_MVP_SERVER  527
+#define WEB_CONFIG_RFB_MODE    528
+#define WEB_CONFIG_FLICKER     529
 
 #define WEB_CONFIG_USE_MYTH      600
 #define WEB_CONFIG_USE_REPLAY    601
@@ -1596,6 +1616,8 @@ struct WEB_CONFIG_t {
     struct shared_disk_t share_disk[3];
     char vlc_server[64];
     char mvp_server[64];
+    int rfb_mode;
+    int flicker;
 } web_config;
 
 #define IS_WEB_ENABLED(x) (web_config.bitmask & (1 << (x-WEB_CONFIG_USE_MYTH)) )
@@ -1834,6 +1856,12 @@ int mvp_config_general(char *line)
                 case WEB_CONFIG_MVP_SERVER:
                     snprintf(web_config.mvp_server,64,"%s",equals);
                     break;
+                case WEB_CONFIG_RFB_MODE:
+                    web_config.rfb_mode = atoi(equals);
+                    break;
+                case WEB_CONFIG_FLICKER:
+                    web_config.flicker = atoi(equals);
+                    break;
                 case WEB_CONFIG_USE_MYTH:
                 case WEB_CONFIG_USE_REPLAY:
                 case WEB_CONFIG_USE_MCLIENT:
@@ -2034,6 +2062,12 @@ int mvp_load_data(FILE *stream,char *line)
                                 break;
                             case WEB_CONFIG_MVP_SERVER:
                                 fprintf(stream,"VALUE=\"%s\"",web_config.mvp_server);
+                                break;
+                            case WEB_CONFIG_RFB_MODE:
+                                fprintf(stream,"VALUE=\"%1.1d\"",web_config.rfb_mode);
+                                break;
+                            case WEB_CONFIG_FLICKER:
+                                fprintf(stream,"VALUE=\"%1.1d\"",web_config.flicker);
                                 break;
                             case WEB_CONFIG_STATUS:
                                 tm = time(NULL);
@@ -2254,6 +2288,8 @@ void load_web_config(char *font)
             web_config.bitmask |=1024;
 	        snprintf(web_config.mvp_server,64,"%s",mvp_server);
         }
+        web_config.rfb_mode = rfb_mode;
+        web_config.flicker = flicker;
 
         snprintf(web_config.playlist,64,"/usr/playlist/default.m3u");
         strcpy(web_config.share_user,"guest");
