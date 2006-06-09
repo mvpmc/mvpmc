@@ -1946,8 +1946,8 @@ int mvp_config_script(char *line)
                         fprintf(fp,"if [ -d %s ] ; then\n",web_config.share_disk[i].local_dir);
                         printf("mount.cifs //%s%s %s -o username=%s\n",web_config.share_disk[i].ip,
                                web_config.share_disk[i].remote_dir,web_config.share_disk[i].local_dir,web_config.share_user);
-                        fprintf(fp,"mount.cifs //%s%s %s -o username=%s,password=%s\n",web_config.share_disk[i].ip,
-                               web_config.share_disk[i].remote_dir,web_config.share_disk[i].local_dir,web_config.share_user,web_config.share_user);
+                        fprintf(fp,"mount.cifs //%s%s %s -o username=%s,password=%s,rsize=34000;\n",web_config.share_disk[i].ip,
+                               web_config.share_disk[i].remote_dir,web_config.share_disk[i].local_dir,web_config.share_user,web_config.share_password);
                         fprintf(fp,"fi\n");
                     }
                 }
