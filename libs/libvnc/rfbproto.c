@@ -45,7 +45,7 @@ Bool sendUpdateRequest;
 
 int endianTest = 1;
 
-int useHauppageExtentions;
+int useHauppageExtentions=0;
 
 /*Iain*/
 char *programName = "mvpmc";
@@ -376,7 +376,7 @@ SetFormatAndEncodings()
     if (addRRE)
         encs[se->nEncodings++] = Swap32IfLE(rfbEncodingRRE);
     
-    if (useHauppageExtentions==1) {
+    if (useHauppageExtentions==2) {
         encs[se->nEncodings++] = Swap32IfLE(rfbEncodingHauppauge);
         encs[se->nEncodings++] = Swap32IfLE(rfbEncodingHauppaugeAYVU);
         encs[se->nEncodings++] = Swap32IfLE(rfbEncodingHauppauge2);
@@ -464,7 +464,7 @@ SendKeyEvent(CARD32 key, Bool down)
 
     ke.type = rfbKeyEvent;
     ke.down = down ? 1 : 0;
-    if (useHauppageExtentions==1) {
+    if (useHauppageExtentions>0) {
         ke.pad = (int)Swap16IfLE(key);
     }
     ke.key = Swap32IfLE(key);
@@ -568,7 +568,7 @@ HandleRFBServerMessage()
                         fprintf(stderr,"%s: zero size rect - ignoring\n",programName);
                         continue;
                     }
-
+                    if (vnc_debug == True ) printf("encoding %d\n",rect.encoding);
                     switch (rect.encoding) {                        
                         case rfbEncodingHauppauge:
                             {
@@ -638,7 +638,7 @@ HandleRFBServerMessage()
                                     free(buf);
                                     return False;
                                 }
-                                destlen = 720 * 480 * 2;
+                                destlen = 720 * 576 * 2;
                                 out = calloc(destlen,sizeof(char));
 
                                 if ( ( ret = uncompress(out,&destlen,buf,len) ) != 0 ) {
@@ -1174,6 +1174,13 @@ HandleRFBServerMessage()
                 if (!HandleRDCMessage(rfbsock) ) {
                     return False;
                 }
+                break;
+            }
+        case 8:
+            {
+                if (!ReadExact(rfbsock, (char *)&msg, 1))
+                    return False;
+
                 break;
             }
         default:

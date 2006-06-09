@@ -846,6 +846,7 @@ static mvp_widget_t *fb_image;
 static mvp_widget_t *mythtv_image;
 static mvp_widget_t *replaytv_image;
 static mvp_widget_t *about_image;
+static mvp_widget_t *emulate_image;
 static mvp_widget_t *exit_image;
 static mvp_widget_t *warn_widget;
 static mvp_widget_t *busy_widget;
@@ -2630,7 +2631,6 @@ void mvp_server_remote_key(char key);
 
 static void mvp_key_callback(mvp_widget_t *widget, char key)
 {
-    printf("key=%i\n",key);
 	if( key==MVPW_KEY_GO || key==MVPW_KEY_POWER) {
        	GrUnregisterInput(rfbsock);
         close(rfbsock);
@@ -4785,7 +4785,7 @@ main_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mvpw_set_surface_attr(vnc_widget, &surface);
         if (k==MM_EMULATE) {
             mvp_server_register();
-		    mvpw_set_timer(vnc_widget, vnc_timer_callback, 100); 
+		    mvpw_set_timer(vnc_widget, vnc_timer_callback, 1000); 
 		    mvpw_set_key(vnc_widget, mvp_key_callback);
 		    mvpw_set_fdinput(vnc_widget, mvp_fdinput_callback);	
         } else {
@@ -4846,7 +4846,13 @@ main_hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 				  "File:%s\n", "Music Client");
 			display_send(display_message);
 			break;
-		case MM_VNC:
+        case MM_VNC:
+            break;
+        case MM_EMULATE:
+			mvpw_show(emulate_image);
+			snprintf(display_message, sizeof(display_message),
+				  "File:%s\n", "Emulate");
+			display_send(display_message);
 			break;
 		case MM_ABOUT:
 			mvpw_show(about_image);
@@ -4884,6 +4890,8 @@ main_hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 		case MM_EXIT:
 			mvpw_hide(exit_image);
 			break;
+        case MM_EMULATE:
+			mvpw_hide(emulate_image);
 		}
 	}
 }
@@ -5025,6 +5033,17 @@ main_menu_init(char *server, char *replaytv)
 					MVPW_BLACK, 0, 0);
 	mvpw_set_image(about_image, file);
 
+	splash_update("Creating emulation image");
+
+	snprintf(file, sizeof(file), "%s/emulate.png", imagedir);
+	if (mvpw_get_image_info(file, &iid) < 0) {
+	    snprintf(file, sizeof(file), "%s/unknown.png", imagedir);
+	    mvpw_get_image_info(file, &iid);
+    }
+	emulate_image = mvpw_create_image(NULL, 50, 25, iid.width, iid.height,
+					MVPW_BLACK, 0, 0);
+	mvpw_set_image(emulate_image, file);
+
 	splash_update("Creating exit image");
 
 	snprintf(file, sizeof(file), "%s/stop.png", imagedir);
@@ -5039,6 +5058,7 @@ main_menu_init(char *server, char *replaytv)
 	snprintf(file, sizeof(file), "%s/mvpmc_logo.png", imagedir);
 	if (mvpw_get_image_info(file, &iid) < 0)
 		return -1;
+
 	mvpmc_logo = mvpw_create_image(NULL, 50, 25, iid.width, iid.height,
 				       MVPW_BLACK, 0, 0);
 	mvpw_set_image(mvpmc_logo, file);
@@ -5058,7 +5078,7 @@ main_menu_init(char *server, char *replaytv)
 	mvpw_moveto(replaytv_image, wid.x, wid.y);
 	mvpw_moveto(about_image, wid.x, wid.y);
 	mvpw_moveto(exit_image, wid.x, wid.y);
-
+	mvpw_moveto(emulate_image, wid.x, wid.y);
 	mvpw_set_menu_attr(main_menu, &attr);
 
 	item_attr.select = main_select_callback;
@@ -5085,7 +5105,7 @@ about_init(void)
 		"Video: mpeg1, mpeg2\n"
 		"Images: bmp, gif, png, jpeg\n"
 		"Servers: MythTV, ReplayTV, NFS, CIFS, VNC, SlimServer, "
-		"HTTP\n";
+		"HTTP, Hauppauge\n";
 	struct utsname myname;
 
 	splash_update("Creating about dialog");
@@ -6117,6 +6137,7 @@ gui_init(char *server, char *replaytv)
 			mvpw_hide(fb_image);
 			mvpw_hide(replaytv_image);
 			mvpw_hide(about_image);
+			mvpw_hide(emulate_image);
 			mvpw_hide(exit_image);
 
 			mvpw_show(mythtv_image);
@@ -6136,6 +6157,7 @@ gui_init(char *server, char *replaytv)
 			mvpw_hide(fb_image);
 			mvpw_hide(mythtv_image);
 			mvpw_hide(about_image);
+			mvpw_hide(emulate_image);
 			mvpw_hide(exit_image);
 
 			mvpw_show(replaytv_image);
@@ -6155,6 +6177,7 @@ gui_init(char *server, char *replaytv)
 			mvpw_hide(mythtv_image);
 			mvpw_hide(replaytv_image);
 			mvpw_hide(about_image);
+			mvpw_hide(emulate_image);
 			mvpw_hide(exit_image);
 
 			mvpw_show(fb_image);
@@ -6174,6 +6197,7 @@ gui_init(char *server, char *replaytv)
 			mvpw_hide(mythtv_image);
 			mvpw_hide(replaytv_image);
 			mvpw_hide(about_image);
+			mvpw_hide(emulate_image);
 			mvpw_hide(exit_image);
 
 			mvpw_show(setup_image);
@@ -6192,6 +6216,7 @@ gui_init(char *server, char *replaytv)
 		mvpw_hide(mythtv_image);
 		mvpw_hide(replaytv_image);
 		mvpw_hide(exit_image);
+		mvpw_hide(emulate_image);
 
 		mvpw_show(about_image);
 		
@@ -6212,6 +6237,7 @@ gui_init(char *server, char *replaytv)
 			mvpw_hide(replaytv_image);
 			mvpw_hide(about_image);
 			mvpw_hide(exit_image);
+			mvpw_hide(emulate_image);
 
 			mvpw_show(fb_image);
 		
@@ -6231,6 +6257,7 @@ gui_init(char *server, char *replaytv)
 			mvpw_hide(replaytv_image);
 			mvpw_hide(about_image);
 			mvpw_hide(exit_image);
+			mvpw_hide(emulate_image);
 
 			mvpw_show(setup_image);
 		
@@ -6250,8 +6277,9 @@ gui_init(char *server, char *replaytv)
 			mvpw_hide(replaytv_image);
 			mvpw_hide(about_image);
 			mvpw_hide(exit_image);
+			mvpw_hide(setup_image);
 
-			mvpw_show(setup_image);
+			mvpw_show(emulate_image);
 		
 			mvpw_menu_hilite_item(main_menu, (void*)startup_this_feature);
 

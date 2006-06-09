@@ -59,9 +59,13 @@ if [ "$NTP" != "" ] ; then
 fi
 
 echo "${IP}    ${HNAME}" >> /etc/hosts
-tftp -g -l /etc/dongle.config -r ${DONGLE}.config ${SERVER}
-tftp -g -l /tmp/themes/default.xml -r ${DONGLE}.xml ${SERVER}
-. /etc/dongle.config
+
+if [ -n "$DONGLE" ] ; then
+    tftp -g -l /etc/dongle.config -r ${DONGLE}.config ${SERVER}
+    tftp -g -l /tmp/themes/default.xml -r ${DONGLE}.xml ${SERVER}
+    . /etc/dongle.config
+fi
+
 if [ -z "`pidof mvpmc`" ] ; then
     if [ -z $SERVER ] ; then
         if [ -z $HOST ] ; then

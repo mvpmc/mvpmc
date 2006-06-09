@@ -39,7 +39,7 @@
 #define PRINTF(x...)
 #endif
 
-#if 0
+#if 1
 /*
  * Currently, the following font is available.  Add more by using the
  * bdftobogl perl script that comes with bogl to convert X11 BDF fonts.
@@ -211,7 +211,7 @@ osd_drawtext(osd_surface_t *surface, int x, int y, const char *str,
 	int h, n, i;
 	int Y, X, cx, swidth;
 
-#if 0
+#if 1
 	if (font == NULL)
 		font = osd_default_font;
 #endif
