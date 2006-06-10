@@ -54,6 +54,7 @@ typedef struct {
 	GR_COLOR	 text_bg;
 	int		 rounded;
 	int		 buflen;
+	int		 utf8;
 
 	void (*callback_key)(char*, char);
 } mvpw_text_t;
@@ -76,6 +77,7 @@ typedef struct {
 	int		 checkboxes;
 	int		 rounded;
 	int		 margin;
+	int		 utf8;
 
 	mvp_widget_t	*title_widget;
 	mvp_widget_t	*first_widget;
@@ -134,6 +136,7 @@ typedef struct {
 	mvp_widget_t	*text_widget;
 	mvp_widget_t	*image_widget;
 	int		 margin;
+	int		 utf8;
 } mvpw_dialog_t;
 
 typedef struct {

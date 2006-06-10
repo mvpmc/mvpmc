@@ -42,6 +42,7 @@ expose(mvp_widget_t *widget)
 	int x, y, h, w, descent, indent = 0, width, dia;
 	char *str;
 	int i, j, k, nl = 0;
+	int encoding;
 
 	int consume_spaces;
 
@@ -50,6 +51,12 @@ expose(mvp_widget_t *widget)
 
 	if (!mvpw_visible(widget))
 		return;
+
+	if (widget->data.text.utf8) {
+		encoding = MWTF_UTF8;
+	} else {
+		encoding = MWTF_ASCII;
+	}
 
 	GrGetFontInfo(widget->data.text.font, &finfo);
 	h       = finfo.height;
@@ -217,7 +224,7 @@ expose(mvp_widget_t *widget)
 			}
 			if (buf[strlen(buf)-1] == '\n')
 				buf[strlen(buf)-1] = '\0';
-			GrText(widget->wid, gc, x+indent, y-descent, buf, strlen(buf), MWTF_UTF8);
+			GrText(widget->wid, gc, x+indent, y-descent, buf, strlen(buf), encoding);
 			y += h;
 
 			i += k;
@@ -226,7 +233,7 @@ expose(mvp_widget_t *widget)
 				i++;
 		}
 	} else {
-		GrText(widget->wid, gc, x+indent, y-descent, str, strlen(str), MWTF_UTF8);
+		GrText(widget->wid, gc, x+indent, y-descent, str, strlen(str), encoding);
 	}
 
 	GrDestroyGC(gc);
@@ -289,6 +296,7 @@ mvpw_set_text_attr(mvp_widget_t *widget, mvpw_text_attr_t *attr)
 	widget->data.text.font = attr->font;
 	widget->data.text.rounded = attr->rounded;
 	widget->data.text.text_bg = attr->bg;
+	widget->data.text.utf8 = attr->utf8;
 
 	if (widget->border_color != attr->border) {
 		GrSetWindowBorderColor(widget->wid, attr->border);
@@ -310,6 +318,7 @@ mvpw_get_text_attr(mvp_widget_t *widget, mvpw_text_attr_t *attr)
 	attr->border = widget->border_color;
 	attr->font = widget->data.text.font;
 	attr->rounded = widget->data.text.rounded;
+	attr->utf8 = widget->data.text.utf8;
 
 	attr->border = widget->border_color;
 	attr->border_size = widget->border_size;

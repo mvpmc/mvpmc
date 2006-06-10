@@ -170,6 +170,7 @@ mvpw_menu_attr_t mythtv_attr = {
 	.border_size = 2,
 	.border = MVPW_DARKGREY2,
 	.margin = 4,
+	.utf8 = 1,
 };
 
 static mvpw_menu_attr_t attr = {
@@ -290,6 +291,7 @@ static mvpw_text_attr_t mythtv_info_attr = {
 	.fg = MVPW_WHITE,
 	.border = MVPW_BLACK,
 	.border_size = 0,
+	.utf8 = 1,
 };
 
 static mvpw_text_attr_t viewport_attr = {
@@ -333,6 +335,7 @@ static mvpw_text_attr_t mythtv_program_attr = {
 	.bg = mvpw_color_alpha(MVPW_BLACK, 0x80),
 	.border = MVPW_BLACK,
 	.border_size = 0,
+	.utf8 = 1,
 };
 
 static mvpw_text_attr_t mythtv_description_attr = {
@@ -344,6 +347,7 @@ static mvpw_text_attr_t mythtv_description_attr = {
 	.bg = mvpw_color_alpha(MVPW_BLACK, 0x80),
 	.border = MVPW_BLACK,
 	.border_size = 0,
+	.utf8 = 1,
 };
 
 static mvpw_text_attr_t splash_attr = {

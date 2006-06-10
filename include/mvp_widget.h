@@ -114,6 +114,7 @@ typedef struct {
 	uint32_t 	border;
 	int	 	rounded;
 	int	 	border_size;
+	int	 	utf8;
 } mvpw_text_attr_t;
 
 extern mvp_widget_t *mvpw_create_text(mvp_widget_t *parent,
@@ -144,6 +145,7 @@ typedef struct {
 	int	 	rounded;
 	int	 	border_size;
 	int	 	margin;
+	int	 	utf8;
 } mvpw_menu_attr_t;
 
 typedef struct {
@@ -261,6 +263,7 @@ typedef struct {
 	int	 	margin;
 	int	 	justify_title;
 	int	 	justify_body;
+	int	 	utf8;
 } mvpw_dialog_attr_t;
 
 extern mvp_widget_t* mvpw_create_dialog(mvp_widget_t *parent,

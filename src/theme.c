@@ -910,6 +910,7 @@ tag_widget(parser_data_t *pdata, const char *el, const char **attr)
 
 	if (copy) {
 		int cur_attr = pdata->cur_attr;
+		int utf8;
 
 		i = 0;
 		while (theme_attr[i].name) {
@@ -925,16 +926,25 @@ tag_widget(parser_data_t *pdata, const char *el, const char **attr)
 		if (theme_attr[i].type != theme_attr[cur_attr].type)
 			goto err;
 
+		/*
+		 * XXX: Not copying utf8 is a hack, since that item is
+		 *      not themeable at the moment.
+		 */
+
 		switch (theme_attr[i].type) {
 		case WIDGET_TEXT:
+			utf8 = theme_attr[cur_attr].attr.text->utf8;
 			memcpy(theme_attr[cur_attr].attr.text,
 			       theme_attr[i].attr.text,
 			       sizeof(*(theme_attr[i].attr.text)));
+			theme_attr[cur_attr].attr.text->utf8 = utf8;
 			break;
 		case WIDGET_MENU:
+			utf8 = theme_attr[cur_attr].attr.menu->utf8;
 			memcpy(theme_attr[cur_attr].attr.menu,
 			       theme_attr[i].attr.menu,
 			       sizeof(*(theme_attr[i].attr.menu)));
+			theme_attr[cur_attr].attr.menu->utf8 = utf8;
 			break;
 		case WIDGET_GRAPH:
 			memcpy(theme_attr[cur_attr].attr.graph,
@@ -942,9 +952,11 @@ tag_widget(parser_data_t *pdata, const char *el, const char **attr)
 			       sizeof(*(theme_attr[i].attr.graph)));
 			break;
 		case WIDGET_DIALOG:
+			utf8 = theme_attr[cur_attr].attr.dialog->utf8;
 			memcpy(theme_attr[cur_attr].attr.dialog,
 			       theme_attr[i].attr.dialog,
 			       sizeof(*(theme_attr[i].attr.dialog)));
+			theme_attr[cur_attr].attr.dialog->utf8 = utf8;
 			break;
 		}
 	}
