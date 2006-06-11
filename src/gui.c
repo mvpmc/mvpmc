@@ -63,7 +63,8 @@ volatile int mythtv_livetv = 0;
 #define FONT_LARGE	1001
 #endif
 
-#define FONT_HEIGHT(x)	(mvpw_font_height(x.font) + (2 * x.margin))
+#define FONT_HEIGHT(x)	(mvpw_font_height(x.font,x.utf8) + (2 * x.margin))
+#define FONT_WIDTH(x,c)	(mvpw_font_width(x.font,c,x.utf8))
 
 mvpw_menu_attr_t fb_attr = {
 	.font = FONT_STANDARD,
@@ -2721,7 +2722,7 @@ file_browser_init(void)
 	mvpw_show(widget);
 	fb_size = widget;
 
-	w2 = mvpw_font_width(fontid, "1000%");
+	w2 = mvpw_font_width(fontid, "1000%", display_attr.utf8);
 	widget = mvpw_create_text(contain, 0, 0, w2, h,
 				  display_attr.bg,
 				  display_attr.border,
@@ -4112,7 +4113,7 @@ settings_init(void)
 					     settings_ip_title_attr.border_size);
 	mvpw_set_text_attr(settings_ip_title, &settings_ip_title_attr);
 
-	w = mvpw_font_width(settings_ip_attr.font, "XXXXXXXXXXXXXXX");
+	w = FONT_WIDTH(settings_ip_attr, "XXXXXXXXXXXXXXX");
 	settings_ip_label = mvpw_create_text(settings_ip, 0, 0, w, h,
 					     settings_ip_attr.bg,
 					     settings_ip_attr.border,
@@ -4120,7 +4121,7 @@ settings_init(void)
 	mvpw_set_text_attr(settings_ip_label, &settings_ip_attr);
 	mvpw_attach(settings_ip_title, settings_ip_label, MVPW_DIR_DOWN);
 
-	w = mvpw_font_width(settings_ip_attr.font, "XXXX");
+	w = FONT_WIDTH(settings_ip_attr, "XXXX");
 	for (i=0; i<4; i++) {
 		settings_ip_old[i] = mvpw_create_text(settings_ip, 0, 0, w, h,
 						      settings_ip_attr.bg,
@@ -4315,8 +4316,8 @@ colortest_init(void)
 	ct_globals.bg_idx	 = find_color_idx("BLACK");
 
 	h = 1 * FONT_HEIGHT(ct_fgbg_box_attr);
-	w = mvpw_font_width(ct_fgbg_box_attr.font,
-			    "BG: 255: FFFFFF: LIGHTGOLDENRODYELLOW");
+	w = FONT_WIDTH(ct_fgbg_box_attr,
+		       "BG: 255: FFFFFF: LIGHTGOLDENRODYELLOW");
 
 	ct_fg_box = mvpw_create_text(NULL, 40, 250, w, h, MVPW_BLACK, 0, 0);
 	mvpw_set_text_attr(ct_fg_box, &ct_fgbg_box_attr);
@@ -4326,7 +4327,8 @@ colortest_init(void)
 
 	num_cols = 16;
 	num_rows = (96/16);
-	h = (mvpw_font_height(ct_text_box_attr.font) + 10) * ((95 / num_cols) + 1);
+	h = (mvpw_font_height(ct_text_box_attr.font, ct_text_box_attr.utf8)
+	     + 10) * ((95 / num_cols) + 1);
 	w = si.cols;
 
 	buf[0] = '\n';
@@ -5268,7 +5270,7 @@ osd_init(void)
 	splash_update("Creating OSD");
 
 	h = FONT_HEIGHT(display_attr);
-	w = mvpw_font_width(display_attr.font, " 000% ");
+	w = FONT_WIDTH(display_attr, " 000% ");
 
 	/*
 	 * State widgets for pause, mute, fast forward, zoom
@@ -5452,7 +5454,7 @@ mw_init(char *server, char *replaytv)
 			 compile_time);
 
 	h = 3 * FONT_HEIGHT(splash_attr);
-	w = mvpw_font_width(splash_attr.font, buf) + 8;
+	w = FONT_WIDTH(splash_attr, buf) + 8;
 	w = 400;
 
 	x = (si.cols - w) / 2;
@@ -5500,7 +5502,7 @@ popup_init(void)
 	char buf[16];
 
 	h = 8 * FONT_HEIGHT(popup_attr);
-	w = mvpw_font_width(popup_attr.font, "On Screen Display") * 1.5;
+	w = FONT_WIDTH(popup_attr, "On Screen Display") * 1.5;
 	x = (si.cols - w) / 2;
 	y = (si.rows - h) / 2;
 

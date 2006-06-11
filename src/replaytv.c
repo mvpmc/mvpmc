@@ -45,6 +45,9 @@
 
 #include "display.h"
 
+#define FONT_HEIGHT(x)	(mvpw_font_height(x.font,x.utf8))
+#define FONT_WIDTH(x,c)	(mvpw_font_width(x.font,c,x.utf8))
+
 //+********************************************************************************************
 //
 // For hauppauge remote to character mappings see:
@@ -399,12 +402,12 @@ static int breakup_string(char *str, char **line_ptrs, int num_lines, int font_i
    }
 
    ccnt=0; cwidth = 0; cline = 0;
-   space_width        = mvpw_font_width(font_id, " ");
+   space_width        = mvpw_font_width(font_id, " ", 0);
    cur_start          = str_cpy;
    line_ptrs[cline] = str;
    while ( (ccnt+1) < slen )  {
       wlen = strlen(cur_start);
-      if ( (cwidth += mvpw_font_width(font_id, cur_start)) < line_width ) {
+      if ( (cwidth += mvpw_font_width(font_id, cur_start, 0)) < line_width ) {
          ccnt     += (wlen + 1); 
          cwidth   += space_width;
          cur_start = &(str_cpy[ccnt]);
@@ -420,7 +423,7 @@ static int breakup_string(char *str, char **line_ptrs, int num_lines, int font_i
          } 
          line_ptrs[cline] = &(str[ccnt]);
          //printf("line %d: (%d:%d)%s\n", cline, slen, ccnt, line_ptrs[cline]);
-         cwidth = mvpw_font_width(font_id, cur_start); 
+         cwidth = mvpw_font_width(font_id, cur_start, 0); 
       }
    }
 
@@ -456,7 +459,7 @@ static int calc_string_window_sz(char *str, int font_id, int *width, int *height
          next = eos;
       }
       
-      tmp_width = mvpw_font_width(font_id, cur);
+      tmp_width = mvpw_font_width(font_id, cur, 0);
       if ( tmp_width > max_width ) {
          max_width = tmp_width;
       }
@@ -467,7 +470,7 @@ static int calc_string_window_sz(char *str, int font_id, int *width, int *height
 
    free(s_cpy);
    *width  = max_width;
-   *height = num_lines * mvpw_font_height(font_id);
+   *height = num_lines * mvpw_font_height(font_id, 0);
    *lines  = num_lines;
    //printf("BOX: width=%d  height=%d\n", *width, *height); 
    return(0);
@@ -2112,8 +2115,8 @@ int replaytv_device_update(void)
    //
    snprintf(buf, sizeof(buf), "Discovering ReplayTV devices...");
    //rtv_discovery_splash_attr.font = fontid;
-   h = (mvpw_font_height(rtv_discovery_splash_attr.font) + (2 * rtv_discovery_splash_attr.margin)) * 2;
-   w = mvpw_font_width(rtv_discovery_splash_attr.font, buf) + 8;
+   h = (FONT_HEIGHT(rtv_discovery_splash_attr) + (2 * rtv_discovery_splash_attr.margin)) * 2;
+   w = FONT_WIDTH(rtv_discovery_splash_attr, buf) + 8;
    
    x = (scr_info.cols - w) / 2;
    y = (scr_info.rows - h) / 2;
@@ -2308,7 +2311,7 @@ int replay_gui_init(void)
    y += 10;
    container_y = y;
    w = scr_info.cols - x - 50; // width between logo x:start and right side of screen
-   h = mvpw_font_height(rtv_episode_descr_attr.font);
+   h = FONT_HEIGHT(rtv_episode_descr_attr);
    //printf("si: x=%d y=%d w=%d h=%d\n", x, y, w, h);
 
    // Set up NUM_EPISODE_LINES for episode description and place in a container widget 
@@ -2334,7 +2337,7 @@ int replay_gui_init(void)
    y += 10;
    container_y = y;
    w = scr_info.cols - x - 50; // width between logo x:start and right side of screen
-   h = mvpw_font_height(rtv_device_descr_attr.font);
+   h = FONT_HEIGHT(rtv_device_descr_attr);
 
    rtv_device_descr.container = mvpw_create_container(NULL, x, container_y + h, w, h*3, MVPW_BLACK, 0, 0);
 
@@ -2358,7 +2361,7 @@ int replay_gui_init(void)
    mvpw_set_text_str(rtv_device_descr.capacity, "");
    mvpw_show(rtv_device_descr.capacity);
 
-   i = mvpw_font_width(rtv_device_descr_attr.font, "XXX%");
+   i = FONT_WIDTH(rtv_device_descr_attr, "XXX%");
    rtv_device_descr.percentage = mvpw_create_text(rtv_device_descr.container, w-20-i, h*0, i, h, rtv_device_descr_attr.bg, 0, 0);   
    mvpw_set_text_attr(rtv_device_descr.percentage, &rtv_device_descr_attr);
    mvpw_set_text_str(rtv_device_descr.percentage, "");
@@ -2423,8 +2426,8 @@ int replay_gui_init(void)
    // init seek_osd window
    //
    //rtv_seek_osd_attr.font = fontid;
-   h = mvpw_font_height(rtv_seek_osd_attr.font);
-   w = mvpw_font_width(rtv_seek_osd_attr.font, " XXXXX XXXXXX ");
+   h = FONT_HEIGHT(rtv_seek_osd_attr);
+   w = FONT_WIDTH(rtv_seek_osd_attr, " XXXXX XXXXXX ");
    rtv_seek_osd_widget[0] = mvpw_create_text(NULL, 50, 25, w, h, 
                                              rtv_seek_osd_attr.bg, 
                                              rtv_seek_osd_attr.border, 

@@ -526,7 +526,7 @@ mvpw_move(mvp_widget_t *widget, int x, int y)
 }
 
 int
-mvpw_font_height(int font)
+mvpw_font_height(int font, int utf8)
 {
 	GR_FONT_INFO finfo;
 
@@ -547,14 +547,20 @@ static void accumulate_width(void *closure, void *closure2, int c) {
 }
 
 int
-mvpw_font_width(int font, char *str)
+mvpw_font_width(int font, char *str, int utf8)
 {
 	GR_FONT_INFO finfo;
-	int w = 0;
+	int i, w = 0;
 
 	GrGetFontInfo(font, &finfo);
 
-	utf8_for_each2(str, &accumulate_width, (void *)&finfo, (void *)&w);
+	if (utf8) {
+		utf8_for_each2(str, &accumulate_width,
+			       (void *)&finfo, (void *)&w);
+	} else {
+		for (i=0; i<strlen(str); i++)
+			w += finfo.widths[(int)str[i]];
+	}
 
 	return w;
 }

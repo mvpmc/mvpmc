@@ -88,7 +88,8 @@ expose(mvp_widget_t *widget)
 		      0, dia,
 		      GR_PIE);
 		width = mvpw_font_width(widget->data.text.font,
-					widget->data.text.str);
+					widget->data.text.str,
+					widget->data.text.utf8);
 		if (width > widget->width - (2*dia))
 			width = widget->width - (2*dia);
 		GrArc(widget->wid, gcr,
@@ -102,7 +103,8 @@ expose(mvp_widget_t *widget)
 
 	str = widget->data.text.str;
 
-	w = mvpw_font_width(widget->data.text.font, widget->data.text.str);
+	w = mvpw_font_width(widget->data.text.font, widget->data.text.str,
+			    widget->data.text.utf8);
 
 	switch (widget->data.text.justify) {
 	case MVPW_TEXT_LEFT:
@@ -180,7 +182,8 @@ expose(mvp_widget_t *widget)
 			       (str[i+j] != '\n')) {
 				strncpy(buf, str+i, j+1);
 				w = mvpw_font_width(widget->data.text.font,
-						    buf);
+						    buf,
+						    widget->data.text.utf8);
 				j++;
 			}
 	
@@ -205,7 +208,8 @@ expose(mvp_widget_t *widget)
 					k++;
 			}
 			
-			w = mvpw_font_width(widget->data.text.font, buf);
+			w = mvpw_font_width(widget->data.text.font, buf,
+					    widget->data.text.utf8);
 	
 			switch (widget->data.text.justify) {
 			case MVPW_TEXT_LEFT:
