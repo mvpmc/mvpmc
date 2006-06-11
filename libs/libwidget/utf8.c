@@ -38,7 +38,7 @@ void utf8_for_each2(char *string, per_character_helper2_t *fn, void *closure, vo
 	int stringlen = strlen(string);
 	int i;
 	for (i = 0; i < stringlen; i++) {
-		unsigned char *x = &(string[i]);
+		unsigned char *x = (unsigned char*)&(string[i]);
 		if ((*x) >= 0xf0) {
 			int c = ((*x) & 0x07) << 18;
 			c |= ((*(x+1)) & 0x3f) << 12;
