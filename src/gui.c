@@ -5104,7 +5104,7 @@ static int
 about_init(void)
 {
 	int h, w, x, y;
-	char text[256], host[64];
+	char text[512], host[64];
 	char buf[] = 
 		"http://mvpmc.sourceforge.net/\n\n"
 		"Audio: mp3, ogg, wav, ac3\n"
