@@ -1,7 +1,7 @@
- /*
+/*
  *  Copyright (C) 2004, 2005, 2006, Jon Gettler
  *  http://mvpmc.sourceforge.net/
- *  
+ *
  *   Based on MediaMVP VNC Viewer
  *   http://www.rst38.org.uk/vdr/mediamvp
  *
@@ -23,7 +23,7 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, write to the Free Software
  *   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
- * 
+ *
  *
  */
 
@@ -77,6 +77,7 @@
 #define TRC(fmt, args...)
 #endif
 
+void mvp_timer_callback(mvp_widget_t *widget);
 
 void query_host_parameters(void);
 void client_play(char *filename);
@@ -112,9 +113,9 @@ Bool direct_init(stream_t *stream, char *hostname, int port);
 #define rfbRdcAck 7
 #define rfbRdcProgress 9
 
-Bool RDCSendStop(int sock);
+Bool RDCSendStop(void);
 Bool RDCSendProgress(stream_t *stream);
-Bool RDCSendRequestAck(int sock,int type);
+Bool RDCSendRequestAck(int type);
 
 #define  programName "mvpmc"
 
@@ -144,7 +145,6 @@ extern int useHauppageExtentions;
 extern int rfb_mode;
 extern int flicker;
 
-
 void PauseDisplayState(void);
 
 static osd_surface_t    *surface = NULL;
@@ -153,8 +153,17 @@ static osd_surface_t    *surface2 = NULL;
 
 static int surface_y;
 static int mvp_media = 0;
-
 int output_pipe;
+
+typedef enum {
+	EMU_RUNNING=0,
+	EMU_STOPPED,
+	EMU_STOP_PENDING,
+    EMU_EMPTY_BUFFER,
+} emu_state_t;
+
+static int is_stopping = EMU_RUNNING;
+
 #define MVP_NAMED_PIPE "/tmp/FIFO"
 
 int connect_to_servers(void);
@@ -212,7 +221,6 @@ int mvp_server_init(void)
 		     osd_rgba(0, 0, 0, 255), 1, &font_CaslonRoman_1_25);
 
     osd_display_surface(surface);
-   
 
     ClearSurface(surface_blank);
 
@@ -242,13 +250,13 @@ int connect_to_servers(void)
         mystream.directsock = -1;
         //mvpav_setfd(-1);
     }
-    
+
     query_host_parameters();
     if (c_addr==NULL) {
         return -1;
     }
     c_server_host = c_addr;  /* Leak first time if configured... */
-    
+
     osd_drawtext(surface, 150, 230, "Starting Application   ",
 		     osd_rgba(93,200, 237, 255),
 		     osd_rgba(0, 0, 0, 255), 1, &font_CaslonRoman_1_25);
@@ -260,13 +268,13 @@ int connect_to_servers(void)
         if ( rfb_init(c_server_host,c_gui_port)  == -1 ) {
             sleep(1);
             continue;
-        }  
+        }
         if ( c_direct_port <= 0 ) {
             if ( media_init(&mystream,c_server_host,c_stream_port) == False ) {
                 printf("Could not connect to media server\n");
                 sleep(1);
                 continue;
-            }           
+            }
         } else {
             if ( direct_init(&mystream,c_server_host,c_direct_port) == False ) {
                 sleep(1);
@@ -383,7 +391,7 @@ void query_host_parameters(void)
                          ( val32 >> 16 ) & 0xFF,
                          ( val32 >> 8 ) & 0xFF,
                          val32 & 0xFF);
-                
+
                 FREENULL(c_addr);
                 c_addr = STRDUP(addr);
                 if (strcmp(mvp_server,"?")) {
@@ -436,7 +444,8 @@ void *mvp_server_start(void *arg)
     unlink(MVP_NAMED_PIPE);
     mkfifo(MVP_NAMED_PIPE, S_IRWXU);
     mvp_media = 1;
-    
+    is_stopping = EMU_RUNNING;
+    SendIncrementalFramebufferUpdateRequest();
     while ( mvp_media == 1 ) {
         if ( mystream.sock <= 0)  {
             usleep(10000);
@@ -446,6 +455,7 @@ void *mvp_server_start(void *arg)
         tv.tv_usec = 100;
 
         FD_ZERO(&fds);
+
         FD_ZERO(&wfds);
 
         if ( mystream.inbuflen ) {
@@ -460,6 +470,7 @@ void *mvp_server_start(void *arg)
         }
 
         if (FD_ISSET(mystream.socks[1], &wfds) ) {
+            printf("blocked\n");
             media_queue_data(&mystream);
         }
 
@@ -475,7 +486,6 @@ void *mvp_server_start(void *arg)
     } else if ( mystream.directsock != -1 ) {
         close(mystream.directsock);
         mystream.directsock = -1;
-        //mvpav_setfd(-1);
     }
     close(mystream.socks[0]);
     close(mystream.socks[1]);
@@ -484,12 +494,12 @@ void *mvp_server_start(void *arg)
     return NULL;
 }
 
-void mvp_server_stop(void) 
+void mvp_server_stop(void)
 {
     mvp_media = 0;
 }
 
-void mvp_server_cleanup(void) 
+void mvp_server_cleanup(void)
 {
     osd_destroy_surface(surface2);
     surface2 = NULL;
@@ -501,8 +511,8 @@ void mvp_server_cleanup(void)
 
 void mvp_server_remote_key(char key)
 {
-    static int hauppageKey[] = { 
-        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,    
+    static int hauppageKey[] = {
+        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
         0x09, 0x0a, 0x36, 0x24, 0x28, 0x1e, 0x37, 0x15,
         0x11, 0x10, 0x35, 0x00, 0x33, 0x34, 0x32, 0x31,
         0x2d, 0x2e, 0x2f, 0x00, 0x2c, 0x30, 0x2b, 0x20,
@@ -511,10 +521,17 @@ void mvp_server_remote_key(char key)
         0x1c, 0x00, 0x0e, 0x00, 0x0f, 0x19, 0x1b, 0x1a,
         0x26, 0x00, 0x00, 0x23, 0x29, 0x14
     };
-    if (paused || ( key == MVPW_KEY_PAUSE && mystream.mediatype==TYPE_AUDIO) || mystream.mediatype==TYPE_VIDEO) {
+    int key1;
+    if ( mystream.mediatype==TYPE_AUDIO || mystream.mediatype==TYPE_VIDEO ) {
+        key1 = hauppageKey[(int)key];
         switch (key) {
             case MVPW_KEY_STOP:
-                client_stop();
+                if (is_stopping==EMU_RUNNING) {
+                    is_stopping = EMU_STOP_PENDING;
+                    SendKeyEvent(0x1b, -1);
+                } else {
+                    is_stopping = EMU_EMPTY_BUFFER;
+                }
                 break;
             case MVPW_KEY_PLAY:
                 if (paused) {
@@ -528,7 +545,6 @@ void mvp_server_remote_key(char key)
                 break;
         }
     } else {
-        int key1;
         if (key > 0x61) {
             key1 = key;
         } else {
@@ -539,7 +555,7 @@ void mvp_server_remote_key(char key)
         }
         PRINTF("keymap %i = %x\n", key, key1);
         SendKeyEvent(key1, -1);
-		SendIncrementalFramebufferUpdateRequest();
+        SendIncrementalFramebufferUpdateRequest();
     }
     return;
 }
@@ -633,269 +649,7 @@ int udp_broadcast(char *data, int len, int port)
 
 void PrintInHex(char *buf, int len);
 
-Bool errorMessageFromReadExact = True;
 
-/*
- * Read an exact number of bytes, and don't return until you've got them.
- */
-
-Bool
-ReadExact(int sock, char *buf, int n)
-{
-    int i = 0;
-    int j;
-
-    while (i < n) {
-        j = read(sock, buf + i, (n - i));
-        if (j <= 0) {
-            if (j < 0) {
-                fprintf(stderr,programName);
-                perror(": read");
-            } else {
-                if (errorMessageFromReadExact) {
-                    fprintf(stderr,"%s: read failed\n",programName);
-                }
-            }
-            return False;
-        }
-        i += j;
-    }
-#ifdef VERBOSE_DEBUG
-    if (n < 100) {
-        PrintInHex(buf,n);
-    }
-#endif
-    return True;
-}
-
-
-/*
- * Write an exact number of bytes, and don't return until you've sent them.
- */
-
-Bool
-WriteExact(int sock, char *buf, int n)
-{
-    int i = 0;
-    int j;
-
-    while (i < n) {
-	j = write(sock, buf + i, (n - i));
-	if (j <= 0) {
-	    if (j < 0) {
-		fprintf(stderr,programName);
-		perror(": write");
-	    } else {
-		fprintf(stderr,"%s: write failed\n",programName);
-	    }
-	    return False;
-	}
-	i += j;
-    }
-    return True;
-}
-
-
-/*
- * ConnectToTcpAddr connects to the given TCP port.
- */
-
-int
-ConnectToTcpAddr(unsigned int host, int port)
-{
-    int sock;
-    struct sockaddr_in addr;
-    int one = 1;
-
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(port);
-    addr.sin_addr.s_addr = host;
-
-
-    sock = socket(AF_INET, SOCK_STREAM, 0);
-    if (sock < 0) {
-	    fprintf(stderr,programName);
-	    perror(": ConnectToTcpAddr: socket");
-	    return -1;
-    }
-
-    if (connect(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-	    fprintf(stderr,programName);
-	    perror(": ConnectToTcpAddr: connect");
-	    close(sock);
-	    return -1;
-    }
-
-    if (setsockopt(sock, IPPROTO_TCP, TCP_NODELAY,(char *)&one, sizeof(one)) < 0) {
-	    fprintf(stderr,programName);
-	    perror(": ConnectToTcpAddr: setsockopt");
-	    close(sock);
-	    return -1;
-    }
-    return sock;
-}
-
-
-
-/*
- * ListenAtTcpPort starts listening at the given TCP port.
- */
-
-int
-ListenAtTcpPort(int port)
-{
-    int sock;
-    struct sockaddr_in addr;
-    int one = 1;
-
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(port);
-    addr.sin_addr.s_addr = INADDR_ANY;
-
-    sock = socket(AF_INET, SOCK_STREAM, 0);
-    if (sock < 0) {
-	fprintf(stderr,programName);
-	perror(": ListenAtTcpPort: socket");
-	return -1;
-    }
-
-    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR,
-		   (const char *)&one, sizeof(one)) < 0) {
-	fprintf(stderr,programName);
-	perror(": ListenAtTcpPort: setsockopt");
-	close(sock);
-	return -1;
-    }
-
-    if (bind(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-	fprintf(stderr,programName);
-	perror(": ListenAtTcpPort: bind");
-	close(sock);
-	return -1;
-    }
-
-    if (listen(sock, 5) < 0) {
-	fprintf(stderr,programName);
-	perror(": ListenAtTcpPort: listen");
-	close(sock);
-	return -1;
-    }
-
-    return sock;
-}
-
-
-/*
- * AcceptTcpConnection accepts a TCP connection.
- */
-
-int
-AcceptTcpConnection(int listenSock)
-{
-    int sock;
-    struct sockaddr_in addr;
-    unsigned int addrlen = sizeof(addr);
-    int one = 1;
-
-    sock = accept(listenSock, (struct sockaddr *) &addr, &addrlen);
-    if (sock < 0) {
-	fprintf(stderr,programName);
-	perror(": AcceptTcpConnection: accept");
-	return -1;
-    }
-
-    if (setsockopt(sock, IPPROTO_TCP, TCP_NODELAY,
-		   (char *)&one, sizeof(one)) < 0) {
-	fprintf(stderr,programName);
-	perror(": AcceptTcpConnection: setsockopt");
-	close(sock);
-	return -1;
-    }
-
-    return sock;
-}
-
-
-/*
- * StringToIPAddr - convert a host string to an IP address.
- */
-
-int
-StringToIPAddr(const char *str, unsigned int *addr)
-{
-    struct hostent *hp;
-
-    if ((*addr = inet_addr(str)) == -1)
-    {
-	if (!(hp = gethostbyname(str)))
-	    return 0;
-
-	*addr = *(unsigned int *)hp->h_addr;
-    }
-
-    return 1;
-}
-
-
-/*
- * Test if the other end of a socket is on the same machine.
- */
-
-Bool
-SameMachine(int sock)
-{
-    struct sockaddr_in peeraddr, myaddr;
-    unsigned int addrlen = sizeof(struct sockaddr_in);
-
-    getpeername(sock, (struct sockaddr *)&peeraddr, &addrlen);
-    getsockname(sock, (struct sockaddr *)&myaddr, &addrlen);
-
-    return (peeraddr.sin_addr.s_addr == myaddr.sin_addr.s_addr);
-}
-
-
-/*
- * Print out the contents of a packet for debugging.
- */
-
-void
-PrintInHex(char *buf, int len)
-{
-    int i, j;
-    char c, str[17];
-
-    str[16] = 0;
-
-    fprintf(stderr,"ReadExact: ");
-
-    for (i = 0; i < len; i++)
-    {
-	if ((i % 16 == 0) && (i != 0)) {
-	    fprintf(stderr,"           ");
-	}
-	c = buf[i];
-	str[i % 16] = (((c > 31) && (c < 127)) ? c : '.');
-	fprintf(stderr,"%02x ",(unsigned char)c);
-	if ((i % 4) == 3)
-	    fprintf(stderr," ");
-	if ((i % 16) == 15)
-	{
-	    fprintf(stderr,"%s\n",str);
-	}
-    }
-    if ((i % 16) != 0)
-    {
-	for (j = i % 16; j < 16; j++)
-	{
-	    fprintf(stderr,"   ");
-	    if ((j % 4) == 3) fprintf(stderr," ");
-	}
-	str[i % 16] = 0;
-	fprintf(stderr,"%s\n",str);
-    }
-
-    fflush(stderr);
-}
 
 /*
  * vncviewer.c - viewer for MVP - based on nano-X version
@@ -911,17 +665,16 @@ static void HandleEvents(GR_EVENT *ev);
 /** \brief Initialise a connection to the vnc server
  *
  *  \param hostname Hostname
- *  \param port Pot 
+ *  \param port Pot
  *
  *  \retval -1 - Connection failed
  *  \retval other - socket
  */
 int rfb_init(char *hostname, int port)
 {
-    
     if ( !ConnectToRFBServer(hostname, port)) {
         return -1;
-    } 
+    }
 
     PRINTF("Socket %d\n",rfbsock);
     updateRequestH = si.rows;
@@ -951,7 +704,7 @@ int rfb_init(char *hostname, int port)
         return -1;
     }
     PRINTF("End rfb_init\n");
-    
+
     return rfbsock;
 }
 
@@ -1011,22 +764,21 @@ int rfb_init(char *hostname, int port)
 
 
 
-Bool RDCSendStop(int sock)
+Bool RDCSendStop(void)
 {
     char    buf[34];
 
     memset(buf,0,sizeof(buf));
 
-    buf[0] = rfbRdcAck;
-    buf[1] = RDC_STOP;
+    buf[0] = RDC_STOP;
 
-    if (!WriteExact(sock,buf,sizeof(buf)) ) {
+    if (!WriteExact(rfbsock,buf,sizeof(buf)) ) {
         return False;
     }
     return True;
 }
 
-Bool RDCSendRequestAck(int sock,int type)
+Bool RDCSendRequestAck(int type)
 {
     char    buf[34];
 
@@ -1034,12 +786,12 @@ Bool RDCSendRequestAck(int sock,int type)
 
     buf[0] = rfbRdcAck;
     buf[1] = type;
-    if (type!=3) {
+    if (type!=RDC_STOP || is_stopping != EMU_RUNNING) {
         buf[2]=1;
     }
 
-
-    if (!WriteExact(sock,buf,sizeof(buf)) ) {
+    PRINTF("ACK Request %d\n",buf[1]);
+    if (!WriteExact(rfbsock,buf,sizeof(buf)) ) {
         return False;
     }
     return True;
@@ -1067,7 +819,7 @@ Bool RDCSendPing(void)
     char    buf[2];
 
     buf[0] = 0x08;
-    buf[1] = 0;    
+    buf[1] = 0;
 
     if (!WriteExact(rfbsock,buf,sizeof(buf)) ) {
         return False;
@@ -1080,20 +832,20 @@ Bool HandleRDCMessage(int sock)
 {
     char   buf[64];
 
-
+    PRINTF("Received RDC command ");
     if ( !ReadExact(sock,buf + 1,33) ) {
         return False;
     }
 
     buf[0] = rfbRdcAck;
 
-    PRINTF("Received RDC command %d\n",buf[1]);
+    PRINTF("%d\n",buf[1]);
 
     switch ( buf[1] ) {
     case RDC_PLAY:
     {
-		PRINTF("RDC_PLAY\n");
-        int   length = buf[8];   
+        PRINTF("RDC_PLAY\n");
+        int   length = buf[8];
         char *filename;
 
         filename = malloc(length + 1);
@@ -1114,62 +866,67 @@ Bool HandleRDCMessage(int sock)
     }
     case RDC_PAUSE:
     {
-		PRINTF("RDC_PAUSE\n");
+        PRINTF("RDC_PAUSE\n");
         client_pause();
         break;
     }
 
     case RDC_STOP:
     {
-		PRINTF("RDC_STOP\n");
-        client_stop();
+        PRINTF("RDC_STOP\n");
+        if (is_stopping!=EMU_RUNNING || mystream.mediatype ==TYPE_AUDIO) {
+            RDCSendRequestAck(RDC_STOP);
+            is_stopping = EMU_STOPPED;
+        }
         return True;
         break;
     }
     case RDC_REWIND:
     {
-		PRINTF("RDC_REWIND\n");
+        PRINTF("RDC_REWIND\n");
         client_rewind();
         break;
     }
     case RDC_FORWARD:
     {
-		PRINTF("RDC_FORWARD\n");
+        PRINTF("RDC_FORWARD\n");
         client_forward();
         break;
     }
     case RDC_VOLUP:
     {
-		PRINTF("RDC_VOLUP\n");
+        PRINTF("RDC_VOLUP\n");
         break;
     }
     case RDC_VOLDOWN:
     {
-		PRINTF("RDC_VOLDOWN\n");
+        PRINTF("RDC_VOLDOWN\n");
         break;
     }
     case RDC_MENU:
     {
-		PRINTF("RDC_MENU\n");
+        PRINTF("RDC_MENU\n");
         char display[2];
         if ( !ReadExact(sock,display,2) ) {
             return False;
         }
-        PRINTF("Display is state %d\n",!display[1]);
-        SetDisplayState(display[1]);
-        RDCSendRequestAck(rfbsock,RDC_MENU);
+        while (is_stopping != EMU_RUNNING) {
+            usleep(10000);
+            PRINTF("Display is state %d\n",!display[1]);
+            SetDisplayState(display[1]);
+            RDCSendRequestAck(RDC_MENU);
+        }
         return True;
     }
     case RDC_MUTE:
     {
-		PRINTF("RDC_MUTE\n");
+        PRINTF("RDC_MUTE\n");
         break;
     }
     case RDC_SETTINGS:
     {
         char   *settings;
-		PRINTF("RDC_SETTINGS ");
-        PRINTF("Buf length %d\n",buf[7]);
+        PRINTF("RDC_SETTINGS ");
         settings=malloc(buf[7]);
         memset(settings,0,buf[7]);
         if ( !ReadExact(sock,settings,buf[7]) ) {
@@ -1190,9 +947,9 @@ Bool HandleRDCMessage(int sock)
                 settings[1] = 1;
             }
             /*
-            settings[2] = 3 ;  config->av_video_output 
+            settings[2] = 3 ;  config->av_video_output
             settings[3] = 1 ;  flicker
-            settings[4] = config->av_aspect & 1 ;  
+            settings[4] = config->av_aspect & 1 ;
             */
 
             if ( !WriteExact(sock,settings,buf[7]) ) {
@@ -1204,11 +961,11 @@ Bool HandleRDCMessage(int sock)
         return True;
         break;
     }
-	default:
-	{
-    	PRINTF("RDC_UNHANDLED %d\n",buf[1]);
-		break;
-	}
+ default:
+ {
+     PRINTF("RDC_UNHANDLED %d\n",buf[1]);
+     break;
+ }
 
     }
 
@@ -1328,12 +1085,12 @@ Bool media_send_read(stream_t *stream)
     memset(buf,0,sizeof(buf));
     memcpy(buf+6,stream->fileid,2);
 
-    
+
     buf[0] = MEDIA_BLOCK;
 
     ptr = buf + 8;
     INT32_TO_BUF(stream->blocklen,ptr);
-    
+
     if (!WriteExact(stream->sock,buf,40) ) {
         return False;
     }
@@ -1435,47 +1192,53 @@ Bool media_read_message(stream_t *stream)
     switch ( buf[0] ) {
     case MEDIA_REQUEST:
     {
-		PRINTF("Media Request ");
+        PRINTF("Media Request ");
         if ( buf[4] == 0 ) {
             PRINTF("Aborted reading\n");
         } else {
 
             /* We've opened the file, send an ack for it now */
-            RDCSendRequestAck(rfbsock,RDC_PLAY);
+            RDCSendRequestAck(RDC_PLAY);
 
             stream->mediatype = buf[4];
             if ( buf[4] == TYPE_VIDEO ) {
-				PRINTF("Video\n");
+                PRINTF("Video\n");
                 stream->blocklen = 200000;
             } else {
-				PRINTF("Audio\n");
+                PRINTF("Audio\n");
                 stream->blocklen = 20000;
             }
+            is_stopping=EMU_RUNNING;
             ptr = buf + 16;
             BUF_TO_INT32(stream->length,ptr);
             memcpy(stream->fileid,buf+34,2);
             switch ( buf[4] ) {
             case 0x01:           /* MPEG */
                 // seem to lose this anyway
+                PauseDisplayState();
                 video_functions = &mvp_functions;
+                av_init();
                 video_clear();
-                mvpw_set_timer(vnc_widget, NULL, 100); 
+                mvpw_set_timer(vnc_widget, NULL, 0);
                 GrUnregisterInput(rfbsock);
-		        mvpw_set_fdinput(vnc_widget, NULL);
+                mvpw_set_fdinput(vnc_widget, NULL);
                 video_play(NULL);
-    			mvpw_show(root);
-    			mvpw_expose(root);
-    			mvpw_focus(root);
+                mvpw_show(root);
+                mvpw_expose(root);
+                mvpw_focus(root);
+                mvpw_set_timer(root, mvp_timer_callback, 5000);
+                GrRegisterInput(rfbsock);
+                mvpw_set_fdinput(root, mvp_fdinput_callback);
                 output_pipe = open(MVP_NAMED_PIPE, O_WRONLY);
-//                output_pipe = open("/music/mympeg.mpg",  O_CREAT|O_TRUNC|O_WRONLY);
+//                output_file = open("/music/mympeg.mpg", O_CREAT|O_TRUNC|O_WRONLY);
                 break;
             case 0x02: /* MP3 */
                 av_init();
                 audio_play(NULL);
                 output_pipe = open(MVP_NAMED_PIPE, O_WRONLY);
-                break; 
+                break;
             }
-           
+
             media_send_seek(stream,0);
         }
         break;
@@ -1483,57 +1246,53 @@ Bool media_read_message(stream_t *stream)
     case MEDIA_BLOCK:
     {
         int32_t    blocklen;
-//        char *block;
 
         ptr = buf + 8;
 
         BUF_TO_INT32(blocklen,ptr);
-		
+
         PRINTF("Media Block %d",blocklen);
 
         if ( blocklen != 0 ) {
             ptr = buf + 12;
             BUF_TO_INT32(stream->current_position,ptr);
 
-            PRINTF(" Current %llx\n",stream->current_position);
+            PRINTF(" Current %lld\n",stream->current_position);
 
-//            int  n = 0;
             stream->inbuf = MALLOC(blocklen);
 
             if (!ReadExact(stream->sock,stream->inbuf,blocklen) ) {
                 return False;
             }
-            // stream->current_position 
             stream->inbuflen = blocklen;
             stream->inbufpos = 0;
             media_queue_data(&mystream);
-
         } else {
-            printf(" %lld %lld\n",stream->current_position,stream->length);
+            PRINTF(" %lld %lld\n",stream->current_position,stream->length);
             if ( stream->current_position < stream->length ){
                 ptr = buf + 12;
                 BUF_TO_INT32(stream->inbuflen,ptr);
                 printf("%d ",stream->inbuflen);
                 stream->inbuflen = stream->length - stream->current_position;
-                printf("%d\n",stream->inbuflen);
-                printf("Reading remaining %d\n",stream->inbuflen);
+                PRINTF("%d\n",stream->inbuflen);
+                printf("Remaining %d\n",stream->inbuflen);
+                stream->inbuflen = 0;
+                stream->current_position = stream->length;
                 /*
                 stream->inbuf = MALLOC(stream->inbuflen);
                 if (!ReadExact(stream->sock,stream->inbuf,stream->inbuflen) ) {
                     return False;
                 }
-                write(output_pipe,stream->inbuf, stream->inbuflen);
-                FREENULL(stream->inbuf);
+                stream->inbufpos = 0;
+                media_queue_data(&mystream);
                 */
             } else {
                 PRINTF("\n");
             }
-            while ( av_empty()==0 ) {
-                // empty audio buffer 
-                usleep(10000);
+            RDCSendProgress(stream);
+            if (is_stopping==EMU_RUNNING) {
+                client_stop();
             }
-            RDCSendPing();
-            client_stop();
         }
         break;
     }
@@ -1550,41 +1309,57 @@ Bool media_read_message(stream_t *stream)
     }
     case MEDIA_STOP:
     {
-        PRINTF("Media Stop\n");
-        RDCSendRequestAck(rfbsock,RDC_STOP);
+        PRINTF("Media Stop %d\n",is_stopping);
+        close(output_pipe);
+        stream->inbuflen = 0;
+        if (is_stopping==EMU_RUNNING ) {
+            //  a stop key will stop playing
+            while (av_empty() == 0 && is_stopping==EMU_RUNNING) {
+                usleep(100000);
+            }
+            is_stopping = EMU_RUNNING;
+        }
         if (mystream.mediatype==TYPE_VIDEO && surface==NULL) {
             video_clear();
-		    av_move(0, 0, 0);
-	        mvpw_set_bg(root, root_color);
+            av_move(0, 0, 0);
+            mvpw_set_bg(root, root_color);
             if ( (surface = osd_create_surface(720,surface_y) )  == NULL ) {
                 printf("Couldn't create surface\n");
             }
-            mvpw_set_timer(vnc_widget, vnc_timer_callback, 1000);
+            mvpw_set_timer(root, NULL, 0);
+            mvpw_set_timer(vnc_widget, mvp_timer_callback, 5000);
             GrRegisterInput(rfbsock);
+            mvpw_set_fdinput(root, NULL);
             mvpw_set_fdinput(vnc_widget, mvp_fdinput_callback);
             mvpw_show(vnc_widget);
             mvpw_expose(vnc_widget);
             mvpw_focus(vnc_widget);
             osd_display_surface(surface);
-            UpdateFinished();            
+            UpdateFinished();
+            RDCSendPing();
+            RDCSendRequestAck(RDC_STOP);
+
         } else if (mystream.mediatype==TYPE_AUDIO ) {
             audio_stop = 1;
-		    av_reset();
+            av_reset();
         }
+        if (mystream.mediatype != TYPE_AUDIO) {
+        }
+        is_stopping = EMU_RUNNING;
+//        SendIncrementalFramebufferUpdateRequest();
         mystream.mediatype= 0;
-        close(output_pipe);
         break;
     }
-	case MEDIA_8:
-	{
-		PRINTF("Media 8\n");
+ case MEDIA_8:
+ {
+  PRINTF("Media 8\n");
         media_send_request(&mystream,current);
-		break;
-	}
-	default:
-	{
+  break;
+ }
+ default:
+ {
         printf("Media Unhandled %d\n",buf[0]);
-		break;
+  break;
     }
     }
     return True;
@@ -1602,11 +1377,15 @@ void media_queue_data(stream_t *stream)
     if ( n > 0 ) {
         stream->inbufpos += n;
         if ( stream->inbufpos == stream->inbuflen) {
-            media_send_read(stream);
             RDCSendProgress(stream);
             stream->inbufpos = 0;
             stream->inbuflen = 0;
             FREENULL(stream->inbuf);
+            if (is_stopping==EMU_RUNNING) {
+                media_send_read(stream);
+            } else {
+                client_stop();
+            }
         }
     }
 
@@ -1633,7 +1412,7 @@ void RectangleUpdateYUV(int x0, int y0, int w, int h,  unsigned char *buf)
     // printf("YUV update %d %d %d %d\n",x0,y0,w,h);
 
     for ( y = y0; y < y0 + h; y++ ) {
-        for ( x = x0; x < x0 +w ; x+= 2 ) {           
+        for ( x = x0; x < x0 +w ; x+= 2 ) {
             y1 = *ptr++;
             u = *ptr++;
             v = *ptr++;
@@ -1654,7 +1433,7 @@ void RectangleUpdateYUV2(int x0, int y0, int w, int h,  unsigned char *buf1, uns
     // printf("YUV2 update %d %d %d %d\n",x0,y0,w,h);
 
     for ( y = y0; y < y0 + h; y++ ) {
-        for ( x = x0; x < x0 +w ; x+= 2 ) {           
+        for ( x = x0; x < x0 +w ; x+= 2 ) {
             y1 = *ptr1++;
             y2 = *ptr1++;
             u = *ptr2++;
@@ -1702,11 +1481,11 @@ void RectangleUpdateARGB(int x0, int y0, int w, int h,  unsigned char *buf)
             a = *ptr++;
             r = *ptr++;
             g = *ptr++;
-            b = *ptr++;   
+            b = *ptr++;
             a = 0xff - a;
             osd_draw_pixel(surface2,x,y,osd_rgba(r,g,b,a));
         }
-#endif 
+#endif
     }
 }
 
@@ -1729,6 +1508,7 @@ void SetDisplayState(int state)
 {
     if (state==1) {
     } else {
+//        SendIncrementalFramebufferUpdateRequest();
     }
     /*
     if ( visible ) {
@@ -1805,4 +1585,13 @@ int mvp_file_read(char *buf, int len)
         }
     } while (tslen < len);
     return tslen;
+}
+
+void mvp_timer_callback(mvp_widget_t *widget)
+{
+    if ( mystream.mediatype==TYPE_VIDEO  ) {
+        RDCSendPing();
+    } else  {
+        SendIncrementalFramebufferUpdateRequest();
+    }
 }

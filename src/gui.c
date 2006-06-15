@@ -2632,11 +2632,13 @@ int mvp_server_register(void);
 void mvp_server_stop(void);
 void mvp_server_cleanup(void);
 void mvp_server_remote_key(char key);
-
+void mvp_timer_callback(mvp_widget_t *widget);
 
 static void mvp_key_callback(mvp_widget_t *widget, char key)
 {
-	if( key==MVPW_KEY_GO || key==MVPW_KEY_POWER) {
+    static int wasGo = 0;
+	if(wasGo==1 && key==MVPW_KEY_EXIT) {
+        wasGo = 0;
        	GrUnregisterInput(rfbsock);
         close(rfbsock);
         mvp_server_stop();
@@ -2646,7 +2648,10 @@ static void mvp_key_callback(mvp_widget_t *widget, char key)
         mvpw_show(mvpmc_logo);
         mvpw_focus(main_menu);
 		screensaver_enable();
-	} else {
+	} else if(wasGo==0 && key==MVPW_KEY_GO) {
+        wasGo = 1;
+    } else {
+        wasGo = 0;
         mvp_server_remote_key(key);
     }
 }
@@ -4791,7 +4796,7 @@ main_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mvpw_set_surface_attr(vnc_widget, &surface);
         if (k==MM_EMULATE) {
             mvp_server_register();
-		    mvpw_set_timer(vnc_widget, vnc_timer_callback, 1000); 
+		    mvpw_set_timer(vnc_widget, mvp_timer_callback, 5000);
 		    mvpw_set_key(vnc_widget, mvp_key_callback);
 		    mvpw_set_fdinput(vnc_widget, mvp_fdinput_callback);	
         } else {
