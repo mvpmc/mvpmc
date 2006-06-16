@@ -70,7 +70,7 @@ static struct option opts[] = {
 	{ "web-port", required_argument, 0, 0},
 	{ "version", no_argument, 0, 0},
 	{ "vlc", required_argument, 0, 0},
-	{ "no-mplayer", no_argument, 0, 0 },
+	{ "use-mplayer", no_argument, 0, 0 },
 	{ "emulate", required_argument, 0, 0},
 	{ "rfb-mode", required_argument, 0, 0},
 	{ "flicker", no_argument, 0, 0},
@@ -81,7 +81,7 @@ static struct option opts[] = {
 int settings_disable = 0;
 int reboot_disable = 0;
 int filebrowser_disable = 0;
-int mplayer_disable = 0;
+int mplayer_disable = 1;
 int rfb_mode = 3;
 int flicker = 0;
 
@@ -238,7 +238,7 @@ print_help(char *prog)
 	printf("\t--startup \t(replaytv, mythtv, mclient)\n");
 	printf("\t--web-port port\tconfiguration port\n");
 	printf("\t--vlc server \tvlc IP address\n");
-	printf("\t--no-mplayer \tdisable mplayer\n");
+	printf("\t--use-mplayer \tdenable mplayer\n");
 	printf("\n");
 	printf("\t--emulation server \tIP address or ?\n");
 	printf("\t--rfb-mode mode\t(0, 1, 2)\n");
@@ -484,8 +484,8 @@ main(int argc, char **argv)
 			if (strcmp(opts[opt_index].name, "no-filebrowser") == 0) {
 				filebrowser_disable = 1;
 			}
-			if (strcmp(opts[opt_index].name, "no-mplayer") == 0) {
-				mplayer_disable = 1;
+			if (strcmp(opts[opt_index].name, "use-mplayer") == 0) {
+				mplayer_disable = 0;
 			}
 			if (strcmp(opts[opt_index].name, "web-port") == 0) {
 				web_port = atoi(optarg_tmp);
@@ -2259,7 +2259,7 @@ void load_web_config(char *font)
         strcpy(web_config.imagedir,"/usr/share/mvpmc");
         strcpy(web_config.font,"/etc/helvR10.fnt");
         
-        web_config.bitmask = 0xfffffb00;
+        web_config.bitmask = 0;
        
         if (config->bitmask & CONFIG_MYTHTV_IP) {
             web_config.bitmask |=1;
@@ -2272,7 +2272,7 @@ void load_web_config(char *font)
         }
         if ( vnc_server[0] != 0 ) {
             web_config.bitmask |=8;
-	        snprintf(web_config.vlc_server,64,"%s",vlc_server);
+	        snprintf(web_config.vnc_server,64,"%s",vnc_server);
         }
         if (reboot_disable==0) {
             web_config.bitmask |=16;
@@ -2283,7 +2283,14 @@ void load_web_config(char *font)
         if (filebrowser_disable==0) {
             web_config.bitmask |=64;
         }
-
+        if ( vlc_server[0] != 0 ) {
+            web_config.bitmask |=128;
+	        snprintf(web_config.vlc_server,64,"%s",vlc_server);
+        }
+        if (mplayer_disable==0) {
+            web_config.bitmask |=256;
+        }
+        /* mythtv debug not enabled */
         if ( mvp_server != NULL ) {
             web_config.bitmask |=1024;
 	        snprintf(web_config.mvp_server,64,"%s",mvp_server);
@@ -2302,19 +2309,6 @@ void load_web_config(char *font)
         }
     }
     
-    if (IS_WEB_ENABLED(WEB_CONFIG_USE_VNC) && vnc_server[0]==0 ) {
-        strcpy(vnc_server,web_config.vnc_server);
-        vnc_port = web_config.vnc_port;
-    }
-
-    if (IS_WEB_ENABLED(WEB_CONFIG_USE_VLC) && vlc_server == NULL ) {
-        vlc_server = strdup(web_config.vlc_server);
-    }
-    
-    if (IS_WEB_ENABLED(WEB_CONFIG_USE_EMULATE) && mvp_server == NULL ) {
-        mvp_server = strdup(web_config.mvp_server);
-    }
-
     if (startup_this_feature == MM_EXIT) {
         startup_this_feature = web_config.startup_this_feature;
     }
@@ -2325,7 +2319,21 @@ void load_web_config(char *font)
             }
         }
     }
-
+    if (font == NULL) {
+        if (stat(web_config.font, &sb) == 0) {
+            font = strdup(web_config.font);
+        }
+    }
+    if (strcmp(imagedir,"/usr/share/mvpmc")==0 && strcmp(web_config.imagedir,"/usr/share/mvpmc")) {
+        if (web_config.imagedir[0]=='/') {
+              imagedir = strdup(web_config.imagedir);
+        }
+    }
+    if (screen_capture_file == NULL) {
+        if (web_config.screen_capture_file[0]=='/') {
+            screen_capture_file = strdup(web_config.screen_capture_file);
+        }
+    }
     if (mythtv_server != NULL) {
         if (IS_WEB_ENABLED(WEB_CONFIG_USE_MYTH)) {
             if (mythtv_ringbuf == NULL) {
@@ -2344,11 +2352,6 @@ void load_web_config(char *font)
             mythtv_server = NULL;
       }
     }
-    if (screen_capture_file == NULL) {
-        if (web_config.screen_capture_file[0]=='/') {
-            screen_capture_file = strdup(web_config.screen_capture_file);
-        }
-    }
     if ( replaytv_server == NULL) {
         if (IS_WEB_ENABLED(WEB_CONFIG_USE_REPLAY) && web_config.rtv_init_str[0]) {
             replaytv_server = "RTV";
@@ -2361,20 +2364,13 @@ void load_web_config(char *font)
         free(rtv_init_str);
         rtv_init_str = strdup(web_config.rtv_init_str);
     }
-
-    if (font == NULL) {
-        if (stat(web_config.font, &sb) == 0) {
-            font = strdup(web_config.font);
-        }
-    }
-    if (strcmp(imagedir,"/usr/share/mvpmc")==0 && strcmp(web_config.imagedir,"/usr/share/mvpmc")) {
-        if (web_config.imagedir[0]=='/') {
-              imagedir = strdup(web_config.imagedir);
-        }
-    }
     if (NOT_WEB_ENABLED(WEB_CONFIG_USE_MCLIENT) && mclient_server != NULL) {
         free(mclient_server);
         mclient_server = NULL;
+    }
+    if (IS_WEB_ENABLED(WEB_CONFIG_USE_VNC) && vnc_server[0]==0 ) {
+        strcpy(vnc_server,web_config.vnc_server);
+        vnc_port = web_config.vnc_port;
     }
     if (NOT_WEB_ENABLED(WEB_CONFIG_USE_SETTING) ){
         settings_disable = 1;
@@ -2391,10 +2387,18 @@ void load_web_config(char *font)
     } else {
         filebrowser_disable = 0;
     }
-    if (NOT_WEB_ENABLED(WEB_CONFIG_USE_EMULATE) && mvp_server != NULL) {
-        free(mvp_server);
-        mvp_server = NULL;
+    if (IS_WEB_ENABLED(WEB_CONFIG_USE_VLC) && vlc_server == NULL ) {
+        vlc_server = strdup(web_config.vlc_server);
     }
+    if (NOT_WEB_ENABLED(WEB_CONFIG_USE_MPLAYER) ){
+        mplayer_disable = 1;
+    } else {
+        mplayer_disable = 0;
+    }
+    if (IS_WEB_ENABLED(WEB_CONFIG_USE_EMULATE) && mvp_server == NULL ) {
+        mvp_server = strdup(web_config.mvp_server);
+    }
+
 }
 
 void reset_web_config(void)
@@ -2406,10 +2410,6 @@ void reset_web_config(void)
     if (NOT_WEB_ENABLED(WEB_CONFIG_USE_MYTH) && mythtv_server ) {
         free(mythtv_server);
         mythtv_server = NULL;
-    }
-    if (NOT_WEB_ENABLED(WEB_CONFIG_USE_VLC) && vlc_server ) {
-        free(vlc_server);
-        vlc_server = NULL;
     }
 }
 
