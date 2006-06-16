@@ -2283,7 +2283,7 @@ void load_web_config(char *font)
         if (filebrowser_disable==0) {
             web_config.bitmask |=64;
         }
-        if ( vlc_server[0] != 0 ) {
+        if ( vlc_server && (vlc_server[0] != 0) ) {
             web_config.bitmask |=128;
 	        snprintf(web_config.vlc_server,64,"%s",vlc_server);
         }
