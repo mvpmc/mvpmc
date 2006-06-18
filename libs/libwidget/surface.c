@@ -101,25 +101,27 @@ mvpw_set_surface_attr(mvp_widget_t *widget, mvpw_surface_attr_t *surface)
 	return 0;
 }
 
+/*NB must be called when widget is shown, otherwise it will silently fail*/
 int
 mvpw_set_surface(mvp_widget_t *widget, char *image, int x, int y, int width, int height)
 {
         GR_GC_ID gc;
 	gc=GrNewGC();
 
-#ifdef MVPMC_HOST
+#if 0
 	GrArea(widget->data.surface.wid, gc, x, y, width, height, image, widget->data.surface.pixtype);
 #else
 	/*
-	 * XXX: GrArea() appears to be broken on the mvp
+	 * XXX: GrArea() appears to be broken on the mvp, so set individual
+	 * pixels instead
 	 */
         MWPIXELVAL c;
 	int i, j, k;
 	int r, g, b;
 	GrSetGCBackground(gc, 0);
-	for(i=0 ; i < width ; i++){
-		for(j=0 ; j < height ; j++) {
-			k = ((i * height) + j) * sizeof(MWPIXELVAL);
+	for(i=0 ; i < height ; i++){
+		for(j=0 ; j < width ; j++) {
+			k = ((i * width) + j) * sizeof(MWPIXELVAL);
 			memcpy(&c, image + k, sizeof(MWPIXELVAL));
 			r = (c & 0xff0000) >> 16;
 			g = (c & 0x00ff00) >> 8;
