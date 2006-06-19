@@ -60,6 +60,11 @@ fi
 
 echo "${IP}    ${HNAME}" >> /etc/hosts
 
+#
+# create the user theme directory
+#
+mkdir /tmp/themes
+
 if [ -n "$DONGLE" ] ; then
     tftp -g -l /etc/dongle.config -r ${DONGLE}.config ${SERVER}
     tftp -g -l /tmp/themes/default.xml -r ${DONGLE}.xml ${SERVER}
