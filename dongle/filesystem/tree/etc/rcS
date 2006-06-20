@@ -1,7 +1,21 @@
 #!/bin/sh
 #
-# $Id: rcS,v 1.9 2005/12/17 17:57:55 gettler Exp $
+# mvpmc startup script
 #
+
+#
+# Connect to the first available NTP server
+#
+do_ntp() {
+    for i in $1 ; do
+	/bin/ntpclient -s -h $i
+	if [ $? -eq 0 ] ; then
+	    /bin/ntpclient -d -l -h $i &
+	    exit 0
+	fi
+    done
+    exit 1
+}
 
 #
 # Mount everything in /etc/fstab
@@ -51,11 +65,10 @@ if [ "$HNAME" = "" ] ; then
 fi
 
 #
-# connect to the ntp server, if one exists
+# connect to the NTP server
 #
 if [ "$NTP" != "" ] ; then
-    /bin/ntpclient -s -h $NTP
-    /bin/ntpclient -d -l -h $NTP &
+    do_ntp "$NTP" &
 fi
 
 echo "${IP}    ${HNAME}" >> /etc/hosts

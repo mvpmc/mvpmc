@@ -39,7 +39,8 @@ build = env.Command('../../install/' + target + '/bin/ntpclient', 0,
                     '/ntpclient -i ' + file + ' ' +
                     '-c ' + cross + ' ' +
                     '-I ' + pwd + '/../../install/' + target + ' '
-                    '-p patches/make.patch')
+                    '-p patches/make.patch ' +
+                    '-p patches/error.patch')
 
 env.Depends(build, dl)
 

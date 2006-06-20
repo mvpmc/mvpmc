@@ -1,0 +1,31 @@
+diff -ruN ntpclient/ntpclient.c new/ntpclient.c
+--- ntpclient/ntpclient.c	2003-07-13 21:12:30.000000000 -0500
++++ new/ntpclient.c	2006-06-18 21:38:17.000000000 -0500
+@@ -372,6 +372,7 @@
+ 	int i, pack_len, sa_xmit_len, probes_sent, error;
+ 	struct timeval to;
+ 	struct ntptime udp_arrival_ntp;
++	int count = 0;
+ 
+ 	if (debug) printf("Listening...\n");
+ 
+@@ -402,6 +403,7 @@
+ 		if (pack_len<0) {
+ 			perror("recvfrom");
+ 		} else if (pack_len>0 && (unsigned)pack_len<sizeof_incoming){
++			count++;
+ 			get_packet_timestamp(usd, &udp_arrival_ntp);
+ 			check_source(pack_len, &sa_xmit, sa_xmit_len);
+ 			error = rfc1305print(incoming_word, &udp_arrival_ntp);
+@@ -413,6 +415,11 @@
+ 		if ( error < goodness && goodness != 0) break;
+ 		if (probes_sent >= num_probes && num_probes != 0) break;
+ 	}
++
++	/* if nothing succeeded, exit with an error */
++	if (count == 0) {
++		exit(1);
++	}
+ }
+ 
+ void do_replay(void)
