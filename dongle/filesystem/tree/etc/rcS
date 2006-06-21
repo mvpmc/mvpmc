@@ -22,6 +22,10 @@ do_ntp() {
 #
 /bin/umount -a
 
+#
+# Create the tmpfs filesystem and mount it on top of the squashfs root
+# filesystem with unionfs.
+#
 mount -t tmpfs -o "size=1M" tmpfs /memory
 insmod unionfs
 mount -t unionfs -o dirs=/memory=rw:/=ro unionfs /union
@@ -29,11 +33,13 @@ cd /union
 mkdir live
 pivot_root . live
 
+#
+# Remount everything read/write
+#
 /bin/mount -a -o rw
 
 #
 # Configure lo0
-# eth0 will be autoconfigured by the kernel
 #
 /sbin/ifconfig lo 127.0.0.1
 
@@ -54,14 +60,38 @@ insmod ac3_mod
 insmod mvpstb_mod.o mvpmod_major=230
 #insmod xrmod
 
-#default timezone
+#
+# default timezone to US Central
+#
 TZ=CST+6CDT,M4.1.0/2,M10.5.0/2; export TZ
 
+#
+# configure eth0
+#
 udhcpc
 . /etc/udhcpc.config
 
+#
+# Make sure the hostname is set to something
+#
 if [ "$HNAME" = "" ] ; then
     hostname $IP
+else
+    echo "${IP}    ${HNAME}" >> /etc/hosts
+fi
+
+#
+# create the user theme directory
+#
+mkdir /tmp/themes
+
+#
+# Download the users config and theme files, if they exist.
+#
+if [ -n "$DONGLE" ] ; then
+    tftp -g -l /etc/dongle.config -r ${DONGLE}.config ${SERVER}
+    tftp -g -l /tmp/themes/default.xml -r ${DONGLE}.xml ${SERVER}
+    . /etc/dongle.config
 fi
 
 #
@@ -71,28 +101,17 @@ if [ "$NTP" != "" ] ; then
     do_ntp "$NTP" &
 fi
 
-echo "${IP}    ${HNAME}" >> /etc/hosts
-
 #
-# create the user theme directory
+# If mvpmc is not running, run it with some reasonable options.
 #
-mkdir /tmp/themes
-
-if [ -n "$DONGLE" ] ; then
-    tftp -g -l /etc/dongle.config -r ${DONGLE}.config ${SERVER}
-    tftp -g -l /tmp/themes/default.xml -r ${DONGLE}.xml ${SERVER}
-    . /etc/dongle.config
-fi
-
 if [ -z "`pidof mvpmc`" ] ; then
     if [ -z $SERVER ] ; then
         if [ -z $HOST ] ; then
-	    mvpmc -s $IP -c $IP -R "ip=discover" --startup setup --emulate ?          
+	    mvpmc -s $IP -c $IP -R "ip=discover" --startup setup --emulate ? &
         else
-	    mvpmc -s $HOST -c $HOST --vlc $HOST -R "ip=discover" --emulate ?
+	    mvpmc -s $HOST -c $HOST --vlc $HOST -R "ip=discover" --emulate ? &
         fi    
     else        
-	mvpmc -s $SERVER -c $SERVER --vlc $SERVER -R "ip=discover" --emulate ?
+	mvpmc -s $SERVER -c $SERVER --vlc $SERVER -R "ip=discover" --emulate ? &
     fi
 fi
-cd /
