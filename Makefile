@@ -26,7 +26,7 @@ clean:
 	scons -c TARGET=host
 	rm -rf `find libs -name obj -type d`
 	rm -rf `find src -name obj -type d`
-	rm dongle.bin.mvpmc.ver
+	rm -f dongle.bin.mvpmc.ver
 
 distclean: clean
 	rm -rf dongle/install
@@ -34,9 +34,12 @@ distclean: clean
 	rm -rf tools/toolchains/glibc/crosstool-0.42
 	rm -rf tools/toolchains/uclibc/crosstool-0.28-rc5
 	rm -rf tools/genext2fs/genext2fs-1.4rc1
+	rm -rf tools/squashfs/squashfs2.2-r2
 	rm -rf `find dongle -name mvp -type d`
 	rm -rf `find dongle -name host -type d`
 	rm -rf `find . -name .sconsign -type f`
 	rm -rf home
 	rm -rf doc/html
 	rm -rf cscope*
+	rm -f scons/WGet.pyc
+	rm -f src/version.c
