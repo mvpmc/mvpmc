@@ -81,6 +81,14 @@ else
 fi
 
 #
+# connect to an NTP server, if DHCP has provided a list of servers
+#
+if [ "$NTP" != "" ] ; then
+    do_ntp "$NTP" &
+    NTP=
+fi
+
+#
 # create the user theme directory
 #
 mkdir /tmp/themes
@@ -95,9 +103,10 @@ if [ -n "$DONGLE" ] ; then
 fi
 
 #
-# connect to the NTP server
+# if the user has set NTP, restart NTP with their server
 #
 if [ "$NTP" != "" ] ; then
+    killall ntpclient
     do_ntp "$NTP" &
 fi
 
