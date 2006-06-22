@@ -489,4 +489,6 @@ extern int startup_selection;
 
 extern mythtv_filter_t mythtv_filter;
 
+extern int fb_next_image(int offset);
+
 #endif /* MVPMC_H */

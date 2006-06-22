@@ -31,6 +31,7 @@
 #include <time.h>
 #include <signal.h>
 #include <pthread.h>
+#include <limits.h>
 
 #include <mvp_widget.h>
 #include <mvp_av.h>
@@ -59,6 +60,9 @@ static char *current_pl = NULL;
 
 static int file_count = 0;
 static int dir_count = 0;
+
+int loaded_offset = 0;
+int loaded_status = 0;
 
 int
 is_video(char *item)
@@ -284,6 +288,9 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 			}
 			mvpw_show(iw);
 			mvpw_focus(iw);
+			loaded_offset = 0;
+			loaded_status = 0;
+			fb_next_image(0);
 		} else if (is_playlist(item)) {
 			if (current_pl)
 				free(current_pl);
@@ -560,4 +567,75 @@ fb_thruput(void)
 	demux_reset(handle);
 	demux_attr_reset(handle);
 	video_play(NULL);
+}
+
+int
+fb_next_image(int offset)
+{
+	char path[1024];
+	char *label;
+	int c, i, n, o;
+
+	if( offset == 0 ) {
+		if( loaded_offset ) {
+			offset = loaded_offset;
+		} else {
+			loaded_status = mvpw_load_image_jpeg(iw, current);
+			offset = 1;
+			loaded_offset = 1;
+		}
+	}
+
+	if( loaded_offset ) {
+		if( offset != loaded_offset ) {
+			if( offset == INT_MIN || offset == INT_MAX ) {
+				o = offset;
+			} else {
+				o = offset-loaded_offset;
+			}
+			loaded_offset = 0;
+			fb_next_image(o);
+		}
+		printf("Displaying image '%s'\n", current);
+		if( loaded_status == -1 ) {
+			mvpw_set_image(iw, current);
+		} else {
+			mvpw_show_image_jpeg(iw);
+		}
+	}
+
+	loaded_offset = offset;
+	o = 0;
+	n = 0;
+	c = 0;
+	while( (label = mvpw_get_menu_item(file_browser, (void*)n)) ) {
+		if( current && strcasecmp( current+strlen(cwd)+1, label) == 0 ) c = n;
+		n++;
+	}
+	if( offset == INT_MIN ) {
+		i = 0;
+		while( (label = mvpw_get_menu_item(file_browser, (void*)i++)) )
+			if( is_image(label) ) break;
+	 } else if( offset == INT_MAX ) {
+		i = n;
+		while( (label = mvpw_get_menu_item(file_browser, (void*)i--)) )
+			if( is_image(label) ) break;
+	} else {
+		if( offset>0 ) o = 1;
+		if( offset<0 ) o = -1;
+		i = (c+o+n)%n;
+		while( (label = mvpw_get_menu_item(file_browser, (void*)i)) && (i!=c) ) {
+			if( is_image(label) ) offset-=o;
+			if( offset == 0 ) break;
+			i = (i+o+n)%n;
+		}
+	}
+	if( label == NULL )
+		return -1;
+	sprintf(path, "%s/%s", cwd, label);
+	free(current);
+	current = strdup(path);
+	loaded_status = mvpw_load_image_jpeg(iw, current);
+
+	return 0;
 }

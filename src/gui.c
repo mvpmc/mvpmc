@@ -29,6 +29,7 @@
 #include <sys/utsname.h>
 #include <netdb.h>
 #include <arpa/inet.h>
+#include <limits.h>
 
 #ifndef MVPMC_HOST
 #include <sys/reboot.h>
@@ -51,6 +52,17 @@
 
 #include <vncviewer.h>
 #include <nano-X.h>
+
+static int prefetch_delay;
+
+void fb_prefetch(mvp_widget_t *widget) {
+	mvpw_set_timer(widget, fb_prefetch, prefetch_delay);
+	if( fb_next_image(0) == -1 ) {
+		mvpw_set_timer(widget, NULL, 0);
+		screensaver_enable();
+	}
+}
+
 
 volatile int running_replaytv = 0;
 volatile int mythtv_livetv = 0;
@@ -1235,9 +1247,57 @@ replaytv_back_to_mvp_main_menu(void) {
 static void
 iw_key_callback(mvp_widget_t *widget, char key)
 {
-	mvpw_hide(widget);
-	mvpw_show(file_browser);
-	mvpw_focus(file_browser);
+	mvpw_set_timer(widget, NULL, 0);
+	prefetch_delay = 0;
+	switch (key) {
+	case MVPW_KEY_REPLAY:
+		fb_next_image(INT_MIN);
+		break;
+	case MVPW_KEY_REWIND:
+		fb_next_image(-10);
+		break;
+	case MVPW_KEY_CHAN_UP:
+		fb_next_image(-3);
+		break;
+	case MVPW_KEY_UP:
+		fb_next_image(-1);
+		break;
+	case MVPW_KEY_DOWN:
+		fb_next_image(1);
+		break;
+	case MVPW_KEY_CHAN_DOWN:
+		fb_next_image(3);
+		break;
+	case MVPW_KEY_FFWD:
+		fb_next_image(10);
+		break;
+	case MVPW_KEY_SKIP:
+		fb_next_image(INT_MAX);
+		break;
+	case MVPW_KEY_ZERO:
+	case MVPW_KEY_ONE:
+	case MVPW_KEY_TWO:
+	case MVPW_KEY_THREE:
+	case MVPW_KEY_FOUR:
+	case MVPW_KEY_FIVE:
+	case MVPW_KEY_SIX:
+	case MVPW_KEY_SEVEN:
+	case MVPW_KEY_EIGHT:
+	case MVPW_KEY_NINE:
+		prefetch_delay = (key-MVPW_KEY_ZERO)*1000;
+		break;
+	default:
+		mvpw_hide(widget);
+		mvpw_show(file_browser);
+		mvpw_focus(file_browser);
+		break;
+	}
+	if( prefetch_delay ) {
+		mvpw_set_timer(widget, fb_prefetch, prefetch_delay);
+		screensaver_disable();
+	} else {
+		screensaver_enable();
+	}
 }
 
 static void
