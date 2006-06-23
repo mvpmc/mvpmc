@@ -73,7 +73,9 @@ mvpw_set_image(mvp_widget_t *widget, char *file)
 	if (pid == 0)
 		pid = GrNewPixmap(width, height, NULL);
         gc = GrNewGC();
-	GrDrawImageFromFile(pid, gc, 0, 0, width, height, file, 0);
+	GrSetGCForeground(gc, 0xff000000);
+	GrFillRect(pid, gc, 0, 0, width, height);
+	if (file) GrDrawImageFromFile(pid, gc, 0, 0, width, height, file, 0);
         GrDestroyGC(gc);
 
 	if (wid == 0) {
@@ -88,7 +90,7 @@ mvpw_set_image(mvp_widget_t *widget, char *file)
 		GrSetWMProperties(wid, &props);
 
 		GrMapWindow(wid);
-	}
+	} else GrClearArea(wid, 0, 0, 0, 0, 0);
 
 	widget->data.image.wid = wid;
 	widget->data.image.pid = pid;

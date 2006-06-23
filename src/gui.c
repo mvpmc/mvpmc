@@ -1247,8 +1247,8 @@ replaytv_back_to_mvp_main_menu(void) {
 static void
 iw_key_callback(mvp_widget_t *widget, char key)
 {
-	mvpw_set_timer(widget, NULL, 0);
-	prefetch_delay = 0;
+	int new_delay;
+	new_delay = 0;
 	switch (key) {
 	case MVPW_KEY_REPLAY:
 		fb_next_image(INT_MIN);
@@ -1284,7 +1284,7 @@ iw_key_callback(mvp_widget_t *widget, char key)
 	case MVPW_KEY_SEVEN:
 	case MVPW_KEY_EIGHT:
 	case MVPW_KEY_NINE:
-		prefetch_delay = (key-MVPW_KEY_ZERO)*1000;
+		new_delay = (key-MVPW_KEY_ZERO)*1000;
 		break;
 	default:
 		mvpw_hide(widget);
@@ -1292,11 +1292,18 @@ iw_key_callback(mvp_widget_t *widget, char key)
 		mvpw_focus(file_browser);
 		break;
 	}
-	if( prefetch_delay ) {
+	if( new_delay ) {
+		if( !prefetch_delay ) {
+			screensaver_disable();
+		}
+		prefetch_delay = new_delay;
 		mvpw_set_timer(widget, fb_prefetch, prefetch_delay);
-		screensaver_disable();
 	} else {
-		screensaver_enable();
+		if( prefetch_delay ) {
+			screensaver_enable();
+		}
+		prefetch_delay = 0;
+		mvpw_set_timer(widget, NULL, 0);
 	}
 }
 

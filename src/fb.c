@@ -230,17 +230,18 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 
 		mvpw_expose(widget);
 	} else {
-		switch_hw_state(MVPMC_STATE_FILEBROWSER);
+		if (!is_image(item)) {
+			switch_hw_state(MVPMC_STATE_FILEBROWSER);
+
+			audio_stop = 1;
+			pthread_kill(audio_thread, SIGURG);
+
+			while (audio_playing)
+				usleep(1000);
+		}
 
 		if (current)
 			free(current);
-		current = NULL;
-		audio_stop = 1;
-		pthread_kill(audio_thread, SIGURG);
-
-		while (audio_playing)
-			usleep(1000);
-
 		current = strdup(path);
 
 		video_functions = &file_functions;
@@ -279,13 +280,8 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 			mvpw_set_timer(fb_progress, fb_osd_update, 500);
 			audio_play(NULL);
 		} else if (is_image(item)) {
+			mvpw_set_image(iw, NULL);
 			mvpw_hide(widget);
-			printf("Displaying image '%s'\n", path);
-			if (mvpw_load_image_jpeg(iw, path) == 0) {
-				mvpw_show_image_jpeg(iw);
-			} else {
-				mvpw_set_image(iw, path);
-			}
 			mvpw_show(iw);
 			mvpw_focus(iw);
 			loaded_offset = 0;

@@ -179,6 +179,7 @@ mvpw_load_image_jpeg(mvp_widget_t *widget, char *file)
 	GR_GC_ID gc;
 	GR_WM_PROPERTIES props;
 	JSAMPROW rowptr[1];
+	unsigned char prefix[2];
 
 	wid = widget->data.image.wid;
 	pid = widget->data.image.pid;
@@ -190,13 +191,21 @@ mvpw_load_image_jpeg(mvp_widget_t *widget, char *file)
 	if (fd < 0 || fstat(fd, &s) < 0) {
 		EPRINTF("%s: cannot open image: %s\n", __FUNCTION__, file);
 		ret = -1;
-		goto err0;
+		goto err1;
 	}
+
+	read(fd, prefix, 2);
+	if ((prefix[0] != 0xff) && (prefix[1] != 0xd8)) {
+		EPRINTF("%s: not a JPEG file: %s\n", __FUNCTION__, file);
+		ret = -1;
+		goto err1;
+	}
+	lseek(fd, 0, SEEK_SET);
 
 	bufsize = 65536;
 	buffer = malloc(bufsize);
 	if (!buffer) {
-		EPRINTF("%s: malloc(%d) failure for buffer\n", __FUNCTION__, bufsize);
+		EPRINTF("%s: malloc(%li) failure for buffer\n", __FUNCTION__, bufsize);
 		ret = -1;
 		goto err1;
 	}
@@ -411,7 +420,6 @@ err2:
 	free(buffer);
 err1:
 	close(fd);
-err0:
 	return ret;
 }
 
