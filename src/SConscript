@@ -18,10 +18,10 @@ mvp.Append(CCFLAGS = ' -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -D_LARGEFILE64
 version = os.system(toplevel + '/src/version.sh ' + toplevel + '/src')
 
 if target == 'host':
-	libx11dir = ['/usr/X11R6/lib']
-	libx11 = ['X11', 'pthread']
+	libx11dir = ['/usr/X11R6/lib', '/usr/lib/mysql', '/usr/lib']
+	libx11 = ['X11', 'pthread','crypt', 'ssl', 'crypto' ]
 else:
-	libx11dir = []
+	libx11dir = [toplevel + '/dongle/install/mvp/lib/mysql']
 	libx11 = []
 
 mvpmc = mvp.Program('mvpmc',
@@ -33,9 +33,9 @@ mvpmc = mvp.Program('mvpmc',
                                 '.', '../include' ],
                     LIBS = ['widget', 'nano-X', 'mwengine', 'mwdrivers',
                             'mwfonts', 'replaytv', 'expat',
-                            'osd', 'av', 'demux', 'cmyth', 'vnc',
+                            'osd', 'av', 'demux', 'cmyth', 'vnc', 'mysqlclient',
                             'png12', 'z', 'jpeg', 'm', 'gcc', 'pthread',
-                            'a52', 'm', 'vorbisidec', 'id3',
+                            'a52', 'm', 'vorbisidec', 'id3', 
                             'ts_demux', 'dvbpsi'] + libx11,
                     LIBPATH = [ libdir ] + libx11dir,
                     LINKFLAGS = [ '-static' ])

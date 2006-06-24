@@ -156,6 +156,7 @@ mvpmc_state_t hw_state = MVPMC_STATE_NONE;
 mvpmc_state_t gui_state = MVPMC_STATE_NONE;
 
 config_t *config;
+mysqlptr_t *mysqlptr;
 static int shmid;
 
 char *config_file = NULL;
@@ -225,6 +226,10 @@ print_help(char *prog)
 	printf("\t-M        \tMythTV protocol debugging output\n");
 	printf("\t-o output \toutput device for video (composite or svideo) and / or for audio (stereo or passthru)\n");
 	printf("\t-s server \tmythtv server IP address\n");
+	printf("\t-y server \tmythtv DB server IP address\n");
+	printf("\t-u username \tmythtv mysql username\n");
+	printf("\t-p password \tmythtv mysql password\n");
+	printf("\t-T table \tmythtv mysql database name\n");
 	printf("\t-S seconds\tscreensaver timeout in seconds (0 - disable)\n");
 	printf("\t-r path   \tpath to NFS mounted mythtv recordings\n");
 	printf("\t-R server \treplaytv server IP address\n");
@@ -386,6 +391,7 @@ main(int argc, char **argv)
 	char *theme_file = NULL;
 	struct stat sb;
 	int opt_index;
+	char *tmp;
 #ifndef MVPMC_HOST
 	unsigned long start = (unsigned long)sbrk(0);
 #endif
@@ -434,6 +440,26 @@ main(int argc, char **argv)
 #endif
 	config->magic = CONFIG_MAGIC;
 
+
+       if ((shmid=shmget(IPC_PRIVATE, sizeof(mysqlptr_t), IPC_CREAT)) == -1) {
+               perror("shmget()");
+               exit(1);
+       }
+       if ((mysqlptr=(mysqlptr_t*)shmat(shmid, NULL, 0)) == (mysqlptr_t*)-1) {
+               perror("shmat()");
+               exit(1);
+       }
+       if ((mysqlptr=(mysqlptr_t*)malloc(sizeof(mysqlptr_t))) == NULL) {
+               perror("malloc()");
+               exit(1);
+       }
+       memset(mysqlptr, 0, sizeof(*mysqlptr));
+       strcpy(mysqlptr->db,"mythconverg");
+       strcpy(mysqlptr->user,"mythtv");
+       strcpy(mysqlptr->pass,"mythtv");
+       strcpy(mysqlptr->host,"localhost");
+       mysqlptr->version=0;
+
 	/*
 	 * Initialize the config options to the defaults.
 	 */
@@ -459,7 +485,7 @@ main(int argc, char **argv)
 	 * the settings from all other sources.
 	 */
 	while ((c=getopt_long(argc, argv,
-			      "a:b:C:c:d:D:f:F:hi:m:Mo:r:R:s:S:t:",
+			      "a:b:C:c:d:D:f:F:hi:m:Mo:r:R:s:S:y:t:u:p:T:",
 			      opts, &opt_index)) != -1) {
 		switch (c) {
 		case 0:
@@ -660,6 +686,26 @@ main(int argc, char **argv)
 			strcpy(config->mythtv_ip, optarg);
 			config->bitmask |= CONFIG_MYTHTV_IP;
 			break;
+                case 'y':
+                        tmp = strdup(optarg);
+			strcpy(mysqlptr->host, tmp);
+                        fprintf (stderr, "mysqlhost = %s\n",mysqlptr->host);
+			break;
+                case 'u':
+                        tmp = strdup(optarg);
+			strcpy(mysqlptr->user,tmp);
+                        fprintf (stderr, "mysqluser = %s\n",mysqlptr->user);
+                        break;
+                case 'p':
+                        tmp = strdup(optarg);
+			strcpy(mysqlptr->pass,tmp);
+                        fprintf (stderr, "mysqlpass = %s\n",mysqlptr->pass);
+                        break;
+                case 'T':
+                        tmp = strdup(optarg);
+			strcpy(mysqlptr->db,tmp);
+                        fprintf (stderr, "mysqltable = %s\n",mysqlptr->db);
+                        break;
 		case 'D':
 			if (sscanf(optarg, "%[^:]:%d", vnc_server, &vnc_port) != 2) {
 				printf("Incorrectly formatted VNC server '%s'\n", optarg);
@@ -919,6 +965,12 @@ main(int argc, char **argv)
 		}
 	}
 #endif /* !MVPMC_HOST */
+
+#ifdef CONFIG_MYTHTV_IP
+	if (strcmp(mysqlptr->host,"localhost") == 0) {
+		strcpy(mysqlptr->host,config->mythtv_ip);
+	}
+#endif
 
 	pthread_create(&video_read_thread, &thread_attr_small,
 		       video_read_start, NULL);

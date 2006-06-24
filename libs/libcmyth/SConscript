@@ -8,13 +8,14 @@ Import ('env')
 dir = env['BUILD_DIR']
 target = env['TARG']
 libdir = env['INSTLIBDIR']
+toplevel = env['TOPLEVEL']
 
 src = [ 'alloc.c','bookmark.c', 'connection.c', 'debug.c', 'event.c',
-        'file.c', 'freespace.c', 'keyframe.c', 'posmap.c', 'proginfo.c',
+        'file.c', 'freespace.c', 'keyframe.c', 'mythtv_mysql.c', 'posmap.c', 'proginfo.c',
         'proglist.c', 'rec_num.c', 'recorder.c', 'ringbuf.c', 'socket.c',
         'timestamp.c' ]
 
-lib = env.StaticLibrary('cmyth', src, CPPPATH = [ env['INCDIR'], '.' ])
+lib = env.StaticLibrary('cmyth', src, CPPPATH = [ env['INCDIR'],  toplevel + '/dongle/install/mvp/lib/mysql', '.', toplevel + '/dongle/install/mvp/include' ])
 
 inst = env.Install(libdir, lib)
 

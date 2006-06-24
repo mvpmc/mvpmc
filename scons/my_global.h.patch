@@ -1,0 +1,14 @@
+*** my_global.h	2006-05-18 02:30:33.000000000 -0400
+--- my_global.h.patch	2006-05-18 02:28:13.000000000 -0400
+***************
+*** 728,736 ****
+  #define FLT_MAX		((float)3.40282346638528860e+38)
+  #endif
+  
+- #if !defined(HAVE_ISINF) && !defined(isinf)
+  #define isinf(X)    0
+- #endif
+  
+  /* Define missing math constants. */
+  #ifndef M_PI
+--- 728,734 ----

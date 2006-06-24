@@ -104,6 +104,15 @@ typedef struct {
 
 extern config_t *config;
 
+typedef struct {
+        char host[64];
+        char user[10];
+        char pass[32];
+        char db[24];
+	int version;
+} mysqlptr_t;
+extern  mysqlptr_t *mysqlptr;
+
 /*
  * The item definitions for what can be stored in the config file.
  */

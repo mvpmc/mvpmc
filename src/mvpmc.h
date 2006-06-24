@@ -24,6 +24,7 @@
 
 #define VIDEO_BUFF_SIZE	(1024*96)
 
+
 typedef enum {
 	MVPMC_STATE_NONE = 1,
 	MVPMC_STATE_MYTHTV,
@@ -41,6 +42,7 @@ typedef enum {
 	MYTHTV_STATE_EPISODES,
 	MYTHTV_STATE_LIVETV,
 	MYTHTV_STATE_UPCOMING,
+	MYTHTV_STATE_SCHEDULE,
 } mythtv_state_t;
 
 #define MYTHTV_NUM_FILTER 4
@@ -156,6 +158,7 @@ extern mvp_widget_t *wss_4_3_image;
 extern mvp_widget_t *episodes_widget;
 extern mvp_widget_t *shows_widget;
 extern mvp_widget_t *freespace_widget;
+extern mvp_widget_t *program_info_widget;
 
 extern mvp_widget_t *popup_menu;
 
@@ -245,6 +248,10 @@ extern int mythtv_update(mvp_widget_t*);
 extern int mythtv_livetv_menu(void);
 extern int mythtv_program_runtime(void);
 extern void mythtv_set_popup_menu(mythtv_state_t state);
+
+extern int mythtv_guide_menu(mvp_widget_t*, mvp_widget_t*);
+extern int mythtv_guide_menu_next(mvp_widget_t*);
+extern int mythtv_guide_menu_previous(mvp_widget_t*);
 
 extern void video_callback(mvp_widget_t*, char);
 extern void video_thumbnail(int on);
@@ -427,6 +434,7 @@ typedef struct {
 	uint32_t pending_conflict;
 	uint32_t pending_recording;
 	uint32_t pending_other;
+	uint32_t menu_item;
 } mythtv_color_t;
 
 extern mythtv_color_t mythtv_colors;

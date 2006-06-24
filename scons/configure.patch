@@ -1,0 +1,136 @@
+--- configure	2006-02-25 13:25:39.000000000 -0500
++++ configure.changes	2006-02-25 13:25:12.000000000 -0500
+@@ -20844,7 +20844,7 @@ _ACEOF
+ echo "${ECHO_T}\"int\"" >&6
+     ;;
+   *)
+-if test "$cross_compiling" = yes; then
++if test "$cross_compiling" = maybe; then
+   { { echo "$as_me:$LINENO: error: cannot run test program while cross compiling
+ See \`config.log' for more details." >&5
+ echo "$as_me: error: cannot run test program while cross compiling
+@@ -20893,7 +20893,7 @@ echo "$as_me: failed program was:" >&5
+ sed 's/^/| /' conftest.$ac_ext >&5
+ 
+ ( exit $ac_status )
+-if test "$cross_compiling" = yes; then
++if test "$cross_compiling" = maybe; then
+   { { echo "$as_me:$LINENO: error: cannot run test program while cross compiling
+ See \`config.log' for more details." >&5
+ echo "$as_me: error: cannot run test program while cross compiling
+@@ -25581,7 +25581,7 @@ if test "$TARGET_LINUX" = "true"; then
+ echo $ECHO_N "checking for atomic operations... $ECHO_C" >&6
+ 
+   atom_ops=
+-  if test "$cross_compiling" = yes; then
++  if test "$cross_compiling" = maybe; then
+   { { echo "$as_me:$LINENO: error: cannot run test program while cross compiling
+ See \`config.log' for more details." >&5
+ echo "$as_me: error: cannot run test program while cross compiling
+@@ -25631,7 +25631,7 @@ sed 's/^/| /' conftest.$ac_ext >&5
+ fi
+ rm -f core *.core gmon.out bb.out conftest$ac_exeext conftest.$ac_objext conftest.$ac_ext
+ fi
+-  if test "$cross_compiling" = yes; then
++  if test "$cross_compiling" = maybe; then
+   { { echo "$as_me:$LINENO: error: cannot run test program while cross compiling
+ See \`config.log' for more details." >&5
+ echo "$as_me: error: cannot run test program while cross compiling
+@@ -26060,7 +26060,7 @@ case $SYSTEM_TYPE in
+ echo "${ECHO_T}no" >&6
+     ;;
+   *)
+-if test "$cross_compiling" = yes; then
++if test "$cross_compiling" = maybe; then
+   { { echo "$as_me:$LINENO: error: cannot run test program while cross compiling
+ See \`config.log' for more details." >&5
+ echo "$as_me: error: cannot run test program while cross compiling
+@@ -27706,7 +27706,7 @@ echo $ECHO_N "checking for restartable s
+ if test "${ac_cv_sys_restartable_syscalls+set}" = set; then
+   echo $ECHO_N "(cached) $ECHO_C" >&6
+ else
+-  if test "$cross_compiling" = yes; then
++  if test "$cross_compiling" = maybe; then
+   { { echo "$as_me:$LINENO: error: cannot run test program while cross compiling
+ See \`config.log' for more details." >&5
+ echo "$as_me: error: cannot run test program while cross compiling
+@@ -28847,7 +28847,7 @@ See \`config.log' for more details." >&2
+    { (exit 1); exit 1; }; } ;;
+ esac
+ else
+-  if test "$cross_compiling" = yes; then
++  if test "$cross_compiling" = maybe; then
+   { { echo "$as_me:$LINENO: error: cannot run test program while cross compiling
+ See \`config.log' for more details." >&5
+ echo "$as_me: error: cannot run test program while cross compiling
+@@ -29279,7 +29279,7 @@ See \`config.log' for more details." >&2
+    { (exit 1); exit 1; }; } ;;
+ esac
+ else
+-  if test "$cross_compiling" = yes; then
++  if test "$cross_compiling" = maybe; then
+   { { echo "$as_me:$LINENO: error: cannot run test program while cross compiling
+ See \`config.log' for more details." >&5
+ echo "$as_me: error: cannot run test program while cross compiling
+@@ -29693,7 +29693,7 @@ See \`config.log' for more details." >&2
+    { (exit 1); exit 1; }; } ;;
+ esac
+ else
+-  if test "$cross_compiling" = yes; then
++  if test "$cross_compiling" = maybe; then
+   { { echo "$as_me:$LINENO: error: cannot run test program while cross compiling
+ See \`config.log' for more details." >&5
+ echo "$as_me: error: cannot run test program while cross compiling
+@@ -30107,7 +30107,7 @@ See \`config.log' for more details." >&2
+    { (exit 1); exit 1; }; } ;;
+ esac
+ else
+-  if test "$cross_compiling" = yes; then
++  if test "$cross_compiling" = maybe; then
+   { { echo "$as_me:$LINENO: error: cannot run test program while cross compiling
+ See \`config.log' for more details." >&5
+ echo "$as_me: error: cannot run test program while cross compiling
+@@ -30527,7 +30527,7 @@ See \`config.log' for more details." >&2
+    { (exit 1); exit 1; }; } ;;
+ esac
+ else
+-  if test "$cross_compiling" = yes; then
++  if test "$cross_compiling" = maybe; then
+   { { echo "$as_me:$LINENO: error: cannot run test program while cross compiling
+ See \`config.log' for more details." >&5
+ echo "$as_me: error: cannot run test program while cross compiling
+@@ -30947,7 +30947,7 @@ See \`config.log' for more details." >&2
+    { (exit 1); exit 1; }; } ;;
+ esac
+ else
+-  if test "$cross_compiling" = yes; then
++  if test "$cross_compiling" = maybe; then
+   { { echo "$as_me:$LINENO: error: cannot run test program while cross compiling
+ See \`config.log' for more details." >&5
+ echo "$as_me: error: cannot run test program while cross compiling
+@@ -32499,7 +32499,7 @@ echo $ECHO_N "checking if conversion of 
+ if test "${ac_cv_conv_longlong_to_float+set}" = set; then
+   echo $ECHO_N "(cached) $ECHO_C" >&6
+ else
+-  if test "$cross_compiling" = yes; then
++  if test "$cross_compiling" = maybe; then
+   { { echo "$as_me:$LINENO: error: cannot run test program while cross compiling
+ See \`config.log' for more details." >&5
+ echo "$as_me: error: cannot run test program while cross compiling
+@@ -32554,6 +32554,7 @@ then
+ else
+   ac_cv_conv_longlong_to_float=no
+ fi
++  ac_cv_conv_longlong_to_float=yes
+ echo "$as_me:$LINENO: result: $ac_cv_conv_longlong_to_float" >&5
+ echo "${ECHO_T}$ac_cv_conv_longlong_to_float" >&6
+ 
+@@ -38130,7 +38131,7 @@ if { (eval echo "$as_me:$LINENO: \"$ac_l
+ echo "${ECHO_T}yes" >&6
+ 
+ cat >>confdefs.h <<\_ACEOF
+-#define HAVE_ISINF 1
++#define HAVE_ISINF 0
+ _ACEOF
+ 
+ else

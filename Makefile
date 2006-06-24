@@ -6,6 +6,8 @@
 all: mvp host
 
 mvp:
+	echo "Build mysql"
+	sh scons/build_mysql.sh
 	scons -Q -j 2 TARGET=mvp
 
 host:
