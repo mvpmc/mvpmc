@@ -58,7 +58,7 @@ playlist_t *playlist=NULL, *playlist_head = NULL;
 
 int playlist_repeat = 0;
 
-static void playlist_change(playlist_t *next);
+void playlist_change(playlist_t *next);
 int is_streaming(char *url);
 
 static void select_callback(mvp_widget_t *widget, char *item, void *key)
@@ -395,7 +395,7 @@ playlist_play(mvp_widget_t *widget)
 	playlist_idle(NULL);
 }
 
-static void playlist_change(playlist_t *next)
+void playlist_change(playlist_t *next)
 {
   if(!playlist){
 	return;
