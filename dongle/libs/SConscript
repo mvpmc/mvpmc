@@ -20,9 +20,12 @@ expat = env.SConscript('expat/SConscript')
 dvb = env.SConscript('libdvbpsi/SConscript')
 id3 = env.SConscript('libid3/SConscript')
 tremor = env.SConscript('Tremor/SConscript')
+ncurses = env.SConscript('ncurses/SConscript')
+mysql = env.SConscript('mysql/SConscript')
 
 env.Depends(png, zlib)
 env.Depends(mw, png)
 env.Depends(mw, jpg)
+env.Depends(mysql, ncurses)
 
 Return('mw')

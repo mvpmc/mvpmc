@@ -1,0 +1,60 @@
+#!/usr/bin/python
+#
+# build mysql
+#
+
+import os
+
+Import('env')
+
+home = os.environ['HOME']
+cc = env['CC']
+downloads = env['DOWNLOADS']
+target = env['TARG']
+
+if target == 'mvp':
+  cross = '-c ' + env['CROSS']
+  host_configs = '--host=ppcbe --with-other-libc=/opt/crosstool/powerpc-405-linux-uclibc/gcc-3.3.3-uClibc-0.9.23/lib'
+else:
+  cross = ''
+  host_configs = ''
+
+config_opts = '--without-docs --without-man --without-debug --without-server --without-query-cache  --without-extra-tools --without-perl --with-low-memory --enable-assembler  --with-comment --cache-file=build.cache ' + host_configs
+
+file = downloads + '/mysql-5.0.21.tar.gz'
+
+e = Environment()
+e.Tool('WGet', toolpath=['../../../scons'])
+
+def GetSourceFile(url, output_dir, env):
+  '''
+  Create a node for a file retrieved via wget.
+  This node can be used as a dependency in other rules.
+  '''
+  # Nab everything after the last slash as the filename
+  basefilename = str(url)[str( url).rfind(os.sep) + 1:]
+  munged = output_dir + os.sep + basefilename + os.sep + url
+  node = env.SourceCode( munged, env.WGet() )
+  return node
+
+url = 'http://mysql.osuosl.org/Downloads/MySQL-5.0/mysql-5.0.21.tar.gz'
+pwd = os.getcwd()
+
+dl = GetSourceFile(url, '#' + downloads, e)
+
+build = env.Command('../../install/' + target + '/lib/mysql/libmysqlclient.a', 0,
+                    'scons/build_lib.sh -d ' + pwd + '/' + target +
+                    '/mysql-5.0.21 -i ' + file + ' ' +
+                    cross + ' ' +
+                    '-T ' + target + ' ' +
+                    '-A -I ' + pwd + '/../../install/' + target + ' ' +
+                    '-C \"' + config_opts + '\" ' +
+                    '-L \"-L../../install/' + target + '/lib\"' + ' ' +
+                    '-p patches/my_global.h.patch')
+
+env.Depends(build, dl)
+
+env.SideEffect(['../../install/' + target + '/include/mysql/mysql.h'],
+                build)
+
+Return('build')
