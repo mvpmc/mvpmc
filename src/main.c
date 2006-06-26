@@ -74,6 +74,10 @@ static struct option opts[] = {
 	{ "emulate", required_argument, 0, 0},
 	{ "rfb-mode", required_argument, 0, 0},
 	{ "flicker", no_argument, 0, 0},
+	{ "mythtv-db", required_argument, 0, 'y'},
+	{ "mythtv-username", required_argument, 0, 'u'},
+	{ "mythtv-password", required_argument, 0, 'p'},
+	{ "mythtv-database", required_argument, 0, 'T'},
 	{ 0, 0, 0, 0 }
 };
 
