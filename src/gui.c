@@ -4501,7 +4501,7 @@ mythtv_schedule_keymovement_callback(mvp_widget_t *widget, char key)
 	if ( key == MVPW_KEY_EXIT ) {
 		mvpw_hide(widget);
 		mvpw_hide(program_info_widget);
-		switch_gui_state(MYTHTV_STATE_MAIN);
+		mythtv_state = MYTHTV_STATE_MAIN;
 		mvpw_show(mythtv_menu);
 		return;
 	}
