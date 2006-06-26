@@ -102,6 +102,7 @@ int platform_init(void);
 int rfb_init(char *hostname, int port);
 void mvp_fdinput_callback(mvp_widget_t *widget, int fd);
 void vnc_timer_callback(mvp_widget_t *widget);
+void mvp_server_remote_key(char key);
 void mvp_server_cleanup(void);
 
 int udp_listen(const char *iface, int port);
@@ -496,6 +497,9 @@ void *mvp_server_start(void *arg)
 
 void mvp_server_stop(void)
 {
+    mvp_server_remote_key(MVPW_KEY_POWER);
+    GrUnregisterInput(rfbsock);
+    close(rfbsock);
     mvp_media = 0;
 }
 
@@ -541,6 +545,11 @@ void mvp_server_remote_key(char key)
             case MVPW_KEY_PAUSE:
                 client_pause();
                 break;
+            case MVPW_KEY_OK:
+                SendIncrementalFramebufferUpdateRequest();
+            case MVPW_KEY_POWER:
+                SendKeyEvent(key1, -1);
+                break;
             default:
                 break;
         }
@@ -555,7 +564,9 @@ void mvp_server_remote_key(char key)
         }
         PRINTF("keymap %i = %x\n", key, key1);
         SendKeyEvent(key1, -1);
-        SendIncrementalFramebufferUpdateRequest();
+        if (key!=MVPW_KEY_POWER) {
+            SendIncrementalFramebufferUpdateRequest();
+        }
     }
     return;
 }

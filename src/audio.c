@@ -76,6 +76,8 @@ typedef enum {
 	OGG_STATE_EOS,
 } ogg_state_t;
 
+int using_vlc = 0;
+int using_helper = 0;
 
 static char pcmout[4096];
 static OggVorbis_File vf;
@@ -124,7 +126,7 @@ typedef enum {
 } audio_file_t;
 
 int http_playing = 0;
-int using_helper = 0;
+extern int mplayer_disable;
 int mplayer_helper_connect(FILE *outlog,char *url,int stopme);
 int vlc_connect(FILE *log,char *url,int type);
 
@@ -762,21 +764,22 @@ audio_clear(void)
             }
 		oggfile = NULL;
 	}
-    if ( using_helper > 0 ) {
-        if (http_playing != 0) {
-            http_playing = 0;
-        }        
+    if ( using_helper > 0 || using_vlc == 1 ) {
+        http_playing = 0;
         FILE *outlog;
         outlog = fopen("/usr/share/mvpmc/connect.log","a");
         if ( using_helper == 1 ) {
             mplayer_helper_connect(outlog,NULL,1);
         }
         vlc_connect(outlog,NULL,1);
+        using_vlc = 0;
+        usleep(3000);
         if ( using_helper == 1 ) {
             mplayer_helper_connect(outlog,NULL,2);
         }
         using_helper=0;
         fclose(outlog);
+        mvpw_hide(fb_progress);
     }
 }
 
@@ -1262,13 +1265,17 @@ audio_start(void *arg)
 		} else if ( audio_type == VIDEO_FILE_HTTP_MPG ) {
 			http_playing = 1;
 			av_reset();
-
 			mvpw_set_timer(playlist_widget, NULL, 0);
 			mvpw_hide(fb_progress);
-			mvpw_hide(playlist_widget);
+            if (mvpw_visible(playlist_widget)) {
+			    mvpw_hide(playlist_widget);
+            }
+			mvpw_hide(file_browser);
+            video_thumbnail(0);
 			video_set_root();
+
 			mvpw_focus(root);
-			screensaver_disable();
+            screensaver_disable();
 			mvpw_set_timer(root, video_play, 50);            
 			continue;
 		} else if ( audio_type == AUDIO_FILE_HTTP_OGG ) {
@@ -1295,6 +1302,7 @@ audio_start(void *arg)
 
 		close(fd);
 		audio_clear();
+        mvpw_hide(fb_progress);
 	}
 
 	return NULL;
@@ -1521,7 +1529,6 @@ int http_main(void)
 
     FILE *instream,*outlog,*outcast;
     char *rcs;
-    int using_vlc = 0;
     
     using_helper = 0;
 
@@ -1587,7 +1594,7 @@ int http_main(void)
                 using_helper = 0;
             }
             int vlcType = 0;
-            if (ContentType==CONTENT_DIVX || streamType == 100) {
+            if (ContentType==CONTENT_DIVX || streamType > 101) {
                 vlcType = 100;
             }
             if (vlc_connect(outlog,url[curEntry-1],vlcType) < 0 ) {
@@ -1598,7 +1605,7 @@ int http_main(void)
             
             snprintf(url[curEntry-1],MAX_URL_LEN,"http://%s:%s",vlc_server,VLC_HTTP_PORT);
             using_vlc = 1;
-            if (ContentType==CONTENT_DIVX || streamType == 100) {
+            if (ContentType==CONTENT_DIVX || streamType > 101) {
                 ContentType = CONTENT_DIVX;
             } else {
                 ContentType = CONTENT_MP3;
@@ -1882,7 +1889,7 @@ int http_main(void)
                             curEntry = -1;   // start again
                         } else if ( strstr(line_data,"application/vnd.ms.wms-hdr.asfv1") != NULL || strstr(line_data,"application/x-mms-framed") != NULL ) {
                             if (strncmp(url[curEntry-1],"http://",7)==0) {
-                                snprintf(url[0],MAX_URL_LEN,"mmsh%s",&url[curEntry-1][4]);
+                                snprintf(url[0],MAX_URL_LEN,"mms%s",&url[curEntry-1][4]);
                                 ContentType = CONTENT_REDIRECT;
                                 stateGet=HTTP_RETRY;
                             }
@@ -2224,6 +2231,9 @@ int http_main(void)
         }
     }
     
+    if (retcode == -2 || retcode == 2) {                       
+        close(httpsock);
+    }
     if (using_helper==1) {
         if (outlog==NULL) {
             outlog = fopen("/usr/share/mvpmc/connect.log","a");
@@ -2257,10 +2267,6 @@ int http_main(void)
 
     if (contentLength==0 && audio_stop == 0 ) {
         audio_stop = 1;
-    }
-
-    if (retcode == -2 || retcode == 2) {                       
-        close(httpsock);
     }
 
     if (gui_state == MVPMC_STATE_HTTP ) {
@@ -2541,7 +2547,7 @@ int http_read_stream(unsigned int httpsock,int metaInt,int offset)
         usleep(1000000);
     }
     bufferFull = 0;
-
+    
 //    printf("message %d buff %d stop %d\n",message_len,bufferFull,audio_stop);
 
     return  retcode;
@@ -2597,7 +2603,7 @@ int vlc_connect(FILE *outlog,char *url,int ContentType)
         
         struct timeval stream_tv;
         memset((char *)&stream_tv,0,sizeof(struct timeval));
-        stream_tv.tv_sec = 6;
+        stream_tv.tv_sec = 10;
         int optionsize = sizeof(stream_tv);
 
         setsockopt(vlc_sock, SOL_SOCKET, SO_SNDTIMEO, &stream_tv, optionsize);
@@ -2606,6 +2612,18 @@ int vlc_connect(FILE *outlog,char *url,int ContentType)
         retcode = connect(vlc_sock, (struct sockaddr *)&server_addr,sizeof(server_addr));
 
         if (retcode == 0) {
+            char *newurl;
+            if (url!=NULL) {
+                if (*url!='"' && strchr(url,' ') ){
+                    newurl = malloc(strlen(url)+3);
+                    snprintf(newurl,strlen(url)+3,"\"%s\"",url);
+                } else {
+                    newurl = strdup(url);
+                }
+            } else {
+                newurl = NULL;
+            }
+
             instream = fdopen(vlc_sock,"r+b");
             setbuf(instream,NULL);
 
@@ -2632,12 +2650,12 @@ int vlc_connect(FILE *outlog,char *url,int ContentType)
                             break;
                         case 1:
                             fprintf(instream,vlc_connects[i]);
-                            fprintf(outlog,vlc_connects[i],url);
+                            fprintf(outlog,vlc_connects[i],newurl);
                             ContentType = 2;
                             break;
                         case 3:
-                            fprintf(instream,vlc_connects[i],url);
-                            fprintf(outlog,vlc_connects[i],url);
+                            fprintf(instream,vlc_connects[i],newurl);
+                            fprintf(outlog,vlc_connects[i],newurl);
                             break;
                         case 4:
                             if ( ContentType == 100 ) {
@@ -2673,16 +2691,20 @@ int vlc_connect(FILE *outlog,char *url,int ContentType)
                     break;
                 }
             }
+            if (url!=NULL) {
+                free(newurl);
+            }
+            fflush(outlog);
+            shutdown(vlc_sock,SHUT_RDWR);
             close(vlc_sock);            
-            usleep(2000);
         } else {
             mvpw_set_text_str(fb_name, "VLC connection timeout");
-            printf("Cannot connect to %s:%s\n",vlc_server,vlc_port);
+            fprintf(outlog,"VLC connection timeout\nCannot connect to %s:%s\n",vlc_server,vlc_port);
             retcode = -1;
         }
     } else {
         mvpw_set_text_str(fb_name, "VLC/VLM setup error");
-        printf("Cannot find %s:%s\n",vlc_server,vlc_port);
+        fprintf(outlog,"VLC/VLM setup error\nCannot find %s\n",vlc_server);
         retcode = -1;
     }
     return retcode;
@@ -2700,10 +2722,16 @@ int is_streaming(char *url)
         NULL
     };
     static char *vlcTypes[] = {
+        ".wma",
+        ".WMA",
         ".divx",
         ".flv",
         ".wmv",
-        "avi",
+        ".avi",
+        ".DIVX",
+        ".FLV",
+        ".WMV",
+        ".AVI",
         NULL
     };
     int i=0;
@@ -2723,7 +2751,7 @@ int is_streaming(char *url)
         i = 0;
         while (vlcTypes[i]!=NULL) {
             if ( strstr(url,vlcTypes[i]) !=NULL ) {
-                retcode = 100;
+                retcode = 100+i;
                 break;
             }
             i++;
@@ -2840,6 +2868,12 @@ int mplayer_helper_connect(FILE *outlog,char *url,int stopme)
         return 0;
     }
 
+    if (mplayer_disable==1) {
+        mvpw_set_text_str(fb_name, "Mplayer support not enabled");
+        fputs("Mplayer support not enabled\n",outlog);
+        return -1;
+    }
+
     remoteHost = gethostbyname(vlc_server);
 
     if (remoteHost!=NULL) {
@@ -2908,11 +2942,12 @@ int mplayer_helper_connect(FILE *outlog,char *url,int stopme)
         } else {
             mvpw_set_text_str(fb_name, "mplayer connection timeout");
             printf("Cannot connect to %s:%s\n",vlc_server,mvpmc_helper_port);
+            fprintf(outlog,"mplayer connection timeout\nCannot connect to %s:%s\n",vlc_server,mvpmc_helper_port);
             retcode = -1;
         }
     } else {
         mvpw_set_text_str(fb_name, "mplayer setup error");
-        printf("Cannot find %s:%d\n",vlc_server,server_addr.sin_port);
+        fprintf(outlog,"mplayer setup error\nCannot find %s\n",vlc_server);
         retcode = -1;
     }
     return retcode;

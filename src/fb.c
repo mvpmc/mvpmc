@@ -55,6 +55,7 @@ static void add_files(mvp_widget_t*);
 
 char *current = NULL;
 char *current_hilite = NULL;
+extern char *vlc_server;
 
 static char *current_pl = NULL;
 
@@ -157,6 +158,7 @@ fb_osd_update(mvp_widget_t *widget)
 	mvpw_set_graph_current(fb_offset_bar, percent);
 	mvpw_expose(fb_offset_bar);
 }
+int is_streaming(char *url);
 
 static void
 select_callback(mvp_widget_t *widget, char *item, void *key)
@@ -230,18 +232,17 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 
 		mvpw_expose(widget);
 	} else {
-		if (!is_image(item)) {
-			switch_hw_state(MVPMC_STATE_FILEBROWSER);
-
-			audio_stop = 1;
-			pthread_kill(audio_thread, SIGURG);
-
-			while (audio_playing)
-				usleep(1000);
-		}
+		switch_hw_state(MVPMC_STATE_FILEBROWSER);
 
 		if (current)
 			free(current);
+		current = NULL;
+		audio_stop = 1;
+		pthread_kill(audio_thread, SIGURG);
+
+		while (audio_playing)
+			usleep(1000);
+
 		current = strdup(path);
 
 		video_functions = &file_functions;
@@ -275,13 +276,18 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 			mvpw_show(root);
 			mvpw_expose(root);
 			mvpw_focus(root);
-		} else if (is_audio(item)) {
+		} else if (is_audio(item) || is_streaming(item)>=0 ) {
 			mvpw_show(fb_progress);
 			mvpw_set_timer(fb_progress, fb_osd_update, 500);
 			audio_play(NULL);
 		} else if (is_image(item)) {
-			mvpw_set_image(iw, NULL);
 			mvpw_hide(widget);
+			printf("Displaying image '%s'\n", path);
+			if (mvpw_load_image_jpeg(iw, path) == 0) {
+				mvpw_show_image_jpeg(iw);
+			} else {
+				mvpw_set_image(iw, path);
+			}
 			mvpw_show(iw);
 			mvpw_focus(iw);
 			loaded_offset = 0;
@@ -422,6 +428,7 @@ add_files(mvp_widget_t *fbw)
 		       "*.BMP", "*.M3U", "*.JPG", "*.JPEG", "*.PNG", "*.WAV",
 		       "*.AC3", "*.OGG", "*.TS", NULL };
 
+
 	item_attr.select = select_callback;
 	item_attr.hilite = hilite_callback;
 	item_attr.fg = fb_attr.fg;
@@ -430,6 +437,11 @@ add_files(mvp_widget_t *fbw)
 	file_count = 0;
 	do_glob(fbw, wc);
 	do_glob(fbw, WC);
+    if (vlc_server!=NULL) {
+        char *vlc[] = { "*.divx", "*.DIVX", "*.flv", "*.FLV", "*.avi", "*.AVI", "*.wmc", 
+                        "*.WMV", "*.wma", "*.WMA", NULL };
+	    do_glob(fbw, vlc);
+    }
 }
 
 int
@@ -461,6 +473,8 @@ void
 fb_exit(void)
 {
 	audio_stop = 1;
+	audio_clear();
+
 	pthread_kill(audio_thread, SIGURG);
 
 	if (current) {
@@ -469,7 +483,6 @@ fb_exit(void)
 	}
 	mvpw_hide(fb_progress);
 
-	audio_clear();
 	video_clear();
 	av_stop();
 	if (!mvpw_visible(playlist_widget))

@@ -1230,7 +1230,7 @@ file_open(void)
 		ts_demux_reset(tshandle);
 		demux_attr_reset(handle);
 		demux_seek(handle);
-        if (gui_state == MVPMC_STATE_EMULATE) {
+        if (gui_state == MVPMC_STATE_EMULATE || http_playing==1) {
             video_thumbnail(0);
         } else {
     		if (si.rows == 480)
@@ -1359,7 +1359,6 @@ video_read_start(void *arg)
 			tslen = video_functions->read(tsbuf,
 						      sizeof(tsbuf_static));
                 } while ( tslen==-1 && errno==EAGAIN);
-                // printf("tslen %d\n",tslen);
 			}
 			thruput_count += tslen;
 			inbuf = inbuf_static;

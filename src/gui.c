@@ -2724,8 +2724,6 @@ static void mvp_key_callback(mvp_widget_t *widget, char key)
     static int wasGo = 0;
 	if(wasGo==1 && key==MVPW_KEY_EXIT) {
         wasGo = 0;
-       	GrUnregisterInput(rfbsock);
-        close(rfbsock);
         mvp_server_stop();
         mvp_server_cleanup();
 		mvpw_destroy(widget);

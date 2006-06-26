@@ -159,6 +159,48 @@ config_t *config;
 mysqlptr_t *mysqlptr;
 static int shmid;
 
+struct shared_disk_t {
+    char ip[64];
+    char local_dir[64];
+    char remote_dir[64];
+    char is_nfs;
+};
+
+typedef struct {
+    char tz[30];
+    char time_server[64];
+    char cwd[64];
+    char vnc_server[64];
+    int  vnc_port;
+    int  startup_this_feature;
+    int  bitmask;
+    char mythtv_ringbuf[64];
+    char screen_capture_file[64];
+    char mythtv_recdir[64];
+    char rtv_init_str[64];
+    char font[64];
+    char imagedir[64];
+    int pick_playlist;
+    char playlist[64];
+    char live365_userid[33];
+    char live365_password[33];
+    char share_user[16];
+    char share_password[16];
+    struct shared_disk_t share_disk[3];
+    char vlc_server[64];
+    char mvp_server[64];
+    int rfb_mode;
+    int flicker;
+    int control;
+}web_config_t;
+
+web_config_t *web_config;
+
+#ifndef MVPMC_HOST
+static int web_shmid;
+#endif
+
+
 char *config_file = NULL;
 
 char *screen_capture_file = NULL;
@@ -289,6 +331,7 @@ doexit(int sig)
  * Also, if the power key is pressed once, kill the child.  If it is pressed
  * again, restart the child.
  */
+
 void
 spawn_child(void)
 {
@@ -324,16 +367,16 @@ spawn_child(void)
 			to.tv_sec = 1;
 			to.tv_usec = 0;
 
-			key = config->playback_pause;
+			key = web_config->control;
 			if ( key!=0 || select(fd+1, &fds, NULL, NULL, &to) > 0) {
-                        if (key == 0 ) {
+                if (key == 0 ) {
        				read(fd, &key, sizeof(key));
 	      			read(fd, &key, sizeof(key));
 				} 
 
 				if ((key & 0xff) == 0x3d) {
 					power = !power;
-                    config->playback_pause = 0;
+                    web_config->control = 0;
 					if (power == 0) {
 						kill(-child, SIGINT);
 						usleep(5000);
@@ -428,8 +471,20 @@ main(int argc, char **argv)
 		perror("shmat()");
 		exit(1);
 	}
+	if ((web_shmid=shmget(IPC_PRIVATE, sizeof(web_config_t), IPC_CREAT)) == -1) {
+		perror("shmget()");
+		exit(1);
+	}
+	if ((web_config=(web_config_t*)shmat(web_shmid, NULL, 0)) == (web_config_t*)-1) {
+		perror("shmat()");
+		exit(1);
+	}
 #else
 	if ((config=(config_t*)malloc(sizeof(config_t))) == NULL) {
+		perror("malloc()");
+		exit(1);
+	}
+	if ((web_config=(web_config_t*)malloc(sizeof(web_config_t))) == NULL) {
 		perror("malloc()");
 		exit(1);
 	}
@@ -1358,7 +1413,8 @@ www_mvpmc_start(void *arg) {
                 fflush(stream);
                 fclose(stream);
                 if (reset==0x3d) {
-                    config->playback_pause = reset;
+                    printf("Power off from browser\n");
+                    web_config->control = reset;
                 }
                 continue;
             }
@@ -1638,43 +1694,10 @@ void strencode( char* to, size_t tosize, const char* from )
 #define WEB_CONFIG_EDIT_PLAYLIST     1001
 
 
-struct shared_disk_t {
-    char ip[64];
-    char local_dir[64];
-    char remote_dir[64];
-    char is_nfs;
-};
-
-struct WEB_CONFIG_t {
-    char tz[30];
-    char time_server[64];
-    char cwd[64];
-    char vnc_server[64];
-    int  vnc_port;
-    int  startup_this_feature;
-    int  bitmask;
-    char mythtv_ringbuf[64];
-    char screen_capture_file[64];
-    char mythtv_recdir[64];
-    char rtv_init_str[64];
-    char font[64];
-    char imagedir[64];
-    int pick_playlist;
-    char playlist[64];
-    char live365_userid[33];
-    char live365_password[33];
-    char share_user[16];
-    char share_password[16];
-    struct shared_disk_t share_disk[3];
-    char vlc_server[64];
-    char mvp_server[64];
-    int rfb_mode;
-    int flicker;
-} web_config;
-
-#define IS_WEB_ENABLED(x) (web_config.bitmask & (1 << (x-WEB_CONFIG_USE_MYTH)) )
+#define IS_WEB_ENABLED(x) (web_config->bitmask & (1 << (x-WEB_CONFIG_USE_MYTH)) )
 #define NOT_WEB_ENABLED(x) (0==(IS_WEB_ENABLED(x)))
 void playlist_key_callback(mvp_widget_t *widget, char key);
+void playlist_change(playlist_t *next);
 void fb_key_callback(mvp_widget_t *widget, char key);
 
 extern playlist_t *playlist_head;
@@ -1718,8 +1741,8 @@ int mvp_config_radio(char *line)
 
     switch (stateSubmit) {
         case 0  :
-            printf("%s\n",web_config.playlist);
-            fp = fopen( web_config.playlist, "w" );
+            printf("%s\n",web_config->playlist);
+            fp = fopen( web_config->playlist, "w" );
             fprintf(fp,"#EXTM3U\n");
             ptr = strtok(line,"&");
             title[0]=0;
@@ -1759,7 +1782,7 @@ int mvp_config_radio(char *line)
                 equals = strchr(form_value,'=');
                 if (equals!= NULL) {
                     equals++;
-                    ptr = strrchr(web_config.playlist,'/') ;
+                    ptr = strrchr(web_config->playlist,'/') ;
                     if (ptr!=NULL) {
                         ptr++;
                         if ( playlist == NULL ) {
@@ -1769,12 +1792,19 @@ int mvp_config_radio(char *line)
                             playlist = playlist_head;
                         }
                         mvpw_select_via_text( playlist_widget,equals);
-                        while (playlist->next!=NULL) {
+                        while (playlist!=NULL) {
                             if (strcmp(playlist->name,equals)==0 ){
                                 if (current==NULL) {
                                     current = strdup(playlist->filename);
+                                    if (is_video(current) ) {
+                                        mvpw_hide(file_browser);
+                                        mvpw_hide(playlist_widget);
+                                        mvpw_hide(fb_progress);
+                                    } else {
+                                        mvpw_show(fb_progress);
+                                    }
                                     if (current!=NULL) {
-                                        audio_play(NULL);
+                                        playlist_change(playlist);
                                     }
                                 }
                                 break;
@@ -1797,6 +1827,10 @@ int mvp_config_radio(char *line)
                         doexit(SIGTERM);
                         break;
                     case 'S':
+                        if (is_video(current) ) {
+                            mvpw_show(file_browser);
+                        }
+                        mvpw_show(playlist_widget);
                         fb_exit();
                         // fall through so I can play again
                     case 'E':
@@ -1839,80 +1873,80 @@ int mvp_config_general(char *line)
             equals++;
             switch (id) {
                 case WEB_CONFIG_TZ:
-                    snprintf(web_config.tz,30,"%s",equals);
+                    snprintf(web_config->tz,30,"%s",equals);
                     break;
                 case WEB_CONFIG_TIMESERVER:
-                    snprintf(web_config.time_server,64,"%s",equals);
+                    snprintf(web_config->time_server,64,"%s",equals);
                     break;
                 case WEB_CONFIG_CWD:
-                    web_config.bitmask = bitmask;
-                    snprintf(web_config.cwd,64,"%s",equals);
+                    web_config->bitmask = bitmask;
+                    snprintf(web_config->cwd,64,"%s",equals);
                     break;
                 case WEB_CONFIG_STARTUP:
-                    web_config.startup_this_feature = atoi(equals);
+                    web_config->startup_this_feature = atoi(equals);
                     break;
                 case WEB_CONFIG_VNC_SERVER:
-                    snprintf(web_config.vnc_server,64,"%s",equals);
+                    snprintf(web_config->vnc_server,64,"%s",equals);
                     break;
                 case WEB_CONFIG_VNC_PORT:
-                    web_config.vnc_port = atoi(equals);
+                    web_config->vnc_port = atoi(equals);
                     break;
                 case WEB_CONFIG_MYTH_RECORD:
-                    snprintf(web_config.mythtv_recdir,64,"%s",equals);
+                    snprintf(web_config->mythtv_recdir,64,"%s",equals);
                     break;
                 case WEB_CONFIG_MYTH_RING:
-                    snprintf(web_config.mythtv_ringbuf,64,"%s",equals);
+                    snprintf(web_config->mythtv_ringbuf,64,"%s",equals);
                     break;
                 case WEB_CONFIG_CAPTURE:
-                    snprintf(web_config.screen_capture_file,64,"%s",equals);
+                    snprintf(web_config->screen_capture_file,64,"%s",equals);
                     break;
                 case WEB_CONFIG_IMAGE:
-                    snprintf(web_config.imagedir,64,"%s",equals);
+                    snprintf(web_config->imagedir,64,"%s",equals);
                     break;
                 case WEB_CONFIG_RTV_INIT:
-                    snprintf(web_config.rtv_init_str,64,"%s",equals);
+                    snprintf(web_config->rtv_init_str,64,"%s",equals);
                     break;
                 case WEB_CONFIG_FONT:
-                    snprintf(web_config.font,64,"%s",equals);
+                    snprintf(web_config->font,64,"%s",equals);
                     break;
                 case WEB_CONFIG_LIVE_USER:
-                    snprintf(web_config.live365_userid,32,"%s",equals);
+                    snprintf(web_config->live365_userid,32,"%s",equals);
                     break;
                 case WEB_CONFIG_LIVE_PASS:
-                    snprintf(web_config.live365_password,32,"%s",equals);
+                    snprintf(web_config->live365_password,32,"%s",equals);
                     break;
                 case WEB_CONFIG_NET_USER:
-                    snprintf(web_config.share_user,16,"%s",equals);
+                    snprintf(web_config->share_user,16,"%s",equals);
                     break;
                 case WEB_CONFIG_NET_PASS:
-                    snprintf(web_config.share_password,16,"%s",equals);
+                    snprintf(web_config->share_password,16,"%s",equals);
                     break;
                 case WEB_CONFIG_NET_IP1:
                 case WEB_CONFIG_NET_IP2:
                 case WEB_CONFIG_NET_IP3:
-                    snprintf(web_config.share_disk[id-WEB_CONFIG_NET_IP1].ip,64,"%s",equals);
+                    snprintf(web_config->share_disk[id-WEB_CONFIG_NET_IP1].ip,64,"%s",equals);
                     break;
                 case WEB_CONFIG_NET_LOCAL1:
                 case WEB_CONFIG_NET_LOCAL2:
                 case WEB_CONFIG_NET_LOCAL3:
-                    snprintf(web_config.share_disk[id-WEB_CONFIG_NET_LOCAL1].local_dir,64,"%s",equals);
+                    snprintf(web_config->share_disk[id-WEB_CONFIG_NET_LOCAL1].local_dir,64,"%s",equals);
                     break;
                 case WEB_CONFIG_NET_REMOTE1:
                 case WEB_CONFIG_NET_REMOTE2:
                 case WEB_CONFIG_NET_REMOTE3:
-                    snprintf(web_config.share_disk[id-WEB_CONFIG_NET_REMOTE1].remote_dir,64,"%s",equals);
+                    snprintf(web_config->share_disk[id-WEB_CONFIG_NET_REMOTE1].remote_dir,64,"%s",equals);
                     break;
                 case WEB_CONFIG_VLC_SERVER:
-                    snprintf(web_config.vlc_server,64,"%s",equals);
+                    snprintf(web_config->vlc_server,64,"%s",equals);
                     break;
                 case WEB_CONFIG_MVP_SERVER:
-                    snprintf(web_config.mvp_server,64,"%s",equals);
+                    snprintf(web_config->mvp_server,64,"%s",equals);
                     break;
                 case WEB_CONFIG_RFB_MODE:
-                    web_config.rfb_mode = atoi(equals);
+                    web_config->rfb_mode = atoi(equals);
                     break;
                 case WEB_CONFIG_FLICKER:
-                    web_config.flicker = atoi(equals);
+                    web_config->flicker = atoi(equals);
                     break;
                 case WEB_CONFIG_USE_MYTH:
                 case WEB_CONFIG_USE_REPLAY:
@@ -1929,23 +1963,23 @@ int mvp_config_general(char *line)
                 case WEB_CONFIG_PLAYLIST:
                     ptr = strchr(equals,'/');
                     if (ptr==NULL) {
-                        web_config.pick_playlist = 0;
-                        snprintf(web_config.playlist,64,"%s/default.m3u","/usr/playlist");
+                        web_config->pick_playlist = 0;
+                        snprintf(web_config->playlist,64,"%s/default.m3u","/usr/playlist");
                     } else {
-                        snprintf(web_config.playlist,64,"%s%s.m3u","/usr/playlist",ptr);
+                        snprintf(web_config->playlist,64,"%s%s.m3u","/usr/playlist",ptr);
                         *ptr = 0;
-                        web_config.pick_playlist = atoi(equals);
+                        web_config->pick_playlist = atoi(equals);
                     }
                     break;
                 default:
                     break;
             }
         } else if (strcmp(ptr,"SetTime=Yes")==0 ){
-            setenv("TZ",web_config.tz,1);
+            setenv("TZ",web_config->tz,1);
             tzset();
             pthread_mutex_lock (&web_server_mutex);
             if (fork()==0) {
-                rc = execlp("/usr/sbin/rdate","rdate", "-s", web_config.time_server, (char *)0);
+                rc = execlp("/usr/sbin/rdate","rdate", "-s", web_config->time_server, (char *)0);
             }
             pthread_mutex_unlock (&web_server_mutex);
             setTime = 1;
@@ -1960,11 +1994,11 @@ int mvp_config_general(char *line)
     if (setTime==0) {
         FILE *web_config_file;
         web_config_file = fopen (WEB_CONFIG_FILENAME,"wb");
-        fwrite((char *)&web_config,sizeof(struct WEB_CONFIG_t),1,web_config_file);
+        fwrite((char *)&web_config,sizeof(web_config_t),1,web_config_file);
         fclose(web_config_file);
-        if (web_config.live365_userid[0]!=0) {
+        if (web_config->live365_userid[0]!=0) {
             char live_environ[75];
-            snprintf(live_environ,75,"%s&password=%s",web_config.live365_userid,web_config.live365_password);
+            snprintf(live_environ,75,"%s&password=%s",web_config->live365_userid,web_config->live365_password);
             setenv("LIVE365DATA",live_environ,1);
         }
     }
@@ -1986,20 +2020,20 @@ int mvp_config_script(char *line)
     fprintf (fp,"# mvpmc configuration script\n\n");
 
     for (i=0;i<3;i++) {
-        if (web_config.share_disk[i].ip[0]!=0) {
-            if (web_config.share_disk[i].remote_dir[0]!=0) {
-                if (web_config.share_disk[i].local_dir[0]!=0) {
-                    if (web_config.share_user) {
+        if (web_config->share_disk[i].ip[0]!=0) {
+            if (web_config->share_disk[i].remote_dir[0]!=0) {
+                if (web_config->share_disk[i].local_dir[0]!=0) {
+                    if (web_config->share_user) {
                        // cifs for now
-                        fprintf(fp,"if [ ! -d %s ] ; then\n",web_config.share_disk[i].local_dir);
-                        printf("mkdir %s\n",web_config.share_disk[i].local_dir);
-                        fprintf(fp,"mkdir %s\n",web_config.share_disk[i].local_dir);
+                        fprintf(fp,"if [ ! -d %s ] ; then\n",web_config->share_disk[i].local_dir);
+                        printf("mkdir %s\n",web_config->share_disk[i].local_dir);
+                        fprintf(fp,"mkdir %s\n",web_config->share_disk[i].local_dir);
                         fprintf(fp,"fi\n");
-                        fprintf(fp,"if [ -d %s ] ; then\n",web_config.share_disk[i].local_dir);
-                        printf("mount.cifs //%s%s %s -o username=%s\n",web_config.share_disk[i].ip,
-                               web_config.share_disk[i].remote_dir,web_config.share_disk[i].local_dir,web_config.share_user);
-                        fprintf(fp,"mount.cifs //%s%s %s -o username=%s,password=%s,rsize=34000;\n",web_config.share_disk[i].ip,
-                               web_config.share_disk[i].remote_dir,web_config.share_disk[i].local_dir,web_config.share_user,web_config.share_password);
+                        fprintf(fp,"if [ -d %s ] ; then\n",web_config->share_disk[i].local_dir);
+                        printf("mount.cifs //%s%s %s -o username=%s\n",web_config->share_disk[i].ip,
+                               web_config->share_disk[i].remote_dir,web_config->share_disk[i].local_dir,web_config->share_user);
+                        fprintf(fp,"mount.cifs //%s%s %s -o username=%s,password=%s,rsize=34000;\n",web_config->share_disk[i].ip,
+                               web_config->share_disk[i].remote_dir,web_config->share_disk[i].local_dir,web_config->share_user,web_config->share_password);
                         fprintf(fp,"fi\n");
                     }
                 }
@@ -2036,7 +2070,7 @@ int mvp_load_data(FILE *stream,char *line)
                         // undefined zero is a problem
                     } else if (id>=700 && id < 800) {
                         fwrite(remaining,sizeof(char),strlen(remaining),stream);
-                        if (web_config.pick_playlist == (id - 700) ) {
+                        if (web_config->pick_playlist == (id - 700) ) {
                             fprintf(stream," SELECTED");
                         }
 
@@ -2044,82 +2078,82 @@ int mvp_load_data(FILE *stream,char *line)
                         fwrite(remaining,sizeof(char),strlen(remaining),stream);
                         switch (id) {
                             case WEB_CONFIG_TZ:
-                                fprintf(stream,"VALUE=\"%s\"",web_config.tz);
+                                fprintf(stream,"VALUE=\"%s\"",web_config->tz);
                                 break;
                             case WEB_CONFIG_TIMESERVER:
-                                fprintf(stream,"VALUE=\"%s\"",web_config.time_server);
+                                fprintf(stream,"VALUE=\"%s\"",web_config->time_server);
                                 break;
                             case WEB_CONFIG_CWD:
-                                fprintf(stream,"VALUE=\"%s\"",web_config.cwd);
+                                fprintf(stream,"VALUE=\"%s\"",web_config->cwd);
                                 break;
                             case WEB_CONFIG_MCLIENT_IP:
                                 fprintf(stream,"VALUE=\"%s\"",config->mclient_ip);
                                 break;
                             case WEB_CONFIG_VNC_SERVER:
-                                fprintf(stream,"VALUE=\"%s\"",web_config.vnc_server);
+                                fprintf(stream,"VALUE=\"%s\"",web_config->vnc_server);
                                 break;
                             case WEB_CONFIG_VNC_PORT:
-                                fprintf(stream,"VALUE=\"%d\"",web_config.vnc_port);
+                                fprintf(stream,"VALUE=\"%d\"",web_config->vnc_port);
                                 break;
                             case WEB_CONFIG_MYTHTV_IP:
                                 fprintf(stream,"VALUE=\"%s\"",config->mythtv_ip);
                                 break;
                             case WEB_CONFIG_MYTH_RECORD:
-                                fprintf(stream,"VALUE=\"%s\"",web_config.mythtv_recdir);
+                                fprintf(stream,"VALUE=\"%s\"",web_config->mythtv_recdir);
                                 break;
                             case WEB_CONFIG_MYTH_RING:
-                                fprintf(stream,"VALUE=\"%s\"",web_config.mythtv_ringbuf);
+                                fprintf(stream,"VALUE=\"%s\"",web_config->mythtv_ringbuf);
                                 break;
                             case WEB_CONFIG_CAPTURE:
-                                fprintf(stream,"VALUE=\"%s\"",web_config.screen_capture_file);	
+                                fprintf(stream,"VALUE=\"%s\"",web_config->screen_capture_file);	
                                 break;
                             case WEB_CONFIG_IMAGE:
-                                fprintf(stream,"VALUE=\"%s\"",web_config.imagedir);
+                                fprintf(stream,"VALUE=\"%s\"",web_config->imagedir);
                                 break;
                             case WEB_CONFIG_RTV_INIT:
-                                fprintf(stream,"VALUE=\"%s\"",web_config.rtv_init_str);
+                                fprintf(stream,"VALUE=\"%s\"",web_config->rtv_init_str);
                                 break;
                             case WEB_CONFIG_FONT:
-                                fprintf(stream,"VALUE=\"%s\"",web_config.font);
+                                fprintf(stream,"VALUE=\"%s\"",web_config->font);
                                 break;
                             case WEB_CONFIG_LIVE_USER:
-                                fprintf(stream,"VALUE=\"%s\"",web_config.live365_userid);
+                                fprintf(stream,"VALUE=\"%s\"",web_config->live365_userid);
                                 break;
                             case WEB_CONFIG_LIVE_PASS:
-                                fprintf(stream,"VALUE=\"%s\"",web_config.live365_password);
+                                fprintf(stream,"VALUE=\"%s\"",web_config->live365_password);
                                 break;
                             case WEB_CONFIG_NET_USER:
-                                fprintf(stream,"VALUE=\"%s\"",web_config.share_user);
+                                fprintf(stream,"VALUE=\"%s\"",web_config->share_user);
                                 break;
                             case WEB_CONFIG_NET_PASS:
-                                fprintf(stream,"VALUE=\"%s\"",web_config.share_password);
+                                fprintf(stream,"VALUE=\"%s\"",web_config->share_password);
                                 break;
                             case WEB_CONFIG_NET_IP1:
                             case WEB_CONFIG_NET_IP2:
                             case WEB_CONFIG_NET_IP3:
-                                fprintf(stream,"VALUE=\"%s\"",web_config.share_disk[id-WEB_CONFIG_NET_IP1].ip);
+                                fprintf(stream,"VALUE=\"%s\"",web_config->share_disk[id-WEB_CONFIG_NET_IP1].ip);
                                 break;
                             case WEB_CONFIG_NET_LOCAL1:
                             case WEB_CONFIG_NET_LOCAL2:
                             case WEB_CONFIG_NET_LOCAL3:
-                                fprintf(stream,"VALUE=\"%s\"",web_config.share_disk[id-WEB_CONFIG_NET_LOCAL1].local_dir);
+                                fprintf(stream,"VALUE=\"%s\"",web_config->share_disk[id-WEB_CONFIG_NET_LOCAL1].local_dir);
                                 break;
                             case WEB_CONFIG_NET_REMOTE1:
                             case WEB_CONFIG_NET_REMOTE2:
                             case WEB_CONFIG_NET_REMOTE3:
-                                fprintf(stream,"VALUE=\"%s\"",web_config.share_disk[id-WEB_CONFIG_NET_REMOTE1].remote_dir);
+                                fprintf(stream,"VALUE=\"%s\"",web_config->share_disk[id-WEB_CONFIG_NET_REMOTE1].remote_dir);
                                 break;
                             case WEB_CONFIG_VLC_SERVER:
-                                fprintf(stream,"VALUE=\"%s\"",web_config.vlc_server);
+                                fprintf(stream,"VALUE=\"%s\"",web_config->vlc_server);
                                 break;
                             case WEB_CONFIG_MVP_SERVER:
-                                fprintf(stream,"VALUE=\"%s\"",web_config.mvp_server);
+                                fprintf(stream,"VALUE=\"%s\"",web_config->mvp_server);
                                 break;
                             case WEB_CONFIG_RFB_MODE:
-                                fprintf(stream,"VALUE=\"%1.1d\"",web_config.rfb_mode);
+                                fprintf(stream,"VALUE=\"%1.1d\"",web_config->rfb_mode);
                                 break;
                             case WEB_CONFIG_FLICKER:
-                                fprintf(stream,"VALUE=\"%1.1d\"",web_config.flicker);
+                                fprintf(stream,"VALUE=\"%1.1d\"",web_config->flicker);
                                 break;
                             case WEB_CONFIG_STATUS:
                                 tm = time(NULL);
@@ -2162,7 +2196,7 @@ int mvp_load_data(FILE *stream,char *line)
                             case WEB_CONFIG_START_SETTING:
                             case WEB_CONFIG_START_REPLAY:
                             case WEB_CONFIG_START_MCLIENT:
-                                if (web_config.startup_this_feature == (id - WEB_CONFIG_START_MAIN) ) {
+                                if (web_config->startup_this_feature == (id - WEB_CONFIG_START_MAIN) ) {
                                     fprintf(stream," SELECTED");
                                 }
                                 break;
@@ -2198,7 +2232,7 @@ int mvp_load_radio_playlist(FILE * stream)
     int want_extinf;
     char *ptr;
 
-    fp = fopen( web_config.playlist, "r" );
+    fp = fopen( web_config->playlist, "r" );
     if ( fp!=NULL ) {
         file_data[130]=0;
         if ( fgets(file_data,130,fp) != NULL) {
@@ -2239,7 +2273,7 @@ int mvp_load_radio_playlist(FILE * stream)
         fclose(fp);
     } else {
         char *genre, *dot;
-        genre = strrchr(web_config.playlist,'/');
+        genre = strrchr(web_config->playlist,'/');
         if (genre != NULL) {
             genre++;
             dot = strchr(genre,'.');
@@ -2280,8 +2314,23 @@ void output_playlist_html(FILE *stream,int lineno,char *title,char *url)
     fprintf(stream,"  Name: <INPUT TYPE=\"TEXT\" NAME=\"desc%d\" VALUE=\"%s\" SIZE=61 MAXLENGTH=60 />",lineno,title);
     if (url[0]!=0) {
         fprintf(stream,"  <BUTTON TYPE=\"SUBMIT\" NAME=\"Play\" VALUE=\"%s\">Play</BUTTON>",title);
-    }    
-    fprintf(stream,"\n\n   URL: <INPUT TYPE=\"TEXT\" NAME=\"url%d\" VALUE=\"%s\" SIZE=80 MAXLENGTH=127 />\n\n</TD></TR></PRE>",lineno,url);
+    }
+    fprintf(stream,"\n\n   URL: <INPUT TYPE=\"TEXT\" NAME=\"url%d\" VALUE=\"",lineno);
+    if (strchr(url,'"') == NULL) {
+        fprintf(stream,"%s",url);
+    } else {
+        char *p;
+        p = url;
+        while (*p!=0) {
+            if (*p == '"') {
+                fputs("&#34",stream);
+            } else {
+                fputc(*p,stream);
+            }
+            p++;
+       }
+    }
+    fprintf(stream,"\" SIZE=80 MAXLENGTH=127 />\n\n</TD></TR></PRE>");
     return;
 }
 
@@ -2290,112 +2339,113 @@ void load_web_config(char *font)
     // set up from browser
     FILE *web_config_file;
 	struct stat sb;
-
+    
+    web_config->control = 0;
     web_config_file = fopen (WEB_CONFIG_FILENAME,"rb");
     if (web_config_file !=NULL ) {
         printf("web file open\n");
-        memset(&web_config, 0, sizeof(struct WEB_CONFIG_t));
-        fread((char *)&web_config,sizeof(struct WEB_CONFIG_t),1,web_config_file);
+        memset(web_config, 0, sizeof(*web_config));
+        fread((char *)&web_config,sizeof(web_config_t),1,web_config_file);
         fclose(web_config_file);
         char live_environ[75];
-        snprintf(live_environ,75,"%s&password=%s",web_config.live365_userid,web_config.live365_password);
+        snprintf(live_environ,75,"%s&password=%s",web_config->live365_userid,web_config->live365_password);
         setenv("LIVE365DATA",live_environ,1);
-        setenv("TZ",web_config.tz,1);
+        setenv("TZ",web_config->tz,1);
 
     } else {
-        memset(&web_config, 0, sizeof(struct WEB_CONFIG_t));
-        snprintf(web_config.tz,30,"%s",getenv("TZ"));
-        snprintf(web_config.cwd,64,"%s",cwd);
-        web_config.startup_this_feature = startup_this_feature;
-        strcpy(web_config.rtv_init_str,"ip=discover");
-        strcpy(web_config.imagedir,"/usr/share/mvpmc");
-        strcpy(web_config.font,"/etc/helvR10.fnt");
+        memset(web_config, 0, sizeof(web_config_t));
+        snprintf(web_config->tz,30,"%s",getenv("TZ"));
+        snprintf(web_config->cwd,64,"%s",cwd);
+        web_config->startup_this_feature = startup_this_feature;
+        strcpy(web_config->rtv_init_str,"ip=discover");
+        strcpy(web_config->imagedir,"/usr/share/mvpmc");
+        strcpy(web_config->font,"/etc/helvR10.fnt");
         
-        web_config.bitmask = 0;
+        web_config->bitmask = 0;
        
         if (config->bitmask & CONFIG_MYTHTV_IP) {
-            web_config.bitmask |=1;
+            web_config->bitmask |=1;
         }
         if (replaytv_server != NULL ) {
-            web_config.bitmask |=2;
+            web_config->bitmask |=2;
         }
         if (config->bitmask & CONFIG_MCLIENT_IP) {
-            web_config.bitmask |=4;
+            web_config->bitmask |=4;
         }
         if ( vnc_server[0] != 0 ) {
-            web_config.bitmask |=8;
-	        snprintf(web_config.vnc_server,64,"%s",vnc_server);
+            web_config->bitmask |=8;
+	        snprintf(web_config->vnc_server,64,"%s",vnc_server);
         }
         if (reboot_disable==0) {
-            web_config.bitmask |=16;
+            web_config->bitmask |=16;
         }
         if (settings_disable==0) {
-            web_config.bitmask |=32;
+            web_config->bitmask |=32;
         }
         if (filebrowser_disable==0) {
-            web_config.bitmask |=64;
+            web_config->bitmask |=64;
         }
-        if ( vlc_server && (vlc_server[0] != 0) ) {
-            web_config.bitmask |=128;
-	        snprintf(web_config.vlc_server,64,"%s",vlc_server);
+        if ( vlc_server != NULL ) {
+            web_config->bitmask |=128;
+	        snprintf(web_config->vlc_server,64,"%s",vlc_server);
         }
         if (mplayer_disable==0) {
-            web_config.bitmask |=256;
+            web_config->bitmask |=256;
         }
         /* mythtv debug not enabled */
         if ( mvp_server != NULL ) {
-            web_config.bitmask |=1024;
-	        snprintf(web_config.mvp_server,64,"%s",mvp_server);
+            web_config->bitmask |=1024;
+	        snprintf(web_config->mvp_server,64,"%s",mvp_server);
         }
-        web_config.rfb_mode = rfb_mode;
-        web_config.flicker = flicker;
+        web_config->rfb_mode = rfb_mode;
+        web_config->flicker = flicker;
 
-        snprintf(web_config.playlist,64,"/usr/playlist/default.m3u");
-        strcpy(web_config.share_user,"guest");
-        snprintf(web_config.share_disk[0].local_dir,64,"%s","/usr/video");
-        snprintf(web_config.share_disk[1].local_dir,64,"%s","/usr/music");
-        snprintf(web_config.share_disk[2].local_dir,64,"%s","/usr/playlist");
+        snprintf(web_config->playlist,64,"/usr/playlist/default.m3u");
+        strcpy(web_config->share_user,"guest");
+        snprintf(web_config->share_disk[0].local_dir,64,"%s","/usr/video");
+        snprintf(web_config->share_disk[1].local_dir,64,"%s","/usr/music");
+        snprintf(web_config->share_disk[2].local_dir,64,"%s","/usr/playlist");
 
         if (getenv("LIVE365DATA")!=NULL) {
-            sscanf(getenv("LIVE365DATA"),"%32[^&]%*[^=]%*1s%32s",web_config.live365_userid,web_config.live365_password);
+            sscanf(getenv("LIVE365DATA"),"%32[^&]%*[^=]%*1s%32s",web_config->live365_userid,web_config->live365_password);
         }
     }
     
     if (startup_this_feature == MM_EXIT) {
-        startup_this_feature = web_config.startup_this_feature;
+        startup_this_feature = web_config->startup_this_feature;
     }
-    if (strcmp(cwd,"/")==0 && web_config.cwd[0]=='/' ) {
-        if (stat(web_config.cwd, &sb) == 0) {
+    if (strcmp(cwd,"/")==0 && web_config->cwd[0]=='/' ) {
+        if (stat(web_config->cwd, &sb) == 0) {
             if (S_ISDIR(sb.st_mode)) {
-                strcpy(cwd,web_config.cwd);
+                strcpy(cwd,web_config->cwd);
             }
         }
     }
     if (font == NULL) {
-        if (stat(web_config.font, &sb) == 0) {
-            font = strdup(web_config.font);
+        if (stat(web_config->font, &sb) == 0) {
+            font = strdup(web_config->font);
         }
     }
-    if (strcmp(imagedir,"/usr/share/mvpmc")==0 && strcmp(web_config.imagedir,"/usr/share/mvpmc")) {
-        if (web_config.imagedir[0]=='/') {
-              imagedir = strdup(web_config.imagedir);
+    if (strcmp(imagedir,"/usr/share/mvpmc")==0 && strcmp(web_config->imagedir,"/usr/share/mvpmc")) {
+        if (web_config->imagedir[0]=='/') {
+              imagedir = strdup(web_config->imagedir);
         }
     }
     if (screen_capture_file == NULL) {
-        if (web_config.screen_capture_file[0]=='/') {
-            screen_capture_file = strdup(web_config.screen_capture_file);
+        if (web_config->screen_capture_file[0]=='/') {
+            screen_capture_file = strdup(web_config->screen_capture_file);
         }
     }
     if (mythtv_server != NULL) {
         if (IS_WEB_ENABLED(WEB_CONFIG_USE_MYTH)) {
             if (mythtv_ringbuf == NULL) {
-                if (web_config.mythtv_ringbuf[0]=='/') {
-                    mythtv_ringbuf = strdup(web_config.mythtv_ringbuf);
+                if (web_config->mythtv_ringbuf[0]=='/') {
+                    mythtv_ringbuf = strdup(web_config->mythtv_ringbuf);
                 }
             }
             if (mythtv_recdir == NULL) {
-                if (web_config.mythtv_recdir[0]=='/') {
-                    mythtv_recdir = strdup(web_config.mythtv_recdir);
+                if (web_config->mythtv_recdir[0]=='/') {
+                    mythtv_recdir = strdup(web_config->mythtv_recdir);
                 }
             }
 
@@ -2405,24 +2455,24 @@ void load_web_config(char *font)
       }
     }
     if ( replaytv_server == NULL) {
-        if (IS_WEB_ENABLED(WEB_CONFIG_USE_REPLAY) && web_config.rtv_init_str[0]) {
+        if (IS_WEB_ENABLED(WEB_CONFIG_USE_REPLAY) && web_config->rtv_init_str[0]) {
             replaytv_server = "RTV";
-            rtv_init_str = strdup(web_config.rtv_init_str);
+            rtv_init_str = strdup(web_config->rtv_init_str);
         }
     } else if (NOT_WEB_ENABLED(WEB_CONFIG_USE_REPLAY) ){
         free(rtv_init_str);
         rtv_init_str = replaytv_server = NULL;
-    } else if (web_config.rtv_init_str[0] && strcmp(web_config.rtv_init_str,rtv_init_str) && strcmp(rtv_init_str,"ip=discover")==0){
+    } else if (web_config->rtv_init_str[0] && strcmp(web_config->rtv_init_str,rtv_init_str) && strcmp(rtv_init_str,"ip=discover")==0){
         free(rtv_init_str);
-        rtv_init_str = strdup(web_config.rtv_init_str);
+        rtv_init_str = strdup(web_config->rtv_init_str);
     }
     if (NOT_WEB_ENABLED(WEB_CONFIG_USE_MCLIENT) && mclient_server != NULL) {
         free(mclient_server);
         mclient_server = NULL;
     }
     if (IS_WEB_ENABLED(WEB_CONFIG_USE_VNC) && vnc_server[0]==0 ) {
-        strcpy(vnc_server,web_config.vnc_server);
-        vnc_port = web_config.vnc_port;
+        strcpy(vnc_server,web_config->vnc_server);
+        vnc_port = web_config->vnc_port;
     }
     if (NOT_WEB_ENABLED(WEB_CONFIG_USE_SETTING) ){
         settings_disable = 1;
@@ -2440,7 +2490,7 @@ void load_web_config(char *font)
         filebrowser_disable = 0;
     }
     if (IS_WEB_ENABLED(WEB_CONFIG_USE_VLC) && vlc_server == NULL ) {
-        vlc_server = strdup(web_config.vlc_server);
+        vlc_server = strdup(web_config->vlc_server);
     }
     if (NOT_WEB_ENABLED(WEB_CONFIG_USE_MPLAYER) ){
         mplayer_disable = 1;
@@ -2448,7 +2498,7 @@ void load_web_config(char *font)
         mplayer_disable = 0;
     }
     if (IS_WEB_ENABLED(WEB_CONFIG_USE_EMULATE) && mvp_server == NULL ) {
-        mvp_server = strdup(web_config.mvp_server);
+        mvp_server = strdup(web_config->mvp_server);
     }
 
 }
