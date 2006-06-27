@@ -33,6 +33,7 @@
 
 #include "expat.h"
 #include "mvpmc.h"
+#include "mythtv.h"
 #include "colorlist.h"
 
 #if 0

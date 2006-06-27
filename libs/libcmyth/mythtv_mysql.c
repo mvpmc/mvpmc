@@ -16,7 +16,6 @@
  *  License along with this library; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-#ident "$Id: recorder.c,v 1.16 2005/12/15 05:58:56 gettler Exp $"
 
 #include <sys/types.h>
 #include <stdlib.h>
@@ -25,9 +24,9 @@
 #include <errno.h>
 #include <string.h>
 #include <sys/time.h>
+#include <mysql/mysql.h>
 #include <cmyth.h>
 #include <cmyth_local.h>
-#include "my_mysql.h"
 
 int
 get_myth_version(cmyth_conn_t conn)

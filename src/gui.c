@@ -40,8 +40,10 @@
 #include <mvp_av.h>
 #include <mvp_demux.h>
 #include <mvp_osd.h>
+#include <cmyth.h>
 
 #include "mvpmc.h"
+#include "mythtv.h"
 #include "config.h"
 #include "replaytv.h"
 #include "colorlist.h"
@@ -1583,13 +1585,13 @@ settings_mythtv_sort_key_callback(mvp_widget_t *widget, char key)
                 break;
         case MVPW_KEY_UP:
         case MVPW_KEY_RIGHT:
-                mythtv_sort = (mythtv_sort + 1) % MYTHTV_NUM_SORTS;
+                mythtv_sort = (mythtv_sort + 1) % CMYTH_NUM_SORTS;
                 change = 1;
                 break;
         case MVPW_KEY_DOWN:
         case MVPW_KEY_LEFT:
 		if (mythtv_sort==0)
-			mythtv_sort = MYTHTV_NUM_SORTS -1;
+			mythtv_sort = CMYTH_NUM_SORTS -1;
 		else
 			mythtv_sort = mythtv_sort - 1;
                 change = 1;

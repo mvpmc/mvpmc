@@ -601,7 +601,7 @@ airdate_compare(const void *a, const void *b)
  * Failure = -1
  */ 
 int 
-cmyth_proglist_sort(cmyth_proglist_t pl, int count, int sort)
+cmyth_proglist_sort(cmyth_proglist_t pl, int count, cmyth_proglist_sort_t sort)
 {
         if (!pl) {
                 cmyth_dbg(CMYTH_DBG_ERROR, "%s: NULL program list\n",
@@ -618,10 +618,10 @@ cmyth_proglist_sort(cmyth_proglist_t pl, int count, int sort)
                           "cmyth_proglist_sort\n");
 
 	switch (sort) {
-		case 0: /* MYTHTV_SORT_DATE_RECORDED:	Default Date Recorded */
+		case MYTHTV_SORT_DATE_RECORDED:	/* Default Date Recorded */
 			qsort((cmyth_proginfo_t)pl->proglist_list, count, sizeof(pl->proglist_list) , recorded_compare);
 			break;
-		case 1: /* MYTHTV_SORT_ORIGINAL_AIRDATE:	Default Date Recorded */
+		case MYTHTV_SORT_ORIGINAL_AIRDATE: /*Default Date Recorded */
 			qsort((cmyth_proginfo_t)pl->proglist_list, count, sizeof(pl->proglist_list) , airdate_compare);
 			break;
 		default: 

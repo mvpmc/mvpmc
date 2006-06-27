@@ -2,9 +2,7 @@
 #define MVPMC_H
 
 /*
- *  $Id$
- *
- *  Copyright (C) 2004, 2005, Jon Gettler
+ *  Copyright (C) 2004, 2005, 2006, Jon Gettler
  *  http://mvpmc.sourceforge.net/
  *
  * This program is free software; you can redistribute it and/or modify
@@ -36,24 +34,6 @@ typedef enum {
 } mvpmc_state_t;
 
 typedef enum {
-	MYTHTV_STATE_MAIN,
-	MYTHTV_STATE_PENDING,
-	MYTHTV_STATE_PROGRAMS,
-	MYTHTV_STATE_EPISODES,
-	MYTHTV_STATE_LIVETV,
-	MYTHTV_STATE_UPCOMING,
-	MYTHTV_STATE_SCHEDULE,
-} mythtv_state_t;
-
-#define MYTHTV_NUM_FILTER 4
-typedef enum {
-	MYTHTV_FILTER_NONE = 0,
-	MYTHTV_FILTER_TITLE,
-	MYTHTV_FILTER_RECORD,
-	MYTHTV_FILTER_RECORD_CONFLICT,
-} mythtv_filter_t;
-
-typedef enum {
 	OSD_BITRATE = 1,
 	OSD_CLOCK,
 	OSD_DEMUX,
@@ -69,21 +49,8 @@ typedef enum {
 } playlist_menu_t;
 
 typedef enum {
-   MVP_READ_THREAD_IDLE = 1,
+	MVP_READ_THREAD_IDLE = 1,
 } mvp_notify_t;
-
-#define MYTHTV_NUM_SORTS 2
-typedef enum {
-	MYTHTV_SORT_DATE_RECORDED = 0,
-	MYTHTV_SORT_ORIGINAL_AIRDATE,
-} mvp_myth_sort;
-
-#define MYTHTV_NUM_SORTS_PROGRAMS 3
-typedef enum {
-	SHOW_TITLE,
-	SHOW_CATEGORY,
-	SHOW_RECGROUP,
-} show_sort_t;
 
 typedef struct {
 	int type;
@@ -124,22 +91,9 @@ extern video_callback_t file_functions;
 extern volatile int video_playing;
 
 extern char *replaytv_server;
-extern char *mythtv_server;
 extern char *mvp_server;
-extern int mythtv_debug;
-extern volatile mythtv_state_t mythtv_state;
 
 extern mvp_widget_t *file_browser;
-extern mvp_widget_t *mythtv_browser;
-extern mvp_widget_t *mythtv_menu;
-extern mvp_widget_t *mythtv_logo;
-extern mvp_widget_t *mythtv_date;
-extern mvp_widget_t *mythtv_description;
-extern mvp_widget_t *mythtv_channel;
-extern mvp_widget_t *mythtv_record;
-extern mvp_widget_t *mythtv_popup;
-extern void mythtv_clear_channel();
-extern void mythtv_key_callback(mvp_widget_t *widget, char key);
 extern mvp_widget_t *root;
 extern mvp_widget_t *iw;
 extern mvp_widget_t *pause_widget;
@@ -163,9 +117,6 @@ extern mvp_widget_t *program_info_widget;
 extern mvp_widget_t *popup_menu;
 
 extern mvp_widget_t *time_widget;
-extern mvp_widget_t *mythtv_program_widget;
-extern mvp_widget_t *mythtv_osd_program;
-extern mvp_widget_t *mythtv_osd_description;
 extern mvp_widget_t *clock_widget;
 extern mvp_widget_t *demux_video;
 extern mvp_widget_t *demux_audio;
@@ -196,8 +147,6 @@ extern int volume;
 
 extern char *current;
 extern char *current_hilite;
-extern char *mythtv_recdir;
-extern char *mythtv_ringbuf;
 
 extern playlist_t *playlist;
 extern int playlist_repeat;
@@ -206,13 +155,6 @@ extern char *imagedir;
 
 extern int fontid;
 extern mvpw_screen_info_t si;
-
-extern int running_mythtv;
-extern int mythtv_main_menu;
-extern int mythtv_tcp_control;
-extern int mythtv_tcp_program;
-extern int mythtv_sort;
-extern int mythtv_sort_dirty;
 
 extern int fd_audio, fd_video;
 extern int fd;
@@ -231,8 +173,6 @@ extern void playlist_play(mvp_widget_t*);
 extern void playlist_next();
 extern void playlist_randomize(void);
 
-extern int mythtv_init(char*, int);
-extern void mythtv_atexit(void);
 extern int gui_init(char*, char*);
 extern int mw_init(char *server, char *replaytv);
 extern int display_init(void);
@@ -242,22 +182,10 @@ extern void video_clear(void);
 extern void playlist_clear(void);
 extern void video_stop_play(void);
 
-extern int mythtv_back(mvp_widget_t*);
 extern int fb_update(mvp_widget_t*);
-extern int mythtv_update(mvp_widget_t*);
-extern int mythtv_livetv_menu(void);
-extern int mythtv_program_runtime(void);
-extern void mythtv_set_popup_menu(mythtv_state_t state);
-
-extern int mythtv_guide_menu(mvp_widget_t*, mvp_widget_t*);
-extern int mythtv_guide_menu_next(mvp_widget_t*);
-extern int mythtv_guide_menu_previous(mvp_widget_t*);
 
 extern void video_callback(mvp_widget_t*, char);
 extern void video_thumbnail(int on);
-
-extern void mythtv_show_widgets(void);
-extern void mythtv_program(mvp_widget_t *widget);
 
 extern void fb_program(mvp_widget_t *widget);
 extern void fb_shuffle(int);
@@ -338,8 +266,6 @@ extern void screensaver_disable(void);
 extern volatile int screensaver_timeout;
 extern volatile int screensaver_default;
 
-extern volatile int mythtv_livetv;
-
 extern char vnc_server[256];
 extern int vnc_port;
 
@@ -353,27 +279,9 @@ extern int (*DEMUX_PUT)(demux_handle_t*, void*, int);
 extern int (*DEMUX_WRITE_VIDEO)(demux_handle_t*, int);
 extern int (*DEMUX_WRITE_AUDIO)(demux_handle_t*, int);
 
-extern int mythtv_livetv_stop(void);
-extern int mythtv_channel_up(void);
-extern int mythtv_channel_down(void);
-
 extern void empty_ac3(void);
 
 extern void gui_error_clear(void);
-
-extern void mythtv_cleanup(void);
-extern void mythtv_stop(void);
-extern int mythtv_delete(void);
-extern int mythtv_forget(void);
-extern int mythtv_proginfo(char *buf, int size);
-extern void mythtv_start_thumbnail(void);
-extern int mythtv_pending(mvp_widget_t *widget);
-extern int mythtv_pending_filter(mvp_widget_t *widget, mythtv_filter_t filter);
-extern void mythtv_test_exit(void);
-extern int mythtv_proginfo_livetv(char *buf, int size);
-extern int mythtv_livetv_tuners(int*, int*);
-extern void mythtv_livetv_select(int);
-extern void mythtv_thruput(void);
 
 extern void playlist_prev(void);
 extern void playlist_stop(void);
@@ -429,17 +337,6 @@ extern theme_t theme_list[];
 #define DEFAULT_FONT	"/etc/helvR10.fnt"
 
 typedef struct {
-	uint32_t livetv_current;
-	uint32_t pending_will_record;
-	uint32_t pending_conflict;
-	uint32_t pending_recording;
-	uint32_t pending_other;
-	uint32_t menu_item;
-} mythtv_color_t;
-
-extern mythtv_color_t mythtv_colors;
-
-typedef struct {
 	int bitrate;
 	int clock;
 	int demux_info;
@@ -454,7 +351,6 @@ extern void switch_hw_state(mvpmc_state_t new);
 extern void switch_gui_state(mvpmc_state_t new);
 
 extern void fb_exit(void);
-extern void mythtv_exit(void);
 extern void replaytv_exit(void);
 extern void replaytv_atexit(void);
 
@@ -473,13 +369,9 @@ extern int startup_this_feature;
 
 extern unsigned short viewport_edges[4];
 
-extern void mythtv_browser_expose(mvp_widget_t *widget);
-
 extern void start_thruput_test(void);
 extern void end_thruput_test(void);
 extern mvp_widget_t *thruput_widget;
-
-extern show_sort_t show_sort;
 
 enum {
 	MM_EXIT,
@@ -490,12 +382,10 @@ enum {
 	MM_SETTINGS,
 	MM_REPLAYTV,
 	MM_MCLIENT,
-    MM_EMULATE,
+	MM_EMULATE,
 };
 
 extern int startup_selection;
-
-extern mythtv_filter_t mythtv_filter;
 
 extern int fb_next_image(int offset);
 

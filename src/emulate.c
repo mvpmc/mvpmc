@@ -61,6 +61,7 @@
 #include <mvp_osd.h>
 
 #include "mvpmc.h"
+#include "mythtv.h"
 #include "emulate.h"
 #include "config.h"
 

@@ -39,9 +39,8 @@
 #include <cmyth.h>
 
 #include "mvpmc.h"
-#include "config.h"
-
 #include "mythtv.h"
+#include "config.h"
 
 #if 0
 #define PRINTF(x...) printf(x)

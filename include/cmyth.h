@@ -81,6 +81,12 @@ typedef enum {
 	CMYTH_EVENT_QUIT_LIVETV,
 } cmyth_event_t;
 
+#define CMYTH_NUM_SORTS 2
+typedef enum {
+	MYTHTV_SORT_DATE_RECORDED = 0,
+	MYTHTV_SORT_ORIGINAL_AIRDATE,
+} cmyth_proglist_sort_t;
+
 struct cmyth_timestamp;
 typedef struct cmyth_timestamp *cmyth_timestamp_t;
 
@@ -477,7 +483,8 @@ extern int cmyth_proglist_delete_item(cmyth_proglist_t pl,
 
 extern int cmyth_proglist_get_count(cmyth_proglist_t pl);
 
-extern int cmyth_proglist_sort(cmyth_proglist_t pl, int count, int sort);
+extern int cmyth_proglist_sort(cmyth_proglist_t pl, int count,
+			       cmyth_proglist_sort_t sort);
 
 /*
  * -----------------------------------------------------------------
@@ -515,5 +522,33 @@ extern cmyth_freespace_t cmyth_freespace_create(void);
 extern long long cmyth_get_bookmark(cmyth_conn_t conn, cmyth_proginfo_t prog);
 extern int cmyth_set_bookmark(cmyth_conn_t conn, cmyth_proginfo_t prog,
 	long long bookmark);
+
+/*
+ * mysql info
+ */
+
+#define PROGRAM_ADJUST  3600
+
+struct program {
+	int chanid;
+	char title[130];
+	char subtitle[130];
+	char description[256];
+	char starttime[25];
+	char endtime[25];
+	char programid[20];
+	char seriesid[12];
+	char category[64];
+	int recording;
+	char rec_status[2];
+	int channum;
+};
+
+struct channel {
+	int chanid;
+	int channum;
+	char callsign[20];
+	char name[64];
+};
 
 #endif /* __CMYTH_H */

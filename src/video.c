@@ -40,6 +40,7 @@
 #include <ts_demux.h>
 
 #include "mvpmc.h"
+#include "mythtv.h"
 #include "replaytv.h"
 #include "config.h"
 

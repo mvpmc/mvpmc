@@ -47,6 +47,7 @@
 #include <mvp_av.h>
 
 #include "mvpmc.h"
+#include "mythtv.h"
 #include "mclient.h"
 #include "display.h"
 #include "config.h"
