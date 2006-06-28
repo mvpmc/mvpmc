@@ -8,10 +8,25 @@ Import ('env')
 dir = env['BUILD_DIR']
 target = env['TARG']
 libdir = env['INSTLIBDIR']
+bindir = env['INSTBINDIR']
 
 src = [ 'demux.c','stream.c' ]
 
 lib = env.StaticLibrary('demux', src, CPPPATH = [ env['INCDIR'], '.' ])
+
+if target == 'host':
+    demuxtest_t = env.Program('demuxtest_t',['demuxtest_t.c'],
+    			CPPPATH=[ env['INCDIR'], '.'],
+			LIBS = [ 'demux','pthread' ],
+			LIBPATH = [ 'obj/host/' ]);
+
+    demuxtest = env.Program('demuxtest',['demuxtest.c'],
+    			CPPPATH=[ env['INCDIR'], '.'],
+			LIBS = [ 'demux' ],
+			LIBPATH = [ 'obj/host/' ]);
+
+    env.Install(bindir,demuxtest)
+    env.Install(bindir,demuxtest_t)
 
 inst = env.Install(libdir, lib)
 
