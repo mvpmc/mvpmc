@@ -68,6 +68,14 @@ typedef struct {
  * a file so that it can survive a reboot.
  */
 typedef struct {
+        char host[64];
+        char user[10];
+        char pass[32];
+        char db[24];
+	int version;
+} mysql_config_t;
+
+typedef struct {
 	uint32_t		magic;
 	uint32_t		bitmask;
 	int			screensaver_timeout;
@@ -100,18 +108,12 @@ typedef struct {
 	int			startup_selection;
 	int			display_type;
 	mythtv_filter_t		mythtv_filter;
+	mysql_config_t		mysql;
 } config_t;
 
 extern config_t *config;
+#define mysqlptr (&(config->mysql))
 
-typedef struct {
-        char host[64];
-        char user[10];
-        char pass[32];
-        char db[24];
-	int version;
-} mysqlptr_t;
-extern  mysqlptr_t *mysqlptr;
 
 /*
  * The item definitions for what can be stored in the config file.

@@ -161,7 +161,6 @@ mvpmc_state_t hw_state = MVPMC_STATE_NONE;
 mvpmc_state_t gui_state = MVPMC_STATE_NONE;
 
 config_t *config;
-mysqlptr_t *mysqlptr;
 static int shmid;
 
 struct shared_disk_t {
@@ -501,19 +500,6 @@ main(int argc, char **argv)
 	config->magic = CONFIG_MAGIC;
 
 
-       if ((shmid=shmget(IPC_PRIVATE, sizeof(mysqlptr_t), IPC_CREAT)) == -1) {
-               perror("shmget()");
-               exit(1);
-       }
-       if ((mysqlptr=(mysqlptr_t*)shmat(shmid, NULL, 0)) == (mysqlptr_t*)-1) {
-               perror("shmat()");
-               exit(1);
-       }
-       if ((mysqlptr=(mysqlptr_t*)malloc(sizeof(mysqlptr_t))) == NULL) {
-               perror("malloc()");
-               exit(1);
-       }
-       memset(mysqlptr, 0, sizeof(*mysqlptr));
        strcpy(mysqlptr->db,"mythconverg");
        strcpy(mysqlptr->user,"mythtv");
        strcpy(mysqlptr->pass,"mythtv");
