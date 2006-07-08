@@ -20,6 +20,8 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#include <cmyth.h>
+
 /*
  * mythtv_state indicates what part of the gui is active
  */
@@ -87,6 +89,19 @@ extern int mythtv_sort;
 extern int mythtv_sort_dirty;
 
 extern volatile int mythtv_livetv;
+extern volatile int current_livetv;
+extern volatile cmyth_conn_t control;		/* master backend */
+extern volatile int playing_via_mythtv;
+extern volatile cmyth_file_t mythtv_file;
+extern volatile cmyth_recorder_t mythtv_recorder;
+extern volatile cmyth_proginfo_t current_prog;
+extern volatile int close_mythtv;
+extern volatile int changing_channel;
+
+extern int playing_file;
+extern pthread_cond_t myth_cond;
+
+extern pthread_mutex_t myth_mutex;
 
 extern mvp_widget_t *mythtv_browser;
 extern mvp_widget_t *mythtv_menu;
@@ -99,6 +114,8 @@ extern mvp_widget_t *mythtv_popup;
 extern mvp_widget_t *mythtv_program_widget;
 extern mvp_widget_t *mythtv_osd_program;
 extern mvp_widget_t *mythtv_osd_description;
+
+extern mvpw_menu_attr_t mythtv_attr;
 
 extern int mythtv_init(char*, int);
 extern void mythtv_atexit(void);
@@ -140,5 +157,32 @@ extern void mythtv_browser_expose(mvp_widget_t *widget);
 
 extern void mythtv_clear_channel();
 extern void mythtv_key_callback(mvp_widget_t *widget, char key);
+
+extern int mythtv_open(void);
+extern int mythtv_read(char*, int);
+extern long long mythtv_seek(long long, int);
+extern long long mythtv_size(void);
+extern void livetv_select_callback(mvp_widget_t *widget, char *item, void *key);
+extern int mythtv_verify(void);
+extern void mythtv_shutdown(int display);
+extern void mythtv_fullscreen(void);
+
+/*
+ * Swap a reference counted global for a new reference (including NULL).
+ * This little dance ensures that no one can be taking a new reference
+ * to the global while the old reference is being destroyed.  Either another
+ * thread will get the value while it is still held and hold it again, or
+ * it will get the new (held) value.  At the end of this, 'new_ref' will be
+ * held both by the 'new_ref' reference and the newly created 'ref'
+ * reference.  The caller is responsible for releasing 'new_ref' when it is
+ * no longer in use (and 'ref' for that matter).
+ */
+#define CHANGE_GLOBAL_REF(global_ref, new_ref) \
+{                                              \
+  void *tmp_ref = cmyth_hold((global_ref));    \
+  cmyth_release((global_ref));                 \
+  (global_ref) = cmyth_hold((new_ref));        \
+  cmyth_release((tmp_ref));                    \
+}
 
 #endif /* MYTHTV_H */
