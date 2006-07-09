@@ -290,9 +290,9 @@ print_help(char *prog)
 	printf("\t--startup \t(replaytv, mythtv, mclient)\n");
 	printf("\t--web-port port\tconfiguration port\n");
 	printf("\t--vlc server \tvlc IP address\n");
-	printf("\t--use-mplayer \tdenable mplayer\n");
+	printf("\t--use-mplayer \tenable mplayer\n");
 	printf("\n");
-	printf("\t--emulation server \tIP address or ?\n");
+	printf("\t--emulate server \tIP address or ?\n");
 	printf("\t--rfb-mode mode\t(0, 1, 2)\n");
 	printf("\t--flicker \tflicker mode on\n");
 }
@@ -1232,6 +1232,11 @@ static void send_error(FILE *stream, int status, char* title, char* extra_header
 static void send_headers(FILE *stream, int status, char* title, char* extra_header, char* mime_type, off_t length, time_t mod );
 static char* get_mime_type( char* name );
 static void strdecode( char* to, char* from );
+static void post_post_garbage_hack( FILE *stream,int conn_fd );
+static void set_ndelay( int fd );
+static void clear_ndelay( int fd );
+
+
 static int hexit( char c );
 void strencode( char* to, size_t tosize, const char* from );
 int mvp_load_data(FILE *stream,char *);
@@ -1353,19 +1358,11 @@ www_mvpmc_start(void *arg) {
             int reset;
             char *ptr;
             reset = 0;
-            int offset = 0;
     
             while ( fgets( line, sizeof(line), stream ) != (char*) 0 ) {
                 if (strstr(line,"application/x-www-form-urlencoded")!=NULL ) {
                     contentType = 1;
                 }
-                if (strncmp(line,"User-Agent",10)==0) {
-                    if (strstr(line,"compatible; MSIE") != NULL ) {
-                        offset = 2;
-                    }
-                }
-                 
-                
                 ptr = strstr(line,"Content-Length:");
                 if (ptr !=NULL ) {
                     ptr+=15;
@@ -1386,14 +1383,13 @@ www_mvpmc_start(void *arg) {
             if ( contentType == 1 ) {
                 contentType = 0;
                 int cc;
-                cc = fread(line,sizeof(char),conlen+offset,stream);
-                if (cc > conlen) {
-                    cc = conlen;
-                }
+                cc = fread(line,sizeof(char),conlen,stream);
+                post_post_garbage_hack(stream,connfd);
                 line[cc]=0;
                 ptr = strstr(line,"token=");
                 if ( ptr != NULL) {
                     ptr+=6;
+                    strdecode(ptr,ptr);
                     if (strncmp(ptr,mytoken,strlen(mytoken))!=0) {
                         send_error(stream, 400, "Request Timeout", (char*) 0, "POST Outdated<BR />Please resubmit mvpmc update" );
                         continue;
@@ -1414,7 +1410,7 @@ www_mvpmc_start(void *arg) {
     
                 }
                 send_headers(stream, 202, "OK", (char*) 0, "text/html", -1, sb.st_mtime );
-                (void) fprintf(stream, "<html><body><H1>Changes accepted</H1><BR /><a href=\"%s\">%s</a></address>\n</body></html>\n", "/", "Return to configuration");
+                (void) fprintf(stream, "<html><body><H1>Changes accepted</H1><BR /><a href=\"%s\">%s</a></address>\n</body></html>\n", "/", "Return to configuration");                
                 fflush(stream);
                 fclose(stream);
                 if (reset==0x3d) {
@@ -1634,6 +1630,48 @@ void strencode( char* to, size_t tosize, const char* from )
     *to = '\0';
 }
 
+
+
+/* Special hack to deal with broken browsers that send a LF or CRLF
+** after POST data, causing TCP resets - we just read and discard up
+** to 2 bytes.  Unfortunately this doesn't fix the problem for CGIs
+** which avoid the interposer process due to their POST data being
+** short.  Creating an interposer process for all POST CGIs is
+** unacceptably expensive.
+*/
+static void post_post_garbage_hack( FILE *stream,int conn_fd )
+{
+    char buf[2];
+    set_ndelay( conn_fd );
+    fread(buf, sizeof(buf),1,stream );
+    clear_ndelay( conn_fd );
+}
+
+/* Set NDELAY mode on a socket. */
+static void set_ndelay( int fd )
+{
+    int flags, newflags;
+    flags = fcntl( fd, F_GETFL, 0 );
+    if ( flags != -1 ){
+	newflags = flags | (int) O_NONBLOCK;
+	if ( newflags != flags )
+	    (void) fcntl( fd, F_SETFL, newflags );
+    }
+}
+
+
+/* Clear NDELAY mode on a socket. */
+static void clear_ndelay( int fd )
+{
+    int flags, newflags;
+    flags = fcntl( fd, F_GETFL, 0 );
+    if ( flags != -1 ){
+	newflags = flags & ~ (int) O_NONBLOCK;
+	if ( newflags != flags )
+	    (void) fcntl( fd, F_SETFL, newflags );
+    }
+}
+
 #define WEB_CONFIG_FILENAME "/etc/browser.config"
 
 #define WEB_CONFIG_TZ          400
@@ -1718,11 +1756,10 @@ int mvp_config_radio(char *line)
     FILE *fp;
 
     duplicate = strdup(line);
-
     ptr = strtok(duplicate,"&");
     equals = NULL;
     while (ptr!=NULL) {
-        if (strncmp(ptr,"Play=",5)==0 ){
+        if (strstr(ptr,"=Play")!=NULL ){
             stateSubmit = 1;
         } else if (strncmp(ptr,"Control=",8)==0 ){
             printf("%s\n",ptr);
@@ -1786,7 +1823,8 @@ int mvp_config_radio(char *line)
                 strdecode( form_value, ptr );
                 equals = strchr(form_value,'=');
                 if (equals!= NULL) {
-                    equals++;
+                    *equals = 0;
+                    equals = form_value;
                     ptr = strrchr(web_config->playlist,'/') ;
                     if (ptr!=NULL) {
                         ptr++;
@@ -1979,7 +2017,7 @@ int mvp_config_general(char *line)
                 default:
                     break;
             }
-        } else if (strcmp(ptr,"SetTime=Yes")==0 ){
+        } else if (strcmp(ptr,"SetTime=Set Time")==0 ){
             setenv("TZ",web_config->tz,1);
             tzset();
             pthread_mutex_lock (&web_server_mutex);
@@ -2017,6 +2055,7 @@ int mvp_config_script(char *line)
     int rc = 0;
     int i;
     int upexec;
+    int offset = 0;
 
     upexec = mvp_config_general(line);
 
@@ -2035,10 +2074,15 @@ int mvp_config_script(char *line)
                         fprintf(fp,"mkdir %s\n",web_config->share_disk[i].local_dir);
                         fprintf(fp,"fi\n");
                         fprintf(fp,"if [ -d %s ] ; then\n",web_config->share_disk[i].local_dir);
-                        printf("mount.cifs //%s%s %s -o username=%s\n",web_config->share_disk[i].ip,
-                               web_config->share_disk[i].remote_dir,web_config->share_disk[i].local_dir,web_config->share_user);
-                        fprintf(fp,"mount.cifs //%s%s %s -o username=%s,password=%s,rsize=34000;\n",web_config->share_disk[i].ip,
-                               web_config->share_disk[i].remote_dir,web_config->share_disk[i].local_dir,web_config->share_user,web_config->share_password);
+                        if (web_config->share_disk[i].remote_dir[0]=='/') {
+                            offset=1;
+                        } else {
+                            offset=0;
+                        }
+                        printf("mount.cifs //%s/%s %s -o username=%s\n",web_config->share_disk[i].ip,
+                               &web_config->share_disk[i].remote_dir[offset],web_config->share_disk[i].local_dir,web_config->share_user);
+                        fprintf(fp,"mount.cifs //%s/%s %s -o username=%s,password=%s,rsize=34000;\n",web_config->share_disk[i].ip,
+                               &web_config->share_disk[i].remote_dir[offset],web_config->share_disk[i].local_dir,web_config->share_user,web_config->share_password);
                         fprintf(fp,"fi\n");
                     }
                 }
@@ -2318,7 +2362,7 @@ void output_playlist_html(FILE *stream,int lineno,char *title,char *url)
     fflush(stream);
     fprintf(stream,"  Name: <INPUT TYPE=\"TEXT\" NAME=\"desc%d\" VALUE=\"%s\" SIZE=61 MAXLENGTH=60 />",lineno,title);
     if (url[0]!=0) {
-        fprintf(stream,"  <BUTTON TYPE=\"SUBMIT\" NAME=\"Play\" VALUE=\"%s\">Play</BUTTON>",title);
+        fprintf(stream,"  <INPUT TYPE=\"SUBMIT\" NAME=\"%s\" VALUE=\"Play\">",title);
     }
     fprintf(stream,"\n\n   URL: <INPUT TYPE=\"TEXT\" NAME=\"url%d\" VALUE=\"",lineno);
     if (strchr(url,'"') == NULL) {

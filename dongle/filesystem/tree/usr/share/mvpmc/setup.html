@@ -3,7 +3,8 @@
 <head>
     <meta http-equiv="content-type" content="text/html; charset=iso-8859-1" />
     <meta http-equiv="expires" content="0"  />
-    <meta http-equiv="no-cache" />
+    <meta http-equiv="Pragma" Content="no-cache" />
+    <meta http-equiv="Cache-Control" content="no-cache" />         
 	<meta name="author" content="Jon Gettler" />
 	<title>MediaMVP Media Center Configuration</title>	
 	<link rel="stylesheet" type="text/css" title="Default" href="mvpmc.css" />
@@ -42,7 +43,7 @@
 <PRE>                                               
       Time zone: <INPUT TYPE="TEXT" NAME="400" <!--mvpmc ID="400" --> SIZE=31 MAXLENGTH=30 >
     
-    Time Server: <INPUT TYPE="TEXT" NAME="401" <!--mvpmc ID="401" --> SIZE=50 MAXLENGTH=63 >  <BUTTON TYPE=SUBMIT NAME="SetTime" Value="Yes">Set Time</BUTTON>
+    Time Server: <INPUT TYPE="TEXT" NAME="401" <!--mvpmc ID="401" --> SIZE=50 MAXLENGTH=63 >  <Input TYPE=SUBMIT NAME="SetTime" Value="Set Time">
 
         Enable : MythTV <INPUT TYPE="checkbox" NAME="600" <!--mvpmc ID="600" --> /> ReplayTV <INPUT TYPE="checkbox" NAME="601" <!--mvpmc ID="601" --> /> MClient      <INPUT TYPE="checkbox" NAME="602" <!--mvpmc ID="602" --> /> VNC <INPUT TYPE="checkbox" NAME="603" <!--mvpmc ID="603" --> /> EMULATE <INPUT TYPE="checkbox" NAME="610" <!--mvpmc ID="610" --> />
                  Reboot <INPUT TYPE="checkbox" NAME="604" <!--mvpmc ID="604" --> /> Settings <INPUT TYPE="checkbox" NAME="605" <!--mvpmc ID="605" --> /> File Browser <INPUT TYPE="checkbox" NAME="606" <!--mvpmc ID="606" --> /> VLC <INPUT TYPE="checkbox" NAME="607" <!--mvpmc ID="607" --> /> MPLAYER <INPUT TYPE="checkbox" NAME="608" <!--mvpmc ID="608" --> />
@@ -142,7 +143,7 @@
 <h3><span><a name="s2">Internet Radio &amp; Playlist Setup</a></span></h3>
 <br />
 <FORM method = "POST" ACTION="radio">
-<BUTTON TYPE="SUBMIT" NAME="Control" VALUE="Power">Power Off</BUTTON> <BUTTON TYPE="SUBMIT" NAME="Control" VALUE="Restart">Restart</BUTTON> <BUTTON TYPE="SUBMIT" NAME="Control" VALUE="Stop">Stop</BUTTON> <BUTTON TYPE="SUBMIT" NAME="Control" VALUE="Exit">Exit/Back</BUTTON>
+<Input TYPE="SUBMIT" NAME="Control" VALUE="Power Off">  <Input TYPE="SUBMIT" NAME="Control" VALUE="Restart">  <Input TYPE="SUBMIT" NAME="Control" VALUE="Stop">  <Input TYPE="SUBMIT" NAME="Control" VALUE="Exit">
 <BR /><BR />
 <TABLE BORDER="1">
 <TBODY>
@@ -165,15 +166,15 @@
 
  Video Server IP: <INPUT TYPE="text" NAME="517" <!--mvpmc ID="517" --> SIZE=16 MAXLENGTH=15>
     mvpmc Folder: <INPUT TYPE="text" NAME="520" <!--mvpmc ID="520" --> SIZE=50 MAXLENGTH=63>
-     Host Folder: <INPUT TYPE="text" NAME="523" <!--mvpmc ID="523" --> SIZE=50 MAXLENGTH=63>
+ Host Share Name: <INPUT TYPE="text" NAME="523" <!--mvpmc ID="523" --> SIZE=50 MAXLENGTH=63>
 
  Audio Server IP: <INPUT TYPE="text" NAME="518" <!--mvpmc ID="518" --> SIZE=16 MAXLENGTH=15>
     mvpmc Folder: <INPUT TYPE="text" NAME="521" <!--mvpmc ID="521" --> SIZE=50 MAXLENGTH=15>
-     Host Folder: <INPUT TYPE="text" NAME="524" <!--mvpmc ID="524" --> SIZE=50 MAXLENGTH=63>
+ Host Share Name: <INPUT TYPE="text" NAME="524" <!--mvpmc ID="524" --> SIZE=50 MAXLENGTH=63>
 
      Playlist IP: <INPUT TYPE="text" NAME="519" <!--mvpmc ID="519" --> SIZE=16 MAXLENGTH=15>
     mvpmc Folder: <INPUT TYPE="text" NAME="522" <!--mvpmc ID="522" --> SIZE=50 MAXLENGTH=15>
-     Host Folder: <INPUT TYPE="text" NAME="525" <!--mvpmc ID="525" --> SIZE=50 MAXLENGTH=63>
+ Host Share Name: <INPUT TYPE="text" NAME="525" <!--mvpmc ID="525" --> SIZE=50 MAXLENGTH=63>
 
 <TEXTAREA NAME="script" ROWS=6 COLS=90 READONLY>
 </TEXTAREA>
