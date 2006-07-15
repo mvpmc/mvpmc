@@ -248,7 +248,7 @@ add_item(config_list_t *list, int type)
 		ITEM_FIXED(MODE, av_mode);
 		ITEM_FIXED(AUDIO_OUTPUT, av_audio_output);
 		ITEM_FIXED(VIDEO_OUTPUT, av_video_output);
-		ITEM_FIXED(ASPECT, av_aspect);
+		ITEM_FIXED(TV_ASPECT, av_tv_aspect);
 		ITEM_FIXED(OSD_BITRATE, osd_bitrate);
 		ITEM_FIXED(OSD_CLOCK, osd_clock);
 		ITEM_FIXED(OSD_DEMUX_INFO, osd_demux_info);
@@ -373,7 +373,7 @@ get_item(config_item_t *item, int override)
 		ITEM_FIXED(MODE, av_mode);
 		ITEM_FIXED(AUDIO_OUTPUT, av_audio_output);
 		ITEM_FIXED(VIDEO_OUTPUT, av_video_output);
-		ITEM_FIXED(ASPECT, av_aspect);
+		ITEM_FIXED(TV_ASPECT, av_tv_aspect);
 		ITEM_FIXED(OSD_BITRATE, osd_bitrate);
 		ITEM_FIXED(OSD_CLOCK, osd_clock);
 		ITEM_FIXED(OSD_DEMUX_INFO, osd_demux_info);
@@ -452,7 +452,7 @@ save_config_file(char *file)
 		goto err;
 	if (add_item(list, CONFIG_ITEM_VIDEO_OUTPUT) < 0)
 		goto err;
-	if (add_item(list, CONFIG_ITEM_ASPECT) < 0)
+	if (add_item(list, CONFIG_ITEM_TV_ASPECT) < 0)
 		goto err;
 	if (add_item(list, CONFIG_ITEM_OSD_BITRATE) < 0)
 		goto err;
@@ -560,8 +560,8 @@ set_config(void)
 		audio_output_mode = config->av_audio_output;
 	if (config->bitmask & CONFIG_VIDEO_OUTPUT)
 		av_set_output(config->av_video_output);
-	if (config->bitmask & CONFIG_ASPECT)
-		av_set_aspect(config->av_aspect);
+	if (config->bitmask & CONFIG_TV_ASPECT)
+		av_set_tv_aspect(config->av_tv_aspect);
 	if (config->bitmask & CONFIG_OSD_BITRATE)
 		osd_settings.bitrate = config->osd_bitrate;
 	if (config->bitmask & CONFIG_OSD_CLOCK)

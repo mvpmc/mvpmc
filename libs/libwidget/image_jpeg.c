@@ -249,11 +249,13 @@ mvpw_load_image_jpeg(mvp_widget_t *widget, char *file)
 
 	xasp = 1;
 	yasp = 1;
-	if(IS_4x3(av_get_aspect())) {
+	if(IS_4x3(av_get_tv_aspect())) {
+	    	av_wss_update_aspect(WSS_ASPECT_FULL_4x3);
 		xasp *= 4;
 		yasp *= 3;
 	}
-	if (IS_16x9(av_get_aspect())) {
+	if (IS_16x9(av_get_tv_aspect())) {
+	    	av_wss_update_aspect(WSS_ASPECT_FULL_16x9);
 		xasp *= 16;
 		yasp *= 9;
 	}

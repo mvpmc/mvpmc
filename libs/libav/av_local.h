@@ -34,7 +34,7 @@ extern int paused;
 extern int muted;
 extern int ffwd;
 extern av_mode_t vid_mode;
-extern av_aspect_t aspect;
+extern av_tv_aspect_t tv_aspect;
 
 extern int init_mtd1(void);
 extern int set_output_method(void);

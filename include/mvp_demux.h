@@ -43,6 +43,7 @@ typedef struct {
 	int aspect;
 	int frame_rate;
 	unsigned int aspect_pts;
+	int afd;
 } video_info_t;
 
 typedef struct {

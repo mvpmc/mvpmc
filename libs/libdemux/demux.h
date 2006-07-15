@@ -24,13 +24,29 @@
 
 #define SPU_MAX		32
 
+typedef int(* parser_callback_t)(unsigned char* /*pRingBuf*/,
+				 unsigned int /*tail*/,
+				 unsigned int /*head*/, 
+				 unsigned int /* buf size */,
+				 void * /*pParserData */,
+				 demux_handle_t * /*handle*/);
+
+				 
+
 typedef struct {
 	unsigned char *buf;
 	unsigned int head;
 	unsigned int tail;
 	unsigned int size;
+	unsigned int parser_tail;
+	unsigned int seeking_head;
+	int seeking_head_valid;
+	int status;
 	stream_attr_t *attr;
 	gop_t *gop;
+	parser_callback_t parser_callback;
+	void * parser_data;
+	pthread_mutex_t * ptr_tail_mutex;
 } stream_t;
 
 typedef struct {
@@ -62,6 +78,7 @@ struct demux_handle_s {
 	int spu_len;
 	int width;
 	int height;
+	int next_afd;
 };
 
 #define pack_start_code			0xBA
@@ -71,6 +88,7 @@ struct demux_handle_s {
 #define private_stream_1		0xBD
 #define private_stream_2		0xBF
 #define padding_stream			0xBE
+#define user_data_start_code		0xB2
 
 #define audio_stream_0			0xc0
 #define audio_stream_1			0xc1

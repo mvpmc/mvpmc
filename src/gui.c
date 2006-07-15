@@ -876,9 +876,6 @@ static mvp_widget_t *viewport;
 static mvp_widget_t *vp[4];
 static mvp_widget_t *vp_text;
 
-mvp_widget_t *wss_16_9_image;
-mvp_widget_t *wss_4_3_image;
-
 mvp_widget_t *ct_text_box;
 static mvp_widget_t *ct_fg_box;
 static mvp_widget_t *ct_bg_box;
@@ -3582,25 +3579,24 @@ settings_av_mode_callback(mvp_widget_t *widget, char *item, void *key)
 static void
 settings_av_aspect_callback(mvp_widget_t *widget, char *item, void *key)
 {
-	av_aspect_t old_aspect = av_get_aspect();
-	if ((av_aspect_t)key == old_aspect)
+	av_tv_aspect_t old_aspect = av_get_tv_aspect();
+	if ((av_tv_aspect_t)key == old_aspect)
 		return;
-	if (((av_aspect_t)key != AV_ASPECT_4x3) &&
-	    ((av_aspect_t)key != AV_ASPECT_4x3_CCO) &&
-	    ((av_aspect_t)key != AV_ASPECT_16x9_AUTO) &&
-	    ((av_aspect_t)key != AV_ASPECT_16x9))
+	if (((av_tv_aspect_t)key != AV_TV_ASPECT_4x3) &&
+	    ((av_tv_aspect_t)key != AV_TV_ASPECT_4x3_CCO) &&
+	    ((av_tv_aspect_t)key != AV_TV_ASPECT_16x9))
 		return;
 
-	mvpw_check_menu_item(settings_check, (void*)av_get_aspect(), 0);
+	mvpw_check_menu_item(settings_check, (void*)av_get_tv_aspect(), 0);
 	mvpw_check_menu_item(settings_check, key, 1);
-	av_set_aspect((av_aspect_t)key);
+	av_set_tv_aspect((av_tv_aspect_t)key);
 
-	config->av_aspect = (int)key;
-	config->bitmask |= CONFIG_ASPECT;
+	config->av_tv_aspect = (int)key;
+	config->bitmask |= CONFIG_TV_ASPECT;
 #ifndef MVPMC_HOST
-	if(IS_4x3(old_aspect) && IS_16x9((av_aspect_t)key))
+	if(IS_4x3(old_aspect) && IS_16x9((av_tv_aspect_t)key))
 	    re_exec();
-	if(IS_16x9(old_aspect) && IS_4x3((av_aspect_t)key))
+	if(IS_16x9(old_aspect) && IS_4x3((av_tv_aspect_t)key))
 	    re_exec();
 #endif
 }
@@ -3669,23 +3665,19 @@ settings_av_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mvpw_set_menu_title(settings_check, "TV Aspect Ratio");
 		mvpw_add_menu_item(settings_check,
 				   "4:3 (Letterboxed Widescreen)",
-				   (void*)AV_ASPECT_4x3,
+				   (void*)AV_TV_ASPECT_4x3,
 				   &settings_item_attr);
 		mvpw_add_menu_item(settings_check,
 				   "4:3 (Widescreen Centre-Cut-Out)",
-				   (void*)AV_ASPECT_4x3_CCO,
+				   (void*)AV_TV_ASPECT_4x3_CCO,
 				   &settings_item_attr);
 		mvpw_add_menu_item(settings_check,
 				   "16:9",
-				   (void*)AV_ASPECT_16x9,
-				   &settings_item_attr);
-		mvpw_add_menu_item(settings_check,
-				   "16:9 (Full-Height / Automatic)",
-				   (void*)AV_ASPECT_16x9_AUTO,
+				   (void*)AV_TV_ASPECT_16x9,
 				   &settings_item_attr);
 
 		mvpw_check_menu_item(settings_check,
-				     (void*)av_get_aspect(), 1);
+				     (void*)av_get_tv_aspect(), 1);
 		break;
 	case SETTINGS_AV_AUDIO_OUTPUT:
 		mvpw_get_menu_attr(settings_check, &settings_attr);
@@ -5183,40 +5175,10 @@ main_menu_init(char *server, char *replaytv)
 					 MVPW_BLACK, 0, 0);
 	mvpw_set_image(mythtv_image, file);
 
-	// WSS Images - Added by Dave
-	splash_update("Creating WSS images");
+	// WSS Surface
+	splash_update("Creating WSS surface");
 
-	snprintf(file, sizeof(file), "%s/wss-16x9.png", imagedir);
-	//	printf("\n\n** About to get 16x9 image\n");
-
-	if (mvpw_get_image_info(file, &iid) < 0) {
-	        printf("***** get_image_info failed\n");
-		return -1;
-	}
-
-	//        printf("** About to create 16x9 image\n");
-	wss_16_9_image = mvpw_create_image(NULL, 0, 6, iid.width, iid.height,
-					 MVPW_BLACK, 0, 0);
-
-	//        printf("** About to set 16x9 image\n");
-	mvpw_set_image(wss_16_9_image, file);
-
-	snprintf(file, sizeof(file), "%s/wss-4x3.png", imagedir);
-
-	//	printf("\n** About to get 4x3 image\n");
-	if (mvpw_get_image_info(file, &iid) < 0) {
-	        printf("***** get_image_info failed");
-		return -1;
-	}
-
-	//	printf("** About to create 4x3 image\n");
-	wss_4_3_image = mvpw_create_image(NULL, 0, 6, iid.width, iid.height,
-					 MVPW_BLACK, 0, 0);
-
-	//	printf("** About to set 4x3 image\n");
-	mvpw_set_image(wss_4_3_image, file);
-
-	// End WSS Images
+	av_wss_init();
 
 
 	splash_update("Creating ReplayTV image");
@@ -6496,5 +6458,3 @@ gui_init(char *server, char *replaytv)
         }
 	return 0;
 }
-
-

@@ -36,7 +36,7 @@ typedef struct {
 #define CONFIG_MODE		0x00000002
 #define CONFIG_AUDIO_OUTPUT	0x00000004
 #define CONFIG_VIDEO_OUTPUT	0x00000008
-#define CONFIG_ASPECT		0x00000010
+#define CONFIG_TV_ASPECT	0x00000010
 #define CONFIG_OSD_BITRATE	0x00000020
 #define CONFIG_OSD_CLOCK	0x00000040
 #define CONFIG_OSD_DEMUX_INFO	0x00000080
@@ -82,7 +82,7 @@ typedef struct {
 	av_mode_t		av_mode;
 	av_passthru_t		av_audio_output;
 	av_video_output_t	av_video_output;
-	av_aspect_t		av_aspect;
+	av_tv_aspect_t		av_tv_aspect;
 	int			osd_bitrate;
 	int			osd_clock;
 	int			osd_demux_info;
@@ -122,7 +122,7 @@ extern config_t *config;
 #define CONFIG_ITEM_MODE		0x0002
 #define CONFIG_ITEM_AUDIO_OUTPUT	0x0003
 #define CONFIG_ITEM_VIDEO_OUTPUT	0x0004
-#define CONFIG_ITEM_ASPECT		0x0005
+#define CONFIG_ITEM_TV_ASPECT		0x0005
 #define CONFIG_ITEM_OSD_BITRATE		0x0006
 #define CONFIG_ITEM_OSD_CLOCK		0x0007
 #define CONFIG_ITEM_OSD_DEMUX_INFO	0x0008

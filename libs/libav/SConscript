@@ -10,11 +10,11 @@ target = env['TARG']
 libdir = env['INSTLIBDIR']
 
 if target == 'mvp':
-    src = [ 'av.c', 'init.c', 'io.c', 'mtd.c', 'mvpstb_api.c' ]
+    src = [ 'av.c', 'init.c', 'io.c', 'mtd.c', 'mvpstb_api.c', 'wss.c' ]
 else:
-    src = [ 'sim.c' ]
+    src = [ 'sim.c', 'wss.c' ]
 
-lib = env.StaticLibrary('av', src, CPPPATH = env['INCDIR'])
+lib = env.StaticLibrary('av', src, CPPPATH = [env['INCDIR'], env['INSTINCDIR']])
 
 inst = env.Install(libdir, lib)
 

@@ -53,7 +53,7 @@ init_mtd1(void)
 	close(fd);
 
 	vid_mode = mtd[2119];
-	aspect = mtd[2125];
+	tv_aspect = mtd[2125];
 
 	free(mtd);
 

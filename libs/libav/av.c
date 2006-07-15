@@ -31,8 +31,9 @@
 #include "stb.h"
 #include "av_local.h"
 
-static av_aspect_t vid_aspect = 0;
-static vid_disp_mode_t vid_dispmode = 0;
+static av_video_aspect_t vid_aspect = 0;
+static vid_disp_mode_t vid_dispmode = 0;/*As set from UI*/
+static vid_disp_mode_t cur_dispmode = 0;/*Including automatic zooming from AFD*/
 static int output = -1;
 
 static av_audio_output_t audio_output = AV_AUDIO_MPEG;
@@ -189,18 +190,179 @@ av_init_letterbox(void)
  *
  * Arguments:
  *	wide	- AV_ASPECT_4x3 or AV_ASPECT_16x9
+ *	afd	- AFD value (if present)
  *
  * Returns:
- *	0 on success
+ *	new WSS signal calculated from aspect and AFD
  */
-int
-av_set_video_aspect(av_aspect_t wide)
+av_wss_aspect_t
+av_set_video_aspect(av_video_aspect_t vid_ar, int afd)
 {
-    /* Don't actually need to do anything with this, but store the value
-     * for potential future use
+    /* Work out what WSS signal to present, and whether to zoom, based upon
+     * AFD and MPEG aspect following specification at 
+     * http://www.dtg.org.uk/publications/books/afd.pdf
      */
-    vid_aspect = wide;
-    return 0;
+    av_wss_aspect_t new_wss = WSS_ASPECT_UNKNOWN;
+    int zoom_type = 0;
+    vid_aspect = vid_ar;
+
+    switch(vid_ar)
+    {
+	case AV_VIDEO_ASPECT_4x3:
+	    switch(afd)
+	    {
+		case 0xA:
+		    /* 16x9 letterboxed in a 4x3 raster */
+		    new_wss = WSS_ASPECT_BOX_16x9_CENTRE;
+		    /* TODO: If we're writing to a 16x9 display, it may be
+		     * better to "zoom" in the MVP (and return a different
+		     * WSS signal)if it's ever determined how that could
+		     * be done.
+		     */
+		    break;
+		case 0xB:
+		    /* 14x9 letterboxed in a 4x3 raster */
+		    new_wss = WSS_ASPECT_BOX_14x9_CENTRE;
+		    break;
+		case 0xD:
+		    /* 4x3 full frame, shot to protect 14x9 area */
+		    new_wss = WSS_ASPECT_FULL_4x3_PROTECT_14x9;
+		    break;
+		case 0xE:
+		    /* 16x9 letterboxed image in a 4x3 raster, original
+		     * material shot to protect 14x9 area
+		     */
+
+		    /*TODO: It is preferred that for a 4x3 display we zoom
+		     * slightly to show a 14x9 letterboxed in a 4x3 raster.
+		     * If we ever know how to zoom we should do this.
+		     */
+		    new_wss=WSS_ASPECT_BOX_16x9_CENTRE;
+		    break;
+		case 0xF:
+		    /* 16x9 letterboxed image in a 4x3 raster, original
+		     * material shot to protect 4x3 area.
+		     */
+		    /*TODO: It is preferred that for a 4x3 display we zoom
+		     * slightly to show a 4x3 full frame picture.
+		     * If we ever know how to zoom we should do this.
+		     */
+		    new_wss = WSS_ASPECT_BOX_16x9_CENTRE;
+		    break;
+		case 0x8:
+		case 0x9:
+		default:
+		    /* 4x3 Full Frame */
+		    new_wss = WSS_ASPECT_FULL_4x3;
+		    break;
+	    }
+	    break;
+	case AV_VIDEO_ASPECT_16x9:
+	    switch(afd)
+	    {
+		default:
+		case 0x8:
+		    /*16:9 full frame in a 16:9 raster */
+		    if(tv_aspect == AV_TV_ASPECT_4x3)
+		    {
+			new_wss = WSS_ASPECT_BOX_16x9_CENTRE;
+		    }
+		    else if(tv_aspect == AV_TV_ASPECT_4x3_CCO)
+		    {
+			new_wss = WSS_ASPECT_FULL_4x3;
+		    }
+		    else 
+			new_wss = WSS_ASPECT_FULL_16x9;
+		    break;
+		case 0x9:
+		    /*4:3 pillarboxed in a 16:9 raster */
+		    zoom_type = 1;
+		    new_wss = WSS_ASPECT_FULL_4x3;
+		    break;
+		case 0xA:
+		    /*16:9 full frame image, in 16:9 frame, no protected area
+		     *The specification says we should force letterboxing on
+		     *4:3 displays
+		     */
+		    if(IS_4x3(tv_aspect))
+		    {
+			zoom_type = 2;
+			new_wss = WSS_ASPECT_BOX_16x9_CENTRE;
+		    }
+		    else
+		    {
+			new_wss = WSS_ASPECT_FULL_16x9;
+		    }
+		    break;
+		case 0xB:
+		    /*14:9 pillarboxed in a 16:9 raster*/
+		    /*TODO: zoom to 14:9 letterbox if we're on a 4:3 display
+		     * if we ever work out arbitrary zooming
+		     */
+		    if(IS_4x3(tv_aspect))
+		    {
+			/*Spec says that since we can't scale to a 14:9 
+			 * letterbox we should go for CCO
+			 */
+			zoom_type = 1;
+			new_wss = WSS_ASPECT_FULL_4x3;
+		    }
+		    else
+		    {
+			new_wss = WSS_ASPECT_FULL_16x9;
+		    }
+		    break;
+		case 0xD:
+		    /* 4:3 pillarboxed image 14:9 protected in 16:9 raster*/
+		    /*Force CCO mode:*/
+		    zoom_type = 1;
+		    if(IS_16x9(tv_aspect))
+		    {
+			new_wss = WSS_ASPECT_FULL_4x3_PROTECT_14x9;
+		    }
+		    else
+		    {
+			new_wss = WSS_ASPECT_FULL_4x3;
+		    }
+		    break;
+		case 0xE:
+		    /*16:9 full frame image, 14:9 protected in 16:9 raster*/
+		    /*TODO: 14:9 LB zoom on 4:3 displays if we can */
+		    if(tv_aspect == AV_TV_ASPECT_4x3)
+			new_wss = WSS_ASPECT_BOX_16x9_CENTRE;
+		    else if(tv_aspect == AV_TV_ASPECT_4x3_CCO)
+			new_wss = WSS_ASPECT_FULL_4x3;
+		    else
+			new_wss = WSS_ASPECT_FULL_16x9;
+		    break;
+		case 0xF:
+		    /* 16:9 full frame image, 4:3 protected in 16:9 raster*/
+		    if(tv_aspect == AV_TV_ASPECT_4x3)
+			new_wss = WSS_ASPECT_BOX_16x9_CENTRE;
+		    else if(tv_aspect == AV_TV_ASPECT_4x3_CCO)
+			new_wss = WSS_ASPECT_FULL_4x3;
+		    else
+			new_wss = WSS_ASPECT_FULL_16x9;
+		    break;
+	    }
+	    break;
+    }
+    switch(zoom_type)
+    {
+	/*Force display mode to create required zoom:*/
+	case 1:
+	    cur_dispmode = VID_DISPMODE_NORM;/*Centre Cut Out*/
+	    break;
+	case 2:
+	    cur_dispmode = VID_DISPMODE_LETTERBOX; /*Force letterbox */
+	    break;
+	default:
+	    cur_dispmode = vid_dispmode;
+	    break;
+    }
+    if (ioctl(fd_video, AV_SET_VID_OUTPUT_MODE, cur_dispmode) < 0)
+	return 0;
+    return new_wss;
 }
 
 /*
@@ -212,7 +374,7 @@ av_set_video_aspect(av_aspect_t wide)
  * Returns:
  *	AV_ASPECT_4x3 or AV_ASPECT_16x9
  */
-av_aspect_t
+av_video_aspect_t
 av_get_video_aspect(void)
 {
 	return vid_aspect;
@@ -265,51 +427,50 @@ av_set_mode(av_mode_t mode)
  *	0 if it succeeded in changing the aspect ratio, -1 if it failed
  */
 int
-av_set_aspect(av_aspect_t ratio)
+av_set_tv_aspect(av_tv_aspect_t ratio)
 {
     vid_disp_mode_t new_dispmode;
-    av_aspect_t new_display_aspect;
+    av_tv_aspect_t new_display_aspect;
+    av_init_letterbox();
     switch(ratio)
     {
-	case AV_ASPECT_16x9:
-	case AV_ASPECT_16x9_AUTO:
-	    new_display_aspect = AV_ASPECT_16x9;
+	case AV_TV_ASPECT_16x9:
+	    new_display_aspect = AV_TV_ASPECT_16x9;
 	    new_dispmode = VID_DISPMODE_NORM;
 	    break;
-	case AV_ASPECT_4x3_CCO:
+	case AV_TV_ASPECT_4x3_CCO:
 	    new_dispmode = VID_DISPMODE_NORM;
-	    new_display_aspect = AV_ASPECT_4x3;
+	    new_display_aspect = AV_TV_ASPECT_4x3;
 	    break;
-	case AV_ASPECT_4x3:
-	    av_init_letterbox();
+	case AV_TV_ASPECT_4x3:
 	    new_dispmode = VID_DISPMODE_LETTERBOX;
-	    new_display_aspect = AV_ASPECT_4x3;
+	    new_display_aspect = AV_TV_ASPECT_4x3;
 	    break;
 	default:
 	    return -1;
     }
-    if (ioctl(fd_video, AV_SET_VID_RATIO, new_display_aspect) < 0)
+    if (ioctl(fd_video, AV_SET_VID_OUTPUT_RATIO, new_display_aspect) < 0)
 	return -1;
-    if (ioctl(fd_video, AV_SET_VID_MODE, new_dispmode) < 0)
+    if (ioctl(fd_video, AV_SET_VID_OUTPUT_MODE, new_dispmode) < 0)
 	return -1;
-    aspect = ratio;
-    vid_dispmode = new_dispmode;
+    tv_aspect = ratio;
+    cur_dispmode = vid_dispmode = new_dispmode;
     return 0;
 }
 
 /*
- * av_get_aspect() - get the aspect ratio of the output device (ie, the TV)
+ * av_get_tv_aspect() - get the aspect ratio of the output device (ie, the TV)
  *
  * Arguments:
  *	none
  *
  * Returns:
- *	AV_ASPECT_4x3 or AV_ASPECT_16x9
+ *	AV_ASPECT_4x3 or AV_ASPECT_4x3CCO or AV_ASPECT_16x9 or AV_ASPECT_16x9AUTO
  */
-av_aspect_t
-av_get_aspect(void)
+av_tv_aspect_t
+av_get_tv_aspect(void)
 {
-	return aspect;
+	return tv_aspect;
 }
 
 /*
@@ -688,9 +849,9 @@ av_move(int x, int y, int video_mode)
 	ioctl(fd_video, AV_SET_VID_POSITION, &pos_d);
 	
 	if (video_mode == 0)
-		ioctl(fd_video, AV_SET_VID_MODE, vid_dispmode);
+		ioctl(fd_video, AV_SET_VID_OUTPUT_MODE, cur_dispmode);
 	else
-		ioctl(fd_video, AV_SET_VID_MODE, video_mode);
+		ioctl(fd_video, AV_SET_VID_OUTPUT_MODE, video_mode);
 
 	if (video_mode == 0)
 		ioctl(fd_video, AV_SET_VID_SRC, 1);

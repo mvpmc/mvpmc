@@ -173,10 +173,10 @@ av_get_state(av_state_t *state)
 	return 0;
 }
 
-av_aspect_t
-av_get_aspect(void)
+av_tv_aspect_t
+av_get_tv_aspect(void)
 {
-	return AV_ASPECT_4x3;
+	return AV_TV_ASPECT_4x3;
 }
 
 int
@@ -192,7 +192,7 @@ av_set_output(int output)
 }
 
 int
-av_set_aspect(av_aspect_t aspect)
+av_set_tv_aspect(av_tv_aspect_t aspect)
 {
 	return 0;
 }
@@ -215,13 +215,14 @@ av_set_audio_output(av_audio_output_t type)
 	return 0;
 }
 
-int
-av_set_video_aspect(av_aspect_t wide)
+av_wss_aspect_t
+av_set_video_aspect(av_video_aspect_t wide, int afd)
 {
+    /*Should maybe actually deal with AFD and return a "correct" WSS number*/
 	return 0;
 }
 
-av_aspect_t
+av_video_aspect_t
 av_get_video_aspect(void)
 {
 	return 0;

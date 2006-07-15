@@ -49,6 +49,7 @@
 
 #ident "$Id$"
 
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -65,6 +66,12 @@
 #define PRINTF(x...)
 #endif
 
+#if 0
+
+/* TODO: Fix stream_resize so it takes account of all the extra tail arguments,
+ *       not urgent since it would appear that stream_resize isn't actually
+ *       refrenced anywhere.
+ */
 /*
  * stream_resize() - Resize a stream buffer
  *
@@ -147,6 +154,7 @@ stream_resize(stream_t *stream, void *start, int size)
 
 	return -1;
 }
+#endif
 
 /*
  * stream_add() - Add a buffer to a media stream
@@ -163,44 +171,85 @@ stream_resize(stream_t *stream, void *start, int size)
 static int
 stream_add(demux_handle_t *handle, stream_t *stream, unsigned char *buf, int len)
 {
-	unsigned int end, tail;
+	unsigned int end, tail, head;
 	int size1, size2;
+	int was_seeking = handle->seeking;
 
 	if (len <= 0)
 		return 0;
 
-	if (handle->seeking)
-		return len;
-
 	tail = stream->tail;
+	if(stream->parser_callback != NULL)
+	{
+	    if (was_seeking)
+	    {
+		tail = stream->parser_tail;
+	    }
+
+	    /* Check to see whether tail or parser_tail are earlier, we
+	     * don't want to go past either
+	     */
+	    else if (((stream->head - stream->parser_tail + stream->size) % stream->size)
+			    > ((stream->head - tail + stream->size) % stream->size))
+		tail = stream->parser_tail;
+	}
+	else if(was_seeking)
+	{
+	    return len;
+	}
+
+	if(was_seeking && stream->head != (stream->tail+1)%stream->size )
+	{
+
+	    if(stream->ptr_tail_mutex == NULL)
+		fprintf(stderr,"Awooga! Should be locking, but no lock exists!");
+	    else
+		pthread_mutex_lock(stream->ptr_tail_mutex);
+	    stream->tail = (stream->size + stream->head - 1 )% stream->size;
+	    if(stream->ptr_tail_mutex != NULL)
+		pthread_mutex_unlock(stream->ptr_tail_mutex);
+	}
+	if(was_seeking)
+	{
+	    if(stream->seeking_head_valid)
+	    {
+		head = stream->seeking_head;
+	    }
+	    else
+	    {
+		head = stream->head;
+	    }
+	}
+	else
+	    head = stream->head;
 
 	PRINTF("%s(): stream 0x%p buf 0x%p len %d\n",
 	       __FUNCTION__, stream, buf, len);
 	PRINTF("stream size %d head %d tail %d\n", stream->size,
-	       stream->head, tail);
+	       head, tail);
 
 	if (len > stream->size)
 		goto full;
-	if (stream->head == tail)
+	if (head == tail)
 		goto full;
 
-	end = (stream->head + len + 6) % stream->size;
+	end = (head + len + 6) % stream->size;
 
-	if (stream->head > tail) {
-		if ((end < stream->head) && (end > tail))
+	if (head > tail) {
+		if ((end < head) && (end > tail))
 			goto full;
 	} else {
-		if ((end > tail) || (end < stream->head))
+		if ((end > tail) || (end < head))
 			goto full;
 	}
 
-	end = (stream->head + len) % stream->size;
+	end = (head + len) % stream->size;
 
-	if (end > stream->head) {
+	if (end > head) {
 		size1 = len;
 		size2 = 0;
 	} else {
-		size1 = stream->size - stream->head;
+		size1 = stream->size - head;
 		size2 = end;
 	}
 
@@ -209,14 +258,57 @@ stream_add(demux_handle_t *handle, stream_t *stream, unsigned char *buf, int len
 
 	PRINTF("size1 %d size2 %d\n", size1, size2);
 
-	memcpy(stream->buf+stream->head, buf, size1);
+	memcpy(stream->buf+head, buf, size1);
 	if (size2)
 		memcpy(stream->buf, buf+size1, size2);
 
-	stream->head = end;
+
+	if(handle->seeking)
+	{
+	    stream->seeking_head = end;
+	    stream->seeking_head_valid = 1;
+	}
+	else
+	    stream->head = end;
+
+	if(stream->parser_callback != NULL)
+    	{
+	    int newtail = stream->parser_callback(stream->buf,
+			stream->parser_tail, end,
+			stream->size,stream->parser_data,
+			handle);
+	    /* If we're running out of buffer space, force the parser
+	     * to give up on this information and move along by incrementing
+	     * its tail by one.
+	     */
+	    if(newtail == stream->parser_tail)
+	    {
+		int remain = (stream->size + newtail - end) % stream->size;
+		if(remain <= 10)
+		{
+		    fprintf(stderr,"Ran out of buffer space for stream parser, prodding it to move on\n");
+		    newtail++;
+		}
+	    }
+	    stream->parser_tail = newtail;
+	    if(was_seeking && ! handle->seeking)
+	    {
+		if(stream->ptr_tail_mutex == NULL)
+		    fprintf(stderr,"Awooga! Should be locking, but no lock exists!");
+		else
+		    pthread_mutex_lock(stream->ptr_tail_mutex);
+		stream->head = end;
+		stream->tail = stream->parser_tail;
+		if(stream->ptr_tail_mutex != NULL)
+		    pthread_mutex_unlock(stream->ptr_tail_mutex);
+	    }
+	}
+
+	if(!handle->seeking)
+	    stream->seeking_head_valid = 0;
 
 	PRINTF("stream size %d head %d tail %d\n", stream->size,
-	       stream->head, tail);
+	       head, tail);
 
 	stream->attr->stats.cur_bytes += (size1 + size2);
 	stream->attr->stats.bytes += (size1 + size2);
@@ -251,7 +343,10 @@ stream_drain(stream_t *stream, void *buf, int max)
 
 	if (max <= 0)
 		return 0;
-
+	if(stream->ptr_tail_mutex != NULL)
+	{
+	    pthread_mutex_lock(stream->ptr_tail_mutex);
+	}
 	head = stream->head;
 
 	PRINTF("%s(): stream 0x%p buf 0x%p max %d\n",
@@ -293,11 +388,19 @@ stream_drain(stream_t *stream, void *buf, int max)
 
 	stream->attr->stats.cur_bytes -= (size1 + size2);
 
+	if(stream->ptr_tail_mutex != NULL)
+	{
+	    pthread_mutex_unlock(stream->ptr_tail_mutex);
+	}
 	return size1 + size2;
 
  empty:
 	stream->attr->stats.empty_count++;
 
+	if(stream->ptr_tail_mutex != NULL)
+	{
+	    pthread_mutex_unlock(stream->ptr_tail_mutex);
+	}
 	return 0;
 }
 
@@ -319,6 +422,11 @@ stream_drain_fd(stream_t *stream, int fd)
 	int size1, size2;
 	int n, ret;
 
+	if(stream->ptr_tail_mutex != NULL)
+	{
+	    pthread_mutex_lock(stream->ptr_tail_mutex);
+	}
+
 	head = stream->head;
 
 	PRINTF("%s(): stream 0x%p fd %d\n", __FUNCTION__, stream, fd);
@@ -339,7 +447,7 @@ stream_drain_fd(stream_t *stream, int fd)
 	if (size1) {
 		n = write(fd, stream->buf+stream->tail+1, size1);
 		if (n < 0)
-			return 0;
+			goto end;
 		ret += n;
 		if (n != size1) {
 			size1 = n;
@@ -370,12 +478,18 @@ stream_drain_fd(stream_t *stream, int fd)
 		stream->attr->stats.drain_count++;
 		stream->attr->stats.cur_bytes -= (size1 + size2);
 	}
+	ret = (size1 + size2);
+ end:
+	if(stream->ptr_tail_mutex != NULL)
+	{
+	    pthread_mutex_unlock(stream->ptr_tail_mutex);
+	}
 
-	return (size1 + size2);
+	return ret;
 }
 
 /*
- * parse_video_frame() - Parse a video frame header
+ * parse_afd() - Try to fish an AFD from a user_data_code mpeg thingumy
  *
  * Arguments:
  *	handle	- demux context handle
@@ -383,48 +497,207 @@ stream_drain_fd(stream_t *stream, int fd)
  *	len	- length of buffer
  *
  * Returns:
- *	0	if a sync point was found (sequence header, GOP, I-frame)
- *	-1	if no sync point was found
+ *	new afd
  */
-static inline int
-parse_video_frame(demux_handle_t *handle, unsigned char *buf, int len)
+int parse_afd(demux_handle_t *handle, unsigned char *buf, int len)
 {
+    int next_afd = -1;
+    /* Right now the only user data we know about is AFDs */
+    if((len >= 6) && (buf[0] == 'D') && (buf[1] == 'T')
+	    && (buf[2] == 'G') && (buf[3] == '1'))
+    {
+	/* Right, this is an AFD then */
+	buf += 4;
+	if((buf[0] & 0xBF) == 0x01)
+	{
+	    if(buf[0] & 0x40)
+	    {
+		buf += 1;
+		if((buf[0] & 0xF0) != 0xF0)
+		{
+		    /* That's odd...this should be 0xF0, assume
+		     * corruption and don't change state */
+		}
+		else
+		{
+		    next_afd = buf[0] & 0xF;
+		    PRINTF("Found AFD: %d\n",next_afd);
+		}
+	    }
+	    else
+	    {
+		/*Inactive AFD, should be treated as 0 AFD */
+		next_afd = 0;
+	    }
+	}
+	else
+	{
+	    /* First byte invalid, assume corruption, so ignore */
+	}
+    }
+    else
+    {
+	PRINTF("unknown mpeg user data, or not enough data");
+    }
+    return next_afd;
+}
+
+typedef struct {
+    unsigned int dts,pts;
+    char had_afd;
+} vid_parser_data_t;
+
+static inline void init_video_parser_data(vid_parser_data_t * pData)
+{
+    pData->dts = 0;
+    pData->pts = 0;
+    pData->had_afd = 0;
+}
+
+/*First macro can only cope with positive values*/
+#define ringbuf(i) (pRingBuf[(i)%buf_size])
+#define ringbuf_negative(i) (pRingBuf[((i)+buf_size)%buf_size])
+/*Complicated macro to try to avoid expensive modulus operation */
+#define ringbuf_valid(i) (((i) > 0 && (i) <buf_size)? \
+	( \
+	  (tail > head && (i) > tail) || \
+	  ( \
+	    (i) < head && \
+	    (tail > head || (i) > tail) \
+	  ) \
+	) : \
+	( \
+	  (tail > head && ((i)+buf_size)%buf_size > tail) || \
+	  ( \
+	    ((i)+buf_size)%buf_size < head && \
+	    (tail > head || ((i)+buf_size)%buf_size > tail) \
+	  ) \
+	) \
+      )
+/*
+ * parse_video_stream() - Parse video headers and information out of video stream
+ *
+ * Arguments:
+ *	pRingBuf   - Pointer to the current stream ring buffer.
+ *	tail	   - Tail value (ie last byte processed), for the parser
+ *	head	   - Head value (ie index of byte after last byte).
+ *	buf_size   - Size of ringbuffer
+ *	pLocalData - Pointer to a data structure containing state information.
+ *	handle	   - demux context handle
+ *
+ * Changes:
+ * 	Will turn of handle->seeking iff it find a decent place to start
+ * 	(ie GOP/I frame/...) and the video frame has a double header
+ * 	(required to force a buffer flush on the MVP).
+ * 
+ * Returns:
+ *	new parser tail, also used as new video output start point tail when
+ *	completed seeking
+ */
+static int
+parse_video_stream(unsigned char *pRingBuf, unsigned int tail,unsigned int head,
+	unsigned int buf_size, void *pLocalData,demux_handle_t *handle)
+{
+
 	int i;
 	int h, w;
 	int aspect, frame_rate;
 	int type;
 	int hour, minute, second, frame;
+	int seekingFoundStart = 0;
+	int seekingStart = 0;
+	int nextSeekingStart = -1;
+	int syncFound = 0;
 	int ret = -1;
 	video_info_t *vi;
-	unsigned int dts, pts;
 	int delta;
+	vid_parser_data_t *pLD = (vid_parser_data_t *)pLocalData;
+	for (i=tail+5; ringbuf_valid(i); i++)
+	{
+		int is_header = 0;
+		unsigned char identifier;
+		/* Avoid doing expensive modulus operations when they're not
+		 * necessary
+		 */
+		if(i > buf_size)
+		    i %= buf_size;
+		if(i < 4)
+		{
+		    while(i < 0)
+		    {
+			i = (i+buf_size)%buf_size;
+		    }
+		    is_header = (ringbuf_negative(i-4) == 0) && (ringbuf_negative(i-3) == 0) &&
+				    (ringbuf_negative(i-2) == 1);
+		    identifier = ringbuf_negative(i-1);
+		}
+		else
+		{
+		    is_header = (pRingBuf[i-4] == 0) && (pRingBuf[i-3] == 0) &&
+				    (pRingBuf[i-2] == 1);
+		    identifier = pRingBuf[i-1];
+		}
+		if(is_header)
+		{
+		    	PRINTF("Video Parser Checking code: %02x\n",identifier);
+			switch (identifier) {
+			case video_stream_0 ... video_stream_F:
+			    init_video_parser_data(pLD);
+			    if(!ringbuf_valid(i+3))
+				goto out;
+			    pLD->dts = (ringbuf(i+3) >> 6) & 0x1;
+			    pLD->pts = (ringbuf(i+3) >> 7);
 
-	dts = (buf[1] >> 6) & 0x1;
-	pts = (buf[1] >> 7);
+			    if (pLD->pts) {
+				    if(!ringbuf_valid(i+9))
+					goto out;
+				    pLD->pts = (ringbuf(i+9) >> 1) |
+					    (ringbuf(i+8) << 7) |
+					    ((ringbuf(i+7) >> 1) << 15) |
+					    (ringbuf(i+6) << 22) |
+					    (((ringbuf(i+5) >> 1) & 0x7) << 30);
+				    PRINTF("pts 0x%.8x\n", pts);
+			    }
+			    if (pLD->dts) {
+				    if(!ringbuf_valid(i+14))
+					goto out;
+				    pLD->dts = (ringbuf(i+10) >> 1) |
+					    (ringbuf(i+11) << 7) |
+					    ((ringbuf(i+12) >> 1) << 15) |
+					    (ringbuf(i+13) << 22) |
+					    (((ringbuf(i+14) >> 1) & 0x7) << 30);
+				    PRINTF("dts 0x%.8x\n", dts);
+			    }
+			    if(handle->seeking &&
+				    !(seekingFoundStart > 1 && syncFound))
+			    {
+				/*Some crazy complicated logic to make sure
+				 * we preserve the state in which we have
+				 * 2 consecutive video_stream start codes
+				 * (this is used to force the hardware to
+				 * flush its buffers)
+				 */
+				if(seekingFoundStart > 1)
+				    seekingStart = nextSeekingStart;
+				if(seekingFoundStart && (buf_size + i - seekingStart)%buf_size <= 6)
+				{
+				    seekingFoundStart++;
+				    nextSeekingStart = i;
+				}
+				else
+				{
+				    nextSeekingStart = -1;
+				    seekingStart = i;
+				    seekingFoundStart = 1;
+				}
+				syncFound = 0;
+			    }
+			    break;
 
-	if (pts) {
-		pts = (buf[7] >> 1) |
-			(buf[6] << 7) |
-			((buf[5] >> 1) << 15) |
-			(buf[4] << 22) |
-			(((buf[3] >> 1) & 0x7) << 30);
-		PRINTF("pts 0x%.8x\n", pts);
-	}
-	if (dts) {
-		dts = (buf[8] >> 1) |
-			(buf[9] << 7) |
-			((buf[10] >> 1) << 15) |
-			(buf[11] << 22) |
-			(((buf[12] >> 1) & 0x7) << 30);
-		PRINTF("dts 0x%.8x\n", dts);
-	}
-
-	for (i=2; i<(len-4); i++)
-		if ((buf[i] == 0) && (buf[i+1] == 0) &&
-		    (buf[i+2] == 1)) {
-			switch (buf[i+3]) {
 			case 0x0:
-				type = (buf[i+5] >> 3) & 7;
+				if(!ringbuf_valid(i+1))
+				    goto out;
+				type = (ringbuf(i+1) >> 3) & 7;
 				switch (type) {
 				case 1:
 					PRINTF("picture I frame\n");
@@ -443,61 +716,111 @@ parse_video_frame(demux_handle_t *handle, unsigned char *buf, int len)
 					break;
 				}
 				if (type == 1)
-					ret = 0;
-				goto out;
+					syncFound = 1;
 				break;
 			case 0xb3:
-				w = (buf[i+5] >> 4) |
-					(buf[i+4] << 4);
-				h = ((buf[i+5] & 0xf) << 8) |
-					buf[i+6];
+				if(!ringbuf_valid(i+3))
+				    goto out;
+				w = (ringbuf(i+1) >> 4) |
+					(ringbuf(i) << 4);
+				h = ((ringbuf(i+1) & 0xf) << 8) |
+					ringbuf(i+2);
 				/*
 				 * allow PAL to display under NTSC by
 				 * changing the video height
 				 */
 				if ((handle->height == 480) &&
 				    (h == 576)) {
-					buf[i+6] = 480 & 0xff;
-					buf[i+5] = ((480 >> 8) & 0xf) |
-						(buf[i+5] & 0xf0);
+					ringbuf(i+2) = 480 & 0xff;
+					ringbuf(i+1) = ((480 >> 8) & 0xf) |
+						(ringbuf(i+1) & 0xf0);
 				}
-				aspect = buf[i+7] >> 4;
-				frame_rate = buf[i+7] & 0xf;
+				aspect = ringbuf(i+3) >> 4;
+				frame_rate = ringbuf(i+3) & 0xf;
 				PRINTF("SEQ: %dx%d, aspect %d fr %d\n",
 				       w, h, aspect, frame_rate);
 				vi = &handle->attr.video.stats.info.video;
 				vi->width = w;
 				vi->height = h;
-				if(aspect != vi->aspect || pts < vi->aspect_pts)
-				    vi->aspect_pts = pts;
+				if(!pLD->had_afd &&
+				    (aspect != vi->aspect) &&
+				    (handle->next_afd == -1))
+				{
+				    /*No AFD is better than continuing on
+				     *with an old AFD at a new aspect ratio
+				     */
+				    handle->next_afd = 0;
+				}
+
+				if(aspect != vi->aspect 
+					  || (handle->next_afd != -1 
+					      && handle->next_afd != vi->afd)
+					  || pLD->pts < vi->aspect_pts)
+				{
+				    vi->aspect_pts = pLD->pts;
+				}
+				if(handle->next_afd != -1)
+				{
+				    vi->afd = handle->next_afd;
+				    handle->next_afd = -1;
+				}
 				vi->aspect = aspect;
 				vi->frame_rate = frame_rate;
 				ret = 0;
 				break;
+			case user_data_start_code:
+				{
+				    unsigned char afd_buffer[6];
+				    int new_afd,j;
+				    if(!ringbuf_valid(i+5))
+					goto out;
+				    for(j=0;j < 6;j++)
+				    {
+					afd_buffer[j] = ringbuf(i+j);
+				    }
+				    new_afd = parse_afd(handle,afd_buffer,sizeof(afd_buffer));
+				    if(new_afd != -1)
+				    {
+					vi = &handle->attr.video.stats.info.video;
+					if(new_afd != -1)
+					{
+					    if(new_afd != vi->afd
+						  || pLD->pts < vi->aspect_pts)
+
+					    {
+						vi->afd = new_afd;
+						vi->aspect_pts = pLD->pts;
+					    }
+					    pLD->had_afd = 1;
+					}
+				    }
+				}
 			case 0xb8:
-				if ((buf[i+7] & 0x1f) != 0)
+				if(!ringbuf_valid(i+3))
+				    goto out;
+				if ((ringbuf(i+3) & 0x1f) != 0)
 					break;
-				hour = (buf[i+4] >> 2) & 0x1f;
-				minute = (buf[i+5] >> 4) |
-					((buf[i+4] & 0x3) << 4);
-				second = ((buf[i+5] & 0x7) << 3) |
-					(buf[i+6] >> 5);
-				frame = ((buf[i+6] & 0x1f) << 1) |
-					(buf[i+7] >> 7);
+				hour = (ringbuf(i) >> 2) & 0x1f;
+				minute = (ringbuf(i+1) >> 4) |
+					((ringbuf(i) & 0x3) << 4);
+				second = ((ringbuf(i+1) & 0x7) << 3) |
+					(ringbuf(i+2) >> 5);
+				frame = ((ringbuf(i+2) & 0x1f) << 1) |
+					(ringbuf(i+3) >> 7);
 				delta = (hour - handle->attr.gop.hour) * 3600 +
 					(minute - handle->attr.gop.minute) * 60 +
 					(second - handle->attr.gop.second);
 
 				PRINTF("GOP: %.2d:%.2d:%.2d %d [%d] PTS 0x%.8x %d\n",
-				       hour, minute, second, frame, i, pts, handle->bytes);
+				       hour, minute, second, frame, i, pLD->pts, handle->bytes);
 				if (handle->seeking == 0) {
 					int newbps = 0;
 
 					/* BPS from pts if possible */
 					if (handle->attr.gop.pts &&
-					    pts > handle->attr.gop.pts) {
+					    pLD->pts > handle->attr.gop.pts) {
 						/* Calculate BPS from PTS difference. The PTS/1000 expression avoids integer overflow */
-						newbps = ((handle->bytes - handle->attr.gop.offset)*(PTS_HZ/1000)/(pts-handle->attr.gop.pts))*1000;
+						newbps = ((handle->bytes - handle->attr.gop.offset)*(PTS_HZ/1000)/(pLD->pts-handle->attr.gop.pts))*1000;
 					} else { /* Fall back on GOP timestamp */
 						delta = (hour - handle->attr.gop.hour) * 3600 +
 							(minute - handle->attr.gop.minute) * 60 +
@@ -514,11 +837,10 @@ parse_video_frame(demux_handle_t *handle, unsigned char *buf, int len)
 						handle->attr.gop.minute = minute;
 						handle->attr.gop.second = second;
 						handle->attr.gop.frame = frame;
-						handle->attr.gop.pts = pts;
+						handle->attr.gop.pts = pLD->pts;
 						handle->attr.gop_valid = 1;
 					}
-					ret = 0;
-					goto out;
+					syncFound = 1;
 				} else {
 					handle->attr.bps = 0;
 					handle->attr.gop.offset = handle->bytes;
@@ -526,19 +848,34 @@ parse_video_frame(demux_handle_t *handle, unsigned char *buf, int len)
 					handle->attr.gop.minute = minute;
 					handle->attr.gop.second = second;
 					handle->attr.gop.frame = frame;
-					handle->attr.gop.pts = pts;
+					handle->attr.gop.pts = pLD->pts;
 					handle->attr.gop_valid = 1;
 				}
-				ret = 0;
-				goto out;
+				syncFound = 1;
 				break;
 			}
-			i += 4;
+			i += 3;
 		}
+	}
 
  out:
-	return ret;
+	if(handle->seeking && seekingFoundStart)
+	{
+	    ret = seekingStart;
+	}
+	else
+	{
+	    ret = i;
+	}
+	if(handle->seeking && seekingFoundStart > 1 && syncFound)
+	{
+	    handle->seeking = 0;
+	}
+	return (buf_size+ret-5)%buf_size;
 }
+#undef ringbuf
+#undef ringbuf_negative
+#undef ringbuf_valid
 
 /*
  * parse_spu_frame() - Parse a subpicture frame
@@ -887,7 +1224,7 @@ parse_pcm_frame(demux_handle_t *handle, unsigned char *buf, int len)
  *	type	- type of buffer (0 if not yet known)
  *
  * Returns:
- *	number of bytes consumed from the buffer
+ *	new tail value
  */
 int
 parse_frame(demux_handle_t *handle, unsigned char *buf, int len, int type)
@@ -1134,7 +1471,21 @@ parse_frame(demux_handle_t *handle, unsigned char *buf, int len, int type)
 		}
 #endif
 
-		if (handle->headernum == 0) {
+
+		/* Here we re-construct the frame header that we've
+		 * already read past (including the 2-byte length chunk)
+		 * for the kernel driver/MPEG chipset.
+		 *
+		 * If we're seeking then we should bung in the header
+		 * twice at the start of the frame, this seems to force
+		 * the kernel drivers/hardware to flush their buffers
+		 * and resume here
+		 */
+		while(handle->headernum < 2
+			|| (handle->seeking && handle->headernum < 4))
+		{
+
+		    if (handle->headernum % 2 == 0) {
 			header[0] = 0;
 			header[1] = 0;
 			header[2] = 1;
@@ -1143,16 +1494,20 @@ parse_frame(demux_handle_t *handle, unsigned char *buf, int len, int type)
 				       header, 4) != 4) {
 				break;
 			}
-			handle->headernum++;
-		}
 
-		if (handle->headernum == 1) {
+
+			handle->headernum++;
+		    }
+
+		    if (handle->headernum % 2 == 1) {
 			if (stream_add(handle, handle->video, handle->buf,
 				       handle->bufsz) != handle->bufsz) {
 				break;
 			}
 			handle->headernum++;
+		    }
 		}
+
 
 		n = handle->buf[0] * 256 + handle->buf[1];
 
@@ -1160,18 +1515,6 @@ parse_frame(demux_handle_t *handle, unsigned char *buf, int len, int type)
 		handle->attr.video.stats.frames++;
 
 		if (n <= (len-ret)) {
-			if ((parse_video_frame(handle, buf, n) == 0) &&
-			    (handle->seeking == 1)) {
-				handle->seeking = 0;
-				header[0] = 0;
-				header[1] = 0;
-				header[2] = 1;
-				header[3] = type;
-				stream_add(handle, handle->video, header, 4);
-				stream_add(handle, handle->video, handle->buf,
-					   handle->bufsz);
-			}
-
 			m = stream_add(handle, handle->video, buf, n);
 			PRINTF("line %d: n %d m %d\n", __LINE__, n, m);
 			buf += m;
@@ -1288,6 +1631,11 @@ parse_frame(demux_handle_t *handle, unsigned char *buf, int len, int type)
 			ret += m;
 		}
 		break;
+	case user_data_start_code:
+		handle->next_afd = parse_afd(handle,buf,len-ret);
+		/*Find next frame start*/
+		handle->state = 1;
+		break;
 	default:
 		/* reset to start of frame */
 		handle->state = 1;
@@ -1311,6 +1659,7 @@ parse_frame(demux_handle_t *handle, unsigned char *buf, int len, int type)
  * Returns:
  *	number of bytes consumed from the buffer
  */
+
 int
 add_buffer(demux_handle_t *handle, void *b, int len)
 {
@@ -1393,7 +1742,11 @@ stream_init(unsigned char *buf, int size)
 	memset(stream->buf, 0, size);
 	stream->size = size;
 	stream->head = 0;
-	stream->tail = size - 1;
+	stream->seeking_head_valid = 0;
+	stream->parser_tail = stream->tail = size - 1;
+	stream->parser_callback = NULL;
+	stream->parser_data = NULL;
+	stream->ptr_tail_mutex = NULL;
 
 	PRINTF("%s(): stream 0x%p size %d\n", __FUNCTION__, stream, size);
 
@@ -1423,6 +1776,7 @@ start_stream(demux_handle_t *handle)
 	int nv, na;
 	unsigned char *stream_buf;
 	stream_t *video, *audio;
+	vid_parser_data_t *pVidParserData = malloc(sizeof(*pVidParserData));
 
 	if ((stream_buf=malloc(handle->size)) == NULL)
 		return -1;
@@ -1441,6 +1795,13 @@ start_stream(demux_handle_t *handle)
 
 	audio->attr = &handle->attr.audio;
 	video->attr = &handle->attr.video;
+
+	video->parser_callback = parse_video_stream;
+	init_video_parser_data(pVidParserData);
+	video->parser_data = (void *)pVidParserData;
+	video->ptr_tail_mutex = malloc(sizeof(*(video->ptr_tail_mutex)));
+	pthread_mutex_init(video->ptr_tail_mutex,NULL);
+	
 
 	handle->attr.audio.bufsz = na;
 	handle->attr.video.bufsz = nv;

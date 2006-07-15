@@ -172,6 +172,7 @@ video_thumbnail(int on)
 		screensaver_enable();
 		enable = 1;
 	} else {
+		av_wss_redraw();
 		av_move(0, 0, 0);
 		if (enable)
 			screensaver_disable();
@@ -278,7 +279,7 @@ video_play(mvp_widget_t *widget)
 
 	video_set_root();
 
-	av_set_aspect(config->av_aspect);
+	av_set_tv_aspect(config->av_tv_aspect);
 	muted = 0;
 	paused = 0;
 	video_reopen = 1;
@@ -312,8 +313,7 @@ video_clear(void)
 	pthread_cond_broadcast(&video_cond);
 
 	mvpw_set_bg(root, MVPW_BLACK);
-	mvpw_hide(wss_16_9_image);
-	mvpw_hide(wss_4_3_image);
+	av_wss_update_aspect(0);
 }
 
 void
@@ -836,11 +836,11 @@ video_callback(mvp_widget_t *widget, char key)
 		break;
 	case MVPW_KEY_FULL:
 	case MVPW_KEY_PREV_CHAN:
-		if(IS_4x3(av_get_aspect())) {
-			if(av_get_aspect() == AV_ASPECT_4x3_CCO)
-				av_set_aspect(AV_ASPECT_4x3);
+		if(IS_4x3(av_get_tv_aspect())) {
+			if(av_get_tv_aspect() == AV_TV_ASPECT_4x3_CCO)
+				av_set_tv_aspect(AV_TV_ASPECT_4x3);
 			else
-				av_set_aspect(AV_ASPECT_4x3_CCO);
+				av_set_tv_aspect(AV_TV_ASPECT_4x3_CCO);
 		}
 		break;
 	case MVPW_KEY_CHAN_UP:
@@ -869,19 +869,6 @@ video_callback(mvp_widget_t *widget, char key)
 		printf("POST SYNC: a 0x%llx 0x%llx  v 0x%llx 0x%llx\n",
 		       async.stc, async.pts, vsync.stc, vsync.pts);
 		break;
-/*
-	case MVPW_KEY_RED:
-	        printf("Showing 4x3 widget\n");
-		mvpw_hide(wss_16_9_image);
-		mvpw_show(wss_4_3_image);
-	        break;
-
-	case MVPW_KEY_GREEN:
-	        printf("Showing 16x9 widget\n");
-		mvpw_hide(wss_4_3_image);
-		mvpw_show(wss_16_9_image);
-	        break;
-*/
 	case MVPW_KEY_VOL_UP:
 	case MVPW_KEY_VOL_DOWN:
 		volume_key_callback(volume_dialog, key);
@@ -1272,6 +1259,7 @@ video_read_start(void *arg)
 	video_info_t *vi;
 	int set_aspect = 1;
 	int current_aspect = 0;
+	int current_afd = 0;
 	char *inbuf = inbuf_static;
 	char *tsbuf;
 	int tslen;
@@ -1465,7 +1453,9 @@ video_read_start(void *arg)
 			av_set_audio_output(audio_output);
 		}
 
-		if(vi->aspect != current_aspect || set_aspect) {
+		if(vi->aspect != current_aspect 
+			|| vi->afd != current_afd
+			|| set_aspect) {
 		  int do_change = 1;
 		  pts_sync_data_t pts;
 
@@ -1476,37 +1466,25 @@ video_read_start(void *arg)
 		  if(!set_aspect)
 		  {
 		      get_video_sync(&pts);
-		      if(vi->aspect_pts > pts.stc + ASPECT_FUDGE)
+		      if(vi->aspect_pts >= (pts.stc & 0xFFFFFFFF) + ASPECT_FUDGE)
 			  do_change = 0;
 		  }
 		  if (do_change)
 		  {
-			  printf("Changing to aspect %d at 0x%llx\n",
-				 vi->aspect,pts.stc);
+			  printf("Changing to aspect %d, afd %d at 0x%llx for 0x%x\n",
+				 vi->aspect, vi->afd, pts.stc, vi->aspect_pts);
 			  if (vi->aspect != 0) {
-				  /* av_set_video_aspect is a bit of a no-op nowadays...
-				   * do it anyway incase libav needs to know the video
-				   * aspect in future*/
+			          av_wss_aspect_t wss;
 				  if (vi->aspect == 3) {
 					  printf("Source video aspect ratio: 16:9\n");
-					  av_set_video_aspect(AV_ASPECT_16x9);
-					  if(av_get_aspect() == AV_ASPECT_16x9_AUTO)
-					  {
-						  printf("Switching WSS signal\n");
-						  mvpw_hide(wss_4_3_image);
-						  mvpw_show(wss_16_9_image);
-					  }
+					  wss = av_set_video_aspect(AV_VIDEO_ASPECT_16x9, vi->afd);
 				  } else {
 					  printf("Source video aspect ratio: 4:3\n");
-					  av_set_video_aspect(AV_ASPECT_4x3);
-					  if(av_get_aspect() == AV_ASPECT_16x9_AUTO)
-					  {
-						  printf("Switching WSS signal\n");
-						  mvpw_hide(wss_16_9_image);
-						  mvpw_show(wss_4_3_image);
-					  }
+					  wss = av_set_video_aspect(AV_VIDEO_ASPECT_4x3, vi->afd);
 				  }
+				  av_wss_update_aspect(wss);
 				  current_aspect = vi->aspect;
+				  current_afd = vi->afd;
 				  set_aspect = 0;
 			  } else {
 				  printf("Video aspect reported as ZERO - not changing setting\n");

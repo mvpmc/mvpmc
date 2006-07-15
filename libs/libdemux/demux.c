@@ -118,6 +118,7 @@ demux_put(demux_handle_t *handle, void *buf, int len)
 	case MPEG_program_end_code:
 	case pack_start_code:
 	case system_header_start_code:
+	case user_data_start_code:
 	case video_stream_0 ... video_stream_7:
 	case audio_stream_0 ... audio_stream_7:
 	case private_stream_2:
@@ -245,6 +246,9 @@ demux_get_attr(demux_handle_t *handle)
 	return &handle->attr;
 }
 
+#if 0
+/* TODO: Fix stream_buffer_resize so that it works with all the new tails.
+ */
 /*
  * demux_buffer_resize() - resize audio and video buffers to fit stream profile
  *
@@ -304,6 +308,7 @@ demux_buffer_resize(demux_handle_t *handle)
 
 	return 0;
 }
+#endif
 
 /*
  * demux_empty() - see if the demux buffers are empty
@@ -346,14 +351,14 @@ demux_flush(demux_handle_t *handle)
 
 	if (handle->video) {
 		handle->video->head = 0;
-		handle->video->tail = handle->video->size - 1;
+		handle->video->tail = handle->video->parser_tail = handle->video->size - 1;
 		handle->video->attr->stats.cur_bytes = 0;
 	}
 
 	if (handle->audio) {
 		handle->audio->buf = handle->video->buf + handle->video->size;
 		handle->audio->head = 0;
-		handle->audio->tail = handle->audio->size - 1;
+		handle->audio->tail = handle->audio->parser_tail = handle->audio->size - 1;
 		handle->audio->attr->stats.cur_bytes = 0;
 	}
 

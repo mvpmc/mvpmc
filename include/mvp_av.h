@@ -48,14 +48,29 @@ typedef enum {
 } av_passthru_t;
 
 typedef enum {
-	AV_ASPECT_4x3 = 0,
-	AV_ASPECT_4x3_CCO = 2,
-	AV_ASPECT_16x9 = 1,
-	AV_ASPECT_16x9_AUTO = 3
-} av_aspect_t;
+    AV_VIDEO_ASPECT_4x3 = 0,
+    AV_VIDEO_ASPECT_16x9 = 1
+} av_video_aspect_t;
+typedef enum {
+	AV_TV_ASPECT_4x3 = 0,
+	AV_TV_ASPECT_4x3_CCO = 2,
+	AV_TV_ASPECT_16x9 = 1
+} av_tv_aspect_t;
 
-#define IS_16x9(x) ((x)== AV_ASPECT_16x9 || (x) == AV_ASPECT_16x9_AUTO)
-#define IS_4x3(x) ((x)== AV_ASPECT_4x3 || (x) == AV_ASPECT_4x3_CCO)
+typedef enum {
+    	WSS_ASPECT_UNKNOWN = 0,
+    	WSS_ASPECT_FULL_4x3 = 8,
+	WSS_ASPECT_BOX_14x9_CENTRE = 1,
+	WSS_ASPECT_BOX_14x9_TOP = 2,
+	WSS_ASPECT_BOX_16x9_CENTRE = 11,
+	WSS_ASPECT_BOX_16x9_TOP = 4,
+	WSS_ASPECT_BOX_GT_16x9_CENTRE = 13,
+	WSS_ASPECT_FULL_4x3_PROTECT_14x9 = 14,
+	WSS_ASPECT_FULL_16x9 = 7
+} av_wss_aspect_t;
+
+#define IS_16x9(x) ((x)== AV_TV_ASPECT_16x9)
+#define IS_4x3(x) ((x)== AV_TV_ASPECT_4x3 || (x) == AV_TV_ASPECT_4x3_CCO)
 
 typedef enum {
 	AV_AUDIO_STREAM_ES,
@@ -125,13 +140,18 @@ extern int get_audio_sync(pts_sync_data_t *p);
 extern int av_current_stc(av_stc_t *stc);
 extern int av_delay_video(int usec);
 
+extern void av_wss_update_aspect(av_wss_aspect_t aspect);
+extern void av_wss_init();
+extern void av_wss_visible(int isVisible);
+extern void av_wss_redraw();
+
 extern av_mode_t av_get_mode(void);
 extern int av_get_output(void);
-extern av_aspect_t av_get_aspect(void);
+extern av_tv_aspect_t av_get_tv_aspect(void);
 
 extern int av_set_mode(av_mode_t);
 extern int av_set_output(int);
-extern int av_set_aspect(av_aspect_t);
+extern int av_set_tv_aspect(av_tv_aspect_t);
 
 extern int av_set_led(int);
 
@@ -141,8 +161,8 @@ extern int av_set_audio_output(av_audio_output_t type);
 
 extern int av_sync(void);
 
-extern int av_set_video_aspect(av_aspect_t wide);
-extern av_aspect_t av_get_video_aspect(void);
+extern av_wss_aspect_t av_set_video_aspect(av_video_aspect_t wide, int afd);
+extern av_video_aspect_t av_get_video_aspect(void);
 
 extern int av_get_video_status(void);
 extern int av_get_audio_status(void);

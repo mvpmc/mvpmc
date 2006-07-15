@@ -36,7 +36,7 @@ int paused = 0;
 int muted = 0;
 int ffwd = 0;
 av_mode_t vid_mode = AV_MODE_NTSC;
-av_aspect_t aspect = AV_ASPECT_4x3;
+av_tv_aspect_t tv_aspect = AV_TV_ASPECT_4x3;
 
 /*
  * av_init() - initialze the audio/video devices
@@ -65,9 +65,9 @@ av_init(void)
 	if (set_output_method() < 0)
 		return -1;
 
-	if (ioctl(fd_video, AV_SET_VID_MODE, video_mode) < 0)
+	if (ioctl(fd_video, AV_SET_VID_OUTPUT_MODE, video_mode) < 0)
 		return -1;
-	if (ioctl(fd_video, AV_SET_VID_RATIO, aspect) < 0)
+	if (ioctl(fd_video, AV_SET_VID_OUTPUT_RATIO, tv_aspect) < 0)
 		return -1;
 
 	if (ioctl(fd_audio, AV_SET_AUD_SRC, 1) < 0)

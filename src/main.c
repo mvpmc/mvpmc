@@ -63,6 +63,7 @@ static struct option opts[] = {
 	{ "mode", required_argument, 0, 'm' },
 	{ "mythtv", required_argument, 0, 's' },
 	{ "mythtv-debug", no_argument, 0, 'M' },
+	{ "no-wss", no_argument, 0, 0 },
 	{ "no-filebrowser", no_argument, 0, 0 },
 	{ "no-reboot", no_argument, 0, 0 },
 	{ "no-settings", no_argument, 0, 0 },
@@ -260,7 +261,7 @@ print_help(char *prog)
 {
 	printf("Usage: %s <options>\n", prog);
 
-	printf("\t-a aspect \taspect ratio (4:3, 4:3cco, 16:9, 16:9auto)\n");
+	printf("\t-a aspect \taspect ratio (4:3, 4:3cco, 16:9)\n");
 	printf("\t-b path   \tpath to NFS mounted mythtv ringbuf directory\n");
 	printf("\t-C file   \tbitmap file to use for screen captures\n");
 	printf("\t-d type   \ttype of local display (disable (default), IEE16x1, or IEE40x2)\n");
@@ -283,6 +284,7 @@ print_help(char *prog)
 	printf("\t-t file   \tXML theme file\n");
 	printf("\t-c server \tslimdevices musicClient server IP address\n");
 	printf("\n");
+	printf("\t--no-wss  \tdisable Wide Screen Signalling(WSS)\n");
 	printf("\t--no-filebrowser\n");
 	printf("\t--no-reboot\n");
 	printf("\t--no-settings\n");
@@ -432,7 +434,7 @@ main(int argc, char **argv)
 	int c, i;
 	char *font = NULL;
 	int mode = -1, output = -1;
-	int aspect = AV_ASPECT_4x3;
+	int tv_aspect = AV_TV_ASPECT_4x3;
 	int width, height;
 	uint32_t accel = MM_ACCEL_DJBFFT;
 	char *theme_file = NULL;
@@ -522,7 +524,7 @@ main(int argc, char **argv)
 	config->mythtv_tcp_program = mythtv_tcp_program;
 	config->av_audio_output = AUD_OUTPUT_STEREO;
 	config->av_video_output = AV_OUTPUT_COMPOSITE;
-	config->av_aspect = AV_ASPECT_4x3;
+	config->av_tv_aspect = AV_TV_ASPECT_4x3;
 	config->av_mode = AV_MODE_PAL;
     vnc_server[0] = 0;
         
@@ -552,6 +554,9 @@ main(int argc, char **argv)
 			}
 			if (strcmp(opts[opt_index].name, "no-reboot") == 0) {
 				reboot_disable = 1;
+			}
+			if (strcmp(opts[opt_index].name, "no-wss") == 0) {
+			    	av_wss_visible(0);
 			}
 			if (strcmp(opts[opt_index].name, "no-filebrowser") == 0) {
 				filebrowser_disable = 1;
@@ -631,21 +636,22 @@ main(int argc, char **argv)
 			break;
 		case 'a':
 			if (strcmp(optarg, "4:3cco") == 0) {
-				aspect = AV_ASPECT_4x3_CCO;
+				tv_aspect = AV_TV_ASPECT_4x3_CCO;
 			} else if (strcmp(optarg, "4:3") == 0) {
-				aspect = AV_ASPECT_4x3;
+				tv_aspect = AV_TV_ASPECT_4x3;
 			} else if (strcmp(optarg, "16:9") == 0) {
-				aspect = AV_ASPECT_16x9;
+				tv_aspect = AV_TV_ASPECT_16x9;
 			} else if (strcmp(optarg, "16:9auto") == 0) {
-				aspect = AV_ASPECT_16x9_AUTO;
+			   	//Legacy option, treat same as 16:9
+				tv_aspect = AV_TV_ASPECT_16x9;
 			} else {
 				fprintf(stderr, "unknown aspect ratio '%s'\n",
 					optarg);
 				print_help(argv[0]);
 				exit(1);
 			}
-			config->bitmask |= CONFIG_ASPECT;
-			config->av_aspect = aspect;
+			config->bitmask |= CONFIG_TV_ASPECT;
+			config->av_tv_aspect = tv_aspect;
 			break;
 		case 'b':
 			mythtv_ringbuf = strdup(optarg);
@@ -924,8 +930,8 @@ main(int argc, char **argv)
 
 	a52_state = a52_init (accel);
 
-	if (!(config->bitmask & CONFIG_ASPECT) && (aspect != -1))
-		av_set_aspect(aspect);
+	if (!(config->bitmask & CONFIG_TV_ASPECT) && (tv_aspect != -1))
+		av_set_tv_aspect(tv_aspect);
 
 	if (!(config->bitmask & CONFIG_VIDEO_OUTPUT) && (output != -1))
 		av_set_output(output);
