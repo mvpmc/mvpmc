@@ -34,6 +34,7 @@
 #include <assert.h>
 
 #include "mvp_demux.h"
+#include "mvp_av.h"
 
 #define BSIZE	(256*1024)
 
@@ -45,6 +46,11 @@ static volatile int read_done = 0;
 
 volatile int audio_read = 0;
 volatile int video_read = 0;
+
+int vid_event_add(unsigned int pts, eventq_type_t type, void * info)
+{
+    return 0;
+}
 
 static unsigned int
 hash(char *s, int len, unsigned int old)

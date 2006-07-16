@@ -78,7 +78,6 @@ struct demux_handle_s {
 	int spu_len;
 	int width;
 	int height;
-	int next_afd;
 };
 
 #define pack_start_code			0xBA

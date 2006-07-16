@@ -20,7 +20,7 @@ version = os.system(toplevel + '/src/version.sh ' + toplevel + '/src')
 
 if target == 'host':
 	libx11dir = ['/usr/X11R6/lib']
-	libx11 = ['X11', 'pthread' ]
+	libx11 = ['X11', 'pthread', 'rt']
 else:
 	libx11dir = []
 	libx11 = []

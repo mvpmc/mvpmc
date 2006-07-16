@@ -69,6 +69,11 @@ typedef enum {
 	WSS_ASPECT_FULL_16x9 = 7
 } av_wss_aspect_t;
 
+typedef enum {
+    	VID_EVENT_ASPECT,
+	VID_EVENT_SUBTITLES
+} eventq_type_t;
+
 #define IS_16x9(x) ((x)== AV_TV_ASPECT_16x9)
 #define IS_4x3(x) ((x)== AV_TV_ASPECT_4x3 || (x) == AV_TV_ASPECT_4x3_CCO)
 
@@ -144,6 +149,9 @@ extern void av_wss_update_aspect(av_wss_aspect_t aspect);
 extern void av_wss_init();
 extern void av_wss_visible(int isVisible);
 extern void av_wss_redraw();
+
+extern int vid_event_add(unsigned int pts, eventq_type_t type, void * info);
+extern int vid_event_wait_next(eventq_type_t * type, void **info);
 
 extern av_mode_t av_get_mode(void);
 extern int av_get_output(void);

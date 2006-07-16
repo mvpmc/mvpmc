@@ -142,6 +142,7 @@ pthread_t audio_write_thread;
 pthread_t audio_thread;
 pthread_attr_t thread_attr, thread_attr_small;
 pthread_t web_server_thread;
+static pthread_t video_events_thread;
 void *www_mvpmc_start(void *arg);
 
 pthread_mutex_t web_server_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -1030,6 +1031,8 @@ main(int argc, char **argv)
 		       video_write_start, NULL);
 	pthread_create(&audio_thread, &thread_attr_small,
 		       audio_start, NULL);
+	pthread_create(&video_events_thread, &thread_attr_small,
+			video_events_start, NULL);
 
 #ifndef MVPMC_HOST
 	if (display_init() < 0) {

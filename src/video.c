@@ -149,6 +149,8 @@ volatile video_callback_t *video_functions = NULL;
 
 void video_play(mvp_widget_t *widget);
 
+static void video_change_aspect(int new_aspect, int new_afd);
+
 static void
 sighandler(int sig)
 {
@@ -269,6 +271,8 @@ video_set_root(void)
 void
 video_play(mvp_widget_t *widget)
 {
+	demux_attr_t *attr;
+	video_info_t *vi;
 	TRC("%s\n", __FUNCTION__);
 	mvpw_set_idle(NULL);
 
@@ -280,6 +284,13 @@ video_play(mvp_widget_t *widget)
 	video_set_root();
 
 	av_set_tv_aspect(config->av_tv_aspect);
+	attr = demux_get_attr(handle);
+	vi = &attr->video.stats.info.video;
+	video_change_aspect(vi->aspect,vi->afd);
+	/*Force video demux code to detect and trigger an aspect event for any
+	 *new AFD or aspect ratio: */
+	vi->aspect = -1;
+	vi->afd = -1;
 	muted = 0;
 	paused = 0;
 	video_reopen = 1;
@@ -313,7 +324,7 @@ video_clear(void)
 	pthread_cond_broadcast(&video_cond);
 
 	mvpw_set_bg(root, MVPW_BLACK);
-	av_wss_update_aspect(0);
+	av_wss_update_aspect(WSS_ASPECT_FULL_4x3);
 }
 
 void
@@ -1258,8 +1269,6 @@ video_read_start(void *arg)
 	demux_attr_t *attr;
 	video_info_t *vi;
 	int set_aspect = 1;
-	int current_aspect = 0;
-	int current_afd = 0;
 	char *inbuf = inbuf_static;
 	char *tsbuf;
 	int tslen;
@@ -1453,47 +1462,55 @@ video_read_start(void *arg)
 			av_set_audio_output(audio_output);
 		}
 
-		if(vi->aspect != current_aspect 
-			|| vi->afd != current_afd
-			|| set_aspect) {
-		  int do_change = 1;
-		  pts_sync_data_t pts;
-
-		  /*If we're not in here for the first time wait until
-		   *the System Time Clock of the video decoder reaches the 
-		   *defined Presentation Time Stamp of the aspect change
-		   */
-		  if(!set_aspect)
-		  {
-		      get_video_sync(&pts);
-		      if(vi->aspect_pts >= (pts.stc & 0xFFFFFFFF) + ASPECT_FUDGE)
-			  do_change = 0;
-		  }
-		  if (do_change)
-		  {
-			  printf("Changing to aspect %d, afd %d at 0x%llx for 0x%x\n",
-				 vi->aspect, vi->afd, pts.stc, vi->aspect_pts);
-			  if (vi->aspect != 0) {
-			          av_wss_aspect_t wss;
-				  if (vi->aspect == 3) {
-					  printf("Source video aspect ratio: 16:9\n");
-					  wss = av_set_video_aspect(AV_VIDEO_ASPECT_16x9, vi->afd);
-				  } else {
-					  printf("Source video aspect ratio: 4:3\n");
-					  wss = av_set_video_aspect(AV_VIDEO_ASPECT_4x3, vi->afd);
-				  }
-				  av_wss_update_aspect(wss);
-				  current_aspect = vi->aspect;
-				  current_afd = vi->afd;
-				  set_aspect = 0;
-			  } else {
-				  printf("Video aspect reported as ZERO - not changing setting\n");
-			  }
-		  }
-		}
 	} //while
 
 	return NULL;
+}
+
+void*
+video_events_start(void *arg)
+{
+    while(1)
+    {
+	eventq_type_t type = -1;
+	void *pData = NULL;
+	vid_event_wait_next(&type,&pData);
+	switch(type)
+	{
+	    case VID_EVENT_ASPECT:
+		    {
+			  aspect_change_t *pAspect = (aspect_change_t *)pData;
+			  video_change_aspect(pAspect->aspect,pAspect->afd);
+		    }
+		    break;
+	    default:
+		    fprintf(stderr,"Pulled unknown item off the vid event queue (type %d)\n",type);
+	}
+	if(pData != NULL)
+	    free(pData);
+    }
+    return NULL;
+}
+
+static void video_change_aspect(int new_aspect, int new_afd)
+{
+    printf("Changing to aspect %d, afd %d\n", new_aspect, new_afd);
+    if (new_aspect != 0) {
+	av_wss_aspect_t wss;
+	if (new_aspect == 3) {
+	    printf("Source video aspect ratio: 16:9\n");
+	    fflush(stdout);
+	    wss = av_set_video_aspect(AV_VIDEO_ASPECT_16x9, new_afd);
+	} else {
+	    printf("Source video aspect ratio: 4:3\n");
+	    fflush(stdout);
+	    wss = av_set_video_aspect(AV_VIDEO_ASPECT_4x3, new_afd);
+	}
+	av_wss_update_aspect(wss);
+    } else {
+	printf("Video aspect reported as ZERO - not changing setting\n");
+	fflush(stdout);
+    }
 }
 
 void*

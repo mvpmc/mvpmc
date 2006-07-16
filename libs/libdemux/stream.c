@@ -543,15 +543,13 @@ int parse_afd(demux_handle_t *handle, unsigned char *buf, int len)
 }
 
 typedef struct {
-    unsigned int dts,pts;
-    char had_afd;
+    unsigned int dts,pts,aspect_pts;
 } vid_parser_data_t;
 
 static inline void init_video_parser_data(vid_parser_data_t * pData)
 {
     pData->dts = 0;
     pData->pts = 0;
-    pData->had_afd = 0;
 }
 
 /*First macro can only cope with positive values*/
@@ -742,27 +740,16 @@ parse_video_stream(unsigned char *pRingBuf, unsigned int tail,unsigned int head,
 				vi = &handle->attr.video.stats.info.video;
 				vi->width = w;
 				vi->height = h;
-				if(!pLD->had_afd &&
-				    (aspect != vi->aspect) &&
-				    (handle->next_afd == -1))
+				
+				if(aspect != vi->aspect
+					  || pLD->pts < pLD->aspect_pts)
 				{
-				    /*No AFD is better than continuing on
-				     *with an old AFD at a new aspect ratio
-				     */
-				    handle->next_afd = 0;
-				}
-
-				if(aspect != vi->aspect 
-					  || (handle->next_afd != -1 
-					      && handle->next_afd != vi->afd)
-					  || pLD->pts < vi->aspect_pts)
-				{
-				    vi->aspect_pts = pLD->pts;
-				}
-				if(handle->next_afd != -1)
-				{
-				    vi->afd = handle->next_afd;
-				    handle->next_afd = -1;
+				    aspect_change_t * pInfo;
+				    pInfo = malloc(sizeof(*pInfo));
+				    pInfo->aspect = aspect;
+				    pInfo->afd = vi->afd;
+				    vid_event_add(pLD->pts,VID_EVENT_ASPECT,
+					    		(void *)pInfo);
 				}
 				vi->aspect = aspect;
 				vi->frame_rate = frame_rate;
@@ -782,16 +769,18 @@ parse_video_stream(unsigned char *pRingBuf, unsigned int tail,unsigned int head,
 				    if(new_afd != -1)
 				    {
 					vi = &handle->attr.video.stats.info.video;
-					if(new_afd != -1)
-					{
-					    if(new_afd != vi->afd
-						  || pLD->pts < vi->aspect_pts)
+					if(new_afd != vi->afd
+					      || pLD->pts < pLD->aspect_pts)
 
-					    {
-						vi->afd = new_afd;
-						vi->aspect_pts = pLD->pts;
-					    }
-					    pLD->had_afd = 1;
+					{
+					    aspect_change_t * pInfo;
+					    vi->afd = new_afd;
+					    pInfo = malloc(sizeof(*pInfo));
+					    pInfo->aspect = vi->aspect;
+					    pInfo->afd = vi->afd;
+					    vid_event_add(pLD->pts,
+						    VID_EVENT_ASPECT,
+						    (void *)pInfo);
 					}
 				    }
 				}
@@ -1631,11 +1620,6 @@ parse_frame(demux_handle_t *handle, unsigned char *buf, int len, int type)
 			ret += m;
 		}
 		break;
-	case user_data_start_code:
-		handle->next_afd = parse_afd(handle,buf,len-ret);
-		/*Find next frame start*/
-		handle->state = 1;
-		break;
 	default:
 		/* reset to start of frame */
 		handle->state = 1;
@@ -1798,6 +1782,7 @@ start_stream(demux_handle_t *handle)
 
 	video->parser_callback = parse_video_stream;
 	init_video_parser_data(pVidParserData);
+	pVidParserData->aspect_pts = 0;
 	video->parser_data = (void *)pVidParserData;
 	video->ptr_tail_mutex = malloc(sizeof(*(video->ptr_tail_mutex)));
 	pthread_mutex_init(video->ptr_tail_mutex,NULL);

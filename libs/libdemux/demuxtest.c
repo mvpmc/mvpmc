@@ -32,10 +32,16 @@
 #include <fcntl.h>
 
 #include "mvp_demux.h"
+#include "mvp_av.h"
 
 #define BSIZE	(256*1024)
 
 static demux_handle_t *handle;
+
+int vid_event_add(unsigned int pts, eventq_type_t type, void * info)
+{
+    return 0;
+}
 
 static unsigned int
 hash(char *s, int len, unsigned int old)

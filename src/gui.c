@@ -5179,6 +5179,7 @@ main_menu_init(char *server, char *replaytv)
 	splash_update("Creating WSS surface");
 
 	av_wss_init();
+	av_wss_update_aspect(WSS_ASPECT_FULL_4x3);
 
 
 	splash_update("Creating ReplayTV image");

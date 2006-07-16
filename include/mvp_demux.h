@@ -42,7 +42,6 @@ typedef struct {
 	int height;
 	int aspect;
 	int frame_rate;
-	unsigned int aspect_pts;
 	int afd;
 } video_info_t;
 
@@ -64,6 +63,12 @@ typedef enum {
 	STREAM_AC3,
 	STREAM_PCM,
 } stream_type_t;
+
+typedef struct {
+    int aspect;
+    int afd;
+} aspect_change_t;
+	
 
 typedef struct {
 	unsigned int id;
