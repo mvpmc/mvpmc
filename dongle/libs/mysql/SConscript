@@ -5,7 +5,7 @@
 
 import os
 
-Import('env')
+Import('env','crossroot')
 
 home = os.environ['HOME']
 cc = env['CC']
@@ -14,7 +14,7 @@ target = env['TARG']
 
 if target == 'mvp':
   cross = '-c ' + env['CROSS']
-  host_configs = '--host=ppcbe --with-other-libc=/opt/crosstool/powerpc-405-linux-uclibc/gcc-3.3.3-uClibc-0.9.23/lib'
+  host_configs = '--host=ppcbe --with-other-libc='+crossroot+'/lib'
 else:
   cross = ''
   host_configs = ''

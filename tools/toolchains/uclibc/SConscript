@@ -7,9 +7,15 @@ import os
 
 Import('env')
 
-cc = env['CC']
+home = os.environ['HOME']
+downloads = env['DOWNLOADS']
+target = env['TARG']
 pwd = os.getcwd()
 
-uclibc = os.system('cd ' + pwd + ' && ./mvpmc-uclibc.sh ' + cc)
+file = downloads + '/buildroot-20060710.tar.bz2'
+
+url = 'http://buildroot.uclibc.org/downloads/snapshots/buildroot-20060710.tar.bz2'
+uclibc = os.system(pwd +'/mvpmc-uclibc.sh '+file + ' ' + url)
+uclibc = ''
 
 Return('uclibc')

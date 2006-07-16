@@ -13,7 +13,10 @@ target = ARGUMENTS.get('TARGET', Platform())
 
 env.Replace(CCFLAGS = '-O3 -g -Wall -Werror')
 
+home = os.environ['HOME']
+
 crosstool = '/opt/crosstool'
+toolchains =  home + '/toolchains/'
 
 #
 # parse the TARGET= option
@@ -24,21 +27,24 @@ crosstool = '/opt/crosstool'
 if target == 'mvp':
 	print "mvp build"
 	powerpc = 'powerpc-405-linux-uclibc'
-	gcc = 'gcc-3.3.3-uClibc-0.9.23'
+	gcc = 'gcc-3.4.5-uClibc-0.9.28'
 	prefix = powerpc + '-'
-	cross = crosstool + '/' + powerpc + '/' + gcc + '/bin/' + prefix
+	crossroot = toolchains + '/' + powerpc + '/' + gcc + '/'
+	cross = crossroot + '/bin/' + prefix
 	env.Replace(CROSS = cross)
 	env.Replace(CC = cross + 'gcc')
 	cppflags = ''
 elif target == 'host':
 	print "host build"
 	cppflags = '-DMVPMC_HOST'
+	crossroot='';
 elif target == 'kernel':
 	print "kernel build"
 	powerpc = 'powerpc-405-linux-gnu'
 	gcc = 'gcc-2.95.3-glibc-2.2.5'
 	prefix = powerpc + '-'
-	cross = crosstool + '/' + powerpc + '/' + gcc + '/bin/' + prefix
+	crossroot = crosstool + '/' + powerpc + '/' + gcc + '/'
+	cross = crossroot + '/bin/' + prefix
 	cc = cross + 'gcc'
 	env.Replace(CROSS = cross)
 	env.Replace(CC = cross + 'gcc')
@@ -51,7 +57,6 @@ else:
 # build binaries in the obj/TARGET directory
 #
 pwd = os.getcwd()
-home = os.environ['HOME']
 env.Replace(INCDIR = pwd + '/include')
 env.Replace(INSTINCDIR = pwd + '/dongle/install/' + target + '/include')
 env.Replace(INSTLIBDIR = pwd + '/dongle/install/' + target + '/lib')
@@ -63,7 +68,7 @@ env.Replace(DOWNLOADS = home + '/downloads')
 env.Replace(TOPLEVEL = pwd)
 env.Replace(CPPFLAGS = cppflags)
 
-Export('env')
+Export('env','crossroot')
 
 #
 # ensure the download directory exits
