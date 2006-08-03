@@ -14,6 +14,9 @@ host:
 kernel:
 	scons -Q TARGET=kernel
 
+kernel_31:
+	scons -Q TARGET=kernel KERNVER=2.4.31
+
 docs:
 	doxygen Doxyfile
 
