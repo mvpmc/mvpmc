@@ -1,0 +1,266 @@
+diff -Narup linux-2.4.31-orig/arch/ppc/boot/simple/Makefile linux-2.4.31/arch/ppc/boot/simple/Makefile
+--- linux-2.4.31-orig/arch/ppc/boot/simple/Makefile	2005-12-14 15:16:26.000000000 +0800
++++ linux-2.4.31/arch/ppc/boot/simple/Makefile	2006-01-15 17:28:42.000000000 +0800
+@@ -152,6 +152,7 @@ zImage: $(ZIMAGE)
+ 	rm -f zvmlinux
+ zImage.initrd: $(ZIMAGEINITRD)
+ 	rm -f zvmlinux.initrd
++	cp -f ../images/zImage.initrd.$(END) $(INSTALL_PATH)/dongle.bin
+ 
+ znetboot: zImage
+ 	cp ../images/zImage.$(END) $(TFTPIMAGE)
+diff -Narup linux-2.4.31-orig/arch/ppc/boot/simple/misc-embedded.c linux-2.4.31/arch/ppc/boot/simple/misc-embedded.c
+--- linux-2.4.31-orig/arch/ppc/boot/simple/misc-embedded.c	2005-12-14 16:27:53.000000000 +0800
++++ linux-2.4.31/arch/ppc/boot/simple/misc-embedded.c	2006-01-15 17:28:42.000000000 +0800
+@@ -221,6 +221,7 @@ load_kernel(unsigned long load_addr, int
+ 	gunzip(0, 0x400000, zimage_start, &zimage_size);
+ 	flush_instruction_cache();
+ 	puts("done.\n");
++#ifdef CONFIG_BLK_DEV_INITRD
+ 	{
+ 		struct bi_record *rec;
+ 		unsigned long initrd_loc;
+@@ -271,6 +272,31 @@ load_kernel(unsigned long load_addr, int
+ 		rec->size = sizeof(struct bi_record);
+ 		rec = (struct bi_record *)((unsigned long)rec + rec->size);
+ 	}
++#else
++	{
++		/* Moving Squash Rootfs to sdram bank1 */
++		if(initrd_size){
++			#define MAGIC_VER_HCW           0x48435720
++			#define MAGIC_VER_MVP           0x4D565000
++			unsigned long *magic_hcw;
++			unsigned long *magic_mvp;
++			unsigned long *initrd_sz;
++			
++			magic_hcw = 0xa0fff200;
++			magic_mvp = 0xa0fff204;
++			/* if there is no magic number on new xram_start + 512 bytes, we assume 
++			 * system boot first time then move boot data into new xram position. */
++			if( *magic_hcw != MAGIC_VER_HCW && *magic_mvp != MAGIC_VER_MVP ){
++				puts("\nMoving xram data to 0xa0fff000\n");
++				memcpy((void*)(0xa0fff000), (void*)(0xa0f00000), 0x1000);	
++			}
++			puts("Moving initrd to 0xa0d00000\n");
++			memcpy((void*)(0xa0d00000), &__ramdisk_begin, initrd_size);
++			/* writing initrd size into bottom of bank1 memory */
++			memcpy((void*)0xa0fffffc, &initrd_size, 4);
++		}
++	}
++#endif
+ 	puts("Now booting the kernel\n");
+ 	serial_close(com_port);
+ 
+diff -Narup linux-2.4.31-orig/drivers/mtd/maps/Config.in linux-2.4.31/drivers/mtd/maps/Config.in
+--- linux-2.4.31-orig/drivers/mtd/maps/Config.in	2005-12-14 15:16:07.000000000 +0800
++++ linux-2.4.31/drivers/mtd/maps/Config.in	2006-01-15 17:28:22.000000000 +0800
+@@ -45,6 +45,7 @@ if [ "$CONFIG_PPC" = "y" ]; then
+    dep_tristate '  CFI Flash device mapped on D-Box2' CONFIG_MTD_DBOX2 $CONFIG_MTD_CFI
+    dep_tristate '  CFI Flash device mapping on FlagaDM' CONFIG_MTD_CFI_FLAGADM $CONFIG_MTD_CFI
+    dep_tristate '  CFI Flash device mapped on IBM Redwood-4/5' CONFIG_MTD_REDWOOD $CONFIG_MTD_CFI
++   dep_tristate '  SDRAM device mapping on Hauppauge MVP' CONFIG_MTD_MVP_RAM $CONFIG_MTD_CFI
+ fi
+ 
+ if [ "$CONFIG_MIPS" = "y" ]; then
+diff -Narup linux-2.4.31-orig/drivers/mtd/maps/Makefile linux-2.4.31/drivers/mtd/maps/Makefile
+--- linux-2.4.31-orig/drivers/mtd/maps/Makefile	2005-12-14 15:16:07.000000000 +0800
++++ linux-2.4.31/drivers/mtd/maps/Makefile	2006-01-15 17:28:22.000000000 +0800
+@@ -61,5 +61,6 @@ obj-$(CONFIG_MTD_REDWOOD)	+= redwood.o
+ obj-$(CONFIG_MTD_UCLINUX)	+= uclinux.o
+ obj-$(CONFIG_MTD_NETtel)	+= nettel.o
+ obj-$(CONFIG_MTD_SCB2_FLASH)	+= scb2_flash.o
++obj-$(CONFIG_MTD_MVP_RAM)       += ramdisk.o
+ 
+ include $(TOPDIR)/Rules.make
+diff -Narup linux-2.4.31-orig/drivers/mtd/maps/ramdisk.c linux-2.4.31/drivers/mtd/maps/ramdisk.c
+--- linux-2.4.31-orig/drivers/mtd/maps/ramdisk.c	1970-01-01 08:00:00.000000000 +0800
++++ linux-2.4.31/drivers/mtd/maps/ramdisk.c	2006-01-15 17:28:22.000000000 +0800
+@@ -0,0 +1,187 @@
++/*
++ * HCW sdram mtd Driver
++ */
++#include <linux/config.h>
++#include <linux/version.h>
++
++#include <linux/kernel.h>
++#include <linux/module.h>
++
++#if CONFIG_MODVERSIONS == 1
++#define MODVERSIONS
++#include <linux/modversions.h>
++#endif
++
++#include <linux/fs.h>
++#include <asm/io.h>
++#include <linux/mm.h>
++#include <linux/init.h>
++#include <linux/ioport.h>
++#include <linux/errno.h>
++#include <asm/uaccess.h>
++#include <linux/string.h>
++#include <linux/slab.h>
++
++#include <linux/mtd/mtd.h>
++#include <linux/mtd/map.h>
++#include <linux/mtd/partitions.h>
++
++#include <asm/io.h>
++
++#define KDBG(fmt, args...) if(1) printk("<sdram-mtd>: " fmt, ## args)
++
++
++#define __PHYSICAL_ROOTFS_BASE		0xA0D00000
++#define __PHYSICAL_ROOTFS_SIZE_BASE	0xA0FFFFFC
++#define __PHYSICAL_ROOTFS_END_BASE	0xA0FFF000
++#define __PHYSICAL_TOTAL_SIZE		0x002FF000
++
++#define GetRootSize()	{return (*rootfs_size)}
++
++
++//
++// read/write function.
++//
++static __u8 sdram_read8(struct map_info *map, unsigned long ofs)
++{
++	return readb(map->map_priv_1 + ofs);
++}
++
++static __u16 sdram_read16(struct map_info *map, unsigned long ofs)
++{
++	return readw(map->map_priv_1 + ofs);
++}
++
++static __u32 sdram_read32(struct map_info *map, unsigned long ofs)
++{
++	return readl(map->map_priv_1 + ofs);
++}
++
++static void sdram_copy_from(struct map_info *map, void *to, unsigned long from, ssize_t len)
++{
++	memcpy(to, (void *)(map->map_priv_1 + from), len);
++}	
++
++static void sdram_write8(struct map_info *map, __u8 d, unsigned long adr)
++{
++	writeb(d, map->map_priv_1 + adr);
++}
++
++static void sdram_write16(struct map_info *map, __u16 d, unsigned long adr)
++{
++	writew(d, map->map_priv_1 + adr);
++}
++
++static void sdram_write32(struct map_info *map, __u32 d, unsigned long adr)
++{
++	writel(d, map->map_priv_1 + adr);
++}
++
++static void sdram_copy_to(struct map_info *map, unsigned long to, const void *from, ssize_t len)
++{
++	memcpy((void *)(map->map_priv_1 + to), from, len);
++}
++
++static struct mtd_partition hcwmvp_sdram_partitions[] = {
++	{
++		name: "HCW MediaMVP ROOT",	
++		offset: 0x00000000	,
++	},
++	{
++		name: "HCW MediaMVP OSD",
++	},
++};
++
++//
++// sdram mtd map structure.
++//
++struct map_info hcwmvp_sdram_map = {
++	name:"SDRAM MTD Device",
++	buswidth: 2,
++	read8: sdram_read8,
++	read16: sdram_read16,
++	read32: sdram_read32,
++	copy_from: sdram_copy_from,
++	write8: sdram_write8,
++	write16: sdram_write16,
++	write32: sdram_write32,
++	copy_to: sdram_copy_to
++};
++static struct mtd_info *hcwmvp_sdram_mtd=NULL;
++
++static unsigned long 
++sdram_init(void)
++{
++	/*
++	 * I/O Remap
++	 */
++	hcwmvp_sdram_map.map_priv_1 =  
++		(unsigned long)ioremap(__PHYSICAL_ROOTFS_BASE,  __PHYSICAL_TOTAL_SIZE);
++	if (!hcwmvp_sdram_map.map_priv_1) {
++		KDBG("sdram-1 MTD device map failed\n");
++		return 0;
++	}
++	hcwmvp_sdram_map.map_priv_2 = (unsigned long)ioremap(__PHYSICAL_ROOTFS_SIZE_BASE,  4);
++	if (!hcwmvp_sdram_map.map_priv_2) {
++		KDBG("sdram-2 MTD device map failed\n");
++		return 0;
++	}
++	
++	KDBG("SDRAM MTD(%8.8X) mapped to %08x\n", (int)__PHYSICAL_ROOTFS_BASE, (int)hcwmvp_sdram_map.map_priv_1);
++
++	return 1;
++}
++
++/*
++ * module interface
++ */
++static int __init
++sdram_init_module(void)
++{
++	unsigned int root_size=0;
++	/*
++ 	 * Probe & reset Device
++	 */
++	if(!sdram_init()) {
++		KDBG("sdram Module Init Failed: Wrong Dev\n");
++		return -1;
++	}
++	
++	/*
++	 * register mtd device 
++	 */
++	hcwmvp_sdram_map.size = __PHYSICAL_TOTAL_SIZE;
++	hcwmvp_sdram_mtd = do_map_probe("map_ram",&hcwmvp_sdram_map);
++	if (hcwmvp_sdram_mtd) {
++		hcwmvp_sdram_mtd->module = THIS_MODULE;
++		//hcwmvp_sdram_mtd->erasesize = 0xF0000;
++		//add_mtd_device(hcwmvp_sdram_mtd);
++		root_size = in_be32((u32*)hcwmvp_sdram_map.map_priv_2);
++		//root_size |= in_be16((u16*)(hcwmvp_sdram_map.map_priv_2+2));
++		//KDBG("root_size =%x \n", root_size);
++		hcwmvp_sdram_partitions[0].size = root_size;
++		hcwmvp_sdram_partitions[1].offset = root_size;
++		hcwmvp_sdram_partitions[1].size = __PHYSICAL_TOTAL_SIZE -  root_size;
++		add_mtd_partitions(hcwmvp_sdram_mtd, hcwmvp_sdram_partitions, 2);
++	}
++	else{
++		iounmap((void*)(hcwmvp_sdram_map.map_priv_1));
++	}
++
++	return 0;
++}
++
++static void __exit
++sdram_cleanup_module(void)
++{
++	/* unregister mtd device. */
++	//if (hcwmvp_sdram_mtd) del_mtd_device(hcwmvp_sdram_mtd);
++	if (hcwmvp_sdram_mtd){
++		 del_mtd_partitions(hcwmvp_sdram_mtd);
++		 map_destroy(hcwmvp_sdram_mtd);
++	}
++	if (hcwmvp_sdram_map.map_priv_1 != -1) iounmap((void *)hcwmvp_sdram_map.map_priv_1);
++}
++module_init(sdram_init_module);
++module_exit(sdram_cleanup_module);
++MODULE_LICENSE("GPL");

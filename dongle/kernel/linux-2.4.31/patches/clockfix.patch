@@ -1,0 +1,13 @@
+diff -Narup linux-2.4.31-orig/arch/ppc/boot/simple/embed_config.c linux-2.4.31/arch/ppc/boot/simple/embed_config.c
+--- linux-2.4.31-orig/arch/ppc/boot/simple/embed_config.c	2004-04-14 06:05:27.000000000 -0700
++++ linux-2.4.31/arch/ppc/boot/simple/embed_config.c	2005-10-06 00:05:18.000000000 -0700
+@@ -711,6 +711,9 @@ embed_config(bd_t **bdp)
+ 		bd->bi_tbfreq = bd->bi_intfreq;
+ #endif
+ 	}
++#if defined (CONFIG_REDWOOD_5) || defined (CONFIG_REDWOOD_6)
++		bd->bi_tbfreq = 27 * 1000 * 1000;
++#endif
+ }
+ #endif
+ 

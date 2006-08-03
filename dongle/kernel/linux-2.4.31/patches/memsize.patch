@@ -1,0 +1,26 @@
+diff -Narup linux-2.4.31-orig/arch/ppc/boot/simple/misc-embedded.c linux-2.4.31/arch/ppc/boot/simple/misc-embedded.c
+--- linux-2.4.31-orig/arch/ppc/boot/simple/misc-embedded.c	2006-03-16 23:13:06.000000000 +0800
++++ linux-2.4.31/arch/ppc/boot/simple/misc-embedded.c	2006-03-16 12:43:57.000000000 +0800
+@@ -112,6 +112,9 @@ load_kernel(unsigned long load_addr, int
+ 	/* Set end of memory available to us.  It is always the highest
+ 	 * memory address provided by the board information.
+ 	 */
++#if defined (CONFIG_REDWOOD_5) || defined (CONFIG_REDWOOD_6)
++	bp->bi_memsize = (16 * 1024 * 1024); // memory limited to 16 MBytes
++#endif 
+ 	end_avail = (char *)(bp->bi_memsize);
+ 
+ 	puts("\nloaded at:     "); puthex(load_addr);
+diff -Narup linux-2.4.31-orig/arch/ppc/kernel/ppc4xx_setup.c linux-2.4.31/arch/ppc/kernel/ppc4xx_setup.c
+--- linux-2.4.31-orig/arch/ppc/kernel/ppc4xx_setup.c	2006-03-16 23:13:28.000000000 +0800
++++ linux-2.4.31/arch/ppc/kernel/ppc4xx_setup.c	2006-03-16 12:45:35.000000000 +0800
+@@ -161,6 +161,9 @@ ppc4xx_find_end_of_memory(void)
+ {
+ 	bd_t *bip = (bd_t *) __res;
+ 
++#if defined (CONFIG_REDWOOD_5) || defined (CONFIG_REDWOOD_6)
++	bip->bi_memsize = 0x1000000;	// memory was limited 16MB.
++#endif
+ 	return ((unsigned long) bip->bi_memsize);
+ }
+ 

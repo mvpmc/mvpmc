@@ -1,0 +1,13 @@
+diff -Narup linux-2.4.31-orig/Makefile linux-2.4.31/Makefile
+--- linux-2.4.31-orig/Makefile	2005-08-09 11:20:36.000000000 -0700
++++ linux-2.4.31/Makefile	2005-08-09 11:10:56.000000000 -0700
+@@ -361,7 +357,8 @@ include/linux/compile.h: $(CONFIGURATION
+ 	@rm -f .ver1
+ 
+ include/linux/version.h: ./Makefile
+-	@expr length "$(KERNELRELEASE)" \<= $(uts_len) > /dev/null || \
++#	@expr length "$(KERNELRELEASE)" \<= $(uts_len) > /dev/null || \
++	@test `echo $(KERNELRELEASE) | wc -c | cut -c1-8` -le `expr $(uts_len) + 1` || \
+ 	  (echo KERNELRELEASE \"$(KERNELRELEASE)\" exceeds $(uts_len) characters >&2; false)
+ 	@echo \#define UTS_RELEASE \"$(KERNELRELEASE)\" > .ver
+ 	@echo \#define LINUX_VERSION_CODE `expr $(VERSION) \\* 65536 + $(PATCHLEVEL) \\* 256 + $(SUBLEVEL)` >> .ver
