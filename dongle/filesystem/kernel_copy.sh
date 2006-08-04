@@ -12,7 +12,8 @@ TARGET=$2
 
 BOOT=${WORKAREA}/arch/ppc/boot
 
-CFILES=${BOOT}/common/{dummy,misc-common,ns16550,relocate,string,util,serial_stub}.o
+SERIAL=${BOOT}/common/serial_stub.o
+CFILES=${BOOT}/common/{dummy,misc-common,ns16550,relocate,string,util}.o
 SFILES=${BOOT}/simple/{embed_config,head,misc-embedded}.o
 KFILE=${BOOT}/images/vmlinux.gz
 
@@ -23,3 +24,6 @@ mkdir -p $TARGET
 rm -f $TARGET/*.o
 cp $FILES $TARGET
 
+if [ -f $SERIAL ] ; then
+    cp $SERIAL $TARGET
+fi

@@ -47,5 +47,4 @@ cd unionfs-1.0.14
 patch -p1 < ../patches/unionfs-1.0.14.patch
 CROSS=$CROSS make unionfs2.4
 cp unionfs.o ../../../filesystem/tree/lib/modules/2.4.31-v1.1-hcwmvp/misc
-cp unionfs.o ../../../filesystem/install/lib/modules/2.4.31-v1.1-hcwmvp/misc
 cd ..
