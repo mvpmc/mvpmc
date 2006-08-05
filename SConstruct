@@ -90,11 +90,13 @@ if target == 'kernel':
 	cc = env['CC']
 	if kernver == '2.4.31':
 		kern = env.SConscript('dongle/kernel/linux-2.4.31/SConscript')
+		gccbuild = 'tools/toolchains/uclibc/SConscript'
 	else:
 		kern = env.SConscript('dongle/kernel/linux-2.4.17/SConscript')
+		gccbuild = 'tools/toolchains/glibc/SConscript'
 	if os.path.exists(cc) == 0:
 		print "build kernel cross-compiler"
-		gcc = env.SConscript('tools/toolchains/glibc/SConscript')
+		gcc = env.SConscript(gccbuild)
 		env.Depends(kern, gcc)
 else:
 	#
