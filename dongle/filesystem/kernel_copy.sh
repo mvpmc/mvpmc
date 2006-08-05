@@ -1,8 +1,6 @@
 #!/bin/sh
 #
-# $Id: kernel_copy.sh,v 1.1.1.1 2004/10/05 04:53:24 gettler Exp $
-#
-# Copyright (C) 2004, Jon Gettler
+# Copyright (C) 2004-2006, Jon Gettler
 # http://mvpmc.sourceforge.net/
 #
 # This script will copy the needed files out of a kernel build workarea
@@ -14,6 +12,7 @@ TARGET=$2
 
 BOOT=${WORKAREA}/arch/ppc/boot
 
+SERIAL=${BOOT}/common/serial_stub.o
 CFILES=${BOOT}/common/{dummy,misc-common,ns16550,relocate,string,util}.o
 SFILES=${BOOT}/simple/{embed_config,head,misc-embedded}.o
 KFILE=${BOOT}/images/vmlinux.gz
@@ -22,5 +21,9 @@ FILES=`sh -c "echo $CFILES $SFILES $KFILE ${BOOT}/lib/zlib.a ${BOOT}/ld.script"`
 
 mkdir -p $TARGET
 
+rm -f $TARGET/*.o
 cp $FILES $TARGET
 
+if [ -f $SERIAL ] ; then
+    cp $SERIAL $TARGET
+fi

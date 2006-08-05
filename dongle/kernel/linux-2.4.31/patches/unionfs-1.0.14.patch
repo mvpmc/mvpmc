@@ -1,0 +1,49 @@
+--- unionfs-1.0.14.orig/Makefile	2005-09-15 19:55:43.000000000 +0100
++++ unionfs-1.0.14/Makefile	2006-02-21 23:02:55.000000000 +0100
+@@ -3,9 +3,9 @@
+ #
+ 
+ # this should point to where your kernel headers are
+-KVERS=$(shell uname -r)
+-MODDIR= /lib/modules/$(KVERS)
+-LINUXSRC = /lib/modules/$(KVERS)/build
++KVERS = 2.4.31-v1.1-hcwmvp
++LINUXSRC = ../linux-2.4.31
++CROSS_COMPILE = ${CROSS}
+ TOPINC   = -I${LINUXSRC}/include
+ # This is where the make install target will put stuff
+ PREFIX   = /usr/local
+@@ -14,7 +14,7 @@
+ VERSION  = 1.0.14
+ TAROPTS = czvf
+ COMPEXT = .gz
+-UNIONFS_DEBUG_CFLAG = -g
++UNIONFS_DEBUG_CFLAG =
+ UNIONFS_OPT_CFLAG= -O2
+ UNIONFS_VERSION_CFLAG=-DUNIONFS_VERSION=\"${VERSION}\"
+ 
+@@ -28,11 +28,13 @@
+ else
+ -include fistdev.mk
+ endif
++EXTRACFLAGS=-DUNIONFS_NDEBUG -DUNIONFS_UNSUPPORTED
+ 
+-CC	= gcc
++CC	= ${CROSS_COMPILE}gcc
++LD	= ${CROSS_COMPILE}ld
+ KERNELVERSION=$(shell echo $(KVERS) | cut -d. -f1,2)
+ ifeq ($(KERNELVERSION),2.4)
+-CFLAGS = -D__KERNEL__ -DMODULE -I. ${TOPINC} -Wall -Wno-unused-label -Werror -fno-strict-aliasing ${EXTRACFLAGS} ${UNIONFS_DEBUG_CFLAG} ${UNIONFS_OPT_CFLAG} ${UNIONFS_VERSION_CFLAG}
++CFLAGS = -D__KERNEL__ -DMODULE -I. ${TOPINC} -Wall -Werror -fno-strict-aliasing ${EXTRACFLAGS} ${UNIONFS_DEBUG_CFLAG} ${UNIONFS_OPT_CFLAG} ${UNIONFS_VERSION_CFLAG}
+ endif
+ EXTRA_CFLAGS += ${TOPINC} -Wall -Werror ${EXTRACFLAGS} ${UNIONFS_DEBUG_CFLAG} ${UNIONFS_OPT_CFLAG} ${UNIONFS_VERSION_CFLAG}
+ UCFLAGS = -I. ${UNIONFS_DEBUG_CFLAG} ${UNIONFS_OPT_CFLAG} -Wall -Werror ${EXTRAUCFLAGS}  ${UNIONFS_VERSION_CFLAG}
+@@ -62,7 +64,7 @@
+ unionfs2.4: ${obj-m}
+ 
+ ${obj-m}: ${unionfs-objs}
+-	ld -o ${obj-m} -r ${unionfs-objs}
++	${LD} -o ${obj-m} -r ${unionfs-objs}
+ 
+ unionctl: unionctl.c usercommon.c
+ 	${CC} -o $@ $^ ${UCFLAGS}

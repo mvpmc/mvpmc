@@ -10,6 +10,7 @@ import sys
 env = Environment (ENV = os.environ)
 
 target = ARGUMENTS.get('TARGET', Platform())
+kernver = ARGUMENTS.get('KERNVER', Platform())
 
 env.Replace(CCFLAGS = '-O3 -g -Wall -Werror')
 
@@ -82,7 +83,10 @@ if target == 'kernel':
 	# do the kernel build
 	#
 	cc = env['CC']
-	kern = env.SConscript('dongle/kernel/linux-2.4.17/SConscript')
+	if kernver == '2.4.31':
+		kern = env.SConscript('dongle/kernel/linux-2.4.31/SConscript')
+	else:
+		kern = env.SConscript('dongle/kernel/linux-2.4.17/SConscript')
 	if os.path.exists(cc) == 0:
 		print "build kernel cross-compiler"
 		gcc = env.SConscript('tools/toolchains/glibc/SConscript')

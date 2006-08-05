@@ -1,20 +1,10 @@
 #!/bin/sh
 #
-# $Id: dongle_build.sh,v 1.6 2006/02/10 13:49:47 stuart Exp $
-#
-# Copyright (C) 2004,2005 Jon Gettler
+# Copyright (C) 2004-2006 Jon Gettler
 # http://mvpmc.sourceforge.net/
 #
 # This script will copy the IBM kernel modules from a Hauppauge dongle.bin
 # bootfile and build a new bootable mediamvp file from the supplied filesystem.
-#
-# The programs in bin were built under Suse 9.0.  If they do not work for you,
-# you will need to rebuild them.  See http://www.dforsyth.net/mvp/software.html
-# or http://mvpmc.sourceforge.net/ for info on setting up a cross compilation
-# environment.
-#
-# To use your own versions of mktree and/or genext2fs, make sure they can be
-# found in $PATH.  For objcopy and ld, set $CROSS to point to their prefix.
 #
 
 set -ex
@@ -63,7 +53,7 @@ $OBJCOPY -O elf32-powerpc \
 	--add-section=.image=${KERN} \
 	--set-section-flags=.image=contents,alloc,load,readonly,data \
 	filesystem/kernel_files/dummy.o ${TMP}/image.o
-$LD -T filesystem/kernel_files/ld.script -Ttext 0x00400000 -Bstatic -o ${TMP}/zvmlinux.initrd filesystem/kernel_files/head.o filesystem/kernel_files/relocate.o  filesystem/kernel_files/misc-embedded.o filesystem/kernel_files/misc-common.o filesystem/kernel_files/string.o filesystem/kernel_files/util.o filesystem/kernel_files/embed_config.o filesystem/kernel_files/ns16550.o ${TMP}/image.o filesystem/kernel_files/zlib.a
+$LD -T filesystem/kernel_files/ld.script -Ttext 0x00400000 -Bstatic -o ${TMP}/zvmlinux.initrd filesystem/kernel_files/head.o filesystem/kernel_files/relocate.o  filesystem/kernel_files/misc-embedded.o filesystem/kernel_files/misc-common.o filesystem/kernel_files/string.o filesystem/kernel_files/util.o filesystem/kernel_files/embed_config.o filesystem/kernel_files/ns16550.o ${TMP}/image.o filesystem/kernel_files/zlib.a ${SERIAL_STUB}
 $OBJCOPY -O elf32-powerpc ${TMP}/zvmlinux.initrd ${TMP}/zvmlinux.initrd -R .comment -R .stab -R .stabstr \
 	-R .sysmap
 ../tools/mktree/mktree ${TMP}/zvmlinux.initrd ${OUTFILE} || error "mktree failed"
@@ -85,25 +75,24 @@ while [ "$1" ] ; do
 	esac
 done
 
-#if [[ "$DONGLE" = "" || "$OUTFILE" = "" ]] ; then
-#	print_help
-#	exit 1
-#fi
-
-#./dongle_split.pl $DONGLE || error "dongle split failed"
-#mv ramdisk ramdisk.gz || error "move failed"
-#gunzip ramdisk.gz
-#mv ramdisk vmlinux $TMP
+# linux 2.4.31 has one more file than 2.4.17
+if [ -f filesystem/kernel_files/serial_stub.o ] ; then
+    SERIAL_STUB=filesystem/kernel_files/serial_stub.o
+    KERNELVER=2.4.31
+    EXTRAVER=-v1.1-hcwmvp
+else
+    SERIAL_STUB=
+    KERNELVER=2.4.17
+    EXTRAVER=_mvl21-vdongle
+fi
 
 #
 # Copy the kernel libraries into the fs dir
 #
-#mkdir -p fs/lib/modules/2.4.17_mvl21-vdongle/misc
-#/sbin/debugfs -f fs_cmd ${TMP}/ramdisk
-#cp -f /etc/localtime fs/etc
-mkdir -p filesystem/install/lib/modules/2.4.17_mvl21-vdongle/misc
-cp filesystem/hcw/linux-2.4.17/*.o filesystem/install/lib/modules/2.4.17_mvl21-vdongle/misc
-#awk '/^.dev/ {system("mknod -m" $3 " filesystem/install" $1 " " $2 " " $6 " " $7) ;}' filesystem/devtable
+rm -rf filesystem/install/lib/modules
+mkdir -p filesystem/install/lib/modules/${KERNELVER}${EXTRAVER}/misc
+cp filesystem/tree/lib/modules/${KERNELVER}${EXTRAVER}/misc/*.o filesystem/install/lib/modules/${KERNELVER}${EXTRAVER}/misc
+cp filesystem/hcw/linux-${KERNELVER}/*.o filesystem/install/lib/modules/${KERNELVER}${EXTRAVER}/misc
 mkdir -p filesystem/install/memory
 mkdir -p filesystem/install/union
 

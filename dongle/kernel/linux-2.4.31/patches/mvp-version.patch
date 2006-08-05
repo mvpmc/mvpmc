@@ -1,0 +1,43 @@
+diff -Narup -x .DS_Store linux-2.4.31/arch/ppc/boot/simple/head.S linux-2.4.31-mod/arch/ppc/boot/simple/head.S
+--- linux-2.4.31/arch/ppc/boot/simple/head.S	2003-11-28 10:26:19.000000000 -0800
++++ linux-2.4.31-mod/arch/ppc/boot/simple/head.S	2005-09-08 11:09:48.000000000 -0700
+@@ -45,6 +45,25 @@ start:
+ 	.long	bootrom_cmdline		# address of *bootrom_cmdline
+ #endif
+ 
++#ifdef CONFIG_HCW_MVP
++	/* This is a versioning structure for use with the Hauppauge MediaMVP
++	 * it is provided with no warranty whatsoever. Use at your own risk.
++	 */
++#include <dongle_version.h>
++mvp_start:
++	.long	0x48435720		# structure magic - "HCW MVP" (null terminated)
++	.long	0x4D565000
++	.long	(mvp_end - mvp_start)	# size
++	.long	0x00010000				# struct version (1.0)
++	.long	HCW_COMPATIBLE_VERSION	# compatible version
++	.long	HCW_BUILD_VERSION		# build version
++	.long	0						# reserved[4]
++	.long	0
++	.long	0
++	.long	0
++mvp_end:
++#endif
++
+ start_:
+ #ifdef CONFIG_FORCE
+ 	/* We have some really bad firmware.  We must disable the L1
+diff -Narup -x .DS_Store linux-2.4.31/arch/ppc/config.in linux-2.4.31-mod/arch/ppc/config.in
+--- linux-2.4.31/arch/ppc/config.in	2005-09-08 11:04:56.000000000 -0700
++++ linux-2.4.31-mod/arch/ppc/config.in	2005-09-08 11:09:01.000000000 -0700
+@@ -81,6 +81,10 @@ if [ "$CONFIG_40x" = "y" ]; then
+    if [ "$CONFIG_EP405" = "y" ]; then
+       bool 'EP405PC Support' CONFIG_EP405PC
+    fi
++   
++   if [ "$CONFIG_REDWOOD_6" = "y" ]; then
++      bool 'Hauppauge MediaMVP support' CONFIG_HCW_MVP
++   fi
+ fi
+ 
+ if [ "$CONFIG_44x" = "y" ]; then

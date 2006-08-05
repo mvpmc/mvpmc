@@ -27,7 +27,7 @@ do_ntp() {
 # filesystem with unionfs.
 #
 mount -t tmpfs -o "size=1M" tmpfs /memory
-insmod unionfs
+insmod -f unionfs
 mount -t unionfs -o dirs=/memory=rw:/=ro unionfs /union
 cd /union
 mkdir live

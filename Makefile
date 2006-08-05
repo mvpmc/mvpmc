@@ -14,6 +14,9 @@ host:
 kernel:
 	scons -Q TARGET=kernel
 
+kernel_31:
+	scons -Q TARGET=kernel KERNVER=2.4.31
+
 docs:
 	doxygen Doxyfile
 
@@ -31,6 +34,12 @@ clean:
 distclean: clean
 	rm -rf dongle/install
 	rm -rf dongle/filesystem/install
+	rm -rf dongle/kernel/filesystem
+	rm -rf dongle/kernel/linux-2.4.17/ac3
+	rm -rf dongle/kernel/linux-2.4.17/mvpdist
+	rm -rf dongle/kernel/linux-2.4.17/unionfs-1.0.14
+	rm -rf dongle/kernel/linux-2.4.31/linux-2.4.31
+	rm -rf dongle/kernel/linux-2.4.31/unionfs-1.0.14
 	rm -rf tools/toolchains/glibc/crosstool-0.42
 	rm -rf tools/toolchains/uclibc/crosstool-0.28-rc5
 	rm -rf tools/genext2fs/genext2fs-1.4rc1
