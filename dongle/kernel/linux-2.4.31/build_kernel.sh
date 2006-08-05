@@ -9,6 +9,9 @@ TARBALLS_DIR=$1
 CROSS=$2
 
 rm -rf linux-2.4.31
+rm -rf unionfs-1.0.14
+rm -rf ac3
+rm -rf mvpstb
 
 mkdir -p $TARBALLS_DIR
 if [[ ! -a $TARBALLS_DIR/linux-2.4.31.tar.bz2 ]] ; then
@@ -47,4 +50,19 @@ cd unionfs-1.0.14
 patch -p1 < ../patches/unionfs-1.0.14.patch
 CROSS=$CROSS make unionfs2.4
 cp unionfs.o ../../../filesystem/tree/lib/modules/2.4.31-v1.1-hcwmvp/misc
+cd ..
+
+mkdir ac3
+cd ac3
+cp ../patches/ac3.c .
+cp ../patches/ppc_40x.h .
+${CROSS}gcc -D__KERNEL__ -I../linux-2.4.31/include -Wall -Wstrict-prototypes -Wno-trigraphs -O2 -fomit-frame-pointer -fno-strict-aliasing -fno-common -I../linux-2.4.31/arch/ppc -fsigned-char -msoft-float -pipe -ffixed-r2 -Wno-uninitialized -mmultiple -mstring -Wa,-m405 -DMODULE -c -o ac3_mod.o ac3.c
+cp ac3_mod.o ../../../filesystem/tree/lib/modules/2.4.31-v1.1-hcwmvp/misc
+cd ..
+
+mkdir mvpstb
+cd mvpstb
+cp ../patches/mvpstb_mod.[ch] .
+${CROSS}gcc -D__KERNEL__ -I../linux-2.4.31/include -Wall -Wstrict-prototypes -Wno-trigraphs -O2 -fomit-frame-pointer -fno-strict-aliasing -fno-common -I../linux-2.4.31/arch/ppc -fsigned-char -msoft-float -pipe -ffixed-r2 -Wno-uninitialized -mmultiple -mstring -Wa,-m405 -DMODULE -c -o mvpstb_mod.o mvpstb_mod.c
+cp mvpstb_mod.o ../../../filesystem/tree/lib/modules/2.4.31-v1.1-hcwmvp/misc
 cd ..
