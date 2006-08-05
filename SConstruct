@@ -41,10 +41,15 @@ elif target == 'host':
 	crossroot='';
 elif target == 'kernel':
 	print "kernel build"
-	powerpc = 'powerpc-405-linux-gnu'
-	gcc = 'gcc-2.95.3-glibc-2.2.5'
+	if kernver == '2.4.31':
+		powerpc = 'powerpc-405-linux-uclibc'
+		gcc = 'gcc-3.4.5-uClibc-0.9.28'
+		crossroot = toolchains + '/' + powerpc + '/' + gcc + '/'
+	else:
+		powerpc = 'powerpc-405-linux-gnu'
+		gcc = 'gcc-2.95.3-glibc-2.2.5'
+		crossroot = crosstool + '/' + powerpc + '/' + gcc + '/'
 	prefix = powerpc + '-'
-	crossroot = crosstool + '/' + powerpc + '/' + gcc + '/'
 	cross = crossroot + '/bin/' + prefix
 	cc = cross + 'gcc'
 	env.Replace(CROSS = cross)
