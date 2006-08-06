@@ -1,7 +1,16 @@
-diff -ruN ntpclient-orig/Makefile ntpclient/Makefile
---- ntpclient-orig/Makefile	2003-05-18 13:41:25.000000000 -0500
-+++ ntpclient/Makefile	2006-04-15 08:35:45.000000000 -0500
-@@ -22,5 +22,11 @@
+--- ntpclient/Makefile	2003-05-18 13:41:25.000000000 -0500
++++ ntpclient-new/Makefile	2006-08-05 22:08:01.000000000 -0500
+@@ -9,7 +9,8 @@
+ # -Wundef not recognized by gcc-2.7.2.3
+ CFLAGS += -Wall -Wpointer-arith -Wcast-align -Wcast-qual -Wshadow \
+  -Waggregate-return -Wnested-externs -Winline -Wwrite-strings \
+- -Wstrict-prototypes
++ -Wstrict-prototypes -static
++LDFLAGS = -static
+ 
+ CFLAGS += -O
+ 
+@@ -22,5 +23,11 @@
  
  adjtimex: adjtimex.o
  
