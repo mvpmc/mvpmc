@@ -27,13 +27,15 @@ PATCHES="architecture.patch squashfs2.2-patch smc91111.patch ppc405-wdt.patch ke
 
 cp patches/dongle_version.h linux-2.4.31/include
 cp patches/redwood.c linux-2.4.31/drivers/mtd/maps
-cp patches/config.production linux-2.4.31/.config
+cp patches/kernel_dot_config linux-2.4.31/.config
 
 for i in $PATCHES ; do
     patch -f -N -s -p1 -d linux-2.4.31 < patches/$i
 done
 
 cd linux-2.4.31
+patch -p1 < ../patches/cifs_24.patch
+tar -xzf ../patches/fs_cifs.tgz
 patch -p0 < ../patches/ver.patch
 
 export CROSS
