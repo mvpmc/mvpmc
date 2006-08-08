@@ -61,8 +61,8 @@
 #include <mvp_osd.h>
 
 #include "mvpmc.h"
-#include "mythtv.h"
 #include "emulate.h"
+#include "mythtv.h"
 #include "config.h"
 
 #include <vncviewer.h>
@@ -118,6 +118,9 @@ Bool direct_init(stream_t *stream, char *hostname, int port);
 Bool RDCSendStop(void);
 Bool RDCSendProgress(stream_t *stream);
 Bool RDCSendRequestAck(int type);
+
+int wol_getmac(char *ip);
+int wol_wake(void);
 
 #define  programName "mvpmc"
 
@@ -252,10 +255,12 @@ int connect_to_servers(void)
         mystream.directsock = -1;
         //mvpav_setfd(-1);
     }
-
+    wol_wake();
     query_host_parameters();
     if (c_addr==NULL) {
         return -1;
+    } else {
+        wol_getmac(c_addr);
     }
     c_server_host = c_addr;  /* Leak first time if configured... */
 
@@ -334,7 +339,7 @@ void query_host_parameters(void)
     }
     attempts = 0;
 
-    while ( attempts < 20 ) {
+    while ( attempts < 30 ) {
 
         memset(buf,0,sizeof(buf));
         ptr = buf;
@@ -397,8 +402,8 @@ void query_host_parameters(void)
                 FREENULL(c_addr);
                 c_addr = STRDUP(addr);
                 if (strcmp(mvp_server,"?")) {
-                    if (strcmp(mvp_server,c_addr)==0) {
-                       return;
+                    if (strcmp(mvp_server,c_addr)==0){
+                        return;
                     } else {
                         printf("IP did not match %s\n",c_addr);
                         FREENULL(c_addr);
@@ -410,7 +415,7 @@ void query_host_parameters(void)
             }
         } else {
             attempts++;
-            snprintf(buffer,sizeof(buffer),"Atempt ( %d / 20)  ",attempts);
+            snprintf(buffer,sizeof(buffer),"Atempt ( %d / 30)  ",attempts);
             osd_drawtext(surface, 150, 230, buffer,
         		     osd_rgba(93,200, 237, 255),
         		     osd_rgba(0, 0, 0, 255), 1, &font_CaslonRoman_1_25);
@@ -924,10 +929,10 @@ Bool HandleRDCMessage(int sock)
         }
         while (is_stopping != EMU_RUNNING) {
             usleep(10000);
-            PRINTF("Display is state %d\n",!display[1]);
-            SetDisplayState(display[1]);
-            RDCSendRequestAck(RDC_MENU);
         }
+        PRINTF("Display is state %d\n",!display[1]);
+        SetDisplayState(display[1]);
+        RDCSendRequestAck(RDC_MENU);
         return True;
     }
     case RDC_MUTE:
@@ -1348,7 +1353,7 @@ Bool media_read_message(stream_t *stream)
             mvpw_focus(vnc_widget);
             osd_display_surface(surface);
             UpdateFinished();
-            RDCSendPing();
+//            RDCSendPing();
             RDCSendRequestAck(RDC_STOP);
 
         } else if (mystream.mediatype==TYPE_AUDIO ) {
@@ -1607,3 +1612,4 @@ void mvp_timer_callback(mvp_widget_t *widget)
         SendIncrementalFramebufferUpdateRequest();
     }
 }
+

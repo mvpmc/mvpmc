@@ -96,7 +96,7 @@ struct my_oggHeader {
 };
 static FILE *oggfile;
 char shoutcastDisplay[41];
-
+char *stristr(char *str, char *substr);
 
 #define BSIZE		(1024*32)
 #define AC3_SIZE	(1024*512)
@@ -1224,7 +1224,7 @@ audio_start(void *arg)
 	sigset_t sigs;
 	pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 	int afd;
-	int done;
+	int done=0;
 
 	signal(SIGURG, sighandler);
 	sigemptyset(&sigs);
@@ -1253,6 +1253,7 @@ audio_start(void *arg)
 		audio_stop = 0;
         OggStreamState = OGG_STATE_UNKNOWN;
 
+        mvpw_show(fb_progress);
 
 		while (( (done=audio_player(0, afd)) == 0)  &&
 		       current && !audio_stop)
@@ -1302,7 +1303,9 @@ audio_start(void *arg)
 
 		close(fd);
 		audio_clear();
-        mvpw_hide(fb_progress);
+        if (done < 0 ) {
+            mvpw_hide(fb_progress);
+        }
 	}
 
 	return NULL;
@@ -1768,6 +1771,8 @@ int http_main(void)
                     } else if (strcmp(line_data,"200")==0) {
                         // default shoutcast to mp3 when none found
                         ContentType = CONTENT_200;
+                    } else if (ContentType == CONTENT_PLAYLIST) {
+                        ContentType = CONTENT_UNKNOWN;
                     } else {
 //                        ContentType = CONTENT_UNKNOWN;
                     }
@@ -1971,7 +1976,7 @@ int http_main(void)
                             } else if (strncmp(line_data,"Too many requests.",18) == 0 ){
                                 mvpw_set_text_str(fb_name, line_data);
                                 ContentType = CONTENT_ERROR;
-                            } else if ( strncasecmp(line_data,"<ASX VERSION=",13) == 0 ) {
+                            } else if ( strncasecmp(line_data,"<ASX VERSION",12) == 0 ) {
                                 // probably video/x-ms-asf
                                 playlistType = PLAYLIST_ASX;
                                 ContentType = CONTENT_PLAYLIST;
@@ -2076,31 +2081,34 @@ int http_main(void)
                             if (strstr(line_data,"[Reference]") !=NULL ) {
                                 playlistType = PLAYLIST_ASX_REFERENCE;
                             } else {
-                                ptr = strstr(line_data,"<ref href=");
-                                if (ptr==NULL){
-                                    ptr = strstr(line_data,"<REF HREF=");
-                                }
-                                if (ptr==NULL){
-                                    ptr = strstr(line_data,"<ref HREF=");
-                                }
-
+                                ptr = stristr(line_data,"<REF HREF");
                                 if (ptr!=NULL){
-                                    ptr+=11;
-                                    char *z;
-                                    z = strchr(ptr,'"');
-                                    if (z!=NULL) {
-                                        *z = 0;
+                                    printf("%s\n",ptr);
+                                    ptr+=9;
+                                    while (*ptr!=0) {
+                                        if (*ptr =='"') {
+                                            ptr++;
+                                            break;
+                                        }
+                                        ptr++;
                                     }
-                                    if (is_streaming(ptr) >= 0 ) {
-                                        if (curEntry <= MAX_PLAYLIST ) {
-                                            if (curEntry == -1 ) {
-                                                // assume 1 before number of entries
-                                                curEntry = 0;
-                                                NumberOfEntries = 1;
+                                    if (*ptr!=0) {
+                                        char *z;
+                                        z = strchr(ptr,'"');
+                                        if (z!=NULL) {
+                                            *z = 0;
+                                        }
+                                        if (is_streaming(ptr) >= 0 ) {
+                                            if (curEntry <= MAX_PLAYLIST ) {
+                                                if (curEntry == -1 ) {
+                                                    // assume 1 before number of entries
+                                                    curEntry = 0;
+                                                    NumberOfEntries = 1;
+                                                }
+                                                snprintf(url[curEntry],MAX_URL_LEN,"%s",ptr);
+                                                curEntry++;
+                                                stateGet = HTTP_RETRY;
                                             }
-                                            snprintf(url[curEntry],MAX_URL_LEN,"%s",ptr);
-                                            curEntry++;
-                                            stateGet = HTTP_RETRY;
                                         }
                                     }
                                 }
@@ -2953,3 +2961,19 @@ int mplayer_helper_connect(FILE *outlog,char *url,int stopme)
     return retcode;
 }
 
+char *stristr(char *str, char *substr)
+{
+	long lensub,remains;
+    char *ptr;
+	lensub = strlen(substr);
+	remains = strlen(str);
+    ptr = str;
+	while (remains >= lensub) {
+		if(strncasecmp(ptr, substr, lensub)==0){
+            return(ptr);
+        }
+        remains--;
+        ptr++;
+	}
+	return(NULL);
+}

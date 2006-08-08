@@ -8,6 +8,7 @@
 /dev/fb0	c	600	0	0	29	0	0	0
 /dev/fb1	c	600	0	0	29	1	0	0
 /dev/full	c	600	0	0	1	7	0	0
+/dev/fuse	c	666	0	0	10	229	0	0
 /dev/irmouse	c	600	0	0	10	11	0	0
 /dev/kmem	c	600	0	0	1	2	0	0
 /dev/mem	c	600	0	0	1	1	0	0
