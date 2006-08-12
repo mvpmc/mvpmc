@@ -198,6 +198,7 @@ typedef struct {
     int rfb_mode;
     int flicker;
     int control;
+    char wol_mac[18];
 }web_config_t;
 
 web_config_t *web_config;
@@ -2032,8 +2033,11 @@ int mvp_config_general(char *line)
     if (setTime==0) {
         FILE *web_config_file;
         web_config_file = fopen (WEB_CONFIG_FILENAME,"wb");
-        fwrite((char *)&web_config,sizeof(web_config_t),1,web_config_file);
-        fclose(web_config_file);
+        if (web_config_file!=NULL) {
+            fwrite((char *)web_config,sizeof(web_config_t),1,web_config_file);
+            fclose(web_config_file);
+        }
+
         if (web_config->live365_userid[0]!=0) {
             char live_environ[75];
             snprintf(live_environ,75,"%s&password=%s",web_config->live365_userid,web_config->live365_password);
@@ -2240,6 +2244,7 @@ int mvp_load_data(FILE *stream,char *line)
                             case WEB_CONFIG_START_SETTING:
                             case WEB_CONFIG_START_REPLAY:
                             case WEB_CONFIG_START_MCLIENT:
+                            case WEB_CONFIG_START_EMULATE:
                                 if (web_config->startup_this_feature == (id - WEB_CONFIG_START_MAIN) ) {
                                     fprintf(stream," SELECTED");
                                 }
@@ -2389,7 +2394,7 @@ void load_web_config(char *font)
     if (web_config_file !=NULL ) {
         printf("web file open\n");
         memset(web_config, 0, sizeof(*web_config));
-        fread((char *)&web_config,sizeof(web_config_t),1,web_config_file);
+        fread((char *)web_config,sizeof(web_config_t),1,web_config_file);
         fclose(web_config_file);
         char live_environ[75];
         snprintf(live_environ,75,"%s&password=%s",web_config->live365_userid,web_config->live365_password);
@@ -2557,5 +2562,42 @@ void reset_web_config(void)
         free(mythtv_server);
         mythtv_server = NULL;
     }
+}
+
+int wol_getmac(char *ip)
+{
+    char command[128];
+    FILE * in;
+    char *p,*p1;
+    snprintf(command,128,"/usr/bin/arping -c 1 %s",ip);
+    in = popen(command, "r");
+    if (in==NULL)printf("%d\n",errno);
+    while (fgets(command,128,in)!=NULL) {
+        if (strncmp(command,"Unicast reply",13)==0) {
+            p = strchr(command,'[');
+            if (p!=NULL) {
+                p++;
+                p1 = strchr(p,']');
+                if (p1!=NULL) {
+                    *p1 = 0;
+                    snprintf(web_config->wol_mac,18,"%s",p);
+                    printf("Emulation server mac address is %s\n",p);
+                }
+            }
+        }
+    }
+    fclose(in);
+    return 0;
+}
+
+int wol_wake(void)
+{
+    int rc = -1;
+    if (web_config->wol_mac[0]!=0) {
+        if (fork()==0) {
+            rc = execlp("/usr/bin/ether-wake","ether-wake",web_config->wol_mac,(char *)0);
+        }
+    }
+    return rc;
 }
 
