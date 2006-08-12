@@ -17,7 +17,10 @@ env.Replace(CCFLAGS = '-O3 -g -Wall -Werror')
 home = os.environ['HOME']
 
 crosstool = '/opt/crosstool'
-toolchains =  home + '/toolchains/'
+toolchains =  '/opt/toolchains/'
+
+if os.path.exists(toolchains) == 0:
+	toolchains =  home + '/toolchains/'
 
 #
 # parse the TARGET= option
