@@ -52,7 +52,7 @@ av_init(void)
 {
 	int video_mode = 0, audio_mode = 2;
 
-	init_mtd1();
+	init_mtd();
 
     	if (fd_video < 0 )
 	    if ((fd_video=open("/dev/vdec_dev", O_RDWR|O_NONBLOCK)) < 0)

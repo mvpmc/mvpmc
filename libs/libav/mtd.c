@@ -1,6 +1,6 @@
 /*
- *  Copyright (C) 2004, Jon Gettler
- *  http://mvpmc.sourceforge.net/
+ *  Copyright (C) 2004-2006, Jon Gettler
+ *  http://www.mvpmc.org/
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -17,45 +17,96 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ident "$Id$"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <string.h>
 
 #include "mvp_av.h"
 #include "av_local.h"
 
 /*
- * init_mtd1() - Read configuration data out of flash
+ * init_mtd() - Read configuration data out of flash
  *
  * Arguments:
  *	none
  *
  * Returns:
- *	0 if mtd1 could be read, -1 if it failed
+ *	0 if mtd partition could be read, -1 if it failed
  */
 int
-init_mtd1(void)
+init_mtd(void)
 {
-	int fd;
+	int fd, i = 0, found = 0;
 	short *mtd;
+	char path[64];
+	av_mode_t video = AV_MODE_NTSC;
+	av_video_aspect_t ratio = AV_TV_ASPECT_4x3;
 
-	if ((fd=open("/dev/mtd1", O_RDONLY)) < 0)
+	if ((fd=open("/proc/mtd", O_RDONLY)) > 0) {
+		FILE *f = fdopen(fd, "r");
+		char line[64];
+		/* read the header */
+		fgets(line, sizeof(line), f);
+		/* read each mtd entry */
+		while (fgets(line, sizeof(line), f) != NULL) {
+			if (strstr(line, " VPD") != NULL) {
+				found = 1;
+				break;
+			}
+			i++;
+		}
+		fclose(f);
+		close(fd);
+	}
+
+	if (!found) {
+		return -1;
+	}
+
+	snprintf(path, sizeof(path), "/dev/mtd%d", i);
+
+	if ((fd=open(path, O_RDONLY)) < 0)
 		return -1;
 
-	if ((mtd=malloc(8192)) == NULL)
+	if ((mtd=malloc(8192)) == NULL) {
+		close(fd);
 		return -1;
+	}
 
-	read(fd, mtd, 8192);
+	if (read(fd, mtd, 8192) != 8192) {
+		close(fd);
+		return -1;
+	}
 
 	close(fd);
 
-	vid_mode = mtd[2119];
-	tv_aspect = mtd[2125];
+	video = mtd[2119];
+	ratio = mtd[2125];
 
 	free(mtd);
+
+	/* verify video mode is reasonable */
+	switch (video) {
+	case AV_MODE_NTSC:
+	case AV_MODE_PAL:
+		break;
+	default:
+		return -1;
+	}
+
+	/* verify aspect ratio is reasonable */
+	switch (ratio) {
+	case AV_TV_ASPECT_4x3:
+	case AV_TV_ASPECT_16x9:
+		break;
+	default:
+		return -1;
+	}
+
+	vid_mode = video;
+	tv_aspect = ratio;
 
 	return 0;
 }

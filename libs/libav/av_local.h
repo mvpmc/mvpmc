@@ -4,8 +4,8 @@
 /*
  *  $Id$
  *
- *  Copyright (C) 2004, Jon Gettler
- *  http://mvpmc.sourceforge.net/
+ *  Copyright (C) 2004-2006 Jon Gettler
+ *  http://www.mvpmc.org/
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -22,7 +22,7 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#define init_mtd1	__init_mtd1
+#define init_mtd	__init_mtd
 #define vid_mode	__vid_mode
 #define aspect		__aspect
 #define set_output_method		__set_output_method
@@ -36,7 +36,7 @@ extern int ffwd;
 extern av_mode_t vid_mode;
 extern av_tv_aspect_t tv_aspect;
 
-extern int init_mtd1(void);
+extern int init_mtd(void);
 extern int set_output_method(void);
 
 #define AV_DEBUG(x) printf("%s: %s\n", __FUNCTION__,(x));fflush(stdout);
