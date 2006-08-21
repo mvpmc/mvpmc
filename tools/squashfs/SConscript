@@ -31,7 +31,8 @@ def GetSourceFile(url, output_dir, env):
   node = env.SourceCode( munged, env.WGet() )
   return node
 
-url = 'http://surfnet.dl.sourceforge.net/squashfs/squashfs2.2-r2.tar.gz'
+#url = 'http://surfnet.dl.sourceforge.net/squashfs/squashfs2.2-r2.tar.gz'
+url = 'http://www.mvpmc.org/dl/squashfs2.2-r2.tar.gz'
 pwd = os.getcwd()
 
 dl = GetSourceFile(url, '#' + downloads, e)

@@ -39,7 +39,7 @@ def GetSourceFile(url, output_dir, env):
   node = env.SourceCode( munged, env.WGet() )
   return node
 
-url = 'http://mvpmc.sourceforge.net/dl/tremor-1.0.2.tar.gz'
+url = 'http://www.mvpmc.org/dl/tremor-1.0.2.tar.gz'
 pwd = os.getcwd()
 
 dl = GetSourceFile(url, '#' + downloads, e)

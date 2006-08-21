@@ -43,7 +43,8 @@ def GetSourceFile(url, output_dir, env):
   node = env.SourceCode( munged, env.WGet() )
   return node
 
-url = 'ftp://microwindows.censoft.com/pub/microwindows/microwindows-src-0.91.tar.gz'
+#url = 'ftp://microwindows.censoft.com/pub/microwindows/microwindows-src-0.91.tar.gz'
+url = 'http://www.mvpmc.org/dl/microwindows-src-0.91.tar.gz'
 pwd = os.getcwd()
 
 dl = GetSourceFile(url, '#' + downloads, e)

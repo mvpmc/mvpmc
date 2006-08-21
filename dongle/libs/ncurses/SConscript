@@ -33,7 +33,8 @@ def GetSourceFile(url, output_dir, env):
   node = env.SourceCode( munged, env.WGet() )
   return node
 
-url = 'http://ftp.gnu.org/pub/gnu/ncurses/ncurses-5.5.tar.gz'
+#url = 'http://ftp.gnu.org/pub/gnu/ncurses/ncurses-5.5.tar.gz'
+url = 'http://www.mvpmc.org/dl/ncurses-5.5.tar.gz'
 pwd = os.getcwd()
 
 dl = GetSourceFile(url, '#' + downloads, e)

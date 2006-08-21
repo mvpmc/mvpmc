@@ -14,7 +14,8 @@ pwd = os.getcwd()
 
 file = downloads + '/buildroot-20060710.tar.bz2'
 
-url = 'http://buildroot.uclibc.org/downloads/snapshots/buildroot-20060710.tar.bz2'
+#url = 'http://buildroot.uclibc.org/downloads/snapshots/buildroot-20060710.tar.bz2'
+url = 'http://www.mvpmc.org/dl/buildroot-20060710.tar.bz2'
 uclibc = os.system(pwd +'/mvpmc-uclibc.sh '+file + ' ' + url)
 uclibc = ''
 

@@ -39,7 +39,8 @@ def GetSourceFile(url, output_dir, env):
   node = env.SourceCode( munged, env.WGet() )
   return node
 
-url = 'http://download.tangent.org/libid3-1.0.tar.gz'
+#url = 'http://download.tangent.org/libid3-1.0.tar.gz'
+url = 'http://www.mvpmc.org/dl/libid3-1.0.tar.gz'
 pwd = os.getcwd()
 
 dl = GetSourceFile(url, '#' + downloads, e)

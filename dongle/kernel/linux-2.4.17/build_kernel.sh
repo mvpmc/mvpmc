@@ -14,10 +14,10 @@ rm -rf ac3
 
 mkdir -p $TARBALLS_DIR
 if [[ ! -a $TARBALLS_DIR/mvpdist1.1.21315.tgz ]] ; then
-    wget -O $TARBALLS_DIR/mvpdist1.1.21315.tgz ftp://167.206.143.11/latest/MediaMVPsrc/mvpdist1.1.21315.tgz
+    wget -O $TARBALLS_DIR/mvpdist1.1.21315.tgz http://www.mvpmc.org/dl/mvpdist1.1.21315.tgz
 fi
 if [[ ! -a $TARBALLS_DIR/unionfs-1.0.14.tar.gz ]] ; then
-    wget -O $TARBALLS_DIR/unionfs-1.0.14.tar.gz ftp://ftp.fsl.cs.sunysb.edu/pub/unionfs/unionfs-1.0.14.tar.gz
+    wget -O $TARBALLS_DIR/unionfs-1.0.14.tar.gz http://www.mvpmc.org/dl/unionfs-1.0.14.tar.gz
 fi
 tar -xzf $TARBALLS_DIR/mvpdist1.1.21315.tgz
 tar -xzf $TARBALLS_DIR/unionfs-1.0.14.tar.gz

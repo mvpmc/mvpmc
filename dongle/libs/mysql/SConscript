@@ -37,7 +37,7 @@ def GetSourceFile(url, output_dir, env):
   node = env.SourceCode( munged, env.WGet() )
   return node
 
-url = 'http://mvpmc.sf.net/dl/mysql-5.0.21.tar.gz'
+url = 'http://www.mvpmc.org/dl/mysql-5.0.21.tar.gz'
 pwd = os.getcwd()
 
 dl = GetSourceFile(url, '#' + downloads, e)

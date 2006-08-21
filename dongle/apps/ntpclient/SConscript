@@ -29,7 +29,8 @@ def GetSourceFile(url, output_dir, env):
   node = env.SourceCode( munged, env.WGet() )
   return node
 
-url = 'http://doolittle.icarus.com/ntpclient/ntpclient_2003_194.tar.gz'
+#url = 'http://doolittle.icarus.com/ntpclient/ntpclient_2003_194.tar.gz'
+url = 'http://www.mvpmc.org/dl/ntpclient_2003_194.tar.gz'
 pwd = os.getcwd()
 
 dl = GetSourceFile(url, '#' + downloads, e)
