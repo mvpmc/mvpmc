@@ -1,6 +1,6 @@
 /*
- *  Copyright (C) 2004, 2005, Jon Gettler
- *  http://mvpmc.sourceforge.net/
+ *  Copyright (C) 2004, 2005, 2006, Jon Gettler
+ *  http://www.mvpmc.org/
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,7 +17,19 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#ident "$Id: main.c,v 1.63 2006/02/16 03:04:19 gettler Exp $"
+/*! \mainpage MediaMVP Media Center
+ *
+ * The MediaMVP Media Center is open source replacement for the Hauppauge
+ * firmware that runs on the Hauppauge MediaMVP.
+ *
+ * \section web1 Project website
+ *
+ * http://www.mvpmc.org/
+ *
+ * \section web2 Source repositories
+ *
+ * http://git.mvpmc.org/
+ */
 
 #include <stdio.h>
 #include <string.h>
@@ -923,8 +935,8 @@ main(int argc, char **argv)
 		exit(1);
 	}
 
-	fd_audio = av_audio_fd();
-	fd_video = av_video_fd();
+	fd_audio = av_get_audio_fd();
+	fd_video = av_get_video_fd();
 	av_attach_fb();
 	av_play();
 

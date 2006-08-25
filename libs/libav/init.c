@@ -47,7 +47,7 @@ av_tv_aspect_t tv_aspect = AV_TV_ASPECT_4x3;
  * Returns:
  *	0 if the initialization succeeded, -1 if it failed
  */
-int
+av_demux_mode_t
 av_init(void)
 {
 	int video_mode = 0, audio_mode = 2;
@@ -56,31 +56,31 @@ av_init(void)
 
     	if (fd_video < 0 )
 	    if ((fd_video=open("/dev/vdec_dev", O_RDWR|O_NONBLOCK)) < 0)
-		return -1;
+		return AV_DEMUX_ERROR;
 	if (fd_audio < 0)
 	    if ((fd_audio=open("/dev/adec_mpg", O_RDWR|O_NONBLOCK)) < 0)
-		return -1;
+		return AV_DEMUX_ERROR;
 
 	ioctl(fd_video, AV_SET_VID_DENC, 1);
 	if (set_output_method() < 0)
-		return -1;
+		return AV_DEMUX_ERROR;
 
 	if (ioctl(fd_video, AV_SET_VID_OUTPUT_MODE, video_mode) < 0)
-		return -1;
+		return AV_DEMUX_ERROR;
 	if (ioctl(fd_video, AV_SET_VID_OUTPUT_RATIO, tv_aspect) < 0)
-		return -1;
+		return AV_DEMUX_ERROR;
 
 	if (ioctl(fd_audio, AV_SET_AUD_SRC, 1) < 0)
-		return -1;
+		return AV_DEMUX_ERROR;
 	if (ioctl(fd_audio, AV_SET_AUD_STREAMTYPE, audio_mode) < 0)
-		return -1;
+		return AV_DEMUX_ERROR;
 	if (ioctl(fd_audio, AV_SET_AUD_CHANNEL, 0) < 0)
-		return -1;
+		return AV_DEMUX_ERROR;
 
 	av_sync();
 
 	if (ioctl(fd_audio, AV_SET_AUD_PLAY, 0) != 0)
-		return -1;
+		return AV_DEMUX_ERROR;
 
 	av_colorbars(0);
 
