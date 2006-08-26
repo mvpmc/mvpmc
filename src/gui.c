@@ -884,6 +884,9 @@ mvp_widget_t *file_browser;
 mvp_widget_t *mythtv_browser;
 mvp_widget_t *mythtv_sched_1;
 mvp_widget_t *mythtv_sched_2;
+mvp_widget_t *mythtv_prog_finder_1;
+mvp_widget_t *mythtv_prog_finder_2;
+mvp_widget_t *mythtv_prog_finder_3;
 mvp_widget_t *mythtv_menu;
 mvp_widget_t *mythtv_logo;
 mvp_widget_t *mythtv_date;
@@ -2292,6 +2295,21 @@ mythtv_set_popup_menu(mythtv_state_t state)
 		mythtv_popup_item_attr.selectable = 1;
 
 		break;
+	case MYTHTV_STATE_PROG_FINDER:
+		printf ("Schedule Recordings - Search\n");
+		mvpw_set_menu_title(mythtv_popup_nocheck, "Schedule Recordings - Search Menu");
+		mvpw_clear_menu(mythtv_popup_nocheck);
+		mythtv_popup_item_attr.select = mythtv_popup_select_callback;
+		mythtv_popup_item_attr.fg = mythtv_popup_attr.fg;
+		mythtv_popup_item_attr.bg = mythtv_popup_attr.bg;
+		mythtv_popup_item_attr.selectable = 1;
+		mvpw_add_menu_item(mythtv_popup_nocheck,
+				   "Delete, but allow future recordings",
+				   (void*)MYTHTV_POPUP_FORGET,
+				   &mythtv_popup_item_attr);
+
+		mythtv_popup = mythtv_popup_nocheck;
+		break;
 	case MYTHTV_STATE_LIVETV:
 		count = mythtv_livetv_tuners(tuners, busy);
 		printf("mythtv livetv popup menu\n");
@@ -2471,6 +2489,9 @@ mythtv_key_callback(mvp_widget_t *widget, char key)
 				mvpw_hide(mythtv_browser);
 				mvpw_hide(mythtv_sched_1);
 				mvpw_hide(mythtv_sched_2);
+				mvpw_hide(mythtv_prog_finder_1);
+				mvpw_hide(mythtv_prog_finder_2);
+				mvpw_hide(mythtv_prog_finder_3);
 				mvpw_hide(mythtv_channel);
 				mvpw_hide(mythtv_date);
 				mvpw_hide(mythtv_description);
@@ -2524,6 +2545,14 @@ mythtv_key_callback(mvp_widget_t *widget, char key)
 		mythtv_set_popup_menu(mythtv_state);
 		mvpw_show(mythtv_popup_check);
 		mvpw_focus(mythtv_popup_check);
+	}
+        printf(" Prog finder state\n");
+	if ((key == MVPW_KEY_MENU) &&
+	    (mythtv_state == MYTHTV_STATE_PROG_FINDER)) {
+		printf("mythtv program finder popup menu\n");
+		mythtv_set_popup_menu(mythtv_state);
+		mvpw_show(mythtv_popup);
+		mvpw_focus(mythtv_popup);
 	}
 
 	if ((key == MVPW_KEY_FULL) || (key == MVPW_KEY_PREV_CHAN)) {
@@ -4515,6 +4544,110 @@ mythtv_schedule_keymovement_callback(mvp_widget_t *widget, char key)
 }
 
 static void
+mythtv_prog_finder_char_search_keymovement_callback(mvp_widget_t *widget, char key)
+{
+	if ( key == MVPW_KEY_EXIT ) {
+		mvpw_hide(mythtv_prog_finder_1);
+		mvpw_hide(mythtv_prog_finder_2);
+		mvpw_hide(mythtv_prog_finder_3);
+		mvpw_hide(program_info_widget);
+		mythtv_state = MYTHTV_STATE_MAIN;
+		mvpw_show(mythtv_menu);
+		return;
+	}
+
+	switch (key) {
+                case MVPW_KEY_LEFT:
+			/* mythtv_prog_finder_char_menu_previous(widget); */
+			/* no left possible */
+			return;
+                        break;
+                case MVPW_KEY_OK:
+			/* Fall through to MVPW_KEY_RIGHT action */
+                case MVPW_KEY_RIGHT:
+		         /* Current Program Finder First Character */
+			mythtv_prog_finder_char_menu_right(0, mythtv_prog_finder_1, mythtv_prog_finder_2, mythtv_prog_finder_3);
+			mvpw_focus(mythtv_prog_finder_2);
+                        break;
+                case MVPW_KEY_UP:
+			return;
+			break;
+                case MVPW_KEY_DOWN:
+			break;
+                default:
+                        return;
+                        break;
+        }
+                return;
+}
+
+static void
+mythtv_prog_finder_title_search_keymovement_callback(mvp_widget_t *widget, char key)
+{
+	if ( key == MVPW_KEY_EXIT ) {
+		mvpw_hide(mythtv_prog_finder_1);
+		mvpw_hide(mythtv_prog_finder_2);
+		mvpw_clear_menu(mythtv_prog_finder_3);
+		mvpw_set_text_str(program_info_widget, ""); 
+		mvpw_hide(mythtv_prog_finder_3);
+		mvpw_hide(program_info_widget);
+		mythtv_state = MYTHTV_STATE_MAIN;
+		mvpw_show(mythtv_menu);
+		return;
+	}
+	switch (key) {
+                case MVPW_KEY_LEFT:
+			mvpw_clear_menu(mythtv_prog_finder_2);
+			mvpw_focus(mythtv_prog_finder_1);
+                        break;
+                case MVPW_KEY_OK:
+			/* Fall through to MVPW_KEY_RIGHT action */
+                case MVPW_KEY_RIGHT:
+			mythtv_prog_finder_title_menu_right(mythtv_prog_finder_1, mythtv_prog_finder_2, mythtv_prog_finder_3);
+			mvpw_focus(mythtv_prog_finder_3);
+                        break;
+                default:
+                        return;
+                        break;
+        }
+                return;
+}
+
+static void
+mythtv_prog_finder_time_search_keymovement_callback(mvp_widget_t *widget, char key)
+{
+	if ( key == MVPW_KEY_EXIT ) {
+		mvpw_hide(mythtv_prog_finder_1);
+		mvpw_hide(mythtv_prog_finder_2);
+		mvpw_hide(mythtv_prog_finder_3);
+		mvpw_hide(program_info_widget);
+		mythtv_state = MYTHTV_STATE_MAIN;
+		mvpw_show(mythtv_menu);
+		return;
+	}
+	switch (key) {
+                case MVPW_KEY_LEFT:
+			mvpw_clear_menu(mythtv_prog_finder_3);
+			mvpw_set_text_str(program_info_widget, ""); 
+			mvpw_hide(program_info_widget);
+			mvpw_focus(mythtv_prog_finder_2);
+                        break;
+                case MVPW_KEY_RIGHT:
+			/* FIXME: Potential to add right movement to schedule */
+			return;
+                        break;
+                case MVPW_KEY_OK:
+			/* FIXME: Potential to add right movement to schedule */
+                        return;
+                        break;
+                default:
+                        return;
+                        break;
+        }
+                return;
+}
+
+static void
 run_mythtv_guide_menu(void)
 { 
 
@@ -4536,6 +4669,22 @@ run_mythtv_guide_menu(void)
 */
 
 }
+
+static void
+run_mythtv_prog_finder_char_menu(void)
+{ 
+
+	fprintf(stderr, "%s : start\n",__FUNCTION__);
+	mvpw_set_key(mythtv_prog_finder_1,mythtv_prog_finder_char_search_keymovement_callback);
+	mvpw_set_key(mythtv_prog_finder_2,mythtv_prog_finder_title_search_keymovement_callback);
+	mvpw_set_key(mythtv_prog_finder_3,mythtv_prog_finder_time_search_keymovement_callback);
+	fprintf(stderr, "%s : back from\n",__FUNCTION__);
+
+	mythtv_prog_finder_char_menu(mythtv_prog_finder_1,mythtv_prog_finder_2,mythtv_prog_finder_3);
+	mvpw_hide(mythtv_menu);
+	mvpw_focus(mythtv_prog_finder_1);
+}
+
 static void
 myth_menu_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
@@ -4598,6 +4747,16 @@ myth_menu_select_callback(mvp_widget_t *widget, char *item, void *key)
 		}
 */
 		break;
+	case 4:
+		mythtv_state = MYTHTV_STATE_PROG_FINDER;
+		fprintf (stderr, "Program Finder for Scheduling\n");
+		fprintf (stderr, "db user = mysqlptr.user=%s\n",mysqlptr->user);
+		mvpw_clear_menu(mythtv_prog_finder_1);
+		mvpw_clear_menu(mythtv_prog_finder_2);
+		mvpw_clear_menu(mythtv_prog_finder_3);
+		run_mythtv_prog_finder_char_menu();
+		break;
+		
 	}
 }
 
@@ -4645,6 +4804,8 @@ myth_browser_init(void)
 			   (void*)2, &myth_menu_item_attr);
 	mvpw_add_menu_item(mythtv_menu, "Schedule Recordings",
 			   (void*)3, &myth_menu_item_attr);
+	mvpw_add_menu_item(mythtv_menu, "Program Finder (Scheduling)",
+			   (void*)4, &myth_menu_item_attr);
 
 	mvpw_set_key(mythtv_menu, mythtv_menu_callback);
 
@@ -4684,6 +4845,37 @@ myth_browser_init(void)
 			mythtv_attr.border,
 		  	mythtv_attr.border_size);
 
+	mythtv_prog_finder_1 = mvpw_create_menu(NULL,
+			viewport_edges[EDGE_LEFT]+iid.width,
+			viewport_edges[EDGE_TOP],
+			50,
+			si.rows-190,
+			mythtv_attr.bg, 
+			mythtv_attr.border,
+			mythtv_attr.border_size);
+
+	mythtv_prog_finder_2 = mvpw_create_menu(NULL,
+			viewport_edges[EDGE_LEFT]+iid.width + 70 ,
+			viewport_edges[EDGE_TOP],
+			(si.cols-iid.width-
+			(viewport_edges[EDGE_LEFT]-
+			viewport_edges[EDGE_RIGHT]))/3,
+			si.rows-190,
+			mythtv_attr.bg, 
+			mythtv_attr.border,
+			mythtv_attr.border_size);
+
+	mythtv_prog_finder_3 = mvpw_create_menu(NULL,
+			viewport_edges[EDGE_LEFT]+iid.width +320,
+			viewport_edges[EDGE_TOP],
+			(si.cols-iid.width-
+			(viewport_edges[EDGE_LEFT]-
+			viewport_edges[EDGE_RIGHT]))/3,
+			si.rows-190,
+			mythtv_attr.bg,
+			mythtv_attr.border,
+			mythtv_attr.border_size);
+ 
 	mythtv_browser = mvpw_create_menu(NULL,
 					  viewport_edges[EDGE_LEFT]+iid.width,
 					  viewport_edges[EDGE_TOP],
@@ -4699,10 +4891,16 @@ myth_browser_init(void)
 	mvpw_set_key(mythtv_browser, mythtv_key_callback);
 	mvpw_set_key(mythtv_sched_1, mythtv_key_callback);
 	mvpw_set_key(mythtv_sched_2, mythtv_key_callback);
+/*	mvpw_set_key(mythtv_prog_finder_1, mythtv_key_callback);
+	mvpw_set_key(mythtv_prog_finder_2, mythtv_key_callback);*/
+	mvpw_set_key(mythtv_prog_finder_3, mythtv_key_callback);
 
 	mvpw_set_menu_attr(mythtv_browser, &mythtv_attr);
 	mvpw_set_menu_attr(mythtv_sched_1, &mythtv_attr);
 	mvpw_set_menu_attr(mythtv_sched_2, &mythtv_attr);
+	mvpw_set_menu_attr(mythtv_prog_finder_1, &mythtv_attr);
+	mvpw_set_menu_attr(mythtv_prog_finder_2, &mythtv_attr);
+	mvpw_set_menu_attr(mythtv_prog_finder_3, &mythtv_attr);
 
 	h = FONT_HEIGHT(description_attr);
 
