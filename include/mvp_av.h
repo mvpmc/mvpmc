@@ -18,7 +18,8 @@
  */
 
 /** \file mvp_av.h
- *  MediaMVP Audio/Video Interface Library
+ * MediaMVP Audio/Video Interface Library.  This library is used to control
+ * the audio/video hardware on the MediaMVP.
  */
 
 #ifndef MVP_AV_H

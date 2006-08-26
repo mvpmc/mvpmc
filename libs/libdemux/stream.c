@@ -1796,6 +1796,8 @@ start_stream(demux_handle_t *handle)
 
 	handle->state = 1;
 
+	handle->stream_buf = stream_buf;
+
 	return 0;
 
  err:

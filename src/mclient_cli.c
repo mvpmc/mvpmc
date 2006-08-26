@@ -51,7 +51,7 @@
 #include "mclient.h"
 
 // debug on
-///#define debug(...) printf(__VA_ARGS__)
+//#define debug(...) printf(__VA_ARGS__)
 // debug off
 #define debug(...)              //printf(__VA_ARGS__)
 

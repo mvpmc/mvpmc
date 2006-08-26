@@ -1,8 +1,6 @@
 /*
- *  $Id$
- *
- *  Copyright (C) 2004, Jon Gettler
- *  http://mvpmc.sourceforge.net/
+ *  Copyright (C) 2004-2006, Jon Gettler
+ *  http://www.mvpmc.org/
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -19,6 +17,11 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+/** \file mvp_widget.h
+ * mvpmc widget library.  This library acts as a simple windowing API sitting
+ * on top of microwindows.
+ */
+
 #ifndef MVP_WIDGET_H
 #define MVP_WIDGET_H
 
@@ -31,35 +34,107 @@
 
 typedef struct mvp_widget_s mvp_widget_t;
 
+/**
+ * Widget information
+ */
 typedef struct {
-	int x;
-	int y;
-	int w;
-	int h;
+	int x;		/**< horizontal coordinate */
+	int y;		/**< vertical coordinate */
+	int w;		/**< width */
+	int h;		/**< height */
 } mvpw_widget_info_t;
 
+/**
+ * Screen information
+ */
 typedef struct {
-	int rows;
-	int cols;
-	int bpp;
-	int pixtype;
+	int rows;	/**< rows */
+	int cols;	/**< columns */
+	int bpp;	/**< bits per pixel */
+	int pixtype;	/**< pixel type */
 } mvpw_screen_info_t;
 
+/**
+ * Initialize the widget library.
+ * \retval 0 success
+ * \retval -1 error
+ */
 extern int mvpw_init(void);
+
+/**
+ * Enter the widget library event loop.
+ * \retval 0 success
+ * \retval -1 error
+ */
 extern int mvpw_event_loop(void);
+
+/**
+ * Flush all existing events.
+ * \retval 0 success
+ * \retval -1 error
+ */
 extern int mvpw_event_flush(void);
+
+/**
+ * Return the root window widget.
+ * \return root window widget
+ */
 extern mvp_widget_t *mvpw_get_root(void);
+
+/**
+ * Set the idle callback routine.
+ * \param callback idle callback function (NULL to disable)
+ */
 extern void mvpw_set_idle(void (*callback)(void));
+
+/**
+ * Set the expose callback for a widget.
+ * \param widget widget handle
+ * \param callback callback function (NULL to disable)
+ */
 extern void mvpw_set_expose_callback(mvp_widget_t *widget,
 				     void (*callback)(mvp_widget_t*));
 
+/**
+ * Retrieve widget information
+ * \param widget widget handle
+ * \param[out] info widget information
+ */
 extern void mvpw_get_widget_info(mvp_widget_t *widget, mvpw_widget_info_t *info);
+
+/**
+ * Get screen information
+ * \param[out] info screen information
+ */
 extern void mvpw_get_screen_info(mvpw_screen_info_t *info);
 
+/**
+ * Set the background color of the widget.
+ * \param widget widget handle
+ * \param bg background color
+ */
 extern void mvpw_set_bg(mvp_widget_t *widget, uint32_t bg);
+
+/**
+ * Retrieve the background color of a widget.
+ * \param widget widget handle
+ * \return background color
+ */
 extern uint32_t mvpw_get_bg(const mvp_widget_t *widget);
+
+/**
+ * Set the timer callback and timeout value for a widget.
+ * \param widget widget handle
+ * \param callback callback function (NULL to disable)
+ * \param timeout timeout in microseconds
+ */
 extern void mvpw_set_timer(mvp_widget_t *widget,
 			   void (*callback)(mvp_widget_t*), uint32_t timeout);
+
+/**
+ * Change focus to this widget.
+ * \param widget widget handle
+ */
 extern void mvpw_focus(mvp_widget_t *widget);
 extern mvp_widget_t *mvpw_get_focus(void);
 extern void mvpw_show(mvp_widget_t *widget);

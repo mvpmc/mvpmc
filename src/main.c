@@ -19,16 +19,20 @@
 
 /*! \mainpage MediaMVP Media Center
  *
- * The MediaMVP Media Center is open source replacement for the Hauppauge
+ * The MediaMVP Media Center is an open source replacement for the Hauppauge
  * firmware that runs on the Hauppauge MediaMVP.
  *
- * \section web1 Project website
- *
+ * \section projectweb Project website
  * http://www.mvpmc.org/
  *
- * \section web2 Source repositories
- *
+ * \section repos Source repositories
  * http://git.mvpmc.org/
+ *
+ * \section libraries Libraries
+ * \li \link mvp_av.h libav \endlink
+ * \li \link mvp_demux.h libdemux \endlink
+ * \li \link mvp_osd.h libosd \endlink
+ * \li \link mvp_widget.h libwidget \endlink
  */
 
 #include <stdio.h>
@@ -928,7 +932,7 @@ main(int argc, char **argv)
 		width = 720;
 		height = 480;
 	}
-	osd_set_surface_size(width, height);
+	osd_set_screen_size(width, height);
 
 	if (mw_init(mythtv_server, replaytv_server) < 0) {
 		fprintf(stderr, "failed to initialize microwindows!\n");
