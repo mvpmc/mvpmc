@@ -221,6 +221,113 @@ get_guide_mysql(struct program *prog, struct channel *chan, char *starttime, cha
         cmyth_dbg(CMYTH_DBG_ERROR, "%s: rows= %d\n", __FUNCTION__, rows);
 	return rows;
 }
+
+int
+get_prog_finder_char_title_mysql(struct program *prog, char *starttime, char *program_name, char *dbhost, char *dbuser, char *dbpass, char *db) 
+{
+	MYSQL *mysql;
+	MYSQL_RES *res=NULL;
+	MYSQL_ROW row;
+        char query[350];
+	int rows=0;
+
+        mysql=mysql_init(NULL);
+	if(!(mysql_real_connect(mysql,dbhost,dbuser,dbpass,db,0,NULL,0))) {
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: mysql_connect() Failed: %s\n",
+                           __FUNCTION__, mysql_error(mysql));
+		fprintf(stderr, "mysql_connect() Failed: %s\n",mysql_error(mysql));
+        	mysql_close(mysql);
+		return -1;
+        }
+
+        sprintf(query, "SELECT DISTINCT title FROM program where starttime >= '%s' and title like '%s%%' ORDER BY `title` ASC", starttime, program_name);
+	fprintf(stderr, "%s\n", query);
+        cmyth_dbg(CMYTH_DBG_ERROR, "%s: query= %s\n", __FUNCTION__, query);
+        if(mysql_query(mysql,query)) {
+                 cmyth_dbg(CMYTH_DBG_ERROR, "%s: mysql_query() Failed: %s\n", 
+                           __FUNCTION__, mysql_error(mysql));
+        	mysql_close(mysql);
+		return -1;
+        }
+        res = mysql_store_result(mysql);
+        while((row = mysql_fetch_row(res))) {
+		if (rows < 650) {
+			strcpy ( prog[rows].title, row[0]);
+        		cmyth_dbg(CMYTH_DBG_ERROR, "prog[%d].title =  %s\n",rows, prog[rows].title);
+			rows++;
+		}
+		else {
+			fprintf (stderr, "structure full, too many listings : %s",__FUNCTION__ );
+		}
+        }
+        mysql_free_result(res);
+        mysql_close(mysql);
+        cmyth_dbg(CMYTH_DBG_ERROR, "%s: rows= %d\n", __FUNCTION__, rows);
+	return rows;
+}
+
+int
+get_prog_finder_time_mysql(struct program *prog,  char *starttime, char *program_name, char *dbhost, char *dbuser, char *dbpass, char *db) 
+{
+	MYSQL mysql;
+	MYSQL_RES *res=NULL;
+	MYSQL_ROW row;
+        char query[350];
+	char N_title[260];
+	int rows=0;
+	int ch;
+
+
+	mysql_init(&mysql);
+
+	if(!(mysql_real_connect(&mysql,dbhost,dbuser,dbpass,db,0,NULL,0))) {
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: mysql_connect() Failed: %s\n",
+                           __FUNCTION__, mysql_error(&mysql));
+		fprintf(stderr, "mysql_connect() Failed: %s\n",mysql_error(&mysql));
+        	mysql_close(&mysql);
+		return -1;
+        }
+
+	strcpy(N_title,program_name);
+	mysql_real_escape_string(&mysql,N_title,program_name,strlen(program_name)); 
+
+        sprintf(query, "SELECT chanid,starttime,endtime,title,description,subtitle,programid,seriesid,category FROM program WHERE starttime >= '%s' and title ='%s' ORDER BY `starttime` ASC ", starttime, N_title);
+	fprintf(stderr, "%s\n", query);
+        cmyth_dbg(CMYTH_DBG_ERROR, "%s: query= %s\n", __FUNCTION__, query);
+        if(mysql_query(&mysql,query)) {
+                 cmyth_dbg(CMYTH_DBG_ERROR, "%s: mysql_query() Failed: %s\n", 
+                           __FUNCTION__, mysql_error(&mysql));
+        	mysql_close(&mysql);
+		return -1;
+        }
+        res = mysql_store_result(&mysql);
+        while((row = mysql_fetch_row(res))) {
+		if (rows < 650) {
+			ch = atoi(row[0]);
+			prog[rows].chanid=ch;
+			prog[rows].recording=0;
+			strcpy ( prog[rows].starttime, row[1]);
+			strcpy ( prog[rows].endtime, row[2]);
+			strcpy ( prog[rows].title, row[3]);
+			strcpy ( prog[rows].description, row[4]);
+			strcpy ( prog[rows].subtitle, row[5]);
+			strcpy ( prog[rows].programid, row[6]);
+			strcpy ( prog[rows].seriesid, row[7]);
+			strcpy ( prog[rows].category, row[8]);
+        		cmyth_dbg(CMYTH_DBG_ERROR, "prog[%d].chanid =  %d\n",rows, prog[rows].chanid);
+        		cmyth_dbg(CMYTH_DBG_ERROR, "prog[%d].title =  %s\n",rows, prog[rows].title);
+			rows++;
+		}
+		else {
+			fprintf (stderr, "structure full, too many listings : %s",__FUNCTION__ );
+		}
+        }
+        mysql_free_result(res);
+        mysql_close(&mysql);
+        cmyth_dbg(CMYTH_DBG_ERROR, "%s: rows= %d\n", __FUNCTION__, rows);
+	return rows;
+}
+
 int 
 fill_program_recording_status(cmyth_conn_t conn, char * msg)
 {

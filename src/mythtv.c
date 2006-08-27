@@ -30,6 +30,7 @@
 #include <pthread.h>
 #include <errno.h>
 #include <signal.h>
+#include <time.h>
 
 #include <mvp_widget.h>
 #include <mvp_av.h>
@@ -52,6 +53,10 @@ volatile cmyth_file_t mythtv_file;
 extern demux_handle_t *handle;
 extern int fd_audio, fd_video;
 
+extern mvp_widget_t *mythtv_prog_finder_1;
+extern mvp_widget_t *mythtv_prog_finder_2;
+extern mvp_widget_t *mythtv_prog_finder_3;
+
 static mvpw_menu_item_attr_t item_attr = {
 	.selectable = 1,
 	.fg = MVPW_WHITE,
@@ -61,6 +66,8 @@ static mvpw_menu_item_attr_t item_attr = {
 
 extern int insert_into_record_mysql(char *, char *, char *, char *, char *, char *, char *, char * , char *, char *, char *);
 extern int get_guide_mysql(struct program *, struct channel *, char *, char *, char*, char*, char*, char*);
+extern int get_prog_finder_char_title_mysql(struct program *prog, char *starttime, char *program_name, char *dbhost, char *dbuser, char *dbpass, char *db);
+extern int get_prog_finder_time_mysql(struct program *prog, char *starttime, char *program_name, char *dbhost, char *dbuser, char *dbpass, char *db);
 extern int myth_load_channels(struct channel *, char *, char *, char *, char *);
 extern int cmyth_schedule_recording(cmyth_conn_t, char *);
 extern int get_myth_version(cmyth_conn_t);
@@ -2418,12 +2425,14 @@ schedule_recording_callback(mvp_widget_t *widget, char *item , void *key)
 	char *n;
 	char cp[25];
 	char msg[45];
+	char guierrormsg[45];
 	const char delimiters[] = " ";
 	int err=0;
 	int rec_id=0;
 	cmyth_conn_t ctrl = cmyth_hold(control);
 	char *string;
 	unsigned int len;
+	int rcrd = sqlprog[which].recording;
 	
 
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) \n",
@@ -2439,6 +2448,11 @@ schedule_recording_callback(mvp_widget_t *widget, char *item , void *key)
 			item_attr.fg = mythtv_colors.menu_item;	
 			break;
 		default:
+			fprintf(stderr, "Recording status = %d\n", sqlprog[which].recording);
+			if(rcrd == 1 || rcrd == 2 || rcrd == 10 ) {
+				fprintf(stderr, "MythTV - Episode already scheduled or recorded, do not duplicate\n");
+				break;
+			}
 			strcpy(cp,sqlprog[which].starttime);
 			n =  strtok (cp,delimiters);
 			strcpy(startdate, n);
@@ -2461,6 +2475,34 @@ fprintf(stderr, "Seriesid = %s\n",string);
 
 			switch (mysqlptr->version) {
 
+			case 15:
+				sprintf(query, "REPLACE INTO record ( \
+					recordid,type,chanid,starttime,startdate,endtime, \
+					enddate,\
+					title,\
+					subtitle, \
+					description, \
+					category,profile,recpriority,autoexpire,maxepisodes, \
+					maxnewest, startoffset,endoffset,recgroup,dupmethod,dupin, \
+					station,\
+					seriesid,programid,search, autotranscode,autocommflag,autouserjob1,autouserjob2,autouserjob3, \
+					autouserjob4, findday,findtime,findid, inactive, parentid) values \
+					(NULL,'1','%d','%s','%s','%s', \
+					'%s',", \
+					sqlprog[which].chanid,starttime,startdate,endtime, \
+					enddate);
+				sprintf(query1, " \
+					,'%s','Default','0','0','0', \
+					'0','0','0','Default','6','15',", \
+					sqlprog[which].category); 
+				sprintf(query2,",'%s','%s','0','0','1','0','0','0', \
+					'0','5','%s','732800.33333333','0','0')", \
+					sqlprog[which].seriesid,sqlprog[which].programid,starttime );
+				break;
+			case 20:
+				sprintf(guierrormsg, "No MythTV SQL support\nMythTV version: %d\n", mysqlptr->version);
+				gui_error(guierrormsg);
+				break;
 			case 26:
 				sprintf(query, "REPLACE INTO record ( \
 					recordid,type,chanid,starttime,startdate,endtime, \
@@ -2486,11 +2528,9 @@ fprintf(stderr, "Seriesid = %s\n",string);
 					'0')", \
 					sqlprog[which].seriesid,sqlprog[which].programid,starttime );
 				break;
-			case 20:
-				gui_error("No MythTV SQL support\n");
-				break;
 			default:
-				gui_error("No MythTV SQL support\n");
+				sprintf(guierrormsg, "No MythTV SQL support\nMythTV version: %d\n", mysqlptr->version);
+				gui_error(guierrormsg);
 				goto out;	
 				break;
 			}
@@ -2551,11 +2591,39 @@ hilite_schedule_recording_callback(mvp_widget_t *widget, char *item , void *key,
 		case 1:
 			break;
 		default:
-			if (sqlprog[which].recording == 1) {
-				sprintf(record_message, "Scheduled to record");
-			}
-			else {
-				sprintf(record_message, "Not Scheduled to record");
+			switch (sqlprog[which].recording) {
+				case 1:
+					sprintf(record_message, "Recording");
+					break;
+				case 2:
+					sprintf(record_message, "Scheduled to record");
+					break;
+				case 3:
+					sprintf(record_message, "Conflict");
+					break;
+				case 4:
+					sprintf(record_message, "Do not record");
+					break;
+				case 5:
+					sprintf(record_message, "Too many recordings");
+					break;
+				case 6:
+					sprintf(record_message, "Previous recording");
+					break;
+				case 7:
+					sprintf(record_message, "Later showing");
+					break;
+				case 8:
+					sprintf(record_message, "Earlier recording");
+					break;
+				case 9:
+					sprintf(record_message, "Repeat");
+					break;
+				case 10:
+					sprintf(record_message, "Current recording");
+					break;
+				default:
+					sprintf(record_message, "Not Scheduled to record");
 			}
 			sprintf(startstring, "%s - %s",sqlprog[which].starttime,sqlprog[which].endtime);
 			sprintf(buf, "%s\n%s\n%d - %s\n%s",record_message,startstring,chan[sqlprog[which].chanid].channum,chan[sqlprog[which].chanid].callsign,sqlprog[which].description);
@@ -2570,6 +2638,7 @@ myth_sql_program_info(time_t now, int sqlcount)
 {
 	int i, j,count;
         time_t rec_t, aheadtime;
+	char starttime[25];
         struct tm rec_tm;
         cmyth_proginfo_t prog = NULL;
         cmyth_proglist_t pnd_list;
@@ -2602,6 +2671,7 @@ myth_sql_program_info(time_t now, int sqlcount)
 
         for (i = 0; i < count; ++i) {
                 char *title, *subtitle;
+                char *seriesid, *programid;
                 long channel_id;
                 cmyth_timestamp_t ts, te;
                 cmyth_proginfo_rec_status_t status;
@@ -2616,6 +2686,8 @@ myth_sql_program_info(time_t now, int sqlcount)
                 title = (char*)cmyth_proginfo_title(prog);
                 subtitle = (char*)cmyth_proginfo_subtitle(prog);
                 channel_id = (long)cmyth_proginfo_chan_id(prog);
+		seriesid = (char*)cmyth_proginfo_seriesid(prog);
+		programid = (char*)cmyth_proginfo_programid(prog);
 
                 ts = cmyth_proginfo_rec_start(prog);
                 cmyth_timestamp_to_string(start, ts);
@@ -2651,13 +2723,41 @@ myth_sql_program_info(time_t now, int sqlcount)
                 rec_t = mktime(&rec_tm);
 
                 if (rec_t < now) { goto release; }
-                if (rec_t > aheadtime) { goto release; } 
+//                if (rec_t > aheadtime) { goto release; } 
+
+		/* Now get start time for program comparison */
+                year = atoi(start);
+                ptr = strchr(start, '-');
+                month = atoi(++ptr);
+                ptr = strchr(ptr, '-');
+                day = atoi(++ptr);
+                ptr = strchr(ptr, 'T');
+                hour = atoi(++ptr);
+                ptr = strchr(ptr, ':');
+                minute = atoi(++ptr);
+
+                rec_tm.tm_year = year - 1900;
+                rec_tm.tm_mon = month - 1;
+                rec_tm.tm_mday = day;
+                rec_tm.tm_hour = hour;
+                rec_tm.tm_min = minute;
+                rec_tm.tm_sec = 0;
+                rec_tm.tm_wday = 0;
+                rec_tm.tm_yday = 0;
+                rec_tm.tm_isdst = -1;
+
+		strftime(starttime,25, "%Y-%m-%d %H:%M:%S", &rec_tm);
 
                 card_id = cmyth_proginfo_card_id(prog);
                 snprintf(card, sizeof(card), "%ld", card_id);
 
-                for (j=0; j<=sqlcount; j++) {
-                        if ( (strcmp(sqlprog[j].title,title) == 0) && (sqlprog[j].chanid == channel_id) ) {
+                for (j=0; j<sqlcount; j++) {
+                        if ( (strcmp(sqlprog[j].title,title) == 0) && 
+				(sqlprog[j].chanid == channel_id) &&
+				(strcmp(sqlprog[j].seriesid, seriesid) ==0) &&
+				(strcmp(sqlprog[j].programid, programid) == 0) && 
+				(strcmp(sqlprog[j].starttime, starttime) ==0) ) {
+				fprintf(stderr, "Title (%d-%d): %s,\t\tStatus: %d\nStartSQL %s\t\tStartMyth %s\n", i, j, title, status, sqlprog[j].starttime, starttime);
                                 switch (status) {
                                         case RS_RECORDING:
                                                 sqlprog[j].recording=1;
@@ -3133,6 +3233,571 @@ mythtv_guide_menu(mvp_widget_t *widget, mvp_widget_t *widget2)
 		return 0;
 }
 
+static void
+prog_finder_char_callback(mvp_widget_t *widget, char *item , void *key)
+{
+	int which = (int)key;
+
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) \n",
+		__FUNCTION__, __FILE__, __LINE__);
+
+ 
+	switch (which) {
+		case 0:
+			break;
+		default:
+			break;
+	}
+
+}
+
+static void
+hilite_prog_finder_char_callback(mvp_widget_t *widget, char *item , void *key, int hilite)
+{
+	int which = (int)key;
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) \n",
+		__FUNCTION__, __FILE__, __LINE__);
+
+	sprintf(prog_finder_hilite_char, "%s", item);
+
+	switch (which) {
+		case 0:
+			break;
+		case 1:
+			break;
+		default:
+			break;
+	}
+}
+
+static void
+prog_finder_title_callback(mvp_widget_t *widget, char *item , void *key)
+{
+	int which = (int)key;
+
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) \n",
+		__FUNCTION__, __FILE__, __LINE__);
+
+	switch (which) {
+		case 0:
+			break;
+		default:
+			break;
+	}
+}
+
+ 
+static void
+hilite_prog_finder_title_callback(mvp_widget_t *widget, char *item , void *key, int hilite)
+{
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) \n",
+		__FUNCTION__, __FILE__, __LINE__);
+	if (hilite){
+		sprintf(prog_finder_hilite_title, "%s", item);
+	}
+}
+
+static void
+prog_finder_time_callback(mvp_widget_t *widget, char *item , void *key)
+{
+	int which = (int)key;
+	char buf[32];
+	char query[700];
+	char query1[700];
+	char query2[500];
+	char starttime[10];
+	char startdate[10];
+	char endtime[10];
+	char enddate[10];
+	char *n;
+	char cp[25];
+	char msg[45];
+	char guierrormsg[45];
+	const char delimiters[] = " ";
+	int err=0;
+	int rec_id=0;
+	cmyth_conn_t ctrl = cmyth_hold(control);
+	char *string;
+	unsigned int len;
+	int rcrd = sqlprog[which].recording;
+	
+
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) \n",
+		__FUNCTION__, __FILE__, __LINE__);
+	fprintf(stderr,"DB version = %d\n",mysqlptr->version);
+	switch (which) {
+		default:
+			fprintf(stderr, "Recording status = %d\n", sqlprog[which].recording);
+			if(rcrd == 1 || rcrd == 2 || rcrd == 10 ) {
+				fprintf(stderr, "MythTV - Episode already scheduled or recorded, do not duplicate\n");
+				break;
+			}
+			strcpy(cp,sqlprog[which].starttime);
+			n =  strtok (cp,delimiters);
+			strcpy(startdate, n);
+			n =  strtok (NULL,delimiters);
+			strcpy(starttime, n);
+
+			strcpy(cp,sqlprog[which].endtime);
+			n =  strtok (cp,delimiters);
+			strcpy(enddate, n);
+			n =  strtok (NULL,delimiters);
+			strcpy(endtime, n);
+			
+		       	len = strlen(sqlprog[which].seriesid);
+			string=malloc(len * sizeof(char));
+ 
+			string = mysql_escape_chars(sqlprog[which].seriesid,mysqlptr->host,mysqlptr->user,mysqlptr->pass, mysqlptr->db);
+			fprintf(stderr, "Seriesid = %s\n",string);
+
+			switch (mysqlptr->version) {
+
+			case 15:
+				sprintf(query, "REPLACE INTO record ( \
+					recordid,type,chanid,starttime,startdate,endtime, \
+					enddate,\
+					title,\
+					subtitle, \
+					description, \
+					category,profile,recpriority,autoexpire,maxepisodes, \
+					maxnewest, startoffset,endoffset,recgroup,dupmethod,dupin, \
+					station,\
+					seriesid,programid,search, autotranscode,autocommflag,autouserjob1,autouserjob2,autouserjob3, \
+					autouserjob4, findday,findtime,findid, inactive, parentid) values \
+					(NULL,'1','%d','%s','%s','%s', \
+					'%s',", \
+					sqlprog[which].chanid,starttime,startdate,endtime, \
+					enddate);
+				sprintf(query1, " \
+					,'%s','Default','0','0','0', \
+					'0','0','0','Default','6','15',", \
+					sqlprog[which].category); 
+				sprintf(query2,",'%s','%s','0','0','1','0','0','0', \
+					'0','5','%s','732800.33333333','0','0')", \
+					sqlprog[which].seriesid,sqlprog[which].programid,starttime );
+				break;
+
+			case 26:
+				sprintf(query, "REPLACE INTO record ( \
+					recordid,type,chanid,starttime,startdate,endtime, \
+					enddate,search,\
+					title,\
+					subtitle, \
+					description, \
+					profile,recpriority,category,maxnewest,inactive,maxepisodes, \
+					autoexpire,startoffset,endoffset,recgroup,dupmethod,dupin, \
+					station,\
+					seriesid,programid,autocommflag,findday,findtime,findid, \
+					autotranscode,transcoder,tsdefault,autouserjob1,autouserjob2,autouserjob3, \
+					autouserjob4) values \
+					(NULL,'1','%d','%s','%s','%s', \
+					'%s','',", \
+					sqlprog[which].chanid,starttime,startdate,endtime, \
+					enddate);
+				sprintf(query1, " \
+					,'Default','0','','0','0','0', \
+					'0','0','0','Default','6','15',"); 
+				sprintf(query2,",'%s','%s','1','5','%s','732800.33333333', \
+					'0','0','1.00','0','0','0', \
+					'0')", \
+					sqlprog[which].seriesid,sqlprog[which].programid,starttime );
+				break;
+			case 20:
+				sprintf(guierrormsg, "No MythTV SQL support\nMythTV version: %d\n", mysqlptr->version);
+				gui_error(guierrormsg);
+				break;
+			default:
+				sprintf(guierrormsg, "No MythTV SQL support\nMythTV version: %d\n", mysqlptr->version);
+				gui_error(guierrormsg);
+				goto out;	
+				break;
+			}
+	                cmyth_dbg(CMYTH_DBG_DEBUG, "%s query = [%s]\n %d", __FUNCTION__, query,err);
+
+			if ((rec_id=insert_into_record_mysql(query,query1,query2,sqlprog[which].title,sqlprog[which].subtitle,sqlprog[which].description,chan[sqlprog[which].chanid].callsign,mysqlptr->host,mysqlptr->user,mysqlptr->pass, mysqlptr->db) ) <= 0 ) {
+        		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1)\n",
+               			__FUNCTION__, __FILE__, __LINE__);
+			goto err;
+			} 
+			else {
+				sprintf(msg,"RESCHEDULE_RECORDINGS %d",rec_id);
+				if ((err=cmyth_schedule_recording(ctrl,msg))<0){
+					cmyth_dbg(CMYTH_DBG_ERROR,
+					"%s: cmyth_sschedule_recording() failed (%d)\n", 
+					__FUNCTION__,err);
+					fprintf (stderr, "Error scheduling recording : %d\n",err);
+					goto err;
+				} 
+				sqlprog[which].recording = 1;
+			} 
+			break;
+		} /* first switch */
+
+	if ( sqlprog[which].recording ) {
+		sprintf(buf, "Recording Scheduled\n");
+		mvpw_set_text_str(program_info_widget, buf);
+		mvpw_show(program_info_widget);
+		item_attr.fg = mythtv_colors.pending_will_record;	
+		mvpw_menu_set_item_attr(widget, key, &item_attr);
+	}
+	out:
+		cmyth_release(ctrl);
+		return;
+
+	err:
+		sprintf(buf, "ERROR-Recording NOT Scheduled\n");
+		mvpw_set_text_str(program_info_widget, buf);
+		mvpw_show(program_info_widget);
+		cmyth_release(ctrl);
+		return;
+}
+
+extern char *strptime(const char *buf, const char *format, struct tm *tm);
+
+static void
+hilite_prog_finder_time_callback(mvp_widget_t *widget, char *item , void *key, int hilite)
+{
+	char buf[550];
+	char tmbuf[50];
+	char startstring[50];
+        char frmttime[25];
+        struct tm *loctime;
+
+        curtime=time(NULL);
+        loctime=localtime(&curtime);
+
+	int which = (int)key;
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) \n",
+		__FUNCTION__, __FILE__, __LINE__);
+	if (hilite){
+		strptime(sqlprog[which].starttime,"%Y-%m-%d %H:%M:%S", loctime);
+		strftime(frmttime,25, "%a %b %d, %I:%M %p", loctime);
+		snprintf(tmbuf, sizeof(frmttime),"%s",frmttime); 
+		strptime(sqlprog[which].endtime,"%Y-%m-%d %H:%M:%S", loctime);
+		strftime(frmttime,25, " - %I:%M %p", loctime);
+		strncat(tmbuf, frmttime, sizeof(frmttime));
+		snprintf(startstring, sizeof(startstring), "%s", tmbuf);
+ 		sprintf(buf, "%s\n%d - %s\n%s\n%s",startstring,chan[sqlprog[which].chanid].channum,chan[sqlprog[which].chanid].callsign,sqlprog[which].subtitle,sqlprog[which].description); 
+		mvpw_set_text_str(program_info_widget, buf); 
+		mvpw_show(program_info_widget);
+	}
+
+}
+
+int
+mythtv_prog_finder_char_menu_right (int direction, mvp_widget_t *widget, mvp_widget_t *widget2, mvp_widget_t *widget3) 
+{
+	int i=0,sqlcount,count;
+	char buf[256];
+        char starttime[25];
+        struct tm *loctime;
+
+        curtime=time(NULL);
+        loctime=localtime(&curtime);
+        strftime(starttime,256, "%Y-%m-%d %H:00:00", loctime);
+
+	item_attr.select = prog_finder_title_callback;
+	item_attr.hilite = hilite_prog_finder_title_callback;
+	item_attr.fg = mythtv_attr.fg;
+	item_attr.bg = mythtv_attr.bg;
+
+	mvpw_show(root);
+	mvpw_expose(root);
+
+	if (mythtv_verify() < 0) {
+		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1)\n",
+			__FUNCTION__, __FILE__, __LINE__); 
+		snprintf(buf, sizeof(buf),"Mythtv Server Error\n" );
+		mvpw_add_menu_item(widget2, buf , (void*)i, &item_attr);
+		goto out;
+	}
+
+	busy_start();
+	pthread_mutex_lock(&myth_mutex);
+
+	mysqlptr->version = myth_check_version(); 
+
+	if (myth_load_channels(chan,mysqlptr->host,mysqlptr->user,mysqlptr->pass,mysqlptr->db) < 0) {
+		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1)\n",
+			__FUNCTION__, __FILE__, __LINE__); 
+		snprintf(buf, sizeof(buf),"Database Error.  Please check your settings\n" );
+		mvpw_add_menu_item(widget2, buf , (void*)i, &item_attr);
+		goto out;
+	}
+
+        sqlcount=get_prog_finder_char_title_mysql(sqlprog, starttime, prog_finder_hilite_char, mysqlptr->host, mysqlptr->user, mysqlptr->pass,mysqlptr->db);
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1): sqlcount=%d\n",
+			__FUNCTION__, __FILE__, __LINE__,sqlcount); 
+	if (sqlcount < 0) {
+		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1)\n",
+			__FUNCTION__, __FILE__, __LINE__); 
+		snprintf(buf, sizeof(buf),"Database Error.  Please check your settings\n" );
+		mvpw_add_menu_item(widget2, buf , (void*)i, &item_attr);
+		goto out;
+	}
+/*	
+	if (myth_sql_program_info(curtime,sqlcount) <0) {
+		cmyth_dbg(CMYTH_DBG_DEBUG, "error returned from %s [#%s] line: %d\n",
+			__FUNCTION__ ,sqlcount,__LINE__); 
+	}
+*/
+	mvpw_clear_menu(widget2);
+	count = sqlcount;
+
+	for (i=0; i<sqlcount; i++) {
+		snprintf(buf, sizeof(buf),"%s",sqlprog[i].title); 
+		if (i <=(sqlcount/2)) { 
+			mvpw_add_menu_item(widget2, buf , (void*)i, &item_attr);
+		}
+		else {
+			mvpw_add_menu_item(widget2, buf , (void*)i, &item_attr);
+		}
+	}
+	out:
+		mvpw_focus(widget);
+		pthread_mutex_unlock(&myth_mutex);
+		busy_end();
+		return 0;
+}
+
+int
+mythtv_prog_finder_char_menu(mvp_widget_t *widget, mvp_widget_t *widget2, mvp_widget_t *widget3) 
+{
+	int i=0;
+#ifdef UPDOWN		/* Remove since up/down arrow does not work to change titles */
+	int sqlcount,count;  
+#endif
+	char buf[256];
+        char starttime[25];
+        struct tm *loctime;
+
+        curtime=time(NULL);
+        loctime=localtime(&curtime);
+        strftime(starttime,256, "%Y-%m-%d %H:00:00", loctime);
+
+	/* First Character Selector */
+	item_attr.select = prog_finder_char_callback;
+	item_attr.hilite = hilite_prog_finder_char_callback;
+	item_attr.fg = mythtv_attr.fg;
+	item_attr.bg = mythtv_attr.bg;
+
+	/* Add letters to widget */
+	for(i='A';i<='Z';i++) {
+			snprintf(buf, sizeof(buf),"%c", i);
+			mvpw_add_menu_item(widget, buf , (void*)i, &item_attr);
+	}
+	/* Add @ sign */
+	snprintf(buf, sizeof(buf),"%c", '@');
+	mvpw_add_menu_item(widget, buf , (void*)'@', &item_attr);
+
+	/* Add Numbers to widget */
+	for(i='0';i<='9';i++) {
+			snprintf(buf, sizeof(buf),"%c", i);
+			mvpw_add_menu_item(widget, buf , (void*)i, &item_attr);
+	}
+
+	mvpw_show(root);
+	mvpw_expose(root);
+
+	/* Program Title Selector */
+/*
+	item_attr.select = prog_finder_title_callback;
+	item_attr.hilite = hilite_prog_finder_title_callback;
+	item_attr.fg = mythtv_attr.fg;
+	item_attr.bg = mythtv_attr.bg;
+*/
+#ifdef UPDOWN		/* Remove since up/down arrow does not work to change titles */
+
+	if (mythtv_verify() < 0) {
+		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1)\n",
+			__FUNCTION__, __FILE__, __LINE__); 
+		snprintf(buf, sizeof(buf),"Mythtv Server Error\n" );
+		mvpw_add_menu_item(widget2, buf , (void*)i, &item_attr);
+		goto out;
+	}
+
+#endif 	/* Remove since up/down arrow does not work to change titles */
+
+	busy_start();
+	pthread_mutex_lock(&myth_mutex);
+
+	mysqlptr->version = myth_check_version(); 
+
+#ifdef UPDOWN		/* Remove since up/down arrow does not work to change titles */
+	if (myth_load_channels(chan,mysqlptr->host,mysqlptr->user,mysqlptr->pass,mysqlptr->db) < 0) {
+		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1)\n",
+			__FUNCTION__, __FILE__, __LINE__); 
+		snprintf(buf, sizeof(buf),"Database Error.  Please check your settings\n" );
+		mvpw_add_menu_item(widget2, buf , (void*)i, &item_attr);
+		goto out;
+	}
+	
+        sqlcount=get_prog_finder_char_title_mysql(sqlprog, starttime, "A", 
+		sqlptr->host, mysqlptr->user, mysqlptr->pass,mysqlptr->db);
+
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1): sqlcount=%d\n",
+			__FUNCTION__, __FILE__, __LINE__,sqlcount); 
+	if (sqlcount < 0) {
+		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1)\n",
+			__FUNCTION__, __FILE__, __LINE__); 
+		snprintf(buf, sizeof(buf),"Database Error.  Please check your settings\n" );
+		mvpw_add_menu_item(widget2, buf , (void*)i, &item_attr);
+		goto out;
+	}
+/*
+	if (myth_sql_program_info(curtime,sqlcount) <0) {
+		cmyth_dbg(CMYTH_DBG_DEBUG, "error returned from %s [#%s] line: %d\n",
+			__FUNCTION__ ,sqlcount,__LINE__); 
+	}
+*/
+#endif
+	add_osd_widget(mythtv_program_widget, OSD_PROGRAM, osd_settings.program, NULL);
+#ifdef UPDOWN		/* Remove since up/down arrow does not work to change titles */
+	count = sqlcount;
+
+	for (i=2; i<sqlcount; i++) {
+		snprintf(buf, sizeof(buf),"%s",sqlprog[i].title); 
+		if (i <=(sqlcount/2)) { 
+			mvpw_add_menu_item(widget2, buf , (void*)i, &item_attr);
+		}
+		else {
+			mvpw_add_menu_item(widget2, buf , (void*)i, &item_attr);
+		}
+	}
+	out:
+#endif		/* Remove since up/down arrow does not work to change titles */
+		mvpw_show(widget);
+		mvpw_show(widget2);
+		mvpw_show(widget3);
+		mvpw_focus(widget);
+		pthread_mutex_unlock(&myth_mutex);
+		busy_end();
+		return 0;
+}
+
+int
+mythtv_prog_finder_title_menu_right (mvp_widget_t *widget, mvp_widget_t *widget2, mvp_widget_t *widget3) 
+{
+	int i=0,sqlcount,count;
+	char buf[256];
+        char starttime[25];
+	char frmttime[25];
+        struct tm *loctime;
+
+        cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1)\n",
+                 __FUNCTION__, __FILE__, __LINE__);
+
+        curtime=time(NULL);
+        loctime=localtime(&curtime);
+        strftime(starttime,256, "%Y-%m-%d %H:00:00", loctime);
+
+	item_attr.select = prog_finder_time_callback;
+	item_attr.hilite = hilite_prog_finder_time_callback;
+	item_attr.fg = mythtv_attr.fg;
+	item_attr.bg = mythtv_attr.bg;
+
+	mvpw_show(root);
+	mvpw_expose(root);
+
+	if (mythtv_verify() < 0) {
+		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1)\n",
+			__FUNCTION__, __FILE__, __LINE__); 
+		snprintf(buf, sizeof(buf),"Mythtv Server Error\n" );
+		mvpw_add_menu_item(widget3, buf , (void*)i, &item_attr);
+		goto out;
+	}
+
+	busy_start();
+	pthread_mutex_lock(&myth_mutex);
+
+	mysqlptr->version = myth_check_version(); 
+
+	if (myth_load_channels(chan,mysqlptr->host,mysqlptr->user,mysqlptr->pass,mysqlptr->db) < 0) {
+		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1)\n",
+			__FUNCTION__, __FILE__, __LINE__); 
+		snprintf(buf, sizeof(buf),"Database Error.  Please check your settings\n" );
+		mvpw_add_menu_item(widget3, buf , (void*)i, &item_attr);
+		goto out;
+	}
+
+        sqlcount=get_prog_finder_time_mysql(sqlprog, starttime, prog_finder_hilite_title, 
+		mysqlptr->host, mysqlptr->user, mysqlptr->pass,mysqlptr->db);
+
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1): sqlcount=%d\n",
+			__FUNCTION__, __FILE__, __LINE__,sqlcount); 
+	if (sqlcount < 0) {
+		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1)\n",
+			__FUNCTION__, __FILE__, __LINE__); 
+		snprintf(buf, sizeof(buf),"Database Error.  Please check your settings\n" );
+		mvpw_add_menu_item(widget3, buf , (void*)i, &item_attr);
+		goto out;
+	}
+
+	fprintf(stderr, "Calling program_info with time: %s and sql count: %d\n", starttime, sqlcount);
+	if (myth_sql_program_info(curtime,sqlcount) <0) {
+		cmyth_dbg(CMYTH_DBG_DEBUG, "error returned from %s [#%s] line: %d\n",
+			__FUNCTION__ ,sqlcount,__LINE__); 
+	}
+
+	mvpw_clear_menu(widget3);
+	count = sqlcount;
+
+	for (i=0; i<sqlcount; i++) {
+		fprintf(stderr, "%s: Recording Type: %d\n", sqlprog[i].title, sqlprog[i].recording);
+		switch (sqlprog[i].recording) {
+			case 1:
+				item_attr.fg = mythtv_colors.pending_recording;
+				break;
+			case 2:
+				item_attr.fg = mythtv_colors.pending_will_record;
+				break;
+			case 3:
+				item_attr.fg = mythtv_colors.pending_conflict;
+				break;
+			case 4:
+				item_attr.fg = mythtv_colors.pending_other;
+				break;
+			case 5:
+				item_attr.fg = mythtv_colors.pending_other;
+				break;
+			case 6:
+				item_attr.fg = mythtv_colors.pending_other;
+				break;
+			case 7:
+				item_attr.fg = mythtv_colors.pending_other;
+				break;
+			case 8:
+				item_attr.fg = mythtv_colors.pending_other;
+				break;
+			case 9:
+				item_attr.fg = mythtv_colors.pending_other;
+				break;
+			case 10:
+				item_attr.fg = mythtv_colors.pending_other;
+				break;
+			case 99:
+				item_attr.fg = mythtv_colors.pending_other;
+				break;
+			default:
+				item_attr.fg = mythtv_attr.fg;
+		}
+
+
+		strptime(sqlprog[i].starttime, "%Y-%m-%d %H:%M:%S", loctime);
+		strftime(frmttime,25, "%a %b %d, %I:%M %p", loctime);
+		snprintf(buf, sizeof(frmttime),"%s",frmttime); 
+		if (i <=(sqlcount/2)) { 
+			mvpw_add_menu_item(widget3, buf , (void*)i, &item_attr);
+		}
+		else {
+			mvpw_add_menu_item(widget3, buf , (void*)i, &item_attr);
+		}
+	}
+	out:
+		pthread_mutex_unlock(&myth_mutex);
+		busy_end();
+		return 0;
+}
 
 void
 mythtv_browser_expose(mvp_widget_t *widget)
@@ -3160,6 +3825,10 @@ mythtv_browser_expose(mvp_widget_t *widget)
 
 	switch (mythtv_state) {
 	case MYTHTV_STATE_SCHEDULE:
+		break;
+	case MYTHTV_STATE_PROG_FINDER:
+		mythtv_update(widget);
+		mythtv_set_popup_menu(MYTHTV_STATE_PROG_FINDER);
 		break;
 	case MYTHTV_STATE_MAIN:
 		break;

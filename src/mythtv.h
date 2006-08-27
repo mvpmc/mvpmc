@@ -22,6 +22,10 @@
 
 #include <cmyth.h>
 
+
+char prog_finder_hilite_char[1];		/* Current Program Finder First Character */
+char prog_finder_hilite_title[256];	/* Current Program Finder Title */ 
+
 /*
  * mythtv_state indicates what part of the gui is active
  */
@@ -33,6 +37,7 @@ typedef enum {
 	MYTHTV_STATE_LIVETV,
 	MYTHTV_STATE_UPCOMING,
 	MYTHTV_STATE_SCHEDULE,
+	MYTHTV_STATE_PROG_FINDER,
 } mythtv_state_t;
 
 extern volatile mythtv_state_t mythtv_state;
@@ -129,6 +134,11 @@ extern void mythtv_set_popup_menu(mythtv_state_t state);
 extern int mythtv_guide_menu(mvp_widget_t*, mvp_widget_t*);
 extern int mythtv_guide_menu_next(mvp_widget_t*);
 extern int mythtv_guide_menu_previous(mvp_widget_t*);
+
+extern int mythtv_prog_finder_char_menu(mvp_widget_t*, mvp_widget_t*, mvp_widget_t*);
+extern int mythtv_prog_finder_char_menu_right(int direction, mvp_widget_t*, mvp_widget_t*, mvp_widget_t*);
+
+extern int mythtv_prog_finder_title_menu_right(mvp_widget_t*, mvp_widget_t*, mvp_widget_t*);
 
 extern void mythtv_show_widgets(void);
 extern void mythtv_program(mvp_widget_t *widget);
