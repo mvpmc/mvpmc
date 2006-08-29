@@ -2634,7 +2634,7 @@ hilite_schedule_recording_callback(mvp_widget_t *widget, char *item , void *key,
 }
 
 int 
-myth_sql_program_info(time_t now, int sqlcount)
+myth_sql_program_info(time_t now, int sqlcount, int all)
 {
 	int i, j,count;
         time_t rec_t, aheadtime;
@@ -2723,7 +2723,7 @@ myth_sql_program_info(time_t now, int sqlcount)
                 rec_t = mktime(&rec_tm);
 
                 if (rec_t < now) { goto release; }
-//                if (rec_t > aheadtime) { goto release; } 
+                if (rec_t > aheadtime && !all) { goto release; }
 
 		/* Now get start time for program comparison */
                 year = atoi(start);
@@ -2899,7 +2899,7 @@ mythtv_guide_menu_previous(mvp_widget_t *widget)
 		mvpw_add_menu_item(widget, buf , (void*)i, &item_attr);
 		goto out;
         }
-	if (myth_sql_program_info(t,sqlcount) <0) {
+	if (myth_sql_program_info(t,sqlcount, 0) <0) {
 		cmyth_dbg(CMYTH_DBG_DEBUG, "error returned from %s [#%s] line: %d\n",
 			__FUNCTION__ ,count,__LINE__); 
 	} 
@@ -3029,7 +3029,7 @@ mythtv_guide_menu_next(mvp_widget_t *widget)
 		goto out;
 	}
 
-	if (myth_sql_program_info(t,sqlcount) <0) {
+	if (myth_sql_program_info(t,sqlcount, 0) <0) {
 		cmyth_dbg(CMYTH_DBG_DEBUG, "error returned from %s [#%s] line: %d\n",
 			__FUNCTION__ ,sqlcount,__LINE__); 
 	}
@@ -3162,7 +3162,7 @@ mythtv_guide_menu(mvp_widget_t *widget, mvp_widget_t *widget2)
 		goto out;
 	}
 	
-	if (myth_sql_program_info(curtime,sqlcount) <0) {
+	if (myth_sql_program_info(curtime,sqlcount, 0) <0) {
 		cmyth_dbg(CMYTH_DBG_DEBUG, "error returned from %s [#%s] line: %d\n",
 			__FUNCTION__ ,sqlcount,__LINE__); 
 	}
@@ -3536,7 +3536,7 @@ mythtv_prog_finder_char_menu_right (int direction, mvp_widget_t *widget, mvp_wid
 		goto out;
 	}
 /*	
-	if (myth_sql_program_info(curtime,sqlcount) <0) {
+	if (myth_sql_program_info(curtime,sqlcount, 1) <0) {
 		cmyth_dbg(CMYTH_DBG_DEBUG, "error returned from %s [#%s] line: %d\n",
 			__FUNCTION__ ,sqlcount,__LINE__); 
 	}
@@ -3645,7 +3645,7 @@ mythtv_prog_finder_char_menu(mvp_widget_t *widget, mvp_widget_t *widget2, mvp_wi
 		goto out;
 	}
 /*
-	if (myth_sql_program_info(curtime,sqlcount) <0) {
+	if (myth_sql_program_info(curtime,sqlcount, 1) <0) {
 		cmyth_dbg(CMYTH_DBG_DEBUG, "error returned from %s [#%s] line: %d\n",
 			__FUNCTION__ ,sqlcount,__LINE__); 
 	}
@@ -3734,7 +3734,7 @@ mythtv_prog_finder_title_menu_right (mvp_widget_t *widget, mvp_widget_t *widget2
 	}
 
 	fprintf(stderr, "Calling program_info with time: %s and sql count: %d\n", starttime, sqlcount);
-	if (myth_sql_program_info(curtime,sqlcount) <0) {
+	if (myth_sql_program_info(curtime,sqlcount, 1) <0) {
 		cmyth_dbg(CMYTH_DBG_DEBUG, "error returned from %s [#%s] line: %d\n",
 			__FUNCTION__ ,sqlcount,__LINE__); 
 	}
