@@ -20,6 +20,15 @@
 /** \file mvp_osd.h
  * MediaMVP On-Screen-Display interface library.  This library is used to
  * draw graphics on the TV screen.
+ *
+ * The hardware provides a drawing surface concept, which allows the
+ * programmer to create on one or more surfaces at a time.  However, only
+ * one surface can be visible at a time.
+ *
+ * Drawing something complicated, such as an image, can be slow.  So the
+ * hardware allows very fast copying of data between surfaces.  This allows
+ * you to draw on hidden surfaces, and copy the results to the visible
+ * surface to avoid the appearance of slow drawing.
  */
 
 #ifndef MVP_OSD_H
