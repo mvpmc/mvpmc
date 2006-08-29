@@ -136,22 +136,116 @@ extern void mvpw_set_timer(mvp_widget_t *widget,
  * \param widget widget handle
  */
 extern void mvpw_focus(mvp_widget_t *widget);
+
+/**
+ * Get the widget that currently has focus.
+ * \return handle to the widget with focus
+ */
 extern mvp_widget_t *mvpw_get_focus(void);
+
+/**
+ * Display a widget on the screen.
+ * \param widget widget handle
+ */
 extern void mvpw_show(mvp_widget_t *widget);
+
+/**
+ * Make a widget not visible on the screen.
+ * \param widget widget to be hidden
+ */
 extern void mvpw_hide(mvp_widget_t *widget);
+
+/**
+ * Raise a widget so that it is fully visible.
+ * \param widget widget handle
+ */
 extern void mvpw_raise(mvp_widget_t *widget);
+
+/**
+ * Lower a widget so that other widgets are visible over top of it.
+ * \param widget widget handle
+ */
 extern void mvpw_lower(mvp_widget_t *widget);
+
+/**
+ * Force an expose event on a widget.
+ * \param widget widget handle
+ */
 extern void mvpw_expose(const mvp_widget_t *widget);
+
+/**
+ * Return the height of a font.
+ * \param font font ID
+ * \param utf8 1 if UTF8 encoding is used, 0 otherwise
+ * \return font height in pixels
+ */
 extern int mvpw_font_height(int font, int utf8);
+
+/**
+ * Return the width for a string using a certain font.
+ * \param font font ID
+ * \param str string to calculate width for
+ * \param utf8 1 if UTF8 encoding is used, 0 otherwise
+ * \return string width in pixels
+ */
 extern int mvpw_font_width(int font, char *str, int utf8);
+
+/**
+ * Load a font from a file.
+ * \param file file name
+ * \return font ID
+ */
 extern int mvpw_load_font(char *file);
+
+/**
+ * Move a widget, and all attached widgets, by a certain number of pixels.
+ * \param widget widget handle
+ * \param x horizontal offset
+ * \param y vertical offset
+ */
 extern void mvpw_move(mvp_widget_t *widget, int x, int y);
+
+/**
+ * Move a widget, and all attached widgets, to a specific location.
+ * \param widget widget handle
+ * \param x horizontal coordinate
+ * \param y vertical coordinate
+ */
 extern void mvpw_moveto(mvp_widget_t *widget, int x, int y);
+
+/**
+ * Resize a widget.
+ * \param widget widget handle
+ * \param w new width
+ * \param h new height
+ */
 extern void mvpw_resize(const mvp_widget_t *widget, int w, int h);
+
+/**
+ * Attach two widgets together, so they can be moved in unison.
+ * \param w1 widget handle
+ * \param w2 widget handle
+ * \param direction w2 should be in this direction from w2
+ * \retval 0 success
+ * \retval -1 error
+ */
 extern int mvpw_attach(mvp_widget_t *w1, mvp_widget_t *w2, int direction);
+
+/**
+ * Detach widgets from each other.
+ * \param widget widget handle
+ * \param direction unattach the widget in this direction from the widget
+ */
 extern void mvpw_unattach(mvp_widget_t *widget, int direction);
+
+/**
+ * Register a key callback on a widget.
+ * \param widget widget handle
+ * \param callback callback function
+ */
 extern void mvpw_set_key(mvp_widget_t *widget,
 			 void (*callback)(mvp_widget_t*, char));
+
 extern void mvpw_destroy(mvp_widget_t *widget);
 extern int mvpw_visible(const mvp_widget_t *widget);
 extern int mvpw_keystroke_callback(void (*callback)(char));
