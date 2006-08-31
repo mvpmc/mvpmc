@@ -65,13 +65,13 @@ static mvpw_menu_item_attr_t item_attr = {
 };
 
 extern int insert_into_record_mysql(char *, char *, char *, char *, char *, char *, char *, char * , char *, char *, char *);
-extern int get_guide_mysql(struct program *, struct channel *, char *, char *, char*, char*, char*, char*);
-extern int get_prog_finder_char_title_mysql(struct program *prog, char *starttime, char *program_name, char *dbhost, char *dbuser, char *dbpass, char *db);
-extern int get_prog_finder_time_mysql(struct program *prog, char *starttime, char *program_name, char *dbhost, char *dbuser, char *dbpass, char *db);
-extern int myth_load_channels(struct channel *, char *, char *, char *, char *);
+extern int get_prog_finder_char_title_mysql(struct program **prog, char *starttime, char *program_name, char *dbhost, char *dbuser, char *dbpass, char *db);
+extern int get_prog_finder_time_mysql(struct program **prog, char *starttime, char *program_name, char *dbhost, char *dbuser, char *dbpass, char *db);
+extern int get_guide_mysql(struct program **, char *, char *, char*, char*, char*, char*);
 extern int cmyth_schedule_recording(cmyth_conn_t, char *);
 extern int get_myth_version(cmyth_conn_t);
 extern char * mysql_escape_chars(char *, char *, char *, char *, char *);
+extern int myth_get_total_channels(char *, char *, char *, char *);
 
 pthread_cond_t myth_cond = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -86,8 +86,7 @@ static volatile cmyth_proginfo_t hilite_prog;	/* program currently hilighted */
 static volatile cmyth_proglist_t episode_plist;
 static volatile cmyth_proglist_t pending_plist;
 
-static struct program sqlprog[650];
-static struct channel chan[500];
+struct program *sqlprog=NULL;
 
 volatile cmyth_recorder_t mythtv_recorder;
 
@@ -142,6 +141,9 @@ mythtv_color_t mythtv_colors = {
 	.pending_other		= MVPW_BLACK,
 	.menu_item		= MVPW_BLUE,
 };
+
+int chan_Total_rows=0;
+
 
 static void
 add_recgroup(char *recgroup)
@@ -2431,9 +2433,7 @@ schedule_recording_callback(mvp_widget_t *widget, char *item , void *key)
 	int rec_id=0;
 	cmyth_conn_t ctrl = cmyth_hold(control);
 	char *string;
-	unsigned int len;
 	int rcrd = sqlprog[which].recording;
-	
 
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) \n",
 		__FUNCTION__, __FILE__, __LINE__);
@@ -2465,11 +2465,8 @@ schedule_recording_callback(mvp_widget_t *widget, char *item , void *key)
 			n =  strtok (NULL,delimiters);
 			strcpy(endtime, n);
 			
-	/*		sprintf(query, "REPLACE INTO record (recordid,type,chanid,starttime,startdate,endtime,enddate,search,title,subtitle,description,profile,recpriority,category,maxnewest,inactive,maxepisodes,autoexpire,startoffset,endoffset,recgroup,dupmethod,dupin,station,seriesid,programid,autocommflag,findday,findtime,findid,autotranscode,transcoder,tsdefault,autouserjob1,autouserjob2,autouserjob3,autouserjob4) values (NULL,'1','%d','%s','%s','%s','%s','','%s','%s','%s','Default','0','','0','0','0','0','0','0','Default','6','15','%s','%s','%s','1','5','%s','732800.33333333','0','0','1.00','0','0','0','0')",sqlprog[which].chanid,starttime,startdate,endtime,enddate,sqlprog[which].title,sqlprog[which].subtitle,sqlprog[which].description,chan[sqlprog[which].chanid].callsign,sqlprog[which].seriesid,sqlprog[which].programid,starttime ); */
+	/*		sprintf(query, "REPLACE INTO record (recordid,type,chanid,starttime,startdate,endtime,enddate,search,title,subtitle,description,profile,recpriority,category,maxnewest,inactive,maxepisodes,autoexpire,startoffset,endoffset,recgroup,dupmethod,dupin,station,seriesid,programid,autocommflag,findday,findtime,findid,autotranscode,transcoder,tsdefault,autouserjob1,autouserjob2,autouserjob3,autouserjob4) values (NULL,'1','%ld','%s','%s','%s','%s','','%s','%s','%s','Default','0','','0','0','0','0','0','0','Default','6','15','%s','%s','%s','1','5','%s','732800.33333333','0','0','1.00','0','0','0','0')",sqlprog[which].chanid,starttime,startdate,endtime,enddate,sqlprog[which].title,sqlprog[which].subtitle,sqlprog[which].description,sqlprog[which].callsign,sqlprog[which].seriesid,sqlprog[which].programid,starttime ); */
 			
-		       	len = strlen(sqlprog[which].seriesid);
-			string=malloc(len * sizeof(char));
- 
 			string = mysql_escape_chars(sqlprog[which].seriesid,mysqlptr->host,mysqlptr->user,mysqlptr->pass, mysqlptr->db);
 fprintf(stderr, "Seriesid = %s\n",string);
 
@@ -2487,7 +2484,7 @@ fprintf(stderr, "Seriesid = %s\n",string);
 					station,\
 					seriesid,programid,search, autotranscode,autocommflag,autouserjob1,autouserjob2,autouserjob3, \
 					autouserjob4, findday,findtime,findid, inactive, parentid) values \
-					(NULL,'1','%d','%s','%s','%s', \
+					(NULL,'1','%ld','%s','%s','%s', \
 					'%s',", \
 					sqlprog[which].chanid,starttime,startdate,endtime, \
 					enddate);
@@ -2516,7 +2513,7 @@ fprintf(stderr, "Seriesid = %s\n",string);
 					seriesid,programid,autocommflag,findday,findtime,findid, \
 					autotranscode,transcoder,tsdefault,autouserjob1,autouserjob2,autouserjob3, \
 					autouserjob4) values \
-					(NULL,'1','%d','%s','%s','%s', \
+					(NULL,'1','%ld','%s','%s','%s', \
 					'%s','',", \
 					sqlprog[which].chanid,starttime,startdate,endtime, \
 					enddate);
@@ -2536,7 +2533,7 @@ fprintf(stderr, "Seriesid = %s\n",string);
 			}
 	                cmyth_dbg(CMYTH_DBG_DEBUG, "%s query = [%s]\n %d", __FUNCTION__, query,err);
 
-			if ((rec_id=insert_into_record_mysql(query,query1,query2,sqlprog[which].title,sqlprog[which].subtitle,sqlprog[which].description,chan[sqlprog[which].chanid].callsign,mysqlptr->host,mysqlptr->user,mysqlptr->pass, mysqlptr->db) ) <= 0 ) {
+			if ((rec_id=insert_into_record_mysql(query,query1,query2,sqlprog[which].title,sqlprog[which].subtitle,sqlprog[which].description,sqlprog[which].callsign,mysqlptr->host,mysqlptr->user,mysqlptr->pass, mysqlptr->db) ) <= 0 ) {
         		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1)\n",
                			__FUNCTION__, __FILE__, __LINE__);
 			goto err;
@@ -2582,8 +2579,8 @@ hilite_schedule_recording_callback(mvp_widget_t *widget, char *item , void *key,
 	char buf[550];
 	char record_message[25];
 	char startstring[50];
-	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) \n",
-		__FUNCTION__, __FILE__, __LINE__);
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace)  which =%d\n",
+		__FUNCTION__, __FILE__, __LINE__, which);
 
 	switch (which) {
 		case 0:
@@ -2625,8 +2622,9 @@ hilite_schedule_recording_callback(mvp_widget_t *widget, char *item , void *key,
 				default:
 					sprintf(record_message, "Not Scheduled to record");
 			}
+
 			sprintf(startstring, "%s - %s",sqlprog[which].starttime,sqlprog[which].endtime);
-			sprintf(buf, "%s\n%s\n%d - %s\n%s",record_message,startstring,chan[sqlprog[which].chanid].channum,chan[sqlprog[which].chanid].callsign,sqlprog[which].description);
+			sprintf(buf, "%s\n%s\n%d - %s  - Tuner %d\n%s",record_message,startstring,sqlprog[which].channum,sqlprog[which].callsign,sqlprog[which].sourceid,sqlprog[which].description);
 			mvpw_set_text_str(program_info_widget, buf);
 			mvpw_show(program_info_widget);
 			break;
@@ -2666,8 +2664,6 @@ myth_sql_program_info(time_t now, int sqlcount, int all)
                 pnd_list = cmyth_hold(pending_plist);
         }
         count = cmyth_proglist_get_count(pnd_list);
-        fprintf(stderr, "found %d pending recordings\n", count);
-
 
         for (i = 0; i < count; ++i) {
                 char *title, *subtitle;
@@ -2723,7 +2719,7 @@ myth_sql_program_info(time_t now, int sqlcount, int all)
                 rec_t = mktime(&rec_tm);
 
                 if (rec_t < now) { goto release; }
-                if (rec_t > aheadtime && !all) { goto release; }
+                if (rec_t > aheadtime && ! all) { goto release; } 
 
 		/* Now get start time for program comparison */
                 year = atoi(start);
@@ -2812,8 +2808,8 @@ schedule_compare (const void *a, const void *b)
 	const struct program *x, *y;
 	int X, Y;
 	
-	x = ((const struct program*)a);
-	y = ((const struct program*)b);
+	x = a;
+	y = b;
 	X = x->channum;
 	Y = y->channum;
 
@@ -2831,7 +2827,7 @@ schedule_compare (const void *a, const void *b)
 int
 mythtv_guide_menu_previous(mvp_widget_t *widget) 
 {
-        int count=0,sqlcount;
+        int count=0,sqlcount=0;
         int i=0;
         char buf[256];
         char starttime[25], endtime[25];
@@ -2890,13 +2886,26 @@ mythtv_guide_menu_previous(mvp_widget_t *widget)
 
         busy_start();
 	pthread_mutex_lock(&myth_mutex);
+	if (sqlprog != NULL) {
+		free (sqlprog);
+		sqlprog=NULL;
+	}
+	if ((sqlprog=malloc(sizeof(struct program)*50))==NULL) {
+		perror("malloc");
+		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1)\n",
+			__FUNCTION__, __FILE__, __LINE__); 
+		snprintf(buf, sizeof(buf),"Mallor Error.\n" );
+		mvpw_add_menu_item(widget, buf , (void*)i, &item_attr);
+		goto out;
+	}
 
-        sqlcount=get_guide_mysql(sqlprog,chan,starttime,endtime,mysqlptr->host, mysqlptr->user, mysqlptr->pass,mysqlptr->db);
+        sqlcount=get_guide_mysql(&sqlprog,starttime,endtime,mysqlptr->host, mysqlptr->user, mysqlptr->pass,mysqlptr->db);
         if (sqlcount < 0) {
                 cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1)\n",
                         __FUNCTION__, __FILE__, __LINE__);
 		snprintf(buf, sizeof(buf),"Database Error.  Please check your settings\n" );
 		mvpw_add_menu_item(widget, buf , (void*)i, &item_attr);
+		free (sqlprog);
 		goto out;
         }
 	if (myth_sql_program_info(t,sqlcount, 0) <0) {
@@ -2913,7 +2922,7 @@ mythtv_guide_menu_previous(mvp_widget_t *widget)
         mvpw_add_menu_item(widget, buf , (void*)1, &item_attr);
 	count = sqlcount;
 	qsort(sqlprog,sqlcount,sizeof(*sqlprog),schedule_compare);
-        for (i=2; i<count; i++) {
+        for (i=1; i<count; i++) {
 		switch (sqlprog[i].recording) {
 			case 1:
 				item_attr.fg = mythtv_colors.pending_recording;
@@ -2951,7 +2960,7 @@ mythtv_guide_menu_previous(mvp_widget_t *widget)
 			default:
 				item_attr.fg = mythtv_attr.fg;
 		}
-		snprintf(buf, sizeof(buf),"%d (%s): %s - %s",chan[sqlprog[i].chanid].channum,chan[sqlprog[i].chanid].callsign,sqlprog[i].title,sqlprog[i].subtitle); 
+		snprintf(buf, sizeof(buf),"%d (%s): %s - %s",sqlprog[i].channum,sqlprog[i].callsign,sqlprog[i].title,sqlprog[i].subtitle); 
                 mvpw_add_menu_item(widget, buf , (void*)i, &item_attr);
         }
 	out:
@@ -2965,12 +2974,13 @@ mythtv_guide_menu_previous(mvp_widget_t *widget)
 int
 mythtv_guide_menu_next(mvp_widget_t *widget) 
 {
-	int sqlcount;
+	int sqlcount=0;
 	int i=0;
 	int count=0;
 	char buf[256];
 	char starttime[25], endtime[25];
 	const char delimiters[] = " :-";
+
 
         struct tm unixdate;
 	char cp[25];
@@ -2978,6 +2988,7 @@ mythtv_guide_menu_next(mvp_widget_t *widget)
 	time_t t;
         struct tm *loctime_ahead;
 	char *n;
+
 	strcpy(endtime,sqlprog[0].endtime);	
 	strcpy (starttime,endtime);
 	strcpy(cp,endtime); 
@@ -3019,13 +3030,27 @@ mythtv_guide_menu_next(mvp_widget_t *widget)
 	
 	busy_start();
 	pthread_mutex_lock(&myth_mutex);
+	if (sqlprog != NULL) {
+		free (sqlprog);
+		sqlprog=NULL;
+	}
+	if ((sqlprog=malloc(sizeof(struct program)*50))==NULL) {
+		perror("malloc");
+		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1)\n",
+			__FUNCTION__, __FILE__, __LINE__); 
+		snprintf(buf, sizeof(buf),"Mallor Error.\n" );
+		mvpw_add_menu_item(widget, buf , (void*)i, &item_attr);
+		goto out;
+	}
 
-        sqlcount=get_guide_mysql(sqlprog,chan,starttime,endtime,mysqlptr->host, mysqlptr->user, mysqlptr->pass,mysqlptr->db);
+        sqlcount=get_guide_mysql(&sqlprog,starttime,endtime,mysqlptr->host, mysqlptr->user, mysqlptr->pass,mysqlptr->db); 
+
 	if (sqlcount < 0) {
 		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1)\n",
 			__FUNCTION__, __FILE__, __LINE__); 
 		snprintf(buf, sizeof(buf),"Database Error.  Please check your settings\n" );
 		mvpw_add_menu_item(widget, buf , (void*)i, &item_attr);
+		free (sqlprog);
 		goto out;
 	}
 
@@ -3044,7 +3069,7 @@ mythtv_guide_menu_next(mvp_widget_t *widget)
 	mvpw_add_menu_item(widget, buf , (void*)1, &item_attr);
 	count = sqlcount;
 	qsort(sqlprog,sqlcount,sizeof(*sqlprog),schedule_compare);
-	for (i=2; i<sqlcount; i++) {
+	for (i=1; i<sqlcount; i++) {
 		switch (sqlprog[i].recording) {
 			case 1:
 				item_attr.fg = mythtv_colors.pending_recording;
@@ -3082,7 +3107,7 @@ mythtv_guide_menu_next(mvp_widget_t *widget)
 			default:
 				item_attr.fg = mythtv_attr.fg;
 		}
-		snprintf(buf, sizeof(buf),"%d (%s): %s - %s",chan[sqlprog[i].chanid].channum,chan[sqlprog[i].chanid].callsign,sqlprog[i].title,sqlprog[i].subtitle); 
+		snprintf(buf, sizeof(buf),"%d (%s): %s - %s",sqlprog[i].channum,sqlprog[i].callsign,sqlprog[i].title,sqlprog[i].subtitle); 
 		mvpw_add_menu_item(widget, buf , (void*)i, &item_attr);
 	}
 	out:
@@ -3137,34 +3162,39 @@ mythtv_guide_menu(mvp_widget_t *widget, mvp_widget_t *widget2)
 		mvpw_add_menu_item(widget, buf , (void*)i, &item_attr);
 		goto out;
 	}
-
 	busy_start();
 	pthread_mutex_lock(&myth_mutex);
 
 	mysqlptr->version = myth_check_version(); 
 
-	if (myth_load_channels(chan,mysqlptr->host,mysqlptr->user,mysqlptr->pass,mysqlptr->db) < 0) {
+	if (sqlprog != NULL) { 
+		free(sqlprog);
+		sqlprog=NULL;
+	}
+	if ((sqlprog=malloc(sizeof(struct program)*50))==NULL) {
+		perror("malloc");
 		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1)\n",
 			__FUNCTION__, __FILE__, __LINE__); 
-		snprintf(buf, sizeof(buf),"Database Error.  Please check your settings\n" );
+		snprintf(buf, sizeof(buf),"Mallor Error.\n" );
 		mvpw_add_menu_item(widget, buf , (void*)i, &item_attr);
 		goto out;
 	}
-	
-        sqlcount=get_guide_mysql(sqlprog,chan,starttime,endtime,mysqlptr->host, mysqlptr->user, mysqlptr->pass,mysqlptr->db);
+
+        sqlcount=get_guide_mysql(&sqlprog,starttime,endtime,mysqlptr->host, mysqlptr->user, mysqlptr->pass,mysqlptr->db);
+
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1): sqlcount=%d\n",
 			__FUNCTION__, __FILE__, __LINE__,sqlcount); 
 	if (sqlcount < 0) {
 		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1)\n",
 			__FUNCTION__, __FILE__, __LINE__); 
-		snprintf(buf, sizeof(buf),"Database Error.  Please check your settings\n" );
+		snprintf(buf, sizeof(buf),"No Guide retuned from Database...\nDatabase Error.  Please check your settings\n" );
 		mvpw_add_menu_item(widget, buf , (void*)i, &item_attr);
+		free(sqlprog);
 		goto out;
 	}
 	
 	if (myth_sql_program_info(curtime,sqlcount, 0) <0) {
-		cmyth_dbg(CMYTH_DBG_DEBUG, "error returned from %s [#%s] line: %d\n",
-			__FUNCTION__ ,sqlcount,__LINE__); 
+		cmyth_dbg(CMYTH_DBG_DEBUG, "error returned from %s [#%s] line: %d\n", __FUNCTION__ ,sqlcount,__LINE__); 
 	}
 
 	add_osd_widget(mythtv_program_widget, OSD_PROGRAM, osd_settings.program, NULL);
@@ -3176,9 +3206,9 @@ mythtv_guide_menu(mvp_widget_t *widget, mvp_widget_t *widget2)
 	snprintf(buf, sizeof(buf),"Get Previous Hour");
 	mvpw_add_menu_item(widget, buf , (void*)1, &item_attr);
 	count = sqlcount;
-	qsort(sqlprog,sqlcount,sizeof(*sqlprog),schedule_compare);
+	qsort(sqlprog,sqlcount,sizeof(*sqlprog),schedule_compare); 
 
-	for (i=2; i<sqlcount; i++) {
+	for (i=1; i<sqlcount-1; i++) {
 		switch (sqlprog[i].recording) {
 			case 1:
 				item_attr.fg = mythtv_colors.pending_recording;
@@ -3216,14 +3246,9 @@ mythtv_guide_menu(mvp_widget_t *widget, mvp_widget_t *widget2)
 			default:
 				item_attr.fg = mythtv_attr.fg;
 		}
-				
-		snprintf(buf, sizeof(buf),"%d (%s): %s - %s",chan[sqlprog[i].chanid].channum,chan[sqlprog[i].chanid].callsign,sqlprog[i].title,sqlprog[i].subtitle); 
-		if (i <=(sqlcount/2)) { 
-			mvpw_add_menu_item(widget, buf , (void*)i, &item_attr);
-		}
-		else {
-			mvpw_add_menu_item(widget, buf , (void*)i, &item_attr);
-		}
+
+		snprintf(buf, sizeof(buf),"%d (%s): %s - %s",sqlprog[i].channum,sqlprog[i].callsign,sqlprog[i].title,sqlprog[i].subtitle); 
+		mvpw_add_menu_item(widget, buf , (void*)i, &item_attr);
 	}
 	out:
 		mvpw_show(widget);
@@ -3364,7 +3389,7 @@ prog_finder_time_callback(mvp_widget_t *widget, char *item , void *key)
 					station,\
 					seriesid,programid,search, autotranscode,autocommflag,autouserjob1,autouserjob2,autouserjob3, \
 					autouserjob4, findday,findtime,findid, inactive, parentid) values \
-					(NULL,'1','%d','%s','%s','%s', \
+					(NULL,'1','%ld','%s','%s','%s', \
 					'%s',", \
 					sqlprog[which].chanid,starttime,startdate,endtime, \
 					enddate);
@@ -3390,7 +3415,7 @@ prog_finder_time_callback(mvp_widget_t *widget, char *item , void *key)
 					seriesid,programid,autocommflag,findday,findtime,findid, \
 					autotranscode,transcoder,tsdefault,autouserjob1,autouserjob2,autouserjob3, \
 					autouserjob4) values \
-					(NULL,'1','%d','%s','%s','%s', \
+					(NULL,'1','%ld','%s','%s','%s', \
 					'%s','',", \
 					sqlprog[which].chanid,starttime,startdate,endtime, \
 					enddate);
@@ -3414,7 +3439,7 @@ prog_finder_time_callback(mvp_widget_t *widget, char *item , void *key)
 			}
 	                cmyth_dbg(CMYTH_DBG_DEBUG, "%s query = [%s]\n %d", __FUNCTION__, query,err);
 
-			if ((rec_id=insert_into_record_mysql(query,query1,query2,sqlprog[which].title,sqlprog[which].subtitle,sqlprog[which].description,chan[sqlprog[which].chanid].callsign,mysqlptr->host,mysqlptr->user,mysqlptr->pass, mysqlptr->db) ) <= 0 ) {
+			if ((rec_id=insert_into_record_mysql(query,query1,query2,sqlprog[which].title,sqlprog[which].subtitle,sqlprog[which].description,sqlprog[which].callsign,mysqlptr->host,mysqlptr->user,mysqlptr->pass, mysqlptr->db) ) <= 0 ) {
         		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1)\n",
                			__FUNCTION__, __FILE__, __LINE__);
 			goto err;
@@ -3477,7 +3502,8 @@ hilite_prog_finder_time_callback(mvp_widget_t *widget, char *item , void *key, i
 		strftime(frmttime,25, " - %I:%M %p", loctime);
 		strncat(tmbuf, frmttime, sizeof(frmttime));
 		snprintf(startstring, sizeof(startstring), "%s", tmbuf);
- 		sprintf(buf, "%s\n%d - %s\n%s\n%s",startstring,chan[sqlprog[which].chanid].channum,chan[sqlprog[which].chanid].callsign,sqlprog[which].subtitle,sqlprog[which].description); 
+ 		sprintf(buf, "%s\n%d - %s\n%s\n%s",startstring,sqlprog[which].channum,sqlprog[which].callsign,sqlprog[which].subtitle,sqlprog[which].description); 
+		cmyth_dbg(CMYTH_DBG_DEBUG, "buf = %s\n",buf);
 		mvpw_set_text_str(program_info_widget, buf); 
 		mvpw_show(program_info_widget);
 	}
@@ -3516,16 +3542,20 @@ mythtv_prog_finder_char_menu_right (int direction, mvp_widget_t *widget, mvp_wid
 	pthread_mutex_lock(&myth_mutex);
 
 	mysqlptr->version = myth_check_version(); 
-
-	if (myth_load_channels(chan,mysqlptr->host,mysqlptr->user,mysqlptr->pass,mysqlptr->db) < 0) {
+	if (sqlprog != NULL) { 
+		free(sqlprog);
+		sqlprog=NULL;
+	}
+	if ((sqlprog=malloc(sizeof(struct program)*50))==NULL) {
+		perror("malloc");
 		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1)\n",
 			__FUNCTION__, __FILE__, __LINE__); 
-		snprintf(buf, sizeof(buf),"Database Error.  Please check your settings\n" );
-		mvpw_add_menu_item(widget2, buf , (void*)i, &item_attr);
+		snprintf(buf, sizeof(buf),"Mallor Error.\n" );
+		mvpw_add_menu_item(widget, buf , (void*)i, &item_attr);
 		goto out;
 	}
 
-        sqlcount=get_prog_finder_char_title_mysql(sqlprog, starttime, prog_finder_hilite_char, mysqlptr->host, mysqlptr->user, mysqlptr->pass,mysqlptr->db);
+        sqlcount=get_prog_finder_char_title_mysql(&sqlprog, starttime, prog_finder_hilite_char, mysqlptr->host, mysqlptr->user, mysqlptr->pass,mysqlptr->db);
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1): sqlcount=%d\n",
 			__FUNCTION__, __FILE__, __LINE__,sqlcount); 
 	if (sqlcount < 0) {
@@ -3624,15 +3654,20 @@ mythtv_prog_finder_char_menu(mvp_widget_t *widget, mvp_widget_t *widget2, mvp_wi
 	mysqlptr->version = myth_check_version(); 
 
 #ifdef UPDOWN		/* Remove since up/down arrow does not work to change titles */
-	if (myth_load_channels(chan,mysqlptr->host,mysqlptr->user,mysqlptr->pass,mysqlptr->db) < 0) {
+	if (sqlprog != NULL) { 
+		free(sqlprog);
+		sqlprog=NULL;
+	}
+	if ((sqlprog=malloc(sizeof(struct program)*50))==NULL) {
+		perror("malloc");
 		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1)\n",
 			__FUNCTION__, __FILE__, __LINE__); 
-		snprintf(buf, sizeof(buf),"Database Error.  Please check your settings\n" );
-		mvpw_add_menu_item(widget2, buf , (void*)i, &item_attr);
+		snprintf(buf, sizeof(buf),"Mallor Error.\n" );
+		mvpw_add_menu_item(widget, buf , (void*)i, &item_attr);
 		goto out;
 	}
 	
-        sqlcount=get_prog_finder_char_title_mysql(sqlprog, starttime, "A", 
+        sqlcount=get_prog_finder_char_title_mysql(&sqlprog, starttime, "A", 
 		sqlptr->host, mysqlptr->user, mysqlptr->pass,mysqlptr->db);
 
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1): sqlcount=%d\n",
@@ -3711,16 +3746,20 @@ mythtv_prog_finder_title_menu_right (mvp_widget_t *widget, mvp_widget_t *widget2
 	pthread_mutex_lock(&myth_mutex);
 
 	mysqlptr->version = myth_check_version(); 
-
-	if (myth_load_channels(chan,mysqlptr->host,mysqlptr->user,mysqlptr->pass,mysqlptr->db) < 0) {
+	if (sqlprog != NULL) { 
+		free(sqlprog);
+		sqlprog=NULL;
+	}
+	if ((sqlprog=malloc(sizeof(struct program)*50))==NULL) {
+		perror("malloc");
 		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1)\n",
 			__FUNCTION__, __FILE__, __LINE__); 
-		snprintf(buf, sizeof(buf),"Database Error.  Please check your settings\n" );
-		mvpw_add_menu_item(widget3, buf , (void*)i, &item_attr);
+		snprintf(buf, sizeof(buf),"Mallor Error.\n" );
+		mvpw_add_menu_item(widget, buf , (void*)i, &item_attr);
 		goto out;
 	}
 
-        sqlcount=get_prog_finder_time_mysql(sqlprog, starttime, prog_finder_hilite_title, 
+        sqlcount=get_prog_finder_time_mysql(&sqlprog, starttime, prog_finder_hilite_title, 
 		mysqlptr->host, mysqlptr->user, mysqlptr->pass,mysqlptr->db);
 
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1): sqlcount=%d\n",
