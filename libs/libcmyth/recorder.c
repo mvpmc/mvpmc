@@ -70,6 +70,13 @@ cmyth_recorder_destroy(cmyth_recorder_t rec)
 	if (rec->rec_conn) {
 		cmyth_release(rec->rec_conn);
 	}
+	if (rec->rec_livetv_chain) {
+		cmyth_release(rec->rec_livetv_chain);
+	}
+	if (rec->rec_livetv_file) {
+		cmyth_release(rec->rec_livetv_file);
+	}
+
 }
 
 /*
@@ -105,6 +112,8 @@ cmyth_recorder_create(void)
 	ret->rec_ring = NULL;
 	ret->rec_conn = NULL;
 	ret->rec_framerate = 0.0;
+	ret->rec_livetv_chain = NULL;
+	ret->rec_livetv_file = NULL;
 	return ret;
 }
 
@@ -138,6 +147,9 @@ cmyth_recorder_dup(cmyth_recorder_t old)
 	ret->rec_ring = cmyth_hold(old->rec_ring);
 	ret->rec_conn = cmyth_hold(old->rec_conn);
 	ret->rec_framerate = old->rec_framerate;
+	ret->rec_livetv_chain = cmyth_hold(old->rec_livetv_chain);
+	ret->rec_livetv_file = cmyth_hold(old->rec_livetv_file);
+
 	return ret;
 }
 
@@ -481,6 +493,7 @@ cmyth_recorder_pause(cmyth_recorder_t rec)
 
 	pthread_mutex_lock(&mutex);
 
+	fprintf(stderr, "** SSDEBUG: trying to pause recorder:%p:%p\n",rec,rec->rec_conn);
 	sprintf(Buffer, "QUERY_RECORDER %ld[]:[]PAUSE", (long) rec->rec_id);
 	if ((ret=cmyth_send_message(rec->rec_conn, Buffer)) < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
@@ -498,6 +511,7 @@ cmyth_recorder_pause(cmyth_recorder_t rec)
 	ret = 0;
 
     err:
+	fprintf(stderr, "** SSDEBUG: recorder paused:\n");
 	pthread_mutex_unlock(&mutex);
 
 	return ret;
@@ -612,7 +626,10 @@ cmyth_recorder_change_channel(cmyth_recorder_t rec,
 		goto fail;
 	}
 
-	rec->rec_ring->file_pos = 0;
+	if(rec->rec_ring)
+		rec->rec_ring->file_pos = 0;
+	else
+		rec->rec_livetv_file->file_pos = 0;
 
 	ret = 0;
 
@@ -676,7 +693,10 @@ cmyth_recorder_set_channel(cmyth_recorder_t rec, char *channame)
 		goto fail;
 	}
 
-	rec->rec_ring->file_pos = 0;
+	if(rec->rec_ring)
+		rec->rec_ring->file_pos = 0;
+	else
+		rec->rec_livetv_file->file_pos = 0;
 
 	ret = 0;
 
@@ -894,8 +914,7 @@ cmyth_recorder_check_channel_prefix(cmyth_recorder_t rec, char *channame)
 }
 
 /*
- * cmyth_recorder_get_program_info(cmyth_recorder_t rec,
- *                                 cmyth_proginfo_t proginfo)
+ * cmyth_recorder_get_program_info(cmyth_recorder_t rec, int protocol_version)
  *
  * Scope: PRIVATE (static)
  *
@@ -915,9 +934,9 @@ cmyth_recorder_check_channel_prefix(cmyth_recorder_t rec, char *channame)
  * Failure: -(ERRNO)
  */
 static cmyth_proginfo_t
-cmyth_recorder_get_program_info(cmyth_recorder_t rec)
+cmyth_recorder_get_program_info(cmyth_recorder_t rec, int protocol_version)
 {
-	int err, count;
+	int err, count, ct;
 	char msg[256];
 	cmyth_proginfo_t proginfo = NULL;
 
@@ -935,8 +954,12 @@ cmyth_recorder_get_program_info(cmyth_recorder_t rec)
 	}
 	pthread_mutex_lock(&mutex);
 
-	snprintf(msg, sizeof(msg), "QUERY_RECORDER %d[]:[]GET_PROGRAM_INFO",
-		 rec->rec_id);
+	if(protocol_version >= 26)
+		snprintf(msg, sizeof(msg), "QUERY_RECORDER %d[]:[]GET_CURRENT_RECORDING",
+		 	rec->rec_id);
+	else
+		snprintf(msg, sizeof(msg), "QUERY_RECORDER %d[]:[]GET_PROGRAM_INFO",
+		 	rec->rec_id);
 
 	if ((err=cmyth_send_message(rec->rec_conn, msg)) < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
@@ -948,8 +971,13 @@ cmyth_recorder_get_program_info(cmyth_recorder_t rec)
 	}
 
 	count = cmyth_rcv_length(rec->rec_conn);
-	if (cmyth_rcv_chaninfo(rec->rec_conn, &err, proginfo, count)
-	    != count) {
+
+	if(protocol_version >= 26)
+		ct = cmyth_rcv_proginfo(rec->rec_conn, &err, proginfo, count);
+	else
+		ct = cmyth_rcv_chaninfo(rec->rec_conn, &err, proginfo, count);
+		
+	if (ct != count) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_rcv_proginfo() < count\n", __FUNCTION__);
 		cmyth_release(proginfo);
@@ -957,7 +985,7 @@ cmyth_recorder_get_program_info(cmyth_recorder_t rec)
 		goto out;
 	}
 
-    out:
+  out:
 	pthread_mutex_unlock(&mutex);
 
 	return proginfo;
@@ -982,7 +1010,7 @@ cmyth_recorder_get_program_info(cmyth_recorder_t rec)
  *
  */
 cmyth_proginfo_t
-cmyth_recorder_get_cur_proginfo(cmyth_recorder_t rec)
+cmyth_recorder_get_cur_proginfo(cmyth_recorder_t rec, int protocol_version)
 {
 	cmyth_proginfo_t ret;
 
@@ -991,7 +1019,7 @@ cmyth_recorder_get_cur_proginfo(cmyth_recorder_t rec)
 			  __FUNCTION__, rec);
 		return NULL;
 	}
-	if ((ret = cmyth_recorder_get_program_info(rec)) == NULL) {
+	if ((ret = cmyth_recorder_get_program_info(rec, protocol_version)) == NULL) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_recorder_get_program_info() failed\n",
 			  __FUNCTION__);
@@ -1327,6 +1355,66 @@ cmyth_recorder_spawn_livetv(cmyth_recorder_t rec)
 	return ret;
 }
 
+/* Sergio: Added to support the new livetv protocol */
+int
+cmyth_recorder_spawn_chain_livetv(cmyth_recorder_t rec)
+{
+	int err;
+	int ret = -1;
+	char msg[256];
+	char myhostname[32];
+	char datestr[32];
+	time_t t;
+
+	if (!rec) {
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: no recorder connection\n",
+			  __FUNCTION__);
+		return -ENOSYS;
+	}
+
+	pthread_mutex_lock(&mutex);
+
+
+	/* Get our own IP address */
+	gethostname(myhostname, 32);
+
+	/* Get the current date and time to create a unique id */
+	t = time(NULL);
+	strftime(datestr, 32, "%Y-%m-%dT%H:%M:%S", localtime(&t));
+	
+	/* Now build the SPAWN_LIVETV message */
+	snprintf(msg, sizeof(msg),
+		"QUERY_RECORDER %d[]:[]SPAWN_LIVETV[]:[]live-%s-%s[]:[]%d",
+		 rec->rec_id, myhostname, datestr, 0);
+
+	if ((err=cmyth_send_message(rec->rec_conn, msg)) < 0) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_send_message() failed (%d)\n",
+			  __FUNCTION__, err);
+		goto fail;
+	}
+
+	if ((err=cmyth_rcv_okay(rec->rec_conn, "ok")) < 0) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+			  "%s: cmyth_rcv_okay() failed (%d)\n",
+			  __FUNCTION__, err);
+		goto fail;
+	}
+
+	/* Create an empty livetv chain with the ID used in the spawn command */
+	snprintf(msg, sizeof(msg),
+		"live-%s-%s[]:[]",
+		  myhostname, datestr);
+	rec->rec_livetv_chain = cmyth_livetv_chain_create(msg);
+
+	ret = 0;
+
+    fail:
+	pthread_mutex_unlock(&mutex);
+
+	return ret;
+}
+
 int
 cmyth_recorder_stop_livetv(cmyth_recorder_t rec)
 {
@@ -1452,9 +1540,9 @@ cmyth_recorder_end_stream(cmyth_recorder_t rec)
 }
 
 char*
-cmyth_recorder_get_filename(cmyth_recorder_t rec)
+cmyth_recorder_get_filename(cmyth_recorder_t rec, int protocol_version)
 {
-	char buf[64], *ret;
+	char buf[256], *ret;
 
 	if (!rec) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: no recorder connection\n",
@@ -1462,7 +1550,11 @@ cmyth_recorder_get_filename(cmyth_recorder_t rec)
 		return NULL;
 	}
 
-	snprintf(buf, sizeof(buf), "ringbuf%d.nuv", rec->rec_id);
+	if(protocol_version >= 26) 
+		snprintf(buf, sizeof(buf), "%s",
+			rec->rec_livetv_chain->chain_urls[rec->rec_livetv_chain->chain_current]);
+	else
+		snprintf(buf, sizeof(buf), "ringbuf%d.nuv", rec->rec_id);
 
 	ret = cmyth_strdup(buf);
 

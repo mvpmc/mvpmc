@@ -124,6 +124,7 @@ extern mvpw_menu_attr_t mythtv_attr;
 
 extern int mythtv_init(char*, int);
 extern void mythtv_atexit(void);
+extern int mythtv_livetv_chain_update(char * buf);
 
 extern int mythtv_back(mvp_widget_t*);
 extern int mythtv_update(mvp_widget_t*);

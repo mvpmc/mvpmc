@@ -46,6 +46,9 @@
 #define PRINTF(x...)
 #endif
 
+int protocol_version;
+int new_live_tv;
+
 static mvpw_menu_item_attr_t item_attr = {
 	.selectable = 1,
 	.fg = MVPW_WHITE,
@@ -121,6 +124,33 @@ livetv_compare(const void *a, const void *b)
 	}
 }
 
+int
+mythtv_livetv_chain_update(char * buf)
+{
+	char * pfx = "LIVETV_CHAIN UPDATE ";
+	char * chainid = buf + strlen(pfx);
+
+	/* Exclusive access required */
+	pthread_mutex_lock(&myth_mutex);
+
+	/* Check if we've got an active recorder */
+	if(mythtv_recorder) {
+		cmyth_livetv_chain_update(mythtv_recorder, chainid, mythtv_tcp_program);
+	}
+
+	pthread_mutex_unlock(&myth_mutex);
+
+	return 0;
+}
+
+static void
+prog_update_callback(cmyth_proginfo_t prog)
+{
+	cmyth_proginfo_t loc_prog = cmyth_hold(prog);
+	CHANGE_GLOBAL_REF(current_prog, loc_prog);
+	cmyth_release(loc_prog);
+}
+
 static int
 mythtv_livetv_start(int *tuner)
 {
@@ -131,7 +161,6 @@ mythtv_livetv_start(int *tuner)
 	cmyth_proginfo_t loc_prog = NULL;
 	cmyth_conn_t ctrl = cmyth_hold(control);
 	cmyth_recorder_t rec = NULL;
-	cmyth_recorder_t ring = NULL;
 	char *path;
 
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
@@ -227,35 +256,55 @@ mythtv_livetv_start(int *tuner)
 		}
 	}
 
-	if ((ring = cmyth_ringbuf_setup(rec)) == NULL) {
-		msg = "Failed to setup ringbuffer.";
-		goto err;
+	if(protocol_version >= 26) {
+		if (cmyth_recorder_spawn_chain_livetv(rec) != 0) {
+			msg = "Spawn livetv failed.";
+			goto err;
+		}
+ 
+		if ((rec = cmyth_livetv_chain_setup(rec, mythtv_tcp_program,
+					prog_update_callback, protocol_version)) == NULL) {
+			msg = "Failed to setup livetv.";
+			goto err;
+		}
+
+		for(i=0; i<20; i++) {
+			if(cmyth_recorder_is_recording(rec) != 1)
+				sleep(1);
+			else
+				break;
+		}
+	}
+	else {
+		if ((rec = cmyth_ringbuf_setup(rec)) == NULL) {
+			msg = "Failed to setup ringbuffer.";
+			goto err;
+		}
+
+		if (cmyth_conn_connect_ring(rec, 16*1024, mythtv_tcp_program) != 0) {
+			msg = "Cannot connect to mythtv ringbuffer.";
+			goto err;
+		}
+
+		if (cmyth_recorder_spawn_livetv(rec) != 0) {
+			msg = "Spawn livetv failed.";
+			goto err;
+		}
 	}
 
-	if (cmyth_conn_connect_ring(ring, 16*1024, mythtv_tcp_program) != 0) {
-		msg = "Cannot connect to mythtv ringbuffer.";
-		goto err;
-	}
-
-	if (cmyth_recorder_spawn_livetv(ring) != 0) {
-		msg = "Spawn livetv failed.";
-		goto err;
-	}
-
-	if (cmyth_recorder_is_recording(ring) != 1) {
+	if (cmyth_recorder_is_recording(rec) != 1) {
 		msg = "LiveTV not recording.";
 		goto err;
 	}
 
-	if (cmyth_recorder_get_framerate(ring, &rate) != 0) {
+	if (cmyth_recorder_get_framerate(rec, &rate) != 0) {
 		msg = "Get framerate failed.";
 		goto err;
 	}
 
 	fprintf(stderr, "recorder framerate is %5.2f\n", rate);
 
-
-	rb_file = (char *) cmyth_recorder_get_filename(ring);
+	rb_file = (char *) cmyth_recorder_get_filename(rec, protocol_version);
 	/*
 	 * Change current.  The thing about 'current' is that it is a
 	 * global that is not allocated as reference counted and it is
@@ -282,11 +331,12 @@ mythtv_livetv_start(int *tuner)
 	// get the information about the current programme
 	// we assume last used structure is cleared already...
 	//
-	loc_prog = cmyth_recorder_get_cur_proginfo(ring);
+	loc_prog = cmyth_recorder_get_cur_proginfo(rec, protocol_version);
 	CHANGE_GLOBAL_REF(current_prog, loc_prog);
 	cmyth_release(loc_prog);
 
-	get_livetv_programs();
+	if(protocol_version < 26)
+		get_livetv_programs();
 
 	mvpw_show(mythtv_browser);
 	mvpw_focus(mythtv_browser);
@@ -303,12 +353,12 @@ mythtv_livetv_start(int *tuner)
 		       osd_settings.program, NULL);
 	mvpw_hide(mythtv_description);
 
-	CHANGE_GLOBAL_REF(mythtv_recorder, ring);
+	CHANGE_GLOBAL_REF(mythtv_recorder, rec);
 #if 0
 	cmyth_release(ctrl);
 	cmyth_release(rec);
 #endif
-	cmyth_release(ring);
+	cmyth_release(rec);
 	running_mythtv = 1;
 	pthread_mutex_unlock(&myth_mutex);
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) 0}\n",
@@ -324,7 +374,6 @@ mythtv_livetv_start(int *tuner)
 
 	cmyth_release(ctrl);
 	cmyth_release(rec);
-	cmyth_release(ring);
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1}\n",
 		    __FUNCTION__, __FILE__, __LINE__);
 	return -1;
@@ -366,9 +415,11 @@ mythtv_livetv_stop(void)
 		goto fail;
 	}
 
-	if (cmyth_recorder_done_ringbuf(mythtv_recorder) != 0) {
-		fprintf(stderr, "done ringbuf failed\n");
-		goto fail;
+	if(protocol_version < 26) {
+		if (cmyth_recorder_done_ringbuf(mythtv_recorder) != 0) {
+			fprintf(stderr, "done ringbuf failed\n");
+			goto fail;
+		}
 	}
 
 	CHANGE_GLOBAL_REF(mythtv_recorder, NULL);
@@ -434,7 +485,7 @@ int __change_channel(direction)
 		sleep(6);
 	}
 
-	loc_prog = cmyth_recorder_get_cur_proginfo(rec);
+	loc_prog = cmyth_recorder_get_cur_proginfo(rec, protocol_version);
 	CHANGE_GLOBAL_REF(current_prog, loc_prog);
 	cmyth_release(loc_prog);
 
@@ -447,6 +498,8 @@ int __change_channel(direction)
 	av_move(0, 0, 0);
 	av_play();
 	video_play(root);
+
+	cmyth_livetv_chain_switch_last(rec);
 
  out:
 	cmyth_release(ctrl);
@@ -487,7 +540,10 @@ livetv_size(void)
 	 */
 
 	pthread_mutex_lock(&myth_mutex);
-	seek_pos = cmyth_ringbuf_seek(rec, 0, SEEK_CUR);
+	if(protocol_version >= 26)
+		seek_pos = cmyth_livetv_seek(rec, 0, SEEK_CUR);
+	else
+		seek_pos = cmyth_ringbuf_seek(rec, 0, SEEK_CUR);
 	PRINTF("%s(): pos %lld\n", __FUNCTION__, seek_pos);
 	pthread_mutex_unlock(&myth_mutex);
 
@@ -532,6 +588,7 @@ livetv_select_callback(mvp_widget_t *widget, char *item, void *key)
 
 	switch_hw_state(MVPMC_STATE_MYTHTV);
 
+	busy_start();
 	mythtv_clear_channel();
 
 	if (mythtv_ringbuf)
@@ -588,7 +645,6 @@ livetv_select_callback(mvp_widget_t *widget, char *item, void *key)
 
 	changing_channel = 1;
 
-	busy_start();
 	pthread_mutex_lock(&myth_mutex);
 
 	if (cmyth_recorder_pause(rec) < 0) {
@@ -601,7 +657,7 @@ livetv_select_callback(mvp_widget_t *widget, char *item, void *key)
 		goto unlock;
 	}
 
-	loc_prog = cmyth_recorder_get_cur_proginfo(rec);
+	loc_prog = cmyth_recorder_get_cur_proginfo(rec, protocol_version);
 	CHANGE_GLOBAL_REF(current_prog, loc_prog);
 	cmyth_release(loc_prog);
 
@@ -628,9 +684,9 @@ livetv_select_callback(mvp_widget_t *widget, char *item, void *key)
 
  unlock:
 	pthread_mutex_unlock(&myth_mutex);
-	busy_end();
 
  out:
+	busy_end();
 	cmyth_release(ctrl);
 	cmyth_release(rec);
 	cmyth_release(channame);
@@ -715,7 +771,9 @@ get_livetv_programs_rec(int id, struct livetv_prog **list, int *n, int *p)
 	if (cmyth_recorder_is_recording(rec) == 1)
 		busy = 1;
 
-	cur = cmyth_recorder_get_cur_proginfo(rec);
+	cur = cmyth_recorder_get_cur_proginfo(rec, protocol_version);
+	if(protocol_version >= 26)
+		cur = cmyth_recorder_get_next_proginfo(rec, cur, 1);
 	if (cur == NULL) {
 		int i;
 		char channame[32];
@@ -883,11 +941,15 @@ get_livetv_programs(void)
 		return -1;
 	}
 
+	protocol_version = cmyth_conn_get_protocol_version(ctrl);
+
 	if ((c=cmyth_conn_get_free_recorder_count(ctrl)) < 0) {
 		fprintf(stderr, "unable to get free recorder\n");
+		/* Sergio S. Commented out
 		if (c == -2) {
 			gui_error("LiveTV with this version of MythTV is not supported");
 		}
+		*/
 		cmyth_release(ctrl);
 		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -2}\n",
 			    __FUNCTION__, __FILE__, __LINE__);
@@ -1049,7 +1111,7 @@ mythtv_livetv_select(int which)
 			goto err;
 		}
 
-		loc_prog = cmyth_recorder_get_cur_proginfo(rec);
+		loc_prog = cmyth_recorder_get_cur_proginfo(rec, protocol_version);
 		CHANGE_GLOBAL_REF(current_prog, loc_prog);
 		cmyth_release(loc_prog);
 
