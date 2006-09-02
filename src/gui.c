@@ -300,6 +300,7 @@ static mvpw_menu_attr_t mythtv_popup_attr = {
 
 static mvpw_text_attr_t mythtv_info_attr = {
 	.wrap = 1,
+	.pack = 0,
 	.justify = MVPW_TEXT_LEFT,
 	.margin = 4,
 	.font = FONT_STANDARD,
@@ -311,6 +312,7 @@ static mvpw_text_attr_t mythtv_info_attr = {
 
 static mvpw_text_attr_t viewport_attr = {
 	.wrap = 1,
+	.pack = 0,
 	.justify = MVPW_TEXT_LEFT,
 	.margin = 4,
 	.font = FONT_STANDARD,
@@ -321,6 +323,7 @@ static mvpw_text_attr_t viewport_attr = {
 
 static mvpw_text_attr_t description_attr = {
 	.wrap = 1,
+	.pack = 0,
 	.justify = MVPW_TEXT_LEFT,
 	.margin = 4,
 	.font = FONT_STANDARD,
@@ -332,6 +335,7 @@ static mvpw_text_attr_t description_attr = {
 
 static mvpw_text_attr_t display_attr = {
 	.wrap = 0,
+	.pack = 0,
 	.justify = MVPW_TEXT_LEFT,
 	.margin = 6,
 	.font = FONT_STANDARD,
@@ -343,6 +347,7 @@ static mvpw_text_attr_t display_attr = {
 
 static mvpw_text_attr_t mythtv_program_attr = {
 	.wrap = 0,
+	.pack = 0,
 	.justify = MVPW_TEXT_LEFT,
 	.margin = 6,
 	.font = FONT_STANDARD,
@@ -355,6 +360,7 @@ static mvpw_text_attr_t mythtv_program_attr = {
 
 static mvpw_text_attr_t mythtv_description_attr = {
 	.wrap = 1,
+	.pack = 0,
 	.justify = MVPW_TEXT_LEFT,
 	.margin = 6,
 	.font = FONT_STANDARD,
@@ -367,6 +373,7 @@ static mvpw_text_attr_t mythtv_description_attr = {
 
 static mvpw_text_attr_t splash_attr = {
 	.wrap = 1,
+	.pack = 0,
 	.justify = MVPW_TEXT_CENTER,
 	.margin = 6,
 	.font = FONT_STANDARD,
@@ -378,6 +385,7 @@ static mvpw_text_attr_t splash_attr = {
 
 static mvpw_text_attr_t ct_text_box_attr = {
 	.wrap = 1,
+	.pack = 0,
 	.justify = MVPW_TEXT_CENTER,
 	.margin = 6,
 	.font = FONT_LARGE,
@@ -385,6 +393,7 @@ static mvpw_text_attr_t ct_text_box_attr = {
 
 static mvpw_text_attr_t ct_fgbg_box_attr = {
 	.wrap = 1,
+	.pack = 0,
 	.justify = MVPW_TEXT_LEFT,
 	.margin = 6,
 	.font = FONT_LARGE,
@@ -393,6 +402,7 @@ static mvpw_text_attr_t ct_fgbg_box_attr = {
 
 static mvpw_text_attr_t settings_ip_attr = {
 	.wrap = 0,
+	.pack = 0,
 	.justify = MVPW_TEXT_LEFT,
 	.margin = 4,
 	.font = FONT_STANDARD,
@@ -404,6 +414,7 @@ static mvpw_text_attr_t settings_ip_attr = {
 
 static mvpw_text_attr_t settings_ip_title_attr = {
 	.wrap = 0,
+	.pack = 0,
 	.justify = MVPW_TEXT_CENTER,
 	.margin = 4,
 	.font = FONT_STANDARD,
@@ -415,6 +426,7 @@ static mvpw_text_attr_t settings_ip_title_attr = {
 
 static mvpw_text_attr_t settings_sort_attr = {
 	.wrap = 0,
+	.pack = 0,
 	.justify = MVPW_TEXT_LEFT,
 	.margin = 4,
 	.font = FONT_STANDARD,
@@ -426,6 +438,7 @@ static mvpw_text_attr_t settings_sort_attr = {
 
 static mvpw_text_attr_t settings_sort_title_attr = {
 	.wrap = 0,
+	.pack = 0,
 	.justify = MVPW_TEXT_CENTER,
 	.margin = 4,
 	.font = FONT_STANDARD,
@@ -437,6 +450,7 @@ static mvpw_text_attr_t settings_sort_title_attr = {
 
 static mvpw_text_attr_t settings_help_attr = {
 	.wrap = 1,
+	.pack = 0,
 	.justify = MVPW_TEXT_LEFT,
 	.margin = 4,
 	.font = FONT_STANDARD,
@@ -504,6 +518,7 @@ static mvpw_graph_attr_t busy_graph_attr = {
 
 static mvpw_text_attr_t busy_text_attr = {
 	.wrap = 0,
+	.pack = 0,
 	.justify = MVPW_TEXT_CENTER,
 	.margin = 6,
 	.font = FONT_STANDARD,
@@ -514,6 +529,7 @@ static mvpw_text_attr_t busy_text_attr = {
 
 static mvpw_text_attr_t thruput_text_attr = {
 	.wrap = 1,
+	.pack = 0,
 	.justify = MVPW_TEXT_CENTER,
 	.margin = 6,
 	.font = FONT_STANDARD,
@@ -544,39 +560,6 @@ static mvpw_graph_attr_t demux_video_graph_attr = {
 	.fg = mvpw_color_alpha(MVPW_BLUE, 0x80),
 	.bg = mvpw_color_alpha(MVPW_BLACK, 0x80),
 };
-
-/*
- * livetv guide attributes
- */
-
-/* Description window
-static mvpw_text_attr_t livetv_description_attr = {
-	.wrap = 1,
-	.justify = MVPW_TEXT_LEFT,
-	.margin = 9,
-	.font = FONT_LARGE,
-	.fg = MVPW_WHITE,
-	.bg = MVPW_DARKGREY,
-	.border = MVPW_BLACK,
-	.border_size = 0,
-};
-
-static mvpw_array_attr_t livetv_program_list_attr = {
-	.rows = 4,
-	.cols = 3,
-	.col_label_height = 29,
-	.row_label_width = 100,
-	.array_border = 0,
-	.border_size = 0,
-	.row_label_fg = MVPW_WHITE,
-	.row_label_bg = MVPW_DARKGREY,
-	.col_label_fg = MVPW_WHITE,
-	.col_label_bg = MVPW_RGBA(25,112,25,255),
-	.cell_fg = MVPW_WHITE,
-	.cell_bg = MVPW_MIDNIGHTBLUE,
-	.cell_rounded = 0,
-};
-*/
 
 /* 
  * replaytv attributes 
@@ -630,6 +613,7 @@ mvpw_graph_attr_t rtv_discspace_graph_attr = {
 // discovery splash window text attributes
 mvpw_text_attr_t rtv_discovery_splash_attr = {
    .wrap = 1,
+	 .pack = 0,
    .justify = MVPW_TEXT_LEFT,
    .margin = 6,
    .font = FONT_LARGE,
@@ -642,6 +626,7 @@ mvpw_text_attr_t rtv_discovery_splash_attr = {
 // device description window text attributes
 mvpw_text_attr_t rtv_device_descr_attr = {
    .wrap = 1,
+	 .pack = 0,
    .justify = MVPW_TEXT_LEFT,
    .margin = 0,
    .font = FONT_LARGE,
@@ -652,6 +637,7 @@ mvpw_text_attr_t rtv_device_descr_attr = {
 // show episode description window text attributes
 mvpw_text_attr_t rtv_episode_descr_attr = {
    .wrap = 1,
+	 .pack = 0,
    .justify = MVPW_TEXT_LEFT,
    .margin = 0,
    .font = FONT_LARGE,
@@ -662,6 +648,7 @@ mvpw_text_attr_t rtv_episode_descr_attr = {
 // OSD show title attributes
 mvpw_text_attr_t rtv_osd_show_title_attr = {
 	.wrap = 0,
+	.pack = 0,
 	.justify = MVPW_TEXT_LEFT,
 	.margin = 0,
 	.font = FONT_LARGE,
@@ -672,6 +659,7 @@ mvpw_text_attr_t rtv_osd_show_title_attr = {
 // OSD show description attributes
 mvpw_text_attr_t rtv_osd_show_desc_attr = {
 	.wrap = 1,
+	.pack = 0,
 	.justify = MVPW_TEXT_LEFT,
 	.margin = 0,
 	.font = FONT_LARGE,
@@ -682,6 +670,7 @@ mvpw_text_attr_t rtv_osd_show_desc_attr = {
 // popup message window attributes
 mvpw_text_attr_t rtv_message_window_attr = {
    .wrap = 1,
+	 .pack = 0,
    .justify = MVPW_TEXT_LEFT,
    .margin = 12,
    .font = FONT_LARGE,
@@ -694,6 +683,7 @@ mvpw_text_attr_t rtv_message_window_attr = {
 // seek_osd attributes (jump, seek, comercial skip)
 mvpw_text_attr_t rtv_seek_osd_attr = {
 	.wrap = 1,
+	.pack = 0,
 	.justify = MVPW_TEXT_LEFT,
 	.margin = 0,
 	.font = FONT_LARGE,

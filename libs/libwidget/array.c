@@ -292,6 +292,7 @@ mvpw_array_layout(mvp_widget_t *widget)
 					widget->data.array.col_label_bg, MVPW_LIGHTGREY, 3);
 			mvpw_get_text_attr(widget->data.array.col_labels[c], &ta);
 			ta.margin = 0;
+			ta.pack = 1;
 			ta.justify = MVPW_TEXT_CENTER;
 			ta.font = FONT_LARGE;
 			ta.fg = widget->data.array.col_label_fg;
@@ -311,6 +312,7 @@ mvpw_array_layout(mvp_widget_t *widget)
 					widget->data.array.row_label_bg, MVPW_LIGHTGREY, 3);
 			mvpw_get_text_attr(widget->data.array.row_labels[r], &ta);
 			ta.wrap = 1;
+			ta.pack = 1;
 			ta.margin = 0;
 			ta.justify = MVPW_TEXT_CENTER;
 			ta.font = FONT_LARGE;
@@ -336,6 +338,7 @@ mvpw_array_layout(mvp_widget_t *widget)
 						widget->data.array.cell_bg, MVPW_LIGHTGREY, 3);
 				mvpw_get_text_attr(widget->data.array.cells[i], &ta);
 				ta.wrap = 1;
+				ta.pack = 1;
 				ta.margin = 0;
 				ta.justify = MVPW_TEXT_CENTER;
 				ta.font = FONT_LARGE;

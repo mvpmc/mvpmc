@@ -48,6 +48,7 @@ typedef struct {
 typedef struct {
 	char		*str;
 	int		 wrap;
+	int		 pack;
 	int		 justify;
 	int		 margin;
 	GR_FONT_ID	 font;

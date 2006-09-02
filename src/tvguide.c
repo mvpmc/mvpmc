@@ -84,6 +84,7 @@ typedef struct {
 /* Description window */
 static mvpw_text_attr_t livetv_description_attr = {
 	.wrap = 1,
+	.pack = 1,
 	.justify = MVPW_TEXT_LEFT,
 	.margin = 9,
 	.font = FONT_LARGE,

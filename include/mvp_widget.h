@@ -277,6 +277,7 @@ extern mvp_widget_t *mvpw_create_container(mvp_widget_t *parent,
 typedef struct {
 	int	 	wrap;
 	int	 	justify;
+	int		pack;
 	int	 	margin;
 	int	 	font;
 	uint32_t 	fg;

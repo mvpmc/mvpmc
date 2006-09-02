@@ -76,6 +76,7 @@ mvpw_set_dialog_attr(mvp_widget_t *widget, mvpw_dialog_attr_t *attr)
 	int h, w;
 	mvpw_text_attr_t text_attr = {
 		.wrap = 1,
+		.pack = 0,
 		.margin = 4,
 	};
 

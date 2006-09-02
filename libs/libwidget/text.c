@@ -59,7 +59,10 @@ expose(mvp_widget_t *widget)
 	}
 
 	GrGetFontInfo(widget->data.text.font, &finfo);
-	h       = finfo.height;
+	if(widget->data.text.pack)
+		h       = finfo.baseline;
+	else
+		h       = finfo.height;
 	/*
 		 This change packs the font in closer but will require that it be
 		 drawn from the bottom up or the descents get covered by the next line
@@ -311,6 +314,7 @@ void
 mvpw_set_text_attr(mvp_widget_t *widget, mvpw_text_attr_t *attr)
 {
 	widget->data.text.wrap = attr->wrap;
+	widget->data.text.pack = attr->pack;
 	widget->data.text.justify = attr->justify;
 	widget->data.text.margin = attr->margin;
 	widget->data.text.fg = attr->fg;
@@ -332,6 +336,7 @@ void
 mvpw_get_text_attr(mvp_widget_t *widget, mvpw_text_attr_t *attr)
 {
 	attr->wrap = widget->data.text.wrap;
+	attr->pack = widget->data.text.pack;
 	attr->justify = widget->data.text.justify;
 	attr->margin = widget->data.text.margin;
 	attr->fg = widget->data.text.fg;

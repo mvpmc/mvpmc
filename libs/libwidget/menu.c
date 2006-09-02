@@ -367,6 +367,7 @@ mvpw_add_menu_item(mvp_widget_t *widget, char *label, void *key,
 	typeof(widget->data.menu.items) items;
 	mvpw_text_attr_t attr = {
 		.wrap = 0,
+		.pack = 0,
 		.justify = MVPW_TEXT_LEFT,
 		.margin = 4,
 	};
@@ -578,6 +579,7 @@ mvpw_set_menu_title(mvp_widget_t *widget, char *title)
 	int border_size;
 	mvpw_text_attr_t attr = {
 		.wrap = 0,
+		.pack = 0,
 		.justify = widget->data.menu.title_justify,
 		.margin = 4,
 		.font = widget->data.menu.font,
