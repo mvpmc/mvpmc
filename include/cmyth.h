@@ -30,6 +30,10 @@
 struct cmyth_conn;
 typedef struct cmyth_conn *cmyth_conn_t;
 
+/* Sergio: Added to support the new livetv protocol */
+struct cmyth_livetv_chain;
+typedef struct cmyth_livetv_chain *cmyth_livetv_chain_t;
+
 struct cmyth_recorder;
 typedef struct cmyth_recorder *cmyth_recorder_t;
 
@@ -79,6 +83,7 @@ typedef enum {
 	CMYTH_EVENT_SCHEDULE_CHANGE,
 	CMYTH_EVENT_DONE_RECORDING,
 	CMYTH_EVENT_QUIT_LIVETV,
+	CMYTH_EVENT_LIVETV_CHAIN_UPDATE,
 } cmyth_event_t;
 
 #define CMYTH_NUM_SORTS 2
@@ -101,6 +106,21 @@ typedef struct cmyth_proglist *cmyth_proglist_t;
 
 struct cmyth_file;
 typedef struct cmyth_file *cmyth_file_t;
+
+
+/* Sergio: Added to support the tvguide functionality */
+
+struct cmyth_channel;
+typedef struct cmyth_channel *cmyth_channel_t;
+
+struct cmyth_chanlist;
+typedef struct cmyth_chanlist *cmyth_chanlist_t;
+
+struct cmyth_tvguide_progs;
+typedef struct cmyth_tvguide_progs *cmyth_tvguide_progs_t;
+
+struct cmyth_tvguide_program;
+typedef struct cmyth_tvguide_program *cmyth_tvguide_program_t;
 
 /*
  * -----------------------------------------------------------------
@@ -185,12 +205,14 @@ extern int cmyth_conn_hung(cmyth_conn_t control);
 
 extern int cmyth_conn_get_free_recorder_count(cmyth_conn_t conn);
 
+extern int cmyth_conn_get_protocol_version(cmyth_conn_t conn);
+
 /*
  * -----------------------------------------------------------------
  * Event Operations
  * -----------------------------------------------------------------
  */
-extern cmyth_event_t cmyth_event_get(cmyth_conn_t conn);
+extern cmyth_event_t cmyth_event_get(cmyth_conn_t conn, char * data, int len);
 
 /*
  * -----------------------------------------------------------------
@@ -257,7 +279,8 @@ extern int cmyth_recorder_check_channel(cmyth_recorder_t rec,
 extern int cmyth_recorder_check_channel_prefix(cmyth_recorder_t rec,
 					       char *channame);
 
-extern cmyth_proginfo_t cmyth_recorder_get_cur_proginfo(cmyth_recorder_t rec);
+extern cmyth_proginfo_t cmyth_recorder_get_cur_proginfo(cmyth_recorder_t rec,
+				int protocol_version);
 
 extern cmyth_proginfo_t cmyth_recorder_get_next_proginfo(
 	cmyth_recorder_t rec,
@@ -273,15 +296,67 @@ extern long long cmyth_recorder_seek(cmyth_recorder_t rec,
 				     cmyth_whence_t whence,
 				     long long curpos);
 
+extern int cmyth_recorder_spawn_chain_livetv(cmyth_recorder_t rec);
+
 extern int cmyth_recorder_spawn_livetv(cmyth_recorder_t rec);
 
 extern int cmyth_recorder_start_stream(cmyth_recorder_t rec);
 
 extern int cmyth_recorder_end_stream(cmyth_recorder_t rec);
-extern char*cmyth_recorder_get_filename(cmyth_recorder_t rec);
+extern char*cmyth_recorder_get_filename(cmyth_recorder_t rec,
+																				int protocol_version);
 extern int cmyth_recorder_stop_livetv(cmyth_recorder_t rec);
 extern int cmyth_recorder_done_ringbuf(cmyth_recorder_t rec);
 extern int cmyth_recorder_get_recorder_id(cmyth_recorder_t rec);
+
+/*
+ * -----------------------------------------------------------------
+ * Live TV Operations
+ * -----------------------------------------------------------------
+ */
+
+extern cmyth_livetv_chain_t cmyth_livetv_chain_create(char * chainid);
+
+extern cmyth_file_t cmyth_livetv_get_cur_file(cmyth_recorder_t rec);
+
+extern int cmyth_livetv_chain_switch(cmyth_recorder_t rec, int dir);
+
+extern int cmyth_livetv_chain_switch_last(cmyth_recorder_t rec);
+
+extern int cmyth_livetv_chain_update(cmyth_recorder_t rec, char * chainid,
+						int tcp_rcvbuf);
+
+extern cmyth_recorder_t cmyth_livetv_chain_setup(cmyth_recorder_t old_rec,
+						int tcp_rcvbuf, void (*prog_update_callback)(cmyth_proginfo_t),
+						int protocol_version);
+
+extern int cmyth_livetv_get_block(cmyth_recorder_t rec, char *buf,
+                                  unsigned long len);
+
+extern int cmyth_livetv_select(cmyth_recorder_t rec, struct timeval *timeout);
+  
+extern int cmyth_livetv_request_block(cmyth_recorder_t rec, unsigned long len);
+
+extern long long cmyth_livetv_seek(cmyth_recorder_t rec,
+						long long offset, int whence);
+
+extern int mythtv_new_livetv(void);
+
+/*
+ * -----------------------------------------------------------------
+ * Database Operations 
+ * -----------------------------------------------------------------
+ */
+
+/*
+extern cmyth_database_t cmyth_database_create(void);
+extern cmyth_chanlist_t myth_load_channels2(cmyth_database_t db,
+                                            pthread_mutex_t * mutex);
+extern int cmyth_database_set_host(cmyth_database_t db, char *host);
+extern int cmyth_database_set_user(cmyth_database_t db, char *user);
+extern int cmyth_database_set_pass(cmyth_database_t db, char *pass);
+extern int cmyth_database_set_name(cmyth_database_t db, char *name);
+*/
 
 /*
  * -----------------------------------------------------------------

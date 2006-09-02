@@ -173,6 +173,67 @@ struct cmyth_conn {
 	int conn_tcp_rcvbuf;
 };
 
+/* Sergio: Added to support new livetv protocol */
+struct cmyth_livetv_chain {
+	char *chainid;
+	int protocol_version;
+	int chain_ct;
+	int chain_switch_on_create;
+	int chain_current;
+	void (*prog_update_callback)(cmyth_proginfo_t prog);
+	cmyth_proginfo_t *progs;
+	char **chain_urls;
+	cmyth_file_t *chain_files; /* File pointers for the urls */
+};
+
+/* Sergio: Added to clean up database interaction */
+struct cmyth_database {
+	char * db_host;
+	char * db_user;
+	char * db_pass;
+	char * db_name;
+};	
+
+/* Sergio: Added to clean up channel list handling */
+struct cmyth_channel {
+	long chanid;
+	int channum;
+	long cardids;/* A bit array of recorders/tuners supporting the channel */
+	char *callsign;
+	char *name;
+};
+
+struct cmyth_chanlist {
+	cmyth_channel_t chanlist_list;
+	int chanlist_count;
+	int chanlist_alloc;
+};
+
+/* Sergio: Added to support the tvguide functionality */
+/* only because the cmyth_proglist has way too many */
+/* elements for what we need */
+struct cmyth_tvguide_program {
+	long chanid;
+	char title[130];
+	char subtitle[130];
+	char description[256];
+	char starttime[25];
+	char endtime[25];
+	char programid[20];
+	char seriesid[12];
+	char category[64];
+	int recording;
+	char rec_status[2];
+	int channum;
+};
+
+/* Sergio: Added to support the tvguide functionality */
+struct cmyth_tvguide_progs {
+	cmyth_tvguide_program_t progs;
+	int count;
+	int alloc;
+};
+
 struct cmyth_recorder {
 	unsigned rec_have_stream;
 	unsigned rec_id;
@@ -180,6 +241,9 @@ struct cmyth_recorder {
 	int rec_port;
 	cmyth_ringbuf_t rec_ring;
 	cmyth_conn_t rec_conn;
+	/* Sergio: Added to support new livetv protocol */
+	cmyth_livetv_chain_t rec_livetv_chain;
+	cmyth_file_t rec_livetv_file;
 	double rec_framerate;
 };
 

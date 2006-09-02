@@ -27,7 +27,7 @@
 #include <cmyth_local.h>
 
 cmyth_event_t
-cmyth_event_get(cmyth_conn_t conn)
+cmyth_event_get(cmyth_conn_t conn, char * data, int len)
 {
 	int count, err, consumed;
 	char tmp[1024];
@@ -62,6 +62,10 @@ cmyth_event_get(cmyth_conn_t conn)
 		event = CMYTH_EVENT_DONE_RECORDING;
 	} else if (strncmp(tmp, "QUIT_LIVETV", 11) == 0) {
 		event = CMYTH_EVENT_QUIT_LIVETV;
+   /* Sergio: Added to support the new live tv protocol */
+  } else if (strncmp(tmp, "LIVETV_CHAIN UPDATE", 19) == 0) {
+		event = CMYTH_EVENT_LIVETV_CHAIN_UPDATE;
+		strncpy(data,tmp,len);
 	} else {
 		printf("unknown mythtv BACKEND_MESSAGE '%s'\n", tmp);
 		cmyth_dbg(CMYTH_DBG_ERROR,

@@ -52,6 +52,7 @@
 volatile cmyth_file_t mythtv_file;
 extern demux_handle_t *handle;
 extern int fd_audio, fd_video;
+int protocol_version;
 
 extern mvp_widget_t *mythtv_prog_finder_1;
 extern mvp_widget_t *mythtv_prog_finder_2;
@@ -1537,6 +1538,7 @@ sighandler(int sig)
 static void*
 event_start(void *arg)
 {
+	char buf[128];
 	cmyth_event_t next;
 	pthread_mutex_t event_mutex = PTHREAD_MUTEX_INITIALIZER;
 
@@ -1548,7 +1550,7 @@ event_start(void *arg)
 		while (event == NULL) {
 			pthread_cond_wait(&event_cond, &event_mutex);
 		}
-		next = cmyth_event_get(event);
+		next = cmyth_event_get(event, buf, 128);
 		switch (next) {
 		case CMYTH_EVENT_UNKNOWN:
 			printf("MythTV unknown event (error?)\n");
@@ -1576,6 +1578,10 @@ event_start(void *arg)
 			mythtv_livetv_stop();
 			mythtv_shutdown(0);
 			gui_error("Stopping LiveTV to start new recording.");
+			break;
+		case CMYTH_EVENT_LIVETV_CHAIN_UPDATE:
+			printf("MythTV event %s\n",buf);
+			mythtv_livetv_chain_update(buf);
 			break;
 		}
 	}
@@ -1657,9 +1663,14 @@ control_start(void *arg)
 				continue;
 			}
 
-			if (mythtv_livetv)
-				len = cmyth_ringbuf_request_block(mythtv_recorder,
-								  size);
+			if (mythtv_livetv) {
+				if(protocol_version >= 26)
+					len = cmyth_livetv_request_block(mythtv_recorder,
+								  	size);
+				else
+					len = cmyth_ringbuf_request_block(mythtv_recorder,
+								  	size);
+			}
 			else
 				len = cmyth_file_request_block(mythtv_file,
 							       size);
@@ -2128,8 +2139,12 @@ mythtv_seek(long long offset, int whence)
 
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
 		    __FUNCTION__, __FILE__, __LINE__);
-	if (mythtv_livetv)
-		seek_pos = cmyth_ringbuf_seek(r, 0, SEEK_CUR);
+	if (mythtv_livetv) {
+		if(protocol_version >= 26)
+			seek_pos = cmyth_livetv_seek(r, 0, SEEK_CUR);
+		else
+			seek_pos = cmyth_ringbuf_seek(r, 0, SEEK_CUR);
+	}
 	else
 		seek_pos = cmyth_file_seek(f, 0, SEEK_CUR);
 	if ((offset == 0) && (whence == SEEK_CUR)) {
@@ -2160,12 +2175,23 @@ mythtv_seek(long long offset, int whence)
 		to.tv_usec = 10;
 		len = 0;
 		if (mythtv_livetv) {
-			if (cmyth_ringbuf_select(r, &to) > 0) {
-				PRINTF("%s(): reading...\n", __FUNCTION__);
-				len = cmyth_ringbuf_get_block(r, buf,
-							     sizeof(buf));
-				PRINTF("%s(): read returned %d\n",
-				       __FUNCTION__, len);
+			if(protocol_version >= 26) {
+				if (cmyth_livetv_select(r, &to) > 0) {
+					PRINTF("%s(): reading...\n", __FUNCTION__);
+					len = cmyth_livetv_get_block(r, buf,
+							     	sizeof(buf));
+					PRINTF("%s(): read returned %d\n",
+				       	__FUNCTION__, len);
+				}
+			}
+			else {
+				if (cmyth_ringbuf_select(r, &to) > 0) {
+					PRINTF("%s(): reading...\n", __FUNCTION__);
+					len = cmyth_ringbuf_get_block(r, buf,
+							     	sizeof(buf));
+					PRINTF("%s(): read returned %d\n",
+				       	__FUNCTION__, len);
+				}
 			}
 		} else {
 			if (cmyth_file_select(f, &to) > 0) {
@@ -2194,7 +2220,10 @@ mythtv_seek(long long offset, int whence)
 	}
 
 	if (mythtv_livetv)
-		seek_pos = cmyth_ringbuf_seek(r, offset, whence);
+		if(protocol_version >= 26)
+			seek_pos = cmyth_livetv_seek(r, offset, whence);
+		else
+			seek_pos = cmyth_ringbuf_seek(r, offset, whence);
 	else
 		seek_pos = cmyth_file_seek(f, offset, whence);
 
@@ -2233,10 +2262,18 @@ mythtv_read(char *buf, int len)
 		to.tv_usec = 10;
 		ret = -EBADF;
 		if (mythtv_livetv) {
-			if (cmyth_ringbuf_select(r, &to) <= 0) {
-				break;
+			if(protocol_version >= 26) {
+				if (cmyth_livetv_select(r, &to) <= 0) {
+					break;
+				}
+				ret = cmyth_livetv_get_block(r, buf+tot, len-tot);
 			}
-			ret = cmyth_ringbuf_get_block(r, buf+tot, len-tot);
+			else {
+				if (cmyth_ringbuf_select(r, &to) <= 0) {
+					break;
+				}
+				ret = cmyth_ringbuf_get_block(r, buf+tot, len-tot);
+			}
 		} else {
 			if (cmyth_file_select(f, &to) <= 0) {
 				break;

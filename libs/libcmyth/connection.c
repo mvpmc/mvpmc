@@ -1008,6 +1008,19 @@ cmyth_conn_hung(cmyth_conn_t control)
 }
 
 int
+cmyth_conn_get_protocol_version(cmyth_conn_t conn)
+{
+	if (!conn) {
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: no connection\n",
+			__FUNCTION__);
+		return -1;
+	}
+
+	return conn->conn_version;
+}
+
+
+int
 cmyth_conn_get_free_recorder_count(cmyth_conn_t conn)
 {
 	char msg[256];
@@ -1019,13 +1032,6 @@ cmyth_conn_get_free_recorder_count(cmyth_conn_t conn)
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: no connection\n",
 			  __FUNCTION__);
 		return -1;
-	}
-
-	if (conn->conn_version >= 20) {
-		cmyth_dbg(CMYTH_DBG_ERROR,
-			"%s: LiveTV not supported with myth protocol %lu\n",
-			__FUNCTION__, conn->conn_version);
-		return -2;
 	}
 
 	pthread_mutex_lock(&mutex);
