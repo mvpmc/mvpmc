@@ -42,7 +42,7 @@ static osd_surface_t *all[128];
 static int full_width = 720, full_height = 480;
 
 void
-osd_set_surface_size(int w, int h)
+osd_set_screen_size(int w, int h)
 {
 	full_width = w;
 	full_height = h;

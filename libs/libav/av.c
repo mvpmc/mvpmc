@@ -137,20 +137,20 @@ set_output_method(void)
 }
 
 /*
- * av_set_output() - set the video output method
+ * av_set_output() - set the video output device
  *
  * Arguments:
- *	method	- AV_OUTPUT_SVIDEO or AV_OUTPUT_COMPOSITE
+ *	device	- AV_OUTPUT_SVIDEO or AV_OUTPUT_COMPOSITE
  *
  * Returns:
  *	0 if it succeeded, -1 if it failed
  */
 int
-av_set_output(int method)
+av_set_output(av_video_output_t device)
 {
-	if (ioctl(fd_video, AV_SET_VID_OUTPUT, method) != 0)
+	if (ioctl(fd_video, AV_SET_VID_OUTPUT, device) != 0)
 		return -1;
-	output = method;
+	output = device;
 
 	return 0;
 }
@@ -164,7 +164,7 @@ av_set_output(int method)
  * Returns:
  *	AV_OUTPUT_SVIDEO or AV_OUTPUT_COMPOSITE
  */
-int
+av_video_output_t
 av_get_output(void)
 {
 	return output;
@@ -465,7 +465,7 @@ av_set_tv_aspect(av_tv_aspect_t ratio)
  *	none
  *
  * Returns:
- *	AV_ASPECT_4x3 or AV_ASPECT_4x3CCO or AV_ASPECT_16x9 or AV_ASPECT_16x9AUTO
+ *	AV_TV_ASPECT_4x3 or AV_TV_ASPECT_4x3_CCO or AV_TV_ASPECT_16x9
  */
 av_tv_aspect_t
 av_get_tv_aspect(void)
@@ -713,14 +713,14 @@ av_reset(void)
 int
 av_reset_stc(void)
 {
-	set_audio_stc(0);
-	set_video_stc(0);
+	av_set_audio_stc(0);
+	av_set_video_stc(0);
 
 	return 0;
 }
 
 /*
- * get_audio_sync() - get the audio sync data
+ * av_get_audio_sync() - get the audio sync data
  *
  * Arguments:
  *	p	- PTS audio sync pointer
@@ -729,7 +729,7 @@ av_reset_stc(void)
  *	0 if it succeeded, -1 if it failed
  */
 int
-get_audio_sync(pts_sync_data_t *p)
+av_get_audio_sync(pts_sync_data_t *p)
 {
 	int ret;
 
@@ -751,13 +751,13 @@ get_audio_sync(pts_sync_data_t *p)
  *	0 if it succeeded, -1 if it failed
  */
 int
-set_audio_stc(uint64_t stc)
+av_set_audio_stc(uint64_t stc)
 {
 	return ioctl(fd_audio, AV_SET_AUD_STC, &stc);
 }
 
 /*
- * get_video_sync() - get the video sync data
+ * av_get_video_sync() - get the video sync data
  *
  * Arguments:
  *	p	- PTS video sync pointer
@@ -766,7 +766,7 @@ set_audio_stc(uint64_t stc)
  *	0 if it succeeded, -1 if it failed
  */
 int
-get_video_sync(pts_sync_data_t *p)
+av_get_video_sync(pts_sync_data_t *p)
 {
 	int ret;
 
@@ -779,7 +779,7 @@ get_video_sync(pts_sync_data_t *p)
 }
 
 /*
- * set_video_stc() - set the video STC
+ * av_set_video_stc() - set the video STC
  *
  * Arguments:
  *	stc	- new video STC
@@ -788,7 +788,7 @@ get_video_sync(pts_sync_data_t *p)
  *	0 if it succeeded, -1 if it failed
  */
 int
-set_video_stc(uint64_t stc)
+av_set_video_stc(uint64_t stc)
 {
 	return ioctl(fd_video, AV_SET_VID_STC, &stc);
 }
@@ -805,7 +805,7 @@ av_current_stc(av_stc_t *stc)
 	pts_sync_data_t pts;
 	int hour, minute, second;
 
-	if (get_video_sync(&pts) == 0) {
+	if (av_get_video_sync(&pts) == 0) {
 		second = pts.stc / PTS_HZ;
 		hour = second / 3600;
 		minute = second / 60 - hour * 60;

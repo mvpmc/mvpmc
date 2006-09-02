@@ -289,7 +289,7 @@ send_mpeg_data (void)
         /*
          * Get file descriptor of hardware.
          */
-        afd = av_audio_fd ();
+        afd = av_get_audio_fd ();
 
         /*
          * Problems opening the audio hardware?

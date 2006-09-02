@@ -237,8 +237,8 @@ display_send(char *msg)
    */
   if((client_socket_descriptor = socket(AF_INET, SOCK_STREAM, 0)) < 0)
     {
-///###      perror("client: socket");
-///###      exit(1);
+//###      perror("client: socket");
+//###      exit(1);
       printf("Problem:display:Unable to get client socket descriptor.\n");
       return;
     }
@@ -248,8 +248,8 @@ display_send(char *msg)
    */
   if(uname(&myname) < 0)
     {
-///###      perror("uname: myname");
-///###      exit(1);
+//###      perror("uname: myname");
+//###      exit(1);
       printf("Problem:display:Unable to find my own name.\n");
       return;
     }
@@ -259,8 +259,8 @@ display_send(char *msg)
    */
   if((hptr = gethostbyname( myname.nodename )) == NULL)
     {
-///###      perror("gethostbyname error");
-///###      exit(1);
+//###      perror("gethostbyname error");
+//###      exit(1);
       printf("Problem:display:Unable to get host info.\n");
       return;
     }
@@ -288,8 +288,8 @@ display_send(char *msg)
 
   if(connect(client_socket_descriptor, (struct sockaddr *)&client_sain, sizeof(client_sain)) < 0)
     {
-///###      perror("client: connect");
-///###      exit(1);
+//###      perror("client: connect");
+//###      exit(1);
       printf("Problem:display:Unable to connect to the display process.\n");
       return;
     }
@@ -327,9 +327,9 @@ void* display_thread(void *arg)
    * OSD_CLOCK:
    * Haven't gotten around to trying this one out.
    */
-  ///  set_osd_callback(OSD_TIMECODE, display_timecode);
-  ///  set_osd_callback(OSD_PROGRESS, display_progress);
-  ///  set_osd_callback(OSD_CLOCK, display_clock);
+  //  set_osd_callback(OSD_TIMECODE, display_timecode);
+  //  set_osd_callback(OSD_PROGRESS, display_progress);
+  //  set_osd_callback(OSD_CLOCK, display_clock);
 
   /*
    * Open serial port to display.
@@ -611,8 +611,8 @@ void* display_thread(void *arg)
       display_struct.File.Ready = 0;
       display_struct.Line1.Ready = 0;
       display_struct.Line2.Ready = 0;
-      ///      display_struct.pFile.Ready = 0; //Need history
-      ///      display_struct.nFile.Ready = 0; //Need history
+      //      display_struct.pFile.Ready = 0; //Need history
+      //      display_struct.nFile.Ready = 0; //Need history
       display_struct.Message.Ready = 0;
 
       /*
@@ -630,63 +630,63 @@ void* display_thread(void *arg)
 	    {
 	      strcpy(display_struct.Title.String, (strstr(accum_message_ptr,":") + 1));
 	      display_struct.Title.Ready = 1;
-	      ///	      printf("Found Title: %s\n", display_struct.Title.String);
+	      //	      printf("Found Title: %s\n", display_struct.Title.String);
 	    }
 
 	  if((accum_message_ptr = strstr(accum_message, "Artist:")) != 0)
 	    {
 	      strcpy(display_struct.Artist.String, (strstr(accum_message_ptr,":") + 1));
 	      display_struct.Artist.Ready = 1;
-	      ///	      printf("Found Artist: %s\n", display_struct.Artist.String);
+	      //	      printf("Found Artist: %s\n", display_struct.Artist.String);
 	    }
 
 	  if((accum_message_ptr = strstr(accum_message, "Album:")) != 0)
 	    {
 	      strcpy(display_struct.Album.String, (strstr(accum_message_ptr,":") + 1));
 	      display_struct.Album.Ready = 1;
-	      ///	      printf("Found Album: %s\n", display_struct.Album.String);
+	      //	      printf("Found Album: %s\n", display_struct.Album.String);
 	    }
 
 	  if((accum_message_ptr = strstr(accum_message, "Time:")) != 0)
 	    {
 	      strcpy(display_struct.Time.String, (strstr(accum_message_ptr,":") + 1));
 	      display_struct.Time.Ready = 1;
-	      ///	      printf("Found Time: %s\n", display_struct.Time); ///### comment out if doesn't work
+	      //	      printf("Found Time: %s\n", display_struct.Time); //### comment out if doesn't work
 	    }
 
 	  if((accum_message_ptr = strstr(accum_message, "Progress:")) != 0)
 	    {
 	      strcpy(display_struct.Progress.String, (strstr(accum_message_ptr,":") + 1));
 	      display_struct.Progress.Ready = 1;
-	      ///	      printf("Found Progress: %s\n", display_struct.Progress.String);
+	      //	      printf("Found Progress: %s\n", display_struct.Progress.String);
 	    }
 
 	  if((accum_message_ptr = strstr(accum_message, "File:")) != 0)
 	    {
 	      strcpy(display_struct.File.String, (strstr(accum_message_ptr,":") + 1));
 	      display_struct.File.Ready = 1;
-	      ///	      printf("Found File: %s\n", display_struct.File.String);
+	      //	      printf("Found File: %s\n", display_struct.File.String);
 	    }
 
 	  if((accum_message_ptr = strstr(accum_message, "Message:")) != 0)
 	    {
 	      strcpy(display_struct.Message.String, (strstr(accum_message_ptr,":") + 1));
 	      display_struct.Message.Ready = 1;
-	      ///	      printf("Found Message: %s\n", display_struct.Message.String);
+	      //	      printf("Found Message: %s\n", display_struct.Message.String);
 	    }
 
 	  if((accum_message_ptr = strstr(accum_message, "Line1:")) != 0)
 	    {
 	      strcpy(display_struct.Line1.String, (strstr(accum_message_ptr,":") + 1));
 	      display_struct.Line1.Ready = 1;
-	      ///	      printf("Found Line1: %s\n", display_struct.Line1.String);
+	      //	      printf("Found Line1: %s\n", display_struct.Line1.String);
 	    }
 
 	  if((accum_message_ptr = strstr(accum_message, "Line2:")) != 0)
 	    {
 	      strcpy(display_struct.Line2.String, (strstr(accum_message_ptr,":") + 1));
 	      display_struct.Line2.Ready = 1;
-	      ///	      printf("Found Line2: %s\n", display_struct.Line2.String);
+	      //	      printf("Found Line2: %s\n", display_struct.Line2.String);
 	    }
 
 	  /*
@@ -1180,8 +1180,8 @@ display_iee_40x2()
     {
       display_struct.Time.Ready = 0;
 
-      ///      snprintf(display_server_message, DISPLAY_MESG_SIZE, "%-8.8s%c%c%c%c%c%c%c%c", display_struct.Time,
-      ///	       0x08,0x08,0x08,0x08,0x08,0x08,0x08,0x08);
+      //      snprintf(display_server_message, DISPLAY_MESG_SIZE, "%-8.8s%c%c%c%c%c%c%c%c", display_struct.Time,
+      //	       0x08,0x08,0x08,0x08,0x08,0x08,0x08,0x08);
     }
 
 
@@ -1449,15 +1449,15 @@ display_iee_40x2()
        * If we are not busy, display the beginning (as wide as this display 
        * is) of the last message if there is one.
        */
-      ///      if(
-      ///	 (display_struct.display_busy == 0) &&
-      ///	 (strlen(last_message) > 0)
-      ///	 )
-      ///	{
-      ///	  sprintf(display_server_message, "%-40.40s", last_message);
-      ///	  last_message[0] = '\0';
-      ///	  display_struct.Interval = DISPLAY_NORMAL_INTERVAL;
-      ///	}
+      //      if(
+      //	 (display_struct.display_busy == 0) &&
+      //	 (strlen(last_message) > 0)
+      //	 )
+      //	{
+      //	  sprintf(display_server_message, "%-40.40s", last_message);
+      //	  last_message[0] = '\0';
+      //	  display_struct.Interval = DISPLAY_NORMAL_INTERVAL;
+      //	}
     }
 
 }
@@ -1865,8 +1865,8 @@ display_iee_16x1()
     {
       display_struct.Time.Ready = 0;
 
-      ///      snprintf(display_server_message, DISPLAY_MESG_SIZE, "%-8.8s%c%c%c%c%c%c%c%c", display_struct.Time,
-      ///	       0x08,0x08,0x08,0x08,0x08,0x08,0x08,0x08);
+      //      snprintf(display_server_message, DISPLAY_MESG_SIZE, "%-8.8s%c%c%c%c%c%c%c%c", display_struct.Time,
+      //	       0x08,0x08,0x08,0x08,0x08,0x08,0x08,0x08);
     }
 
 
