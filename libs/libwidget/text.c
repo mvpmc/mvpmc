@@ -59,14 +59,15 @@ expose(mvp_widget_t *widget)
 	}
 
 	GrGetFontInfo(widget->data.text.font, &finfo);
-	/*h       = finfo.height;*/
-	/* This change packs the font in closer but will require that it be
+	h       = finfo.height;
+	/*
+		 This change packs the font in closer but will require that it be
 		 drawn from the bottom up or the descents get covered by the next line
 		 being drawn. Need to figure this out later. Probably using a parameter
 		 in the attribute. TODO: Fix this so that packing only occurs when
 		 requested.
-	*/
 	h       = finfo.baseline;
+	*/
 	descent = h - finfo.baseline;
 
 	gc = GrNewGC();
