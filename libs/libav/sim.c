@@ -72,13 +72,13 @@ av_play(void)
 }
 
 int
-av_audio_fd(void)
+av_get_audio_fd(void)
 {
 	return afd;
 }
 
 int
-av_video_fd(void)
+av_get_video_fd(void)
 {
 	return vfd;
 }
@@ -132,13 +132,13 @@ av_reset_stc(void)
 }
 
 int
-get_video_sync(pts_sync_data_t *p)
+av_get_video_sync(pts_sync_data_t *p)
 {
 	return 0;
 }
 
 int
-get_audio_sync(pts_sync_data_t *p)
+av_get_audio_sync(pts_sync_data_t *p)
 {
 	return 0;
 }
@@ -161,7 +161,7 @@ av_get_mode(void)
 	return AV_MODE_NTSC;
 }
 
-int
+av_video_output_t
 av_get_output(void)
 {
 	return AV_OUTPUT_COMPOSITE;
@@ -186,7 +186,7 @@ av_set_mode(av_mode_t mode)
 }
 
 int
-av_set_output(int output)
+av_set_output(av_video_output_t device)
 {
 	return 0;
 }

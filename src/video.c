@@ -917,13 +917,13 @@ video_callback(mvp_widget_t *widget, char key)
 		 *      to tell when the audio and video are out of sync,
 		 *      and correct it automatically.
 		 */
-		get_audio_sync(&async);
-		get_video_sync(&vsync);
+		av_get_audio_sync(&async);
+		av_get_video_sync(&vsync);
 		printf("PRE SYNC:  a 0x%llx 0x%llx  v 0x%llx 0x%llx\n",
 		       async.stc, async.pts, vsync.stc, vsync.pts);
 		av_delay_video(1000);
-		get_audio_sync(&async);
-		get_video_sync(&vsync);
+		av_get_audio_sync(&async);
+		av_get_video_sync(&vsync);
 		printf("POST SYNC: a 0x%llx 0x%llx  v 0x%llx 0x%llx\n",
 		       async.stc, async.pts, vsync.stc, vsync.pts);
 		break;
@@ -1052,7 +1052,7 @@ audio_switch_stream(mvp_widget_t *widget, int stream)
 		else
 			av_set_audio_output(AV_AUDIO_PCM);
 
-		fd_audio = av_audio_fd();
+		fd_audio = av_get_audio_fd();
 
 		printf("switched from audio stream 0x%x to 0x%x\n",
 		       old, stream);
@@ -1268,7 +1268,7 @@ file_open(void)
 
 	if (video_reopen == 1) {
 		av_set_audio_output(AV_AUDIO_MPEG);
-		fd_audio = av_audio_fd();
+		fd_audio = av_get_audio_fd();
 
 		av_play();
 

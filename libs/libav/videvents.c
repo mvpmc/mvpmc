@@ -46,7 +46,7 @@ static pthread_cond_t videvents_cond = PTHREAD_COND_INITIALIZER;
 static inline unsigned int get_pts()
 {
     pts_sync_data_t pts_struct;
-    get_video_sync(&pts_struct);
+    av_get_video_sync(&pts_struct);
     return pts_struct.stc & 0xFFFFFFFF;
 }
 

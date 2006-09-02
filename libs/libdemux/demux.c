@@ -80,6 +80,19 @@ demux_init(unsigned int size)
 	return handle;
 }
 
+int
+demux_destroy(demux_handle_t *handle)
+{
+	if (handle == NULL)
+		return -1;
+
+	if(handle->stream_buf)
+		free(handle->stream_buf);
+	free(handle);
+
+	return 0;
+}
+
 /*
  * demux_put() - Add a media stream buffer to the demuxer
  *

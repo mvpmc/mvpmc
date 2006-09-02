@@ -41,13 +41,13 @@ av_write_video(char *buf, int len)
 }
 
 int
-av_audio_fd(void)
+av_get_audio_fd(void)
 {
 	return fd_audio;
 }
 
 int
-av_video_fd(void)
+av_get_video_fd(void)
 {
 	return fd_video;
 }

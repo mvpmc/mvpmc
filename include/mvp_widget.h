@@ -1,9 +1,7 @@
 /*
- *  $Id$
- *
- *  Copyright (C) 2004, Jon Gettler
+ *  Copyright (C) 2004-2006, Jon Gettler
  *  Copyright (C) 2006, Sergio Slobodrian (array widget)
- *  http://mvpmc.sourceforge.net/
+ *  http://www.mvpmc.org/
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -20,6 +18,11 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+/** \file mvp_widget.h
+ * mvpmc widget library.  This library acts as a simple windowing API sitting
+ * on top of microwindows.
+ */
+
 #ifndef MVP_WIDGET_H
 #define MVP_WIDGET_H
 
@@ -32,52 +35,218 @@
 
 typedef struct mvp_widget_s mvp_widget_t;
 
+/**
+ * Widget information
+ */
 typedef struct {
-	int x;
-	int y;
-	int w;
-	int h;
+	int x;		/**< horizontal coordinate */
+	int y;		/**< vertical coordinate */
+	int w;		/**< width */
+	int h;		/**< height */
 } mvpw_widget_info_t;
 
+/**
+ * Screen information
+ */
 typedef struct {
-	int rows;
-	int cols;
-	int bpp;
-	int pixtype;
+	int rows;	/**< rows */
+	int cols;	/**< columns */
+	int bpp;	/**< bits per pixel */
+	int pixtype;	/**< pixel type */
 } mvpw_screen_info_t;
 
+/**
+ * Initialize the widget library.
+ * \retval 0 success
+ * \retval -1 error
+ */
 extern int mvpw_init(void);
+
+/**
+ * Enter the widget library event loop.
+ * \retval 0 success
+ * \retval -1 error
+ */
 extern int mvpw_event_loop(void);
+
+/**
+ * Flush all existing events.
+ * \retval 0 success
+ * \retval -1 error
+ */
 extern int mvpw_event_flush(void);
+
+/**
+ * Return the root window widget.
+ * \return root window widget
+ */
 extern mvp_widget_t *mvpw_get_root(void);
+
+/**
+ * Set the idle callback routine.
+ * \param callback idle callback function (NULL to disable)
+ */
 extern void mvpw_set_idle(void (*callback)(void));
+
+/**
+ * Set the expose callback for a widget.
+ * \param widget widget handle
+ * \param callback callback function (NULL to disable)
+ */
 extern void mvpw_set_expose_callback(mvp_widget_t *widget,
 				     void (*callback)(mvp_widget_t*));
 
+/**
+ * Retrieve widget information
+ * \param widget widget handle
+ * \param[out] info widget information
+ */
 extern void mvpw_get_widget_info(mvp_widget_t *widget, mvpw_widget_info_t *info);
+
+/**
+ * Get screen information
+ * \param[out] info screen information
+ */
 extern void mvpw_get_screen_info(mvpw_screen_info_t *info);
 
+/**
+ * Set the background color of the widget.
+ * \param widget widget handle
+ * \param bg background color
+ */
 extern void mvpw_set_bg(mvp_widget_t *widget, uint32_t bg);
+
+/**
+ * Retrieve the background color of a widget.
+ * \param widget widget handle
+ * \return background color
+ */
 extern uint32_t mvpw_get_bg(const mvp_widget_t *widget);
+
+/**
+ * Set the timer callback and timeout value for a widget.
+ * \param widget widget handle
+ * \param callback callback function (NULL to disable)
+ * \param timeout timeout in microseconds
+ */
 extern void mvpw_set_timer(mvp_widget_t *widget,
 			   void (*callback)(mvp_widget_t*), uint32_t timeout);
+
+/**
+ * Change focus to this widget.
+ * \param widget widget handle
+ */
 extern void mvpw_focus(mvp_widget_t *widget);
+
+/**
+ * Get the widget that currently has focus.
+ * \return handle to the widget with focus
+ */
 extern mvp_widget_t *mvpw_get_focus(void);
+
+/**
+ * Display a widget on the screen.
+ * \param widget widget handle
+ */
 extern void mvpw_show(mvp_widget_t *widget);
+
+/**
+ * Make a widget not visible on the screen.
+ * \param widget widget to be hidden
+ */
 extern void mvpw_hide(mvp_widget_t *widget);
+
+/**
+ * Raise a widget so that it is fully visible.
+ * \param widget widget handle
+ */
 extern void mvpw_raise(mvp_widget_t *widget);
+
+/**
+ * Lower a widget so that other widgets are visible over top of it.
+ * \param widget widget handle
+ */
 extern void mvpw_lower(mvp_widget_t *widget);
+
+/**
+ * Force an expose event on a widget.
+ * \param widget widget handle
+ */
 extern void mvpw_expose(const mvp_widget_t *widget);
+
+/**
+ * Return the height of a font.
+ * \param font font ID
+ * \param utf8 1 if UTF8 encoding is used, 0 otherwise
+ * \return font height in pixels
+ */
 extern int mvpw_font_height(int font, int utf8);
+
+/**
+ * Return the width for a string using a certain font.
+ * \param font font ID
+ * \param str string to calculate width for
+ * \param utf8 1 if UTF8 encoding is used, 0 otherwise
+ * \return string width in pixels
+ */
 extern int mvpw_font_width(int font, char *str, int utf8);
+
+/**
+ * Load a font from a file.
+ * \param file file name
+ * \return font ID
+ */
 extern int mvpw_load_font(char *file);
+
+/**
+ * Move a widget, and all attached widgets, by a certain number of pixels.
+ * \param widget widget handle
+ * \param x horizontal offset
+ * \param y vertical offset
+ */
 extern void mvpw_move(mvp_widget_t *widget, int x, int y);
+
+/**
+ * Move a widget, and all attached widgets, to a specific location.
+ * \param widget widget handle
+ * \param x horizontal coordinate
+ * \param y vertical coordinate
+ */
 extern void mvpw_moveto(mvp_widget_t *widget, int x, int y);
+
+/**
+ * Resize a widget.
+ * \param widget widget handle
+ * \param w new width
+ * \param h new height
+ */
 extern void mvpw_resize(const mvp_widget_t *widget, int w, int h);
+
+/**
+ * Attach two widgets together, so they can be moved in unison.
+ * \param w1 widget handle
+ * \param w2 widget handle
+ * \param direction w2 should be in this direction from w2
+ * \retval 0 success
+ * \retval -1 error
+ */
 extern int mvpw_attach(mvp_widget_t *w1, mvp_widget_t *w2, int direction);
+
+/**
+ * Detach widgets from each other.
+ * \param widget widget handle
+ * \param direction unattach the widget in this direction from the widget
+ */
 extern void mvpw_unattach(mvp_widget_t *widget, int direction);
+
+/**
+ * Register a key callback on a widget.
+ * \param widget widget handle
+ * \param callback callback function
+ */
 extern void mvpw_set_key(mvp_widget_t *widget,
 			 void (*callback)(mvp_widget_t*, char));
+
 extern void mvpw_destroy(mvp_widget_t *widget);
 extern int mvpw_visible(const mvp_widget_t *widget);
 extern int mvpw_keystroke_callback(void (*callback)(char));
@@ -437,6 +606,8 @@ mvpw_get_rgba(unsigned long c, unsigned char *r, unsigned char *g,
 #define MVPW_KEY_REPLAY	'('
 #define MVPW_KEY_SKIP	')'
 #define	MVPW_KEY_PREV_CHAN	'C'
+#define	MVPW_KEY_GUIDE		'G'
+#define	MVPW_KEY_TV		'T'
 #else
 #define	MVPW_KEY_ZERO		 0
 #define	MVPW_KEY_ONE		 1

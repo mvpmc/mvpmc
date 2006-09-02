@@ -1247,7 +1247,7 @@ audio_start(void *arg)
 		if (audio_init() != 0)
 			goto fail;
 		
-        afd = av_audio_fd();
+        afd = av_get_audio_fd();
 
 		audio_playing = 1;
 		audio_stop = 0;
