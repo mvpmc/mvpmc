@@ -137,13 +137,7 @@ cmyth_schedule_recording(cmyth_conn_t conn, char * msg)
 
 	count = cmyth_rcv_length(conn);
 	cmyth_rcv_string(conn, &err, buf, sizeof(buf)-1,count);
-
-/*	fprintf (stderr, "MIKE : COUNT =%d\n",count);
-	fprintf (stderr, "MIKE : err =%d\n",err);
-	fprintf (stderr, "MIKE : BUF =%s\n",buf); */
-	
 	pthread_mutex_unlock(&mutex);
-
 	return err;
 }
 char *
@@ -185,8 +179,6 @@ insert_into_record_mysql(char * query, char * query1, char * query2, char *title
 	char N_description[500];
 	char N_callsign[25];
 	char N_query[2500];
-
-fprintf (stderr, "In function %s\n",__FUNCTION__);
 
 	mysql_init(&mysql);
 
@@ -239,14 +231,14 @@ fprintf (stderr, "In function %s\n",__FUNCTION__);
 }
 
 int
-get_guide_mysql(struct program *prog, struct channel *chan, char *starttime, char *endtime, char *dbhost, char *dbuser, char *dbpass, char *db) 
+get_guide_mysql(struct program **prog, char *starttime, char *endtime, char *dbhost, char *dbuser, char *dbpass, char *db) 
 {
 	MYSQL *mysql;
 	MYSQL_RES *res=NULL;
 	MYSQL_ROW row;
-        char query[350];
-	int rows=2;
-	int ch;
+        char query[450];
+	int rows=1;
+	int ch, n=50;
 
         mysql=mysql_init(NULL);
 	if(!(mysql_real_connect(mysql,dbhost,dbuser,dbpass,db,0,NULL,0))) {
@@ -256,7 +248,9 @@ get_guide_mysql(struct program *prog, struct channel *chan, char *starttime, cha
         	mysql_close(mysql);
 		return -1;
         }
-        sprintf(query, "SELECT chanid,starttime,endtime,title,description,subtitle,programid,seriesid,category FROM program WHERE starttime>='%s' and starttime<'%s' ORDER BY `chanid` ASC ",starttime,endtime);
+
+	sprintf(query, "SELECT program.chanid,program.starttime,program.endtime,program.title,program.description,program.subtitle,program.programid,program.seriesid,program.category,channel.channum,channel.callsign,channel.name,channel.sourceid FROM program LEFT JOIN channel on program.chanid=channel.chanid WHERE starttime>='%s' and starttime<'%s' ORDER BY `chanid` ASC ",starttime,endtime);
+
         cmyth_dbg(CMYTH_DBG_ERROR, "%s: query= %s\n", __FUNCTION__, query);
         if(mysql_query(mysql,query)) {
                  cmyth_dbg(CMYTH_DBG_ERROR, "%s: mysql_query() Failed: %s\n", 
@@ -265,29 +259,44 @@ get_guide_mysql(struct program *prog, struct channel *chan, char *starttime, cha
 		return -1;
         }
         res = mysql_store_result(mysql);
-	strcpy (prog[0].starttime, starttime);
-	strcpy (prog[0].endtime, endtime);
-        while((row = mysql_fetch_row(res))) {
-		if (rows < 650) {
-			ch = atoi(row[0]);
-			prog[rows].channum = chan[ch].channum;
-			prog[rows].chanid=ch;
-			prog[rows].recording=0;
-			strcpy ( prog[rows].starttime, row[1]);
-			strcpy ( prog[rows].endtime, row[2]);
-			strcpy ( prog[rows].title, row[3]);
-			strcpy ( prog[rows].description, row[4]);
-			strcpy ( prog[rows].subtitle, row[5]);
-			strcpy ( prog[rows].programid, row[6]);
-			strcpy ( prog[rows].seriesid, row[7]);
-			strcpy ( prog[rows].category, row[8]);
-        		cmyth_dbg(CMYTH_DBG_ERROR, "prog[%d].chanid =  %d\n",rows, prog[rows].chanid);
-        		cmyth_dbg(CMYTH_DBG_ERROR, "prog[%d].title =  %s\n",rows, prog[rows].title);
-			rows++;
-		}
-		else {
-			fprintf (stderr, "structure full, too many listings : %s",__FUNCTION__ );
-		}
+
+       	strcpy ((*prog)[0].starttime, starttime);
+       	strcpy ((*prog)[0].endtime, endtime);
+   	strcpy ( (*prog)[0].title, "");
+  	strcpy ( (*prog)[0].description, "");
+   	strcpy ( (*prog)[0].subtitle, "");
+   	strcpy ( (*prog)[0].programid, "");
+        strcpy ( (*prog)[0].seriesid, "");
+        strcpy ( (*prog)[0].category, "");
+        (*prog)[0].channum = 0;
+        strcpy ((*prog)[0].callsign,"");
+        strcpy ((*prog)[0].name,"");
+        (*prog)[0].sourceid = 0;
+        cmyth_dbg(CMYTH_DBG_ERROR, "prog[0].endtime= %s\n", (*prog)[0].endtime);
+	while((row = mysql_fetch_row(res))) {
+        	if (rows == n) {
+                	n++;
+                       	*prog=realloc(*prog,sizeof(**prog)*(n));
+               	}
+              	ch = atoi(row[0]);
+               	(*prog)[rows].chanid=ch;
+           	cmyth_dbg(CMYTH_DBG_ERROR, "prog[%d].chanid =  %d\n",rows, (*prog)[rows].chanid);
+               	(*prog)[rows].recording=0;
+               	strcpy ( (*prog)[rows].starttime, row[1]);
+               	strcpy ( (*prog)[rows].endtime, row[2]);
+               	strcpy ( (*prog)[rows].title, row[3]);
+               	strcpy ( (*prog)[rows].description, row[4]);
+               	strcpy ( (*prog)[rows].subtitle, row[5]);
+               	strcpy ( (*prog)[rows].programid, row[6]);
+               	strcpy ( (*prog)[rows].seriesid, row[7]);
+               	strcpy ( (*prog)[rows].category, row[8]);
+               	(*prog)[rows].channum = atoi (row[9]);
+              	strcpy ((*prog)[rows].callsign,row[10]);
+              	strcpy ((*prog)[rows].name,row[11]);
+               	(*prog)[rows].sourceid = atoi (row[12]);
+          	cmyth_dbg(CMYTH_DBG_ERROR, "prog[%d].chanid =  %ld\n",rows, (*prog)[rows].chanid);
+          	cmyth_dbg(CMYTH_DBG_ERROR, "prog[%d].title =  %s\n",rows, (*prog)[rows].title);
+          	rows++;
         }
         mysql_free_result(res);
         mysql_close(mysql);
@@ -296,13 +305,14 @@ get_guide_mysql(struct program *prog, struct channel *chan, char *starttime, cha
 }
 
 int
-get_prog_finder_char_title_mysql(struct program *prog, char *starttime, char *program_name, char *dbhost, char *dbuser, char *dbpass, char *db) 
+get_prog_finder_char_title_mysql(struct program **prog, char *starttime, char *program_name, char *dbhost, char *dbuser, char *dbpass, char *db) 
 {
 	MYSQL *mysql;
 	MYSQL_RES *res=NULL;
 	MYSQL_ROW row;
         char query[350];
 	int rows=0;
+	int n = 50;
 
         mysql=mysql_init(NULL);
 	if(!(mysql_real_connect(mysql,dbhost,dbuser,dbpass,db,0,NULL,0))) {
@@ -324,14 +334,13 @@ get_prog_finder_char_title_mysql(struct program *prog, char *starttime, char *pr
         }
         res = mysql_store_result(mysql);
         while((row = mysql_fetch_row(res))) {
-		if (rows < 650) {
-			strcpy ( prog[rows].title, row[0]);
-        		cmyth_dbg(CMYTH_DBG_ERROR, "prog[%d].title =  %s\n",rows, prog[rows].title);
+        	if (rows == n) {
+                	n++;
+                       	*prog=realloc(*prog,sizeof(**prog)*(n));
+               	}
+			strcpy ( (*prog)[rows].title, row[0]);
+        		cmyth_dbg(CMYTH_DBG_ERROR, "prog[%d].title =  %s\n",rows, (*prog)[rows].title);
 			rows++;
-		}
-		else {
-			fprintf (stderr, "structure full, too many listings : %s",__FUNCTION__ );
-		}
         }
         mysql_free_result(res);
         mysql_close(mysql);
@@ -340,14 +349,15 @@ get_prog_finder_char_title_mysql(struct program *prog, char *starttime, char *pr
 }
 
 int
-get_prog_finder_time_mysql(struct program *prog,  char *starttime, char *program_name, char *dbhost, char *dbuser, char *dbpass, char *db) 
+get_prog_finder_time_mysql(struct program **prog,  char *starttime, char *program_name, char *dbhost, char *dbuser, char *dbpass, char *db) 
 {
 	MYSQL mysql;
 	MYSQL_RES *res=NULL;
 	MYSQL_ROW row;
-        char query[350];
+        char query[630];
 	char N_title[260];
 	int rows=0;
+	int n = 50;
 	int ch;
 
 
@@ -364,7 +374,8 @@ get_prog_finder_time_mysql(struct program *prog,  char *starttime, char *program
 	strcpy(N_title,program_name);
 	mysql_real_escape_string(&mysql,N_title,program_name,strlen(program_name)); 
 
-        sprintf(query, "SELECT chanid,starttime,endtime,title,description,subtitle,programid,seriesid,category FROM program WHERE starttime >= '%s' and title ='%s' ORDER BY `starttime` ASC ", starttime, N_title);
+        //sprintf(query, "SELECT chanid,starttime,endtime,title,description,subtitle,programid,seriesid,category FROM program WHERE starttime >= '%s' and title ='%s' ORDER BY `starttime` ASC ", starttime, N_title);
+        sprintf(query, "SELECT program.chanid,program.starttime,program.endtime,program.title,program.description,program.subtitle,program.programid,program.seriesid,program.category, channel.channum, channel.callsign, channel.name, channel.sourceid FROM program LEFT JOIN channel on program.chanid=channel.chanid WHERE starttime >= '%s' and title ='%s' ORDER BY `starttime` ASC ", starttime, N_title);
 	fprintf(stderr, "%s\n", query);
         cmyth_dbg(CMYTH_DBG_ERROR, "%s: query= %s\n", __FUNCTION__, query);
         if(mysql_query(&mysql,query)) {
@@ -372,28 +383,38 @@ get_prog_finder_time_mysql(struct program *prog,  char *starttime, char *program
                            __FUNCTION__, mysql_error(&mysql));
         	mysql_close(&mysql);
 		return -1;
-        }
+       	}
+	cmyth_dbg(CMYTH_DBG_ERROR, "n =  %d\n",n);
         res = mysql_store_result(&mysql);
-        while((row = mysql_fetch_row(res))) {
-		if (rows < 650) {
+	cmyth_dbg(CMYTH_DBG_ERROR, "n =  %d\n",n);
+	while((row = mysql_fetch_row(res))) {
+			cmyth_dbg(CMYTH_DBG_ERROR, "n =  %d\n",n);
+        	if (rows == n) {
+                	n++;
+			cmyth_dbg(CMYTH_DBG_ERROR, "realloc n =  %d\n",n);
+                       	*prog=realloc(*prog,sizeof(**prog)*(n));
+               	}
+			cmyth_dbg(CMYTH_DBG_ERROR, "rows =  %d\nrow[0]=%d\n",rows, row[0]);
+			cmyth_dbg(CMYTH_DBG_ERROR, "row[1]=%d\n",row[1]);
 			ch = atoi(row[0]);
-			prog[rows].chanid=ch;
-			prog[rows].recording=0;
-			strcpy ( prog[rows].starttime, row[1]);
-			strcpy ( prog[rows].endtime, row[2]);
-			strcpy ( prog[rows].title, row[3]);
-			strcpy ( prog[rows].description, row[4]);
-			strcpy ( prog[rows].subtitle, row[5]);
-			strcpy ( prog[rows].programid, row[6]);
-			strcpy ( prog[rows].seriesid, row[7]);
-			strcpy ( prog[rows].category, row[8]);
-        		cmyth_dbg(CMYTH_DBG_ERROR, "prog[%d].chanid =  %d\n",rows, prog[rows].chanid);
-        		cmyth_dbg(CMYTH_DBG_ERROR, "prog[%d].title =  %s\n",rows, prog[rows].title);
+			(*prog)[rows].chanid=ch;
+			cmyth_dbg(CMYTH_DBG_ERROR, "prog[%d].chanid =  %d\n",rows, (*prog)[rows].chanid);
+			(*prog)[rows].recording=0;
+			strcpy ((*prog)[rows].starttime, row[1]);
+			strcpy ((*prog)[rows].endtime, row[2]);
+			strcpy ((*prog)[rows].title, row[3]);
+			strcpy ((*prog)[rows].description, row[4]);
+			strcpy ((*prog)[rows].subtitle, row[5]);
+			strcpy ((*prog)[rows].programid, row[6]);
+			strcpy ((*prog)[rows].seriesid, row[7]);
+			strcpy ((*prog)[rows].category, row[8]);
+			(*prog)[rows].channum = atoi (row[9]);
+			strcpy ((*prog)[rows].callsign,row[10]);
+			strcpy ((*prog)[rows].name,row[11]);
+			(*prog)[rows].sourceid = atoi (row[12]);
+        		cmyth_dbg(CMYTH_DBG_ERROR, "prog[%d].chanid =  %d\n",rows, (*prog)[rows].chanid);
+        		cmyth_dbg(CMYTH_DBG_ERROR, "prog[%d].title =  %s\n",rows, (*prog)[rows].title);
 			rows++;
-		}
-		else {
-			fprintf (stderr, "structure full, too many listings : %s",__FUNCTION__ );
-		}
         }
         mysql_free_result(res);
         mysql_close(&mysql);
@@ -418,48 +439,3 @@ fill_program_recording_status(cmyth_conn_t conn, char * msg)
 	return err;
 }
 
-int
-myth_load_channels(struct channel *chan, char *dbhost, char *dbuser, char *dbpass, char *db) 
-{
-	MYSQL *mysql;
-	MYSQL_RES *res=NULL;
-	MYSQL_ROW row;
-        char query[100];
-	int rows=0;
-	int key;
-        
-	mysql=mysql_init(NULL);
-	if(!(mysql_real_connect(mysql,dbhost,dbuser,dbpass,db,0,NULL,0))) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: mysql_connect() Failed: %s\n",
-                           __FUNCTION__, mysql_error(mysql));
-		fprintf(stderr, "mysql_connect() Failed: %s\n",mysql_error(mysql));
-        	mysql_close(mysql);
-		return -1;
-        }
-        sprintf(query, "SELECT chanid,channum,callsign,name FROM channel ORDER BY `chanid` ASC");
-        cmyth_dbg(CMYTH_DBG_ERROR, "%s: query= %s\n", __FUNCTION__, query);
-
-        if(mysql_query(mysql,query)) {
-                 cmyth_dbg(CMYTH_DBG_ERROR, "%s: mysql_query() Failed: %s\n", 
-                           __FUNCTION__, mysql_error(mysql));
-        	mysql_close(mysql);
-		return -1;
-        }
-        res = mysql_store_result(mysql);
-        while((row = mysql_fetch_row(res))) {
-		if (rows < 500) {
-			key = atoi(row[0]);
-			chan[key].chanid = key;
-			chan[key].channum = atoi(row[1]);
-			strcpy ( chan[key].callsign, row[2]);
-			strcpy ( chan[key].name, row[3]);
-        		cmyth_dbg(CMYTH_DBG_ERROR, "chan[%d].channum =  %d\n",key, chan[key].channum);
-        		cmyth_dbg(CMYTH_DBG_ERROR, "chan[%d].name =  %s\n",key, chan[key].name);
-			rows++;
-		}
-        }
-        mysql_free_result(res);
-        mysql_close(mysql);
-       	cmyth_dbg(CMYTH_DBG_ERROR, "%s returned rows =  %d\n",__FUNCTION__, rows);
-	return rows;
-}

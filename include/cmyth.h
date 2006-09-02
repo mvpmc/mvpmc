@@ -607,15 +607,18 @@ extern int cmyth_set_bookmark(cmyth_conn_t conn, cmyth_proginfo_t prog,
 #define PROGRAM_ADJUST  3600
 
 struct program {
-	int chanid;
-	char title[130];
-	char subtitle[130];
-	char description[256];
-	char starttime[25];
-	char endtime[25];
-	char programid[20];
-	char seriesid[12];
-	char category[64];
+	unsigned long chanid;
+	char callsign[30];
+	char name[84];
+	unsigned int sourceid;
+	char title[150];
+	char subtitle[150];
+	char description[280];
+	char starttime[35];
+	char endtime[35];
+	char programid[30];
+	char seriesid[24];
+	char category[84];
 	int recording;
 	char rec_status[2];
 	int channum;
@@ -627,6 +630,7 @@ struct channel {
 	long sources; /* A bit array of recorders/tuners supporting the channel */
 	char callsign[20];
 	char name[64];
+	char rec_status[4];
 };
 
 #endif /* __CMYTH_H */
