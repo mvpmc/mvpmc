@@ -521,13 +521,17 @@ void
 mvpw_move_array_selection(mvp_widget_t *widget, int direction)
 {
 	int ofs;
+	/*
 	printf("** SSDEBUG: %s called in file %s on line %d with direction %d\n",
 		__FUNCTION__, __FILE__, __LINE__, direction);
+	*/
 	switch(direction) {
 		case MVPW_ARRAY_LEFT:
 			if(widget->data.array.hilite_x > 0) {
+				/*
 				printf("** SSEDBUG: moving LEFT from %d,%d\n",
-				widget->data.array.hilite_x,widget->data.array.hilite_y);
+					widget->data.array.hilite_x,widget->data.array.hilite_y);
+				*/
 				mvpw_hilite_array_cell(widget,
 					widget->data.array.hilite_x,
 					widget->data.array.hilite_y, 0);
@@ -559,8 +563,10 @@ mvpw_move_array_selection(mvp_widget_t *widget, int direction)
 			   	&& widget->data.array.cell_viz[ofs+2] == 0)
 				 	widget->data.array.hilite_x += 1;
 			}
+			/*
 			printf("** SSEDBUG: moving RIGHT from %d,%d\n",
 							widget->data.array.hilite_x,widget->data.array.hilite_y);
+			*/
 			if(widget->data.array.hilite_x < widget->data.array.cols - 1) {
 				widget->data.array.hilite_x += 1;
 				mvpw_hilite_array_cell(widget,
@@ -586,8 +592,10 @@ mvpw_move_array_selection(mvp_widget_t *widget, int direction)
 				widget->data.array.hilite_x,
 				widget->data.array.hilite_y, 0);
 			if(widget->data.array.hilite_y > 0) {
+				/*
 				printf("** SSEDBUG: moving UP from %d,%d\n",
 								widget->data.array.hilite_x,widget->data.array.hilite_y);
+				*/
 				widget->data.array.hilite_y -= 1;
 			}
 			else if(widget->data.array.scroll_callback) {
@@ -611,8 +619,10 @@ mvpw_move_array_selection(mvp_widget_t *widget, int direction)
 				widget->data.array.hilite_x,
 				widget->data.array.hilite_y, 0);
 			if(widget->data.array.hilite_y < widget->data.array.rows - 1) {
+				/*
 				printf("** SSEDBUG: moving DOWN from %d,%d\n",
 								widget->data.array.hilite_x,widget->data.array.hilite_y);
+				*/
 				widget->data.array.hilite_y += 1;
 			}
 			else if(widget->data.array.scroll_callback) {

@@ -119,7 +119,9 @@ mvp_tvguide_video_topright(int on)
 		av_move(410, 0, 3);
 		/*av_move(si.cols/2, 0, 3); */
 	} else {
+		/*
 		printf("av_move(0,0,0): %s [%s,%d]\n", __FUNCTION__, __FILE__, __LINE__);
+		*/
 		av_move(0, 0, 0);
 	}
 }
@@ -137,8 +139,9 @@ mvp_tvguide_key_timer(mvp_widget_t * dummy)
 										tvguide_cur_chan_index, tvguide_scroll_ofs_x,
 										tvguide_scroll_ofs_y, tvguide_free_cardids);
 
-
+	/*
 	printf("**SSDEBUG: key timeout with keys: %s\n", number_keys.keys);
+	*/
 	number_keys.keys[0] = 0;
 	number_keys.key_ct = 0;
 	mvpw_set_timer(dummy, NULL, 0);
@@ -201,7 +204,9 @@ mvp_tvguide_callback(mvp_widget_t *widget, char key)
 			rtrn = 1;
 			break;
 		case MVPW_KEY_ZERO ... MVPW_KEY_NINE:
+			/*
 			printf("In %s number key %d \n", __FUNCTION__, key);
+			*/
 			/* Use a timer to get up to 3 keys. */
 			if(number_keys.key_ct < 3) {
 				sprintf(number_keys.keys, "%s%d", number_keys.keys, key);
@@ -303,30 +308,42 @@ void scroll_callback(mvp_widget_t *widget, int direction)
 
 	switch(direction) {
 		case MVPW_ARRAY_LEFT:
+			/*
 			printf("** SSDEBUG: scroll to the %s requested\n", "Left");
+			*/
 			tvguide_scroll_ofs_x += 1;
 		break;
 		case MVPW_ARRAY_RIGHT:
+			/*
 			printf("** SSDEBUG: scroll to the %s requested\n", "Right");
+			*/
 			if(tvguide_scroll_ofs_x > 0)
 				tvguide_scroll_ofs_x -= 1;
 			else
 				changed = 0;
 		break;
 		case MVPW_ARRAY_UP:
+			/*
 			printf("** SSDEBUG: scroll to the %s requested\n", "Up");
+			*/
 			tvguide_scroll_ofs_y -= 1;
 		break;
 		case MVPW_ARRAY_DOWN:
+			/*
 			printf("** SSDEBUG: scroll to the %s requested\n", "Down");
+			*/
 			tvguide_scroll_ofs_y += 1;
 		break;
 		case MVPW_ARRAY_PAGE_UP:
+			/*
 			printf("** SSDEBUG: scroll to the %s requested\n", "Up");
+			*/
 			tvguide_scroll_ofs_y -= 4;
 		break;
 		case MVPW_ARRAY_PAGE_DOWN:
+			/*
 			printf("** SSDEBUG: scroll to the %s requested\n", "Down");
+			*/
 			tvguide_scroll_ofs_y += 4;
 		break;
 	}
@@ -407,8 +424,10 @@ mvp_tvguide_timer(mvp_widget_t * widget)
 {
 	static int tvguide_cur_time = -1;
 
+	/*
 	printf("** SSDEBUG: %s called in %s, on line %d\n", __FUNCTION__, __FILE__,
 				 __LINE__);
+	*/
 
 	/* Reset the timer for a minute from now */
 	/* Ideally, this should get adjusted to fall on an exact 30 */
@@ -437,7 +456,9 @@ mvp_tvguide_timer(mvp_widget_t * widget)
 	tvguide_free_cardids = myth_tvguide_get_free_cardids(control);
 	tvguide_free_cardids |= myth_tvguide_get_active_card(mythtv_recorder);
 
+	/*
 	printf("** SSDEBUG: bitmap of usable recorders %ld\n",tvguide_free_cardids);
+	*/
 
 	/* Set the times in the guide and possibly the entire body if the
 	 * the next 30 minute interval has been hit.

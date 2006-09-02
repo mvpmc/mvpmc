@@ -695,7 +695,9 @@ video_callback(mvp_widget_t *widget, char key)
 	long long offset, size;
 	pts_sync_data_t async, vsync;
 
+	/*
 	printf("**SSDEBUG: In video_callback and got key %d \n",key);
+	*/
 
 	if (!video_playing)
 		return;
