@@ -545,6 +545,39 @@ static mvpw_graph_attr_t demux_video_graph_attr = {
 	.bg = mvpw_color_alpha(MVPW_BLACK, 0x80),
 };
 
+/*
+ * livetv guide attributes
+ */
+
+/* Description window
+static mvpw_text_attr_t livetv_description_attr = {
+	.wrap = 1,
+	.justify = MVPW_TEXT_LEFT,
+	.margin = 9,
+	.font = FONT_LARGE,
+	.fg = MVPW_WHITE,
+	.bg = MVPW_DARKGREY,
+	.border = MVPW_BLACK,
+	.border_size = 0,
+};
+
+static mvpw_array_attr_t livetv_program_list_attr = {
+	.rows = 4,
+	.cols = 3,
+	.col_label_height = 29,
+	.row_label_width = 100,
+	.array_border = 0,
+	.border_size = 0,
+	.row_label_fg = MVPW_WHITE,
+	.row_label_bg = MVPW_DARKGREY,
+	.col_label_fg = MVPW_WHITE,
+	.col_label_bg = MVPW_RGBA(25,112,25,255),
+	.cell_fg = MVPW_WHITE,
+	.cell_bg = MVPW_MIDNIGHTBLUE,
+	.cell_rounded = 0,
+};
+*/
+
 /* 
  * replaytv attributes 
  */
@@ -947,6 +980,10 @@ mvp_widget_t *fb_offset_widget;
 mvp_widget_t *fb_offset_bar;
 
 mvp_widget_t *vnc_widget;
+
+/* Widgets supporting the new livetv program guide */
+mvp_widget_t *mythtv_livetv_description;
+mvp_widget_t *mythtv_livetv_program_list;
 
 static int screensaver_enabled = 0;
 volatile int screensaver_timeout = 60;
@@ -2460,6 +2497,7 @@ void
 mythtv_key_callback(mvp_widget_t *widget, char key)
 {
 
+	printf("In mythtv_key_callback and got number key %c \n",key);
 	// if we are changing channel based number keys then need to backup
 	// one digit if we get exit key
 	if (key == MVPW_KEY_EXIT && chan_digit_cnt > 0)
@@ -4756,7 +4794,18 @@ myth_menu_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mvpw_clear_menu(mythtv_prog_finder_3);
 		run_mythtv_prog_finder_char_menu();
 		break;
-		
+	case 5: /* New Live TV! */
+		busy_start();
+		mythtv_state = MYTHTV_STATE_LIVETV;
+		if (mythtv_new_livetv() == 0) {
+			running_mythtv = 1;
+			mvpw_hide(mythtv_menu);
+			mythtv_main_menu = 0;
+		} else {
+			mythtv_state = MYTHTV_STATE_MAIN;
+		}
+		busy_end();
+		break;
 	}
 }
 
@@ -4806,6 +4855,9 @@ myth_browser_init(void)
 			   (void*)3, &myth_menu_item_attr);
 	mvpw_add_menu_item(mythtv_menu, "Program Finder (Scheduling)",
 			   (void*)4, &myth_menu_item_attr);
+	mvpw_add_menu_item(mythtv_menu, "New Live TV!",
+					(void*)5, &myth_menu_item_attr);
+
 
 	mvpw_set_key(mythtv_menu, mythtv_menu_callback);
 
@@ -5514,6 +5566,18 @@ about_init(void)
 	mvpw_set_key(about, warn_key_callback);
 
 	return 0;
+}
+
+static int 
+livetv_programs_init(void)
+{
+
+	splash_update("Creating live TV program guide");
+
+	return mvp_tvguide_init(viewport_edges[EDGE_LEFT],
+													viewport_edges[EDGE_TOP],
+													viewport_edges[EDGE_RIGHT],
+													viewport_edges[EDGE_BOTTOM]);
 }
 
 static int
@@ -6451,6 +6515,7 @@ gui_init(char *server, char *replaytv)
 	viewport_init();
 	themes_init();
 	about_init();
+	livetv_programs_init();
 	image_init();
 	osd_init();
 	replaytv_browser_init(); // must come after osd_init

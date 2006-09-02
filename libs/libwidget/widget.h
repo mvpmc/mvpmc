@@ -36,6 +36,7 @@ typedef enum {
 	MVPW_BITMAP,
 	MVPW_DIALOG,
 	MVPW_SURFACE,
+	MVPW_ARRAY,
 } mvpw_id_t;
 
 typedef struct {
@@ -58,6 +59,45 @@ typedef struct {
 
 	void (*callback_key)(char*, char);
 } mvpw_text_t;
+
+typedef struct {
+	int rows;
+	int cols;
+	int col_label_height;
+	int row_label_width;
+	int cell_height;
+	int cell_width;
+	int dirty;
+	uint32_t array_border;
+	int border_size;
+	int hilite_x;
+	int hilite_y;
+	/* Default attributes for cells and headers */
+	uint32_t row_label_fg;
+	uint32_t row_label_bg;
+	uint32_t col_label_fg;
+	uint32_t col_label_bg;
+	uint32_t cell_fg;
+	uint32_t cell_bg;
+	uint32_t hilite_fg;
+	uint32_t hilite_bg;
+	int cell_rounded;
+	mvp_widget_t **row_labels;
+	mvp_widget_t **col_labels;
+	mvp_widget_t **cells;
+	int *cell_viz;
+	char ** row_strings;
+	char ** col_strings;
+	char ** cell_strings;
+	/* An index identifying the corresponding cell that is provided
+	 * by the user and returned to the user when the cell is selected.
+	 */
+	void ** cell_data;
+
+	/* Placeholder for now, might need others */
+	void (*callback_key)(char*, char);
+	void (*scroll_callback)(mvp_widget_t *widget, int direction);
+} mvpw_array_t;
 
 typedef struct {
 	char		*title;
@@ -172,6 +212,7 @@ struct mvp_widget_s {
 	void (*key)(mvp_widget_t*, char);
 	void (*timer)(mvp_widget_t*);
 	void (*fdinput)(mvp_widget_t*, int);
+	void (*show)(mvp_widget_t*, int);
 
 	void (*callback_destroy)(mvp_widget_t*);
 	void (*callback_expose)(mvp_widget_t*);
@@ -181,6 +222,7 @@ struct mvp_widget_s {
 
 	union {
 		mvpw_text_t		text;
+		mvpw_array_t  array;
 		mvpw_menu_t		menu;
 		mvpw_container_t	container;
 		mvpw_image_t		image;

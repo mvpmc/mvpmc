@@ -49,6 +49,10 @@ typedef struct cmyth_posmap *cmyth_posmap_t;
 struct cmyth_proginfo;
 typedef struct cmyth_proginfo *cmyth_proginfo_t;
 
+struct cmyth_database;
+typedef struct cmyth_database *cmyth_database_t;
+
+
 typedef enum {
 	CHANNEL_DIRECTION_UP = 0,
 	CHANNEL_DIRECTION_DOWN = 1,
@@ -348,7 +352,6 @@ extern int mythtv_new_livetv(void);
  * -----------------------------------------------------------------
  */
 
-/*
 extern cmyth_database_t cmyth_database_create(void);
 extern cmyth_chanlist_t myth_load_channels2(cmyth_database_t db,
                                             pthread_mutex_t * mutex);
@@ -356,7 +359,6 @@ extern int cmyth_database_set_host(cmyth_database_t db, char *host);
 extern int cmyth_database_set_user(cmyth_database_t db, char *user);
 extern int cmyth_database_set_pass(cmyth_database_t db, char *pass);
 extern int cmyth_database_set_name(cmyth_database_t db, char *name);
-*/
 
 /*
  * -----------------------------------------------------------------
@@ -622,6 +624,7 @@ struct program {
 struct channel {
 	int chanid;
 	int channum;
+	long sources; /* A bit array of recorders/tuners supporting the channel */
 	char callsign[20];
 	char name[64];
 };

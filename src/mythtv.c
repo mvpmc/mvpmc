@@ -52,7 +52,7 @@
 volatile cmyth_file_t mythtv_file;
 extern demux_handle_t *handle;
 extern int fd_audio, fd_video;
-int protocol_version;
+extern int protocol_version;
 
 extern mvp_widget_t *mythtv_prog_finder_1;
 extern mvp_widget_t *mythtv_prog_finder_2;
@@ -91,6 +91,8 @@ static struct program sqlprog[650];
 static struct channel chan[500];
 
 volatile cmyth_recorder_t mythtv_recorder;
+volatile cmyth_database_t mythtv_database;
+
 
 static volatile int pending_dirty = 0;
 static volatile int episode_dirty = 0;
@@ -1809,6 +1811,24 @@ mythtv_init(char *server_name, int portnum)
 			server);
 		return -1;
 	}
+
+	/* Setup the ever increasingly important mythconverg database */
+	mythtv_database = cmyth_database_create();
+	if(mythtv_database) {
+		if(cmyth_database_set_host(mythtv_database, mysqlptr->host) == 0
+		|| cmyth_database_set_user(mythtv_database, mysqlptr->user) == 0
+		|| cmyth_database_set_pass(mythtv_database, mysqlptr->pass) == 0
+		|| cmyth_database_set_name(mythtv_database, mysqlptr->db) == 0) {
+
+			fprintf(stderr, "cannot allocate database structure contents\n");
+			return -1;
+		}
+	}
+	else {
+		fprintf(stderr, "cannot allocate database structure\n");
+		return -1;
+	}
+
 	pthread_cond_signal(&event_cond);
 
 	if (!thread) {

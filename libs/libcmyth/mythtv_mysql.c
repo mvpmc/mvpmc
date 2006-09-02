@@ -28,6 +28,79 @@
 #include <cmyth.h>
 #include <cmyth_local.h>
 
+cmyth_database_t
+cmyth_database_create(void)
+{
+	cmyth_database_t rtrn = cmyth_allocate(sizeof(*rtrn));
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s\n", __FUNCTION__);
+	if (!rtrn) {
+		return NULL;
+	}
+
+	rtrn->db_host = NULL;
+	rtrn->db_user = NULL;
+	rtrn->db_pass = NULL;
+	rtrn->db_name = NULL;
+
+	return rtrn;
+}
+
+int
+cmyth_database_set_host(cmyth_database_t db, char *host)
+{
+	int rtrn = 1;
+
+	printf("** SSDEBUG: setting the db host to %s\n", host);
+  db->db_host = cmyth_allocate(strlen(host)+1);
+	if(db->db_host)
+		strcpy(db->db_host, host);
+	else
+		rtrn = 0;
+	return rtrn;
+}
+
+int
+cmyth_database_set_user(cmyth_database_t db, char *user)
+{
+	int rtrn = 1;
+
+	printf("** SSDEBUG: setting the db user to %s\n", user);
+  db->db_user = cmyth_allocate(strlen(user)+1);
+	if(db->db_user)
+		strcpy(db->db_user, user);
+	else
+		rtrn = 0;
+	return rtrn;
+}
+
+int
+cmyth_database_set_pass(cmyth_database_t db, char *pass)
+{
+	int rtrn = 1;
+
+	printf("** SSDEBUG: setting the db pass to %s\n", pass);
+  db->db_pass = cmyth_allocate(strlen(pass)+1);
+	if(db->db_pass)
+		strcpy(db->db_pass, pass);
+	else
+		rtrn = 0;
+	return rtrn;
+}
+
+int
+cmyth_database_set_name(cmyth_database_t db, char *name)
+{
+	int rtrn = 1;
+
+	printf("** SSDEBUG: setting the db name to %s\n", name);
+  db->db_name = cmyth_allocate(strlen(name)+1);
+	if(db->db_name)
+		strcpy(db->db_name, name);
+	else
+		rtrn = 0;
+	return rtrn;
+}
+
 int
 get_myth_version(cmyth_conn_t conn)
 {

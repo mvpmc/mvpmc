@@ -2,6 +2,7 @@
  *  $Id$
  *
  *  Copyright (C) 2004, Jon Gettler
+ *  Copyright (C) 2006, Sergio Slobodrian (array widget)
  *  http://mvpmc.sourceforge.net/
  *
  *  This library is free software; you can redistribute it and/or
@@ -126,6 +127,66 @@ extern char *mvpw_get_text_str(mvp_widget_t *widget);
 extern void mvpw_set_text_attr(mvp_widget_t *widget, mvpw_text_attr_t *attr);
 extern void mvpw_get_text_attr(mvp_widget_t *widget, mvpw_text_attr_t *attr);
 extern void mvpw_set_text_fg(mvp_widget_t *widget, uint32_t fg);
+
+/*
+ * array widget
+ */
+
+#define MVPW_ARRAY_LEFT 0
+#define MVPW_ARRAY_RIGHT 1
+#define MVPW_ARRAY_UP 2
+#define MVPW_ARRAY_DOWN 3
+#define MVPW_ARRAY_PAGE_UP 4
+#define MVPW_ARRAY_PAGE_DOWN 5
+
+typedef struct {
+	int rows;
+	int cols;
+	int col_label_height;
+	int row_label_width;
+	uint32_t array_border;
+	int border_size;
+	/* Default attributes for cells and headers */
+	uint32_t row_label_fg;
+	uint32_t row_label_bg;
+	uint32_t col_label_fg;
+	uint32_t col_label_bg;
+	uint32_t cell_fg;
+	uint32_t cell_bg;
+	uint32_t hilite_fg;
+	uint32_t hilite_bg;
+	int cell_rounded;
+} mvpw_array_attr_t;
+
+extern mvp_widget_t *mvpw_create_array(mvp_widget_t *parent,
+						int x, int y, int w, int h,
+						uint32_t bg, uint32_t border_color,
+						int border_size);
+extern void mvpw_set_array_attr(mvp_widget_t *widget, mvpw_array_attr_t *attr);
+extern void mvpw_get_array_attr(mvp_widget_t *widget, mvpw_array_attr_t *attr);
+extern void mvpw_set_array_row(mvp_widget_t *widget, int which, char * string,
+  mvpw_text_attr_t * attr);
+extern void mvpw_set_array_row_bg(mvp_widget_t *widget, int which,
+																	uint32_t bg_col);
+extern void mvpw_set_array_col(mvp_widget_t *widget, int which, char * string,
+  mvpw_text_attr_t * attr);
+extern void mvpw_set_array_cell(mvp_widget_t *widget, int x, int y,
+	char * string, mvpw_text_attr_t * attr);
+extern void mvpw_hilite_array_cell(mvp_widget_t *widget, int x, int y, int hlt);
+extern void mvpw_move_array_selection(mvp_widget_t *widget, int direction);
+extern void mvpw_reset_array_selection(mvp_widget_t *widget);
+extern void mvpw_set_array_scroll(mvp_widget_t *widget,
+	 void (*scroll_callback)(mvp_widget_t *widget, int direction));
+extern void mvpw_set_array_cell_data(mvp_widget_t *widget, int x, int y,
+																		 void * data);
+extern void *
+mvpw_get_array_cell_data(mvp_widget_t *widget, int x, int y);
+
+extern void * mvpw_get_array_cur_cell_data(mvp_widget_t *widget);
+extern void mvpw_set_array_cell_span(mvp_widget_t *widget,
+																			int x, int y, int span);
+extern void mvpw_reset_array_cells(mvp_widget_t *widget);
+extern void mvpw_array_clear_dirty(mvp_widget_t *widget);
 
 /*
  * menu widget
@@ -300,6 +361,7 @@ extern int mvpw_fill_rect(mvp_widget_t *widget, int x, int y, int w, int h, uint
  */
 #define MVPW_TRANSPARENT	MVPW_RGBA(0,0,0,0)
 #define MVPW_RED		MVPW_RGBA(255,0,0,255)
+#define MVPW_DARK_RED MVPW_RGBA(170, 15, 15, 255)
 #define MVPW_GREEN		MVPW_RGBA(0,255,0,255)
 #define MVPW_BLUE		MVPW_RGBA(0,0,255,255)
 #define MVPW_MIDNIGHTBLUE	MVPW_RGBA(25,25,112,255)
@@ -311,6 +373,7 @@ extern int mvpw_fill_rect(mvp_widget_t *widget, int x, int y, int w, int h, uint
 #define MVPW_DARK_ORANGE	MVPW_RGBA(255,190,0,255)
 #define MVPW_PURPLE		MVPW_RGBA(255,0,255,255)
 #define MVPW_LIGHTGREY		MVPW_RGBA(128,128,128,255)
+#define MVPW_ALMOSTWHITEGREY   MVPW_RGBA(220,220,220,255)
 #define MVPW_DARKGREY		MVPW_RGBA(96,96,96,255)
 #define MVPW_DARKGREY2		MVPW_RGBA(64,64,64,255)
 

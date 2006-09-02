@@ -102,6 +102,8 @@ extern volatile cmyth_recorder_t mythtv_recorder;
 extern volatile cmyth_proginfo_t current_prog;
 extern volatile int close_mythtv;
 extern volatile int changing_channel;
+extern volatile cmyth_database_t mythtv_database;
+
 
 extern int playing_file;
 extern pthread_cond_t myth_cond;
@@ -126,6 +128,48 @@ extern int mythtv_init(char*, int);
 extern void mythtv_atexit(void);
 extern int mythtv_livetv_chain_update(char * buf);
 
+/* Widgets supporting the new live tv program guide */
+extern mvp_widget_t *mythtv_livetv_description;
+extern mvp_widget_t *mythtv_livetv_program_list;
+
+/*
+ * -----------------------------------------------------------------
+ * TV Guide Operations
+ * -----------------------------------------------------------------
+ */
+
+extern int mvp_tvguide_callback(mvp_widget_t *widget, char key);
+extern int get_tvguide_selected_channel(mvp_widget_t *proglist);
+extern void
+mvp_tvguide_move(int direction, mvp_widget_t *proglist, mvp_widget_t *descr);
+extern void mvp_tvguide_video_topright(int on);
+extern int mvp_tvguide_init(int edge_left, int edge_top,
+														int edge_right, int edge_bottom);
+extern int mvp_tvguide_start(void);
+extern int mvp_tvguide_stop(void);
+extern int myth_get_chan_index(cmyth_chanlist_t chanlist,
+															 cmyth_proginfo_t prog);
+extern int myth_get_chan_index_from_str(cmyth_chanlist_t chanlist,
+															 char * chan);
+extern cmyth_tvguide_progs_t myth_load_guide(mvp_widget_t *widget,
+												cmyth_database_t mythtv_database,
+												cmyth_chanlist_t chanlist,
+												cmyth_tvguide_progs_t proglist,
+												int index, int xofs, int yofs,
+												long free_recorders);
+extern int myth_guide_set_channels(void * widget, cmyth_chanlist_t chanlist,
+																	 int index, int yofs, long free_recorders);
+extern int myth_set_guide_times(mvp_widget_t *widget, int xofs);
+extern void mvp_tvguide_show(mvp_widget_t *proglist, mvp_widget_t *descr);
+extern void mvp_tvguide_hide(mvp_widget_t *proglist, mvp_widget_t *descr);
+extern cmyth_chanlist_t myth_release_chanlist(cmyth_chanlist_t cl);
+extern cmyth_tvguide_progs_t
+				myth_release_proglist(cmyth_tvguide_progs_t proglist);
+extern long myth_tvguide_get_free_cardids(cmyth_conn_t control);
+extern long myth_tvguide_get_active_card(cmyth_recorder_t rec);
+
+/* ----------------------------------------------------------------- */
+
 extern int mythtv_back(mvp_widget_t*);
 extern int mythtv_update(mvp_widget_t*);
 extern int mythtv_livetv_menu(void);
@@ -147,6 +191,7 @@ extern void mythtv_program(mvp_widget_t *widget);
 extern int mythtv_livetv_stop(void);
 extern int mythtv_channel_up(void);
 extern int mythtv_channel_down(void);
+extern int mythtv_channel_set(char * channame);
 
 extern void mythtv_cleanup(void);
 extern void mythtv_stop(void);

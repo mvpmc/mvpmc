@@ -280,6 +280,7 @@ mvpw_show(mvp_widget_t *widget)
 			raise_widget(widget, top);
 		} else {
 			GrMapWindow(widget->wid);
+			if(widget->show) (*widget->show)(widget, 1);
 		}
 	}
 }
@@ -300,6 +301,7 @@ mvpw_hide(mvp_widget_t *widget)
 		}
 
 		GrUnmapWindow(widget->wid);
+		if(widget->show) (*widget->show)(widget, 0);
 		if ((top=widget->below))
 			widget->below->above = widget->above;
 		if (widget->above) {

@@ -39,7 +39,7 @@ expose(mvp_widget_t *widget)
 {
 	GR_GC_ID gc, gcr;
 	GR_FONT_INFO finfo;
-	int x, y, h, w, descent, indent = 0, width, dia;
+	int x, y, h, w, descent, indent = 0, width, dia,tx;
 	char *str;
 	int i, j, k, nl = 0;
 	int encoding;
@@ -59,7 +59,14 @@ expose(mvp_widget_t *widget)
 	}
 
 	GrGetFontInfo(widget->data.text.font, &finfo);
-	h       = finfo.height;
+	/*h       = finfo.height;*/
+	/* This change packs the font in closer but will require that it be
+		 drawn from the bottom up or the descents get covered by the next line
+		 being drawn. Need to figure this out later. Probably using a parameter
+		 in the attribute. TODO: Fix this so that packing only occurs when
+		 requested.
+	*/
+	h       = finfo.baseline;
 	descent = h - finfo.baseline;
 
 	gc = GrNewGC();
@@ -131,6 +138,7 @@ expose(mvp_widget_t *widget)
 	for (i=0; i<strlen(str); i++) {
 		if (str[i] == '\n') {
 			nl = 1;
+			x=0;
 			break;
 		}
 	}
@@ -174,7 +182,9 @@ expose(mvp_widget_t *widget)
 			/*
 			 * Grow the part of the string to be printed until
 			 * it fills the width of the widget or we run out
-			 * of characters.
+			 * of characters. This is an inefficient algorithm
+			 * because it wasts lots of cycles re-copying the sting.
+			  *TODO.
 			 */
 			w = 0;
 			while (((w < widget->width - x) &&
@@ -186,7 +196,7 @@ expose(mvp_widget_t *widget)
 						    widget->data.text.utf8);
 				j++;
 			}
-	
+
 			/*
 			 * Remove last partial word and spaces.
 			 */
@@ -207,10 +217,11 @@ expose(mvp_widget_t *widget)
 				while ((k < strlen(str)) && (str[i+k] == ' '))
 					k++;
 			}
-			
+
 			w = mvpw_font_width(widget->data.text.font, buf,
 					    widget->data.text.utf8);
 	
+			tx = x; /* Sergio: Keeping x to fix a bug */
 			switch (widget->data.text.justify) {
 			case MVPW_TEXT_LEFT:
 				x = widget->data.text.margin;
@@ -235,6 +246,11 @@ expose(mvp_widget_t *widget)
 
 			if (str[i] == '\n')
 				i++;
+
+			/* If we don't do this each line inherits the adjustment from
+			 * the line before. This is a bug.
+			 */
+			x=tx;
 		}
 	} else {
 		GrText(widget->wid, gc, x+indent, y-descent, str, strlen(str), encoding);
