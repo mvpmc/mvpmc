@@ -1106,6 +1106,15 @@ enum {
 	MYTHTV_POPUP_LIST_TITLE,
 	MYTHTV_POPUP_LIST_CATEGORY,
 	MYTHTV_POPUP_LIST_RECGROUP,
+	MYTHTV_POPUP_SCHED_NORECORD,		/* 0 - Do not record Delete from Record Table */
+	MYTHTV_POPUP_SCHED_REC_THIS_SHOW,	/* 1 - Record only this showing */
+	MYTHTV_POPUP_SCHED_REC_SLOT_DAILY,	/* 2 - Record in this time slot every day */
+	MYTHTV_POPUP_SCHED_REC_ANY_THIS,	/* 3 - Record any time this channel */
+	MYTHTV_POPUP_SCHED_REC_ANY_ANY,		/* 4 - Record any time any channel */
+	MYTHTV_POPUP_SCHED_REC_SLOT_WEEK,	/* 5 - Record in this time slot every week */
+	MYTHTV_POPUP_SCHED_REC_ONE_SHOW,	/* 6 - Record one showing of this title */
+	MYTHTV_POPUP_SCHED_REC_SHOW_DAILY,	/* 9 - Record one showing of this title every day */
+	MYTHTV_POPUP_SCHED_REC_SHOW_WEEK,	/* 10 - Record one showing every week */
 	MYTHTV_POPUP_TUNER,		/* needs to be last */
 };
 
@@ -2310,6 +2319,63 @@ mythtv_popup_select_callback(mvp_widget_t *widget, char *item, void *key)
 				     (void*)MYTHTV_POPUP_LIST_TITLE, 0);
 		mythtv_update(mythtv_browser);
 		break;
+#ifdef TIM
+MYTHTV_POPUP_SCHED_NORECORD		0	/* Do not record Delete from Record Table */
+MYTHTV_POPUP_SCHED_REC_THIS_SHOW	1	/* Record only this showing */
+MYTHTV_POPUP_SCHED_REC_SLOT_DAILY	2	/* Record in this time slot every day */
+MYTHTV_POPUP_SCHED_REC_ANY_THIS		3	/* Record any time this channel */
+MYTHTV_POPUP_SCHED_REC_ANY_ANY		4	/* Record any time any channel */
+MYTHTV_POPUP_SCHED_REC_SLOT_WEEK	5	/* Record in this time slot every week */
+MYTHTV_POPUP_SCHED_REC_ONE_SHOW		6	/* Record one showing of this title */
+MYTHTV_POPUP_SCHED_REC_SHOW_DAILY	9	/* Record one showing of this title every day */
+MYTHTV_POPUP_SCHED_REC_SHOW_WEEK	10	/* Record one showing every week */
+#endif
+	case MYTHTV_POPUP_SCHED_NORECORD:	/* Do not record Delete from Record Table */
+		printf("NORECORD: %s\n", item);
+		/* FIXME: mvpw_hide(mythtv_popup); */
+		/* Actually do something */
+		break;
+	case MYTHTV_POPUP_SCHED_REC_THIS_SHOW:	/* Record only this showing */
+		/* Record only this showing */
+		mythtv_schedule_recording(mythtv_prog_finder_3, item , key, 1);
+		mvpw_hide(mythtv_popup);
+		printf("THIS_SHOW: %s\n", item);
+		break;
+	case MYTHTV_POPUP_SCHED_REC_SLOT_DAILY:	/* Record in this time slot every day */
+		mythtv_schedule_recording(mythtv_prog_finder_3, item , key, 2);
+		mvpw_hide(mythtv_popup);
+		printf("SLOT_DAILY: %s\n", item);
+		break;
+	case MYTHTV_POPUP_SCHED_REC_ANY_THIS:	/* Record any time this channel */
+		mythtv_schedule_recording(mythtv_prog_finder_3, item , key, 3);
+		mvpw_hide(mythtv_popup);
+		printf("ANY_THIS: %s\n", item);
+		break;
+	case MYTHTV_POPUP_SCHED_REC_ANY_ANY:	/* Record any time any channel */
+		mythtv_schedule_recording(mythtv_prog_finder_3, item , key, 4);
+		mvpw_hide(mythtv_popup);
+		printf("ANY_ANY: %s\n", item);
+		break;
+	case MYTHTV_POPUP_SCHED_REC_SLOT_WEEK:	/* Record in this time slot every week */
+		mythtv_schedule_recording(mythtv_prog_finder_3, item , key, 5);
+		mvpw_hide(mythtv_popup);
+		printf("SLOT_WEEK: %s\n", item);
+		break;
+	case MYTHTV_POPUP_SCHED_REC_ONE_SHOW:	/* Record one showing of this title */
+		mythtv_schedule_recording(mythtv_prog_finder_3, item , key, 6);
+		mvpw_hide(mythtv_popup);
+		printf("ONE_SHOW: %s\n", item);
+		break;
+	case MYTHTV_POPUP_SCHED_REC_SHOW_DAILY:	/* Record one showing of this title every day */
+		mythtv_schedule_recording(mythtv_prog_finder_3, item , key, 9);
+		mvpw_hide(mythtv_popup);
+		printf("SHOW_DAILY: %s\n", item);
+		break;
+	case MYTHTV_POPUP_SCHED_REC_SHOW_WEEK:	/* Record one showing every week */
+		mythtv_schedule_recording(mythtv_prog_finder_3, item , key, 10);
+		mvpw_hide(mythtv_popup);
+		printf("SHOW_WEEK: %s\n", item);
+		break;
 	}
 }
 
@@ -2333,18 +2399,60 @@ mythtv_set_popup_menu(mythtv_state_t state)
 
 		break;
 	case MYTHTV_STATE_PROG_FINDER:
-		printf ("Schedule Recordings - Search\n");
-		mvpw_set_menu_title(mythtv_popup_nocheck, "Schedule Recordings - Search Menu");
+		printf ("Program Finder - Schedule Options\n");
+		mvpw_set_menu_title(mythtv_popup_nocheck, "Program Finder - Schedule Options");
 		mvpw_clear_menu(mythtv_popup_nocheck);
 		mythtv_popup_item_attr.select = mythtv_popup_select_callback;
 		mythtv_popup_item_attr.fg = mythtv_popup_attr.fg;
 		mythtv_popup_item_attr.bg = mythtv_popup_attr.bg;
 		mythtv_popup_item_attr.selectable = 1;
+#ifdef TIM
+MYTHTV_POPUP_SCHED_NORECORD		0	/* Do not record Delete from Record Table */
+MYTHTV_POPUP_SCHED_REC_THIS_SHOW	1	/* Record only this showing */
+MYTHTV_POPUP_SCHED_REC_SLOT_DAILY	2	/* Record in this time slot every day */
+MYTHTV_POPUP_SCHED_REC_ANY_THIS		3	/* Record any time this channel */
+MYTHTV_POPUP_SCHED_REC_ANY_ANY		4	/* Record any time any channel */
+MYTHTV_POPUP_SCHED_REC_SLOT_WEEK	5	/* Record in this time slot every week */
+MYTHTV_POPUP_SCHED_REC_ONE_SHOW		6	/* Record one showing of this title */
+MYTHTV_POPUP_SCHED_REC_SHOW_DAILY	9	/* Record one showing of this title every day */
+MYTHTV_POPUP_SCHED_REC_SHOW_WEEK	10	/* Record one showing every week */
+#endif
 		mvpw_add_menu_item(mythtv_popup_nocheck,
-				   "Delete, but allow future recordings",
-				   (void*)MYTHTV_POPUP_FORGET,
+				   "Do not record this program",
+				   (void*)MYTHTV_POPUP_SCHED_NORECORD,
 				   &mythtv_popup_item_attr);
-
+		mvpw_add_menu_item(mythtv_popup_nocheck,
+				   "Record only this showing",
+				   (void*)MYTHTV_POPUP_SCHED_REC_THIS_SHOW,
+				   &mythtv_popup_item_attr);
+		mvpw_add_menu_item(mythtv_popup_nocheck,
+				   "Record one showing of this title",
+				   (void*)MYTHTV_POPUP_SCHED_REC_ONE_SHOW,
+				   &mythtv_popup_item_attr);
+		mvpw_add_menu_item(mythtv_popup_nocheck,
+				   "Record in this timeslot every week",
+				   (void*)MYTHTV_POPUP_SCHED_REC_SLOT_WEEK,
+				   &mythtv_popup_item_attr);
+		mvpw_add_menu_item(mythtv_popup_nocheck,
+				   "Record one showing of this title every week",
+				   (void*)MYTHTV_POPUP_SCHED_REC_SHOW_WEEK,
+				   &mythtv_popup_item_attr);
+		mvpw_add_menu_item(mythtv_popup_nocheck,
+				   "Record in this timeslot every day",
+				   (void*)MYTHTV_POPUP_SCHED_REC_SLOT_DAILY,
+				   &mythtv_popup_item_attr);
+		mvpw_add_menu_item(mythtv_popup_nocheck,
+				   "Record one showing of this title every day",
+				   (void*)MYTHTV_POPUP_SCHED_REC_SHOW_DAILY,
+				   &mythtv_popup_item_attr);
+		mvpw_add_menu_item(mythtv_popup_nocheck,
+				   "Record at any time on this channel",
+				   (void*)MYTHTV_POPUP_SCHED_REC_ANY_THIS,
+				   &mythtv_popup_item_attr);
+		mvpw_add_menu_item(mythtv_popup_nocheck,
+				   "Record at any time on any channel",
+				   (void*)MYTHTV_POPUP_SCHED_REC_ANY_ANY,
+				   &mythtv_popup_item_attr);
 		mythtv_popup = mythtv_popup_nocheck;
 		break;
 	case MYTHTV_STATE_LIVETV:
@@ -2583,14 +2691,6 @@ mythtv_key_callback(mvp_widget_t *widget, char key)
 		mythtv_set_popup_menu(mythtv_state);
 		mvpw_show(mythtv_popup_check);
 		mvpw_focus(mythtv_popup_check);
-	}
-        printf(" Prog finder state\n");
-	if ((key == MVPW_KEY_MENU) &&
-	    (mythtv_state == MYTHTV_STATE_PROG_FINDER)) {
-		printf("mythtv program finder popup menu\n");
-		mythtv_set_popup_menu(mythtv_state);
-		mvpw_show(mythtv_popup);
-		mvpw_focus(mythtv_popup);
 	}
 
 	if ((key == MVPW_KEY_FULL) || (key == MVPW_KEY_PREV_CHAN)) {
@@ -4678,6 +4778,12 @@ mythtv_prog_finder_time_search_keymovement_callback(mvp_widget_t *widget, char k
 			/* FIXME: Potential to add right movement to schedule */
                         return;
                         break;
+		case MVPW_KEY_ONE: /* FIXME REMOVE */
+		case MVPW_KEY_MENU: 
+			mythtv_set_popup_menu(mythtv_state);
+			mvpw_show(mythtv_popup);
+			mvpw_focus(mythtv_popup);
+			break;
                 default:
                         return;
                         break;
