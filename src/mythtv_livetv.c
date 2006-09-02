@@ -619,14 +619,17 @@ mythtv_livetv_stop(void)
 	CHANGE_GLOBAL_REF(mythtv_recorder, NULL);
 	CHANGE_GLOBAL_REF(current_prog, NULL);
 
-	if(new_live_tv)
+	if(new_live_tv) {
 		mvp_tvguide_stop();
+		printf("** SSDEBUG: Tvguide stopped: %s  %d \n", __FUNCTION__, __LINE__);
+	}
 
 	ret = 0;
 
  fail:
 	mythtv_livetv = 0;
 	pthread_mutex_unlock(&myth_mutex);
+
 
 	busy_end();
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) %d}\n",
@@ -1288,6 +1291,15 @@ mythtv_new_livetv(void)
 	if (mythtv_verify() < 0) {
 		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1}\n",
 			    __FUNCTION__, __FILE__, __LINE__);
+		return -1;
+	}
+
+	/*
+	 * Check that we can access the backend using mysql
+	 * and if not, tell the user and give up.
+	 */
+	if(!mvp_tvguide_sql_check(mythtv_database)) {
+		gui_error("You must have SQL access enabled on the server to use this feature");
 		return -1;
 	}
 

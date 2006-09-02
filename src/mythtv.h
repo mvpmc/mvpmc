@@ -167,6 +167,7 @@ extern cmyth_tvguide_progs_t
 				myth_release_proglist(cmyth_tvguide_progs_t proglist);
 extern long myth_tvguide_get_free_cardids(cmyth_conn_t control);
 extern long myth_tvguide_get_active_card(cmyth_recorder_t rec);
+extern int mvp_tvguide_sql_check(cmyth_database_t db);
 
 /* ----------------------------------------------------------------- */
 

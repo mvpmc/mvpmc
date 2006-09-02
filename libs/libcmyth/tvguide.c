@@ -34,6 +34,27 @@
 
 #define MERGE_CELLS 1
 
+
+int
+mvp_tvguide_sql_check(cmyth_database_t db)
+{
+	MYSQL *mysql;
+
+  mysql=mysql_init(NULL);
+	if(mysql == NULL ||
+		 !(mysql_real_connect(mysql,db->db_host,db->db_user,
+													db->db_pass,db->db_name,0,NULL,0))) {
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: mysql_connect() Failed: %s\n",
+                           __FUNCTION__, mysql_error(mysql));
+		fprintf(stderr, "mysql_connect() Failed: %s\n",mysql_error(mysql));
+
+    if(mysql) mysql_close(mysql);
+		return 0;
+	}
+  mysql_close(mysql);
+	return 1;
+}
+
 /*
  *
  */

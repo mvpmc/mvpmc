@@ -733,6 +733,7 @@ video_callback(mvp_widget_t *widget, char key)
 	case MVPW_KEY_STOP:
 	case MVPW_KEY_EXIT:
 		back_to_guide_menu();
+		new_live_tv = 0;
 		break;
 		
 	case MVPW_KEY_PAUSE:

@@ -164,7 +164,7 @@ mvp_tvguide_callback(mvp_widget_t *widget, char key)
 		break;
 		case MVPW_KEY_EXIT:
 		case MVPW_KEY_STOP:
-			printf("In %s hiding guide %d \n", __FUNCTION__, key);
+			printf("**SSDEBUG: In %s hiding guide %d \n", __FUNCTION__, key);
 			showing_guide = 0;
 			tvguide_scroll_ofs_x = 0;
 			tvguide_scroll_ofs_y = 0;
@@ -179,6 +179,7 @@ mvp_tvguide_callback(mvp_widget_t *widget, char key)
 														tvguide_cur_chan_index, tvguide_scroll_ofs_x,
 														tvguide_scroll_ofs_y, tvguide_free_cardids);
 			rtrn = key == MVPW_KEY_STOP?0:1;
+			printf("**SSDEBUG: Guide hidden: %s hiding guide %d \n", __FUNCTION__, key);
 		break;
 			
 		case MVPW_KEY_PAUSE:
