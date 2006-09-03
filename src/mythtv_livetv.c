@@ -699,7 +699,10 @@ int __change_channel(direction)
 	av_play();
 	video_play(root);
 
-	cmyth_livetv_chain_switch_last(rec);
+	if(protocol_version >= 26)
+		cmyth_livetv_chain_switch_last(rec);
+	if(new_live_tv)
+		/* Update the selected channel in the guide */;
 
  out:
 	cmyth_release(ctrl);
