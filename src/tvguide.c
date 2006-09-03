@@ -139,6 +139,8 @@ mvp_tvguide_key_timer(mvp_widget_t * dummy)
 										tvguide_chanlist, tvguide_proglist,
 										tvguide_cur_chan_index, tvguide_scroll_ofs_x,
 										tvguide_scroll_ofs_y, tvguide_free_cardids);
+	mvp_tvguide_move(MVPW_ARRAY_HOLD, mythtv_livetv_program_list,
+									 mythtv_livetv_description);
 
 	/*
 	printf("**SSDEBUG: key timeout with keys: %s\n", number_keys.keys);

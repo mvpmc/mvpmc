@@ -63,7 +63,8 @@ mvp_tvguide_move(int direction, mvp_widget_t * proglist, mvp_widget_t * descr)
 {
 	cmyth_tvguide_program_t prog;
 
-	mvpw_move_array_selection(proglist, direction);
+	if(direction != MVPW_ARRAY_HOLD)
+		mvpw_move_array_selection(proglist, direction);
 	prog = (cmyth_tvguide_program_t)
  	mvpw_get_array_cur_cell_data(proglist);
  	mvpw_set_text_str(descr, prog->description);

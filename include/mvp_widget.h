@@ -308,6 +308,7 @@ extern void mvpw_set_text_fg(mvp_widget_t *widget, uint32_t fg);
 #define MVPW_ARRAY_DOWN 3
 #define MVPW_ARRAY_PAGE_UP 4
 #define MVPW_ARRAY_PAGE_DOWN 5
+#define MVPW_ARRAY_HOLD 6
 
 typedef struct {
 	int rows;
