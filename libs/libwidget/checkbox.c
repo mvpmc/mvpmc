@@ -44,6 +44,32 @@ expose(mvp_widget_t *widget)
 	GrDestroyGC(gc);
 }
 
+/**
+ * \brief	Create a checkbox widget within the specified parent widget.
+ * 
+ * \param[in]	parent 	A pointer to the parent widget 
+ * \param[in]	x	The horizontal offset (in pixels) from the upper 
+ * 			left corner of the parent widget
+ * \param[in]	y 	The vertical offset (in pixels) from the upper 
+ * 			left corner of the parent widget
+ * \param[in]	w	The width of the bitmap (in pixels)
+ * \param[in]	h	The height of the bitmap (in pixels)
+ * \param[in]	bg	The background color of the bitmap
+ * \param[in]	border_color	The color of the border
+ * \param[in]	border_size	The size of the border (in pixels)
+ * 
+ * \return	a pointer to the created checkbox widget
+ *
+ * Create a checkbox widget within a parent widget. The checkbox is created
+ * with its upper left corner located at an offset specified by the (x,y)
+ * arguments from the upper left corner of the parent widget.  The checkbox
+ * size is specified by the (w,h) arguments. 
+ *
+ * If the \a parent argument is \a NULL the checkbox will be a created in the
+ * \a ROOT window.
+ *
+ * If the checkbox cannot be created, a \a NULL pointer will be returned.
+ **/
 mvp_widget_t*
 mvpw_create_checkbox(mvp_widget_t *parent,
 		     int x, int y, int w, int h,
@@ -65,12 +91,26 @@ mvpw_create_checkbox(mvp_widget_t *parent,
 	return widget;
 }
 
+/**
+ * \brief	Set the foreground color of a checkbox widget.
+ * 
+ *	param[in]	widget	a pointer to the checkbox widget
+ *	param[in]	fg	the forground color to use for the widget
+ *
+ **/
 void
 mvpw_set_checkbox_fg(mvp_widget_t *widget, uint32_t fg)
 {
 	widget->data.checkbox.fg = fg;
 }
 
+/**
+ * \brief	Set the checked state of a checkbox widget.
+ * 
+ *	param[in]	widget	a pointer to the checkbox widget
+ *	param[in]	checked	the state to set (0 is unchecked, 1 is checked)
+ *
+ **/
 void
 mvpw_set_checkbox(mvp_widget_t *widget, int checked)
 {

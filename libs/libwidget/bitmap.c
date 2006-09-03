@@ -110,6 +110,32 @@ destroy(mvp_widget_t *widget)
 		free(widget->data.bitmap.image);
 }
 
+/**
+ * \brief	Create a bitmap within the specified parent widget.
+ * 
+ * \param[in]	parent 	A pointer to the parent widget 
+ * \param[in]	x	The horizontal offset (in pixels) from the upper 
+ * 			left corner of the parent widget
+ * \param[in]	y 	The vertical offset (in pixels) from the upper 
+ * 			left corner of the parent widget
+ * \param[in]	w	The width of the bitmap (in pixels)
+ * \param[in]	h	The height of the bitmap (in pixels)
+ * \param[in]	bg	The background color of the bitmap
+ * \param[in]	border_color	The color of the border
+ * \param[in]	border_size	The size of the border (in pixels)
+ * 
+ * \return	a pointer to the created bitmap widget
+ *
+ * Create a bitmap widget within a parent widget. The bitmap is created
+ * with its upper left corner located at an offset specified by the (x,y)
+ * arguments from the upper left corner of the parent widget.  The bitmap
+ * size is specified by the (w,h) arguments. 
+ *
+ * If the \a parent argument is \a NULL the bitmap will be a created in the
+ * \a ROOT window.
+ *
+ * If the bitmap cannot be created, a \a NULL pointer will be returned.
+ */
 mvp_widget_t*
 mvpw_create_bitmap(mvp_widget_t *parent,
 		   int x, int y, int w, int h,
@@ -134,6 +160,17 @@ mvpw_create_bitmap(mvp_widget_t *parent,
 	return widget;
 }
 
+/**
+ * \brief	Sets the image for a bitmap
+ *
+ * \param[in]	widget	A pointer to the bitmap widget created with 
+ * 		\a mvpw_create_bitmap
+ * \param[in]	bitmap	A pointer to the bitmap image
+ * \returns	0 for success, -1 for failure
+ *
+ * Copys the data pointed to by the \a bitmap argument into the bitmap
+ * widget pointed to by the \a widget argument.
+ */
 int
 mvpw_set_bitmap(mvp_widget_t *widget, mvpw_bitmap_attr_t *bitmap)
 {
