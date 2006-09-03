@@ -1,6 +1,6 @@
 /*
- *  Copyright (C) 2004, Jon Gettler
- *  http://mvpmc.sourceforge.net/
+ *  Copyright (C) 2004-2006, Jon Gettler
+ *  http://www.mvpmc.org/
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -16,8 +16,6 @@
  *  License along with this library; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ident "$Id$"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -152,10 +150,17 @@ mvpw_set_graph_attr(mvp_widget_t *widget, mvpw_graph_attr_t *attr)
 	}
 }
 
-void
+int
 mvpw_set_graph_current(mvp_widget_t *widget, int value)
 {
 	int cur = widget->data.graph.current;
+
+	if (widget == NULL)
+		return -1;
+
+	if ((value < widget->data.graph.min) ||
+	    (value > widget->data.graph.max))
+		return -1;
 
 	widget->data.graph.current = value;
 
@@ -167,10 +172,12 @@ mvpw_set_graph_current(mvp_widget_t *widget, int value)
 	} else {
 		expose(widget);
 	}
+
+	return 0;
 }
 
-void
+int
 mvpw_graph_incr(mvp_widget_t *widget, int value)
 {
-	mvpw_set_graph_current(widget, widget->data.graph.current+value);
+	return mvpw_set_graph_current(widget, widget->data.graph.current+value);
 }

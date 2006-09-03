@@ -1,6 +1,6 @@
 /*
- *  Copyright (C) 2004, Jon Gettler
- *  http://mvpmc.sourceforge.net/
+ *  Copyright (C) 2004-2006, Jon Gettler
+ *  http://www.mvpmc.org/
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -16,8 +16,6 @@
  *  License along with this library; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ident "$Id$"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -46,11 +44,17 @@ expose(mvp_widget_t *widget)
 
 	int consume_spaces;
 
-	if (widget->data.text.str == NULL)
-		return;
-
 	if (!mvpw_visible(widget))
 		return;
+
+	if (widget->data.text.str == NULL) {
+		gc = GrNewGC();
+		GrSetGCForeground(gc, widget->bg);
+		GrFillRect(widget->wid, gc, 0, 0,
+			   widget->width, widget->height);
+		GrDestroyGC(gc);
+		return;
+	}
 
 	if (widget->data.text.utf8) {
 		encoding = MWTF_UTF8;
@@ -289,6 +293,17 @@ mvpw_create_text(mvp_widget_t *parent,
 void
 mvpw_set_text_str(mvp_widget_t *widget, char *str)
 {
+	if (widget == NULL)
+		return;
+
+	if (str == NULL) {
+		if (widget->data.text.str)
+			free(widget->data.text.str);
+		widget->data.text.str = NULL;
+		expose(widget);
+		return;
+	}
+
 	if (widget->data.text.str && (strcmp(str, widget->data.text.str) == 0))
 		return;
 

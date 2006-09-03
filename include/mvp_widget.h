@@ -247,20 +247,64 @@ extern void mvpw_unattach(mvp_widget_t *widget, int direction);
 extern void mvpw_set_key(mvp_widget_t *widget,
 			 void (*callback)(mvp_widget_t*, char));
 
+/**
+ * Destroy a widget.
+ * \param widget widget handle
+ */
 extern void mvpw_destroy(mvp_widget_t *widget);
+
+/**
+ * Determine if a widget is currently visible on the screen.
+ * \param widget widget handle
+ * \retval 1 widget is visible
+ * \retval 0 widget is not visible
+ */
 extern int mvpw_visible(const mvp_widget_t *widget);
+
+/**
+ * Add a callback that will be called for every keystroke.
+ * \param callback callback function
+ * \retval 0 success
+ * \retval -1 error
+ */
 extern int mvpw_keystroke_callback(void (*callback)(char));
+
+/**
+ * Set the screensaver callback and timeout.
+ * \param widget widget handle
+ * \param seconds timeout in seconds (0 will disable screensaver)
+ * \param callback callback function
+ * \retval 0 success
+ * \retval -1 error
+ */
 extern int mvpw_set_screensaver(mvp_widget_t *widget, int seconds,
 				void (*callback)(mvp_widget_t*, int));
+
 extern void mvpw_set_fdinput(mvp_widget_t *widget,
 			 void (*callback)(mvp_widget_t*, int));
 extern int mvpw_fdinput_callback(void (*callback)(void));
+
+/**
+ * Change the parent of a widget.
+ * \param child widget handle to change
+ * \param parent widget handle of new parent (NULL for root window)
+ */
 extern void mvpw_reparent(mvp_widget_t *child, mvp_widget_t *parent);
+
 extern int mvpw_read_area(mvp_widget_t *widget, int x, int y, int w, int h,
 			  unsigned long *pixels);
 
-/*
- * container widget
+/**
+ * Create a container widget
+ * \param parent parent widget (NULL for root window)
+ * \param x horizontal coordinate
+ * \param y vertical coordinate
+ * \param w width
+ * \param h height
+ * \param bg background color
+ * \param border_color border color
+ * \param border_size border width in pixels
+ * \return widget handle
  */
 extern mvp_widget_t *mvpw_create_container(mvp_widget_t *parent,
 					   int x, int y, int w, int h,
@@ -270,32 +314,77 @@ extern mvp_widget_t *mvpw_create_container(mvp_widget_t *parent,
 /*
  * text widget
  */
-#define MVPW_TEXT_LEFT		0
-#define MVPW_TEXT_RIGHT		1
-#define MVPW_TEXT_CENTER	2
+#define MVPW_TEXT_LEFT		0	/**< left justified */
+#define MVPW_TEXT_RIGHT		1	/**< right justified */
+#define MVPW_TEXT_CENTER	2	/**< center justified */
 
+/**
+ * text attributes
+ */
 typedef struct {
-	int	 	wrap;
-	int	 	justify;
+	int	 	wrap;		/**< auto-wrap text */
+	int	 	justify;	/**< justification type */
 	int		pack;
-	int	 	margin;
-	int	 	font;
-	uint32_t 	fg;
-	uint32_t 	bg;
-	uint32_t 	border;
-	int	 	rounded;
-	int	 	border_size;
-	int	 	utf8;
+	int	 	margin;		/**< margin in pixels */
+	int	 	font;		/**< font id */
+	uint32_t 	fg;		/**< foreground color */
+	uint32_t 	bg;		/**< background color */
+	uint32_t 	border;		/**< border color */
+	int	 	rounded;	/**< rounded or square hilite */
+	int	 	border_size;	/**< border size in pixels */
+	int	 	utf8;		/**< utf8 encoding */
 } mvpw_text_attr_t;
 
+/**
+ * Create a text widget
+ * \param parent parent widget (NULL for root window)
+ * \param x horizontal coordinate
+ * \param y vertical coordinate
+ * \param w width
+ * \param h height
+ * \param bg background color
+ * \param border_color border color
+ * \param border_size border width in pixels
+ * \return widget handle
+ */
 extern mvp_widget_t *mvpw_create_text(mvp_widget_t *parent,
 				      int x, int y, int w, int h,
 				      uint32_t bg, uint32_t border_color,
 				      int border_size);
+
+/**
+ * Set the text string in a text widget.
+ * \param widget widget handle
+ * \param str string to display (NULL for no string)
+ */
 extern void mvpw_set_text_str(mvp_widget_t *widget, char *str);
+
+/**
+ * Retrieve the current string for a text widget.
+ * \param widget widget handle
+ * \return text string
+ */
 extern char *mvpw_get_text_str(mvp_widget_t *widget);
+
+/**
+ * Set the widget attributes for a text widget.
+ * \param widget widget handle
+ * \param attr text attributes
+ */
 extern void mvpw_set_text_attr(mvp_widget_t *widget, mvpw_text_attr_t *attr);
+
+/**
+ * Get the widget attributes for a text widget.
+ * \param widget widget handle
+ * \param[out] attr text attributes
+ */
 extern void mvpw_get_text_attr(mvp_widget_t *widget, mvpw_text_attr_t *attr);
+
+/**
+ * Set the foreground color of a text widget.
+ * \param widget widget handle
+ * \param fg color
+ */
 extern void mvpw_set_text_fg(mvp_widget_t *widget, uint32_t fg);
 
 /*
@@ -359,152 +448,432 @@ extern void mvpw_set_array_cell_span(mvp_widget_t *widget,
 extern void mvpw_reset_array_cells(mvp_widget_t *widget);
 extern void mvpw_array_clear_dirty(mvp_widget_t *widget);
 
-/*
- * menu widget
+/**
+ * menu attributes
  */
 typedef struct {
-	int	 	font;
-	uint32_t 	fg;
-	uint32_t 	bg;
-	uint32_t 	hilite_fg;
-	uint32_t 	hilite_bg;
-	uint32_t 	title_fg;
-	uint32_t 	title_bg;
-	uint32_t 	border;
-	uint32_t 	checkbox_fg;
-	int	 	title_justify;
-	int	 	checkboxes;
-	int	 	rounded;
-	int	 	border_size;
-	int	 	margin;
-	int	 	utf8;
+	int	 	font;		/**< font id */
+	uint32_t 	fg;		/**< foreground color */
+	uint32_t 	bg;		/**< background color */
+	uint32_t 	hilite_fg;	/**< hilite foreground color */
+	uint32_t 	hilite_bg;	/**< hilite background color */
+	uint32_t 	title_fg;	/**< title foreground color */
+	uint32_t 	title_bg;	/**< title background color */
+	uint32_t 	border;		/**< border color */
+	uint32_t 	checkbox_fg;	/**< checkbox color */
+	int	 	title_justify;	/**< title justification */
+	int	 	checkboxes;	/**< display checkboxes */
+	int	 	rounded;	/**< rounded or square hilite */
+	int	 	border_size;	/**< border size in pixels */
+	int	 	margin;		/**< margin size in pixels */
+	int	 	utf8;		/**< utf8 text encoding */
 } mvpw_menu_attr_t;
 
+/**
+ * menu item attributes
+ */
 typedef struct {
-	int	 	  selectable;
-	uint32_t 	  fg;
-	uint32_t 	  bg;
-	uint32_t 	  checkbox_fg;
+	int	 	  selectable;	/**< is item selectable? */
+	uint32_t 	  fg;		/**< foreground color */
+	uint32_t 	  bg;		/**< background color */
+	uint32_t 	  checkbox_fg;	/**< checkbox color */
+	/** item destroy callback */
 	void 		(*destroy)(mvp_widget_t*, char*, void*);
+	/** item select callback */
 	void 		(*select)(mvp_widget_t*, char*, void*);
+	/** item hilite callback */
 	void 		(*hilite)(mvp_widget_t*, char*, void*, int);
 } mvpw_menu_item_attr_t;
 
+/**
+ * Create a menu widget.
+ * \param parent parent widget (NULL for root window)
+ * \param x horizontal coordinate
+ * \param y vertical coordinate
+ * \param w width
+ * \param h height
+ * \param bg background color
+ * \param border_color border color
+ * \param border_size border width in pixels
+ * \return widget handle
+ */
 extern mvp_widget_t *mvpw_create_menu(mvp_widget_t *parent,
 				      int x, int y, int w, int h,
 				      uint32_t bg, uint32_t border_color,
 				      int border_size);
+
+/**
+ * Select a menu item based on a text string.
+ * \param widget widget handle
+ * \param text initial text string to match
+ */
 extern void mvpw_select_via_text(mvp_widget_t *widget, char text[]);
 
-	
+/**
+ * Set the menu attributes.
+ * \param widget widget handle
+ * \param attr menu attributes
+ */	
 extern void mvpw_set_menu_attr(mvp_widget_t *widget, mvpw_menu_attr_t *attr);
+
+/**
+ * Get the menu attributes.
+ * \param widget widget handle
+ * \param[out] attr menu attributes
+ */	
 extern void mvpw_get_menu_attr(mvp_widget_t *widget, mvpw_menu_attr_t *attr);
+
+/**
+ * Set the menu title.
+ * \param widget widget handle
+ * \param title title string
+ * \retval 0 success
+ * \retval -1 error
+ */
 extern int mvpw_set_menu_title(mvp_widget_t *widget, char *title);
+
+/**
+ * Add an entry to a menu.
+ * \param widget widget handle
+ * \param label string to display in menu
+ * \param key menu item key (should be unique)
+ * \param item_attr menu item attributes
+ * \retval 0 success
+ * \retval -1 error
+ */
 extern int mvpw_add_menu_item(mvp_widget_t *widget, char *label, void *key,
 			      mvpw_menu_item_attr_t *item_attr);
+
+/**
+ * Clear the entire menu.
+ * \param widget widget handle
+ */
 extern void mvpw_clear_menu(mvp_widget_t *widget);
+
+/**
+ * Delete all menu items with a certain key.
+ * \param widget widget handle
+ * \param key key to the item that should be deleted
+ * \return number of items deleted
+ */
 extern int mvpw_delete_menu_item(mvp_widget_t *widget, void *key);
+
+/**
+ * Get the menu label for a specific key.
+ * \param widget widget handle
+ * \param key menu item key
+ * \return menu item label
+ */
 extern char* mvpw_get_menu_item(mvp_widget_t *widget, void *key);
+
+/**
+ * Check or uncheck a menu item.
+ * \param widget widget handle
+ * \param key menu item key
+ * \param checked 0 to uncheck, 1 to check
+ */
 extern void mvpw_check_menu_item(mvp_widget_t *widget, void *key, int checked);
+
+/**
+ * Hilite a specific menu item.
+ * \param widget widget handle
+ * \param key menu item key
+ * \retval 0 success
+ * \retval -1 error
+ */
 extern int mvpw_menu_hilite_item(mvp_widget_t *widget, void *key);
+
+/**
+ * Return the item attributes for a menu item.
+ * \param widget widget handle
+ * \param key menu item key
+ * \param[out] item_attr item attributes
+ * \retval 0 success
+ * \retval -1 error
+ */
 extern int mvpw_menu_get_item_attr(mvp_widget_t *widget, void *key,
 				   mvpw_menu_item_attr_t *item_attr);
+
+/**
+ * Set the item attributes for a menu item.
+ * \param widget widget handle
+ * \param key menu item key
+ * \param item_attr item attributes
+ * \retval 0 success
+ * \retval -1 error
+ */
 extern int mvpw_menu_set_item_attr(mvp_widget_t *widget, void *key,
 				   mvpw_menu_item_attr_t *item_attr);
+
+/**
+ * Change the label for a menu item.
+ * \param widget widget handle
+ * \param key menu item key
+ * \param label new label text
+ * \retval 0 success
+ * \retval -1 error
+ */
 extern int mvpw_menu_change_item(mvp_widget_t *widget, void *key, char *label);
+
+/**
+ * Return the menu item key of the currently hilited item.
+ * \param widget widget handle
+ * \return menu item key
+ */
 extern void* mvpw_menu_get_hilite(mvp_widget_t *widget);
 
-/*
- * image widget
+/**
+ * image information
  */
 typedef struct {
-	int 		width;
-	int 		height;
+	int 		width;		/**< image width */
+	int 		height;		/**< image height */
 } mvpw_image_info_t;
 
+/**
+ * Create an image widget.
+ * \param parent parent widget (NULL for root window)
+ * \param x horizontal coordinate
+ * \param y vertical coordinate
+ * \param w width
+ * \param h height
+ * \param bg background color
+ * \param border_color border color
+ * \param border_size border width in pixels
+ * \return widget handle
+ */
 extern mvp_widget_t* mvpw_create_image(mvp_widget_t *parent,
 				       int x, int y, int w, int h,
 				       uint32_t bg, uint32_t border_color,
 				       int border_size);
+
+/**
+ * Draw an image from a file into an image widget.
+ * \param widget widget handle
+ * \param file filename of image
+ * \retval 0 success
+ * \retval -1 error
+ */
 extern int mvpw_set_image(mvp_widget_t *widget, char *file);
+
+/**
+ * Get image info from an image file.
+ * \param file image filename
+ * \param[out] data image information
+ * \retval 0 success
+ * \retval -1 error
+ */
 extern int mvpw_get_image_info(char *file, mvpw_image_info_t *data);
+
+/**
+ * Destroy the image contents of an image widget.
+ * \param widget widget handle
+ * \retval 0 success
+ * \retval -1 error
+ */
 extern int mvpw_image_destroy(mvp_widget_t *widget);
+
+/**
+ * Load a jpeg image from a file.
+ * \param widget widget handle
+ * \param file filename of image
+ * \retval 0 success
+ * \retval -1 error
+ */
 extern int mvpw_load_image_jpeg(mvp_widget_t *widget, char *file);
+
+/**
+ * Show a loaded jpeg image.
+ * \param widget widget handle
+ * \retval 0 success
+ * \retval -1 error
+ */
 extern int mvpw_show_image_jpeg(mvp_widget_t *widget);
 
-/*
- * graph widget
+/**
+ * graph widget attributes
  */
 typedef struct {
-	int 		min;
-	int 		max;
-	uint32_t 	fg;
-	uint32_t 	bg;
-	uint32_t 	border;
-	int 		border_size;
-	int 		gradient;
-	uint32_t 	left;
-	uint32_t 	right;
+	int 		min;		/**< minimum graph value */
+	int 		max;		/**< maximum graph value */
+	uint32_t 	fg;		/**< foreground color */
+	uint32_t 	bg;		/**< background color */
+	uint32_t 	border;		/**< border color */
+	int 		border_size;	/**< border size in pixels */
+	int 		gradient;	/**< use gradient? */
+	uint32_t 	left;		/**< left gradient color */
+	uint32_t 	right;		/**< right gradient color */
 } mvpw_graph_attr_t;
 
+/**
+ * Create a graph widget.
+ * \param parent parent widget (NULL for root window)
+ * \param x horizontal coordinate
+ * \param y vertical coordinate
+ * \param w width
+ * \param h height
+ * \param bg background color
+ * \param border_color border color
+ * \param border_size border width in pixels
+ * \return widget handle
+ */
 extern mvp_widget_t* mvpw_create_graph(mvp_widget_t *parent,
 				       int x, int y, int w, int h,
 				       uint32_t bg, uint32_t border_color,
 				       int border_size);
-extern void mvpw_set_graph_attr(mvp_widget_t *widget, mvpw_graph_attr_t *attr);
-extern void mvpw_set_graph_current(mvp_widget_t *widget, int value);
-extern void mvpw_graph_incr(mvp_widget_t *widget, int value);
 
-/*
- * checkbox widget
+/**
+ * Set graph attributes.
+ * \param widget widget handle
+ * \param attr graph attributes
+ */
+extern void mvpw_set_graph_attr(mvp_widget_t *widget, mvpw_graph_attr_t *attr);
+
+/**
+ * Set current graph value
+ * \param widget widget handle
+ * \param value widget value (between min and max)
+ * \retval 0 success
+ * \retval -1 error
+ */
+extern int mvpw_set_graph_current(mvp_widget_t *widget, int value);
+
+/**
+ * Increment the graph value.
+ * \param widget widget handle
+ * \param value amount to increment by
+ * \retval 0 success
+ * \retval -1 error
+ */
+extern int mvpw_graph_incr(mvp_widget_t *widget, int value);
+
+/**
+ * Create a checkbox widget.
+ * \param parent parent widget (NULL for root window)
+ * \param x horizontal coordinate
+ * \param y vertical coordinate
+ * \param w width
+ * \param h height
+ * \param bg background color
+ * \param border_color border color
+ * \param border_size border width in pixels
+ * \return widget handle
  */
 extern mvp_widget_t* mvpw_create_checkbox(mvp_widget_t *parent,
 					  int x, int y, int w, int h,
 					  uint32_t bg, uint32_t border_color,
 					  int border_size);
+
+/**
+ * Set the checkbox color.
+ * \param widget widget handle
+ * \param fg color
+ */
 extern void mvpw_set_checkbox_fg(mvp_widget_t *widget, uint32_t fg);
+
+/**
+ * Check or uncheck the checkbox.
+ * \param widget widget handle
+ * \param checked 0 to uncheck, 1 to check
+ */
 extern void mvpw_set_checkbox(mvp_widget_t *widget, int checked);
 
-/*
- * bitmap widget
+/**
+ * bitmap attributes
  */
 typedef struct {
 	int 		colors;
-	char 		*image;
+	char 		*image;		/**< bitmap image */
 } mvpw_bitmap_attr_t;
 
+/**
+ * Create a bitmap widget.
+ * \param parent parent widget (NULL for root window)
+ * \param x horizontal coordinate
+ * \param y vertical coordinate
+ * \param w width
+ * \param h height
+ * \param bg background color
+ * \param border_color border color
+ * \param border_size border width in pixels
+ * \return widget handle
+ */
 extern mvp_widget_t* mvpw_create_bitmap(mvp_widget_t *parent,
 					int x, int y, int w, int h,
 					uint32_t bg, uint32_t border_color,
 					int border_size);
+
+/**
+ * Set the bitmap image.
+ * \param widget handle
+ * \param bitmap image bitmap
+ * \retval 0 success
+ * \retval -1 error
+ */
 extern int mvpw_set_bitmap(mvp_widget_t *widget, mvpw_bitmap_attr_t *bitmap);
 
-/*
- * dialog widget
+/**
+ * dialog attributes
  */
 typedef struct {
-	uint32_t 	fg;
-	uint32_t 	bg;
-	uint32_t 	title_fg;
-	uint32_t 	title_bg;
-	uint32_t 	border;
-	int 		border_size;
-	char 		*image;
-	int 		modal;
-	int	 	font;
-	int	 	margin;
-	int	 	justify_title;
-	int	 	justify_body;
-	int	 	utf8;
+	uint32_t 	fg;		/**< foreground color */
+	uint32_t 	bg;		/**< background color */
+	uint32_t 	title_fg;	/**< title foreground color */
+	uint32_t 	title_bg;	/**< title background color */
+	uint32_t 	border;		/**< border color */
+	int 		border_size;	/**< border size in pixels */
+	char 		*image;		/**< image filename */
+	int 		modal;		/**< modal or not */
+	int	 	font;		/**< font id */
+	int	 	margin;		/**< margin in pixels */
+	int	 	justify_title;	/**< title justification */
+	int	 	justify_body;	/**< body justification */
+	int	 	utf8;		/**< utf8 character encoding */
 } mvpw_dialog_attr_t;
 
+/**
+ * Create a dialog widget.
+ * \param parent parent widget (NULL for root window)
+ * \param x horizontal coordinate
+ * \param y vertical coordinate
+ * \param w width
+ * \param h height
+ * \param bg background color
+ * \param border_color border color
+ * \param border_size border width in pixels
+ * \return widget handle
+ */
 extern mvp_widget_t* mvpw_create_dialog(mvp_widget_t *parent,
 					int x, int y, int w, int h,
 					uint32_t bg, uint32_t border_color,
 					int border_size);
+
+/**
+ * Set the dialog attributes.
+ * \param widget widget handle
+ * \param attr dialog attributes
+ * \retval 0 success
+ * \retval -1 error
+ */
 extern int mvpw_set_dialog_attr(mvp_widget_t *widget,
 				mvpw_dialog_attr_t *attr);
+
+/**
+ * Set the dialog title text.
+ * \param widget widget handle
+ * \param title title string
+ * \retval 0 success
+ * \retval -1 error
+ */
 extern int mvpw_set_dialog_title(mvp_widget_t *widget, char *title);
+
+/**
+ * Set the dialog body text.
+ * \param widget widget handle
+ * \param text text string
+ * \retval 0 success
+ * \retval -1 error
+ */
 extern int mvpw_set_dialog_text(mvp_widget_t *widget, char *text);
 
 /*

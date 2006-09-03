@@ -1,6 +1,6 @@
 /*
- *  Copyright (C) 2004, Jon Gettler
- *  http://mvpmc.sourceforge.net/
+ *  Copyright (C) 2004-2006, Jon Gettler
+ *  http://www.mvpmc.org/
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -16,8 +16,6 @@
  *  License along with this library; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ident "$Id$"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -171,7 +169,7 @@ hilite_item(mvp_widget_t *widget, int which, int hilite)
 	return 0;
 }
 
-// BKP added to allow selection of menu item by lable
+// BKP added to allow selection of menu item by label
 void
 mvpw_select_via_text(mvp_widget_t *widget, char text[])
 {
@@ -586,8 +584,17 @@ mvpw_set_menu_title(mvp_widget_t *widget, char *title)
 		.fg = widget->data.menu.title_fg,
 	};
 
+	if (widget == NULL)
+		return -1;
+
 	if (widget->data.menu.title)
 		free(widget->data.menu.title);
+
+	if (title == NULL) {
+		widget->data.menu.title = NULL;
+		return 0;
+	}
+
 	widget->data.menu.title = strdup(title);
 	attr.margin = widget->data.menu.margin;
 	attr.utf8 = widget->data.menu.utf8;

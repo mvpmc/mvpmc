@@ -1,6 +1,6 @@
 /*
- *  Copyright (C) 2004, Jon Gettler
- *  http://mvpmc.sourceforge.net/
+ *  Copyright (C) 2004-2006, Jon Gettler
+ *  http://www.mvpmc.org/
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -16,8 +16,6 @@
  *  License along with this library; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ident "$Id$"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -64,6 +62,9 @@ mvpw_set_image(mvp_widget_t *widget, char *file)
 	GR_WM_PROPERTIES props;
 	int width, height;
 
+	if (widget == NULL)
+		return -1;
+
 	wid = widget->data.image.wid;
 	pid = widget->data.image.pid;
 
@@ -104,6 +105,9 @@ mvpw_get_image_info(char *file, mvpw_image_info_t *info)
 	GR_IMAGE_ID iid;
 	GR_IMAGE_INFO iif;
 
+	if ((file == NULL) || (info == NULL))
+		return -1;
+
 	if ((iid=GrLoadImageFromFile(file, 0)) == 0)
 		return -1;
 
@@ -120,6 +124,9 @@ mvpw_get_image_info(char *file, mvpw_image_info_t *info)
 int
 mvpw_image_destroy(mvp_widget_t *widget)
 {
+	if (widget == NULL)
+		return -1;
+
 	if (widget->data.image.pid)
 		GrDestroyWindow(widget->data.image.pid);
 	if (widget->data.image.wid)
