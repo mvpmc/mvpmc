@@ -48,6 +48,12 @@
 
 int protocol_version;
 int new_live_tv;
+extern cmyth_chanlist_t tvguide_chanlist;
+extern cmyth_tvguide_progs_t  tvguide_proglist;
+extern int tvguide_cur_chan_index;
+extern int tvguide_scroll_ofs_x;
+extern int tvguide_scroll_ofs_y;
+extern long tvguide_free_cardids;
 
 static mvpw_menu_item_attr_t item_attr = {
 	.selectable = 1,
@@ -701,8 +707,30 @@ int __change_channel(direction)
 
 	if(protocol_version >= 26)
 		cmyth_livetv_chain_switch_last(rec);
-	if(new_live_tv)
-		/* Update the selected channel in the guide */;
+	/* This should probably be in a library or in the tvguide
+	 * source file. This is way too much code for this location.
+	 * TODO.
+	 */
+	if(new_live_tv) {
+		int idx = myth_get_chan_index(tvguide_chanlist, current_prog);
+
+		if (idx == -1) {
+			idx = tvguide_cur_chan_index = direction == CHANNEL_DIRECTION_UP?
+						tvguide_cur_chan_index+1:tvguide_cur_chan_index-1;
+		}
+		else {
+			tvguide_cur_chan_index = idx;
+		}
+
+		tvguide_scroll_ofs_y = idx - tvguide_cur_chan_index;
+		tvguide_proglist =
+			myth_load_guide(mythtv_livetv_program_list, mythtv_database,
+											tvguide_chanlist, tvguide_proglist,
+											tvguide_cur_chan_index, tvguide_scroll_ofs_x,
+											tvguide_scroll_ofs_y, tvguide_free_cardids);
+		mvp_tvguide_move(MVPW_ARRAY_HOLD, mythtv_livetv_program_list,
+									 	mythtv_livetv_description);
+	}
 
  out:
 	cmyth_release(ctrl);

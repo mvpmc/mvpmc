@@ -102,13 +102,31 @@ mvp_tvguide_hide(void *proglist, void *descr)
  * number and callsign.
  */
 int
+myth_get_chan_index_from_int(cmyth_chanlist_t chanlist, int nchan)
+{
+	int rtrn;
+
+	for(rtrn = 0; rtrn < chanlist->chanlist_count; rtrn++)
+		if(chanlist->chanlist_list[rtrn].channum >= nchan)
+			break;
+	rtrn = rtrn==chanlist->chanlist_count?-1:rtrn;
+
+	return rtrn;
+}
+
+/*
+ * Based on the proginfo passed in, return the index into the
+ * provided chanlist array or return -1 if a match for the channel
+ * number and callsign.
+ */
+int
 myth_get_chan_index_from_str(cmyth_chanlist_t chanlist, char * chan)
 {
 	int rtrn;
 	int nchan = atoi(chan);
 
 	for(rtrn = 0; rtrn < chanlist->chanlist_count; rtrn++)
-		if(chanlist->chanlist_list[rtrn].channum == nchan)
+		if(chanlist->chanlist_list[rtrn].channum >= nchan)
 			break;
 	rtrn = rtrn==chanlist->chanlist_count?-1:rtrn;
 
