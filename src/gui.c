@@ -1,6 +1,6 @@
 /*
  *  Copyright (C) 2004, 2005, 2006, Jon Gettler
- *  http://mvpmc.sourceforge.net/
+ *  http://www.mvpmc.org/
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,8 +16,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
-
-#ident "$Id: gui.c,v 1.101 2006/02/16 03:04:19 gettler Exp $"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -5613,7 +5611,7 @@ about_init(void)
 	int h, w, x, y;
 	char text[512], host[64];
 	char buf[] = 
-		"http://mvpmc.sourceforge.net/\n\n"
+		"http://www.mvpmc.org/\n\n"
 		"Audio: mp3, ogg, wav, ac3\n"
 		"Video: mpeg1, mpeg2\n"
 		"Images: bmp, gif, png, jpeg\n"
