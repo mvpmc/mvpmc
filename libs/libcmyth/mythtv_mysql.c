@@ -28,6 +28,14 @@
 #include <cmyth.h>
 #include <cmyth_local.h>
 
+#if 0
+#define PRINTF(x...) PRINTF(x)
+#define TRC(fmt, args...) PRINTF(fmt, ## args) 
+#else
+#define PRINTF(x...)
+#define TRC(fmt, args...) 
+#endif
+
 cmyth_database_t
 cmyth_database_create(void)
 {
@@ -50,7 +58,7 @@ cmyth_database_set_host(cmyth_database_t db, char *host)
 {
 	int rtrn = 1;
 
-	printf("** SSDEBUG: setting the db host to %s\n", host);
+	PRINTF("** SSDEBUG: setting the db host to %s\n", host);
   db->db_host = cmyth_allocate(strlen(host)+1);
 	if(db->db_host)
 		strcpy(db->db_host, host);
@@ -64,7 +72,7 @@ cmyth_database_set_user(cmyth_database_t db, char *user)
 {
 	int rtrn = 1;
 
-	printf("** SSDEBUG: setting the db user to %s\n", user);
+	PRINTF("** SSDEBUG: setting the db user to %s\n", user);
   db->db_user = cmyth_allocate(strlen(user)+1);
 	if(db->db_user)
 		strcpy(db->db_user, user);
@@ -78,7 +86,7 @@ cmyth_database_set_pass(cmyth_database_t db, char *pass)
 {
 	int rtrn = 1;
 
-	printf("** SSDEBUG: setting the db pass to %s\n", pass);
+	PRINTF("** SSDEBUG: setting the db pass to %s\n", pass);
   db->db_pass = cmyth_allocate(strlen(pass)+1);
 	if(db->db_pass)
 		strcpy(db->db_pass, pass);
@@ -92,7 +100,7 @@ cmyth_database_set_name(cmyth_database_t db, char *name)
 {
 	int rtrn = 1;
 
-	printf("** SSDEBUG: setting the db name to %s\n", name);
+	PRINTF("** SSDEBUG: setting the db name to %s\n", name);
   db->db_name = cmyth_allocate(strlen(name)+1);
 	if(db->db_name)
 		strcpy(db->db_name, name);

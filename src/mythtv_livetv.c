@@ -288,7 +288,7 @@ mythtv_new_livetv_start(cmyth_recorder_t rec)
 	// we assume last used structure is cleared already...
 	//
 	loc_prog = cmyth_recorder_get_cur_proginfo(rec, protocol_version);
-	printf("** SSDEBUG: the loc_prog is: %p\n", loc_prog);
+	PRINTF("** SSDEBUG: the loc_prog is: %p\n", loc_prog);
 	CHANGE_GLOBAL_REF(current_prog, loc_prog);
 	cmyth_release(loc_prog);
 
@@ -327,7 +327,7 @@ mythtv_new_livetv_start(cmyth_recorder_t rec)
 	pthread_mutex_unlock(&myth_mutex);
 
 	/* Fire up the tv_guide updater/synchroniser */
-	printf("** SSDEBUG: Firing up the TV guide functionality\n");
+	PRINTF("** SSDEBUG: Firing up the TV guide functionality\n");
 	mvp_tvguide_start();
 	
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) 0}\n",
@@ -627,7 +627,7 @@ mythtv_livetv_stop(void)
 
 	if(new_live_tv) {
 		mvp_tvguide_stop();
-		printf("** SSDEBUG: Tvguide stopped: %s  %d \n", __FUNCTION__, __LINE__);
+		PRINTF("** SSDEBUG: Tvguide stopped: %s  %d \n", __FUNCTION__, __LINE__);
 	}
 
 	ret = 0;
