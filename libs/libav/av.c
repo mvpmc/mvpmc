@@ -34,6 +34,7 @@
 static av_video_aspect_t vid_aspect = 0;
 static vid_disp_mode_t vid_dispmode = 0;/*As set from UI*/
 static vid_disp_mode_t cur_dispmode = 0;/*Including automatic zooming from AFD*/
+static int in_thumbnail = 0; /* Is video currently thumbnailed? */
 static int output = -1;
 
 static av_audio_output_t audio_output = AV_AUDIO_MPEG;
@@ -360,7 +361,7 @@ av_set_video_aspect(av_video_aspect_t vid_ar, int afd)
 	    cur_dispmode = vid_dispmode;
 	    break;
     }
-    if (ioctl(fd_video, AV_SET_VID_OUTPUT_MODE, cur_dispmode) < 0)
+    if (!in_thumbnail && ioctl(fd_video, AV_SET_VID_OUTPUT_MODE, cur_dispmode) < 0)
 	return 0;
     return new_wss;
 }
@@ -451,7 +452,7 @@ av_set_tv_aspect(av_tv_aspect_t ratio)
     }
     if (ioctl(fd_video, AV_SET_VID_OUTPUT_RATIO, new_display_aspect) < 0)
 	return -1;
-    if (ioctl(fd_video, AV_SET_VID_OUTPUT_MODE, new_dispmode) < 0)
+    if (!in_thumbnail && ioctl(fd_video, AV_SET_VID_OUTPUT_MODE, new_dispmode) < 0)
 	return -1;
     tv_aspect = ratio;
     cur_dispmode = vid_dispmode = new_dispmode;
@@ -849,9 +850,15 @@ av_move(int x, int y, int video_mode)
 	ioctl(fd_video, AV_SET_VID_POSITION, &pos_d);
 	
 	if (video_mode == 0)
+	{
+	    	in_thumbnail = 1;
 		ioctl(fd_video, AV_SET_VID_OUTPUT_MODE, cur_dispmode);
+	}
 	else
+	{
+	        in_thumbnail = 0;
 		ioctl(fd_video, AV_SET_VID_OUTPUT_MODE, video_mode);
+	}
 
 	if (video_mode == 0)
 		ioctl(fd_video, AV_SET_VID_SRC, 1);
