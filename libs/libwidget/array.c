@@ -205,21 +205,21 @@ mvpw_array_layout(mvp_widget_t *widget)
 	/*
 	 * Create the widget arrays that hold the headers and cells.
 	 */
-	printf("** SSDEBUG: creating row labels\n");
+	printf("** SSDEBUG: creating row label array\n");
 	if(!widget->data.array.row_labels
 		 && widget->data.array.row_label_width != 0) {
 		widget->data.array.row_labels = malloc(r * sizeof(mvp_widget_t*));
 		memset(widget->data.array.row_labels, 0, r * sizeof(mvp_widget_t*));
 	}
 			
-	printf("** SSDEBUG: creating column labels\n");
+	printf("** SSDEBUG: creating column label array\n");
 	if(!widget->data.array.col_labels 
 		 && widget->data.array.col_label_height != 0) {
 		widget->data.array.col_labels = malloc((c+1) * sizeof(mvp_widget_t*));
 		memset(widget->data.array.col_labels, 0, (c+1) * sizeof(mvp_widget_t*));
 	}
 
-	printf("** SSDEBUG: creating cells\n");
+	printf("** SSDEBUG: creating cell array\n");
 	if(!widget->data.array.cells) {
 		widget->data.array.cells = malloc(r * c * sizeof(mvp_widget_t*));
 		memset(widget->data.array.cells, 0, r * c * sizeof(mvp_widget_t*));
@@ -228,7 +228,7 @@ mvpw_array_layout(mvp_widget_t *widget)
 	/*
 	 * Create the cell index array (user data for each cell).
 	 */
-	printf("** SSDEBUG: creating index array\n");
+	printf("** SSDEBUG: creating user data pointer array\n");
 	if(!widget->data.array.cell_data) {
 		widget->data.array.cell_data = malloc(r * c
 					*	sizeof(*(widget->data.array.cell_data)));
@@ -239,7 +239,7 @@ mvpw_array_layout(mvp_widget_t *widget)
 	/*
 	 * Create the row header string array.
 	 */
-	printf("** SSDEBUG: creating index array\n");
+	printf("** SSDEBUG: creating row header string array\n");
 	if(!widget->data.array.row_strings) {
 		widget->data.array.row_strings = malloc(c
 					*	sizeof(*(widget->data.array.row_strings)));
@@ -250,7 +250,7 @@ mvpw_array_layout(mvp_widget_t *widget)
 	/*
 	 * Create the column header string array.
 	 */
-	printf("** SSDEBUG: creating index array\n");
+	printf("** SSDEBUG: creating column header string array\n");
 	if(!widget->data.array.col_strings) {
 		widget->data.array.col_strings = malloc(r
 					*	sizeof(*(widget->data.array.col_strings)));
@@ -261,7 +261,7 @@ mvpw_array_layout(mvp_widget_t *widget)
 	/*
 	 * Create the cell string array.
 	 */
-	printf("** SSDEBUG: creating index array\n");
+	printf("** SSDEBUG: creating cell string array\n");
 	if(!widget->data.array.cell_strings) {
 		widget->data.array.cell_strings = malloc(r * c
 					*	sizeof(*(widget->data.array.cell_strings)));
@@ -272,7 +272,7 @@ mvpw_array_layout(mvp_widget_t *widget)
 	/*
 	 * Create the visibility array.
 	 */
-	printf("** SSDEBUG: creating index array\n");
+	printf("** SSDEBUG: creating the visibility array\n");
 	if(!widget->data.array.cell_viz) {
 		widget->data.array.cell_viz = malloc(r * c
 					*	sizeof(*(widget->data.array.cell_viz)));
@@ -353,7 +353,7 @@ mvpw_array_layout(mvp_widget_t *widget)
 	/*
 	 * Initialize the visibility
 	 */
-	printf("** SSDEBUG: creating cell widgets\n");
+	printf("** SSDEBUG: initializing visiblity array.\n");
 	for(r = 0; r < widget->data.array.rows; r++)
 		for(c = 0; c < widget->data.array.cols; c++) {
 			i = widget->data.array.cols * r + c;
@@ -658,6 +658,9 @@ mvpw_hilite_array_cell(mvp_widget_t *widget, int x, int y, int hlt)
 {
 	int i;
 	mvpw_text_attr_t ta;
+
+	if(y<0 || x<0) return;
+
 	i = widget->data.array.cols * y + x;
 	if(widget->data.array.cells[i]) {
 		mvpw_get_text_attr(widget->data.array.cells[i], &ta);
