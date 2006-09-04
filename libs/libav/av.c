@@ -851,12 +851,12 @@ av_move(int x, int y, int video_mode)
 	
 	if (video_mode == 0)
 	{
-	    	in_thumbnail = 1;
+	    	in_thumbnail = 0;
 		ioctl(fd_video, AV_SET_VID_OUTPUT_MODE, cur_dispmode);
 	}
 	else
 	{
-	        in_thumbnail = 0;
+	        in_thumbnail = 1;
 		ioctl(fd_video, AV_SET_VID_OUTPUT_MODE, video_mode);
 	}
 
