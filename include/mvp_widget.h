@@ -886,10 +886,23 @@ typedef struct {
 	int 		fd;
 } mvpw_surface_attr_t;
 
+/**
+ * Create a surface widget.
+ * \param parent parent widget (NULL for root window)
+ * \param x horizontal coordinate
+ * \param y vertical coordinate
+ * \param w width
+ * \param h height
+ * \param bg background color
+ * \param border_color border color
+ * \param border_size border width in pixels
+ * \return widget handle
+ */
 extern mvp_widget_t* mvpw_create_surface(mvp_widget_t *parent,
 					int x, int y, int w, int h,
 					uint32_t bg, uint32_t border_color,
 					int border_size, int new_pixmap);
+
 extern int mvpw_get_surface_attr(mvp_widget_t *widget, mvpw_surface_attr_t *surface);
 extern int mvpw_set_surface_attr(mvp_widget_t *widget, mvpw_surface_attr_t *surface);
 extern int mvpw_set_surface(mvp_widget_t *widget, char *image, int x, int y, int width, int height);
@@ -919,12 +932,28 @@ extern int mvpw_fill_rect(mvp_widget_t *widget, int x, int y, int w, int h, uint
 
 #define MVPW_RGBA(r,g,b,a)	((a<<24) | (b<<16) | (g<<8) | r)
 
+/**
+ * Convert a color from its 4 parts to a single value.
+ * \param r red
+ * \param g green
+ * \param b blue
+ * \param a alpha channel
+ * \return color
+ */
 static inline unsigned long
 mvpw_rgba(unsigned char r, unsigned char g, unsigned char b, unsigned char a)
 {
 	return (a<<24) | (b<<16) | (g<<8) | r;
 }
 
+/**
+ * Convert a color from a single value to its 4 parts.
+ * \param c color
+ * \param[out] r red
+ * \param[out] g green
+ * \param[out] b blue
+ * \param[out] a alpha channel
+ */
 static inline void
 mvpw_get_rgba(unsigned long c, unsigned char *r, unsigned char *g,
 	      unsigned char *b, unsigned char *a)
@@ -935,6 +964,12 @@ mvpw_get_rgba(unsigned long c, unsigned char *r, unsigned char *g,
 	*r = (c >> 0) & 0xff;
 }
 
+/**
+ * Change the alpha channel for a color.
+ * \param c color
+ * \param a alpha channel
+ * \return new color
+ */
 #define mvpw_color_alpha(c,a)	((a << 24) | (c & 0x00ffffff))
 
 #ifdef MVPMC_HOST
