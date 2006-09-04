@@ -97,7 +97,7 @@ mvp_tvguide_hide(void *proglist, void *descr)
 }
 
 /*
- * Based on the proginfo passed in, return the index into the
+ * Based on the integer passed in, return the index into the
  * provided chanlist array or return -1 if a match for the channel
  * number and callsign.
  */
@@ -115,7 +115,7 @@ myth_get_chan_index_from_int(cmyth_chanlist_t chanlist, int nchan)
 }
 
 /*
- * Based on the proginfo passed in, return the index into the
+ * Based on the string passed in, return the index into the
  * provided chanlist array or return -1 if a match for the channel
  * number and callsign.
  */
@@ -188,9 +188,6 @@ get_tvguide_selected_channel(mvp_widget_t *proglist)
  *
  */
 static cmyth_tvguide_progs_t
-/*
-get_guide_mysql2(cmyth_database_t db, cmyth_chanlist_t chanlist,
-*/
 get_guide_mysql2(MYSQL *mysql, cmyth_chanlist_t chanlist,
 								 cmyth_tvguide_progs_t proglist, int index,
 								 struct tm * start_time, struct tm * end_time) 
@@ -218,29 +215,21 @@ get_guide_mysql2(MYSQL *mysql, cmyth_chanlist_t chanlist,
 	i3 = index < 0 ? chanlist->chanlist_count+index:index;
 	index--;
 	i4 = index < 0 ? chanlist->chanlist_count+index:index;
-	/*
+
 	printf("** SSDEBUG: indexes are: %d, %d, %d, %d\n", i1, i2, i3, i4);
-	*/
+
 	sprintf(channels, "(%ld, %ld, %ld, %ld)",
 		chanlist->chanlist_list[i1].chanid,
 		chanlist->chanlist_list[i2].chanid,
 		chanlist->chanlist_list[i3].chanid,
 		chanlist->chanlist_list[i4].chanid
 	);
+
 	/*
 	printf("** SSDEBUG: starttime:%s, endtime:%s\n", starttime, endtime);
 	printf("** SSDEBUG: database pointer: %p\n", db);
-  mysql=mysql_init(NULL);
-	if(!(mysql_real_connect(mysql,db->db_host,db->db_user,
-													db->db_pass,db->db_name,0,NULL,0))) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: mysql_connect() Failed: %s\n",
-                           __FUNCTION__, mysql_error(mysql));
-		fprintf(stderr, "mysql_connect() Failed: %s\n",mysql_error(mysql));
-        	mysql_close(mysql);
-		return NULL;
-	}
-	printf("** SSDEBUG: database connected\n");
 	*/
+
 	sprintf(query, 
 		"SELECT chanid,starttime,endtime,title,description,\
 						subtitle,programid,seriesid,category \
@@ -290,14 +279,14 @@ get_guide_mysql2(MYSQL *mysql, cmyth_chanlist_t chanlist,
 		*/
 		proglist->progs[rows].chanid=ch;
 		proglist->progs[rows].recording=0;
-		strcpy ( proglist->progs[rows].starttime, row[1]);
-		strcpy ( proglist->progs[rows].endtime, row[2]);
-		strcpy ( proglist->progs[rows].title, row[3]);
-		strcpy ( proglist->progs[rows].description, row[4]);
-		strcpy ( proglist->progs[rows].subtitle, row[5]);
-		strcpy ( proglist->progs[rows].programid, row[6]);
-		strcpy ( proglist->progs[rows].seriesid, row[7]);
-		strcpy ( proglist->progs[rows].category, row[8]);
+		strncpy ( proglist->progs[rows].starttime, row[1], 25);
+		strncpy ( proglist->progs[rows].endtime, row[2], 25);
+		strncpy ( proglist->progs[rows].title, row[3], 130);
+		strncpy ( proglist->progs[rows].description, row[4], 256);
+		strncpy ( proglist->progs[rows].subtitle, row[5], 130);
+		strncpy ( proglist->progs[rows].programid, row[6], 20);
+		strncpy ( proglist->progs[rows].seriesid, row[7], 12);
+		strncpy ( proglist->progs[rows].category, row[8], 64);
 		cmyth_dbg(CMYTH_DBG_ERROR, "prog[%d].chanid =  %d\n",rows,
 							proglist->progs[rows].chanid);
 		cmyth_dbg(CMYTH_DBG_ERROR, "prog[%d].title =  %s\n",rows,
@@ -306,9 +295,7 @@ get_guide_mysql2(MYSQL *mysql, cmyth_chanlist_t chanlist,
 	}
 	proglist->count = rows;
   mysql_free_result(res);
-	/*
-  mysql_close(mysql);
-	*/
+
 	return proglist;
 }
 
@@ -339,7 +326,7 @@ myth_guide_set_channels(void * widget, cmyth_chanlist_t chanlist,
 	 */
 	for(i = index; i>index-4; i--) {
 		if(i <0) {
-			j = chanlist->chanlist_count - i - 1;
+			j = chanlist->chanlist_count + i - 1;
 			sprintf(buf, "%d\n%s", chanlist->chanlist_list[j].channum,
 						chanlist->chanlist_list[j].callsign);
 			if((free_recorders & chanlist->chanlist_list[j].cardids) == 0)
@@ -648,12 +635,12 @@ myth_tvguide_get_active_card(cmyth_recorder_t rec)
  *
  */
 cmyth_chanlist_t
-myth_load_channels2(cmyth_database_t db, pthread_mutex_t * mutex)
+myth_load_channels2(cmyth_database_t db)
 {
 	MYSQL *mysql;
 	MYSQL_RES *res=NULL;
 	MYSQL_ROW row;
-	char query[256];
+	char query[300];
 	cmyth_chanlist_t rtrn;
         
 	mysql=mysql_init(NULL);
@@ -675,13 +662,8 @@ myth_load_channels2(cmyth_database_t db, pthread_mutex_t * mutex)
 									callsign,name \
 									FROM cardinput, channel \
 									WHERE cardinput.sourceid=channel.sourceid \
+									AND visible=1 \
 									ORDER BY channumi,callsign ASC");
-/*
-	sprintf(query, "SELECT chanid,channum,channum+0 as channumi,sourceid, \
-									callsign,name \
-									FROM channel \
-									ORDER BY channumi,callsign ASC");
-*/
 	cmyth_dbg(CMYTH_DBG_ERROR, "%s: query= %s\n", __FUNCTION__, query);
 
 	if(mysql_query(mysql,query)) {
@@ -690,9 +672,7 @@ myth_load_channels2(cmyth_database_t db, pthread_mutex_t * mutex)
 		mysql_close(mysql);
 		return NULL;
 	}
-	/* Allow others to run since this eats lots of cycles */
-	pthread_mutex_unlock(mutex);
-	pthread_mutex_lock(mutex);
+
 	res = mysql_store_result(mysql);
 	printf("** SSDEBUG: Number of rows retreived = %llu\n", res->row_count);
 	/* Create a return structure that has room for all the records
@@ -712,11 +692,7 @@ myth_load_channels2(cmyth_database_t db, pthread_mutex_t * mutex)
 	while((row = mysql_fetch_row(res))) {
 		if(rtrn->chanlist_count == rtrn->chanlist_alloc) {
 			printf("** SSDEBUG: allocating more space with count = %d and alloc =%d\n",	rtrn->chanlist_count, rtrn->chanlist_alloc);
-			/* Allow others to run since this eats lots of cycles */
-			/*
-			pthread_mutex_unlock(mutex);
-			pthread_mutex_lock(mutex);
-			*/
+
 			rtrn->chanlist_list = (cmyth_channel_t)
 				cmyth_reallocate(rtrn->chanlist_list, sizeof(struct cmyth_channel)
 										*(rtrn->chanlist_count + res->row_count/ALLOC_FRAC));
@@ -729,7 +705,7 @@ myth_load_channels2(cmyth_database_t db, pthread_mutex_t * mutex)
 		}
 		/* Check if this entry is the same as the previous. If it is, then
 		 * the only differentiation is the recorder. Add it to the sources
-		 * for the previous record and ignore this one.
+		 * for the previous recorder and ignore this one.
 		 */
 		if(rtrn->chanlist_count &&
 			!strcmp(rtrn->chanlist_list[rtrn->chanlist_count-1].callsign, row[4])
