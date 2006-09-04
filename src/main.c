@@ -30,6 +30,7 @@
  *
  * \section libraries Libraries
  * \li \link mvp_av.h libav \endlink
+ * \li \link cmyth.h libcmyth \endlink
  * \li \link mvp_demux.h libdemux \endlink
  * \li \link mvp_osd.h libosd \endlink
  * \li \link mvp_widget.h libwidget \endlink
