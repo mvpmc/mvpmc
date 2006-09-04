@@ -438,6 +438,7 @@ mvp_tvguide_timer(mvp_widget_t * widget)
 	/* second boudary. For now, this is good enough */
 	mvpw_set_timer(mythtv_livetv_program_list, mvp_tvguide_timer, 60000);
 
+	pthread_mutex_lock(&myth_mutex);
 
 	/* If we haven't done so yet, get the index in our local cache of
 	 * the channel that's currently playing on live tv
@@ -468,7 +469,6 @@ mvp_tvguide_timer(mvp_widget_t * widget)
 	 * the next 30 minute interval has been hit.
 	 */
 
-	pthread_mutex_lock(&myth_mutex);
 	if(myth_set_guide_times(mythtv_livetv_program_list, tvguide_scroll_ofs_x)) {
 		tvguide_proglist = 
 		myth_load_guide(mythtv_livetv_program_list, mythtv_database,
@@ -497,7 +497,7 @@ mvp_tvguide_start(void)
 	/* and create from scratch so free if it exists */
 
 	tvguide_chanlist = myth_release_chanlist(tvguide_chanlist);
-	tvguide_chanlist = myth_load_channels2(mythtv_database, &myth_mutex);
+	tvguide_chanlist = myth_load_channels2(mythtv_database);
 	if(tvguide_chanlist == NULL) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s loading channels failed\n", __FUNCTION__);
 		rtrn = -1;

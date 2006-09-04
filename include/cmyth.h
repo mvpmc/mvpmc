@@ -353,8 +353,7 @@ extern int mythtv_new_livetv(void);
  */
 
 extern cmyth_database_t cmyth_database_create(void);
-extern cmyth_chanlist_t myth_load_channels2(cmyth_database_t db,
-                                            pthread_mutex_t * mutex);
+extern cmyth_chanlist_t myth_load_channels2(cmyth_database_t db);
 extern int cmyth_database_set_host(cmyth_database_t db, char *host);
 extern int cmyth_database_set_user(cmyth_database_t db, char *user);
 extern int cmyth_database_set_pass(cmyth_database_t db, char *pass);
