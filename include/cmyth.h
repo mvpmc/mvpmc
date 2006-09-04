@@ -1,8 +1,6 @@
 /*
- *  $Id$
- *
- *  Copyright (C) 2004, Eric Lund
- *  http://mvpmc.sourceforge.net/
+ *  Copyright (C) 2004-2006, Eric Lund, Jon Gettler
+ *  http://www.mvpmc.org/
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -17,6 +15,10 @@
  *  You should have received a copy of the GNU Lesser General Public
  *  License along with this library; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
+
+/** \file cmyth.h
+ * A C library for communicating with a MythTV server.
  */
 
 #ifndef __CMYTH_H
@@ -131,15 +133,64 @@ typedef struct cmyth_tvguide_program *cmyth_tvguide_program_t;
  * Allocation Related Operations
  *------------------------------------------------------------------
  */
+
+/**
+ * Release a reference to allocated memory.
+ * \param p allocated memory
+ */
 extern void cmyth_release(void *p);
+
+/**
+ * Add a reference to allocated memory.
+ * \param p allocated memory
+ * \return new reference
+ */
 extern void *cmyth_hold(void *p);
+
+/**
+ * Duplicate a string using reference counted memory.
+ * \param str string to duplicate
+ * \return reference to the duplicated string
+ */
 extern char *cmyth_strdup(char *str);
+
+/**
+ * Allocate reference counted memory.
+ * \param len allocation size
+ * \param file filename
+ * \param func function name
+ * \param line line number
+ * \return reference counted memory
+ */
 extern void *cmyth_allocate_data(size_t len, const char *file, const char *func, int line);
+
+/**
+ * Reallocate reference counted memory.
+ * \param p allocated memory
+ * \param len new allocation size
+ * \return reference counted memory
+ */
 extern void *cmyth_reallocate(void *p, size_t len);
+
 typedef void (*destroy_t)(void *p);
+
+/**
+ * Add a destroy callback for reference counted memory.
+ * \param block allocated memory
+ * \param func destroy function
+ */
 extern void cmyth_set_destroy(void *block, destroy_t func);
+
+/**
+ * Print allocation information to stdout.
+ */
 extern void cmyth_alloc_show(void);
 
+/**
+ * Allocate reference counted memory.
+ * \param x allocation size
+ * \return reference counted memory
+ */
 #if defined(DEBUG)
 #define cmyth_allocate(x) cmyth_allocate_data(x, __FILE__, __FUNCTION__, __LINE__)
 #else
@@ -167,10 +218,28 @@ extern void cmyth_alloc_show(void);
 #define CMYTH_DBG_PROTO  5
 #define CMYTH_DBG_ALL    6
 
-extern void cmyth_dbg_level(int l);  /* Set a specific debug level */
-extern void cmyth_dbg_all(void);     /* turn on all debuging */
-extern void cmyth_dbg_none(void);    /* turn off all debugging */
-extern void cmyth_dbg(int level, char *fmt, ...); /* print a debug msg */
+/**
+ * Set the libcmyth debug level.
+ * \param l level
+ */
+extern void cmyth_dbg_level(int l);
+
+/**
+ * Turn on all libcmyth debugging.
+ */
+extern void cmyth_dbg_all(void);
+
+/**
+ * Turn off all libcmyth debugging.
+ */
+extern void cmyth_dbg_none(void);
+
+/**
+ * Print a libcmyth debug message.
+ * \param level debug level
+ * \param fmt printf style format
+ */
+extern void cmyth_dbg(int level, char *fmt, ...);
 
 /*
  * -----------------------------------------------------------------
@@ -178,37 +247,122 @@ extern void cmyth_dbg(int level, char *fmt, ...); /* print a debug msg */
  * -----------------------------------------------------------------
  */
 
+/**
+ * Create a control connection to a backend.
+ * \param server server hostname or ip address
+ * \param port port number to connect on
+ * \param buflen buffer size for the connection to use
+ * \param tcp_rcvbuf if non-zero, the TCP receive buffer size for the socket
+ * \return control handle
+ */
 extern cmyth_conn_t cmyth_conn_connect_ctrl(char *server,
 					    unsigned short port,
 					    unsigned buflen, int tcp_rcvbuf);
 
+/**
+ * Create an event connection to a backend.
+ * \param server server hostname or ip address
+ * \param port port number to connect on
+ * \param buflen buffer size for the connection to use
+ * \param tcp_rcvbuf if non-zero, the TCP receive buffer size for the socket
+ * \return event handle
+ */
 extern cmyth_conn_t cmyth_conn_connect_event(char *server,
 					     unsigned short port,
 					     unsigned buflen, int tcp_rcvbuf);
 
+/**
+ * Create a file connection to a backend.
+ * \param prog program handle
+ * \param control control handle
+ * \param buflen buffer size for the connection to use
+ * \param tcp_rcvbuf if non-zero, the TCP receive buffer size for the socket
+ * \return file handle
+ */
 extern cmyth_file_t cmyth_conn_connect_file(cmyth_proginfo_t prog,
 					    cmyth_conn_t control,
 					    unsigned buflen, int tcp_rcvbuf);
 
+/**
+ * Create a ring buffer connection to a recorder.
+ * \param rec recorder handle
+ * \param buflen buffer size for the connection to use
+ * \param tcp_rcvbuf if non-zero, the TCP receive buffer size for the socket
+ * \retval 0 success
+ * \retval -1 error
+ */
 extern int cmyth_conn_connect_ring(cmyth_recorder_t rec, unsigned buflen,
 				   int tcp_rcvbuf);
+
+/**
+ * Create a connection to a recorder.
+ * \param rec recorder to connect to
+ * \param buflen buffer size for the connection to use
+ * \param tcp_rcvbuf if non-zero, the TCP receive buffer size for the socket
+ * \retval 0 success
+ * \retval -1 error
+ */
 extern int cmyth_conn_connect_recorder(cmyth_recorder_t rec,
 				       unsigned buflen, int tcp_rcvbuf);
 
+/**
+ * Check whether a block has finished transfering from a backend.
+ * \param conn control handle
+ * \param size size of block
+ * \retval 0 not complete
+ * \retval 1 complete
+ * \retval <0 error
+ */
 extern int cmyth_conn_check_block(cmyth_conn_t conn, unsigned long size);
 
+/**
+ * Obtain a recorder from a connection by its recorder number.
+ * \param conn connection handle
+ * \param num recorder number
+ * \param recorder handle
+ */
 extern cmyth_recorder_t cmyth_conn_get_recorder_from_num(cmyth_conn_t conn,
 							 int num);
 
+/**
+ * Obtain the next available free recorder on a backend.
+ * \param conn connection handle
+ * \return recorder handle
+ */
 extern cmyth_recorder_t cmyth_conn_get_free_recorder(cmyth_conn_t conn);
 
+/**
+ * Get the amount of free disk space on a backend.
+ * \param control control handle
+ * \param[out] total total disk space
+ * \param[out] used used disk space
+ * \retval 0 success
+ * \retval <0 error
+ */
 extern int cmyth_conn_get_freespace(cmyth_conn_t control,
 				    long long *total, long long *used);
 
+/**
+ * Determine if a control connection is not responding.
+ * \param control control handle
+ * \retval 0 not hung
+ * \retval 1 hung
+ * \retval <0 error
+ */
 extern int cmyth_conn_hung(cmyth_conn_t control);
 
+/**
+ * Determine the number of free recorders.
+ * \param conn connection handle
+ * \return number of free recorders
+ */
 extern int cmyth_conn_get_free_recorder_count(cmyth_conn_t conn);
 
+/**
+ * Determine the MythTV protocol version being used.
+ * \param conn connection handle
+ * \return protocol version
+ */
 extern int cmyth_conn_get_protocol_version(cmyth_conn_t conn);
 
 /*
