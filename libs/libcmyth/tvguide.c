@@ -34,6 +34,15 @@
 
 #define MERGE_CELLS 1
 
+#if 0
+#define PRINTF(x...) printf(x) 
+#define TRC(fmt, args...) printf(fmt, ## args)
+#else
+#define PRINTF(x...)
+#define TRC(fmt, args...) 
+#endif
+
+
 
 int
 mvp_tvguide_sql_check(cmyth_database_t db)
@@ -180,7 +189,7 @@ get_tvguide_selected_channel(mvp_widget_t *proglist)
 	prog = (cmyth_tvguide_program_t)
  	mvpw_get_array_cur_cell_data(proglist);
 
-	printf("** SSDEBUG: Current prog showing as: %s\n", prog->title);
+	PRINTF("** SSDEBUG: Current prog showing as: %s\n", prog->title);
 
 	return prog->channum;
 }
@@ -216,7 +225,7 @@ get_guide_mysql2(MYSQL *mysql, cmyth_chanlist_t chanlist,
 	index--;
 	i4 = index < 0 ? chanlist->chanlist_count+index:index;
 
-	printf("** SSDEBUG: indexes are: %d, %d, %d, %d\n", i1, i2, i3, i4);
+	PRINTF("** SSDEBUG: indexes are: %d, %d, %d, %d\n", i1, i2, i3, i4);
 
 	sprintf(channels, "(%ld, %ld, %ld, %ld)",
 		chanlist->chanlist_list[i1].chanid,
@@ -226,8 +235,8 @@ get_guide_mysql2(MYSQL *mysql, cmyth_chanlist_t chanlist,
 	);
 
 	/*
-	printf("** SSDEBUG: starttime:%s, endtime:%s\n", starttime, endtime);
-	printf("** SSDEBUG: database pointer: %p\n", db);
+	PRINTF("** SSDEBUG: starttime:%s, endtime:%s\n", starttime, endtime);
+	PRINTF("** SSDEBUG: database pointer: %p\n", db);
 	*/
 
 	sprintf(query, 
@@ -250,12 +259,12 @@ get_guide_mysql2(MYSQL *mysql, cmyth_chanlist_t chanlist,
 
 	
 	/*
-	printf("** SSDEBUG: got %llu rows from query\n", res->row_count);
+	PRINTF("** SSDEBUG: got %llu rows from query\n", res->row_count);
 	*/
 	if(!proglist->progs) {
 		proglist->progs =
 			cmyth_allocate(sizeof(struct cmyth_tvguide_program) * res->row_count);
-		printf("** SSDEBUG: allocated proglist->progs: %p\n", proglist->progs);
+		PRINTF("** SSDEBUG: allocated proglist->progs: %p\n", proglist->progs);
 	}
 	else {
 		if(proglist->alloc < res->row_count+proglist->count) {
@@ -263,8 +272,8 @@ get_guide_mysql2(MYSQL *mysql, cmyth_chanlist_t chanlist,
 			cmyth_reallocate(proglist->progs, sizeof(struct cmyth_tvguide_program) *
 										 	(res->row_count+proglist->count));
 			proglist->alloc = res->row_count+proglist->count;
-			printf("** SSDEBUG: reallocated proglist->progs: %p\n", proglist->progs);
-			printf("** SSDEBUG: reallocated %llu items\n",
+			PRINTF("** SSDEBUG: reallocated proglist->progs: %p\n", proglist->progs);
+			PRINTF("** SSDEBUG: reallocated %llu items\n",
 							res->row_count+proglist->count);
 		}
 		rows = proglist->count;
@@ -274,7 +283,7 @@ get_guide_mysql2(MYSQL *mysql, cmyth_chanlist_t chanlist,
 		ch = atol(row[0]);
 		proglist->progs[rows].channum = get_chan_num(ch, chanlist);
 		/*
-		printf("** SSDEBUG: row: %d, %ld, %d, %s, %s, %s\n", rows, ch,
+		PRINTF("** SSDEBUG: row: %d, %ld, %d, %s, %s, %s\n", rows, ch,
 						proglist->progs[rows].channum, row[3], row[5], row[8]);
 		*/
 		proglist->progs[rows].chanid=ch;
@@ -309,7 +318,7 @@ myth_guide_set_channels(void * widget, cmyth_chanlist_t chanlist,
 	mvp_widget_t * prog_widget = (mvp_widget_t *) widget;
 
 	/*
-	printf("** SSDEBUG: request to load row labels: %d\n", index);
+	PRINTF("** SSDEBUG: request to load row labels: %d\n", index);
 	*/
 
 	index += yofs;
@@ -335,7 +344,7 @@ myth_guide_set_channels(void * widget, cmyth_chanlist_t chanlist,
 				mvpw_set_array_row_bg(prog_widget, index-i, MVPW_DARKGREY);
 			mvpw_set_array_row(prog_widget, index-i, buf, NULL);
 			/*
-			printf("** SSDEBUG: loading guide: %d:%s\n",
+			PRINTF("** SSDEBUG: loading guide: %d:%s\n",
 						chanlist->chanlist_list[j].channum,
 						chanlist->chanlist_list[j].callsign);
 			*/
@@ -349,7 +358,7 @@ myth_guide_set_channels(void * widget, cmyth_chanlist_t chanlist,
 				mvpw_set_array_row_bg(prog_widget, index-i, MVPW_DARKGREY);
 			mvpw_set_array_row(prog_widget, index-i, buf, NULL);
 			/*
-			printf("** SSDEBUG: loading guide: %d:%s\n",
+			PRINTF("** SSDEBUG: loading guide: %d:%s\n",
 						chanlist->chanlist_list[i].channum,
 						chanlist->chanlist_list[i].callsign);
 			*/
@@ -378,7 +387,7 @@ myth_load_guide(void * widget, cmyth_database_t db,
 	struct cmyth_tvguide_program * prog;
 
 	/*
-	printf("** SSDEBUG: request to load guide: %d\n", index);
+	PRINTF("** SSDEBUG: request to load guide: %d\n", index);
 	*/
 
 	index = myth_guide_set_channels(widget, chanlist, index, yofs,
@@ -439,11 +448,11 @@ myth_load_guide(void * widget, cmyth_database_t db,
 		later.tm_sec = 0;
 		prev = proglist->count;
 		/*
-		printf("** SSEDBUG: Calling set_guide_mysql2\n");
+		PRINTF("** SSEDBUG: Calling set_guide_mysql2\n");
 		*/
 		rtrn  = get_guide_mysql2(mysql, chanlist, proglist, index, &now, &later);
 		/*
-		printf("** SSEDBUG: done set_guide_mysql2 rtrn = %p\n", rtrn);
+		PRINTF("** SSEDBUG: done set_guide_mysql2 rtrn = %p\n", rtrn);
 		*/
 		if(rtrn == NULL)
 			return proglist;
@@ -455,7 +464,7 @@ myth_load_guide(void * widget, cmyth_database_t db,
 				continue;
 			}
 			/*
-			printf("** SSDEBUG: Loaded prog: %d, %ld, %d, %s, %s, %s, %s, %s, %s, %s, %s\n",
+			PRINTF("** SSDEBUG: Loaded prog: %d, %ld, %d, %s, %s, %s, %s, %s, %s, %s, %s\n",
 			rtrn->progs[i].channum,
 			rtrn->progs[i].chanid,
 			rtrn->progs[i].recording,
@@ -479,7 +488,7 @@ myth_load_guide(void * widget, cmyth_database_t db,
 					if(strcmp(prog->starttime, rtrn->progs[i].starttime) == 0
 					 	&& strcmp(prog->endtime, rtrn->progs[i].endtime) == 0 ) {
 						/*
-						printf("** SSDEBUG: Need collapse %d cells for %s\n",
+						PRINTF("** SSDEBUG: Need collapse %d cells for %s\n",
 							j-m+1, prog->title);
 						*/
 						break;
@@ -492,7 +501,7 @@ myth_load_guide(void * widget, cmyth_database_t db,
 		}
 		curtime = nexttime;
 		/*
-		printf("** SSDEBUG: Looping next column\n");
+		PRINTF("** SSDEBUG: Looping next column\n");
 		*/
 	}
 	mvpw_array_clear_dirty(widget);
@@ -605,7 +614,7 @@ myth_tvguide_get_free_cardids(cmyth_conn_t control)
 		if(cmyth_recorder_is_recording(rec) != 1) {
 			rtrn |= 1<<(i-1);
 			/*
-			printf("** SSDEBUG recorder %d is free\n", i);
+			PRINTF("** SSDEBUG recorder %d is free\n", i);
 			*/
 		}
 		cmyth_release(rec);
@@ -625,7 +634,7 @@ myth_tvguide_get_active_card(cmyth_recorder_t rec)
 		rtrn |= 1<<(rec->rec_id-1);
 	
 	/*
-	printf("** SSDEBUG recorder bitmap %ld is our active device\n", rtrn);
+	PRINTF("** SSDEBUG recorder bitmap %ld is our active device\n", rtrn);
 	*/
 
 	return rtrn;
@@ -644,7 +653,7 @@ myth_load_channels2(cmyth_database_t db)
 	cmyth_chanlist_t rtrn;
         
 	mysql=mysql_init(NULL);
-	printf("** SSDEBUG host:%s, user:%s, password:%s\n", db->db_host,
+	PRINTF("** SSDEBUG host:%s, user:%s, password:%s\n", db->db_host,
 				 db->db_user, db->db_pass);
 	if(!(mysql_real_connect(mysql,db->db_host,db->db_user, db->db_pass,
 													db->db_name, 0,NULL,0))) {
@@ -674,7 +683,7 @@ myth_load_channels2(cmyth_database_t db)
 	}
 
 	res = mysql_store_result(mysql);
-	printf("** SSDEBUG: Number of rows retreived = %llu\n", res->row_count);
+	PRINTF("** SSDEBUG: Number of rows retreived = %llu\n", res->row_count);
 	/* Create a return structure that has room for all the records
 	 * retrieved knowing that some may be the same on multiple recorders
 	 */
@@ -691,7 +700,7 @@ myth_load_channels2(cmyth_database_t db)
 
 	while((row = mysql_fetch_row(res))) {
 		if(rtrn->chanlist_count == rtrn->chanlist_alloc) {
-			printf("** SSDEBUG: allocating more space with count = %d and alloc =%d\n",	rtrn->chanlist_count, rtrn->chanlist_alloc);
+			PRINTF("** SSDEBUG: allocating more space with count = %d and alloc =%d\n",	rtrn->chanlist_count, rtrn->chanlist_alloc);
 
 			rtrn->chanlist_list = (cmyth_channel_t)
 				cmyth_reallocate(rtrn->chanlist_list, sizeof(struct cmyth_channel)
@@ -723,7 +732,7 @@ myth_load_channels2(cmyth_database_t db)
 			rtrn->chanlist_count += 1;
 		}
 		/*
-		printf("** SSDEBUG: cardid for channel %d is %ld with count %d\n",
+		PRINTF("** SSDEBUG: cardid for channel %d is %ld with count %d\n",
 			rtrn->chanlist_list[rtrn->chanlist_count-1].channum,
 			rtrn->chanlist_list[rtrn->chanlist_count-1].cardids,
 			rtrn->chanlist_count-1);
