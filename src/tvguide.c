@@ -45,8 +45,8 @@
 #include "config.h"
 
 #if 0
-#define PRINTF(x...) printf(x)
-#define TRC(fmt, args...) printf(fmt, ## args) 
+#define PRINTF(x...) PRINTF(x)
+#define TRC(fmt, args...) PRINTF(fmt, ## args) 
 #else
 #define PRINTF(x...)
 #define TRC(fmt, args...) 
@@ -121,7 +121,7 @@ mvp_tvguide_video_topright(int on)
 		/*av_move(si.cols/2, 0, 3); */
 	} else {
 		/*
-		printf("av_move(0,0,0): %s [%s,%d]\n", __FUNCTION__, __FILE__, __LINE__);
+		PRINTF("av_move(0,0,0): %s [%s,%d]\n", __FUNCTION__, __FILE__, __LINE__);
 		*/
 		av_move(0, 0, 0);
 	}
@@ -143,7 +143,7 @@ mvp_tvguide_key_timer(mvp_widget_t * dummy)
 									 mythtv_livetv_description);
 
 	/*
-	printf("**SSDEBUG: key timeout with keys: %s\n", number_keys.keys);
+	PRINTF("**SSDEBUG: key timeout with keys: %s\n", number_keys.keys);
 	*/
 	number_keys.keys[0] = 0;
 	number_keys.key_ct = 0;
@@ -162,12 +162,12 @@ mvp_tvguide_callback(mvp_widget_t *widget, char key)
 			rtrn = 1;
 		break;
 		case MVPW_KEY_TV:
-			printf("In %s hiding guide %d \n", __FUNCTION__, key);
+			PRINTF("In %s hiding guide %d \n", __FUNCTION__, key);
 			rtrn = 0;
 		break;
 		case MVPW_KEY_EXIT:
 		case MVPW_KEY_STOP:
-			printf("**SSDEBUG: In %s hiding guide %d \n", __FUNCTION__, key);
+			PRINTF("**SSDEBUG: In %s hiding guide %d \n", __FUNCTION__, key);
 			showing_guide = 0;
 			tvguide_scroll_ofs_x = 0;
 			tvguide_scroll_ofs_y = 0;
@@ -182,7 +182,7 @@ mvp_tvguide_callback(mvp_widget_t *widget, char key)
 														tvguide_cur_chan_index, tvguide_scroll_ofs_x,
 														tvguide_scroll_ofs_y, tvguide_free_cardids);
 			rtrn = key == MVPW_KEY_STOP?0:1;
-			printf("**SSDEBUG: Guide hidden: %s hiding guide %d \n", __FUNCTION__, key);
+			PRINTF("**SSDEBUG: Guide hidden: %s hiding guide %d \n", __FUNCTION__, key);
 		break;
 			
 		case MVPW_KEY_PAUSE:
@@ -209,7 +209,7 @@ mvp_tvguide_callback(mvp_widget_t *widget, char key)
 			break;
 		case MVPW_KEY_ZERO ... MVPW_KEY_NINE:
 			/*
-			printf("In %s number key %d \n", __FUNCTION__, key);
+			PRINTF("In %s number key %d \n", __FUNCTION__, key);
 			*/
 			/* Use a timer to get up to 3 keys. */
 			if(number_keys.key_ct < 3) {
@@ -231,7 +231,7 @@ mvp_tvguide_callback(mvp_widget_t *widget, char key)
 			if(tvguide_scroll_ofs_x == 0) {
 				sprintf(buf, "%d",
 								get_tvguide_selected_channel(mythtv_livetv_program_list));
-				printf("** SSDEBUG: switching to channel: %s\n", buf);
+				PRINTF("** SSDEBUG: switching to channel: %s\n", buf);
 				mythtv_channel_set(buf);
 				tvguide_cur_chan_index =
 				myth_get_chan_index(tvguide_chanlist, current_prog);
@@ -283,13 +283,13 @@ mvp_tvguide_callback(mvp_widget_t *widget, char key)
 			break;
 /*
 		case MVPW_KEY_RED:
-		        printf("Showing 4x3 widget\n");
+		        PRINTF("Showing 4x3 widget\n");
 			mvpw_hide(wss_16_9_image);
 			mvpw_show(wss_4_3_image);
 		        break;
 
 		case MVPW_KEY_GREEN:
-		        printf("Showing 16x9 widget\n");
+		        PRINTF("Showing 16x9 widget\n");
 			mvpw_hide(wss_4_3_image);
 			mvpw_show(wss_16_9_image);
 		        break;
@@ -313,13 +313,13 @@ void scroll_callback(mvp_widget_t *widget, int direction)
 	switch(direction) {
 		case MVPW_ARRAY_LEFT:
 			/*
-			printf("** SSDEBUG: scroll to the %s requested\n", "Left");
+			PRINTF("** SSDEBUG: scroll to the %s requested\n", "Left");
 			*/
 			tvguide_scroll_ofs_x += 1;
 		break;
 		case MVPW_ARRAY_RIGHT:
 			/*
-			printf("** SSDEBUG: scroll to the %s requested\n", "Right");
+			PRINTF("** SSDEBUG: scroll to the %s requested\n", "Right");
 			*/
 			if(tvguide_scroll_ofs_x > 0)
 				tvguide_scroll_ofs_x -= 1;
@@ -328,25 +328,25 @@ void scroll_callback(mvp_widget_t *widget, int direction)
 		break;
 		case MVPW_ARRAY_UP:
 			/*
-			printf("** SSDEBUG: scroll to the %s requested\n", "Up");
+			PRINTF("** SSDEBUG: scroll to the %s requested\n", "Up");
 			*/
 			tvguide_scroll_ofs_y -= 1;
 		break;
 		case MVPW_ARRAY_DOWN:
 			/*
-			printf("** SSDEBUG: scroll to the %s requested\n", "Down");
+			PRINTF("** SSDEBUG: scroll to the %s requested\n", "Down");
 			*/
 			tvguide_scroll_ofs_y += 1;
 		break;
 		case MVPW_ARRAY_PAGE_UP:
 			/*
-			printf("** SSDEBUG: scroll to the %s requested\n", "Up");
+			PRINTF("** SSDEBUG: scroll to the %s requested\n", "Up");
 			*/
 			tvguide_scroll_ofs_y -= 4;
 		break;
 		case MVPW_ARRAY_PAGE_DOWN:
 			/*
-			printf("** SSDEBUG: scroll to the %s requested\n", "Down");
+			PRINTF("** SSDEBUG: scroll to the %s requested\n", "Down");
 			*/
 			tvguide_scroll_ofs_y += 4;
 		break;
@@ -429,7 +429,7 @@ mvp_tvguide_timer(mvp_widget_t * widget)
 	static int tvguide_cur_time = -1;
 
 	/*
-	printf("** SSDEBUG: %s called in %s, on line %d\n", __FUNCTION__, __FILE__,
+	PRINTF("** SSDEBUG: %s called in %s, on line %d\n", __FUNCTION__, __FILE__,
 				 __LINE__);
 	*/
 
@@ -447,7 +447,7 @@ mvp_tvguide_timer(mvp_widget_t * widget)
 		tvguide_cur_chan_index =
 						myth_get_chan_index(tvguide_chanlist, current_prog);
 		/*
-		printf("** SSDEBUG: current channel index is: %d\n",
+		PRINTF("** SSDEBUG: current channel index is: %d\n",
 						tvguide_cur_chan_index);
 		*/
  		tvguide_cur_time = 1;
@@ -462,7 +462,7 @@ mvp_tvguide_timer(mvp_widget_t * widget)
 	tvguide_free_cardids |= myth_tvguide_get_active_card(mythtv_recorder);
 
 	/*
-	printf("** SSDEBUG: bitmap of usable recorders %ld\n",tvguide_free_cardids);
+	PRINTF("** SSDEBUG: bitmap of usable recorders %ld\n",tvguide_free_cardids);
 	*/
 
 	/* Set the times in the guide and possibly the entire body if the
@@ -491,7 +491,7 @@ mvp_tvguide_start(void)
 	pthread_mutex_lock(&myth_mutex);
 	int rtrn = 0;
 
-	printf("** SSDEBUG: loading channels\n");
+	PRINTF("** SSDEBUG: loading channels\n");
 	/* Load the entire list of channels available on all recorders 		*/
 	/* combine all identical entries with a list of recorders for each */
 	/* and create from scratch so free if it exists */
@@ -502,7 +502,7 @@ mvp_tvguide_start(void)
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s loading channels failed\n", __FUNCTION__);
 		rtrn = -1;
 	}
-	printf("** SSDEBUG: channels loaded\n");
+	PRINTF("** SSDEBUG: channels loaded\n");
 	pthread_mutex_unlock(&myth_mutex);
 
 	/* Schedule periodic updates of the tv guide the current simple
@@ -512,7 +512,7 @@ mvp_tvguide_start(void)
 		mvp_tvguide_timer(mythtv_livetv_program_list);
 	 */
 	mvpw_set_timer(mythtv_livetv_program_list, mvp_tvguide_timer, 100);
-	printf("** SSDEBUG: timer started\n");
+	PRINTF("** SSDEBUG: timer started\n");
 
 
 	return 0;

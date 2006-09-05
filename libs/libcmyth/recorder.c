@@ -36,6 +36,14 @@
 #include <cmyth.h>
 #include <cmyth_local.h>
 
+#if 0
+#define PRINTF(x...) PRINTF(x)
+#define TRC(fmt, args...) PRINTF(fmt, ## args) 
+#else
+#define PRINTF(x...)
+#define TRC(fmt, args...) 
+#endif
+
 /*
  * cmyth_recorder_destroy(cmyth_recorder_t rec)
  * 
@@ -492,7 +500,7 @@ cmyth_recorder_pause(cmyth_recorder_t rec)
 
 	pthread_mutex_lock(&mutex);
 
-	fprintf(stderr, "** SSDEBUG: trying to pause recorder:%p:%p\n",rec,rec->rec_conn);
+	PRINTF("** SSDEBUG: trying to pause recorder:%p:%p\n",rec,rec->rec_conn);
 	sprintf(Buffer, "QUERY_RECORDER %ld[]:[]PAUSE", (long) rec->rec_id);
 	if ((ret=cmyth_send_message(rec->rec_conn, Buffer)) < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
@@ -510,7 +518,7 @@ cmyth_recorder_pause(cmyth_recorder_t rec)
 	ret = 0;
 
     err:
-	fprintf(stderr, "** SSDEBUG: recorder paused:\n");
+	PRINTF("** SSDEBUG: recorder paused:\n");
 	pthread_mutex_unlock(&mutex);
 
 	return ret;

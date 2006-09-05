@@ -34,15 +34,22 @@
 #include <cmyth_local.h>
 #include <string.h>
 
+#if 0
+#define PRINTF(x...) PRINTF(x)
+#define TRC(fmt, args...) PRINTF(fmt, ## args) 
+#else
+#define PRINTF(x...)
+#define TRC(fmt, args...) 
+#endif
+
+#define LAST 0x7FFFFFFF
+
 static int cmyth_livetv_chain_has_url(cmyth_recorder_t rec, char * url);
 static int cmyth_livetv_chain_add_file(cmyth_recorder_t rec,
                                        char * url, cmyth_file_t fp);
 static int cmyth_livetv_chain_add_url(cmyth_recorder_t rec, char * url);
 static int cmyth_livetv_chain_add(cmyth_recorder_t rec, char * url,
                                   cmyth_file_t fp, cmyth_proginfo_t prog);
-
-
-#define LAST 0x7FFFFFFF
 
 
 /*
@@ -777,7 +784,7 @@ cmyth_livetv_chain_switch(cmyth_recorder_t rec, int dir)
 	ret = 0;
 
 	if(dir == LAST) {
-		fprintf(stderr, "**SSDEBUG:(cmyth_livetv_chain_switch) dir: %d\n", dir);
+		PRINTF("**SSDEBUG:(cmyth_livetv_chain_switch) dir: %d\n", dir);
 		dir = rec->rec_livetv_chain->chain_ct
 				- rec->rec_livetv_chain->chain_current - 1;
 	}
@@ -787,7 +794,7 @@ cmyth_livetv_chain_switch(cmyth_recorder_t rec, int dir)
 			  rec->rec_livetv_chain->chain_ct - dir )) {
 		cmyth_release(rec->rec_livetv_file);
 		ret = rec->rec_livetv_chain->chain_current += dir;
-		fprintf(stderr, "**SSDEBUG:(cmyth_livetv_chain_switch): %s:%d\n",
+		PRINTF("**SSDEBUG:(cmyth_livetv_chain_switch): %s:%d\n",
 		"dooingSwitcheroo",ret);
 		rec->rec_livetv_file = cmyth_hold(rec->rec_livetv_chain->chain_files[ret]);
 		rec->rec_livetv_chain
@@ -807,7 +814,7 @@ cmyth_livetv_chain_switch_last(cmyth_recorder_t rec)
 	pthread_mutex_lock(&mutex);
 	dir = rec->rec_livetv_chain->chain_ct
 			- rec->rec_livetv_chain->chain_current - 1;
-	printf("#@@@@#SSDEBUG: switch file changing adjusted dir: %d\n", dir);
+	PRINTF("#@@@@#SSDEBUG: switch file changing adjusted dir: %d\n", dir);
 	if(dir != 0) {
 		cmyth_livetv_chain_switch(rec, dir);
 	}
@@ -879,7 +886,7 @@ cmyth_livetv_request_block(cmyth_recorder_t rec, unsigned long len)
 
 		if(c == 0) { /* We've gotten to the end, need to progress in the chain */
 			/* Switch if there are files left in the chain */
-			fprintf(stderr, "**SSDEBUG:(cmyth_livetv_request_block): %s\n",
+			PRINTF("**SSDEBUG:(cmyth_livetv_request_block): %s\n",
 			"reached end of stream must dooSwitcheroo");
 			retry = cmyth_livetv_chain_switch(rec, 1);
 		}
@@ -955,7 +962,7 @@ cmyth_livetv_seek(cmyth_recorder_t rec, long long offset, int whence)
 		 	(long)(fp->file_pos >> 32),
 		 	(long)(fp->file_pos & 0xffffffff));
 	
-		printf("** SSDEBUG: offset %lld issuing seek command: %s\n", offset, msg);
+		PRINTF("** SSDEBUG: offset %lld issuing seek command: %s\n", offset, msg);
 
 		if ((err = cmyth_send_message(rec->rec_conn, msg)) < 0) {
 			cmyth_dbg(CMYTH_DBG_ERROR,
@@ -974,7 +981,7 @@ cmyth_livetv_seek(cmyth_recorder_t rec, long long offset, int whence)
 			goto out;
 		}
 
-		printf("** SSDEBUG: new pos %lld after seek command\n", c);
+		PRINTF("** SSDEBUG: new pos %lld after seek command\n", c);
 
 		/* Check if the seek failed. If so, see if we can go to */
 		/* the previous or next file depending on the direction */
