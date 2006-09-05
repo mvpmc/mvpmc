@@ -1,6 +1,6 @@
 /*
- *  Copyright (C) 2004, Eric Lund
- *  http://mvpmc.sourceforge.net/
+ *  Copyright (C) 2004-2006, Eric Lund, Jon Gettler
+ *  http://www.mvpmc.org/
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -16,7 +16,6 @@
  *  License along with this library; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-#ident "$Id$"
 
 /*
  * recorder.c -   functions to handle operations on MythTV recorders.  A
@@ -843,6 +842,7 @@ cmyth_recorder_change_hue(cmyth_recorder_t rec, cmyth_adjdir_t direction)
  *
  * Return Value:
  *
+ * Check the validity of a channel name.
  * Success: 1 - valid channel, 0 - invalid channel
  *
  * Failure: -(ERRNO)
@@ -914,7 +914,7 @@ cmyth_recorder_check_channel_prefix(cmyth_recorder_t rec, char *channame)
 }
 
 /*
- * cmyth_recorder_get_program_info(cmyth_recorder_t rec, int protocol_version)
+ * cmyth_recorder_get_program_info(cmyth_recorder_t rec)
  *
  * Scope: PRIVATE (static)
  *
@@ -934,7 +934,7 @@ cmyth_recorder_check_channel_prefix(cmyth_recorder_t rec, char *channame)
  * Failure: -(ERRNO)
  */
 static cmyth_proginfo_t
-cmyth_recorder_get_program_info(cmyth_recorder_t rec, int protocol_version)
+cmyth_recorder_get_program_info(cmyth_recorder_t rec)
 {
 	int err, count, ct;
 	char msg[256];
@@ -954,7 +954,7 @@ cmyth_recorder_get_program_info(cmyth_recorder_t rec, int protocol_version)
 	}
 	pthread_mutex_lock(&mutex);
 
-	if(protocol_version >= 26)
+	if(rec->rec_conn->conn_version >= 26)
 		snprintf(msg, sizeof(msg), "QUERY_RECORDER %d[]:[]GET_CURRENT_RECORDING",
 		 	rec->rec_id);
 	else
@@ -972,7 +972,7 @@ cmyth_recorder_get_program_info(cmyth_recorder_t rec, int protocol_version)
 
 	count = cmyth_rcv_length(rec->rec_conn);
 
-	if(protocol_version >= 26)
+	if(rec->rec_conn->conn_version >= 26)
 		ct = cmyth_rcv_proginfo(rec->rec_conn, &err, proginfo, count);
 	else
 		ct = cmyth_rcv_chaninfo(rec->rec_conn, &err, proginfo, count);
@@ -1010,7 +1010,7 @@ cmyth_recorder_get_program_info(cmyth_recorder_t rec, int protocol_version)
  *
  */
 cmyth_proginfo_t
-cmyth_recorder_get_cur_proginfo(cmyth_recorder_t rec, int protocol_version)
+cmyth_recorder_get_cur_proginfo(cmyth_recorder_t rec)
 {
 	cmyth_proginfo_t ret;
 
@@ -1019,7 +1019,7 @@ cmyth_recorder_get_cur_proginfo(cmyth_recorder_t rec, int protocol_version)
 			  __FUNCTION__, rec);
 		return NULL;
 	}
-	if ((ret = cmyth_recorder_get_program_info(rec, protocol_version)) == NULL) {
+	if ((ret = cmyth_recorder_get_program_info(rec)) == NULL) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_recorder_get_program_info() failed\n",
 			  __FUNCTION__);
@@ -1540,7 +1540,7 @@ cmyth_recorder_end_stream(cmyth_recorder_t rec)
 }
 
 char*
-cmyth_recorder_get_filename(cmyth_recorder_t rec, int protocol_version)
+cmyth_recorder_get_filename(cmyth_recorder_t rec)
 {
 	char buf[256], *ret;
 
@@ -1550,7 +1550,7 @@ cmyth_recorder_get_filename(cmyth_recorder_t rec, int protocol_version)
 		return NULL;
 	}
 
-	if(protocol_version >= 26) 
+	if(rec->rec_conn->conn_version >= 26) 
 		snprintf(buf, sizeof(buf), "%s",
 			rec->rec_livetv_chain->chain_urls[rec->rec_livetv_chain->chain_current]);
 	else

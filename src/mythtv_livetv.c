@@ -218,7 +218,7 @@ mythtv_new_livetv_start(cmyth_recorder_t rec)
 		}
  
 		if ((rec = cmyth_livetv_chain_setup(rec, mythtv_tcp_program,
-							prog_update_callback, protocol_version)) == NULL) {
+							prog_update_callback)) == NULL) {
 			msg = "Failed to setup livetv.";
 			goto err;
 		}
@@ -260,7 +260,7 @@ mythtv_new_livetv_start(cmyth_recorder_t rec)
 	fprintf(stderr, "recorder framerate is %5.2f\n", rate);
 
 
-	rb_file = (char *) cmyth_recorder_get_filename(rec, protocol_version);
+	rb_file = (char *) cmyth_recorder_get_filename(rec);
 	/*
 	 * Change current.  The thing about 'current' is that it is a
 	 * global that is not allocated as reference counted and it is
@@ -287,7 +287,7 @@ mythtv_new_livetv_start(cmyth_recorder_t rec)
 	// get the information about the current programme
 	// we assume last used structure is cleared already...
 	//
-	loc_prog = cmyth_recorder_get_cur_proginfo(rec, protocol_version);
+	loc_prog = cmyth_recorder_get_cur_proginfo(rec);
 	printf("** SSDEBUG: the loc_prog is: %p\n", loc_prog);
 	CHANGE_GLOBAL_REF(current_prog, loc_prog);
 	cmyth_release(loc_prog);
@@ -463,7 +463,7 @@ mythtv_livetv_start(int *tuner)
 		}
  
 		if ((rec = cmyth_livetv_chain_setup(rec, mythtv_tcp_program,
-					prog_update_callback, protocol_version)) == NULL) {
+					prog_update_callback)) == NULL) {
 			msg = "Failed to setup livetv.";
 			goto err;
 		}
@@ -504,7 +504,7 @@ mythtv_livetv_start(int *tuner)
 
 	fprintf(stderr, "recorder framerate is %5.2f\n", rate);
 
-	rb_file = (char *) cmyth_recorder_get_filename(rec, protocol_version);
+	rb_file = (char *) cmyth_recorder_get_filename(rec);
 	/*
 	 * Change current.  The thing about 'current' is that it is a
 	 * global that is not allocated as reference counted and it is
@@ -531,7 +531,7 @@ mythtv_livetv_start(int *tuner)
 	// get the information about the current programme
 	// we assume last used structure is cleared already...
 	//
-	loc_prog = cmyth_recorder_get_cur_proginfo(rec, protocol_version);
+	loc_prog = cmyth_recorder_get_cur_proginfo(rec);
 	CHANGE_GLOBAL_REF(current_prog, loc_prog);
 	cmyth_release(loc_prog);
 
@@ -691,7 +691,7 @@ int __change_channel(direction)
 		sleep(6);
 	}
 
-	loc_prog = cmyth_recorder_get_cur_proginfo(rec, protocol_version);
+	loc_prog = cmyth_recorder_get_cur_proginfo(rec);
 	CHANGE_GLOBAL_REF(current_prog, loc_prog);
 	cmyth_release(loc_prog);
 
@@ -809,7 +809,7 @@ mythtv_channel_set(char * channame)
 		sleep(6);
 	}
 
-	loc_prog = cmyth_recorder_get_cur_proginfo(rec, protocol_version);
+	loc_prog = cmyth_recorder_get_cur_proginfo(rec);
 	CHANGE_GLOBAL_REF(current_prog, loc_prog);
 	cmyth_release(loc_prog);
 
@@ -966,7 +966,7 @@ livetv_select_callback(mvp_widget_t *widget, char *item, void *key)
 		goto unlock;
 	}
 
-	loc_prog = cmyth_recorder_get_cur_proginfo(rec, protocol_version);
+	loc_prog = cmyth_recorder_get_cur_proginfo(rec);
 	CHANGE_GLOBAL_REF(current_prog, loc_prog);
 	cmyth_release(loc_prog);
 
@@ -1080,7 +1080,7 @@ get_livetv_programs_rec(int id, struct livetv_prog **list, int *n, int *p)
 	if (cmyth_recorder_is_recording(rec) == 1)
 		busy = 1;
 
-	cur = cmyth_recorder_get_cur_proginfo(rec, protocol_version);
+	cur = cmyth_recorder_get_cur_proginfo(rec);
 	if(protocol_version >= 26)
 		cur = cmyth_recorder_get_next_proginfo(rec, cur, 1);
 	if (cur == NULL) {
@@ -1487,7 +1487,7 @@ mythtv_livetv_select(int which)
 			goto err;
 		}
 
-		loc_prog = cmyth_recorder_get_cur_proginfo(rec, protocol_version);
+		loc_prog = cmyth_recorder_get_cur_proginfo(rec);
 		CHANGE_GLOBAL_REF(current_prog, loc_prog);
 		cmyth_release(loc_prog);
 

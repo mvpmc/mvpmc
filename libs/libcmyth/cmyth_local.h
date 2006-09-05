@@ -43,12 +43,10 @@ extern pthread_mutex_t mutex;
 #define CMYTH_TIMESTAMP_LEN (sizeof("YYYY-MM-DDTHH:MM:SS") - 1)
 #define CMYTH_DATESTAMP_LEN (sizeof("YYYY-MM-DD") - 1)
 
-/*
- * Atomic operations for reference counts.  For now, these are not
- * atomic, since I need to put together the assembly code to do that
- * so the reference counts are not really thread safe, but this will
- * lay the groundwork.  These should be good enough for most uses, but
- * I do want to make them really atomic, at least on PPC and X86.
+/**
+ * Atomically incremente a reference count variable.
+ * \param ref address of atomic variable
+ * \return incremented reference count
  */
 typedef	unsigned cmyth_atomic_t;
 static inline unsigned
@@ -91,6 +89,11 @@ __cmyth_atomic_increment(cmyth_atomic_t *ref)
 	return __val;
 }
 
+/**
+ * Atomically decrement a reference count variable.
+ * \param ref address of atomic variable
+ * \return incremented reference count
+ */
 static inline unsigned
 __cmyth_atomic_decrement(cmyth_atomic_t *ref)
 {
@@ -162,18 +165,18 @@ static inline void cmyth_atomic_set(cmyth_atomic_t *a, unsigned val) {
 	*a = val;
 };
 
-/*
- * Data structures
+/**
+ * MythTV backend connection
  */
 struct cmyth_conn {
-	int	conn_fd;
-	unsigned char *conn_buf;
-	int conn_buflen;
-	int conn_len;
-	int conn_pos;
-	unsigned long conn_version;
-	volatile int conn_hang;
-	int conn_tcp_rcvbuf;
+	int		conn_fd;	/**< socket file descriptor */
+	unsigned char	*conn_buf;	/**< connection buffer */
+	int		conn_buflen;	/**< buffer size */
+	int		conn_len;	/**< amount of data in buffer */
+	int		conn_pos;	/**< current position in buffer */
+	unsigned long	conn_version;	/**< protocol version */
+	volatile int	conn_hang;	/**< is connection stuck? */
+	int		conn_tcp_rcvbuf;/**< TCP receive buffer size */
 };
 
 /* Sergio: Added to support new livetv protocol */
@@ -250,13 +253,16 @@ struct cmyth_recorder {
 	double rec_framerate;
 };
 
+/**
+ * MythTV file connection
+ */
 struct cmyth_file {
-	cmyth_conn_t file_data;
-	long file_id;
-	unsigned long long file_start;
-	unsigned long long file_length;
-	unsigned long long file_pos;
-	cmyth_conn_t file_control;
+	cmyth_conn_t file_data;		/**< backend connection */
+	long file_id;			/**< file identifier */
+	unsigned long long file_start;	/**< file start offest */
+	unsigned long long file_length;	/**< file length */
+	unsigned long long file_pos;	/**< current file position */
+	cmyth_conn_t file_control;	/**< master backend connection */
 };
 
 struct cmyth_ringbuf {

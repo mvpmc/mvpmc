@@ -370,6 +370,14 @@ extern int cmyth_conn_get_protocol_version(cmyth_conn_t conn);
  * Event Operations
  * -----------------------------------------------------------------
  */
+
+/**
+ * Retrieve an event from a backend.
+ * \param conn connection handle
+ * \param[out] data data, if the event returns any
+ * \param len size of data buffer
+ * \return event type
+ */
 extern cmyth_event_t cmyth_event_get(cmyth_conn_t conn, char * data, int len);
 
 /*
@@ -377,12 +385,36 @@ extern cmyth_event_t cmyth_event_get(cmyth_conn_t conn, char * data, int len);
  * Recorder Operations
  * -----------------------------------------------------------------
  */
+
+/**
+ * Create a new recorder.
+ * \return recorder handle
+ */
 extern cmyth_recorder_t cmyth_recorder_create(void);
 
+/**
+ * Duplicaate a recorder.
+ * \param p recorder handle
+ * \return duplicated recorder handle
+ */
 extern cmyth_recorder_t cmyth_recorder_dup(cmyth_recorder_t p);
 
+/**
+ * Determine if a recorder is in use.
+ * \param rec recorder handle
+ * \retval 0 not recording
+ * \retval 1 recording
+ * \retval <0 error
+ */
 extern int cmyth_recorder_is_recording(cmyth_recorder_t rec);
 
+/**
+ * Determine the framerate for a recorder.
+ * \param rec recorder handle
+ * \param[out] rate framerate
+ * \retval 0 success
+ * \retval <0 error
+ */
 extern int cmyth_recorder_get_framerate(cmyth_recorder_t rec,
 					double *rate);
 
@@ -405,17 +437,35 @@ extern int cmyth_recorder_frontend_ready(cmyth_recorder_t rec);
 
 extern int cmyth_recorder_cancel_next_recording(cmyth_recorder_t rec);
 
+/**
+ * Request that the recorder stop transmitting data.
+ * \param rec recorder handle
+ * \retval 0 success
+ * \retval <0 error
+ */
 extern int cmyth_recorder_pause(cmyth_recorder_t rec);
 
 extern int cmyth_recorder_finish_recording(cmyth_recorder_t rec);
 
 extern int cmyth_recorder_toggle_channel_favorite(cmyth_recorder_t rec);
 
-extern int cmyth_recorder_toggle_channel_favorite(cmyth_recorder_t rec);
-
+/**
+ * Request that the recorder change the channel being recorded.
+ * \param rec recorder handle
+ * \param direction direction in which to change channel
+ * \retval 0 success
+ * \retval <0 error
+ */
 extern int cmyth_recorder_change_channel(cmyth_recorder_t rec,
 					 cmyth_channeldir_t direction);
 
+/**
+ * Set the channel for a recorder.
+ * \param rec recorder handle
+ * \param channame channel name to change to
+ * \retval 0 success
+ * \retval <0 error
+ */
 extern int cmyth_recorder_set_channel(cmyth_recorder_t rec,
 				      char *channame);
 
@@ -437,9 +487,21 @@ extern int cmyth_recorder_check_channel(cmyth_recorder_t rec,
 extern int cmyth_recorder_check_channel_prefix(cmyth_recorder_t rec,
 					       char *channame);
 
-extern cmyth_proginfo_t cmyth_recorder_get_cur_proginfo(cmyth_recorder_t rec,
-				int protocol_version);
+/**
+ * Request the current program info for a recorder.
+ * \param rec recorder handle
+ * \return program info handle
+ */
+extern cmyth_proginfo_t cmyth_recorder_get_cur_proginfo(cmyth_recorder_t rec);
 
+/**
+ * Request the next program info for a recorder.
+ * \param rec recorder handle
+ * \param current current program
+ * \param direction direction of next program
+ * \retval 0 success
+ * \retval <0 error
+ */
 extern cmyth_proginfo_t cmyth_recorder_get_next_proginfo(
 	cmyth_recorder_t rec,
 	cmyth_proginfo_t curent,
@@ -461,8 +523,7 @@ extern int cmyth_recorder_spawn_livetv(cmyth_recorder_t rec);
 extern int cmyth_recorder_start_stream(cmyth_recorder_t rec);
 
 extern int cmyth_recorder_end_stream(cmyth_recorder_t rec);
-extern char*cmyth_recorder_get_filename(cmyth_recorder_t rec,
-																				int protocol_version);
+extern char*cmyth_recorder_get_filename(cmyth_recorder_t rec);
 extern int cmyth_recorder_stop_livetv(cmyth_recorder_t rec);
 extern int cmyth_recorder_done_ringbuf(cmyth_recorder_t rec);
 extern int cmyth_recorder_get_recorder_id(cmyth_recorder_t rec);
@@ -485,8 +546,8 @@ extern int cmyth_livetv_chain_update(cmyth_recorder_t rec, char * chainid,
 						int tcp_rcvbuf);
 
 extern cmyth_recorder_t cmyth_livetv_chain_setup(cmyth_recorder_t old_rec,
-						int tcp_rcvbuf, void (*prog_update_callback)(cmyth_proginfo_t),
-						int protocol_version);
+						 int tcp_rcvbuf,
+						 void (*prog_update_callback)(cmyth_proginfo_t));
 
 extern int cmyth_livetv_get_block(cmyth_recorder_t rec, char *buf,
                                   unsigned long len);
