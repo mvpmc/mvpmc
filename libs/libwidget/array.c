@@ -375,6 +375,12 @@ void
 mvpw_set_array_row(mvp_widget_t *widget, int which, char * string,
 	mvpw_text_attr_t * attr)
 {
+
+	if(which>widget->data.array.cols) {
+		PRINTF("** SSDEBUG: ERROR %s index out of range (%d).\n",
+		__FUNCTION__, which);
+		return;
+	}
 	if(widget->data.array.row_labels[which]) {
 		if(string)
 			mvpw_set_text_str(widget->data.array.row_labels[which], string);
@@ -387,6 +393,12 @@ mvpw_set_array_row(mvp_widget_t *widget, int which, char * string,
 void
 mvpw_set_array_row_bg(mvp_widget_t *widget, int which, uint32_t bg)
 {
+
+	if(which>widget->data.array.cols) {
+		PRINTF("** SSDEBUG: ERROR %s index out of range (%d).\n",
+		__FUNCTION__, which);
+		return;
+	}
 	mvpw_text_attr_t ta;
 	if(widget->data.array.row_labels[which]) {
 		mvpw_get_text_attr(widget->data.array.row_labels[which], &ta);
@@ -404,6 +416,12 @@ void
 mvpw_set_array_col(mvp_widget_t *widget, int which, char * string,
 	mvpw_text_attr_t * attr)
 {
+
+	if(which>widget->data.array.cols) {
+		PRINTF("** SSDEBUG: ERROR %s index out of range (%d).\n",
+		__FUNCTION__, which);
+		return;
+	}
 	if(widget->data.array.col_labels[which]) {
 		if(string)
 			mvpw_set_text_str(widget->data.array.col_labels[which], string);
@@ -418,6 +436,12 @@ mvpw_set_array_cell(mvp_widget_t *widget, int x, int y, char * string,
 	mvpw_text_attr_t * attr)
 {
 	int i;
+
+	if(x>widget->data.array.cols || y>widget->data.array.rows) {
+		PRINTF("** SSDEBUG: ERROR %s indexes out of range (%d,%d).\n",
+		__FUNCTION__, x, y);
+		return;
+	}
 	i = widget->data.array.cols * y + x;
 	if(widget->data.array.cells[i]) {
 		if(string)
@@ -432,6 +456,12 @@ void
 mvpw_set_array_cell_data(mvp_widget_t *widget, int x, int y, void * data)
 {
 	int i;
+
+	if(x>widget->data.array.cols || y>widget->data.array.rows) {
+		PRINTF("** SSDEBUG: ERROR %s indexes out of range (%d,%d).\n",
+		__FUNCTION__, x, y);
+		return;
+	}
 	i = widget->data.array.cols * y + x;
 	if(widget->data.array.cells[i])
 		if(widget->data.array.cell_data)
@@ -444,6 +474,11 @@ mvpw_get_array_cell_data(mvp_widget_t *widget, int x, int y)
 	int i;
 	void * rtrn = NULL;
 
+	if(x>widget->data.array.cols || y>widget->data.array.rows) {
+		PRINTF("** SSDEBUG: ERROR %s indexes out of range (%d,%d).\n",
+		__FUNCTION__, x, y);
+		return rtrn;
+	}
 	i = widget->data.array.cols * y + x;
 	if(widget->data.array.cells[i])
 		if(widget->data.array.cell_data)
@@ -487,6 +522,11 @@ mvpw_set_array_cell_span(mvp_widget_t * widget, int x, int y, int span)
 {
 	int i = widget->data.array.cols * y + x;
 
+	if(x>widget->data.array.cols || y>widget->data.array.rows) {
+		PRINTF("** SSDEBUG: ERROR %s indexes out of range (%d,%d).\n",
+		__FUNCTION__, x, y);
+		return;
+	}
 	mvpw_resize(widget->data.array.cells[i], widget->data.array.cell_width*span,
 							widget->data.array.cell_height);
 	switch(span) {

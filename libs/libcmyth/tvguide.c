@@ -211,7 +211,7 @@ get_guide_mysql2(MYSQL *mysql, cmyth_chanlist_t chanlist,
 	char endtime[25];
 	char channels[50];
 	int rows = 0, idxs[4], idx=0; 
-	long ch;
+	long ch=0;
 
 
 	strftime(starttime, 25, "%F %T", start_time);
@@ -257,6 +257,7 @@ get_guide_mysql2(MYSQL *mysql, cmyth_chanlist_t chanlist,
 
 	
 	PRINTF("** SSDEBUG: got %llu rows from query\n", res->row_count);
+#if 0
 	if(!proglist->progs) {
 		proglist->progs =
 			cmyth_allocate(sizeof(struct cmyth_tvguide_program) * res->row_count);
@@ -272,8 +273,8 @@ get_guide_mysql2(MYSQL *mysql, cmyth_chanlist_t chanlist,
 			PRINTF("** SSDEBUG: reallocated %llu items\n",
 							res->row_count+proglist->count);
 		}
-		rows = proglist->count;
 	}
+#endif
 	/*
 	 * Need to do some special handling on the query results. Sometimes
 	 * no data exists for certain channels as a result of the query
@@ -281,21 +282,27 @@ get_guide_mysql2(MYSQL *mysql, cmyth_chanlist_t chanlist,
 	 * are a series of 10 min shows in a 30 min period so there may
 	 * be more than one so only the first one should be used.
 	 */
-	while((row = mysql_fetch_row(res))) {
+	rows = proglist->count;
+	for(idx=0;idx<4;idx++) {
 
-		ch = atol(row[0]);
-		proglist->progs[rows].channum = get_chan_num(ch, chanlist);
+		row = mysql_fetch_row(res);
+
+		if(row) {
+			ch = atol(row[0]);
+			proglist->progs[rows].channum = get_chan_num(ch, chanlist);
+		}
 		
-		if(ch != chanlist->chanlist_list[idxs[idx]].chanid) {
-			if(idx > 0 && ch == chanlist->chanlist_list[idxs[idx-1]].chanid) {
+		if(!row || ch != chanlist->chanlist_list[idxs[idx]].chanid) {
+			if(row && idx > 0 && ch == chanlist->chanlist_list[idxs[idx-1]].chanid) {
 				PRINTF("** SSDEBUG: Discarding entry with same chanid in same slot\n");
+				idx--;
 				continue; /* Additional entries in this slot, just ignore */
 			}
 			else { /* No programming info, create an empty entry */
 				PRINTF("** SSDEBUG: no program info on channel id: %d between %s, %s\n",
 				idxs[idx], starttime, endtime);
 				proglist->progs[rows].channum = get_chan_num(idxs[idx], chanlist);
-				proglist->progs[rows].chanid=idxs[idx];
+				proglist->progs[rows].chanid=chanlist->chanlist_list[idxs[idx]].chanid;
 				proglist->progs[rows].recording=0;
 				strncpy ( proglist->progs[rows].starttime, starttime, 25);
 				strncpy ( proglist->progs[rows].endtime, endtime, 25);
@@ -329,7 +336,6 @@ get_guide_mysql2(MYSQL *mysql, cmyth_chanlist_t chanlist,
 								proglist->progs[rows].title);
 		}
 		rows++;
-		idx++;
 	}
 	proglist->count = rows;
   mysql_free_result(res);
@@ -427,7 +433,8 @@ myth_load_guide(void * widget, cmyth_database_t db,
 	 */
 	if(!proglist) {
 		proglist = (cmyth_tvguide_progs_t) cmyth_allocate(sizeof(*proglist));
-		proglist->progs = NULL;
+		proglist->progs =
+			cmyth_allocate(sizeof(struct cmyth_tvguide_program) * 3 * 4);
 		proglist->count = 0;
 		proglist->alloc = 0;
 	}
