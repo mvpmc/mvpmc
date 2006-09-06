@@ -1585,6 +1585,9 @@ event_start(void *arg)
 			printf("MythTV event %s\n",buf);
 			mythtv_livetv_chain_update(buf);
 			break;
+		case CMYTH_EVENT_SIGNAL:
+			printf("MythTV event SIGNAL\n");
+			break;
 		}
 	}
 

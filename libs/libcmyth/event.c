@@ -66,6 +66,18 @@ cmyth_event_get(cmyth_conn_t conn, char * data, int len)
   } else if (strncmp(tmp, "LIVETV_CHAIN UPDATE", 19) == 0) {
 		event = CMYTH_EVENT_LIVETV_CHAIN_UPDATE;
 		strncpy(data,tmp,len);
+	} else if (strncmp(tmp, "SIGNAL", 6) == 0) { 
+		event = CMYTH_EVENT_SIGNAL; 
+		/* get slock, signal, seen_pat, matching_pat */ 
+		while (count > 0) { 
+			/* get signalmonitorvalue name */ 
+			consumed = cmyth_rcv_string(conn, &err, tmp, sizeof(tmp) - 1, count); 
+			count -= consumed; 
+
+			/* get signalmonitorvalue status */ 
+			consumed = cmyth_rcv_string(conn, &err, tmp, sizeof(tmp) - 1, count); 
+			count -= consumed; 
+		}
 	} else {
 		printf("unknown mythtv BACKEND_MESSAGE '%s'\n", tmp);
 		cmyth_dbg(CMYTH_DBG_ERROR,
