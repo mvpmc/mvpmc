@@ -877,6 +877,12 @@ int rtv_discover(unsigned int timeout_ms, rtv_device_list_t **device_list)
       return(-EALREADY);
    }
 
+   // sleep for 100mS here to make sure any 'non-replaytv' code that 
+   // has been using port '80' has time to free it.
+   // Specifically the mvpmc www_mvpmc_start() code.
+   //
+   usleep(100 * 1000);
+
    if ( timeout_ms == 0 ) {
       // Use the timeout stored in the rtv_globals structure
       //
@@ -927,10 +933,9 @@ int rtv_halt_discovery_server(void)
       return(0);
    } 
    rtv_send_ssdp_byebye();
-   usleep(500000);
+   usleep(500 * 1000); //500mS
    pthread_kill(server_thread_id, SIGUSR2);
    pthread_join(server_thread_id, NULL);
-//   usleep(500000);
    server_thread_id = 0;
    RTV_DBGLOG(RTVLOG_DSCVR, "%s: Exit\n", __FUNCTION__); 
    return(0);
