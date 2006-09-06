@@ -210,34 +210,32 @@ get_guide_mysql2(MYSQL *mysql, cmyth_chanlist_t chanlist,
 	char starttime[25];
 	char endtime[25];
 	char channels[50];
-	int rows = 0, i1,i2,i3,i4; 
+	int rows = 0, idxs[4], idx=0; 
 	long ch;
 
 
 	strftime(starttime, 25, "%F %T", start_time);
 	strftime(endtime, 25, "%F %T", end_time);
 
-	i1 = index < 0 ? chanlist->chanlist_count+index:index;
+	idxs[0] = index < 0 ? chanlist->chanlist_count+index:index;
 	index--;
-	i2 = index < 0 ? chanlist->chanlist_count+index:index;
+	idxs[1] = index < 0 ? chanlist->chanlist_count+index:index;
 	index--;
-	i3 = index < 0 ? chanlist->chanlist_count+index:index;
+	idxs[2] = index < 0 ? chanlist->chanlist_count+index:index;
 	index--;
-	i4 = index < 0 ? chanlist->chanlist_count+index:index;
+	idxs[3] = index < 0 ? chanlist->chanlist_count+index:index;
 
-	PRINTF("** SSDEBUG: indexes are: %d, %d, %d, %d\n", i1, i2, i3, i4);
+	PRINTF("** SSDEBUG: indexes are: %d, %d, %d, %d\n", idxs[0], idxs[1],
+					idxs[2], idxs[3]);
 
 	sprintf(channels, "(%ld, %ld, %ld, %ld)",
-		chanlist->chanlist_list[i1].chanid,
-		chanlist->chanlist_list[i2].chanid,
-		chanlist->chanlist_list[i3].chanid,
-		chanlist->chanlist_list[i4].chanid
+		chanlist->chanlist_list[idxs[0]].chanid,
+		chanlist->chanlist_list[idxs[1]].chanid,
+		chanlist->chanlist_list[idxs[2]].chanid,
+		chanlist->chanlist_list[idxs[3]].chanid
 	);
 
-	/*
 	PRINTF("** SSDEBUG: starttime:%s, endtime:%s\n", starttime, endtime);
-	PRINTF("** SSDEBUG: database pointer: %p\n", db);
-	*/
 
 	sprintf(query, 
 		"SELECT chanid,starttime,endtime,title,description,\
@@ -258,9 +256,7 @@ get_guide_mysql2(MYSQL *mysql, cmyth_chanlist_t chanlist,
 	res = mysql_store_result(mysql);
 
 	
-	/*
 	PRINTF("** SSDEBUG: got %llu rows from query\n", res->row_count);
-	*/
 	if(!proglist->progs) {
 		proglist->progs =
 			cmyth_allocate(sizeof(struct cmyth_tvguide_program) * res->row_count);
@@ -278,29 +274,62 @@ get_guide_mysql2(MYSQL *mysql, cmyth_chanlist_t chanlist,
 		}
 		rows = proglist->count;
 	}
+	/*
+	 * Need to do some special handling on the query results. Sometimes
+	 * no data exists for certain channels as a result of the query
+	 * and we need to fill it in with unknown. In other cases, there
+	 * are a series of 10 min shows in a 30 min period so there may
+	 * be more than one so only the first one should be used.
+	 */
 	while((row = mysql_fetch_row(res))) {
 
 		ch = atol(row[0]);
 		proglist->progs[rows].channum = get_chan_num(ch, chanlist);
-		/*
-		PRINTF("** SSDEBUG: row: %d, %ld, %d, %s, %s, %s\n", rows, ch,
-						proglist->progs[rows].channum, row[3], row[5], row[8]);
-		*/
-		proglist->progs[rows].chanid=ch;
-		proglist->progs[rows].recording=0;
-		strncpy ( proglist->progs[rows].starttime, row[1], 25);
-		strncpy ( proglist->progs[rows].endtime, row[2], 25);
-		strncpy ( proglist->progs[rows].title, row[3], 130);
-		strncpy ( proglist->progs[rows].description, row[4], 256);
-		strncpy ( proglist->progs[rows].subtitle, row[5], 130);
-		strncpy ( proglist->progs[rows].programid, row[6], 20);
-		strncpy ( proglist->progs[rows].seriesid, row[7], 12);
-		strncpy ( proglist->progs[rows].category, row[8], 64);
-		cmyth_dbg(CMYTH_DBG_ERROR, "prog[%d].chanid =  %d\n",rows,
-							proglist->progs[rows].chanid);
-		cmyth_dbg(CMYTH_DBG_ERROR, "prog[%d].title =  %s\n",rows,
-							proglist->progs[rows].title);
+		
+		if(ch != chanlist->chanlist_list[idxs[idx]].chanid) {
+			if(idx > 0 && ch == chanlist->chanlist_list[idxs[idx-1]].chanid) {
+				PRINTF("** SSDEBUG: Discarding entry with same chanid in same slot\n");
+				continue; /* Additional entries in this slot, just ignore */
+			}
+			else { /* No programming info, create an empty entry */
+				PRINTF("** SSDEBUG: no program info on channel id: %d between %s, %s\n",
+				idxs[idx], starttime, endtime);
+				proglist->progs[rows].channum = get_chan_num(idxs[idx], chanlist);
+				proglist->progs[rows].chanid=idxs[idx];
+				proglist->progs[rows].recording=0;
+				strncpy ( proglist->progs[rows].starttime, starttime, 25);
+				strncpy ( proglist->progs[rows].endtime, endtime, 25);
+				strncpy ( proglist->progs[rows].title, "Unknown", 130);
+				strncpy ( proglist->progs[rows].description, 
+					"There are no entries in the database for this channel at this time",
+				 	256);
+				strncpy ( proglist->progs[rows].subtitle, "Unknown", 130);
+				strncpy ( proglist->progs[rows].programid, "Unknown", 20);
+				strncpy ( proglist->progs[rows].seriesid, "Unknown", 12);
+				strncpy ( proglist->progs[rows].category, "Unknown", 64);
+			}
+		}
+		else { /* All aligns, move the information */
+			proglist->progs[rows].channum = get_chan_num(ch, chanlist);
+			PRINTF("** SSDEBUG: row: %d, %ld, %d, %s, %s, %s\n", rows, ch,
+							proglist->progs[rows].channum, row[3], row[5], row[8]);
+			proglist->progs[rows].chanid=ch;
+			proglist->progs[rows].recording=0;
+			strncpy ( proglist->progs[rows].starttime, row[1], 25);
+			strncpy ( proglist->progs[rows].endtime, row[2], 25);
+			strncpy ( proglist->progs[rows].title, row[3], 130);
+			strncpy ( proglist->progs[rows].description, row[4], 256);
+			strncpy ( proglist->progs[rows].subtitle, row[5], 130);
+			strncpy ( proglist->progs[rows].programid, row[6], 20);
+			strncpy ( proglist->progs[rows].seriesid, row[7], 12);
+			strncpy ( proglist->progs[rows].category, row[8], 64);
+			cmyth_dbg(CMYTH_DBG_ERROR, "prog[%d].chanid =  %d\n",rows,
+								proglist->progs[rows].chanid);
+			cmyth_dbg(CMYTH_DBG_ERROR, "prog[%d].title =  %s\n",rows,
+								proglist->progs[rows].title);
+		}
 		rows++;
+		idx++;
 	}
 	proglist->count = rows;
   mysql_free_result(res);
@@ -384,7 +413,7 @@ myth_load_guide(void * widget, cmyth_database_t db,
 	time_t curtime, nexttime;
 	struct  tm * tmp, now, later;
 	cmyth_tvguide_progs_t rtrn = proglist;
-	struct cmyth_tvguide_program * prog;
+	cmyth_tvguide_program_t prog, prev_progs;
 
 	/*
 	PRINTF("** SSDEBUG: request to load guide: %d\n", index);
@@ -419,6 +448,7 @@ myth_load_guide(void * widget, cmyth_database_t db,
 		 */
 		proglist->count = 0;
 	}
+	prev_progs = cmyth_hold(proglist->progs);
 
   mysql=mysql_init(NULL);
 	if(!(mysql_real_connect(mysql,db->db_host,db->db_user,
@@ -447,13 +477,9 @@ myth_load_guide(void * widget, cmyth_database_t db,
 		later.tm_min = later.tm_min >= 30?30:0;
 		later.tm_sec = 0;
 		prev = proglist->count;
-		/*
 		PRINTF("** SSEDBUG: Calling set_guide_mysql2\n");
-		*/
 		rtrn  = get_guide_mysql2(mysql, chanlist, proglist, index, &now, &later);
-		/*
 		PRINTF("** SSEDBUG: done set_guide_mysql2 rtrn = %p\n", rtrn);
-		*/
 		if(rtrn == NULL)
 			return proglist;
 
@@ -463,8 +489,8 @@ myth_load_guide(void * widget, cmyth_database_t db,
 				k++;
 				continue;
 			}
-			/*
-			PRINTF("** SSDEBUG: Loaded prog: %d, %ld, %d, %s, %s, %s, %s, %s, %s, %s, %s\n",
+			PRINTF("** SSDEBUG: Loaded prog(%d): %d, %ld, %d, %s, %s, %s, %s, %s, %s, %s, %s\n",
+			i,
 			rtrn->progs[i].channum,
 			rtrn->progs[i].chanid,
 			rtrn->progs[i].recording,
@@ -476,7 +502,6 @@ myth_load_guide(void * widget, cmyth_database_t db,
 			rtrn->progs[i].programid,
 			rtrn->progs[i].seriesid,
 			rtrn->progs[i].category);
-			*/
 			/* Determine if the left neighbour is the same show and if so just
 			 * extend the previous cell instead of filling the current one in
 			 */
@@ -507,6 +532,7 @@ myth_load_guide(void * widget, cmyth_database_t db,
 	mvpw_array_clear_dirty(widget);
 
   mysql_close(mysql);
+	cmyth_release(prev_progs);
 	
 	return rtrn;
 }
