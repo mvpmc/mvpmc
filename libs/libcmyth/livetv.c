@@ -674,7 +674,7 @@ cmyth_livetv_chain_setup(cmyth_recorder_t rec, int tcp_rcvbuf,
 			new_rec = NULL;
 			goto out;
 		}
-		new_rec->rec_livetv_chain->protocol_version = rec->rec_conn->conn_version;
+		new_rec->rec_livetv_chain->protocol_version = new_rec->rec_conn->conn_version;
 		new_rec->rec_livetv_chain->prog_update_callback = prog_update_callback;
 		cmyth_release(ft);
 		cmyth_livetv_chain_switch(new_rec, 0);
