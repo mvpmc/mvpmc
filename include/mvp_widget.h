@@ -896,6 +896,7 @@ typedef struct {
  * \param bg background color
  * \param border_color border color
  * \param border_size border width in pixels
+ * \param new_pixmap create new pixmap?
  * \return widget handle
  */
 extern mvp_widget_t* mvpw_create_surface(mvp_widget_t *parent,

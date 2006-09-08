@@ -320,7 +320,7 @@ extern int cmyth_conn_check_block(cmyth_conn_t conn, unsigned long size);
  * Obtain a recorder from a connection by its recorder number.
  * \param conn connection handle
  * \param num recorder number
- * \param recorder handle
+ * \return recorder handle
  */
 extern cmyth_recorder_t cmyth_conn_get_recorder_from_num(cmyth_conn_t conn,
 							 int num);
@@ -505,7 +505,7 @@ extern cmyth_proginfo_t cmyth_recorder_get_cur_proginfo(cmyth_recorder_t rec);
  */
 extern cmyth_proginfo_t cmyth_recorder_get_next_proginfo(
 	cmyth_recorder_t rec,
-	cmyth_proginfo_t curent,
+	cmyth_proginfo_t current,
 	cmyth_browsedir_t direction);
 
 extern int cmyth_recorder_get_input_name(cmyth_recorder_t rec,
