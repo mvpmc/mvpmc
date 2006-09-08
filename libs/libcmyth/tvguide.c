@@ -208,9 +208,12 @@ get_guide_mysql2(MYSQL *mysql, cmyth_chanlist_t chanlist,
 	char endtime[25];
 	char channels[50];
 	int i, rows = 0, idxs[4], idx=0; 
-	struct cmyth_tvguide_program cache[4];
+	static cmyth_tvguide_program_t cache = NULL;
+	int cache_ct;
 	long ch=0;
 
+	if(!cache)
+		cache = cmyth_allocate(sizeof(*cache)*4);
 
 	strftime(starttime, 25, "%F %T", start_time);
 	strftime(endtime, 25, "%F %T", end_time);
@@ -300,18 +303,23 @@ get_guide_mysql2(MYSQL *mysql, cmyth_chanlist_t chanlist,
 		strncpy ( cache[idx].category, row[8], 64);
 		idx++;
 	}
+	
+	cache_ct = idx;
 
 	rows = proglist->count;
 	for(idx=0;idx<4;idx++) {
 
 
-		for(i = 0; i<4; i++) {
+		for(i = 0; i<cache_ct; i++) {
 			if(cache[i].chanid == chanlist->chanlist_list[idxs[idx]].chanid) {
 				break;
 			}
 		}
 		
+		/*
 		if(cache[i].chanid != chanlist->chanlist_list[idxs[idx]].chanid) {
+		*/
+		if(i == cache_ct) {
 			PRINTF("** SSDEBUG: no program info on channel id: %d between %s, %s\n",
 							idxs[idx], starttime, endtime);
 			proglist->progs[rows].channum = get_chan_num(idxs[idx], chanlist);
