@@ -3,7 +3,7 @@
 
 /*
  *  Copyright (C) 2004, 2005, 2006, Jon Gettler
- *  http://mvpmc.sourceforge.net/
+ *  http://www.mvpmc.org/
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,55 +20,117 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#define VIDEO_BUFF_SIZE	(1024*96)
+/** \file mvpmc.h
+ * Global definitions for the mvpmc application.
+ */
 
+#define VIDEO_BUFF_SIZE	(1024*96)	/**< video input buffer size */
 
+/**
+ * Portion of the mvpmc application which owns either the gui or
+ * the audio/video playback hardware.
+ */
 typedef enum {
-	MVPMC_STATE_NONE = 1,
-	MVPMC_STATE_MYTHTV,
-	MVPMC_STATE_FILEBROWSER,
-	MVPMC_STATE_REPLAYTV,
-	MVPMC_STATE_MCLIENT,
-	MVPMC_STATE_HTTP,
-	MVPMC_STATE_EMULATE,
+	MVPMC_STATE_NONE = 1,		/**< no state */
+	MVPMC_STATE_MYTHTV,		/**< mythtv */
+	MVPMC_STATE_FILEBROWSER,	/**< filebrowser */
+	MVPMC_STATE_REPLAYTV,		/**< replaytv */
+	MVPMC_STATE_MCLIENT,		/**< slimserver mclient */
+	MVPMC_STATE_HTTP,		/**< http */
+	MVPMC_STATE_EMULATE,		/**< hauppauge emulation */
 } mvpmc_state_t;
 
+/**
+ * On-Screen-Display options
+ */
 typedef enum {
-	OSD_BITRATE = 1,
-	OSD_CLOCK,
-	OSD_DEMUX,
-	OSD_PROGRESS,
-	OSD_PROGRAM,
-	OSD_TIMECODE,
+	OSD_BITRATE = 1,		/**< bitrate */
+	OSD_CLOCK,			/**< clock */
+	OSD_DEMUX,			/**< audio/video demux graphs */
+	OSD_PROGRESS,			/**< progress meter */
+	OSD_PROGRAM,			/**< program description */
+	OSD_TIMECODE,			/**< timecode */
 } osd_type_t;
 
+/**
+ * Playlist menu items
+ */
 typedef enum {
 	PL_SHUFFLE = 1,
 	PL_REPEAT,
 	PL_VOLUME,
 } playlist_menu_t;
 
+/**
+ * video stream client events
+ */
 typedef enum {
 	MVP_READ_THREAD_IDLE = 1,
 } mvp_notify_t;
 
+/**
+ * On-Screen-Display settings
+ */
 typedef struct {
-	int type;
-	int visible;
-	mvp_widget_t *widget;
-	void (*callback)(mvp_widget_t *widget);
+	int type;				/**< widget type */
+	int visible;				/**< visible or not */
+	mvp_widget_t *widget;			/**< widget handle */
+	void (*callback)(mvp_widget_t *widget);	/**< expose callback */
 } osd_widget_t;
 
+/**
+ * Video playback callbacks.
+ */
 typedef struct {
+	/**
+	 * open a video stream
+	 * \retval 0 success
+	 * \retval -1 error
+	 */
 	int (*open)(void);
-	int (*read)(char*, int);           // For read functions that fill in a buffer passed by the caller
-	int (*read_dynb)(char**, int);     // For read functions that return a pointer to a dynamic buffer
-	long long (*seek)(long long, int);
-	long long (*size)();               // Current mpeg file size
-	void (*notify)(mvp_notify_t);      // For mvp code to notify client of whatever
-	int (*key)(char);                  // Client specific handling of keypresses during video play.
-                                      // Client should return 1 if it handled the keypress. Else return 0
-	int (*halt_stream)(void);          // Notify client to halt streaming
+	/**
+	 * add video stream data to a buffer
+	 * \param[out] buf data buffer
+	 * \param len data buffer length
+	 * \return amount of data read
+	 */
+	int (*read)(char *buf, int len);
+	/**
+	 * return video stream data in a buffer
+	 * \param[out] bufp pointer to callee allocated buffer
+	 * \param len max amount of data to return
+	 * \return amount of data read
+	 */
+	int (*read_dynb)(char **bufp, int len);
+	/**
+	 * seek to a certain position in the video stream
+	 * \param offset stream offset
+	 * \param whence SEEK_SET, SEEK_CUR, SEEK_END
+	 * \return new offset from the beginning of the stream
+	 */
+	long long (*seek)(long long offset, int whence);
+	/**
+	 * get the current size of the video stream
+	 * \return video stream size
+	 */
+	long long (*size)(void);
+	/**
+	 * notify the video stream client of an event
+	 * \param event event type
+	 */
+	void (*notify)(mvp_notify_t event);
+	/**
+	 * notify the video stream client of a keypress
+	 * \param key key pressed
+	 * \retval 0 key was not handled by the client
+	 * \retval 1 key was handled by the client
+	 */
+	int (*key)(char key);
+	/**
+	 * notify the client to halt the stream
+	 * \retval 0 success
+	 */
+	int (*halt_stream)(void);
 } video_callback_t;
 
 typedef struct playlist_struct playlist_t;
