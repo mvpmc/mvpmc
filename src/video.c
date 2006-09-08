@@ -264,6 +264,8 @@ int video_init(void)
 void
 video_set_root(void)
 {
+	av_state_t state;
+
 	if (root_bright > 0)
 		root_color = mvpw_color_alpha(MVPW_WHITE, root_bright*4);
 	else if (root_bright < 0)
@@ -272,6 +274,18 @@ video_set_root(void)
 		root_color = 0;
 
 	mvpw_set_bg(root, root_color);
+
+	if (av_get_state(&state) == 0) {
+		if (state.pause) {
+			mvpw_show(pause_widget);
+		}
+		if (state.mute) {
+			mvpw_show(mute_widget);
+		}
+		if (state.ffwd) {
+			mvpw_show(ffwd_widget);
+		}
+	}
 }
 
 void
