@@ -728,6 +728,7 @@ video_callback(mvp_widget_t *widget, char key)
 	}
 
 	switch (key) {
+	case MVPW_KEY_GO:
 	case MVPW_KEY_GUIDE:
 		if(showing_guide == 0) {
 			printf("In %s showing guide %d \n",__FUNCTION__, key);
