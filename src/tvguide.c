@@ -137,14 +137,12 @@ mvp_tvguide_key_timer(mvp_widget_t * dummy)
 	tvguide_proglist =
 		myth_load_guide(mythtv_livetv_program_list, mythtv_database,
 										tvguide_chanlist, tvguide_proglist,
-										tvguide_cur_chan_index, tvguide_scroll_ofs_x,
-										tvguide_scroll_ofs_y, tvguide_free_cardids);
+										tvguide_cur_chan_index, &tvguide_scroll_ofs_x,
+										&tvguide_scroll_ofs_y, tvguide_free_cardids);
 	mvp_tvguide_move(MVPW_ARRAY_HOLD, mythtv_livetv_program_list,
 									 mythtv_livetv_description);
 
-	/*
 	PRINTF("**SSDEBUG: key timeout with keys: %s\n", number_keys.keys);
-	*/
 	number_keys.keys[0] = 0;
 	number_keys.key_ct = 0;
 	mvpw_set_timer(dummy, NULL, 0);
@@ -179,8 +177,8 @@ mvp_tvguide_callback(mvp_widget_t *widget, char key)
 			tvguide_proglist = 
 			myth_load_guide(mythtv_livetv_program_list, mythtv_database,
 														tvguide_chanlist, tvguide_proglist,
-														tvguide_cur_chan_index, tvguide_scroll_ofs_x,
-														tvguide_scroll_ofs_y, tvguide_free_cardids);
+														tvguide_cur_chan_index, &tvguide_scroll_ofs_x,
+														&tvguide_scroll_ofs_y, tvguide_free_cardids);
 			rtrn = key == MVPW_KEY_STOP?0:1;
 			PRINTF("**SSDEBUG: Guide hidden: %s hiding guide %d \n", __FUNCTION__, key);
 		break;
@@ -246,8 +244,8 @@ mvp_tvguide_callback(mvp_widget_t *widget, char key)
 				tvguide_proglist = 
 				myth_load_guide(mythtv_livetv_program_list, mythtv_database,
 															tvguide_chanlist, tvguide_proglist,
-															tvguide_cur_chan_index, tvguide_scroll_ofs_x,
-															tvguide_scroll_ofs_y, tvguide_free_cardids);
+															tvguide_cur_chan_index, &tvguide_scroll_ofs_x,
+															&tvguide_scroll_ofs_y, tvguide_free_cardids);
 			}
 			else {
 				/* Future, item. Schedule it */
@@ -312,42 +310,30 @@ void scroll_callback(mvp_widget_t *widget, int direction)
 
 	switch(direction) {
 		case MVPW_ARRAY_LEFT:
-			/*
 			PRINTF("** SSDEBUG: scroll to the %s requested\n", "Left");
-			*/
 			tvguide_scroll_ofs_x += 1;
 		break;
 		case MVPW_ARRAY_RIGHT:
-			/*
 			PRINTF("** SSDEBUG: scroll to the %s requested\n", "Right");
-			*/
 			if(tvguide_scroll_ofs_x > 0)
 				tvguide_scroll_ofs_x -= 1;
 			else
 				changed = 0;
 		break;
 		case MVPW_ARRAY_UP:
-			/*
 			PRINTF("** SSDEBUG: scroll to the %s requested\n", "Up");
-			*/
 			tvguide_scroll_ofs_y -= 1;
 		break;
 		case MVPW_ARRAY_DOWN:
-			/*
 			PRINTF("** SSDEBUG: scroll to the %s requested\n", "Down");
-			*/
 			tvguide_scroll_ofs_y += 1;
 		break;
 		case MVPW_ARRAY_PAGE_UP:
-			/*
 			PRINTF("** SSDEBUG: scroll to the %s requested\n", "Up");
-			*/
 			tvguide_scroll_ofs_y -= 4;
 		break;
 		case MVPW_ARRAY_PAGE_DOWN:
-			/*
 			PRINTF("** SSDEBUG: scroll to the %s requested\n", "Down");
-			*/
 			tvguide_scroll_ofs_y += 4;
 		break;
 	}
@@ -356,8 +342,8 @@ void scroll_callback(mvp_widget_t *widget, int direction)
 		tvguide_proglist = 
 		myth_load_guide(mythtv_livetv_program_list, mythtv_database,
 													tvguide_chanlist, tvguide_proglist,
-													tvguide_cur_chan_index, tvguide_scroll_ofs_x,
-													tvguide_scroll_ofs_y, tvguide_free_cardids);
+													tvguide_cur_chan_index, &tvguide_scroll_ofs_x,
+													&tvguide_scroll_ofs_y, tvguide_free_cardids);
 	}
 }
 
@@ -473,8 +459,8 @@ mvp_tvguide_timer(mvp_widget_t * widget)
 		tvguide_proglist = 
 		myth_load_guide(mythtv_livetv_program_list, mythtv_database,
 													tvguide_chanlist, tvguide_proglist,
-													tvguide_cur_chan_index, tvguide_scroll_ofs_x,
-													tvguide_scroll_ofs_y, tvguide_free_cardids);
+													tvguide_cur_chan_index, &tvguide_scroll_ofs_x,
+													&tvguide_scroll_ofs_y, tvguide_free_cardids);
 	}
 	else {
 		myth_guide_set_channels(mythtv_livetv_program_list, tvguide_chanlist,

@@ -726,8 +726,8 @@ int __change_channel(direction)
 		tvguide_proglist =
 			myth_load_guide(mythtv_livetv_program_list, mythtv_database,
 											tvguide_chanlist, tvguide_proglist,
-											tvguide_cur_chan_index, tvguide_scroll_ofs_x,
-											tvguide_scroll_ofs_y, tvguide_free_cardids);
+											tvguide_cur_chan_index, &tvguide_scroll_ofs_x,
+											&tvguide_scroll_ofs_y, tvguide_free_cardids);
 		mvp_tvguide_move(MVPW_ARRAY_HOLD, mythtv_livetv_program_list,
 									 	mythtv_livetv_description);
 	}

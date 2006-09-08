@@ -182,7 +182,6 @@ struct cmyth_conn {
 /* Sergio: Added to support new livetv protocol */
 struct cmyth_livetv_chain {
 	char *chainid;
-	int protocol_version;
 	int chain_ct;
 	int chain_switch_on_create;
 	int chain_current;
