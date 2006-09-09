@@ -34,6 +34,9 @@
  * \li \link mvp_demux.h libdemux \endlink
  * \li \link mvp_osd.h libosd \endlink
  * \li \link mvp_widget.h libwidget \endlink
+ *
+ * \section application Application Headers
+ * \li \link mvpmc.h mvpmc.h \endlink
  */
 
 #include <stdio.h>

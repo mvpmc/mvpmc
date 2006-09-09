@@ -896,6 +896,7 @@ typedef struct {
  * \param bg background color
  * \param border_color border color
  * \param border_size border width in pixels
+ * \param new_pixmap create new pixmap?
  * \return widget handle
  */
 extern mvp_widget_t* mvpw_create_surface(mvp_widget_t *parent,
@@ -1012,7 +1013,7 @@ mvpw_get_rgba(unsigned long c, unsigned char *r, unsigned char *g,
 #define MVPW_KEY_REPLAY	'('
 #define MVPW_KEY_SKIP	')'
 #define	MVPW_KEY_PREV_CHAN	'C'
-#define	MVPW_KEY_GUIDE		'G'
+#define	MVPW_KEY_GUIDE		'U'
 #define	MVPW_KEY_TV		'T'
 #else
 #define	MVPW_KEY_ZERO		 0
