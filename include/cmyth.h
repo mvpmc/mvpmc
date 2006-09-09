@@ -24,6 +24,9 @@
 #ifndef __CMYTH_H
 #define __CMYTH_H
 
+#define safe_strncpy(dest,src,n) ((dest)[(n)-1]='\0',strncpy(dest,src,(n)-1))
+#define sizeof_strncpy(dest,src) (safe_strncpy(dest,src,sizeof(dest)))
+
 /*
  * -----------------------------------------------------------------
  * Types
@@ -574,7 +577,7 @@ extern int mythtv_new_livetv(void);
  * -----------------------------------------------------------------
  */
 
-extern cmyth_database_t cmyth_database_create(void);
+extern cmyth_database_t cmyth_database_init(char *host, char *db_name, char *user, char *pass);
 extern cmyth_chanlist_t myth_load_channels2(cmyth_database_t db);
 extern int cmyth_database_set_host(cmyth_database_t db, char *host);
 extern int cmyth_database_set_user(cmyth_database_t db, char *user);
@@ -627,9 +630,9 @@ extern cmyth_timestamp_t cmyth_timestamp_create(void);
 
 extern cmyth_timestamp_t cmyth_timestamp_from_string(char *str);
 
-extern cmyth_timestamp_t cmyth_timestamp_from_longlong(long long l);
+extern cmyth_timestamp_t cmyth_timestamp_from_unixtime(time_t l);
 
-extern long long cmyth_timestamp_to_longlong(cmyth_timestamp_t ts);
+extern time_t cmyth_timestamp_to_unixtime(cmyth_timestamp_t ts);
 
 extern int cmyth_timestamp_to_string(char *str, cmyth_timestamp_t ts);
 
@@ -825,33 +828,38 @@ extern int cmyth_set_bookmark(cmyth_conn_t conn, cmyth_proginfo_t prog,
  * mysql info
  */
 
-#define PROGRAM_ADJUST  3600
 
-struct program {
-	unsigned long chanid;
+typedef struct cmyth_program {
+	int chanid;
 	char callsign[30];
 	char name[84];
-	unsigned int sourceid;
+	int sourceid;
 	char title[150];
 	char subtitle[150];
 	char description[280];
-	char starttime[35];
-	char endtime[35];
+	time_t starttime;
+	time_t endtime;
 	char programid[30];
 	char seriesid[24];
 	char category[84];
 	int recording;
 	char rec_status[2];
 	int channum;
-};
+}cmyth_program_t;
 
-struct channel {
-	int chanid;
-	int channum;
-	long sources; /* A bit array of recorders/tuners supporting the channel */
-	char callsign[20];
-	char name[64];
-	char rec_status[4];
-};
+extern int cmyth_mysql_insert_into_record(cmyth_database_t db, char * query, char * query1, char * query2, char *title, char * subtitle, char * description, char * callsign);
+
+extern int cmyth_mysql_get_prog_finder_char_title(cmyth_database_t db, cmyth_program_t **prog, time_t starttime, char *program_name);
+extern int cmyth_mysql_get_prog_finder_time(cmyth_database_t db, cmyth_program_t **prog,  time_t starttime, char *program_name);
+extern int cmyth_mysql_get_guide(cmyth_database_t db, cmyth_program_t **prog, time_t starttime, time_t endtime);
+
+extern int cmyth_schedule_recording(cmyth_conn_t conn, char * msg);
+extern char * cmyth_mysql_escape_chars(cmyth_database_t db, char * string);
+
+
+
+#define PROGRAM_ADJUST  3600
+
+
 
 #endif /* __CMYTH_H */

@@ -29,6 +29,7 @@
 #include <cmyth.h>
 #include <time.h>
 #include <pthread.h>
+#include <mysql/mysql.h>
 
 #define mutex __cmyth_mutex
 extern pthread_mutex_t mutex;
@@ -197,6 +198,7 @@ struct cmyth_database {
 	char * db_user;
 	char * db_pass;
 	char * db_name;
+	MYSQL * mysql;
 };	
 
 /* Sergio: Added to clean up channel list handling */

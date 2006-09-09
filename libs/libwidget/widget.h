@@ -203,6 +203,7 @@ struct mvp_widget_s {
 	mvp_widget_t	*attach[4];
 	mvp_widget_t	*above;
 	mvp_widget_t	*below;
+	void 		*user_data;
 
 	void (*resize)(mvp_widget_t*);
 	int (*add_child)(mvp_widget_t*, mvp_widget_t*);
