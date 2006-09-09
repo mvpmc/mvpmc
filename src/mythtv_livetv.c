@@ -209,12 +209,12 @@ mythtv_new_livetv_start(cmyth_recorder_t rec)
 		video_functions = &livetv_functions;
 	}
 
-	printf("** SSDEBUG: Spawning live tv\n");
+	//printf("** SSDEBUG: Spawning live tv\n");
 	if((rec = cmyth_spawn_live_tv(rec, 16*1024,mythtv_tcp_program,
 																prog_update_callback, &msg)) == NULL)
 		goto err;
 
-	printf("** SSDEBUG: Spawned live tv\n");
+	//printf("** SSDEBUG: Spawned live tv\n");
 	if (cmyth_recorder_is_recording(rec) != 1) {
 		msg = "LiveTV not recording.";
 		goto err;
