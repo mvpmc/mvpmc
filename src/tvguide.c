@@ -45,8 +45,8 @@
 #include "config.h"
 
 #if 0
-#define PRINTF(x...) PRINTF(x)
-#define TRC(fmt, args...) PRINTF(fmt, ## args) 
+#define PRINTF(x...) printf(x)
+#define TRC(fmt, args...) printf(fmt, ## args) 
 #else
 #define PRINTF(x...)
 #define TRC(fmt, args...) 

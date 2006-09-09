@@ -288,7 +288,6 @@ get_guide_mysql2(MYSQL *mysql, cmyth_chanlist_t chanlist,
 			PRINTF("** SSDEBUG: Cache discarding entry with same chanid in same slot\n");
 			continue;
 		}
-		cache[idx].channum = get_chan_num(ch, chanlist);
 		PRINTF("** SSDEBUG: cache: row: %d, %ld, %d, %s, %s, %s\n", idx, ch,
 						cache[idx].channum, row[3], row[5], row[8]);
 		cache[idx].chanid=ch;
@@ -337,7 +336,7 @@ get_guide_mysql2(MYSQL *mysql, cmyth_chanlist_t chanlist,
 			strncpy ( proglist->progs[rows].category, "Unknown", 64);
 		}
 		else { /* All aligns, move the information */
-			proglist->progs[rows].channum = get_chan_num(ch, chanlist);
+			proglist->progs[rows].channum = get_chan_num(cache[i].chanid, chanlist);
 			PRINTF("** SSDEBUG: row: %d, %ld, %d, %s, %s, %s\n", rows,
 							cache[i].chanid, proglist->progs[rows].channum,
 							cache[i].title, cache[i].subtitle, cache[i].category);
