@@ -46,7 +46,6 @@
 #define PRINTF(x...)
 #endif
 
-int protocol_version;
 int new_live_tv;
 extern cmyth_chanlist_t tvguide_chanlist;
 extern cmyth_tvguide_progs_t  tvguide_proglist;
@@ -165,7 +164,6 @@ mythtv_new_livetv_start(cmyth_recorder_t rec)
 	double rate;
 	char *rb_file;
 	char *msg = NULL;
-	int i = 0;
 	cmyth_proginfo_t loc_prog = NULL;
 	cmyth_conn_t ctrl = cmyth_hold(control);
 	char *path;
@@ -211,42 +209,12 @@ mythtv_new_livetv_start(cmyth_recorder_t rec)
 		video_functions = &livetv_functions;
 	}
 
-	if(protocol_version >= 26) {
-		if (cmyth_recorder_spawn_chain_livetv(rec) != 0) {
-			msg = "Spawn livetv failed.";
-			goto err;
-		}
- 
-		if ((rec = cmyth_livetv_chain_setup(rec, mythtv_tcp_program,
-							prog_update_callback)) == NULL) {
-			msg = "Failed to setup livetv.";
-			goto err;
-		}
+	printf("** SSDEBUG: Spawning live tv\n");
+	if((rec = cmyth_spawn_live_tv(rec, 16*1024,mythtv_tcp_program,
+																prog_update_callback, &msg)) == NULL)
+		goto err;
 
-		for(i=0; i<20; i++) {
-			if(cmyth_recorder_is_recording(rec) != 1)
-				sleep(1);
-			else
-				break;
-		}
-	}
-	else {
-		if ((rec = cmyth_ringbuf_setup(rec)) == NULL) {
-			msg = "Failed to setup ringbuffer.";
-			goto err;
-		}
-
-		if (cmyth_conn_connect_ring(rec, 16*1024, mythtv_tcp_program) != 0) {
-			msg = "Cannot connect to mythtv ringbuffer.";
-			goto err;
-		}
-
-		if (cmyth_recorder_spawn_livetv(rec) != 0) {
-			msg = "Spawn livetv failed.";
-			goto err;
-		}
-	}
-
+	printf("** SSDEBUG: Spawned live tv\n");
 	if (cmyth_recorder_is_recording(rec) != 1) {
 		msg = "LiveTV not recording.";
 		goto err;
@@ -456,41 +424,9 @@ mythtv_livetv_start(int *tuner)
 		}
 	}
 
-	if(protocol_version >= 26) {
-		if (cmyth_recorder_spawn_chain_livetv(rec) != 0) {
-			msg = "Spawn livetv failed.";
-			goto err;
-		}
- 
-		if ((rec = cmyth_livetv_chain_setup(rec, mythtv_tcp_program,
-					prog_update_callback)) == NULL) {
-			msg = "Failed to setup livetv.";
-			goto err;
-		}
-
-		for(i=0; i<20; i++) {
-			if(cmyth_recorder_is_recording(rec) != 1)
-				sleep(1);
-			else
-				break;
-		}
-	}
-	else {
-		if ((rec = cmyth_ringbuf_setup(rec)) == NULL) {
-			msg = "Failed to setup ringbuffer.";
-			goto err;
-		}
-
-		if (cmyth_conn_connect_ring(rec, 16*1024, mythtv_tcp_program) != 0) {
-			msg = "Cannot connect to mythtv ringbuffer.";
-			goto err;
-		}
-
-		if (cmyth_recorder_spawn_livetv(rec) != 0) {
-			msg = "Spawn livetv failed.";
-			goto err;
-		}
-	}
+	if((rec = cmyth_spawn_live_tv(rec, 16*1024,mythtv_tcp_program,
+																prog_update_callback, &msg)) == NULL)
+		goto err;
 
 	if (cmyth_recorder_is_recording(rec) != 1) {
 		msg = "LiveTV not recording.";
@@ -535,8 +471,9 @@ mythtv_livetv_start(int *tuner)
 	CHANGE_GLOBAL_REF(current_prog, loc_prog);
 	cmyth_release(loc_prog);
 
-	if(protocol_version < 26)
-		get_livetv_programs();
+	// This appears to be redundant and takes a bunch of time slowing down
+	// the launch of live TV.
+	get_livetv_programs();
 
 	mvpw_show(mythtv_browser);
 	mvpw_focus(mythtv_browser);
@@ -615,11 +552,9 @@ mythtv_livetv_stop(void)
 		goto fail;
 	}
 
-	if(protocol_version < 26) {
-		if (cmyth_recorder_done_ringbuf(mythtv_recorder) != 0) {
-			fprintf(stderr, "done ringbuf failed\n");
-			goto fail;
-		}
+	if (cmyth_recorder_done_ringbuf(mythtv_recorder) != 0) {
+		fprintf(stderr, "done ringbuf failed\n");
+		goto fail;
 	}
 
 	CHANGE_GLOBAL_REF(mythtv_recorder, NULL);
@@ -705,8 +640,7 @@ int __change_channel(direction)
 	av_play();
 	video_play(root);
 
-	if(protocol_version >= 26)
-		cmyth_livetv_chain_switch_last(rec);
+	cmyth_livetv_chain_switch_last(rec);
 	/* This should probably be in a library or in the tvguide
 	 * source file. This is way too much code for this location.
 	 * TODO.
@@ -726,8 +660,8 @@ int __change_channel(direction)
 		tvguide_proglist =
 			myth_load_guide(mythtv_livetv_program_list, mythtv_database,
 											tvguide_chanlist, tvguide_proglist,
-											tvguide_cur_chan_index, tvguide_scroll_ofs_x,
-											tvguide_scroll_ofs_y, tvguide_free_cardids);
+											tvguide_cur_chan_index, &tvguide_scroll_ofs_x,
+											&tvguide_scroll_ofs_y, tvguide_free_cardids);
 		mvp_tvguide_move(MVPW_ARRAY_HOLD, mythtv_livetv_program_list,
 									 	mythtv_livetv_description);
 	}
@@ -849,10 +783,7 @@ livetv_size(void)
 	 */
 
 	pthread_mutex_lock(&myth_mutex);
-	if(protocol_version >= 26)
-		seek_pos = cmyth_livetv_seek(rec, 0, SEEK_CUR);
-	else
-		seek_pos = cmyth_ringbuf_seek(rec, 0, SEEK_CUR);
+	seek_pos = cmyth_livetv_seek(rec, 0, SEEK_CUR);
 	PRINTF("%s(): pos %lld\n", __FUNCTION__, seek_pos);
 	pthread_mutex_unlock(&myth_mutex);
 
@@ -1081,8 +1012,7 @@ get_livetv_programs_rec(int id, struct livetv_prog **list, int *n, int *p)
 		busy = 1;
 
 	cur = cmyth_recorder_get_cur_proginfo(rec);
-	if(protocol_version >= 26)
-		cur = cmyth_recorder_get_next_proginfo(rec, cur, 1);
+	cur = cmyth_recorder_get_next_proginfo(rec, cur, 1);
 	if (cur == NULL) {
 		int i;
 		char channame[32];
@@ -1250,8 +1180,6 @@ get_livetv_programs(void)
 		return -1;
 	}
 
-	protocol_version = cmyth_conn_get_protocol_version(ctrl);
-
 	if ((c=cmyth_conn_get_free_recorder_count(ctrl)) < 0) {
 		fprintf(stderr, "unable to get free recorder\n");
 		/* Sergio S. Commented out
@@ -1340,7 +1268,6 @@ mythtv_new_livetv(void)
 
 	pthread_mutex_lock(&myth_mutex);
 	ctrl = cmyth_hold(control);
-	protocol_version = cmyth_conn_get_protocol_version(ctrl);
 
 	if ((c=cmyth_conn_get_free_recorder_count(ctrl)) < 0) {
 		gui_error("No tuners available for Live TV.");

@@ -1476,6 +1476,9 @@ cmyth_recorder_done_ringbuf(cmyth_recorder_t rec)
 		return -ENOSYS;
 	}
 
+	if(rec->rec_conn->conn_version >= 26)
+		return 0;
+
 	pthread_mutex_lock(&mutex);
 
 	snprintf(msg, sizeof(msg), "QUERY_RECORDER %d[]:[]DONE_RINGBUF",
