@@ -1,6 +1,6 @@
 /*
- *  Copyright (C) 2004, 2005, Jon Gettler
- *  http://mvpmc.sourceforge.net/
+ *  Copyright (C) 2004, 2005, 2006, Jon Gettler
+ *  http://www.mvpmc.org/
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,8 +16,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
-
-#ident "$Id: video.c,v 1.76 2006/02/16 01:11:40 gettler Exp $"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -93,7 +91,6 @@ static volatile int audio_selected = 0;
 static volatile int audio_checks = 0;
 static volatile int pcm_decoded = 0;
 volatile int paused = 0;
-static volatile int muted = 0;
 static int zoomed = 0;
 static int display_on = 0, display_on_alt = 0;
 
@@ -311,7 +308,6 @@ video_play(mvp_widget_t *widget)
 	 *new AFD or aspect ratio: */
 	vi->aspect = -1;
 	vi->afd = -1;
-	muted = 0;
 	paused = 0;
 	video_reopen = 1;
 	video_playing = 1;
@@ -708,6 +704,7 @@ video_callback(mvp_widget_t *widget, char key)
 	int jump;
 	long long offset, size;
 	pts_sync_data_t async, vsync;
+	av_state_t state;
 
 	/*
 	printf("**SSDEBUG: In video_callback and got key %d \n",key);
@@ -728,6 +725,7 @@ video_callback(mvp_widget_t *widget, char key)
 	}
 
 	switch (key) {
+	case MVPW_KEY_GO:
 	case MVPW_KEY_GUIDE:
 		if(showing_guide == 0) {
 			printf("In %s showing guide %d \n",__FUNCTION__, key);
@@ -767,9 +765,8 @@ video_callback(mvp_widget_t *widget, char key)
 				disable_osd();
 				mvpw_expose(root);
 			}
-			if (muted)
-				av_mute();
-			else
+			av_get_state(&state);
+			if (!state.mute)
 				mvpw_hide(mute_widget);
 			mvpw_hide(pause_widget);
 			paused = 0;
@@ -810,17 +807,14 @@ video_callback(mvp_widget_t *widget, char key)
 		if (av_ffwd() == 0) {
 			demux_flush(handle);
 			demux_seek(handle);
+			av_get_state(&state);
 			av_stop();
 			av_reset();
+			if (state.mute)
+				av_set_mute(1);
 			av_play();
-			if (muted)
-				av_mute();
-			else
-				mvpw_hide(mute_widget);
 			mvpw_hide(ffwd_widget);
 		} else {
-			if (!muted)
-				av_mute();
 			mvpw_show(ffwd_widget);
 			mvpw_hide(pause_widget);
 			screensaver_disable();
@@ -882,15 +876,12 @@ video_callback(mvp_widget_t *widget, char key)
 		break;
 	case MVPW_KEY_MUTE:
 		if (mvpw_visible(ffwd_widget)) {
-			muted = 0;
 			mvpw_hide(mute_widget);
 			break;
 		}
 		if (av_mute() == 1) {
-			muted = 1;
 			mvpw_show(mute_widget);
 		} else {
-			muted = 0;
 			mvpw_hide(mute_widget);
 		}
 		break;
@@ -1334,6 +1325,8 @@ video_read_start(void *arg)
 	char *tsbuf;
 	int tslen;
 	int tsmode = TS_MODE_UNKNOWN;
+	av_state_t state;
+
 	pthread_mutex_lock(&mutex);
 
 	printf("mpeg read thread started (pid %d)\n", getpid());
@@ -1382,17 +1375,18 @@ video_read_start(void *arg)
 			demux_reset(handle);
 			ts_demux_reset(tshandle);
 			demux_seek(handle);
+			av_get_state(&state);
 			av_reset();
 			if (seeking)
 				reset = 0;
+			if (state.mute)
+				av_set_mute(1);
 			if (paused) {
 				av_play();
 				paused = 0;
 				mvpw_hide(pause_widget);
 				screensaver_disable();
 			}
-			if (muted)
-				av_mute();
 			pcm_decoded = 0;
 			ac3len = 0;
 			if (jumping) {

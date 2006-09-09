@@ -261,6 +261,14 @@ extern int av_ffwd(void);
 extern int av_mute(void);
 
 /**
+ * Mute or unmute the audio.
+ * \param state 1 to mute, 0 to unmute
+ * \retval 0 success
+ * \retval -1 error
+ */
+extern int av_set_mute(int state);
+
+/**
  * Reset the audio and video hardware.
  * \retval 0 success
  * \retval -1 error

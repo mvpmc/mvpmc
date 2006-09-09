@@ -1,6 +1,6 @@
 /*
- *  Copyright (C) 2004, 2005, Jon Gettler
- *  http://mvpmc.sourceforge.net/
+ *  Copyright (C) 2004, 2005, 2006, Jon Gettler
+ *  http://www.mvpmc.org/
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -16,8 +16,6 @@
  *  License along with this library; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ident "$Id$"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -523,8 +521,10 @@ av_play(void)
 {
 	if (ioctl(fd_audio, AV_SET_AUD_UNPAUSE, 1) < 0)
 		return -1;
-	if (ioctl(fd_audio, AV_SET_AUD_MUTE, 0) < 0)
-		return -1;
+	if (!muted) {
+		if (ioctl(fd_audio, AV_SET_AUD_MUTE, 0) < 0)
+			return -1;
+	}
 
 	av_sync();
 	if (ioctl(fd_video, AV_SET_VID_PLAY, 0) != 0)
@@ -534,7 +534,6 @@ av_play(void)
 		return -1;
 
 	paused = 0;
-	muted = 0;
 	ffwd = 0;
 
 	return 0;
@@ -558,13 +557,14 @@ av_pause(void)
 	if (paused) {
 		if (ioctl(fd_audio, AV_SET_AUD_UNPAUSE, 1) < 0)
 			return -1;
-		if (ioctl(fd_audio, AV_SET_AUD_MUTE, 0) < 0)
-			return -1;
+		if (!muted) {
+			if (ioctl(fd_audio, AV_SET_AUD_MUTE, 0) < 0)
+				return -1;
+		}
 		av_attach_fb();
 		av_play();
 		av_sync();
 		paused = 0;
-		muted = 0;
 	} else {
 		if (ioctl(fd_audio, AV_SET_AUD_MUTE, 1) < 0)
 			return -1;
@@ -617,6 +617,18 @@ av_mute(void)
 	}
 
 	return muted;
+}
+
+int
+av_set_mute(int state)
+{
+	if (state == muted)
+		return 0;
+
+	if (av_mute() < 0)
+		return -1;
+
+	return 0;
 }
 
 /*
