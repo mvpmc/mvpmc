@@ -21,7 +21,7 @@
 /*
  * timestamp.c - functions to manage MythTV timestamps.  Primarily,
  *               these allocate timestamps and convert between string
- *               and cmyth_timestamp_t and between long long and
+ *               and cmyth_timestamp_t and between time_t and
  *               cmyth_timestamp_t.
  */
 #include <sys/types.h>
@@ -194,36 +194,10 @@ cmyth_timestamp_from_string(char *str)
 	return NULL;
 }
 
-/*
- * cmyth_datetime_from_string(char *str)
- * 
- * Scope: PUBLIC
- *
- * Description
- *
- * Fill out the timestamp structure pointed to by 'ts' using the
- * string 'str'.  The string must be a timestamp of the forn:
- *
- *    yyyy-mm-ddThh:mm:ss
- *
- * Return Value:
- *
- * Success: 0
- *
- * Failure: -(ERRNO)
- */
 cmyth_timestamp_t
-cmyth_datetime_from_string(char *str)
+cmyth_timestamp_from_tm(struct tm * tm_datetime)
 {
-	cmyth_timestamp_t ret;
-	unsigned int isecs;
-	struct tm *tm_datetime;
-	time_t t_datetime;
-	
-	if (!str) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: NULL string\n", __FUNCTION__);
-		return NULL;
-	}
+    	cmyth_timestamp_t ret;
 	ret = cmyth_timestamp_create();
 	if (!ret) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: NULL timestamp\n",
@@ -231,9 +205,6 @@ cmyth_datetime_from_string(char *str)
 		return NULL;
 	}
 
-	isecs=atoi(str);
-	t_datetime = isecs;
-	tm_datetime = localtime(&t_datetime);
 	ret->timestamp_year = tm_datetime->tm_year + 1900;
 	ret->timestamp_month = tm_datetime->tm_mon + 1;
 	ret->timestamp_day = tm_datetime->tm_mday;
@@ -244,28 +215,29 @@ cmyth_datetime_from_string(char *str)
 	return ret;
 }
 
-
-
 /*
- * cmyth_timestamp_from_longlong(longlong l)
+ * cmyth_timestamp_from_unixtime(time_t l)
  * 
  * Scope: PUBLIC
  *
  * Description
  *
- * Create and fill out a timestamp structure using the long long 'l'.
+ * Create and fill out a timestamp structure using the time_t 'l'.
  *
  * Return Value:
  *
- * Success: 0
+ * Success: cmyth_timestamp_t object
  *
  * Failure: -(ERRNO)
  */
 cmyth_timestamp_t
-cmyth_timestamp_from_longlong(long long l)
+cmyth_timestamp_from_unixtime(time_t l)
 {
-	return NULL;
+	struct tm tm_datetime;
+	localtime_r(&l,&tm_datetime);
+	return cmyth_timestamp_from_tm(&tm_datetime);
 }
+
 
 /*
  * cmyth_timestamp_to_longlong( cmyth_timestamp_t ts)
@@ -274,20 +246,28 @@ cmyth_timestamp_from_longlong(long long l)
  *
  * Description
  *
- * Create a long long value from the timestamp structure 'ts' and
+ * Create a time_t value from the timestamp structure 'ts' and
  * return the result.
  * 
  *
  * Return Value:
  *
- * Success: long long time value > 0 (seconds from January 1, 1970)
+ * Success: time_t value > 0 (seconds from January 1, 1970)
  *
- * Failure: (long long) -(ERRNO)
+ * Failure: (time_t) -1
  */
-long long
-cmyth_timestamp_to_longlong(cmyth_timestamp_t ts)
+time_t
+cmyth_timestamp_to_unixtime(cmyth_timestamp_t ts)
 {
-	return (long long)-ENOSYS;
+    struct tm tm;
+    tm.tm_sec = ts->timestamp_second;
+    tm.tm_min = ts->timestamp_minute;
+    tm.tm_hour = ts->timestamp_hour;
+    tm.tm_mday = ts->timestamp_day;
+    tm.tm_mon = ts->timestamp_month-1;
+    tm.tm_year = ts->timestamp_year-1900;
+    tm.tm_isdst = ts->timestamp_isdst;
+    return mktime(&tm);
 }
 
 /*

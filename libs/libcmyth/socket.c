@@ -1240,7 +1240,7 @@ cmyth_rcv_datetime(cmyth_conn_t conn, int *err, cmyth_timestamp_t *ts,
 	}
 	if (*ts)
 		cmyth_release(*ts);
-	*ts = cmyth_datetime_from_string(tbuf);
+	*ts = cmyth_timestamp_from_unixtime((time_t)atoi(tbuf));
 	if (*ts == NULL) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_datetime_from_string() failed\n",

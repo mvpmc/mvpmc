@@ -210,6 +210,7 @@ mvpw_create(mvp_widget_t *parent,
 	widget->bg = bg;
 	widget->border_color = border_color;
 	widget->border_size = border_size;
+	widget->user_data = NULL;
 
 	if (add_widget(widget) < 0)
 		goto err;
@@ -950,4 +951,14 @@ mvpw_read_area(mvp_widget_t *widget, int x, int y, int w, int h,
 	GrReadArea(widget->wid, x, y, w, h, pixels);
 
 	return 0;
+}
+
+void mvpw_set_user_data(mvp_widget_t *widget,void *user_data)
+{
+    widget->user_data = user_data;
+}
+
+void *mvpw_get_user_data(mvp_widget_t *widget)
+{
+    return widget->user_data;
 }

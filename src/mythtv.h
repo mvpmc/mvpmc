@@ -23,6 +23,7 @@
 #include <cmyth.h>
 
 
+typedef struct mysql_config_s mysql_config_t;
 char prog_finder_hilite_char[1];		/* Current Program Finder First Character */
 char prog_finder_hilite_title[256];	/* Current Program Finder Title */ 
 
@@ -124,7 +125,7 @@ extern mvp_widget_t *mythtv_osd_description;
 
 extern mvpw_menu_attr_t mythtv_attr;
 
-extern int mythtv_init(char*, int);
+extern int mythtv_init(char*, int,mysql_config_t *);
 extern void mythtv_atexit(void);
 extern int mythtv_livetv_chain_update(char * buf);
 
@@ -179,9 +180,8 @@ extern int mythtv_livetv_menu(void);
 extern int mythtv_program_runtime(void);
 extern void mythtv_set_popup_menu(mythtv_state_t state);
 
-extern int mythtv_guide_menu(mvp_widget_t*, mvp_widget_t*);
-extern int mythtv_guide_menu_next(mvp_widget_t*);
-extern int mythtv_guide_menu_previous(mvp_widget_t*);
+extern int mythtv_guide_menu(mvp_widget_t*);
+extern int mythtv_guide_menu_move(mvp_widget_t* widget,int distance);
 
 extern int mythtv_prog_finder_char_menu(mvp_widget_t*, mvp_widget_t*, mvp_widget_t*);
 extern int mythtv_prog_finder_char_menu_right(int direction, mvp_widget_t*, mvp_widget_t*, mvp_widget_t*);

@@ -521,11 +521,10 @@ main(int argc, char **argv)
 	config->magic = CONFIG_MAGIC;
 
 
-       strcpy(mysqlptr->db,"mythconverg");
-       strcpy(mysqlptr->user,"mythtv");
-       strcpy(mysqlptr->pass,"mythtv");
-       strcpy(mysqlptr->host,"localhost");
-       mysqlptr->version=0;
+       sizeof_strncpy(mysqlptr->db,"mythconverg");
+       sizeof_strncpy(mysqlptr->user,"mythtv");
+       sizeof_strncpy(mysqlptr->pass,"mythtv");
+       sizeof_strncpy(mysqlptr->host,"localhost");
 
 	/*
 	 * Initialize the config options to the defaults.
@@ -754,27 +753,27 @@ main(int argc, char **argv)
 			break;
 		case 's':
 			mythtv_server = strdup(optarg);
-			strcpy(config->mythtv_ip, optarg);
+			sizeof_strncpy(config->mythtv_ip, optarg);
 			config->bitmask |= CONFIG_MYTHTV_IP;
 			break;
                 case 'y':
                         tmp = strdup(optarg);
-			strcpy(mysqlptr->host, tmp);
+			sizeof_strncpy(mysqlptr->host, tmp);
                         fprintf (stderr, "mysqlhost = %s\n",mysqlptr->host);
 			break;
                 case 'u':
                         tmp = strdup(optarg);
-			strcpy(mysqlptr->user,tmp);
+			sizeof_strncpy(mysqlptr->user,tmp);
                         fprintf (stderr, "mysqluser = %s\n",mysqlptr->user);
                         break;
                 case 'p':
                         tmp = strdup(optarg);
-			strcpy(mysqlptr->pass,tmp);
+			sizeof_strncpy(mysqlptr->pass,tmp);
                         fprintf (stderr, "mysqlpass = %s\n",mysqlptr->pass);
                         break;
                 case 'T':
                         tmp = strdup(optarg);
-			strcpy(mysqlptr->db,tmp);
+			sizeof_strncpy(mysqlptr->db,tmp);
                         fprintf (stderr, "mysqltable = %s\n",mysqlptr->db);
                         break;
 		case 'D':
@@ -810,7 +809,7 @@ main(int argc, char **argv)
 		case 'c':
 			mclient_type = MCLIENT;
 			mclient_server = strdup(optarg);
-			strcpy(config->mclient_ip, optarg);
+			sizeof_strncpy(config->mclient_ip, optarg);
 			config->bitmask |= CONFIG_MCLIENT_IP;
 			break;
 		default:
@@ -1039,7 +1038,7 @@ main(int argc, char **argv)
 
 #ifdef CONFIG_MYTHTV_IP
 	if (strcmp(mysqlptr->host,"localhost") == 0) {
-		strcpy(mysqlptr->host,config->mythtv_ip);
+		sizeof_strncpy(mysqlptr->host,config->mythtv_ip);
 	}
 #endif
 
