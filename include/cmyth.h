@@ -323,7 +323,7 @@ extern int cmyth_conn_check_block(cmyth_conn_t conn, unsigned long size);
  * Obtain a recorder from a connection by its recorder number.
  * \param conn connection handle
  * \param num recorder number
- * \param recorder handle
+ * \return recorder handle
  */
 extern cmyth_recorder_t cmyth_conn_get_recorder_from_num(cmyth_conn_t conn,
 							 int num);
@@ -508,7 +508,7 @@ extern cmyth_proginfo_t cmyth_recorder_get_cur_proginfo(cmyth_recorder_t rec);
  */
 extern cmyth_proginfo_t cmyth_recorder_get_next_proginfo(
 	cmyth_recorder_t rec,
-	cmyth_proginfo_t curent,
+	cmyth_proginfo_t current,
 	cmyth_browsedir_t direction);
 
 extern int cmyth_recorder_get_input_name(cmyth_recorder_t rec,
@@ -548,6 +548,12 @@ extern int cmyth_livetv_chain_switch_last(cmyth_recorder_t rec);
 
 extern int cmyth_livetv_chain_update(cmyth_recorder_t rec, char * chainid,
 						int tcp_rcvbuf);
+
+extern cmyth_recorder_t cmyth_spawn_live_tv(cmyth_recorder_t rec,
+										unsigned buflen,
+										int tcp_rcvbuf,
+                    void (*prog_update_callback)(cmyth_proginfo_t),
+										char ** err);
 
 extern cmyth_recorder_t cmyth_livetv_chain_setup(cmyth_recorder_t old_rec,
 						 int tcp_rcvbuf,

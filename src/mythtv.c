@@ -1659,12 +1659,7 @@ control_start(void *arg)
 			}
 
 			if (mythtv_livetv) {
-				if(protocol_version >= 26)
-					len = cmyth_livetv_request_block(mythtv_recorder,
-								  	size);
-				else
-					len = cmyth_ringbuf_request_block(mythtv_recorder,
-								  	size);
+				len = cmyth_livetv_request_block(mythtv_recorder, size);
 			}
 			else
 				len = cmyth_file_request_block(mythtv_file,
@@ -2146,10 +2141,7 @@ mythtv_seek(long long offset, int whence)
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
 		    __FUNCTION__, __FILE__, __LINE__);
 	if (mythtv_livetv) {
-		if(protocol_version >= 26)
-			seek_pos = cmyth_livetv_seek(r, 0, SEEK_CUR);
-		else
-			seek_pos = cmyth_ringbuf_seek(r, 0, SEEK_CUR);
+		seek_pos = cmyth_livetv_seek(r, 0, SEEK_CUR);
 	}
 	else
 		seek_pos = cmyth_file_seek(f, 0, SEEK_CUR);
@@ -2181,23 +2173,12 @@ mythtv_seek(long long offset, int whence)
 		to.tv_usec = 10;
 		len = 0;
 		if (mythtv_livetv) {
-			if(protocol_version >= 26) {
-				if (cmyth_livetv_select(r, &to) > 0) {
-					PRINTF("%s(): reading...\n", __FUNCTION__);
-					len = cmyth_livetv_get_block(r, buf,
-							     	sizeof(buf));
-					PRINTF("%s(): read returned %d\n",
-				       	__FUNCTION__, len);
-				}
-			}
-			else {
-				if (cmyth_ringbuf_select(r, &to) > 0) {
-					PRINTF("%s(): reading...\n", __FUNCTION__);
-					len = cmyth_ringbuf_get_block(r, buf,
-							     	sizeof(buf));
-					PRINTF("%s(): read returned %d\n",
-				       	__FUNCTION__, len);
-				}
+			if (cmyth_livetv_select(r, &to) > 0) {
+				PRINTF("%s(): reading...\n", __FUNCTION__);
+				len = cmyth_livetv_get_block(r, buf,
+						     	sizeof(buf));
+				PRINTF("%s(): read returned %d\n",
+			       	__FUNCTION__, len);
 			}
 		} else {
 			if (cmyth_file_select(f, &to) > 0) {
@@ -2226,10 +2207,7 @@ mythtv_seek(long long offset, int whence)
 	}
 
 	if (mythtv_livetv)
-		if(protocol_version >= 26)
-			seek_pos = cmyth_livetv_seek(r, offset, whence);
-		else
-			seek_pos = cmyth_ringbuf_seek(r, offset, whence);
+		seek_pos = cmyth_livetv_seek(r, offset, whence);
 	else
 		seek_pos = cmyth_file_seek(f, offset, whence);
 
@@ -2268,18 +2246,10 @@ mythtv_read(char *buf, int len)
 		to.tv_usec = 10;
 		ret = -EBADF;
 		if (mythtv_livetv) {
-			if(protocol_version >= 26) {
-				if (cmyth_livetv_select(r, &to) <= 0) {
-					break;
-				}
-				ret = cmyth_livetv_get_block(r, buf+tot, len-tot);
+			if (cmyth_livetv_select(r, &to) <= 0) {
+				break;
 			}
-			else {
-				if (cmyth_ringbuf_select(r, &to) <= 0) {
-					break;
-				}
-				ret = cmyth_ringbuf_get_block(r, buf+tot, len-tot);
-			}
+			ret = cmyth_livetv_get_block(r, buf+tot, len-tot);
 		} else {
 			if (cmyth_file_select(f, &to) <= 0) {
 				break;

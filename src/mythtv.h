@@ -158,7 +158,7 @@ extern cmyth_tvguide_progs_t myth_load_guide(mvp_widget_t *widget,
 												cmyth_database_t mythtv_database,
 												cmyth_chanlist_t chanlist,
 												cmyth_tvguide_progs_t proglist,
-												int index, int xofs, int yofs,
+												int index, int * xofs, int * yofs,
 												long free_recorders);
 extern int myth_guide_set_channels(void * widget, cmyth_chanlist_t chanlist,
 																	 int index, int yofs, long free_recorders);
