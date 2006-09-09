@@ -135,39 +135,64 @@ typedef struct {
 
 typedef struct playlist_struct playlist_t;
 
+/**
+ * playlist item
+ */
 struct playlist_struct {
-  char *filename;
-  char *name;
-  char *label;
-  int seconds;
-  void *key;
-  struct playlist_struct *next;
-  struct playlist_struct *prev;
+	char *filename;			/**< filename */
+	char *name;			/**< ID3 or M3U name */
+	char *label;			/**< widget label */
+	int seconds;			/**< length of recording */
+	void *key;			/**< widget key */
+	struct playlist_struct *next;	/**< next playlist item */
+	struct playlist_struct *prev;	/**< previous playlist item */
 };
 
+/**
+ * Create a playlist.
+ * \param item playlist item list
+ * \param n number of items
+ * \param cwd basename for files in the playlist
+ */
 extern void playlist_create(char **item, int n, char *cwd);
 
+/**
+ * Video playback functions for the current streaming method.
+ */
 extern volatile video_callback_t *video_functions;
+
+/**
+ * Video playback functions for playing files from the filesystem.
+ */
 extern video_callback_t file_functions;
 
+/**
+ * Is a video currently playing?
+ */
 extern volatile int video_playing;
 
+/**
+ * ReplayTV server hostname or IP address.
+ */
 extern char *replaytv_server;
+
+/**
+ * Hauppauge server hostname or IP address.
+ */
 extern char *mvp_server;
 
-extern mvp_widget_t *file_browser;
-extern mvp_widget_t *root;
-extern mvp_widget_t *iw;
-extern mvp_widget_t *pause_widget;
-extern mvp_widget_t *mute_widget;
-extern mvp_widget_t *ffwd_widget;
-extern mvp_widget_t *zoom_widget;
-extern mvp_widget_t *osd_widget;
-extern mvp_widget_t *offset_widget;
-extern mvp_widget_t *offset_bar;
-extern mvp_widget_t *bps_widget;
-extern mvp_widget_t *spu_widget;
-
+extern mvp_widget_t *file_browser;	/**< file browser */
+extern mvp_widget_t *root;		/**< root window */
+extern mvp_widget_t *iw;		/**< image viewer */
+extern mvp_widget_t *pause_widget;	/**< pause */
+extern mvp_widget_t *mute_widget;	/**< mute */
+extern mvp_widget_t *ffwd_widget;	/**< fast forward */
+extern mvp_widget_t *zoom_widget;	/**< zoom */
+extern mvp_widget_t *osd_widget;	/**< On-Screen-Display */
+extern mvp_widget_t *offset_widget;	/**< file percentage */
+extern mvp_widget_t *offset_bar;	/**< file percentage graph */
+extern mvp_widget_t *bps_widget;	/**< bits per second */
+extern mvp_widget_t *spu_widget;	/**< sub-picture */
 
 extern mvp_widget_t *episodes_widget;
 extern mvp_widget_t *shows_widget;
