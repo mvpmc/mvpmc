@@ -546,6 +546,12 @@ extern int cmyth_livetv_chain_switch_last(cmyth_recorder_t rec);
 extern int cmyth_livetv_chain_update(cmyth_recorder_t rec, char * chainid,
 						int tcp_rcvbuf);
 
+extern cmyth_recorder_t cmyth_spawn_live_tv(cmyth_recorder_t rec,
+										unsigned buflen,
+										int tcp_rcvbuf,
+                    void (*prog_update_callback)(cmyth_proginfo_t),
+										char ** err);
+
 extern cmyth_recorder_t cmyth_livetv_chain_setup(cmyth_recorder_t old_rec,
 						 int tcp_rcvbuf,
 						 void (*prog_update_callback)(cmyth_proginfo_t));
