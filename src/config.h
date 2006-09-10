@@ -67,13 +67,12 @@ typedef struct {
  * a crash or restart.  Eventually, this data will be written to flash or
  * a file so that it can survive a reboot.
  */
-typedef struct {
+struct mysql_config_s {
         char host[64];
-        char user[10];
+        char user[32];
         char pass[32];
         char db[24];
-	int version;
-} mysql_config_t;
+};
 
 typedef struct {
 	uint32_t		magic;

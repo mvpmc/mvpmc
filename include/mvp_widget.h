@@ -240,6 +240,20 @@ extern int mvpw_attach(mvp_widget_t *w1, mvp_widget_t *w2, int direction);
 extern void mvpw_unattach(mvp_widget_t *widget, int direction);
 
 /**
+ * Register some user data for later retrieval by any callback.
+ * \param widget widget handle
+ * \param user_data a pointer to the data
+ */
+extern void mvpw_set_user_data(mvp_widget_t *widget,void *user_data);
+
+/**
+ * Retrieve pointer previously registered using mvpw_set_user_data
+ * \param widget widget handle
+ * \return a pointer to the user_data
+ */
+extern void *mvpw_get_user_data(mvp_widget_t *widget);
+
+/**
  * Register a key callback on a widget.
  * \param widget widget handle
  * \param callback callback function

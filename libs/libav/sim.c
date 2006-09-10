@@ -120,6 +120,12 @@ av_mute(void)
 }
 
 int
+av_set_mute(int set)
+{
+	return 0;
+}
+
+int
 av_reset(void)
 {
 	return 0;

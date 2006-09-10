@@ -4668,10 +4668,10 @@ mythtv_schedule_keymovement_callback(mvp_widget_t *widget, char key)
 	}
 	switch (key) {
                 case MVPW_KEY_LEFT:
-			mythtv_guide_menu_previous(widget);
+			mythtv_guide_menu_move(widget,-PROGRAM_ADJUST);
                         break;
                 case MVPW_KEY_RIGHT:
-			mythtv_guide_menu_next(widget);
+			mythtv_guide_menu_move(widget,PROGRAM_ADJUST);
                         break;
                 case MVPW_KEY_OK:
                         return;
@@ -4801,7 +4801,7 @@ run_mythtv_guide_menu(void)
 	mvpw_set_key(mythtv_sched_1,mythtv_schedule_keymovement_callback);
 	fprintf(stderr, "%s : back from\n",__FUNCTION__);
 
-	mythtv_guide_menu(mythtv_sched_1,mythtv_sched_2);
+	mythtv_guide_menu(mythtv_sched_1);
 	mvpw_hide(mythtv_menu);
 	mvpw_focus(mythtv_sched_1);
 
