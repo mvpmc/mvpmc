@@ -1048,7 +1048,7 @@ cmyth_spawn_live_tv(cmyth_recorder_t rec, unsigned buflen, int tcp_rcvbuf,
 	cmyth_recorder_t rtrn = NULL;
 	int i;
 
-	printf("** SSDEBUG: version is %ld\n", rec->rec_conn->conn_version);
+	//printf("** SSDEBUG: version is %ld\n", rec->rec_conn->conn_version);
 	if(rec->rec_conn->conn_version >= 26) {
 		if (cmyth_recorder_spawn_chain_livetv(rec) != 0) {
 			*err = "Spawn livetv failed.";

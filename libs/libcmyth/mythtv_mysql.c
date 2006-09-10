@@ -450,7 +450,19 @@ cmyth_mysql_get_prog_finder_char_title(cmyth_database_t db, cmyth_program_t **pr
 	       return -1;
 	}
 
-        snprintf(query, 350, "SELECT DISTINCT title FROM program where starttime >= FROM_UNIXTIME(%d) and title like '%s%%' ORDER BY `title` ASC", (int)starttime, program_name);
+        if (strncmp(program_name, "@", 1)==0)
+                snprintf(query, 350, "SELECT DISTINCT title FROM program " \
+                                "WHERE ( title NOT REGEXP '^[A-Z0-9]' AND " \
+				"title NOT REGEXP '^The [A-Z0-9]' AND " \
+				"title NOT REGEXP '^A [A-Z0-9]' AND " \
+				"starttime >= FROM_UNIXTIME(%d)) ORDER BY title", \
+			(int)starttime);
+        else
+	        snprintf(query, 350, "SELECT DISTINCT title FROM program " \
+					"where starttime >= FROM_UNIXTIME(%d) and " \
+					"title like '%s%%' ORDER BY `title` ASC",
+			 (int)starttime, program_name);
+
 	fprintf(stderr, "%s\n", query);
         cmyth_dbg(CMYTH_DBG_ERROR, "%s: query= %s\n", __FUNCTION__, query);
         if(mysql_query(db->mysql,query)) {

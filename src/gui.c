@@ -458,6 +458,19 @@ static mvpw_text_attr_t settings_help_attr = {
 	.border_size = 0,
 };
 
+static mvpw_text_attr_t slow_connect_attr = {
+	.wrap = 1,
+	.pack = 0,
+	.justify = MVPW_TEXT_LEFT,
+	.margin = 4,
+	.font = FONT_LARGE,
+	.fg = MVPW_WHITE,
+	.bg = MVPW_LIGHTGREY,
+	.border = MVPW_RED,
+	.border_size = 4,
+	.margin = 4,
+};
+
 static mvpw_dialog_attr_t warn_attr = {
 	.font = FONT_STANDARD,
 	.fg = MVPW_WHITE,
@@ -972,6 +985,7 @@ mvp_widget_t *vnc_widget;
 /* Widgets supporting the new livetv program guide */
 mvp_widget_t *mythtv_livetv_description;
 mvp_widget_t *mythtv_livetv_program_list;
+mvp_widget_t *mythtv_slow_connect;
 
 static int screensaver_enabled = 0;
 volatile int screensaver_timeout = 60;
@@ -5674,6 +5688,31 @@ livetv_programs_init(void)
 													viewport_edges[EDGE_BOTTOM]);
 }
 
+static int 
+slow_to_connect_init(void)
+{
+	int h, w, x, y;
+
+	splash_update("Creating slow to connect message");
+
+	h = 4 * FONT_HEIGHT(slow_connect_attr);
+	w = 500;
+
+	x = (si.cols - w) / 2;
+	y = (si.rows - h) / 2;
+	y /= 2;
+
+	mythtv_slow_connect = mvpw_create_text(NULL, x, y, w, h,
+						slow_connect_attr.bg, slow_connect_attr.border,
+						slow_connect_attr.border_size);
+	mvpw_set_text_attr(mythtv_slow_connect, &slow_connect_attr);
+	mvpw_set_text_str(mythtv_slow_connect,
+		"It is taking unusually long to initiate live TV. This is most likely because mvpmc can't resolve the backend's host name. Either run DNS or add the backend to mvpmc's /etc/hosts file.");
+	mvpw_hide(mythtv_slow_connect);
+
+	return 0;
+}
+
 static int
 mclient_init(void)
 {
@@ -6610,6 +6649,7 @@ gui_init(char *server, char *replaytv)
 	themes_init();
 	about_init();
 	livetv_programs_init();
+	slow_to_connect_init();
 	image_init();
 	osd_init();
 	replaytv_browser_init(); // must come after osd_init
