@@ -49,6 +49,7 @@
 int new_live_tv;
 extern cmyth_chanlist_t tvguide_chanlist;
 extern cmyth_tvguide_progs_t  tvguide_proglist;
+extern mvp_widget_t *mythtv_slow_connect;
 extern int tvguide_cur_chan_index;
 extern int tvguide_scroll_ofs_x;
 extern int tvguide_scroll_ofs_y;
@@ -158,6 +159,13 @@ prog_update_callback(cmyth_proginfo_t prog)
 	cmyth_release(loc_prog);
 }
 
+static void
+slow_to_connect_callback(mvp_widget_t * widget)
+{
+	mvpw_show(widget);
+	mvpw_set_timer(widget, NULL, 0);
+}
+
 static int
 mythtv_new_livetv_start(cmyth_recorder_t rec)
 {
@@ -209,10 +217,13 @@ mythtv_new_livetv_start(cmyth_recorder_t rec)
 		video_functions = &livetv_functions;
 	}
 
+	mvpw_set_timer(mythtv_slow_connect, slow_to_connect_callback, 5000);
 	//printf("** SSDEBUG: Spawning live tv\n");
 	if((rec = cmyth_spawn_live_tv(rec, 16*1024,mythtv_tcp_program,
 																prog_update_callback, &msg)) == NULL)
 		goto err;
+	mvpw_set_timer(mythtv_slow_connect, NULL, 0);
+	mvpw_hide(mythtv_slow_connect);
 
 	//printf("** SSDEBUG: Spawned live tv\n");
 	if (cmyth_recorder_is_recording(rec) != 1) {
@@ -424,9 +435,12 @@ mythtv_livetv_start(int *tuner)
 		}
 	}
 
+	mvpw_set_timer(mythtv_slow_connect, slow_to_connect_callback, 5000);
 	if((rec = cmyth_spawn_live_tv(rec, 16*1024,mythtv_tcp_program,
 																prog_update_callback, &msg)) == NULL)
 		goto err;
+	mvpw_set_timer(mythtv_slow_connect, NULL, 0);
+	mvpw_hide(mythtv_slow_connect);
 
 	if (cmyth_recorder_is_recording(rec) != 1) {
 		msg = "LiveTV not recording.";
