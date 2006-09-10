@@ -83,7 +83,8 @@ mvp_tvguide_move(int direction, mvp_widget_t * proglist, mvp_widget_t * descr)
  *
  */
 void
-mvp_tvguide_show(mvp_widget_t *proglist, mvp_widget_t *descr)
+mvp_tvguide_show(mvp_widget_t *proglist, mvp_widget_t *descr,
+								 mvp_widget_t *clock)
 {
 	cmyth_tvguide_program_t prog;
 
@@ -99,8 +100,9 @@ mvp_tvguide_show(mvp_widget_t *proglist, mvp_widget_t *descr)
  *
  */
 void
-mvp_tvguide_hide(void *proglist, void *descr)
+mvp_tvguide_hide(void *proglist, void *descr, void * clock)
 {
+	mvpw_hide((mvp_widget_t *)clock);
 	mvpw_hide((mvp_widget_t *)descr);
 	mvpw_hide((mvp_widget_t *)proglist);
 }

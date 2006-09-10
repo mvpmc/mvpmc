@@ -731,7 +731,8 @@ video_callback(mvp_widget_t *widget, char key)
 			printf("In %s showing guide %d \n",__FUNCTION__, key);
 			showing_guide = 1;
 			mvp_tvguide_video_topright(1);
-			mvp_tvguide_show(mythtv_livetv_program_list, mythtv_livetv_description);
+			mvp_tvguide_show(mythtv_livetv_program_list, mythtv_livetv_description,
+											 mythtv_livetv_clock);
 		}
 		break;
 	case MVPW_KEY_TV:
@@ -739,7 +740,8 @@ video_callback(mvp_widget_t *widget, char key)
 			printf("In %s hiding guide %d \n", __FUNCTION__, key);
 			showing_guide = 0;
 			mvp_tvguide_video_topright(0);
-			mvp_tvguide_hide(mythtv_livetv_program_list, mythtv_livetv_description);
+			mvp_tvguide_hide(mythtv_livetv_program_list, mythtv_livetv_description,
+											 mythtv_livetv_clock);
 		}
 		break;
 	case MVPW_KEY_STOP:
@@ -851,7 +853,8 @@ video_callback(mvp_widget_t *widget, char key)
 			printf("In %s showing guide %d \n",__FUNCTION__, key);
 			showing_guide = 1;
 			mvp_tvguide_video_topright(1);
-			mvp_tvguide_show(mythtv_livetv_program_list, mythtv_livetv_description);
+			mvp_tvguide_show(mythtv_livetv_program_list, mythtv_livetv_description,
+											 mythtv_livetv_clock);
 			mvp_tvguide_callback(widget, key);
 		}
 		else if (mythtv_livetv) {

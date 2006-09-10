@@ -130,6 +130,7 @@ extern void mythtv_atexit(void);
 extern int mythtv_livetv_chain_update(char * buf);
 
 /* Widgets supporting the new live tv program guide */
+extern mvp_widget_t *mythtv_livetv_clock;
 extern mvp_widget_t *mythtv_livetv_description;
 extern mvp_widget_t *mythtv_livetv_program_list;
 
@@ -163,8 +164,10 @@ extern cmyth_tvguide_progs_t myth_load_guide(mvp_widget_t *widget,
 extern int myth_guide_set_channels(void * widget, cmyth_chanlist_t chanlist,
 																	 int index, int yofs, long free_recorders);
 extern int myth_set_guide_times(mvp_widget_t *widget, int xofs);
-extern void mvp_tvguide_show(mvp_widget_t *proglist, mvp_widget_t *descr);
-extern void mvp_tvguide_hide(mvp_widget_t *proglist, mvp_widget_t *descr);
+extern void mvp_tvguide_show(mvp_widget_t *proglist, mvp_widget_t *descr,
+														 mvp_widget_t *clock);
+extern void mvp_tvguide_hide(mvp_widget_t *proglist, mvp_widget_t *descr,
+														 mvp_widget_t *clock);
 extern cmyth_chanlist_t myth_release_chanlist(cmyth_chanlist_t cl);
 extern cmyth_tvguide_progs_t
 				myth_release_proglist(cmyth_tvguide_progs_t proglist);

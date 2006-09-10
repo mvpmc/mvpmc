@@ -81,6 +81,19 @@ typedef struct {
  * livetv guide attributes
  */
 
+/* Clock window */
+static mvpw_text_attr_t livetv_clock_attr = {
+	.wrap = 1,
+	.pack = 1,
+	.justify = MVPW_TEXT_LEFT,
+	.margin = 9,
+	.font = FONT_LARGE,
+	.fg = MVPW_WHITE,
+	.bg = MVPW_MIDNIGHTBLUE,
+	.border = MVPW_BLACK,
+	.border_size = 0,
+};
+
 /* Description window */
 static mvpw_text_attr_t livetv_description_attr = {
 	.wrap = 1,
@@ -171,8 +184,9 @@ mvp_tvguide_callback(mvp_widget_t *widget, char key)
 			tvguide_scroll_ofs_y = 0;
 			mvp_tvguide_video_topright(0);
 			mvp_tvguide_hide(mythtv_livetv_program_list,
-												mythtv_livetv_description);
-			/* Update the guide to the top left corner */
+												mythtv_livetv_description,
+												mythtv_livetv_clock);
+			/* Update the guide selector to the top left corner */
 			myth_set_guide_times(mythtv_livetv_program_list, tvguide_scroll_ofs_x);
 			tvguide_proglist = 
 			myth_load_guide(mythtv_livetv_program_list, mythtv_database,
@@ -238,7 +252,8 @@ mvp_tvguide_callback(mvp_widget_t *widget, char key)
 				tvguide_scroll_ofs_y = 0;
 				mvp_tvguide_video_topright(0);
 				mvp_tvguide_hide(mythtv_livetv_program_list,
-													mythtv_livetv_description);
+													mythtv_livetv_description,
+													mythtv_livetv_clock);
 				/* Update the guide to the top left corner */
 				myth_set_guide_times(mythtv_livetv_program_list, tvguide_scroll_ofs_x);
 				tvguide_proglist = 
@@ -368,6 +383,16 @@ mvp_tvguide_init(int edge_left, int edge_top, int edge_right,
 	y = 10; /*edge_top; */
 	w = si.cols/2 - 75;
 	h = si.rows/2 - 15;
+
+	mythtv_livetv_clock = mvpw_create_text(NULL, x, y, w, 20,
+						livetv_description_attr.bg,
+						livetv_description_attr.border,
+						livetv_description_attr.border_size);
+	mvpw_set_text_attr(mythtv_livetv_clock, &livetv_clock_attr);
+
+	y += 20;
+	h -= 20;
+
 	/* Create the text box that will hold the description text */
 	mythtv_livetv_description = mvpw_create_text(NULL, x, y, w, h,
 						livetv_description_attr.bg,
