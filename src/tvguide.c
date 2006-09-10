@@ -390,8 +390,8 @@ mvp_tvguide_init(int edge_left, int edge_top, int edge_right,
 						livetv_description_attr.border_size);
 	mvpw_set_text_attr(mythtv_livetv_clock, &livetv_clock_attr);
 
-	y += 20;
-	h -= 20;
+	//y += 20;
+	//h -= 20;
 
 	/* Create the text box that will hold the description text */
 	mythtv_livetv_description = mvpw_create_text(NULL, x, y, w, h,
