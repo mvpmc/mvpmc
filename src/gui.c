@@ -5652,7 +5652,7 @@ about_init(void)
         */
 	}
 
-	if (version[0] == '\0') {
+	if (version == NULL) {
 		snprintf(text, sizeof(text),
 			 "MediaMVP Media Center\n%s\nHostname: %s\n%s",
 			 compile_time, host, buf);
@@ -6001,7 +6001,7 @@ mw_init(char *server, char *replaytv)
 
 	printf("screen is %d x %d\n", si.cols, si.rows);
 
-	if (version[0] != '\0')
+	if (version != NULL)
 		snprintf(buf, sizeof(buf),
 			 "MediaMVP Media Center\nVersion %s\n%s",
 			 version, compile_time);

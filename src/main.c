@@ -603,7 +603,7 @@ main(int argc, char **argv)
 			if (strcmp(opts[opt_index].name, "version") == 0) {
 				printf("MediaMVP Media Center\n");
 				printf("http://www.mvpmc.org/\n");
-				if (version[0] != '\0') {
+				if (version != NULL) {
 					printf("Version: %s\n", version);
 				}
 				printf("Built by: %s\n", build_user);
@@ -880,7 +880,7 @@ main(int argc, char **argv)
 	/*
 	 * Make sure each copy of the child prints the version info.
 	 */
-	if (version[0] != '\0') {
+	if (version != NULL) {
 		printf("MediaMVP Media Center\nVersion %s\n%s",
 		       version, compile_time);
 	} else {
