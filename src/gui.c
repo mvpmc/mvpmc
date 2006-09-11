@@ -5637,7 +5637,7 @@ about_init(void)
 	splash_update("Creating about dialog");
 
 	h = 10 * FONT_HEIGHT(about_attr);
-	w = 500;
+	w = 550;
 
 	x = (si.cols - w) / 2;
 	y = (si.rows - h) / 2;
@@ -5653,7 +5653,7 @@ about_init(void)
         */
 	}
 
-	if (version[0] == '\0') {
+	if (version == NULL) {
 		snprintf(text, sizeof(text),
 			 "MediaMVP Media Center\n%s\nHostname: %s\n%s",
 			 compile_time, host, buf);
@@ -6002,7 +6002,7 @@ mw_init(char *server, char *replaytv)
 
 	printf("screen is %d x %d\n", si.cols, si.rows);
 
-	if (version[0] != '\0')
+	if (version != NULL)
 		snprintf(buf, sizeof(buf),
 			 "MediaMVP Media Center\nVersion %s\n%s",
 			 version, compile_time);
@@ -6012,7 +6012,7 @@ mw_init(char *server, char *replaytv)
 
 	h = 3 * FONT_HEIGHT(splash_attr);
 	w = FONT_WIDTH(splash_attr, buf) + 8;
-	w = 400;
+	w = 600;
 
 	x = (si.cols - w) / 2;
 	y = (si.rows - h) / 2;

@@ -75,6 +75,8 @@
 #include "display.h"
 #include "mclient.h"
 
+char *version = NULL;
+
 static struct option opts[] = {
 	{ "aspect", required_argument, 0, 'a' },
 	{ "config", required_argument, 0, 'F' },
@@ -470,6 +472,12 @@ main(int argc, char **argv)
 	char *optparm;
 	char optarg_tmp[1024];
 
+	if (version_number[0] != '\0') {
+		version = version_number;
+	} else if (git_revision[0] != '\0') {
+		version = git_revision;
+	}
+
 	/*
 	 * Initialize to a known state before
 	 * eval command line.
@@ -594,11 +602,12 @@ main(int argc, char **argv)
 			}
 			if (strcmp(opts[opt_index].name, "version") == 0) {
 				printf("MediaMVP Media Center\n");
-				printf("http://mvpmc.sourceforge.net/\n");
-				if (version[0] != '\0') {
+				printf("http://www.mvpmc.org/\n");
+				if (version != NULL) {
 					printf("Version: %s\n", version);
 				}
-				printf("Built: %s\n", compile_time);
+				printf("Built by: %s\n", build_user);
+				printf("Built at: %s\n", compile_time);
 				exit(0);
 			}
 			if (strcmp(opts[opt_index].name, "vlc") == 0) {
@@ -864,9 +873,20 @@ main(int argc, char **argv)
 	spawn_child();
 #endif
 
-    if (web_port) {
-       load_web_config(font);
-    }
+	if (web_port) {
+		load_web_config(font);
+	}
+
+	/*
+	 * Make sure each copy of the child prints the version info.
+	 */
+	if (version != NULL) {
+		printf("MediaMVP Media Center\nVersion %s\n%s",
+		       version, compile_time);
+	} else {
+		printf("MediaMVP Media Center\nVersion Unknown\n%s",
+		       compile_time);
+	}
 
 	srand(getpid());
 
