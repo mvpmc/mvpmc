@@ -5636,7 +5636,7 @@ about_init(void)
 	splash_update("Creating about dialog");
 
 	h = 10 * FONT_HEIGHT(about_attr);
-	w = 500;
+	w = 550;
 
 	x = (si.cols - w) / 2;
 	y = (si.rows - h) / 2;
@@ -6011,7 +6011,7 @@ mw_init(char *server, char *replaytv)
 
 	h = 3 * FONT_HEIGHT(splash_attr);
 	w = FONT_WIDTH(splash_attr, buf) + 8;
-	w = 400;
+	w = 600;
 
 	x = (si.cols - w) / 2;
 	y = (si.rows - h) / 2;
