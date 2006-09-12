@@ -16,7 +16,7 @@ bindir = mvp['INSTBINDIR']
 
 mvp.Append(CCFLAGS = ' -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE')
 
-version = os.system(toplevel + '/src/version.sh ' + toplevel + '/src')
+version = os.system(toplevel + '/src/version.sh ' + toplevel + ' ' + toplevel + '/src')
 
 if target == 'host':
 	libx11dir = ['/usr/X11R6/lib']
