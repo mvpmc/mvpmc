@@ -3,7 +3,7 @@
 # Build the dongle.bin file
 #
 
-set -ex
+set -e
 
 STRIP=${CROSS}strip
 

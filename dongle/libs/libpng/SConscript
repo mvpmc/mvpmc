@@ -1,7 +1,5 @@
 #!/usr/bin/python
 #
-# $Id: SConscript 20 2006-03-14 05:26:56Z gettler $
-#
 # build libpng
 #
 
@@ -43,8 +41,6 @@ pwd = os.getcwd()
 inc = '../../../../install/' + target + '/include'
 lib = '../../../../install/' + target + '/lib'
 
-dl = GetSourceFile(url, '#' + downloads, e)
-
 build = env.Command('../../install/' + target + '/lib/libpng.a', 0,
                     'scons/build_lib.sh -d ' + pwd + '/' + target +
                     '/libpng-1.2.6-config -i ' + file + ' ' +
@@ -53,6 +49,8 @@ build = env.Command('../../install/' + target + '/lib/libpng.a', 0,
                     '-C "' + host + ' CFLAGS=-I' + inc +
                     ' LDFLAGS=-L' + lib + '"')
 
-env.Depends(build, dl)
+if not os.path.exists(file):
+	dl = GetSourceFile(url, '#' + downloads, e)
+	env.Depends(build, dl)
 
 Return('build')

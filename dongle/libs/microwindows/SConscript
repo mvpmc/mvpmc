@@ -47,8 +47,6 @@ def GetSourceFile(url, output_dir, env):
 url = 'http://www.mvpmc.org/dl/microwindows-src-0.91.tar.gz'
 pwd = os.getcwd()
 
-dl = GetSourceFile(url, '#' + downloads, e)
-
 build = env.Command('../../install/' + target + '/lib/libnano-X.a', 0,
                     'scons/build_lib.sh -d ' + pwd + '/' + target +
                     '/microwindows-0.91 -i ' + file + ' ' +
@@ -64,7 +62,10 @@ cp = env.Command(incdir + '/nano-X.h', 0,
             'cp ' + pwd + '/' + target +
             '/microwindows-0.91/src/include/*.h ' + incdir)
 
-env.Depends(build, dl)
+if not os.path.exists(file):
+	dl = GetSourceFile(url, '#' + downloads, e)
+	env.Depends(build, dl)
+
 env.Depends(cp, build)
 
 env.SideEffect(['../../install/' + target + '/include/mwobjects.h',

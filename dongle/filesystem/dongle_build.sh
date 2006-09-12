@@ -1,13 +1,13 @@
 #!/bin/sh
 #
 # Copyright (C) 2004-2006 Jon Gettler
-# http://mvpmc.sourceforge.net/
+# http://www.mvpmc.org/
 #
 # This script will copy the IBM kernel modules from a Hauppauge dongle.bin
 # bootfile and build a new bootable mediamvp file from the supplied filesystem.
 #
 
-set -ex
+set -e
 
 TMP="tmpdir"
 RAMDISK="ramdisk"

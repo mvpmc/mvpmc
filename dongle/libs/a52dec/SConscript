@@ -1,7 +1,5 @@
 #!/usr/bin/python
 #
-# $Id: SConscript 20 2006-03-14 05:26:56Z gettler $
-#
 # build a52dec
 #
 
@@ -39,8 +37,6 @@ def GetSourceFile(url, output_dir, env):
 url = 'http://www.mvpmc.org/dl/a52dec-snapshot.tar.gz'
 pwd = os.getcwd()
 
-dl = GetSourceFile(url, '#' + downloads, e)
-
 build = env.Command('../../install/' + target + '/lib/liba52.a', 0,
                     'scons/build_lib.sh -d ' + pwd + '/' + target +
                     '/a52dec-0.7.5-cvs -i ' + file + ' ' +
@@ -48,7 +44,9 @@ build = env.Command('../../install/' + target + '/lib/liba52.a', 0,
                     '-I ' + pwd + '/../../install/' + target + ' ' +
                     "-C '--host=powerpc --enable-fixed'")
 
-env.Depends(build, dl)
+if not os.path.exists(file):
+	dl = GetSourceFile(url, '#' + downloads, e)
+	env.Depends(build, dl)
 
 env.SideEffect(['../../install/' + target + '/include/a52dec/a52.h',
                 '../../install/' + target + '/include/a52dec/attributes.h',

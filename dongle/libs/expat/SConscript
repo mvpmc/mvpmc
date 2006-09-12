@@ -1,7 +1,5 @@
 #!/usr/bin/python
 #
-# $Id: SConscript 20 2006-03-14 05:26:56Z gettler $
-#
 # build expat
 #
 
@@ -38,8 +36,6 @@ def GetSourceFile(url, output_dir, env):
 url = 'http://www.mvpmc.org/dl/expat-1.95.8.tar.gz'
 pwd = os.getcwd()
 
-dl = GetSourceFile(url, '#' + downloads, e)
-
 build = env.Command('../../install/' + target + '/lib/libexpat.a', 0,
                     'scons/build_lib.sh -d ' + pwd + '/' + target +
                     '/expat-1.95.8 -i ' + file + ' ' +
@@ -47,7 +43,9 @@ build = env.Command('../../install/' + target + '/lib/libexpat.a', 0,
                     '-I ' + pwd + '/../../install/' + target + ' '
                     '-C --host=powerpc')
 
-env.Depends(build, dl)
+if not os.path.exists(file):
+	dl = GetSourceFile(url, '#' + downloads, e)
+	env.Depends(build, dl)
 
 env.SideEffect(['../../install/' + target + '/include/expat.h'],
                 build)

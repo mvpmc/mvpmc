@@ -1,8 +1,6 @@
 #!/usr/bin/python
 #
-# $Id: SConscript 20 2006-03-14 05:26:56Z gettler $
-#
-# build libdvbpsi
+# build libjpeg
 #
 
 import os
@@ -43,8 +41,6 @@ def GetSourceFile(url, output_dir, env):
 url = 'http://www.mvpmc.org/dl/jpegsrc.v6b.tar.gz'
 pwd = os.getcwd()
 
-dl = GetSourceFile(url, '#' + downloads, e)
-
 build = env.Command('../../install/' + target + '/lib/libjpeg.a', 0,
                     'scons/build_lib.sh -d ' + pwd + '/' + target +
                     '/jpeg-6b -i ' + file + ' ' +
@@ -54,6 +50,9 @@ build = env.Command('../../install/' + target + '/lib/libjpeg.a', 0,
                     '-p patches/jpegscale.patch ')
 
 env.Depends(build, [ 'patches/jpegscale.patch' ] )
-env.Depends(build, dl)
+
+if not os.path.exists(file):
+	dl = GetSourceFile(url, '#' + downloads, e)
+	env.Depends(build, dl)
 
 Return('build')

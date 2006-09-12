@@ -37,8 +37,6 @@ def GetSourceFile(url, output_dir, env):
 url = 'http://www.mvpmc.org/dl/ncurses-5.5.tar.gz'
 pwd = os.getcwd()
 
-dl = GetSourceFile(url, '#' + downloads, e)
-
 build = env.Command('../../install/' + target + '/lib/libncurses.a', 0,
                     'scons/build_lib.sh -d ' + pwd + '/' + target +
                     '/ncurses-5.5 -i ' + file + ' ' +
@@ -46,7 +44,9 @@ build = env.Command('../../install/' + target + '/lib/libncurses.a', 0,
                     '-C --host=ppcbe ' +
                     '-I ' + pwd + '/../../install/' + target + ' ')
 
-env.Depends(build, dl)
+if not os.path.exists(file):
+	dl = GetSourceFile(url, '#' + downloads, e)
+	env.Depends(build, dl)
 
 env.SideEffect(['../../install/' + target + '/include/ncurses.h'],
                 build)

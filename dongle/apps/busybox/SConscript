@@ -1,7 +1,5 @@
 #!/usr/bin/python
 #
-# $Id: SConscript 20 2006-03-14 05:26:56Z gettler $
-#
 # build busybox
 #
 
@@ -35,8 +33,6 @@ def GetSourceFile(url, output_dir, env):
 url = 'http://www.mvpmc.org/dl/busybox-1.1.3.tar.bz2'
 pwd = os.getcwd()
 
-dl = GetSourceFile(url, '#' + downloads, e)
-
 build = env.Command('../../install/' + target + '/bin/busybox', 0,
                     'scons/build_app.sh -d ' + pwd + '/' + target +
                     '/busybox-1.1.3 -i ' + file + ' ' +
@@ -47,6 +43,9 @@ build = env.Command('../../install/' + target + '/bin/busybox', 0,
 
 env.Depends(build, [ 'patches/busybox_config.patch',
                      'patches/busybox-1.1.3.patch' ])
-env.Depends(build, dl)
+
+if not os.path.exists(file):
+	dl = GetSourceFile(url, '#' + downloads, e)
+	env.Depends(build, dl)
 
 Return('build')
