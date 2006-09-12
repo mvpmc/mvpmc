@@ -76,6 +76,7 @@
 #include "mclient.h"
 
 char *version = NULL;
+char build_info[256];
 
 static struct option opts[] = {
 	{ "aspect", required_argument, 0, 'a' },
@@ -472,6 +473,17 @@ main(int argc, char **argv)
 	char *optparm;
 	char optarg_tmp[1024];
 
+	/*
+	 * Ensure the build info is easily found in any corefile.
+	 */
+	snprintf(build_info, sizeof(build_info),
+		 "BUILD_INFO: '%s' '%s' '%s' '%s' '%s'\n",
+		 version_number,
+		 compile_time,
+		 build_user,
+		 git_revision,
+		 git_diffs);
+
 	if (version_number[0] != '\0') {
 		version = version_number;
 	} else if (git_revision[0] != '\0') {
@@ -608,6 +620,9 @@ main(int argc, char **argv)
 				}
 				printf("Built by: %s\n", build_user);
 				printf("Built at: %s\n", compile_time);
+				if (git_diffs[0] != '\0') {
+					printf("git diffs: %s\n", git_diffs);
+				}
 				exit(0);
 			}
 			if (strcmp(opts[opt_index].name, "vlc") == 0) {
