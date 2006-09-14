@@ -1,7 +1,7 @@
 #!/usr/bin/python
 #
 # SCons build script for mvpmc
-# http://mvpmc.sourceforge.net/
+# http://www.mvpmc.org/
 #
 
 import os
@@ -29,7 +29,6 @@ if os.path.exists(toolchains) == 0:
 #    kernel
 #
 if target == 'mvp':
-	print "mvp build"
 	powerpc = 'powerpc-405-linux-uclibc'
 	gcc = 'gcc-3.4.5-uClibc-0.9.28'
 	prefix = powerpc + '-'
@@ -39,7 +38,6 @@ if target == 'mvp':
 	env.Replace(CC = cross + 'gcc')
 	cppflags = ''
 elif target == 'host':
-	print "host build"
 	cppflags = '-DMVPMC_HOST'
 	crossroot='';
 elif target == 'kernel':

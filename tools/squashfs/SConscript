@@ -1,7 +1,5 @@
 #!/usr/bin/python
 #
-# $Id: SConscript 20 2006-03-14 05:26:56Z gettler $
-#
 # build squashfs-tools
 #
 
@@ -35,8 +33,6 @@ def GetSourceFile(url, output_dir, env):
 url = 'http://www.mvpmc.org/dl/squashfs2.2-r2.tar.gz'
 pwd = os.getcwd()
 
-dl = GetSourceFile(url, '#' + downloads, e)
-
 build = env.Command(pwd + '/squashfs2.2-r2/squashfs-tools/mksquashfs', 0,
                     'cd ' + pwd + ' && tar -xzf ' + file + ' && '
                     'cd squashfs2.2-r2 && '
@@ -45,6 +41,9 @@ build = env.Command(pwd + '/squashfs2.2-r2/squashfs-tools/mksquashfs', 0,
                     'CC=gcc make')
 
 env.Depends(build, [ 'patches/squashfs-devtab.patch' ])
-env.Depends(build, dl)
+
+if not os.path.exists(file):
+	dl = GetSourceFile(url, '#' + downloads, e)
+	env.Depends(build, dl)
 
 Return('build')

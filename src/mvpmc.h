@@ -355,7 +355,8 @@ extern volatile int screensaver_default;
 extern char vnc_server[256];
 extern int vnc_port;
 
-extern char compile_time[], version_number[], build_user[], git_revision[];
+extern char compile_time[], version_number[], build_user[];
+extern char git_revision[], git_diffs[];
 extern char *version;
 
 extern av_demux_mode_t demux_mode;

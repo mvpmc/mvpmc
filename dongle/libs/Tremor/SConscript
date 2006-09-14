@@ -1,8 +1,6 @@
 #!/usr/bin/python
 #
-# $Id: SConscript 20 2006-03-14 05:26:56Z gettler $
-#
-# build libdvbpsi
+# build Tremor
 #
 
 import os
@@ -42,8 +40,6 @@ def GetSourceFile(url, output_dir, env):
 url = 'http://www.mvpmc.org/dl/tremor-1.0.2.tar.gz'
 pwd = os.getcwd()
 
-dl = GetSourceFile(url, '#' + downloads, e)
-
 build = env.Command('../../install/' + target + '/lib/libvorbisidec.a', 0,
                     'scons/build_lib.sh -d ' + pwd + '/' + target +
                     '/Tremor -i ' + file + ' ' +
@@ -51,7 +47,9 @@ build = env.Command('../../install/' + target + '/lib/libvorbisidec.a', 0,
                     '-I ' + pwd + '/../../install/' + target + ' ' +
                     Carg + host)
 
-env.Depends(build, dl)
+if not os.path.exists(file):
+	dl = GetSourceFile(url, '#' + downloads, e)
+	env.Depends(build, dl)
 
 env.SideEffect(['../../install/' + target + '/include/tremor/ivorbiscodec.h',
                 '../../install/' + target + '/include/tremor/ivorbisfile.h'],

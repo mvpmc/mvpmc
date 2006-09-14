@@ -1,8 +1,6 @@
 #!/usr/bin/python
 #
-# $Id: SConscript 20 2006-03-14 05:26:56Z gettler $
-#
-# build libdvbpsi
+# build libid3
 #
 
 import os
@@ -43,8 +41,6 @@ def GetSourceFile(url, output_dir, env):
 url = 'http://www.mvpmc.org/dl/libid3-1.0.tar.gz'
 pwd = os.getcwd()
 
-dl = GetSourceFile(url, '#' + downloads, e)
-
 build = env.Command('../../install/' + target + '/lib/libid3.a', 0,
                     'scons/build_lib.sh -d ' + pwd + '/' + target +
                     '/libid3-1.0 -i ' + file + ' ' +
@@ -52,7 +48,9 @@ build = env.Command('../../install/' + target + '/lib/libid3.a', 0,
                     '-I ' + pwd + '/../../install/' + target + ' ' +
                     Carg + host)
 
-env.Depends(build, dl)
+if not os.path.exists(file):
+	dl = GetSourceFile(url, '#' + downloads, e)
+	env.Depends(build, dl)
 
 env.SideEffect(['../../install/' + target + '/include/id3.h'],
                 build)

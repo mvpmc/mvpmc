@@ -1,7 +1,5 @@
 #!/usr/bin/python
 #
-# $Id: SConscript 20 2006-03-14 05:26:56Z gettler $
-#
 # build libdvbpsi
 #
 
@@ -43,8 +41,6 @@ def GetSourceFile(url, output_dir, env):
 url = 'http://www.mvpmc.org/dl/libdvbpsi4-0.1.5.tar.gz'
 pwd = os.getcwd()
 
-dl = GetSourceFile(url, '#' + downloads, e)
-
 build = env.Command('../../install/' + target + '/lib/libdvbpsi.a', 0,
                     'scons/build_lib.sh -d ' + pwd + '/' + target +
                     '/libdvbpsi4-0.1.5 -i ' + file + ' ' +
@@ -52,7 +48,9 @@ build = env.Command('../../install/' + target + '/lib/libdvbpsi.a', 0,
                     '-I ' + pwd + '/../../install/' + target + ' ' +
                     Carg + host)
 
-env.Depends(build, dl)
+if not os.path.exists(file):
+	dl = GetSourceFile(url, '#' + downloads, e)
+	env.Depends(build, dl)
 
 env.SideEffect(['../../install/' + target + '/include/dvbpsi/dvbpsi.h',
                 '../../install/' + target + '/include/dvbpsi/psi.h',

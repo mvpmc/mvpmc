@@ -40,8 +40,6 @@ def GetSourceFile(url, output_dir, env):
 url = 'http://www.mvpmc.org/dl/mysql-5.0.21.tar.gz'
 pwd = os.getcwd()
 
-dl = GetSourceFile(url, '#' + downloads, e)
-
 build = env.Command('../../install/' + target + '/lib/mysql/libmysqlclient.a', 0,
                     'scons/build_lib.sh -d ' + pwd + '/' + target +
                     '/mysql-5.0.21 -i ' + file + ' ' +
@@ -52,7 +50,9 @@ build = env.Command('../../install/' + target + '/lib/mysql/libmysqlclient.a', 0
                     '-L \"-L../../install/' + target + '/lib\"' + ' ' +
                     '-p patches/my_global.h.patch')
 
-env.Depends(build, dl)
+if not os.path.exists(file):
+	dl = GetSourceFile(url, '#' + downloads, e)
+	env.Depends(build, dl)
 
 env.SideEffect(['../../install/' + target + '/include/mysql/mysql.h'],
                 build)

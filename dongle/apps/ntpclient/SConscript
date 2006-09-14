@@ -33,8 +33,6 @@ def GetSourceFile(url, output_dir, env):
 url = 'http://www.mvpmc.org/dl/ntpclient_2003_194.tar.gz'
 pwd = os.getcwd()
 
-dl = GetSourceFile(url, '#' + downloads, e)
-
 build = env.Command('../../install/' + target + '/bin/ntpclient', 0,
                     'scons/build_app.sh -d ' + pwd + '/' + target +
                     '/ntpclient -i ' + file + ' ' +
@@ -43,6 +41,8 @@ build = env.Command('../../install/' + target + '/bin/ntpclient', 0,
                     '-p patches/make.patch ' +
                     '-p patches/error.patch')
 
-env.Depends(build, dl)
+if not os.path.exists(file):
+	dl = GetSourceFile(url, '#' + downloads, e)
+	env.Depends(build, dl)
 
 Return('build')
