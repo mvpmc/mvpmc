@@ -230,7 +230,7 @@ struct cmyth_tvguide_program {
 	char seriesid[12];
 	char category[64];
 	int recording;
-	char rec_status[2];
+	//char rec_status[2];
 	int channum;
 };
 

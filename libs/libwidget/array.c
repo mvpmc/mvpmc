@@ -284,8 +284,19 @@ mvpw_array_layout(mvp_widget_t *widget)
 	if(!widget->data.array.cell_viz) {
 		widget->data.array.cell_viz = malloc(r * c
 					*	sizeof(*(widget->data.array.cell_viz)));
-		memset(widget->data.array.cell_strings, 0, r * c
+		memset(widget->data.array.cell_viz, 0, r * c
 					*	sizeof(*(widget->data.array.cell_viz)));
+	}
+
+	/*
+	 * Create the theme array.
+	 */
+	PRINTF("** SSDEBUG: creating the visibility array\n");
+	if(!widget->data.array.cell_theme) {
+		widget->data.array.cell_theme = malloc(r * c
+					*	sizeof(*(widget->data.array.cell_theme)));
+		memset(widget->data.array.cell_theme, 0, r * c
+					*	sizeof(*(widget->data.array.cell_theme)));
 	}
 
 	/*
@@ -453,6 +464,21 @@ mvpw_set_array_cell(mvp_widget_t *widget, int x, int y, char * string,
 }
 
 void
+mvpw_set_array_cell_fg(mvp_widget_t *widget, int x, int y, uint32_t fg)
+{
+	int i;
+
+	if(x>widget->data.array.cols || y>widget->data.array.rows) {
+		PRINTF("** SSDEBUG: ERROR %s indexes out of range (%d,%d).\n",
+		__FUNCTION__, x, y);
+		return;
+	}
+	i = widget->data.array.cols * y + x;
+	if(widget->data.array.cells[i])
+		mvpw_set_text_fg(widget->data.array.cells[i], fg);
+}
+
+void
 mvpw_set_array_cell_data(mvp_widget_t *widget, int x, int y, void * data)
 {
 	int i;
@@ -577,15 +603,20 @@ mvpw_move_array_selection(mvp_widget_t *widget, int direction)
 		__FUNCTION__, __FILE__, __LINE__, direction);
 	*/
 	switch(direction) {
+		case MVPW_ARRAY_HOLD:
+			mvpw_hilite_array_cell(widget,
+				widget->data.array.hilite_x,
+				widget->data.array.hilite_y, 1);
+		break;
 		case MVPW_ARRAY_LEFT:
+			mvpw_hilite_array_cell(widget,
+				widget->data.array.hilite_x,
+				widget->data.array.hilite_y, 0);
 			if(widget->data.array.hilite_x > 0) {
 				/*
 				PRINTF("** SSEDBUG: moving LEFT from %d,%d\n",
 					widget->data.array.hilite_x,widget->data.array.hilite_y);
 				*/
-				mvpw_hilite_array_cell(widget,
-					widget->data.array.hilite_x,
-					widget->data.array.hilite_y, 0);
 				/* Determine if we're moving left to a multispan cell
 				 * and if so, skip further left
 				 */
@@ -601,6 +632,9 @@ mvpw_move_array_selection(mvp_widget_t *widget, int direction)
 			else if(widget->data.array.scroll_callback) {
 				(*widget->data.array.scroll_callback)(widget, MVPW_ARRAY_RIGHT);
 			}
+			mvpw_hilite_array_cell(widget,
+				widget->data.array.hilite_x,
+				widget->data.array.hilite_y, 1);
 		break;
 		case MVPW_ARRAY_RIGHT:
 			ofs = widget->data.array.cols * widget->data.array.hilite_y
@@ -693,11 +727,52 @@ mvpw_move_array_selection(mvp_widget_t *widget, int direction)
 				widget->data.array.hilite_y, 1);
 		break;
 		case MVPW_ARRAY_PAGE_UP:
+			mvpw_hilite_array_cell(widget,
+				widget->data.array.hilite_x,
+				widget->data.array.hilite_y, 0);
 			(*widget->data.array.scroll_callback)(widget, MVPW_ARRAY_PAGE_DOWN);
+			mvpw_hilite_array_cell(widget,
+				widget->data.array.hilite_x,
+				widget->data.array.hilite_y, 1);
 		break;
 		case MVPW_ARRAY_PAGE_DOWN:
+			mvpw_hilite_array_cell(widget,
+				widget->data.array.hilite_x,
+				widget->data.array.hilite_y, 0);
 			(*widget->data.array.scroll_callback)(widget, MVPW_ARRAY_PAGE_UP);
+			mvpw_hilite_array_cell(widget,
+				widget->data.array.hilite_x,
+				widget->data.array.hilite_y, 1);
 		break;
+	}
+}
+
+void
+mvpw_set_array_cell_theme(mvp_widget_t *widget, int x, int y,
+													mvpw_array_cell_theme *theme)
+{
+	int i;
+	mvpw_text_attr_t ta;
+	if(x>widget->data.array.cols || y>widget->data.array.rows || y<0 || x<0) {
+		printf("** SSDEBUG: ERROR %s indexes out of range (%d,%d).\n",
+		__FUNCTION__, x, y);
+		return;
+	}
+
+	i = widget->data.array.cols * y + x;
+	widget->data.array.cell_theme[i] = theme;
+	if(widget->data.array.cell_viz[i]) {
+		mvpw_get_text_attr(widget->data.array.cells[i], &ta);
+		if(theme == NULL) {
+			ta.fg = widget->data.array.cell_fg;
+			ta.bg = widget->data.array.cell_bg;
+		}
+		else {
+			ta.fg = theme->cell_fg;
+			ta.bg = theme->cell_bg;
+		}
+		mvpw_set_text_attr(widget->data.array.cells[i], &ta);
+		mvpw_set_bg(widget->data.array.cells[i], ta.bg);
 	}
 }
 
@@ -707,25 +782,40 @@ mvpw_hilite_array_cell(mvp_widget_t *widget, int x, int y, int hlt)
 	int i;
 	mvpw_text_attr_t ta;
 
-	if(y<0 || x<0) return;
+	if(x>widget->data.array.cols || y>widget->data.array.rows || y<0 || x<0) {
+		printf("** SSDEBUG: ERROR %s indexes out of range (%d,%d).\n",
+		__FUNCTION__, x, y);
+		return;
+	}
 
 	i = widget->data.array.cols * y + x;
 	if(widget->data.array.cells[i]) {
 		mvpw_get_text_attr(widget->data.array.cells[i], &ta);
 		if(hlt) {
-			ta.fg = widget->data.array.hilite_fg;
-			ta.bg = widget->data.array.hilite_bg;
+			if(widget->data.array.cell_theme[i]) {
+				ta.fg = widget->data.array.cell_theme[i]->hilite_fg;
+				ta.bg = widget->data.array.cell_theme[i]->hilite_bg;
+			}
+			else {
+				ta.fg = widget->data.array.hilite_fg;
+				ta.bg = widget->data.array.hilite_bg;
+			}
 			widget->data.array.hilite_x = x;
 			widget->data.array.hilite_y = y;
 		}
 		else {
-			ta.fg = widget->data.array.cell_fg;
-			ta.bg = widget->data.array.cell_bg;
+			if(widget->data.array.cell_theme[i]) {
+				ta.fg = widget->data.array.cell_theme[i]->cell_fg;
+				ta.bg = widget->data.array.cell_theme[i]->cell_bg;
+			}
+			else {
+				ta.fg = widget->data.array.cell_fg;
+				ta.bg = widget->data.array.cell_bg;
+			}
 		}
 		mvpw_set_text_attr(widget->data.array.cells[i], &ta);
 		mvpw_set_bg(widget->data.array.cells[i], ta.bg);
-		/*
-		mvpw_expose(widget->data.array.cells[i]); */
+		/*mvpw_expose(widget->data.array.cells[i]);*/
 	}
 }
 
