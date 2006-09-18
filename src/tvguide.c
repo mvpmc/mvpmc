@@ -549,7 +549,7 @@ mvp_tvguide_start(void)
 	mvpw_set_timer(mythtv_livetv_program_list, mvp_tvguide_timer, 100);
 	PRINTF("** SSDEBUG: timer started\n");
 
-	mvpw_set_timer(mythtv_livetv_clock, mvp_tvguide_clock_timer, 500);
+	mvpw_set_timer(mythtv_livetv_clock, mvp_tvguide_clock_timer, 2000);
 
 	return 0;
 }

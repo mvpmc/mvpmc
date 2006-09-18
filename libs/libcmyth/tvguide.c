@@ -34,7 +34,7 @@
 
 #define MERGE_CELLS 1
 
-#if 1
+#if 0
 int ssdebug = 0;
 #define PRINTF(x...) if(ssdebug) printf(x) 
 #define TRC(fmt, args...) printf(fmt, ## args)
@@ -205,7 +205,7 @@ get_tvguide_selected_channel(mvp_widget_t *proglist)
  *
  */
 static cmyth_tvguide_progs_t
-get_guide_mysql2(MYSQL *mysql, cmyth_chanlist_t chanlist,
+get_tvguide_page(MYSQL *mysql, cmyth_chanlist_t chanlist,
 								 cmyth_tvguide_progs_t proglist, int index,
 								 struct tm * start_time, struct tm * end_time) 
 {
@@ -538,7 +538,7 @@ myth_load_guide(void * widget, cmyth_database_t db,
 		later.tm_sec = 0;
 		prev = proglist->count;
 		PRINTF("** SSEDBUG: Calling set_guide_mysql2\n");
-		rtrn  = get_guide_mysql2(mysql, chanlist, proglist, index, &now, &later);
+		rtrn  = get_tvguide_page(mysql, chanlist, proglist, index, &now, &later);
 		PRINTF("** SSEDBUG: done set_guide_mysql2 rtrn = %p\n", rtrn);
 		if(rtrn == NULL)
 			return proglist;
@@ -581,7 +581,6 @@ myth_load_guide(void * widget, cmyth_database_t db,
 			}
 			mvpw_set_array_cell_span(widget, m, i-prev-k, j-m+1);
 #endif
-			ssdebug = 1;
 			if(rtrn->progs[i].recording) {
 				mvpw_set_array_cell_theme(widget, j, i-prev-k, &mvpw_record_theme);
 				PRINTF("** SSDEBUG: setting cell color for cell %d, %d\n",
@@ -590,7 +589,6 @@ myth_load_guide(void * widget, cmyth_database_t db,
 			else {
 				mvpw_set_array_cell_theme(widget, j, i-prev-k, NULL);
 			}
-			ssdebug = 0;
 
 			mvpw_set_array_cell_data(widget, j, i-prev-k, &rtrn->progs[i]);
 			mvpw_set_array_cell(widget, j, i-prev-k, rtrn->progs[i].title, NULL);

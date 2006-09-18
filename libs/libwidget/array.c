@@ -760,19 +760,21 @@ mvpw_set_array_cell_theme(mvp_widget_t *widget, int x, int y,
 	}
 
 	i = widget->data.array.cols * y + x;
-	widget->data.array.cell_theme[i] = theme;
-	if(widget->data.array.cell_viz[i]) {
-		mvpw_get_text_attr(widget->data.array.cells[i], &ta);
-		if(theme == NULL) {
-			ta.fg = widget->data.array.cell_fg;
-			ta.bg = widget->data.array.cell_bg;
+	if(widget->data.array.cell_theme[i] != theme) {
+		if(widget->data.array.cell_viz[i]) {
+			widget->data.array.cell_theme[i] = theme;
+			mvpw_get_text_attr(widget->data.array.cells[i], &ta);
+			if(theme == NULL) {
+				ta.fg = widget->data.array.cell_fg;
+				ta.bg = widget->data.array.cell_bg;
+			}
+			else {
+				ta.fg = theme->cell_fg;
+				ta.bg = theme->cell_bg;
+			}
+			mvpw_set_text_attr(widget->data.array.cells[i], &ta);
+			mvpw_set_bg(widget->data.array.cells[i], ta.bg);
 		}
-		else {
-			ta.fg = theme->cell_fg;
-			ta.bg = theme->cell_bg;
-		}
-		mvpw_set_text_attr(widget->data.array.cells[i], &ta);
-		mvpw_set_bg(widget->data.array.cells[i], ta.bg);
 	}
 }
 
