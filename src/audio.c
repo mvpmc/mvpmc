@@ -1,6 +1,6 @@
 /*
- *  Copyright (C) 2004,2005, Jon Gettler
- *  http://mvpmc.sourceforge.net/
+ *  Copyright (C) 2004,2005,2006, Jon Gettler
+ *  http://www.mvpmc.org/
  *
  *  wav file player by Stephen Rice
  *  ac3 code from a52dec
@@ -19,8 +19,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
-
-#ident "$Id: audio.c,v 1.21 2006/02/03 06:02:57 gettler Exp $"
 
 #include <stdio.h>
 #include <stdlib.h>

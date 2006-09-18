@@ -250,12 +250,12 @@ mvpw_focus(mvp_widget_t *widget)
 {
 	if ((mvpw_get_focus() == widget) &&
 	    !((widget->type == MVPW_DIALOG) &&
-	      (widget->data.dialog.modal == 1)))
+	      widget->data.dialog.modal))
 		return;
 
 	if (widget) {
 		if ((widget->type == MVPW_DIALOG) &&
-		    (widget->data.dialog.modal == 1)) {
+		    widget->data.dialog.modal) {
 			raise_widget(widget, (mvp_widget_t*)modal_focus);
 			modal_focus = widget;
 		} else {
@@ -274,7 +274,7 @@ mvpw_show(mvp_widget_t *widget)
 
 	if (widget) {
 		if ((widget->type == MVPW_DIALOG) &&
-		    (widget->data.dialog.modal == 1)) {
+		    widget->data.dialog.modal) {
 			top = mvpw_get_focus();
 			GrMapWindow(widget->wid);
 			mvpw_focus(widget);
@@ -294,7 +294,7 @@ mvpw_hide(mvp_widget_t *widget)
 	if (widget) {
 		if (widget == modal_focus) {
 			if ((widget->below->type == MVPW_DIALOG) &&
-			    (widget->below->data.dialog.modal == 1)) {
+			    widget->below->data.dialog.modal) {
 				modal_focus = widget->below;
 			} else {
 				modal_focus = NULL;
@@ -529,7 +529,7 @@ mvpw_move(mvp_widget_t *widget, int x, int y)
 }
 
 int
-mvpw_font_height(int font, int utf8)
+mvpw_font_height(int font, bool utf8)
 {
 	GR_FONT_INFO finfo;
 
@@ -550,7 +550,7 @@ static void accumulate_width(void *closure, void *closure2, int c) {
 }
 
 int
-mvpw_font_width(int font, char *str, int utf8)
+mvpw_font_width(int font, char *str, bool utf8)
 {
 	GR_FONT_INFO finfo;
 	int i, w = 0;

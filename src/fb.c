@@ -42,7 +42,7 @@
 
 extern mvpw_menu_attr_t fb_attr;
 static mvpw_menu_item_attr_t item_attr = {
-	.selectable = 1,
+	.selectable = true,
 	.fg = MVPW_BLACK,
 	.bg = MVPW_LIGHTGREY,
 	.checkbox_fg = MVPW_GREEN,
@@ -316,7 +316,7 @@ fb_start_thumbnail(void)
 }
 
 static void
-hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
+hilite_callback(mvp_widget_t *widget, char *item, void *key, bool hilite)
 {
 	char path[1024], str[1024], date[64];
 	struct stat64 sb;

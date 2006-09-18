@@ -112,7 +112,7 @@ mvpw_set_checkbox_fg(mvp_widget_t *widget, uint32_t fg)
  *
  **/
 void
-mvpw_set_checkbox(mvp_widget_t *widget, int checked)
+mvpw_set_checkbox(mvp_widget_t *widget, bool checked)
 {
 	widget->data.checkbox.checked = checked;
 }

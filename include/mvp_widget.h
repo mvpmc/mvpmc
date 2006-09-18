@@ -28,10 +28,21 @@
 
 #include <stdint.h>
 
-#define MVPW_DIR_UP	0
-#define MVPW_DIR_DOWN	1
-#define MVPW_DIR_LEFT	2
-#define MVPW_DIR_RIGHT	3
+#if !defined(__cplusplus) && !defined(HAVE_TYPE_BOOL)
+#define HAVE_TYPE_BOOL
+/**
+ * Boolean type.
+ */
+typedef enum {
+	false = 0,
+	true = 1
+} bool;
+#endif /* !__cplusplus && !HAVE_TYPE_BOOL */
+
+#define MVPW_DIR_UP	0	/**< widget above */
+#define MVPW_DIR_DOWN	1	/**< widget below */
+#define MVPW_DIR_LEFT	2	/**< widget left */
+#define MVPW_DIR_RIGHT	3	/**< widget right */
 
 typedef struct mvp_widget_s mvp_widget_t;
 
@@ -180,7 +191,7 @@ extern void mvpw_expose(const mvp_widget_t *widget);
  * \param utf8 1 if UTF8 encoding is used, 0 otherwise
  * \return font height in pixels
  */
-extern int mvpw_font_height(int font, int utf8);
+extern int mvpw_font_height(int font, bool utf8);
 
 /**
  * Return the width for a string using a certain font.
@@ -189,7 +200,7 @@ extern int mvpw_font_height(int font, int utf8);
  * \param utf8 1 if UTF8 encoding is used, 0 otherwise
  * \return string width in pixels
  */
-extern int mvpw_font_width(int font, char *str, int utf8);
+extern int mvpw_font_width(int font, char *str, bool utf8);
 
 /**
  * Load a font from a file.
@@ -336,17 +347,17 @@ extern mvp_widget_t *mvpw_create_container(mvp_widget_t *parent,
  * text attributes
  */
 typedef struct {
-	int	 	wrap;		/**< auto-wrap text */
-	int	 	justify;	/**< justification type */
-	int		pack;
+	bool	 	wrap;		/**< auto-wrap text */
+	bool	 	justify;	/**< justification type */
+	bool		pack;
 	int	 	margin;		/**< margin in pixels */
 	int	 	font;		/**< font id */
 	uint32_t 	fg;		/**< foreground color */
 	uint32_t 	bg;		/**< background color */
 	uint32_t 	border;		/**< border color */
-	int	 	rounded;	/**< rounded or square hilite */
+	bool	 	rounded;	/**< rounded or square hilite */
 	int	 	border_size;	/**< border size in pixels */
-	int	 	utf8;		/**< utf8 encoding */
+	bool	 	utf8;		/**< utf8 encoding */
 } mvpw_text_attr_t;
 
 /**
@@ -476,18 +487,18 @@ typedef struct {
 	uint32_t 	border;		/**< border color */
 	uint32_t 	checkbox_fg;	/**< checkbox color */
 	int	 	title_justify;	/**< title justification */
-	int	 	checkboxes;	/**< display checkboxes */
-	int	 	rounded;	/**< rounded or square hilite */
+	bool	 	checkboxes;	/**< display checkboxes */
+	bool	 	rounded;	/**< rounded or square hilite */
 	int	 	border_size;	/**< border size in pixels */
 	int	 	margin;		/**< margin size in pixels */
-	int	 	utf8;		/**< utf8 text encoding */
+	bool	 	utf8;		/**< utf8 text encoding */
 } mvpw_menu_attr_t;
 
 /**
  * menu item attributes
  */
 typedef struct {
-	int	 	  selectable;	/**< is item selectable? */
+	bool	 	  selectable;	/**< is item selectable? */
 	uint32_t 	  fg;		/**< foreground color */
 	uint32_t 	  bg;		/**< background color */
 	uint32_t 	  checkbox_fg;	/**< checkbox color */
@@ -496,7 +507,7 @@ typedef struct {
 	/** item select callback */
 	void 		(*select)(mvp_widget_t*, char*, void*);
 	/** item hilite callback */
-	void 		(*hilite)(mvp_widget_t*, char*, void*, int);
+	void 		(*hilite)(mvp_widget_t*, char*, void*, bool);
 } mvpw_menu_item_attr_t;
 
 /**
@@ -586,7 +597,7 @@ extern char* mvpw_get_menu_item(mvp_widget_t *widget, void *key);
  * \param key menu item key
  * \param checked 0 to uncheck, 1 to check
  */
-extern void mvpw_check_menu_item(mvp_widget_t *widget, void *key, int checked);
+extern void mvpw_check_menu_item(mvp_widget_t *widget, void *key, bool checked);
 
 /**
  * Hilite a specific menu item.
@@ -714,7 +725,7 @@ typedef struct {
 	uint32_t 	bg;		/**< background color */
 	uint32_t 	border;		/**< border color */
 	int 		border_size;	/**< border size in pixels */
-	int 		gradient;	/**< use gradient? */
+	bool 		gradient;	/**< use gradient? */
 	uint32_t 	left;		/**< left gradient color */
 	uint32_t 	right;		/**< right gradient color */
 } mvpw_graph_attr_t;
@@ -790,13 +801,12 @@ extern void mvpw_set_checkbox_fg(mvp_widget_t *widget, uint32_t fg);
  * \param widget widget handle
  * \param checked 0 to uncheck, 1 to check
  */
-extern void mvpw_set_checkbox(mvp_widget_t *widget, int checked);
+extern void mvpw_set_checkbox(mvp_widget_t *widget, bool checked);
 
 /**
  * bitmap attributes
  */
 typedef struct {
-	int 		colors;
 	char 		*image;		/**< bitmap image */
 } mvpw_bitmap_attr_t;
 
@@ -837,12 +847,12 @@ typedef struct {
 	uint32_t 	border;		/**< border color */
 	int 		border_size;	/**< border size in pixels */
 	char 		*image;		/**< image filename */
-	int 		modal;		/**< modal or not */
+	bool 		modal;		/**< modal or not */
 	int	 	font;		/**< font id */
 	int	 	margin;		/**< margin in pixels */
-	int	 	justify_title;	/**< title justification */
-	int	 	justify_body;	/**< body justification */
-	int	 	utf8;		/**< utf8 character encoding */
+	bool	 	justify_title;	/**< title justification */
+	bool	 	justify_body;	/**< body justification */
+	bool	 	utf8;		/**< utf8 character encoding */
 } mvpw_dialog_attr_t;
 
 /**

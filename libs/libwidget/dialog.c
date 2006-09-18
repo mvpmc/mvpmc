@@ -73,8 +73,8 @@ mvpw_set_dialog_attr(mvp_widget_t *widget, mvpw_dialog_attr_t *attr)
 	GR_FONT_INFO finfo;
 	int h, w;
 	mvpw_text_attr_t text_attr = {
-		.wrap = 1,
-		.pack = 0,
+		.wrap = true,
+		.pack = false,
 		.margin = 4,
 	};
 

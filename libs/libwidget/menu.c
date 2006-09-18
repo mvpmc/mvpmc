@@ -110,7 +110,7 @@ change_items(mvp_widget_t *widget, int first)
 }
 
 static int
-hilite_item(mvp_widget_t *widget, int which, int hilite)
+hilite_item(mvp_widget_t *widget, int which, bool hilite)
 {
 	mvpw_text_attr_t attr;
 	char *str;
@@ -364,8 +364,8 @@ mvpw_add_menu_item(mvp_widget_t *widget, char *label, void *key,
 	mvp_widget_t *tw = NULL, *cbw = NULL, *pw = NULL;
 	typeof(widget->data.menu.items) items;
 	mvpw_text_attr_t attr = {
-		.wrap = 0,
-		.pack = 0,
+		.wrap = false,
+		.pack = false,
 		.justify = MVPW_TEXT_LEFT,
 		.margin = 4,
 	};
@@ -576,8 +576,8 @@ mvpw_set_menu_title(mvp_widget_t *widget, char *title)
 	GR_FONT_INFO finfo;
 	int border_size;
 	mvpw_text_attr_t attr = {
-		.wrap = 0,
-		.pack = 0,
+		.wrap = false,
+		.pack = false,
 		.justify = widget->data.menu.title_justify,
 		.margin = 4,
 		.font = widget->data.menu.font,
@@ -720,7 +720,7 @@ mvpw_clear_menu(mvp_widget_t *widget)
 }
 
 void
-mvpw_check_menu_item(mvp_widget_t *widget, void *key, int checked)
+mvpw_check_menu_item(mvp_widget_t *widget, void *key, bool checked)
 {
 	struct menu_item_s *item;
 	void *k;

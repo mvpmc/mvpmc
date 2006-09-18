@@ -1,6 +1,6 @@
 /*
- *  Copyright (C) 2004, John Honeycutt
- *  http://mvpmc.sourceforge.net/
+ *  Copyright (C) 2004-2006, John Honeycutt
+ *  http://www.mvpmc.org/
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,8 +16,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
-
-#ident "$Id$"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -1423,7 +1421,7 @@ static mvp_widget_t* show_message_window(void (*callback)(mvp_widget_t *widget, 
 
 // rtv_guide_hilite_callback()
 //
-static void rtv_guide_hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
+static void rtv_guide_hilite_callback(mvp_widget_t *widget, char *item, void *key, bool hilite)
 {
    rtv_show_export_t   *show;
    mvpw_widget_info_t   winfo;
@@ -1614,7 +1612,7 @@ static void rtv_update_show_browser(rtv_device_t *rtv)
 
 // rtv_device_hilite_callback()
 //
-static void rtv_device_hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
+static void rtv_device_hilite_callback(mvp_widget_t *widget, char *item, void *key, bool hilite)
 {
    rtv_device_t     *rtv = (rtv_device_t*)key;  
    char              strp[128];

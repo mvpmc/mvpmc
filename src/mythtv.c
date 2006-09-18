@@ -339,7 +339,7 @@ mythtv_close_file(void)
 }
 
 static void
-hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
+hilite_callback(mvp_widget_t *widget, char *item, void *key, bool hilite)
 {
 	char *description, *channame;
 	char *pathname = NULL;
@@ -1119,7 +1119,7 @@ mythtv_back(mvp_widget_t *widget)
 static void
 pending_hilite_callback(mvp_widget_t *widget,
 			char *item,
-			void *key, int hilite)
+			void *key, bool hilite)
 {
 	int n = (int)key;
 
@@ -2607,7 +2607,7 @@ timestr(time_t time)
 }
 
 static void
-hilite_schedule_recording_callback(mvp_widget_t *widget, char *item , void *key, int hilite)
+hilite_schedule_recording_callback(mvp_widget_t *widget, char *item , void *key, bool hilite)
 {
 	int which = (int)key;
 	char buf[550];
@@ -2958,7 +2958,7 @@ prog_finder_char_callback(mvp_widget_t *widget, char *item , void *key)
 }
 
 static void
-hilite_prog_finder_char_callback(mvp_widget_t *widget, char *item , void *key, int hilite)
+hilite_prog_finder_char_callback(mvp_widget_t *widget, char *item , void *key, bool hilite)
 {
 	int which = (int)key;
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) \n",
@@ -2995,7 +2995,7 @@ prog_finder_title_callback(mvp_widget_t *widget, char *item , void *key)
 
  
 static void
-hilite_prog_finder_title_callback(mvp_widget_t *widget, char *item , void *key, int hilite)
+hilite_prog_finder_title_callback(mvp_widget_t *widget, char *item , void *key, bool hilite)
 {
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) \n",
 		__FUNCTION__, __FILE__, __LINE__);
@@ -3025,7 +3025,7 @@ prog_finder_time_callback(mvp_widget_t *widget, char *item , void *key)
 extern char *strptime(const char *buf, const char *format, struct tm *tm);
 
 static void
-hilite_prog_finder_time_callback(mvp_widget_t *widget, char *item , void *key, int hilite)
+hilite_prog_finder_time_callback(mvp_widget_t *widget, char *item , void *key, bool hilite)
 {
 	char buf[550];
 	char startstring[50];
