@@ -34,15 +34,21 @@
 
 #define MERGE_CELLS 1
 
-#if 0
-#define PRINTF(x...) printf(x) 
+#if 1
+int ssdebug = 0;
+#define PRINTF(x...) if(ssdebug) printf(x) 
 #define TRC(fmt, args...) printf(fmt, ## args)
 #else
 #define PRINTF(x...)
 #define TRC(fmt, args...) 
 #endif
 
-
+static mvpw_array_cell_theme mvpw_record_theme = {
+	.cell_fg = MVPW_YELLOW,
+	.cell_bg = MVPW_MIDNIGHTBLUE,
+	.hilite_fg = MVPW_MIDNIGHTBLUE,
+	.hilite_bg = MVPW_YELLOW,
+};
 
 int
 mvp_tvguide_sql_check(cmyth_database_t db)
@@ -72,8 +78,7 @@ mvp_tvguide_move(int direction, mvp_widget_t * proglist, mvp_widget_t * descr)
 {
 	cmyth_tvguide_program_t prog;
 
-	if(direction != MVPW_ARRAY_HOLD)
-		mvpw_move_array_selection(proglist, direction);
+	mvpw_move_array_selection(proglist, direction);
 	prog = (cmyth_tvguide_program_t)
  	mvpw_get_array_cur_cell_data(proglist);
  	mvpw_set_text_str(descr, prog->description);
@@ -83,11 +88,13 @@ mvp_tvguide_move(int direction, mvp_widget_t * proglist, mvp_widget_t * descr)
  *
  */
 void
-mvp_tvguide_show(mvp_widget_t *proglist, mvp_widget_t *descr)
+mvp_tvguide_show(mvp_widget_t *proglist, mvp_widget_t *descr,
+								 mvp_widget_t *clock)
 {
 	cmyth_tvguide_program_t prog;
 
 	mvpw_show(descr);
+	mvpw_show(clock);
 	mvpw_reset_array_selection(proglist);
 	mvpw_show(proglist);
 	prog = (cmyth_tvguide_program_t)
@@ -99,8 +106,9 @@ mvp_tvguide_show(mvp_widget_t *proglist, mvp_widget_t *descr)
  *
  */
 void
-mvp_tvguide_hide(void *proglist, void *descr)
+mvp_tvguide_hide(void *proglist, void *descr, void * clock)
 {
+	mvpw_hide((mvp_widget_t *)clock);
 	mvpw_hide((mvp_widget_t *)descr);
 	mvpw_hide((mvp_widget_t *)proglist);
 }
@@ -204,6 +212,8 @@ get_guide_mysql2(MYSQL *mysql, cmyth_chanlist_t chanlist,
 	MYSQL_RES *res=NULL;
 	MYSQL_ROW row;
   char query[350];
+	char startdate[16];
+	char enddate[16];
 	char starttime[25];
 	char endtime[25];
 	char channels[50];
@@ -215,8 +225,6 @@ get_guide_mysql2(MYSQL *mysql, cmyth_chanlist_t chanlist,
 	if(!cache)
 		cache = cmyth_allocate(sizeof(*cache)*4);
 
-	strftime(starttime, 25, "%F %T", start_time);
-	strftime(endtime, 25, "%F %T", end_time);
 
 	PRINTF("** SSDEBUG: index is: %d\n", index);
 	idxs[0] = index < 0 ? chanlist->chanlist_count+index:index;
@@ -246,6 +254,9 @@ get_guide_mysql2(MYSQL *mysql, cmyth_chanlist_t chanlist,
 		chanlist->chanlist_list[idxs[3]].chanid
 	);
 
+	strftime(starttime, 25, "%F %T", start_time);
+	strftime(endtime, 25, "%F %T", end_time);
+
 	PRINTF("** SSDEBUG: starttime:%s, endtime:%s\n", starttime, endtime);
 
 	sprintf(query, 
@@ -265,6 +276,7 @@ get_guide_mysql2(MYSQL *mysql, cmyth_chanlist_t chanlist,
 		return NULL;
 	}
 	res = mysql_store_result(mysql);
+
 
 	
 	PRINTF("** SSDEBUG: got %llu rows from query\n", res->row_count);
@@ -302,8 +314,48 @@ get_guide_mysql2(MYSQL *mysql, cmyth_chanlist_t chanlist,
 		strncpy ( cache[idx].category, row[8], 64);
 		idx++;
 	}
-	
 	cache_ct = idx;
+  mysql_free_result(res);
+
+
+	/* Query the scheduled programs in this timeframe */
+	strftime(startdate, 16, "%F", start_time);
+	strftime(enddate, 16, "%F", end_time);
+	strftime(starttime, 25, "%T", start_time);
+	strftime(endtime, 25, "%T", end_time);
+
+	sprintf(query,
+		"SELECT chanid, programid \
+		 FROM record \
+		 WHERE startdate = '%s' \
+		 AND enddate = '%s' \
+		 AND starttime < '%s' \
+		 AND endtime > '%s' \
+		 AND chanid IN %s",
+		 startdate, enddate, endtime, starttime, channels);
+	cmyth_dbg(CMYTH_DBG_ERROR, "%s: query= %s\n", __FUNCTION__, query);
+	if(mysql_query(mysql,query)) {
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: mysql_query() Failed: %s\n", 
+                           __FUNCTION__, mysql_error(mysql));
+		mysql_close(mysql);
+		return NULL;
+	}
+
+	/* Now flag all programs schduled to record */
+	res = mysql_store_result(mysql);
+	PRINTF("** SSDEBUG: got %llu rows from query\n", res->row_count);
+	while((row = mysql_fetch_row(res))) {
+		ch = atol(row[0]);
+		PRINTF("** SSDEBUG: chanid returned is %ld\n", ch);
+		for(i = 0; i<cache_ct; i++) {
+			PRINTF("** SSDEBUG: cache chanid is %ld\n", cache[i].chanid);
+			if(cache[i].chanid == ch && strcmp(row[1], cache[i].programid) == 0) {
+				PRINTF("** SSDEBUG: chanid match on %ld\n", ch);
+				cache[i].recording = 1;
+			}
+		}
+	}
+  mysql_free_result(res);
 
 	rows = proglist->count;
 	for(idx=0;idx<4;idx++) {
@@ -323,7 +375,7 @@ get_guide_mysql2(MYSQL *mysql, cmyth_chanlist_t chanlist,
 							idxs[idx], starttime, endtime);
 			proglist->progs[rows].channum = get_chan_num(idxs[idx], chanlist);
 			proglist->progs[rows].chanid=chanlist->chanlist_list[idxs[idx]].chanid;
-			proglist->progs[rows].recording=0;
+			proglist->progs[rows].recording=cache[i].recording;
 			strncpy ( proglist->progs[rows].starttime, starttime, 25);
 			strncpy ( proglist->progs[rows].endtime, endtime, 25);
 			strncpy ( proglist->progs[rows].title, "Unknown", 130);
@@ -341,7 +393,7 @@ get_guide_mysql2(MYSQL *mysql, cmyth_chanlist_t chanlist,
 							cache[i].chanid, proglist->progs[rows].channum,
 							cache[i].title, cache[i].subtitle, cache[i].category);
 			proglist->progs[rows].chanid=cache[i].chanid;
-			proglist->progs[rows].recording=0;
+			proglist->progs[rows].recording=cache[i].recording;
 			strncpy ( proglist->progs[rows].starttime, cache[i].starttime, 25);
 			strncpy ( proglist->progs[rows].endtime, cache[i].endtime, 25);
 			strncpy ( proglist->progs[rows].title, cache[i].title, 130);
@@ -358,7 +410,6 @@ get_guide_mysql2(MYSQL *mysql, cmyth_chanlist_t chanlist,
 		rows++;
 	}
 	proglist->count = rows;
-  mysql_free_result(res);
 
 	return proglist;
 }
@@ -530,6 +581,17 @@ myth_load_guide(void * widget, cmyth_database_t db,
 			}
 			mvpw_set_array_cell_span(widget, m, i-prev-k, j-m+1);
 #endif
+			ssdebug = 1;
+			if(rtrn->progs[i].recording) {
+				mvpw_set_array_cell_theme(widget, j, i-prev-k, &mvpw_record_theme);
+				PRINTF("** SSDEBUG: setting cell color for cell %d, %d\n",
+							 j, i-prev-k);
+			}
+			else {
+				mvpw_set_array_cell_theme(widget, j, i-prev-k, NULL);
+			}
+			ssdebug = 0;
+
 			mvpw_set_array_cell_data(widget, j, i-prev-k, &rtrn->progs[i]);
 			mvpw_set_array_cell(widget, j, i-prev-k, rtrn->progs[i].title, NULL);
 		}

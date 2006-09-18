@@ -707,6 +707,18 @@ cmyth_livetv_chain_switch_last(cmyth_recorder_t rec)
 {
 	int dir;
 
+	if (!rec) {
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: invalid args rec = %p\n",
+			  __FUNCTION__, rec);
+		return 0;
+	}
+
+	if (!rec->rec_conn) {
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: invalid args rec->rec_conn = %p\n",
+			  __FUNCTION__, rec->rec_conn);
+		return 0;
+	}
+
 	if(rec->rec_conn->conn_version < 26)
 		return 0;
 

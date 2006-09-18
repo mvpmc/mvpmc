@@ -368,5 +368,15 @@ mvpw_get_text_attr(mvp_widget_t *widget, mvpw_text_attr_t *attr)
 void
 mvpw_set_text_fg(mvp_widget_t *widget, uint32_t fg)
 {
-	widget->data.text.fg = fg;
+	if(widget)
+		widget->data.text.fg = fg;
+}
+
+uint32_t
+mvpw_get_text_fg(mvp_widget_t *widget)
+{
+	if(widget)
+		return widget->data.text.fg;
+
+	return 0;
 }

@@ -983,6 +983,7 @@ mvp_widget_t *fb_offset_bar;
 mvp_widget_t *vnc_widget;
 
 /* Widgets supporting the new livetv program guide */
+mvp_widget_t *mythtv_livetv_clock;
 mvp_widget_t *mythtv_livetv_description;
 mvp_widget_t *mythtv_livetv_program_list;
 mvp_widget_t *mythtv_slow_connect;

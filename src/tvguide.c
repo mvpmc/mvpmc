@@ -79,6 +79,19 @@ typedef struct {
  * livetv guide attributes
  */
 
+/* Clock window */
+static mvpw_text_attr_t livetv_header_attr = {
+	.wrap = 1,
+	.pack = 1,
+	.justify = MVPW_TEXT_CENTER,
+	.margin = 9,
+	.font = FONT_LARGE,
+	.fg = MVPW_WHITE,
+	.bg = MVPW_RGBA(25,112,25,255),
+	.border = MVPW_BLACK,
+	.border_size = 0,
+};
+
 /* Description window */
 static mvpw_text_attr_t livetv_description_attr = {
 	.wrap = true,
@@ -169,8 +182,9 @@ mvp_tvguide_callback(mvp_widget_t *widget, char key)
 			tvguide_scroll_ofs_y = 0;
 			mvp_tvguide_video_topright(0);
 			mvp_tvguide_hide(mythtv_livetv_program_list,
-												mythtv_livetv_description);
-			/* Update the guide to the top left corner */
+												mythtv_livetv_description,
+												mythtv_livetv_clock);
+			/* Update the guide selector to the top left corner */
 			myth_set_guide_times(mythtv_livetv_program_list, tvguide_scroll_ofs_x);
 			tvguide_proglist = 
 			myth_load_guide(mythtv_livetv_program_list, mythtv_database,
@@ -236,7 +250,8 @@ mvp_tvguide_callback(mvp_widget_t *widget, char key)
 				tvguide_scroll_ofs_y = 0;
 				mvp_tvguide_video_topright(0);
 				mvp_tvguide_hide(mythtv_livetv_program_list,
-													mythtv_livetv_description);
+													mythtv_livetv_description,
+													mythtv_livetv_clock);
 				/* Update the guide to the top left corner */
 				myth_set_guide_times(mythtv_livetv_program_list, tvguide_scroll_ofs_x);
 				tvguide_proglist = 
@@ -366,6 +381,16 @@ mvp_tvguide_init(int edge_left, int edge_top, int edge_right,
 	y = 10; /*edge_top; */
 	w = si.cols/2 - 75;
 	h = si.rows/2 - 15;
+
+	mythtv_livetv_clock = mvpw_create_text(NULL, x, y, w, 40,
+						livetv_header_attr.bg,
+						livetv_header_attr.border,
+						livetv_header_attr.border_size);
+	mvpw_set_text_attr(mythtv_livetv_clock, &livetv_header_attr);
+
+	y += 40;
+	h -= 40;
+
 	/* Create the text box that will hold the description text */
 	mythtv_livetv_description = mvpw_create_text(NULL, x, y, w, h,
 						livetv_description_attr.bg,
@@ -376,6 +401,8 @@ mvp_tvguide_init(int edge_left, int edge_top, int edge_right,
 	mvpw_set_text_str(mythtv_livetv_description,
 		"This is a test of the description widget which needs to be modified to have the time and some mvpmc marketing above it and then the description below. And jus to see what happens when we exceed the available space since our other widgets are misbehaving we're going to keep adding stuff till it over flows.");
 	*/
+
+	h += 40;
 
 	mythtv_livetv_program_list = mvpw_create_array(NULL,
 				25, h, si.cols-50, si.rows/2-10, 0,
@@ -399,6 +426,28 @@ mvp_tvguide_init(int edge_left, int edge_top, int edge_right,
 	mvpw_set_array_scroll(mythtv_livetv_program_list, scroll_callback);
 
 	return 1;
+}
+
+/*
+ *This function is called to update the tvguide clock which is displayed
+ * at the top left hand corner of the guide.
+ */
+static void
+mvp_tvguide_clock_timer(mvp_widget_t * widget)
+{
+	static int colon_stat = 1;
+	time_t curtime;
+	struct tm * now;
+	char tm_buf[16];
+
+	curtime = time(NULL);
+	now = localtime(&curtime);
+	sprintf(tm_buf, "%02d:%02d", now->tm_hour,
+					/*colon_stat == 1?":":" ",*/ now->tm_min);
+
+	mvpw_set_text_str(widget, tm_buf);
+
+	colon_stat ^= 1;
 }
 
 /* This function is called periodically to synchronise the guide */
@@ -498,6 +547,7 @@ mvp_tvguide_start(void)
 	mvpw_set_timer(mythtv_livetv_program_list, mvp_tvguide_timer, 100);
 	PRINTF("** SSDEBUG: timer started\n");
 
+	mvpw_set_timer(mythtv_livetv_clock, mvp_tvguide_clock_timer, 500);
 
 	return 0;
 }
@@ -506,6 +556,7 @@ int
 mvp_tvguide_stop(void)
 {
 	mvpw_set_timer(mythtv_livetv_program_list, NULL, 0);
+	mvpw_set_timer(mythtv_livetv_clock, NULL, 0);
 
 	return 0;
 }

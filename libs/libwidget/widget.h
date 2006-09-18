@@ -91,6 +91,7 @@ typedef struct {
 	uint32_t cell_bg;
 	uint32_t hilite_fg;
 	uint32_t hilite_bg;
+	mvpw_array_cell_theme **cell_theme;
 	int cell_rounded;
 	mvp_widget_t **row_labels;
 	mvp_widget_t **col_labels;

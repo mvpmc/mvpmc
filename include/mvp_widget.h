@@ -412,6 +412,12 @@ extern void mvpw_get_text_attr(mvp_widget_t *widget, mvpw_text_attr_t *attr);
  */
 extern void mvpw_set_text_fg(mvp_widget_t *widget, uint32_t fg);
 
+/**
+ * Get the foreground color of a text widget.
+ * \param widget widget handle
+ */
+extern uint32_t  mvpw_get_text_fg(mvp_widget_t *widget);
+
 /*
  * array widget
  */
@@ -423,6 +429,13 @@ extern void mvpw_set_text_fg(mvp_widget_t *widget, uint32_t fg);
 #define MVPW_ARRAY_PAGE_UP 4
 #define MVPW_ARRAY_PAGE_DOWN 5
 #define MVPW_ARRAY_HOLD 6
+
+typedef struct {
+	uint32_t cell_fg;
+	uint32_t cell_bg;
+	uint32_t hilite_fg;
+	uint32_t hilite_bg;
+} mvpw_array_cell_theme;
 
 typedef struct {
 	int rows;
@@ -464,6 +477,8 @@ extern void mvpw_set_array_scroll(mvp_widget_t *widget,
 	 void (*scroll_callback)(mvp_widget_t *widget, int direction));
 extern void mvpw_set_array_cell_data(mvp_widget_t *widget, int x, int y,
 																		 void * data);
+extern void mvpw_set_array_cell_fg(mvp_widget_t *widget, int x, int y,
+																		 uint32_t fg);
 extern void *
 mvpw_get_array_cell_data(mvp_widget_t *widget, int x, int y);
 
@@ -472,6 +487,8 @@ extern void mvpw_set_array_cell_span(mvp_widget_t *widget,
 																			int x, int y, int span);
 extern void mvpw_reset_array_cells(mvp_widget_t *widget);
 extern void mvpw_array_clear_dirty(mvp_widget_t *widget);
+extern void mvpw_set_array_cell_theme(mvp_widget_t *widget, int x, int y,
+																			mvpw_array_cell_theme *theme);
 
 /**
  * menu attributes
