@@ -1,6 +1,6 @@
 /*
  *  Copyright (C) 2005, Iain McFarlane
- *  http://mvpmc.sourceforge.net/
+ *  http://www.mvpmc.org/
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -16,8 +16,6 @@
  *  License along with this library; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ident "$Id$"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -74,7 +72,6 @@ mvpw_create_surface(mvp_widget_t *parent,
 		pixid = GrNewPixmap(w, h, NULL);
 	}
 	widget->data.surface.wid = pixid;
-        widget->data.surface.pixtype = si.pixtype;
 	widget->data.surface.foreground = 0;
 	widget->data.surface.fd = 0;	
 	
@@ -85,7 +82,6 @@ int
 mvpw_get_surface_attr(mvp_widget_t *widget, mvpw_surface_attr_t *surface)
 {
 	surface->wid = widget->data.surface.wid;
-	surface->pixtype = widget->data.surface.pixtype;
 	surface->foreground = widget->data.surface.foreground;
 	surface->fd = widget->data.surface.fd;
 	return 0;
@@ -95,7 +91,6 @@ int
 mvpw_set_surface_attr(mvp_widget_t *widget, mvpw_surface_attr_t *surface)
 {
 	widget->data.surface.wid = surface->wid;
-	widget->data.surface.pixtype = surface->pixtype;
 	widget->data.surface.foreground = surface->foreground;
 	widget->data.surface.fd = surface->fd;
 	return 0;
@@ -108,9 +103,6 @@ mvpw_set_surface(mvp_widget_t *widget, char *image, int x, int y, int width, int
         GR_GC_ID gc;
 	gc=GrNewGC();
 
-#if 0
-	GrArea(widget->data.surface.wid, gc, x, y, width, height, image, widget->data.surface.pixtype);
-#else
 	/*
 	 * XXX: GrArea() appears to be broken on the mvp, so set individual
 	 * pixels instead
@@ -131,7 +123,6 @@ mvpw_set_surface(mvp_widget_t *widget, char *image, int x, int y, int width, int
 			GrPoint(widget->data.surface.wid, gc, j+x, i+y);
 		}
 	}
-#endif
 	GrDestroyGC(gc);
 	return 0;
 }

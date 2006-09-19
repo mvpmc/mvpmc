@@ -139,18 +139,22 @@ typedef struct {
 	 * Menu item data.
 	 */
 	struct menu_item_s {
-		char		 *label;
-		void		 *key;
+		char		 *label;	/**< text string */
+		void		 *key;		/**< menu item key */
+		mvp_widget_t	 *widget;	/**< text widget */
+		mvp_widget_t	 *checkbox;	/**< checkbox widget */
+		bool		  selectable;	/**< selectable item */
+		bool		  checked;	/**< checkbox checked */
+		GR_COLOR	  fg;		/**< foreground color */
+		GR_COLOR	  bg;		/**< background color */
+		GR_COLOR	  checkbox_fg;	/**< checkbox color */
+
+		/** callback for item select */
 		void		(*select)(mvp_widget_t*, char*, void*);
+		/** callback for item hilite */
 		void		(*hilite)(mvp_widget_t*, char*, void*, bool);
+		/** callback for item destroy */
 		void		(*destroy)(mvp_widget_t*, char*, void*);
-		mvp_widget_t	 *widget;
-		mvp_widget_t	 *checkbox;
-		bool		  selectable;
-		bool		  checked;
-		GR_COLOR	  fg;
-		GR_COLOR	  bg;
-		GR_COLOR	  checkbox_fg;
 	} *items;
 } mvpw_menu_t;
 
@@ -159,8 +163,8 @@ typedef struct {
  */
 typedef struct {
 	GR_IMAGE_ID	  iid;		/**< image ID */
-	GR_WINDOW_ID	  wid;		/**< drawing widget ID */
-	GR_WINDOW_ID	  pid;		/**< pixmap widget ID */
+	GR_WINDOW_ID	  wid;		/**< drawing window ID */
+	GR_WINDOW_ID	  pid;		/**< pixmap window ID */
 	char		 *file;		/**< image filename */
 } mvpw_image_t;
 
@@ -208,51 +212,71 @@ typedef struct {
 	bool		 utf8;		/**< utf8 encoding */
 } mvpw_dialog_t;
 
+/**
+ * Drawing surface data.
+ */
 typedef struct {
-	int		pixtype;
-	int		wid;
-	MWPIXELVAL	foreground;
+	int		wid;		/**< drawing window id */
+	MWPIXELVAL	foreground;	/**< foreground color */
 	int		fd;
 } mvpw_surface_t;
 
+/**
+ * Widget data.
+ */
 struct mvp_widget_s {
-	mvpw_id_t	 type;
-	GR_WINDOW_ID	 wid;
-	GR_TIMER_ID	 tid;
-	mvp_widget_t	*parent;
-	GR_COORD	 x;
-	GR_COORD	 y;
-	unsigned int	 width;
-	unsigned int	 height;
-	GR_COLOR	 bg;
-	GR_COLOR	 border_color;
-	int		 border_size;
-	GR_EVENT_MASK	 event_mask;
-	mvp_widget_t	*attach[4];
-	mvp_widget_t	*above;
-	mvp_widget_t	*below;
-	void 		*user_data;
+	mvpw_id_t	 type;		/**< widget type */
+	GR_WINDOW_ID	 wid;		/**< window id */
+	GR_TIMER_ID	 tid;		/**< timer id */
+	mvp_widget_t	*parent;	/**< parent widget */
+	GR_COORD	 x;		/**< horizontal coordinate */
+	GR_COORD	 y;		/**< vertical coordinate */
+	unsigned int	 width;		/**< width in pixels */
+	unsigned int	 height;	/**< height in pixels */
+	GR_COLOR	 bg;		/**< background color */
+	GR_COLOR	 border_color;	/**< border color */
+	int		 border_size;	/**< border size */
+	GR_EVENT_MASK	 event_mask;	/**< current event mask */
+	mvp_widget_t	*attach[4];	/**< attached widgets */
+	mvp_widget_t	*above;		/**< widget in front of this widget */
+	mvp_widget_t	*below;		/**< widget behind this widget */
+	void 		*user_data;	/**< opaque user data */
 
-	void (*resize)(mvp_widget_t*);
+	/** callback for adding a child widget */
 	int (*add_child)(mvp_widget_t*, mvp_widget_t*);
+	/** callback for removing a child widget */
 	int (*remove_child)(mvp_widget_t*, mvp_widget_t*);
 
+	/** callback for destoying the widget */
 	void (*destroy)(mvp_widget_t*);
+	/** callback for exposing the widget */
 	void (*expose)(mvp_widget_t*);
+	/** callback for a remote key */
 	void (*key)(mvp_widget_t*, char);
+	/** callback for a timer */
 	void (*timer)(mvp_widget_t*);
+	/** callback for file descriptor input */
 	void (*fdinput)(mvp_widget_t*, int);
-	void (*show)(mvp_widget_t*, int);
+	/** callback for showing or hiding the widget */
+	void (*show)(mvp_widget_t*, bool);
 
+	/** user callback for destroying the widget */
 	void (*callback_destroy)(mvp_widget_t*);
+	/** user callback for exposing the widget */
 	void (*callback_expose)(mvp_widget_t*);
+	/** user callback for a remote key */
 	void (*callback_key)(mvp_widget_t*, char);
+	/** user callback for a timer */
 	void (*callback_timer)(mvp_widget_t*);
+	/** user callback for file descriptor input */
 	void (*callback_fdinput)(mvp_widget_t*, int);
 
+	/**
+	 * Widget type specific data.
+	 */
 	union {
 		mvpw_text_t		text;
-		mvpw_array_t  array;
+		mvpw_array_t		array;
 		mvpw_menu_t		menu;
 		mvpw_container_t	container;
 		mvpw_image_t		image;
@@ -264,10 +288,27 @@ struct mvp_widget_s {
 	} data;
 };
 
+/**
+ * Create a new widget.
+ * \param parent parent widget (NULL for root window)
+ * \param x horizontal coordinate
+ * \param y vertical coordinate
+ * \param width width
+ * \param height height
+ * \param bg background color
+ * \param border_color border color
+ * \param border_size border width in pixels
+ * \return widget handle
+ */
 extern mvp_widget_t* mvpw_create(mvp_widget_t *parent, GR_COORD x, GR_COORD y,
 				 unsigned int width, unsigned int height,
 				 GR_COLOR bg,
 				 GR_COLOR border_color, int border_size);
+
+/**
+ * Destroy a widget.
+ * \param widget widget handle
+ */
 extern void mvpw_destroy(mvp_widget_t *widget);
 
 #endif /* WIDGET_H */

@@ -109,7 +109,7 @@ expose(mvp_widget_t *widget)
 }
 
 static void
-show(mvp_widget_t *widget, int shw)
+show(mvp_widget_t *widget, bool shw)
 {
 	int r, c, i;
 	PRINTF("** SSDEBUG: %s col labels\n", shw?"showing":"hiding");
