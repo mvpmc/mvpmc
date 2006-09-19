@@ -165,7 +165,7 @@ int
 mvp_tvguide_callback(mvp_widget_t *widget, char key)
 {
 	int rtrn = 0;
-	char buf[20];
+	char * buf;
 
 	switch(key) {
 		case MVPW_KEY_GUIDE:
@@ -241,8 +241,8 @@ mvp_tvguide_callback(mvp_widget_t *widget, char key)
 		case MVPW_KEY_BLANK:
 		case MVPW_KEY_OK:
 			if(tvguide_scroll_ofs_x == 0) {
-				sprintf(buf, "%d",
-								get_tvguide_selected_channel(mythtv_livetv_program_list));
+				buf = get_tvguide_selected_channel_str(mythtv_livetv_program_list,
+																							 tvguide_chanlist);
 				PRINTF("** SSDEBUG: switching to channel: %s\n", buf);
 				mythtv_channel_set(buf);
 				tvguide_cur_chan_index =

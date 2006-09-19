@@ -205,6 +205,7 @@ struct cmyth_database {
 struct cmyth_channel {
 	long chanid;
 	int channum;
+	char chanstr[10];
 	long cardids;/* A bit array of recorders/tuners supporting the channel */
 	char *callsign;
 	char *name;

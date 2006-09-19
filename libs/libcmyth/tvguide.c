@@ -115,8 +115,8 @@ mvp_tvguide_hide(void *proglist, void *descr, void * clock)
 
 /*
  * Based on the integer passed in, return the index into the
- * provided chanlist array or return -1 if a match for the channel
- * number and callsign.
+ * provided chanlist array to the channel that is the one we
+ * provided or greater.
  */
 int
 myth_get_chan_index_from_int(cmyth_chanlist_t chanlist, int nchan)
@@ -126,15 +126,15 @@ myth_get_chan_index_from_int(cmyth_chanlist_t chanlist, int nchan)
 	for(rtrn = 0; rtrn < chanlist->chanlist_count; rtrn++)
 		if(chanlist->chanlist_list[rtrn].channum >= nchan)
 			break;
-	rtrn = rtrn==chanlist->chanlist_count?-1:rtrn;
+	rtrn = rtrn==chanlist->chanlist_count?rtrn-1:rtrn;
 
 	return rtrn;
 }
 
 /*
- * Based on the string passed in, return the index into the
- * provided chanlist array or return -1 if a match for the channel
- * number and callsign.
+ * Based on the integer passed in, return the index into the
+ * provided chanlist array to the channel that is the one we
+ * provided or greater.
  */
 int
 myth_get_chan_index_from_str(cmyth_chanlist_t chanlist, char * chan)
@@ -145,7 +145,7 @@ myth_get_chan_index_from_str(cmyth_chanlist_t chanlist, char * chan)
 	for(rtrn = 0; rtrn < chanlist->chanlist_count; rtrn++)
 		if(chanlist->chanlist_list[rtrn].channum >= nchan)
 			break;
-	rtrn = rtrn==chanlist->chanlist_count?-1:rtrn;
+	rtrn = rtrn==chanlist->chanlist_count?rtrn-1:rtrn;
 
 	return rtrn;
 }
@@ -187,10 +187,23 @@ get_chan_num(long chanid, cmyth_chanlist_t chanlist)
 }
 
 /*
+ * Based on the integer passed in, return the index into the
+ * provided chanlist array to the channel that is the one we
+ * provided or greater.
+ */
+static char *
+myth_get_chan_str_from_int(cmyth_chanlist_t chanlist, int nchan)
+{
+	int idx = myth_get_chan_index_from_int(chanlist, nchan);
+	return chanlist->chanlist_list[idx].chanstr;
+}
+
+/*
  *
  */
-int
-get_tvguide_selected_channel(mvp_widget_t *proglist)
+char *
+get_tvguide_selected_channel_str(mvp_widget_t *proglist,
+																 cmyth_chanlist_t chanlist)
 {
 	cmyth_tvguide_program_t prog;
 
@@ -199,8 +212,10 @@ get_tvguide_selected_channel(mvp_widget_t *proglist)
 
 	PRINTF("** SSDEBUG: Current prog showing as: %s\n", prog->title);
 
-	return prog->channum;
+	return myth_get_chan_str_from_int(chanlist, prog->channum);
 }
+
+
 /*
  *
  */
@@ -820,6 +835,7 @@ myth_load_channels2(cmyth_database_t db)
 		else {
 			rtrn->chanlist_list[rtrn->chanlist_count].chanid = atoi(row[0]);
 			rtrn->chanlist_list[rtrn->chanlist_count].channum = atoi(row[1]);
+			strncpy(rtrn->chanlist_list[rtrn->chanlist_count].chanstr, row[1], 10);
 			rtrn->chanlist_list[rtrn->chanlist_count].cardids = 1 << (atoi(row[3])-1);
 			rtrn->chanlist_list[rtrn->chanlist_count].callsign = cmyth_strdup(row[4]);
 			rtrn->chanlist_list[rtrn->chanlist_count].name = cmyth_strdup(row[5]);
