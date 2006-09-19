@@ -141,7 +141,8 @@ extern mvp_widget_t *mythtv_livetv_program_list;
  */
 
 extern int mvp_tvguide_callback(mvp_widget_t *widget, char key);
-extern int get_tvguide_selected_channel(mvp_widget_t *proglist);
+extern char *  get_tvguide_selected_channel_str(mvp_widget_t *proglist,
+																								cmyth_chanlist_t chanlist);
 extern void
 mvp_tvguide_move(int direction, mvp_widget_t *proglist, mvp_widget_t *descr);
 extern void mvp_tvguide_video_topright(int on);
