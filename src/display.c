@@ -1,8 +1,6 @@
 /*
- *  $Id$
- *
- *  Copyright (C) 2005, Rick Stuart
- *  http://mvpmc.sourceforge.net/
+ *  Copyright (C) 2005-2006, Rick Stuart
+ *  http://www.mvpmc.org/
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -121,7 +119,7 @@ int display_init(void)
   /*
    * Send opening test message.
    */
-  snprintf(display_message, DISPLAY_MESG_SIZE, "Message:MVPMC MediaMVP /  mvpmc.sourceforge.net\n");
+  snprintf(display_message, DISPLAY_MESG_SIZE, "Message:MVPMC MediaMVP /  www.mvpmc.org\n");
 
   display_send(display_message);
 

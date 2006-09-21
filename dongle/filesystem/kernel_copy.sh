@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # Copyright (C) 2004-2006, Jon Gettler
-# http://mvpmc.sourceforge.net/
+# http://www.mvpmc.org/
 #
 # This script will copy the needed files out of a kernel build workarea
 # for use by the dongle_build.sh script.
