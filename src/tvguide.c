@@ -389,7 +389,7 @@ mvp_tvguide_init(int edge_left, int edge_top, int edge_right,
 	mvpw_set_text_attr(mythtv_livetv_clock, &livetv_header_attr);
 
 	y += 40;
-	h -= 40;
+	h -= 50;
 
 	/* Create the text box that will hold the description text */
 	mythtv_livetv_description = mvpw_create_text(NULL, x, y, w, h,
@@ -402,7 +402,7 @@ mvp_tvguide_init(int edge_left, int edge_top, int edge_right,
 		"This is a test of the description widget which needs to be modified to have the time and some mvpmc marketing above it and then the description below. And jus to see what happens when we exceed the available space since our other widgets are misbehaving we're going to keep adding stuff till it over flows.");
 	*/
 
-	h += 40;
+	h += 50;
 
 	mythtv_livetv_program_list = mvpw_create_array(NULL,
 				25, h, si.cols-50, si.rows/2-10, 0,
@@ -435,19 +435,19 @@ mvp_tvguide_init(int edge_left, int edge_top, int edge_right,
 static void
 mvp_tvguide_clock_timer(mvp_widget_t * widget)
 {
-	static int colon_stat = 1;
+	int next = 60000;
 	time_t curtime;
 	struct tm * now;
 	char tm_buf[16];
 
 	curtime = time(NULL);
 	now = localtime(&curtime);
-	sprintf(tm_buf, "%02d:%02d", now->tm_hour,
-					/*colon_stat == 1?":":" ",*/ now->tm_min);
+	if(now->tm_sec < 60)
+		next = (60 - (now->tm_sec))*1000;
+	mvpw_set_timer(mythtv_livetv_clock, mvp_tvguide_clock_timer, next);
+	sprintf(tm_buf, "%02d:%02d", now->tm_hour, now->tm_min);
 
 	mvpw_set_text_str(widget, tm_buf);
-
-	colon_stat ^= 1;
 }
 
 /* This function is called periodically to synchronise the guide */
@@ -460,16 +460,17 @@ static void
 mvp_tvguide_timer(mvp_widget_t * widget)
 {
 	static int tvguide_cur_time = -1;
+	int next = 60000;
+	struct tm * now;
+	time_t curtime;
 
 	/*
 	PRINTF("** SSDEBUG: %s called in %s, on line %d\n", __FUNCTION__, __FILE__,
 				 __LINE__);
 	*/
 
-	/* Reset the timer for a minute from now */
-	/* Ideally, this should get adjusted to fall on an exact 30 */
+	/* Ideally, this should get adjusted to fall on an exact minute */
 	/* second boudary. For now, this is good enough */
-	mvpw_set_timer(mythtv_livetv_program_list, mvp_tvguide_timer, 60000);
 
 	pthread_mutex_lock(&myth_mutex);
 
@@ -483,8 +484,17 @@ mvp_tvguide_timer(mvp_widget_t * widget)
 		PRINTF("** SSDEBUG: current channel index is: %d\n",
 						tvguide_cur_chan_index);
 		*/
+		/* Reset the timer to synch with the minute mark */
  		tvguide_cur_time = 1;
+		curtime = time(NULL);
+		now = localtime(&curtime);
+		if(now->tm_sec < 61) /* In case of leap seconds just use 60 */
+			next = (60 - (now->tm_sec))*1000;
+
 	}
+
+	/* Reset the timer for a minute from now in most cases except the first */
+	mvpw_set_timer(mythtv_livetv_program_list, mvp_tvguide_timer, next);
 
 	/* Determine which recorders are free and save the bit array of
 	 * free recorders for future reference in displaying the guide.
