@@ -391,7 +391,7 @@ mvp_tvguide_init(int edge_left, int edge_top, int edge_right,
 	mvpw_set_text_attr(mythtv_livetv_clock, &livetv_header_attr);
 
 	y += 40;
-	h -= 40;
+	h -= 50;
 
 	/* Create the text box that will hold the description text */
 	mythtv_livetv_description = mvpw_create_text(NULL, x, y, w, h,
@@ -404,7 +404,7 @@ mvp_tvguide_init(int edge_left, int edge_top, int edge_right,
 		"This is a test of the description widget which needs to be modified to have the time and some mvpmc marketing above it and then the description below. And jus to see what happens when we exceed the available space since our other widgets are misbehaving we're going to keep adding stuff till it over flows.");
 	*/
 
-	h += 40;
+	h += 50;
 
 	mythtv_livetv_program_list = mvpw_create_array(NULL,
 				25, h, si.cols-50, si.rows/2-10, 0,

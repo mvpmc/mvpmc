@@ -68,9 +68,9 @@ expose(mvp_widget_t *widget)
 	}
 
 	GrGetFontInfo(widget->data.text.font, &finfo);
-	if(widget->data.text.pack)
-		h       = finfo.baseline;
-	else
+	//if(widget->data.text.pack)
+		//h       = finfo.baseline;
+	//else
 		h       = finfo.height;
 	/*
 		 This change packs the font in closer but will require that it be
@@ -206,6 +206,8 @@ expose(mvp_widget_t *widget)
 				j++;
 			}
 
+			if(str[i+j] == ' ') j--;
+
 			/*
 			 * Remove last partial word and spaces.
 			 */
@@ -253,7 +255,22 @@ expose(mvp_widget_t *widget)
 		 * case we pack it really really tight so that the descents
 		 * don't get covered up.
 		 */
-		y = h*cl;
+
+		y = h*cl + widget->data.text.margin;
+		if(widget->data.text.pack) {
+			j = widget->height;
+			if(y > j) {
+				i = (y-j)/cl; /* Missing space per line */
+				if((y-j)%cl != 0) i++;
+				if(i>descent)
+					h -= descent;
+				else
+					h -= i;
+				//printf("**SSDEBUG: %s packing required %d, descent %d\n", str,
+								//i, descent);
+			}
+			y = h*cl + widget->data.text.margin;
+		}
 		for(i=cl-1;i>=0;i--) {
 		//for(i=0;i<cl;i++) {
 			tc = lines[i].line[lines[i].len];
@@ -276,6 +293,7 @@ expose(mvp_widget_t *widget)
 			default:
 				break;
 			}
+			//printf("**SSDEBUG: The line at %d is %s\n", y,lines[i].line);
 			GrText(widget->wid, gc, x+indent, y-descent, lines[i].line,
 						 lines[i].len, encoding);
 			y -= h;
