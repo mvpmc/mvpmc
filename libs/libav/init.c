@@ -1,6 +1,6 @@
 /*
  *  Copyright (C) 2004, 2005, 2006, Jon Gettler
- *  http://mvpmc.sourceforge.net/
+ *  http://www.mvpmc.org/
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -17,8 +17,6 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ident "$Id$"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -32,11 +30,14 @@
 
 int fd_video = -1;
 int fd_audio = -1;
-int paused = 0;
-int muted = 0;
-int ffwd = 0;
 av_mode_t vid_mode = AV_MODE_NTSC;
 av_tv_aspect_t tv_aspect = AV_TV_ASPECT_4x3;
+
+av_state_t state = {
+	.mute = false,
+	.pause = false,
+	.ffwd = false,
+};
 
 /*
  * av_init() - initialze the audio/video devices
