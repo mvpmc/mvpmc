@@ -337,7 +337,7 @@ www_mvpmc_start(void *arg) {
                     send_error(stream, 403, "Forbidden", (char*) 0, "File is protected." );
                     continue;
                 }
-                send_headers(stream, 200, "Ok", (char*) 0, get_mime_type( file ), sb.st_size, sb.st_mtime );
+                send_headers(stream, 200, "Ok", (char*) 0, get_mime_type( file ), -1, sb.st_mtime );
     
                 if ( strcasecmp( method, "get" ) == 0   ) {
                     snprintf(mytoken,20,"%X*%X",rand(),rand());
