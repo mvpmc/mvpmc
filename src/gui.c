@@ -137,7 +137,7 @@ static mvpw_dialog_attr_t settings_dialog_attr = {
 	.bg = MVPW_DARKGREY,
 	.title_fg = MVPW_BLACK,
 	.title_bg = MVPW_WHITE,
-	.modal = 0,
+	.modal = false,
 	.border_size = 0,
 	.margin = 4,
 	.justify_title = MVPW_TEXT_CENTER,
@@ -150,7 +150,7 @@ static mvpw_dialog_attr_t video_dialog_attr = {
 	.bg = MVPW_DARKGREY,
 	.title_fg = MVPW_BLACK,
 	.title_bg = MVPW_WHITE,
-	.modal = 0,
+	.modal = false,
 	.border_size = 0,
 	.margin = 4,
 	.justify_title = MVPW_TEXT_CENTER,
@@ -168,7 +168,7 @@ static mvpw_menu_attr_t themes_attr = {
 	.border_size = 2,
 	.border = MVPW_DARKGREY2,
 	.checkbox_fg = MVPW_GREEN,
-	.checkboxes = 1,
+	.checkboxes = true,
 	.margin = 4,
 };
 
@@ -183,7 +183,7 @@ mvpw_menu_attr_t mythtv_attr = {
 	.border_size = 2,
 	.border = MVPW_DARKGREY2,
 	.margin = 4,
-	.utf8 = 1,
+	.utf8 = true,
 };
 
 static mvpw_menu_attr_t attr = {
@@ -194,7 +194,7 @@ static mvpw_menu_attr_t attr = {
 	.hilite_bg = MVPW_WHITE,
 	.title_fg = MVPW_WHITE,
 	.title_bg = MVPW_BLUE,
-	.rounded = 1,
+	.rounded = true,
 	.border_size = 0,
 	.border = MVPW_BLACK,
 	.margin = 4,
@@ -210,61 +210,61 @@ static mvpw_menu_attr_t myth_main_attr = {
 	.title_bg = MVPW_BLUE,
 	.border = MVPW_WHITE,
 	.border_size = 0,
-	.rounded = 1,
+	.rounded = true,
 	.margin = 4,
 };
 
 static mvpw_menu_item_attr_t popup_item_attr = {
-	.selectable = 1,
+	.selectable = true,
 	.fg = mvpw_color_alpha(MVPW_BLACK, 0x80),
 	.bg = mvpw_color_alpha(MVPW_DARK_ORANGE, 0x80),
 	.checkbox_fg = mvpw_color_alpha(MVPW_PURPLE, 0x80),
 };
 
 static mvpw_menu_item_attr_t mythtv_popup_item_attr = {
-	.selectable = 1,
+	.selectable = true,
 	.fg = MVPW_GREEN,
 	.bg = MVPW_BLACK,
 	.checkbox_fg = MVPW_PURPLE,
 };
 
 static mvpw_menu_item_attr_t item_attr = {
-	.selectable = 1,
+	.selectable = true,
 	.fg = MVPW_WHITE,
 	.bg = MVPW_BLACK,
 	.checkbox_fg = MVPW_GREEN,
 };
 
 static mvpw_menu_item_attr_t myth_menu_item_attr = {
-	.selectable = 1,
+	.selectable = true,
 	.fg = MVPW_WHITE,
 	.bg = MVPW_BLACK,
 	.checkbox_fg = MVPW_GREEN,
 };
 
 static mvpw_menu_item_attr_t settings_item_attr = {
-	.selectable = 1,
+	.selectable = true,
 	.fg = MVPW_BLACK,
 	.bg = MVPW_LIGHTGREY,
 	.checkbox_fg = MVPW_GREEN,
 };
 
 static mvpw_menu_item_attr_t fb_menu_item_attr = {
-	.selectable = 1,
+	.selectable = true,
 	.fg = MVPW_BLACK,
 	.bg = MVPW_LIGHTGREY,
 	.checkbox_fg = MVPW_GREEN,
 };
 
 static mvpw_menu_item_attr_t mclient_fullscreen_menu_item_attr = {
-	.selectable = 0,
+	.selectable = false,
 	.fg = MVPW_LIGHTGREY, 
 	.bg = MVPW_BLACK,
 	.checkbox_fg = MVPW_GREEN,
 };
 
 static mvpw_menu_item_attr_t themes_item_attr = {
-	.selectable = 1,
+	.selectable = true,
 	.fg = MVPW_GREEN,
 	.bg = MVPW_BLACK,
 	.checkbox_fg = MVPW_GREEN,
@@ -297,19 +297,19 @@ static mvpw_menu_attr_t mythtv_popup_attr = {
 };
 
 static mvpw_text_attr_t mythtv_info_attr = {
-	.wrap = 1,
-	.pack = 0,
+	.wrap = true,
+	.pack = false,
 	.justify = MVPW_TEXT_LEFT,
 	.margin = 4,
 	.font = FONT_STANDARD,
 	.fg = MVPW_WHITE,
 	.border = MVPW_BLACK,
 	.border_size = 0,
-	.utf8 = 1,
+	.utf8 = true,
 };
 
 static mvpw_text_attr_t viewport_attr = {
-	.wrap = 1,
+	.wrap = true,
 	.pack = 0,
 	.justify = MVPW_TEXT_LEFT,
 	.margin = 4,
@@ -320,8 +320,8 @@ static mvpw_text_attr_t viewport_attr = {
 };
 
 static mvpw_text_attr_t description_attr = {
-	.wrap = 1,
-	.pack = 0,
+	.wrap = true,
+	.pack = false,
 	.justify = MVPW_TEXT_LEFT,
 	.margin = 4,
 	.font = FONT_STANDARD,
@@ -332,8 +332,8 @@ static mvpw_text_attr_t description_attr = {
 };
 
 static mvpw_text_attr_t display_attr = {
-	.wrap = 0,
-	.pack = 0,
+	.wrap = false,
+	.pack = false,
 	.justify = MVPW_TEXT_LEFT,
 	.margin = 6,
 	.font = FONT_STANDARD,
@@ -344,8 +344,8 @@ static mvpw_text_attr_t display_attr = {
 };
 
 static mvpw_text_attr_t mythtv_program_attr = {
-	.wrap = 0,
-	.pack = 0,
+	.wrap = false,
+	.pack = false,
 	.justify = MVPW_TEXT_LEFT,
 	.margin = 6,
 	.font = FONT_STANDARD,
@@ -353,12 +353,12 @@ static mvpw_text_attr_t mythtv_program_attr = {
 	.bg = mvpw_color_alpha(MVPW_BLACK, 0x80),
 	.border = MVPW_BLACK,
 	.border_size = 0,
-	.utf8 = 1,
+	.utf8 = true,
 };
 
 static mvpw_text_attr_t mythtv_description_attr = {
-	.wrap = 1,
-	.pack = 0,
+	.wrap = true,
+	.pack = false,
 	.justify = MVPW_TEXT_LEFT,
 	.margin = 6,
 	.font = FONT_STANDARD,
@@ -366,12 +366,12 @@ static mvpw_text_attr_t mythtv_description_attr = {
 	.bg = mvpw_color_alpha(MVPW_BLACK, 0x80),
 	.border = MVPW_BLACK,
 	.border_size = 0,
-	.utf8 = 1,
+	.utf8 = true,
 };
 
 static mvpw_text_attr_t splash_attr = {
-	.wrap = 1,
-	.pack = 0,
+	.wrap = true,
+	.pack = false,
 	.justify = MVPW_TEXT_CENTER,
 	.margin = 6,
 	.font = FONT_STANDARD,
@@ -382,16 +382,16 @@ static mvpw_text_attr_t splash_attr = {
 };
 
 static mvpw_text_attr_t ct_text_box_attr = {
-	.wrap = 1,
-	.pack = 0,
+	.wrap = true,
+	.pack = false,
 	.justify = MVPW_TEXT_CENTER,
 	.margin = 6,
 	.font = FONT_LARGE,
 };
 
 static mvpw_text_attr_t ct_fgbg_box_attr = {
-	.wrap = 1,
-	.pack = 0,
+	.wrap = true,
+	.pack = false,
 	.justify = MVPW_TEXT_LEFT,
 	.margin = 6,
 	.font = FONT_LARGE,
@@ -399,8 +399,8 @@ static mvpw_text_attr_t ct_fgbg_box_attr = {
 };
 
 static mvpw_text_attr_t settings_ip_attr = {
-	.wrap = 0,
-	.pack = 0,
+	.wrap = false,
+	.pack = false,
 	.justify = MVPW_TEXT_LEFT,
 	.margin = 4,
 	.font = FONT_STANDARD,
@@ -411,8 +411,8 @@ static mvpw_text_attr_t settings_ip_attr = {
 };
 
 static mvpw_text_attr_t settings_ip_title_attr = {
-	.wrap = 0,
-	.pack = 0,
+	.wrap = false,
+	.pack = false,
 	.justify = MVPW_TEXT_CENTER,
 	.margin = 4,
 	.font = FONT_STANDARD,
@@ -423,8 +423,8 @@ static mvpw_text_attr_t settings_ip_title_attr = {
 };
 
 static mvpw_text_attr_t settings_sort_attr = {
-	.wrap = 0,
-	.pack = 0,
+	.wrap = false,
+	.pack = false,
 	.justify = MVPW_TEXT_LEFT,
 	.margin = 4,
 	.font = FONT_STANDARD,
@@ -435,8 +435,8 @@ static mvpw_text_attr_t settings_sort_attr = {
 };
 
 static mvpw_text_attr_t settings_sort_title_attr = {
-	.wrap = 0,
-	.pack = 0,
+	.wrap = false,
+	.pack = false,
 	.justify = MVPW_TEXT_CENTER,
 	.margin = 4,
 	.font = FONT_STANDARD,
@@ -447,8 +447,8 @@ static mvpw_text_attr_t settings_sort_title_attr = {
 };
 
 static mvpw_text_attr_t settings_help_attr = {
-	.wrap = 1,
-	.pack = 0,
+	.wrap = true,
+	.pack = false,
 	.justify = MVPW_TEXT_LEFT,
 	.margin = 4,
 	.font = FONT_STANDARD,
@@ -459,8 +459,8 @@ static mvpw_text_attr_t settings_help_attr = {
 };
 
 static mvpw_text_attr_t slow_connect_attr = {
-	.wrap = 1,
-	.pack = 0,
+	.wrap = true,
+	.pack = false,
 	.justify = MVPW_TEXT_LEFT,
 	.margin = 4,
 	.font = FONT_LARGE,
@@ -477,7 +477,7 @@ static mvpw_dialog_attr_t warn_attr = {
 	.bg = MVPW_DARKGREY,
 	.title_fg = MVPW_BLACK,
 	.title_bg = MVPW_WHITE,
-	.modal = 1,
+	.modal = true,
 	.border = MVPW_RED,
 	.border_size = 4,
 	.margin = 4,
@@ -491,7 +491,7 @@ static mvpw_dialog_attr_t about_attr = {
 	.bg = MVPW_DARKGREY,
 	.title_fg = MVPW_WHITE,
 	.title_bg = MVPW_DARKGREY,
-	.modal = 1,
+	.modal = true,
 	.border = MVPW_BLUE,
 	.border_size = 2,
 	.margin = 4,
@@ -505,7 +505,7 @@ static mvpw_dialog_attr_t mclient_attr = {
 	.bg = MVPW_DARKGREY,
 	.title_fg = MVPW_WHITE,
 	.title_bg = MVPW_DARKGREY,
-	.modal = 0,
+	.modal = false,
 	.border = MVPW_BLUE,
 	.border_size = 0,
 	.margin = 4,
@@ -522,14 +522,14 @@ static mvpw_graph_attr_t offset_graph_attr = {
 static mvpw_graph_attr_t busy_graph_attr = {
 	.min = 0,
 	.max = 10,
-	.gradient = 1,
+	.gradient = true,
 	.left = MVPW_BLACK,
 	.right = MVPW_RED,
 };
 
 static mvpw_text_attr_t busy_text_attr = {
-	.wrap = 0,
-	.pack = 0,
+	.wrap = false,
+	.pack = false,
 	.justify = MVPW_TEXT_CENTER,
 	.margin = 6,
 	.font = FONT_STANDARD,
@@ -539,8 +539,8 @@ static mvpw_text_attr_t busy_text_attr = {
 };
 
 static mvpw_text_attr_t thruput_text_attr = {
-	.wrap = 1,
-	.pack = 0,
+	.wrap = true,
+	.pack = false,
 	.justify = MVPW_TEXT_CENTER,
 	.margin = 6,
 	.font = FONT_STANDARD,
@@ -553,7 +553,7 @@ static mvpw_graph_attr_t splash_graph_attr = {
 	.min = 0,
 	.max = 20,
 	.bg = MVPW_BLACK,
-	.gradient = 1,
+	.gradient = true,
 	.left = MVPW_BLACK,
 	.right = MVPW_RED,
 };
@@ -584,7 +584,7 @@ mvpw_menu_attr_t  rtv_device_menu_attr = {
 	.hilite_bg = MVPW_DARKGREY2,
 	.title_fg = MVPW_WHITE,
 	.title_bg = MVPW_MIDNIGHTBLUE,
-   .rounded = 0,
+	.rounded = false,
 	.margin = 4,
 };
 
@@ -596,7 +596,7 @@ mvpw_menu_attr_t  rtv_show_browser_menu_attr = {
 	.hilite_bg = MVPW_DARKGREY2,
 	.title_fg = MVPW_WHITE,
 	.title_bg = MVPW_MIDNIGHTBLUE,
-   .rounded = 0,
+	.rounded = false,
 	.margin = 4,
 };
 
@@ -608,7 +608,7 @@ mvpw_menu_attr_t rtv_show_popup_attr = {
 	.hilite_bg = MVPW_WHITE,
 	.title_fg = MVPW_WHITE,
 	.title_bg = MVPW_MIDNIGHTBLUE,
-   .rounded = 0,
+	.rounded = false,
 	.margin = 4,
 };
 
@@ -623,8 +623,8 @@ mvpw_graph_attr_t rtv_discspace_graph_attr = {
 
 // discovery splash window text attributes
 mvpw_text_attr_t rtv_discovery_splash_attr = {
-   .wrap = 1,
-	 .pack = 0,
+   .wrap = true,
+	 .pack = false,
    .justify = MVPW_TEXT_LEFT,
    .margin = 6,
    .font = FONT_LARGE,
@@ -636,8 +636,8 @@ mvpw_text_attr_t rtv_discovery_splash_attr = {
 
 // device description window text attributes
 mvpw_text_attr_t rtv_device_descr_attr = {
-   .wrap = 1,
-	 .pack = 0,
+   .wrap = true,
+	 .pack = false,
    .justify = MVPW_TEXT_LEFT,
    .margin = 0,
    .font = FONT_LARGE,
@@ -647,8 +647,8 @@ mvpw_text_attr_t rtv_device_descr_attr = {
 
 // show episode description window text attributes
 mvpw_text_attr_t rtv_episode_descr_attr = {
-   .wrap = 1,
-	 .pack = 0,
+   .wrap = true,
+	 .pack = false,
    .justify = MVPW_TEXT_LEFT,
    .margin = 0,
    .font = FONT_LARGE,
@@ -658,8 +658,8 @@ mvpw_text_attr_t rtv_episode_descr_attr = {
 
 // OSD show title attributes
 mvpw_text_attr_t rtv_osd_show_title_attr = {
-	.wrap = 0,
-	.pack = 0,
+	.wrap = false,
+	.pack = false,
 	.justify = MVPW_TEXT_LEFT,
 	.margin = 0,
 	.font = FONT_LARGE,
@@ -669,8 +669,8 @@ mvpw_text_attr_t rtv_osd_show_title_attr = {
 
 // OSD show description attributes
 mvpw_text_attr_t rtv_osd_show_desc_attr = {
-	.wrap = 1,
-	.pack = 0,
+	.wrap = true,
+	.pack = false,
 	.justify = MVPW_TEXT_LEFT,
 	.margin = 0,
 	.font = FONT_LARGE,
@@ -680,8 +680,8 @@ mvpw_text_attr_t rtv_osd_show_desc_attr = {
 
 // popup message window attributes
 mvpw_text_attr_t rtv_message_window_attr = {
-   .wrap = 1,
-	 .pack = 0,
+   .wrap = true,
+	 .pack = false,
    .justify = MVPW_TEXT_LEFT,
    .margin = 12,
    .font = FONT_LARGE,
@@ -693,8 +693,8 @@ mvpw_text_attr_t rtv_message_window_attr = {
 
 // seek_osd attributes (jump, seek, comercial skip)
 mvpw_text_attr_t rtv_seek_osd_attr = {
-	.wrap = 1,
-	.pack = 0,
+	.wrap = true,
+	.pack = false,
 	.justify = MVPW_TEXT_LEFT,
 	.margin = 0,
 	.font = FONT_LARGE,
@@ -5359,7 +5359,7 @@ main_select_callback(mvp_widget_t *widget, char *item, void *key)
 }
 
 static void
-main_hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
+main_hilite_callback(mvp_widget_t *widget, char *item, void *key, bool hilite)
 {
 	int k = (int)key;
 

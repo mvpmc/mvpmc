@@ -1,6 +1,6 @@
 /*
- *  Copyright (C) 2005, John Honeycutt
- *  http://mvpmc.sourceforge.net/
+ *  Copyright (C) 2005-2006, John Honeycutt
+ *  http://www.mvpmc.org/
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,7 +34,7 @@
 #include <limits.h>
 #include <asm/types.h>
 #include "mvp_av.h"
-#include "../../mvplib/libav/mvpstb_mod.h"
+#include "../../libs/libav/mvpstb_mod.h"
 
 /*******************************************************************************
  *                             GLOBAL VARIABLES

@@ -1,6 +1,6 @@
 /*
  *  Copyright (C) 2004, 2005, 2006, Jon Gettler
- *  http://mvpmc.sourceforge.net/
+ *  http://www.mvpmc.org/
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -950,7 +950,7 @@ livetv_select_callback(mvp_widget_t *widget, char *item, void *key)
 }
 
 static void
-livetv_hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
+livetv_hilite_callback(mvp_widget_t *widget, char *item, void *key, bool hilite)
 {
 	int prog = (int)key;
 	char buf[256];

@@ -49,6 +49,7 @@ distclean: clean
 	rm -rf `find . -name .sconsign -type f`
 	rm -rf home
 	rm -rf doc/html
+	rm -rf doc/latex
 	rm -rf cscope*
 	rm -f scons/WGet.pyc
 	rm -f src/version.c

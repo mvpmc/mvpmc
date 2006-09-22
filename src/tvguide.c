@@ -1,6 +1,6 @@
 /*
  *  Copyright (C) 2006, Sergio Slobodrian
- *  http://mvpmc.sourceforge.net/
+ *  http://www.mvpmc.org/
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,8 +16,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
-
-#ident "$Id: video.c,v 1.76 2006/02/16 01:11:40 gettler Exp $"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -96,8 +94,8 @@ static mvpw_text_attr_t livetv_header_attr = {
 
 /* Description window */
 static mvpw_text_attr_t livetv_description_attr = {
-	.wrap = 1,
-	.pack = 1,
+	.wrap = true,
+	.pack = true,
 	.justify = MVPW_TEXT_LEFT,
 	.margin = 9,
 	.font = FONT_LARGE,

@@ -1,6 +1,6 @@
 /*
- *  Copyright (C) 2004, Alex Ashley
- *  http://mvpmc.sourceforge.net/
+ *  Copyright (C) 2004-2006, Alex Ashley
+ *  http://www.mvpmc.org/
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

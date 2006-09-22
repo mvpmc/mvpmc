@@ -1,11 +1,6 @@
-#ifndef DISPLAY_H
-#define DISPLAY_H
-
 /*
- *  $Id$
- *
- *  Copyright (C) 2005, Rick Stuart
- *  http://mvpmc.sourceforge.net/
+ *  Copyright (C) 2005-2006, Rick Stuart
+ *  http://www.mvpmc.org/
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,6 +17,8 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#ifndef DISPLAY_H
+#define DISPLAY_H
 
 extern void display_send(char *);
 extern void display_iee_40x2(void);
