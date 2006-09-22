@@ -35,6 +35,55 @@
 #include <cmyth_local.h>
 #include <time.h>
 
+/* flag to use a 12 hour clock when displaying times to the user */
+static int use_12hour_clock = 0;
+
+int
+cmyth_is_12hour_clock(void)
+{
+	return use_12hour_clock;
+}
+
+/*
+ * cmyth_use_12hour_clock
+ *
+ * Scope: PUBLIC
+ *
+ * Description
+ *
+ * Configure the displayed times to use a 12 hour clock.
+ *
+ * Return Value:
+ *
+ * None
+ *
+ */
+void
+cmyth_use_12hour_clock(void)
+{
+	use_12hour_clock = 1;
+}
+
+/*
+ * cmyth_use_24hour_clock
+ *
+ * Scope: PUBLIC
+ *
+ * Description
+ *
+ * Configure the displayed times to use a 24 hour clock.
+ *
+ * Return Value:
+ *
+ * None
+ *
+ */
+void
+cmyth_use_24hour_clock(void)
+{
+	use_12hour_clock = 0;
+}
+
 /*
  * cmyth_timestamp_create(void)
  * 
@@ -312,6 +361,54 @@ cmyth_timestamp_to_string(char *str, cmyth_timestamp_t ts)
 	return 0;
 }
 
+int
+cmyth_timestamp_to_display_string(char *str, cmyth_timestamp_t ts)
+{
+	if (!str) {
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: NULL output string provided\n",
+			  __FUNCTION__);
+		return -EINVAL;
+	}
+	if (!ts) {
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: NULL timestamp provided\n",
+			  __FUNCTION__);
+		return -EINVAL;
+	}
+	if (use_12hour_clock)
+	{
+		unsigned long hour = ts->timestamp_hour;
+		int pm = 0;
+		if (hour > 11)
+		{
+			pm = 1;
+			hour -= 12;
+		}
+		if (hour == 0)
+			hour = 12;
+
+		sprintf(str,
+			"%4.4ld-%2.2ld-%2.2ldT%2.2ld:%2.2ld:%2.2ld %s",
+			ts->timestamp_year,
+			ts->timestamp_month,
+			ts->timestamp_day,
+			hour,
+			ts->timestamp_minute,
+			ts->timestamp_second,
+			pm ? "PM" : "AM");
+	}
+	else
+	{
+		sprintf(str,
+			"%4.4ld-%2.2ld-%2.2ldT%2.2ld:%2.2ld:%2.2ld",
+			ts->timestamp_year,
+			ts->timestamp_month,
+			ts->timestamp_day,
+			ts->timestamp_hour,
+			ts->timestamp_minute,
+			ts->timestamp_second);
+	}
+	return 0;
+}
 
 /*
  * cmyth_datetime_to_string(char *str, cmyth_timestamp_t ts)

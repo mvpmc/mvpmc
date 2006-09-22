@@ -636,12 +636,21 @@ extern time_t cmyth_timestamp_to_unixtime(cmyth_timestamp_t ts);
 
 extern int cmyth_timestamp_to_string(char *str, cmyth_timestamp_t ts);
 
+extern int cmyth_timestamp_to_display_string(char *str, cmyth_timestamp_t ts);
+
 extern int cmyth_datetime_to_string(char *str, cmyth_timestamp_t ts);
 
 extern cmyth_timestamp_t cmyth_datetime_from_string(char *str);
 
 extern int cmyth_timestamp_compare(cmyth_timestamp_t ts1,
 				   cmyth_timestamp_t ts2);
+
+extern void cmyth_use_12hour_clock(void);
+
+extern void cmyth_use_24hour_clock(void);
+
+extern int cmyth_is_12hour_clock(void);
+
 /*
  * -----------------------------------------------------------------
  * Key Frame Operations

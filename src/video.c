@@ -431,11 +431,17 @@ video_clock(mvp_widget_t *widget)
 	time_t t;
 	struct tm *tm;
 	char buf[64];
+	char format[12];
+
+	if (mythtv_use_12hour_clock)
+		strcpy(format, "%I:%M:%S %p");
+	else
+		strcpy(format, "%H:%M:%S");
 
 	t = time(NULL);
 	tm = localtime(&t);
 
-	sprintf(buf, "%.2d:%.2d:%.2d", tm->tm_hour, tm->tm_min, tm->tm_sec);
+	strftime(buf, 64, format, tm);
 
 	mvpw_set_text_str(widget, buf);
 }

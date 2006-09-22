@@ -447,7 +447,10 @@ mvp_tvguide_clock_timer(mvp_widget_t * widget)
 	if(now->tm_sec < 60)
 		next = (60 - (now->tm_sec))*1000;
 	mvpw_set_timer(mythtv_livetv_clock, mvp_tvguide_clock_timer, next);
-	sprintf(tm_buf, "%02d:%02d", now->tm_hour, now->tm_min);
+	if (cmyth_is_12hour_clock())
+		strftime(tm_buf, 16, "%I:%M %P", now);
+	else
+		sprintf(tm_buf, "%02d:%02d", now->tm_hour, now->tm_min);
 
 	mvpw_set_text_str(widget, tm_buf);
 }

@@ -633,6 +633,19 @@ myth_set_guide_times(void * widget, int xofs)
 	static int last_minutes = -1;
 	static int last_ofs = 0;
 	int minutes, rtrn=1;
+	char hour_format[10];
+	char halfhour_format[10];
+
+	if (cmyth_is_12hour_clock())
+	{
+		strcpy(hour_format, "%I:00 %P");
+		strcpy(halfhour_format, "%I:30 %P");
+	}
+	else
+	{
+		strcpy(hour_format, "%H:00");
+		strcpy(halfhour_format, "%H:30");
+	}
 
 	curtime = time(NULL);
 	curtime += 60*30*xofs;
@@ -651,23 +664,23 @@ myth_set_guide_times(void * widget, int xofs)
 		strftime(timestr, 25, "%b/%d", ltime);
 		mvpw_set_array_col(prog_widget, 0, timestr, NULL);
 		if(minutes < 30) {
-			strftime(timestr, 25, "%H:00", ltime);
+			strftime(timestr, 25, hour_format, ltime);
 			mvpw_set_array_col(prog_widget, 1, timestr, NULL);
-			strftime(timestr, 25, "%H:30", ltime);
+			strftime(timestr, 25, halfhour_format, ltime);
 			mvpw_set_array_col(prog_widget, 2, timestr, NULL);
 			nexthr = curtime + 60*60;
 			ltime = localtime(&nexthr);
-			strftime(timestr, 25, "%H:00", ltime);
+			strftime(timestr, 25, hour_format, ltime);
 			mvpw_set_array_col(prog_widget, 3, timestr, NULL);
 		}
 		else {
-			strftime(timestr, 25, "%H:30", ltime);
+			strftime(timestr, 25, halfhour_format, ltime);
 			mvpw_set_array_col(prog_widget, 1, timestr, NULL);
 			nexthr = curtime + 60*60;
 			ltime = localtime(&nexthr);
-			strftime(timestr, 25, "%H:00", ltime);
+			strftime(timestr, 25, hour_format, ltime);
 			mvpw_set_array_col(prog_widget, 2, timestr, NULL);
-			strftime(timestr, 25, "%H:30", ltime);
+			strftime(timestr, 25, halfhour_format, ltime);
 			mvpw_set_array_col(prog_widget, 3, timestr, NULL);
 		}
 	}
