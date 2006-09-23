@@ -15,4 +15,13 @@ lib = env.StaticLibrary('osd', src, CPPPATH = [ env['INCDIR'], '.' ])
 
 inst = env.Install(libdir, lib)
 
+if target == 'mvp':
+	osdtest = env.Program('osdtest',
+	      	              [ 'osdtest.c' ],
+	                      CPPPATH = [ env['INCDIR'] ],
+	                      LIBS = [ 'osd' ],
+	                      LIBPATH = [ '.' ],
+	                      LINKFLAGS = [ '-static' ])
+	env.Depends(osdtest, lib)
+
 Return('inst')
