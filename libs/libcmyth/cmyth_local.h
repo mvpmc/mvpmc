@@ -213,6 +213,7 @@ struct cmyth_channel {
 
 struct cmyth_chanlist {
 	cmyth_channel_t chanlist_list;
+	int chanlist_sort_desc;
 	int chanlist_count;
 	int chanlist_alloc;
 };

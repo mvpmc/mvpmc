@@ -477,4 +477,15 @@ extern int startup_selection;
 
 extern int fb_next_image(int offset);
 
+extern void doexit(int sig);
+
+extern char *vlc_server;
+extern int mplayer_disable;
+extern int rfb_mode;
+extern int flicker;
+extern char *rtv_init_str;
+extern char *mclient_server;
+
+extern char cwd[];
+
 #endif /* MVPMC_H */
