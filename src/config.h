@@ -106,6 +106,7 @@ typedef struct {
 	config_mythtv_rg_t	mythtv_recgroup[MYTHTV_RG_MAX];
 	int			startup_selection;
 	int			display_type;
+	int			use_12_hour_clock;
 	mythtv_filter_t		mythtv_filter;
 	mysql_config_t		mysql;
 } config_t;

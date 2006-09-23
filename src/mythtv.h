@@ -84,6 +84,8 @@ extern mythtv_color_t mythtv_colors;
 
 extern char *mythtv_server;
 extern int mythtv_debug;
+extern int mythtv_use_12hour_clock;
+extern int mythtv_tvguide_sort_desc;
 extern char *mythtv_recdir;
 extern char *mythtv_ringbuf;
 
@@ -164,7 +166,8 @@ extern cmyth_tvguide_progs_t myth_load_guide(mvp_widget_t *widget,
 												long free_recorders);
 extern int myth_guide_set_channels(void * widget, cmyth_chanlist_t chanlist,
 																	 int index, int yofs, long free_recorders);
-extern int myth_set_guide_times(mvp_widget_t *widget, int xofs);
+extern int myth_set_guide_times(mvp_widget_t *widget, int xofs,
+																int time_format_12);
 extern void mvp_tvguide_show(mvp_widget_t *proglist, mvp_widget_t *descr,
 														 mvp_widget_t *clock);
 extern void mvp_tvguide_hide(mvp_widget_t *proglist, mvp_widget_t *descr,

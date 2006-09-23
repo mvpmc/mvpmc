@@ -870,6 +870,7 @@ mvp_widget_t *settings;
 static mvp_widget_t *settings_av;
 static mvp_widget_t *settings_osd;
 static mvp_widget_t *settings_mythtv;
+static mvp_widget_t *settings_tvguide;
 static mvp_widget_t *settings_mythtv_control;
 static mvp_widget_t *settings_mythtv_program;
 static mvp_widget_t *settings_playback_osd;
@@ -1042,6 +1043,7 @@ typedef enum {
 	SETTINGS_MAIN_SCREENSAVER,
 	SETTINGS_MAIN_DISPLAY,
 	SETTINGS_MAIN_MYTHTV,
+	SETTINGS_MAIN_TVGUIDE,
 	SETTINGS_MAIN_MCLIENT,
 	SETTINGS_MAIN_OSD,
 	SETTINGS_MAIN_PLAYBACK,
@@ -1067,6 +1069,11 @@ typedef enum {
 	SETTINGS_MYTHTV_RECGROUP_FILTER,
 	SETTINGS_MYTHTV_PENDING,
 } settings_mythtv_t;
+
+typedef enum {
+	SETTINGS_TVGUIDE_CLOCK_12 = 1,
+	SETTINGS_TVGUIDE_SORT,
+} settings_tvguide_t;
 
 typedef enum {
 	SETTINGS_STARTUP_MYTHTV= 1,
@@ -3158,6 +3165,23 @@ osd_select_callback(mvp_widget_t *widget, char *item, void *key)
 }
 
 static void
+tvguide_select_callback(mvp_widget_t *widget, char *item, void *key)
+{
+
+	switch ((int)key) {
+	case SETTINGS_TVGUIDE_CLOCK_12:
+		mythtv_use_12hour_clock ^= 1;
+		mvpw_check_menu_item(widget, (void*)key, mythtv_use_12hour_clock);
+		break;
+	case SETTINGS_TVGUIDE_SORT:
+		mythtv_tvguide_sort_desc ^= 1;
+		mvpw_check_menu_item(widget, (void*)key, mythtv_tvguide_sort_desc);
+		break;
+	}
+
+}
+
+static void
 bright_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
 	int level = (int)key;
@@ -3470,6 +3494,10 @@ settings_select_callback(mvp_widget_t *widget, char *item, void *key)
 	case SETTINGS_MAIN_MYTHTV:
 		mvpw_show(settings_mythtv);
 		mvpw_focus(settings_mythtv);
+		break;
+	case SETTINGS_MAIN_TVGUIDE:
+		mvpw_show(settings_tvguide);
+		mvpw_focus(settings_tvguide);
 		break;
 	case SETTINGS_MAIN_MCLIENT:
 		mvpw_show(settings_mclient);
@@ -3955,6 +3983,8 @@ settings_init(void)
 			   (void*)SETTINGS_MAIN_MCLIENT, &settings_item_attr);
 	mvpw_add_menu_item(settings, "MythTV",
 			   (void*)SETTINGS_MAIN_MYTHTV, &settings_item_attr);
+	mvpw_add_menu_item(settings, "TV Guide",
+			   (void*)SETTINGS_MAIN_TVGUIDE, &settings_item_attr);
 	mvpw_add_menu_item(settings, "On-Screen-Display",
 			   (void*)SETTINGS_MAIN_OSD, &settings_item_attr);
 	mvpw_add_menu_item(settings, "Playback Options",
@@ -4091,6 +4121,33 @@ settings_init(void)
 			   "Recording Group Filtering",
 			   (void*)SETTINGS_MYTHTV_RECGROUP_FILTER,
 			   &settings_item_attr);
+
+	/*
+	 * tvguide settings menu
+	 */
+	settings_tvguide = mvpw_create_menu(NULL, x, y, w, h,
+					   settings_attr.bg,
+					   settings_attr.border,
+					   settings_attr.border_size);
+	settings_attr.checkboxes = 1;
+	mvpw_set_menu_attr(settings_tvguide, &settings_attr);
+	mvpw_set_menu_title(settings_tvguide, "TV Guide Settings");
+	mvpw_set_key(settings_tvguide, settings_item_key_callback);
+
+	settings_item_attr.hilite = NULL;
+	settings_item_attr.select = tvguide_select_callback;
+
+	mvpw_add_menu_item(settings_tvguide,
+			   "12 Hour Time Format",
+			   (void*)SETTINGS_TVGUIDE_CLOCK_12, &settings_item_attr);
+	mvpw_add_menu_item(settings_tvguide,
+			   "Descending Channel Sort Order",
+			   (void*)SETTINGS_TVGUIDE_SORT, &settings_item_attr);
+
+	mvpw_check_menu_item(settings_tvguide, (void*)SETTINGS_TVGUIDE_CLOCK_12,
+			     mythtv_use_12hour_clock);
+	mvpw_check_menu_item(settings_tvguide, (void*)SETTINGS_TVGUIDE_SORT,
+			     mythtv_tvguide_sort_desc);
 
 	/*
 	 * mythtv recording group menu

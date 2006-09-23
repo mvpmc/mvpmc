@@ -240,6 +240,7 @@ print_help(char *prog)
 	printf("\t-f font   \tfont file\n");
 	printf("\t-F file   \tconfig file\n");
 	printf("\t-h        \tprint this help\n");
+	printf("\t-H        \tdisplay 12 hour clock\n");
 	printf("\t-i dir    \tmvpmc image directory\n");
 	printf("\t-m mode   \toutput mode (ntsc or pal)\n");
 	printf("\t-M        \tMythTV protocol debugging output\n");
@@ -521,7 +522,7 @@ main(int argc, char **argv)
 	 * the settings from all other sources.
 	 */
 	while ((c=getopt_long(argc, argv,
-			      "a:b:C:c:d:D:f:F:hi:m:Mo:r:R:s:S:y:t:u:p:T:",
+			      "a:b:C:c:d:D:f:F:hHi:m:Mo:r:R:s:S:y:t:u:p:T:",
 			      opts, &opt_index)) != -1) {
 		switch (c) {
 		case 0:
@@ -667,6 +668,10 @@ main(int argc, char **argv)
 		case 'h':
 			print_help(argv[0]);
 			exit(0);
+			break;
+		case 'H':
+			mythtv_use_12hour_clock = 1;
+			config->use_12_hour_clock = 1;
 			break;
 		case 'i':
 			imagedir = strdup(optarg);
