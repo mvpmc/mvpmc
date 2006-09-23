@@ -46,7 +46,6 @@ expose(mvp_widget_t *widget)
 	char *str, tc;
 	int i, j, k, sl, cl=0, nl = 0;
 	int encoding;
-
 	int consume_spaces;
 
 	if (!mvpw_visible(widget))
@@ -176,6 +175,17 @@ expose(mvp_widget_t *widget)
 			j = 0;
 
 			/*
+			 * Leading CR indicates a blank line.
+			 */
+			if (str[i] == '\n') {
+				lines[cl].line = NULL;
+				lines[cl].len = 0;
+				i++;
+				cl++;
+				continue;
+			}
+
+			/*
 			 * Found CRs, don't consume leading spaces unless
 			 * we wrap.
 			 */
@@ -272,7 +282,12 @@ expose(mvp_widget_t *widget)
 			y = h*cl + widget->data.text.margin;
 		}
 		for(i=cl-1;i>=0;i--) {
-		//for(i=0;i<cl;i++) {
+			/* skip blank lines */
+			if (lines[i].len == 0) {
+				y -= h;
+				continue;
+			}
+
 			tc = lines[i].line[lines[i].len];
 			lines[i].line[lines[i].len] = '\0';
 			w = mvpw_font_width(widget->data.text.font, lines[i].line,
