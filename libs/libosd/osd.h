@@ -74,20 +74,26 @@ typedef struct {
 	unsigned char c[2];
 } osd_afillblt_t;
 
+/**
+ * Bit Block Transfer.
+ */
 typedef struct {
-	unsigned long dst_handle;
-	unsigned long dst_x;
-	unsigned long dst_y;
-	unsigned long width;
-	unsigned long height;
-	unsigned long src_handle;
-	unsigned long src_x;
-	unsigned long src_y;
+	unsigned long dst_handle;	/**< destination surface handle */
+	unsigned long dst_x;		/**< destination horizontal */
+	unsigned long dst_y;		/**< destination vertical */
+	unsigned long width;		/**< block width */
+	unsigned long height;		/**< block height */
+	unsigned long src_handle;	/**< source surface handle */
+	unsigned long src_x;		/**< source horizontal */
+	unsigned long src_y;		/**< source vertical */
 	unsigned long u1;
 	unsigned long u2;
 	unsigned char u3;
 } osd_bitblt_t; 
 
+/**
+ * Clip Rectangle.
+ */
 typedef struct {
 	unsigned long handle;
 	unsigned long left;
@@ -96,10 +102,33 @@ typedef struct {
 	unsigned long bottom;
 } osd_clip_rec_t; 
 
+/**
+ * Convert a color from RGB to YUV.
+ * \param r red
+ * \param g green
+ * \param b blue
+ * \param[out] y y
+ * \param[out] u u
+ * \param[out] v v
+ */
 extern void rgb2yuv(unsigned char r, unsigned char g, unsigned char b,
 		    unsigned char *y, unsigned char *u, unsigned char *v);
+
+/**
+ * Convert a color from YUV to RGV.
+ * \param y y
+ * \param u u
+ * \param v v
+ * \param[out] r red
+ * \param[out] g green
+ * \param[out] b blue
+ */
 extern void yuv2rgb(unsigned char y, unsigned char u, unsigned char v,
 		    unsigned char *r, unsigned char *g, unsigned char *b);
+
+/**
+ * Initialize the graphics device.
+ */
 extern void gfx_init(void);
 
 /*

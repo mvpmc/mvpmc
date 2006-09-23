@@ -20,23 +20,32 @@
 #ifndef SURFACE_H
 #define SURFACE_H
 
+/**
+ * STB Graphics Display.
+ */
 typedef struct {
 	unsigned long num;
 	unsigned long unknown[4];
-	unsigned long width;
-	unsigned long height;
+	unsigned long width;		/**< display width */
+	unsigned long height;		/**< display height */
 	char unknown2;
 } stbgfx_display_t;
 
+/**
+ * STB Graphics Surface.
+ */
 typedef struct {
-	unsigned long handle;	/* surface handle */
-	unsigned long width;
-	unsigned long height;
+	unsigned long handle;		/**< surface handle */
+	unsigned long width;		/**< surface width */
+	unsigned long height;		/**< surface height */
 	unsigned long flags;
 	unsigned long unknown;
-	unsigned long depth;	/* number of subplanes */
+	unsigned long depth;		/**< number of subplanes */
 } stbgfx_sfc_t;
 
+/**
+ * Memory mapped STB graphics item.
+ */
 typedef struct {
 	unsigned long unknown;
 	unsigned long win_unknown;
@@ -52,11 +61,17 @@ typedef struct {
 	unsigned long unknown6;
 } stbgfx_map_item_t;
 
+/**
+ * STB graphics memory map.
+ */
 typedef struct {
 	stbgfx_map_item_t map[3];
 	unsigned long other[2];
 } stbgfx_map_t;
 
+/**
+ * OSD Surface.
+ */
 struct osd_surface_s {
 	stbgfx_display_t display;
 	stbgfx_map_t map;
