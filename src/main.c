@@ -724,6 +724,7 @@ main(int argc, char **argv)
 			break;
 		case 'H':
 			mythtv_use_12hour_clock = 1;
+			config->use_12_hour_clock = 1;
 			break;
 		case 'i':
 			imagedir = strdup(optarg);

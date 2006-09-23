@@ -68,6 +68,7 @@ int tvguide_cur_chan_index;
 int tvguide_scroll_ofs_x = 0;
 int tvguide_scroll_ofs_y = 0;
 long tvguide_free_cardids = 0;
+int mythtv_tvguide_sort_desc = 0;
 
 typedef struct {
 	char keys[4];
@@ -185,7 +186,8 @@ mvp_tvguide_callback(mvp_widget_t *widget, char key)
 												mythtv_livetv_description,
 												mythtv_livetv_clock);
 			/* Update the guide selector to the top left corner */
-			myth_set_guide_times(mythtv_livetv_program_list, tvguide_scroll_ofs_x);
+			myth_set_guide_times(mythtv_livetv_program_list, tvguide_scroll_ofs_x,
+													 mythtv_use_12hour_clock);
 			tvguide_proglist = 
 			myth_load_guide(mythtv_livetv_program_list, mythtv_database,
 														tvguide_chanlist, tvguide_proglist,
@@ -253,7 +255,8 @@ mvp_tvguide_callback(mvp_widget_t *widget, char key)
 													mythtv_livetv_description,
 													mythtv_livetv_clock);
 				/* Update the guide to the top left corner */
-				myth_set_guide_times(mythtv_livetv_program_list, tvguide_scroll_ofs_x);
+				myth_set_guide_times(mythtv_livetv_program_list, tvguide_scroll_ofs_x,
+														 mythtv_use_12hour_clock);
 				tvguide_proglist = 
 				myth_load_guide(mythtv_livetv_program_list, mythtv_database,
 															tvguide_chanlist, tvguide_proglist,
@@ -351,7 +354,8 @@ void scroll_callback(mvp_widget_t *widget, int direction)
 		break;
 	}
 	if(changed) {
-		myth_set_guide_times(mythtv_livetv_program_list, tvguide_scroll_ofs_x);
+		myth_set_guide_times(mythtv_livetv_program_list, tvguide_scroll_ofs_x,
+												 mythtv_use_12hour_clock);
 		tvguide_proglist = 
 		myth_load_guide(mythtv_livetv_program_list, mythtv_database,
 													tvguide_chanlist, tvguide_proglist,
@@ -445,7 +449,7 @@ mvp_tvguide_clock_timer(mvp_widget_t * widget)
 	if(now->tm_sec < 60)
 		next = (60 - (now->tm_sec))*1000;
 	mvpw_set_timer(mythtv_livetv_clock, mvp_tvguide_clock_timer, next);
-	if (cmyth_is_12hour_clock())
+	if (mythtv_use_12hour_clock)
 		strftime(tm_buf, 16, "%I:%M %P", now);
 	else
 		sprintf(tm_buf, "%02d:%02d", now->tm_hour, now->tm_min);
@@ -483,18 +487,18 @@ mvp_tvguide_timer(mvp_widget_t * widget)
 	if(tvguide_cur_time == -1) {
 		tvguide_cur_chan_index =
 						myth_get_chan_index(tvguide_chanlist, current_prog);
-		/*
+
 		PRINTF("** SSDEBUG: current channel index is: %d\n",
 						tvguide_cur_chan_index);
-		*/
-		/* Reset the timer to synch with the minute mark */
- 		tvguide_cur_time = 1;
-		curtime = time(NULL);
-		now = localtime(&curtime);
-		if(now->tm_sec < 61) /* In case of leap seconds just use 60 */
-			next = (60 - (now->tm_sec))*1000;
 
+ 		tvguide_cur_time = 1;
 	}
+
+	/* Reset the timer to synch with the minute mark */
+	curtime = time(NULL);
+	now = localtime(&curtime);
+	if(now->tm_sec < 60) /* In case of leap seconds just use 60 */
+		next = (60 - (now->tm_sec))*1000;
 
 	/* Reset the timer for a minute from now in most cases except the first */
 	mvpw_set_timer(mythtv_livetv_program_list, mvp_tvguide_timer, next);
@@ -515,7 +519,8 @@ mvp_tvguide_timer(mvp_widget_t * widget)
 	 * the next 30 minute interval has been hit.
 	 */
 
-	if(myth_set_guide_times(mythtv_livetv_program_list, tvguide_scroll_ofs_x)) {
+	if(myth_set_guide_times(mythtv_livetv_program_list, tvguide_scroll_ofs_x,
+												  mythtv_use_12hour_clock)) {
 		tvguide_proglist = 
 		myth_load_guide(mythtv_livetv_program_list, mythtv_database,
 													tvguide_chanlist, tvguide_proglist,
@@ -543,7 +548,8 @@ mvp_tvguide_start(void)
 	/* and create from scratch so free if it exists */
 
 	tvguide_chanlist = myth_release_chanlist(tvguide_chanlist);
-	tvguide_chanlist = myth_load_channels2(mythtv_database);
+	tvguide_chanlist = myth_tvguide_load_channels(mythtv_database,
+																								mythtv_tvguide_sort_desc);
 	if(tvguide_chanlist == NULL) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s loading channels failed\n", __FUNCTION__);
 		rtrn = -1;

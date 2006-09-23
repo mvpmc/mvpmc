@@ -123,9 +123,16 @@ myth_get_chan_index_from_int(cmyth_chanlist_t chanlist, int nchan)
 {
 	int rtrn;
 
-	for(rtrn = 0; rtrn < chanlist->chanlist_count; rtrn++)
-		if(chanlist->chanlist_list[rtrn].channum >= nchan)
-			break;
+	if(chanlist->chanlist_sort_desc) {
+		for(rtrn = 0; rtrn < chanlist->chanlist_count; rtrn++)
+			if(chanlist->chanlist_list[rtrn].channum <= nchan)
+				break;
+	}
+	else {
+		for(rtrn = 0; rtrn < chanlist->chanlist_count; rtrn++)
+			if(chanlist->chanlist_list[rtrn].channum >= nchan)
+				break;
+	}
 	rtrn = rtrn==chanlist->chanlist_count?rtrn-1:rtrn;
 
 	return rtrn;
@@ -142,9 +149,16 @@ myth_get_chan_index_from_str(cmyth_chanlist_t chanlist, char * chan)
 	int rtrn;
 	int nchan = atoi(chan);
 
-	for(rtrn = 0; rtrn < chanlist->chanlist_count; rtrn++)
-		if(chanlist->chanlist_list[rtrn].channum >= nchan)
-			break;
+	if(chanlist->chanlist_sort_desc) {
+		for(rtrn = 0; rtrn < chanlist->chanlist_count; rtrn++)
+			if(chanlist->chanlist_list[rtrn].channum <= nchan)
+				break;
+	}
+	else {
+		for(rtrn = 0; rtrn < chanlist->chanlist_count; rtrn++)
+			if(chanlist->chanlist_list[rtrn].channum >= nchan)
+				break;
+	}
 	rtrn = rtrn==chanlist->chanlist_count?rtrn-1:rtrn;
 
 	return rtrn;
@@ -624,7 +638,7 @@ myth_load_guide(void * widget, cmyth_database_t db,
  *
  */
 int
-myth_set_guide_times(void * widget, int xofs)
+myth_set_guide_times(void * widget, int xofs, int time_format_12)
 {
 	mvp_widget_t * prog_widget = (mvp_widget_t *) widget;
 	struct tm *ltime;
@@ -636,7 +650,7 @@ myth_set_guide_times(void * widget, int xofs)
 	char hour_format[10];
 	char halfhour_format[10];
 
-	if (cmyth_is_12hour_clock())
+	if (time_format_12)
 	{
 		strcpy(hour_format, "%I:00 %P");
 		strcpy(halfhour_format, "%I:30 %P");
@@ -766,7 +780,7 @@ myth_tvguide_get_active_card(cmyth_recorder_t rec)
  *
  */
 cmyth_chanlist_t
-myth_load_channels2(cmyth_database_t db)
+myth_tvguide_load_channels(cmyth_database_t db, int sort_desc)
 {
 	MYSQL *mysql;
 	MYSQL_RES *res=NULL;
@@ -794,8 +808,10 @@ myth_load_channels2(cmyth_database_t db)
 									FROM cardinput, channel \
 									WHERE cardinput.sourceid=channel.sourceid \
 									AND visible=1 \
-									ORDER BY channumi,callsign ASC");
+									ORDER BY channumi %s, callsign ASC", sort_desc?"DESC":"ASC");
 	cmyth_dbg(CMYTH_DBG_ERROR, "%s: query= %s\n", __FUNCTION__, query);
+
+	PRINTF("** SSDEBUG: The query is %s\n", query);
 
 	if(mysql_query(mysql,query)) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: mysql_query() Failed: %s\n", 
@@ -819,6 +835,7 @@ myth_load_channels2(cmyth_database_t db)
 	}
 	rtrn->chanlist_alloc = res->row_count/ALLOC_FRAC;
 	rtrn->chanlist_count = 0;
+	rtrn->chanlist_sort_desc = sort_desc;
 
 	while((row = mysql_fetch_row(res))) {
 		if(rtrn->chanlist_count == rtrn->chanlist_alloc) {
@@ -854,12 +871,10 @@ myth_load_channels2(cmyth_database_t db)
 			rtrn->chanlist_list[rtrn->chanlist_count].name = cmyth_strdup(row[5]);
 			rtrn->chanlist_count += 1;
 		}
-		/*
 		PRINTF("** SSDEBUG: cardid for channel %d is %ld with count %d\n",
 			rtrn->chanlist_list[rtrn->chanlist_count-1].channum,
 			rtrn->chanlist_list[rtrn->chanlist_count-1].cardids,
 			rtrn->chanlist_count-1);
-		*/
 	}
 	cmyth_dbg(CMYTH_DBG_ERROR, "%s returned rows =  %d\n",__FUNCTION__,
 						res->row_count);
