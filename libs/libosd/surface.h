@@ -99,6 +99,9 @@ struct osd_surface_s {
 #define GFX_FB_OSD_SFC_CLIP	_IOW(0xfb,65,osd_clip_rec_t*)
 #define GFX_FB_OSD_COLOURKEY	_IOW(0xfb,67,int*)
 #define GFX_FB_GET_SFC_PSEUDO	_IOWR(0xfb,68,int*)
+
+#define stbgfx		__osd_stbgfx
+
 extern int stbgfx;
 
 #endif /* SURFACE_H */

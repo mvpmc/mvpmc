@@ -20,15 +20,27 @@
 #ifndef OSD_H
 #define OSD_H
 
+/** \file osd.h
+ * On-Screen-Display hardware interface.
+ */
+
+#define gfx_init		__osd_gfx_init
+
+/**
+ * Fill BLT structure.
+ */
 typedef struct {
-	unsigned long handle;
-	unsigned long x;
-	unsigned long y;
-	unsigned long width;
-	unsigned long height;
-	unsigned long colour;
+	unsigned long handle;		/**< surface handle */
+	unsigned long x;		/**< horizontal coordinate */
+	unsigned long y;		/**< vertical coordinate */
+	unsigned long width;		/**< fill width */
+	unsigned long height;		/**< fill height */
+	unsigned long colour;		/**< RGB color */
 } osd_fillblt_t; 
 
+/**
+ * OSD blend.
+ */
 typedef struct {
 	unsigned long handle1;
 	unsigned long x;
@@ -43,6 +55,9 @@ typedef struct {
 	unsigned long colour1;
 } osd_blend_t;
 
+/**
+ * Advanced fill.
+ */
 typedef struct {
 	unsigned long handle;
 	unsigned long x;
@@ -86,5 +101,23 @@ extern void rgb2yuv(unsigned char r, unsigned char g, unsigned char b,
 extern void yuv2rgb(unsigned char y, unsigned char u, unsigned char v,
 		    unsigned char *r, unsigned char *g, unsigned char *b);
 extern void gfx_init(void);
+
+/*
+ * XXX: The following functions have not been tested!
+ */
+extern int osd_blend(osd_surface_t *surface,
+		     int x, int y, int w, int h, unsigned long colour);
+extern int osd_afillblt(osd_surface_t *surface,
+			int x, int y, int w, int h, unsigned long colour);
+extern int osd_sfc_clip(osd_surface_t *surface,
+			int left, int top, int right, int bottom);
+extern int osd_get_visual_device_control(osd_surface_t *surface);
+extern int osd_cur_set_attr(osd_surface_t *surface, int x, int y);
+extern int move_cursor(osd_surface_t *surface, int x, int y);
+extern int osd_get_engine_mode(osd_surface_t *surface);
+extern int set_engine_mode(osd_surface_t *surface, int mode);
+extern int osd_reset_engine(osd_surface_t *surface);
+extern int osd_set_disp_ctrl(osd_surface_t *surface);
+extern int osd_get_disp_ctrl(osd_surface_t *surface);
 
 #endif /* STBGFX_H */

@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# $Id: SConscript 20 2006-03-14 05:26:56Z gettler $
+# libosd
 #
 
 Import ('env')
