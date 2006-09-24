@@ -48,7 +48,7 @@
 
 int new_live_tv;
 extern cmyth_chanlist_t tvguide_chanlist;
-extern cmyth_tvguide_progs_t  tvguide_proglist;
+extern cmyth_tvguide_progs_t tvguide_proglist;
 extern mvp_widget_t *mythtv_slow_connect;
 extern int tvguide_cur_chan_index;
 extern int tvguide_scroll_ofs_x;

@@ -481,6 +481,7 @@ extern void mvpw_set_array_cell_fg(mvp_widget_t *widget, int x, int y,
 																		 uint32_t fg);
 extern void *
 mvpw_get_array_cell_data(mvp_widget_t *widget, int x, int y);
+extern int mvpw_get_array_cur_cell_x(mvp_widget_t *widget);
 
 extern void * mvpw_get_array_cur_cell_data(mvp_widget_t *widget);
 extern void mvpw_set_array_cell_span(mvp_widget_t *widget,
