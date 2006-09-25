@@ -129,9 +129,6 @@ typedef struct cmyth_chanlist *cmyth_chanlist_t;
 struct cmyth_tvguide_progs;
 typedef struct cmyth_tvguide_progs *cmyth_tvguide_progs_t;
 
-struct cmyth_tvguide_program;
-typedef struct cmyth_tvguide_program *cmyth_tvguide_program_t;
-
 /*
  * -----------------------------------------------------------------
  * Allocation Related Operations
@@ -850,6 +847,7 @@ typedef struct cmyth_program {
 	int recording;
 	char rec_status[2];
 	int channum;
+	int event_flags;
 }cmyth_program_t;
 
 extern int cmyth_mysql_insert_into_record(cmyth_database_t db, char * query, char * query1, char * query2, char *title, char * subtitle, char * description, char * callsign);

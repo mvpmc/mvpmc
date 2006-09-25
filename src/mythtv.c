@@ -47,7 +47,7 @@
 #define PRINTF(x...)
 #endif
 
-#define BSIZE   (256*1024)
+#define BSIZE   (256*1024*3)
 
 volatile cmyth_file_t mythtv_file;
 extern demux_handle_t *handle;

@@ -63,7 +63,7 @@
 
 extern int showing_guide;
 cmyth_chanlist_t tvguide_chanlist = NULL;
-cmyth_tvguide_progs_t  tvguide_proglist = NULL;
+cmyth_tvguide_progs_t tvguide_proglist = NULL;
 int tvguide_cur_chan_index;
 int tvguide_scroll_ofs_x = 0;
 int tvguide_scroll_ofs_y = 0;
@@ -240,7 +240,8 @@ mvp_tvguide_callback(mvp_widget_t *widget, char key)
 			break;
 		case MVPW_KEY_BLANK:
 		case MVPW_KEY_OK:
-			if(tvguide_scroll_ofs_x == 0) {
+			if(myth_guide_is_future(mythtv_livetv_program_list, 
+															tvguide_scroll_ofs_x) == 0) {
 				buf = get_tvguide_selected_channel_str(mythtv_livetv_program_list,
 																							 tvguide_chanlist);
 				PRINTF("** SSDEBUG: switching to channel: %s\n", buf);

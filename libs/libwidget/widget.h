@@ -100,7 +100,7 @@ typedef struct {
 	char ** row_strings;
 	char ** col_strings;
 	char ** cell_strings;
-	/* An index identifying the corresponding cell that is provided
+	/* A data pointer identifying the corresponding cell that is provided
 	 * by the user and returned to the user when the cell is selected.
 	 */
 	void ** cell_data;

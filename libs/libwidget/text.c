@@ -67,10 +67,7 @@ expose(mvp_widget_t *widget)
 	}
 
 	GrGetFontInfo(widget->data.text.font, &finfo);
-	//if(widget->data.text.pack)
-		//h       = finfo.baseline;
-	//else
-		h       = finfo.height;
+	h	= finfo.height;
 	/*
 		 This change packs the font in closer but will require that it be
 		 drawn from the bottom up or the descents get covered by the next line

@@ -478,6 +478,12 @@ mvpw_set_array_cell_fg(mvp_widget_t *widget, int x, int y, uint32_t fg)
 		mvpw_set_text_fg(widget->data.array.cells[i], fg);
 }
 
+int
+mvpw_get_array_cur_cell_x(mvp_widget_t *widget)
+{
+	return widget->data.array.hilite_x;
+}
+
 void
 mvpw_set_array_cell_data(mvp_widget_t *widget, int x, int y, void * data)
 {
