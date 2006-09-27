@@ -68,14 +68,6 @@ expose(mvp_widget_t *widget)
 
 	GrGetFontInfo(widget->data.text.font, &finfo);
 	h	= finfo.height;
-	/*
-		 This change packs the font in closer but will require that it be
-		 drawn from the bottom up or the descents get covered by the next line
-		 being drawn. Need to figure this out later. Probably using a parameter
-		 in the attribute. TODO: Fix this so that packing only occurs when
-		 requested.
-	h       = finfo.baseline;
-	*/
 	descent = h - finfo.baseline;
 
 	gc = GrNewGC();
@@ -197,9 +189,7 @@ expose(mvp_widget_t *widget)
 			/*
 			 * Grow the part of the string to be printed until
 			 * it fills the width of the widget or we run out
-			 * of characters. This is an inefficient algorithm
-			 * because it wasts lots of cycles re-copying the sting.
-			  *TODO.
+			 * of characters.
 			 */
 			w = 0;
 			while ((w < widget->width - x) && (str[i+j] != '\n')

@@ -33,6 +33,8 @@ for i in $PATCHES ; do
     patch -f -N -s -p1 -d linux-2.4.31 < patches/$i
 done
 
+patch -p1 -d linux-2.4.31 < patches/misc-embedded.patch
+
 cd linux-2.4.31
 patch -p1 < ../patches/cifs_24.patch
 tar -xzf ../patches/fs_cifs.tgz

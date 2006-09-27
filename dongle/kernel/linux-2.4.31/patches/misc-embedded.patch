@@ -1,0 +1,28 @@
+--- linux-2.4.31/arch/ppc/boot/simple/misc-embedded.c	2006-09-25 23:29:26.000000000 -0500
++++ linux-2.4.31-new/arch/ppc/boot/simple/misc-embedded.c	2006-09-25 23:30:11.000000000 -0500
+@@ -299,6 +299,25 @@
+ 			memcpy((void*)0xa0fffffc, &initrd_size, 4);
+ 		}
+ 	}
++	{
++		struct bi_record *rec;
++		unsigned long rec_loc = _ALIGN((unsigned long)(zimage_size) +
++				(1 << 20) - 1, (1 << 20));
++		rec = (struct bi_record *)rec_loc;
++
++		rec->tag = BI_FIRST;
++		rec->size = sizeof(struct bi_record);
++		rec = (struct bi_record *)((unsigned long)rec + rec->size);
++
++		rec->tag = BI_CMD_LINE;
++		memcpy( (char *)rec->data, cmd_line, strlen(cmd_line)+1);
++		rec->size = sizeof(struct bi_record) + strlen(cmd_line) + 1;
++		rec = (struct bi_record *)((unsigned long)rec + rec->size);
++
++		rec->tag = BI_LAST;
++		rec->size = sizeof(struct bi_record);
++		rec = (struct bi_record *)((unsigned long)rec + rec->size);
++	}
+ #endif
+ 	puts("Now booting the kernel\n");
+ 	serial_close(com_port);
