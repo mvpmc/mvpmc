@@ -87,7 +87,7 @@ CONFIG_KERNEL_ELF=y
 # CONFIG_GEN_RTC is not set
 # CONFIG_PPC_RTC is not set
 CONFIG_CMDLINE_BOOL=y
-CONFIG_CMDLINE="console=ttyS0,9600 profile=3 root=/dev/mtdblock5"
+CONFIG_CMDLINE="console=ttyS0,9600 profile=3 root=/dev/mtdblock5 mvpmc_root=XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
 
 #
 # Memory Technology Devices (MTD)
