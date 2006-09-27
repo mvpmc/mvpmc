@@ -988,6 +988,7 @@ mvp_widget_t *mythtv_livetv_clock;
 mvp_widget_t *mythtv_livetv_description;
 mvp_widget_t *mythtv_livetv_program_list;
 mvp_widget_t *mythtv_slow_connect;
+mvp_widget_t *mythtv_tvguide_menu;
 
 static int screensaver_enabled = 0;
 volatile int screensaver_timeout = 60;

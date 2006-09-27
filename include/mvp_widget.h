@@ -959,6 +959,7 @@ extern int mvpw_fill_rect(mvp_widget_t *widget, int x, int y, int w, int h, uint
 #define MVPW_RED		MVPW_RGBA(255,0,0,255)
 #define MVPW_DARK_RED MVPW_RGBA(170, 15, 15, 255)
 #define MVPW_GREEN		MVPW_RGBA(0,255,0,255)
+#define MVPW_DARK_GREEN MVPW_RGBA(25,112,25,255)
 #define MVPW_BLUE		MVPW_RGBA(0,0,255,255)
 #define MVPW_MIDNIGHTBLUE	MVPW_RGBA(25,25,112,255)
 #define MVPW_CYAN		MVPW_RGBA(0,255,255,255)

@@ -135,6 +135,7 @@ extern int mythtv_livetv_chain_update(char * buf);
 extern mvp_widget_t *mythtv_livetv_clock;
 extern mvp_widget_t *mythtv_livetv_description;
 extern mvp_widget_t *mythtv_livetv_program_list;
+extern mvp_widget_t *mythtv_tvguide_menu;
 
 /*
  * -----------------------------------------------------------------
