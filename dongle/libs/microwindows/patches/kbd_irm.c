@@ -5,6 +5,7 @@
  * provided that this copyright notice remains intact.
  *
  * Hauppauge MediaMVP /dev/rawir IR Remote Keyboard Driver by erl
+ * http://www.mvpmc.org/
  */
 #include <sys/types.h>
 #include <fcntl.h>

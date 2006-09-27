@@ -1,9 +1,10 @@
 /*
  * MediaMVP On Screen Display Screen Driver
  *
- * Jon Gettler <gettler@acm.org>
+ * Jon Gettler <gettler@mvpmc.org>
+ * http://www.mvpmc.org/
  */
-/*#define NDEBUG*/
+
 #include <assert.h>
 #include <stdio.h>
 #include "device.h"
@@ -18,8 +19,6 @@
 #else
 #define PRINTF(x...)
 #endif
-
-#define MAXLINELEN	800	/* max line byte/pixel length*/
 
 /* specific driver entry points*/
 static PSD  OSD_open(PSD psd);
@@ -65,17 +64,6 @@ SCREENDEVICE	scrdev = {
 
 extern int gr_mode;	/* temp kluge*/
 
-#if 0
-static osd_surface_t *surface = NULL;
-#endif
-
-/*
- * XXX: displace the drawing surface so the entire window can be seen on a TV
- *      this is temporary, so the microwindows tests are fully visable
- */
-#define XDISPLACE	0
-#define YDISPLACE	0
-
 static int
 osd_init(PSD psd, int w, int h)
 {
@@ -107,9 +95,6 @@ osd_init(PSD psd, int w, int h)
 	psd->addr = (void*)surface;
 
 	PRINTF("created surface %d,%d at 0x%.8x\n", w, h, surface);
-#if 0
-	osd_fill_rect(surface, 100, 100, 200, 200, osd_rgba(255, 0, 0, 255));
-#endif
 
 	return 0;
 }
@@ -129,9 +114,6 @@ OSD_open(PSD psd)
 	surface = (osd_surface_t*)psd->addr;
 
 	osd_display_surface(surface);
-#if 0
-	sleep(2);
-#endif
 
 	PRINTF("OSD: display created and displayed\n");
 
@@ -190,9 +172,6 @@ OSD_drawpixel(PSD psd,MWCOORD x, MWCOORD y, MWPIXELVAL c)
 	PRINTF("OSD: draw pixel %d,%d color 0x%.8x\n", x, y, c);
 	PRINTF("OSD: sfc 0x%.8x draw pixel %d,%d color 0x%.8x\n", surface, x, y, c);
 
-	x += XDISPLACE;
-	y += YDISPLACE;
-
 #if 1
 	c |= 0xff000000;
 #endif
@@ -217,17 +196,6 @@ OSD_drawhline(PSD psd,MWCOORD x1, MWCOORD x2, MWCOORD y, MWPIXELVAL c)
 
 	PRINTF("OSD: drawhline %d %d %d color 0x%.8x\n", x1, x2, y, c);
 
-	x1 += XDISPLACE;
-	x2 += XDISPLACE;
-	y += YDISPLACE;
-
-#if 0
-	/*
-	 * XXX: microwindows doesn't always set the alpha channel...
-	 */
-	c |= 0xff000000;
-#endif
-
 	osd_draw_horz_line(surface, x1, x2, y, c);
 }
 
@@ -237,10 +205,6 @@ OSD_drawvline(PSD psd,MWCOORD x, MWCOORD y1, MWCOORD y2, MWPIXELVAL c)
 	osd_surface_t *surface = (osd_surface_t*)psd->addr;
 
 	PRINTF("OSD: drawvline %d %d %d color 0x%.8x\n", x, y1, y2, c);
-
-	x += XDISPLACE;
-	y1 += YDISPLACE;
-	y2 += YDISPLACE;
 
 	osd_draw_vert_line(surface, x, y1, y2, c);
 }
@@ -252,11 +216,6 @@ OSD_fillrect(PSD psd,MWCOORD x1, MWCOORD y1, MWCOORD x2, MWCOORD y2, MWPIXELVAL 
 	int w, h;
 
 	PRINTF("OSD: fillrect %d,%d %d,%d color 0x%.8x\n", x1, y1, x2, y2, c);
-
-	x1 += XDISPLACE;
-	x2 += XDISPLACE;
-	y1 += YDISPLACE;
-	y2 += YDISPLACE;
 
 	w = x2 - x1 + 1;
 	h = y2 - y1 + 1;
@@ -283,11 +242,6 @@ OSD_blit(PSD dstpsd, MWCOORD dstx, MWCOORD dsty, MWCOORD w, MWCOORD h,
 	PRINTF("blit dst 0x%.8x src 0x%.8x  %d,%d to %d,%d  wh %d %d\n",
 	       dstsfc, srcsfc, srcx, srcy, dstx, dsty, w, h);
 
-#if 0
-	dstx -= 300;
-	dsty -= 300;
-#endif
-
 	osd_blit(dstsfc, dstx, dsty, srcsfc, srcx, srcy, w, h);
 }
 
@@ -303,11 +257,6 @@ OSD_preselect(PSD psd)
 	osd_surface_t *surface = (osd_surface_t*)psd->addr;
 
 	PRINTF("%s(): line %d\n", __FUNCTION__, __LINE__);
-
-#if 0
-	sleep(2);
-	osd_display_surface(surface);
-#endif
 }
 
 MWBOOL
@@ -323,10 +272,6 @@ OSD_mapmemgc(PSD mempsd,MWCOORD w,MWCOORD h,int planes,int bpp,int linelen,
 	if (osd_init(mempsd, w, h) < 0)
 		return 0;
 	surface = (osd_surface_t*)mempsd->addr;
-#if 0
-	osd_display_surface(surface);
-	sleep(2);
-#endif
 
 	return 1;
 }
@@ -341,29 +286,3 @@ OSD_freememgc(PSD mempsd)
 
 	free(mempsd);
 }
-
-#if 0
-static int fade = 100;
-/* experimental palette animation*/
-void
-setfadelevel(PSD psd, int f)
-{
-	int 		i;
-	extern MWPALENTRY gr_palette[256];
-	MWPALENTRY local_palette[256];
-
-	if(psd->pixtype != MWPF_PALETTE)
-		return;
-
-	fade = f;
-	if(fade > 100)
-		fade = 100;
-	for(i=0; i<256; ++i) {
-
-		local_palette[i].r = (gr_palette[i].r * fade / 100);
-		local_palette[i].g = (gr_palette[i].g * fade / 100);
-		local_palette[i].b = (gr_palette[i].b * fade / 100);
-	}
-   SVGA_setpalette( psd, 0,256,local_palette );
-}
-#endif
