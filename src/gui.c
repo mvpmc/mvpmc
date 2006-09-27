@@ -6045,7 +6045,7 @@ osd_init(void)
 }
 
 int
-mw_init(char *server, char *replaytv)
+mw_init(void)
 {
 	int h, w, x, y;
 	char buf[128];
