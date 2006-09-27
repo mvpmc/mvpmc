@@ -342,8 +342,8 @@ mvpw_load_font(char *file)
 void
 mvpw_resize(const mvp_widget_t *widget, int w, int h)
 {
-	memmove((int *)&(widget->width), &w, sizeof(w));
-	memmove((int *)&(widget->height), &h, sizeof(h));
+	*((int *)&(widget->width)) =  w;
+	*((int *)&(widget->height)) = h;
 	GrResizeWindow(widget->wid, w, h);
 }
 
