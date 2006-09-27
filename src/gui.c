@@ -5549,8 +5549,8 @@ main_menu_items(void)
 	}
 }
 
-int
-main_menu_init(char *server, char *replaytv)
+static int
+main_menu_init(void)
 {
 	mvpw_image_info_t iid;
 	mvpw_widget_info_t wid;
@@ -6696,7 +6696,7 @@ gui_init(char *server, char *replaytv)
 	printf("Demux size video: %d  audio: %d\n",
 	       attr->video.bufsz, attr->audio.bufsz);
 
-	if (main_menu_init(server, replaytv) < 0)
+	if (main_menu_init() < 0)
 		return -1;
 	if (myth_browser_init() < 0)
 		return -1;
