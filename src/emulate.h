@@ -1,6 +1,6 @@
 /*
  *  Copyright (C) 2004, 2005, 2006, Jon Gettler
- *  http://mvpmc.sourceforge.net/
+ *  http://www.mvpmc.org/
  *  
  *   Based on MediaMVP VNC Viewer
  *   http://www.rst38.org.uk/vdr/mediamvp

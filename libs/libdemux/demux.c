@@ -1,6 +1,6 @@
 /*
- *  Copyright (C) 2004,2005 Jon Gettler
- *  http://mvpmc.sourceforge.net/
+ *  Copyright (C) 2004-2006 Jon Gettler
+ *  http://www.mvpmc.org/
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -31,8 +31,6 @@
  * If an application might break these rules, locking should be used to
  * avoid undefined behaviour.
  */
-
-#ident "$Id$"
 
 #include <stdio.h>
 #include <stdlib.h>

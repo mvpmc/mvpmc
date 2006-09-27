@@ -25,6 +25,11 @@
 #include "mvp_widget.h"
 #include "widget.h"
 
+typedef struct {
+	char * line;
+	int len;
+} line_t;
+
 static void
 destroy(mvp_widget_t *widget)
 {
@@ -37,11 +42,10 @@ expose(mvp_widget_t *widget)
 {
 	GR_GC_ID gc, gcr;
 	GR_FONT_INFO finfo;
-	int x, y, h, w, descent, indent = 0, width, dia,tx;
-	char *str;
-	int i, j, k, nl = 0;
+	int x, y, h, w, descent, indent = 0, width, dia;
+	char *str, tc;
+	int i, j, k, sl, cl=0, nl = 0;
 	int encoding;
-
 	int consume_spaces;
 
 	if (!mvpw_visible(widget))
@@ -63,10 +67,7 @@ expose(mvp_widget_t *widget)
 	}
 
 	GrGetFontInfo(widget->data.text.font, &finfo);
-	if(widget->data.text.pack)
-		h       = finfo.baseline;
-	else
-		h       = finfo.height;
+	h	= finfo.height;
 	/*
 		 This change packs the font in closer but will require that it be
 		 drawn from the bottom up or the descents get covered by the next line
@@ -117,6 +118,9 @@ expose(mvp_widget_t *widget)
 	}
 
 	str = widget->data.text.str;
+	//printf("*@@* SSDEBUG: The string is: %s\n", str);
+	/* Save the length to maximize performance */
+	sl = strlen(str);
 
 	w = mvpw_font_width(widget->data.text.font, widget->data.text.str,
 			    widget->data.text.utf8);
@@ -143,37 +147,40 @@ expose(mvp_widget_t *widget)
 	}
 	y = h + widget->data.text.margin;
 
-	for (i=0; i<strlen(str); i++) {
+	for (i=0; i<sl; i++) {
 		if (str[i] == '\n') {
-			nl = 1;
+			nl++;
 			x=0;
-			break;
 		}
 	}
 
 	if (widget->data.text.wrap && ((w > widget->width - x) || nl)) {
-		char buf[256];
+		line_t lines[128];
 
 		/*
 		 * If we find CRs then don't consume leading spaces unless
 		 * we wrap.
 		 */
-		i = 0;
-		j = 0;
-		while (i < strlen(str)) {
-			if (str[i++] == '\n')
-				j++;
-			}
-		if (j > 1)
+
+		if (nl > 1)
 			consume_spaces = 0;
 		else
 			consume_spaces = 1;
 			
 		i = 0;
-		while (i < strlen(str)) {
+		while (i < sl) {
 			j = 0;
 
-			memset(buf, 0, sizeof(buf));
+			/*
+			 * Leading CR indicates a blank line.
+			 */
+			if (str[i] == '\n') {
+				lines[cl].line = NULL;
+				lines[cl].len = 0;
+				i++;
+				cl++;
+				continue;
+			}
 
 			/*
 			 * Found CRs, don't consume leading spaces unless
@@ -195,41 +202,94 @@ expose(mvp_widget_t *widget)
 			  *TODO.
 			 */
 			w = 0;
-			while (((w < widget->width - x) &&
-				((j+i) < strlen(str))) &&
-			       (str[i+j] != '\n')) {
-				strncpy(buf, str+i, j+1);
+			while ((w < widget->width - x) && (str[i+j] != '\n')
+						&& ((j+i) < sl)) {
+				tc = str[i+j+1];
+				str[i+j+1] = '\0';
 				w = mvpw_font_width(widget->data.text.font,
-						    buf,
-						    widget->data.text.utf8);
+					    	&(str[i]),
+					    	widget->data.text.utf8);
+				str[i+j+1] = tc;
 				j++;
 			}
+
+			if(str[i+j] == ' ') j--;
 
 			/*
 			 * Remove last partial word and spaces.
 			 */
 			k = j;
-			if (((j+i) < strlen(str)) && (str[i+j] != '\n')) {
-				while ((j > 0) && (buf[j] != ' '))
+			if ((((j+i) < sl) && (str[i+j] != '\n')) || (w >= widget->width - x)) {
+				while ((j > 0) && (str[i+j] != ' '))
 					j--;
 
-				while ((j > 0) && (buf[j] == ' '))
+				while ((j > 0) && (str[j] == ' '))
 					j--;
-				buf[++j] = '\0';
+
+				j++;
 
 				/*
 				 * We are wrapping, so consume spaces to
 				 * next non-space character in next line.
 				 */
-				k = j + 1;
-				while ((k < strlen(str)) && (str[i+k] == ' '))
+				k = j;
+				while ((k < sl) && (str[i+k] == ' '))
 					k++;
 			}
 
-			w = mvpw_font_width(widget->data.text.font, buf,
+			if(str[i+j-1] == '\n')
+				j--;
+
+			lines[cl].len = j;
+			lines[cl].line = &(str[i]);
+
+			tc = lines[cl].line[lines[cl].len];
+			lines[cl].line[lines[cl].len] = '\0';
+			//printf("**SSDEBUG: The line is %s\n", lines[cl].line);
+			lines[cl].line[lines[cl].len] = tc;
+
+			cl++;
+
+			i += k;
+
+			if (str[i] == '\n')
+				i++;
+		}
+
+		/*
+		 * If the packing flag is set, pack the text as loosly as
+		 * possible to fit in the widget and draw it backward in
+		 * case we pack it really really tight so that the descents
+		 * don't get covered up.
+		 */
+
+		y = h*cl + widget->data.text.margin;
+		if(widget->data.text.pack) {
+			j = widget->height;
+			if(y > j) {
+				i = (y-j)/cl; /* Missing space per line */
+				if((y-j)%cl != 0) i++;
+				if(i>descent)
+					h -= descent;
+				else
+					h -= i;
+				//printf("**SSDEBUG: %s packing required %d, descent %d\n", str,
+								//i, descent);
+			}
+			y = h*cl + widget->data.text.margin;
+		}
+		for(i=cl-1;i>=0;i--) {
+			/* skip blank lines */
+			if (lines[i].len == 0) {
+				y -= h;
+				continue;
+			}
+
+			tc = lines[i].line[lines[i].len];
+			lines[i].line[lines[i].len] = '\0';
+			w = mvpw_font_width(widget->data.text.font, lines[i].line,
 					    widget->data.text.utf8);
 	
-			tx = x; /* Sergio: Keeping x to fix a bug */
 			switch (widget->data.text.justify) {
 			case MVPW_TEXT_LEFT:
 				x = widget->data.text.margin;
@@ -245,20 +305,11 @@ expose(mvp_widget_t *widget)
 			default:
 				break;
 			}
-			if (buf[strlen(buf)-1] == '\n')
-				buf[strlen(buf)-1] = '\0';
-			GrText(widget->wid, gc, x+indent, y-descent, buf, strlen(buf), encoding);
-			y += h;
-
-			i += k;
-
-			if (str[i] == '\n')
-				i++;
-
-			/* If we don't do this each line inherits the adjustment from
-			 * the line before. This is a bug.
-			 */
-			x=tx;
+			//printf("**SSDEBUG: The line at %d is %s\n", y,lines[i].line);
+			GrText(widget->wid, gc, x+indent, y-descent, lines[i].line,
+						 lines[i].len, encoding);
+			y -= h;
+			lines[i].line[lines[i].len] = tc;
 		}
 	} else {
 		GrText(widget->wid, gc, x+indent, y-descent, str, strlen(str), encoding);

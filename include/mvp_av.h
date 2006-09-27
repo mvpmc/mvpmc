@@ -27,6 +27,17 @@
 
 #include <stdint.h>
 
+#if !defined(__cplusplus) && !defined(HAVE_TYPE_BOOL)
+#define HAVE_TYPE_BOOL
+/**
+ * Boolean type.
+ */
+typedef enum {
+	false = 0,
+	true = 1
+} bool;
+#endif /* !__cplusplus && !HAVE_TYPE_BOOL */
+
 /**
  * The demuxer can either be on or off.  This is used to distinguish between
  * running on a MediaMVP (where the demuxer is on) and some other system (where
@@ -170,9 +181,9 @@ typedef struct {
  * Video hardware state
  */
 typedef struct {
-	int mute;	/**< Audio is muted */
-	int pause;	/**< Audio and video are paused */
-	int ffwd;	/**< Video is being played back at double speed */
+	bool mute;	/**< Audio is muted */
+	bool pause;	/**< Audio and video are paused */
+	bool ffwd;	/**< Video is being played back at double speed */
 } av_state_t;
 
 #define PTS_HZ 90000	/**< Presentation time stamp clock frequency */
@@ -266,7 +277,7 @@ extern int av_mute(void);
  * \retval 0 success
  * \retval -1 error
  */
-extern int av_set_mute(int state);
+extern int av_set_mute(bool state);
 
 /**
  * Reset the audio and video hardware.
@@ -378,7 +389,7 @@ extern int av_set_tv_aspect(av_tv_aspect_t ratio);
 extern int av_set_led(int on);
 
 extern int av_set_pcm_param(unsigned long rate, int type, int channels,
-			    int big_endian, int bits);
+			    bool big_endian, int bits);
 
 /**
  * Set the audio output mode.
@@ -458,7 +469,7 @@ extern int av_set_volume(int volume);
  * \retval 0 success
  * \retval -1 error
  */
-extern int av_colorbars(int on);
+extern int av_colorbars(bool on);
 
 /**
  * Determine if the audio and video hardware buffers are empty.
@@ -468,27 +479,143 @@ extern int av_colorbars(int on);
  */
 extern int av_empty(void);
 
-#define AV_VOLUME_MAX	255
-#define AV_VOLUME_MIN	0
+#define AV_VOLUME_MAX	255	/**< maximum volume */
+#define AV_VOLUME_MIN	0	/**< minimum volume */
 
 /*
  * mvpstb_mod api's
  */
-int kern_read(unsigned long memaddr, void *buffaddr, unsigned int size);
-int kern_write(unsigned long memaddr, void *buffaddr, unsigned int size);
-int dcr_read(unsigned long regaddr, unsigned int *data);
-int dcr_write(unsigned long regaddr, unsigned int data);
-int mvpstb_get_vid_stc(unsigned long long *vstc);
-int mvpstb_get_vid_pts(unsigned long long *vpts);
-int mvpstb_get_aud_stc(unsigned long long *astc);
-int mvpstb_get_aud_pts(unsigned long long *apts);
-int mvpstb_set_video_sync(int on);
-int mvpstb_set_audio_sync(int on);
-int mvpmod_start_audit(unsigned long interval_ms);
-int mvpmod_stop_audit(void);
-int mvpstb_set_lbox_offset(unsigned int offset);
-int mvpstb_get_lbox_offset(unsigned int *offset);
-int mvpstb_audio_end(void);
-int mvpstb_video_end(void);
+
+/**
+ * Read kernel data.
+ * \param memaddr kernel memory address
+ * \param[out] buffaddr address to store data
+ * \param size size of buffaddr
+ * \retval 0 success
+ * \retval <0 error
+ */
+extern int kern_read(unsigned long memaddr, void *buffaddr, unsigned int size);
+
+/**
+ * Write kernel data.
+ * \param memaddr kernel memory address
+ * \param buffaddr data to be written
+ * \param size size of buffaddr
+ * \retval 0 success
+ * \retval <0 error
+ */
+extern int kern_write(unsigned long memaddr, void *buffaddr, unsigned int size);
+/**
+ * Read a DCR register.
+ * \param regaddr register address
+ * \param[out] data address to store data
+ * \retval 0 success
+ * \retval <0 error
+ */
+extern int dcr_read(unsigned long regaddr, unsigned int *data);
+
+/**
+ * Write a DCR register.
+ * \param regaddr register address
+ * \param data data to be written
+ * \retval 0 success
+ * \retval <0 error
+ */
+extern int dcr_write(unsigned long regaddr, unsigned int data);
+
+/**
+ * Get video system time code.
+ * \param[out] vstc output buffer
+ * \retval 0 success
+ * \retval <0 error
+ */
+extern int mvpstb_get_vid_stc(unsigned long long *vstc);
+
+/**
+ * Get video presentation time stamp.
+ * \param[out] vpts output buffer
+ * \retval 0 success
+ * \retval <0 error
+ */
+extern int mvpstb_get_vid_pts(unsigned long long *vpts);
+
+/**
+ * Get audio system time code.
+ * \param[out] astc output buffer
+ * \retval 0 success
+ * \retval <0 error
+ */
+extern int mvpstb_get_aud_stc(unsigned long long *astc);
+
+/**
+ * Get audio presentation time stamp.
+ * \param[out] apts output buffer
+ * \retval 0 success
+ * \retval <0 error
+ */
+extern int mvpstb_get_aud_pts(unsigned long long *apts);
+
+/**
+ * Enable or disable video sync.
+ * \param on 1 to enable, 0 to disable
+ * \retval 0 success
+ * \retval <0 error
+ */
+extern int mvpstb_set_video_sync(int on);
+
+/**
+ * Enable or disable audio sync.
+ * \param on 1 to enable, 0 to disable
+ * \retval 0 success
+ * \retval <0 error
+ */
+extern int mvpstb_set_audio_sync(int on);
+
+/**
+ * Start audio/video auditing.
+ * \param interval_ms audit interval in milliseconds
+ * \retval 0 success
+ * \retval <0 error
+ */
+extern int mvpmod_start_audit(unsigned long interval_ms);
+
+/**
+ * Stop audio/video auditing.
+ * \retval 0 success
+ * \retval <0 error
+ */
+extern int mvpmod_stop_audit(void);
+
+/**
+ * Set the offset for letterboxed output.
+ * \param offset offset in lines per field
+ * \retval 0 success
+ * \retval <0 error
+ */
+extern int mvpstb_set_lbox_offset(unsigned int offset);
+
+/**
+ * Get the offset for letterboxed output.
+ * \param[out] offset offset in lines per field
+ * \retval 0 success
+ * \retval <0 error
+ */
+extern int mvpstb_get_lbox_offset(unsigned int *offset);
+
+/**
+ * Determine if the end of audio hardware buffer has been reached.
+ * \retval 0 not empty
+ * \retval 1 empty
+ * \retval -1 error
+ */
+extern int mvpstb_audio_end(void);
+
+/**
+ * Determine if the end of video hardware buffer has been reached.
+ * \retval 0 not empty
+ * \retval 1 empty
+ * \retval -1 error
+ */
+extern int mvpstb_video_end(void);
 
 #endif /* MVP_AV_H */

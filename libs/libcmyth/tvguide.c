@@ -1,6 +1,6 @@
 /*
  *  Copyright (C) 2006, Sergio Slobodrian
- *  http://mvpmc.sourceforge.net/
+ *  http://www.mvpmc.org/
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -30,7 +30,9 @@
 #include <mvp_widget.h>
 
 #define ALLOC_FRAC 10
-#define ALLOC_BLK 12
+//#define ALLOC_BLK 12
+#define EVENT_WILL_RECORD 1
+#define EVENT_AUTO_SWITCH 2
 
 #define MERGE_CELLS 1
 
@@ -76,10 +78,10 @@ mvp_tvguide_sql_check(cmyth_database_t db)
 void
 mvp_tvguide_move(int direction, mvp_widget_t * proglist, mvp_widget_t * descr)
 {
-	cmyth_tvguide_program_t prog;
+	cmyth_program_t *prog;
 
 	mvpw_move_array_selection(proglist, direction);
-	prog = (cmyth_tvguide_program_t)
+	prog = (cmyth_program_t *)
  	mvpw_get_array_cur_cell_data(proglist);
  	mvpw_set_text_str(descr, prog->description);
 }
@@ -91,13 +93,13 @@ void
 mvp_tvguide_show(mvp_widget_t *proglist, mvp_widget_t *descr,
 								 mvp_widget_t *clock)
 {
-	cmyth_tvguide_program_t prog;
+	cmyth_program_t *prog;
 
 	mvpw_show(descr);
 	mvpw_show(clock);
 	mvpw_reset_array_selection(proglist);
 	mvpw_show(proglist);
-	prog = (cmyth_tvguide_program_t)
+	prog = (cmyth_program_t *)
  	mvpw_get_array_cur_cell_data(proglist);
  	mvpw_set_text_str(descr, prog->description);
 }
@@ -123,31 +125,32 @@ myth_get_chan_index_from_int(cmyth_chanlist_t chanlist, int nchan)
 {
 	int rtrn;
 
-	for(rtrn = 0; rtrn < chanlist->chanlist_count; rtrn++)
-		if(chanlist->chanlist_list[rtrn].channum >= nchan)
-			break;
+	if(chanlist->chanlist_sort_desc) {
+		for(rtrn = 0; rtrn < chanlist->chanlist_count; rtrn++)
+			if(chanlist->chanlist_list[rtrn].channum <= nchan)
+				break;
+	}
+	else {
+		for(rtrn = 0; rtrn < chanlist->chanlist_count; rtrn++)
+			if(chanlist->chanlist_list[rtrn].channum >= nchan)
+				break;
+	}
 	rtrn = rtrn==chanlist->chanlist_count?rtrn-1:rtrn;
 
 	return rtrn;
 }
 
 /*
- * Based on the integer passed in, return the index into the
+ * Based on the string passed in, return the index into the
  * provided chanlist array to the channel that is the one we
  * provided or greater.
  */
 int
 myth_get_chan_index_from_str(cmyth_chanlist_t chanlist, char * chan)
 {
-	int rtrn;
 	int nchan = atoi(chan);
 
-	for(rtrn = 0; rtrn < chanlist->chanlist_count; rtrn++)
-		if(chanlist->chanlist_list[rtrn].channum >= nchan)
-			break;
-	rtrn = rtrn==chanlist->chanlist_count?rtrn-1:rtrn;
-
-	return rtrn;
+	return myth_get_chan_index_from_int(chanlist, nchan);
 }
 
 /*
@@ -205,9 +208,9 @@ char *
 get_tvguide_selected_channel_str(mvp_widget_t *proglist,
 																 cmyth_chanlist_t chanlist)
 {
-	cmyth_tvguide_program_t prog;
+	cmyth_program_t *prog;
 
-	prog = (cmyth_tvguide_program_t)
+	prog = (cmyth_program_t *)
  	mvpw_get_array_cur_cell_data(proglist);
 
 	PRINTF("** SSDEBUG: Current prog showing as: %s\n", prog->title);
@@ -222,18 +225,14 @@ get_tvguide_selected_channel_str(mvp_widget_t *proglist,
 static cmyth_tvguide_progs_t
 get_tvguide_page(MYSQL *mysql, cmyth_chanlist_t chanlist,
 								 cmyth_tvguide_progs_t proglist, int index,
-								 struct tm * start_time, struct tm * end_time) 
+								 time_t start_time, time_t end_time) 
 {
 	MYSQL_RES *res=NULL;
 	MYSQL_ROW row;
   char query[350];
-	char startdate[16];
-	char enddate[16];
-	char starttime[25];
-	char endtime[25];
 	char channels[50];
 	int i, rows = 0, idxs[4], idx=0; 
-	static cmyth_tvguide_program_t cache = NULL;
+	static cmyth_program_t * cache = NULL;
 	int cache_ct;
 	long ch=0;
 
@@ -269,20 +268,17 @@ get_tvguide_page(MYSQL *mysql, cmyth_chanlist_t chanlist,
 		chanlist->chanlist_list[idxs[3]].chanid
 	);
 
-	strftime(starttime, 25, "%F %T", start_time);
-	strftime(endtime, 25, "%F %T", end_time);
-
-	PRINTF("** SSDEBUG: starttime:%s, endtime:%s\n", starttime, endtime);
+	PRINTF("** SSDEBUG: starttime:%d, endtime:%d\n", starttime, endtime);
 
 	sprintf(query, 
-		"SELECT chanid,starttime,endtime,title,description,\
-						subtitle,programid,seriesid,category \
+		"SELECT chanid,UNIX_TIMESTAMP(starttime),UNIX_TIMESTAMP(endtime), \
+						title,description,subtitle,programid,seriesid,category \
 						FROM program \
-						WHERE starttime<'%s' \
-							AND endtime>'%s' \
+						WHERE starttime<FROM_UNIXTIME(%ld) \
+							AND endtime>FROM_UNIXTIME(%ld) \
 							AND chanid in %s \
 							ORDER BY chanid DESC, \
-							starttime ASC", endtime,starttime, channels);
+							starttime ASC", end_time,start_time, channels);
 	cmyth_dbg(CMYTH_DBG_ERROR, "%s: query= %s\n", __FUNCTION__, query);
 	if(mysql_query(mysql,query)) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: mysql_query() Failed: %s\n", 
@@ -318,9 +314,9 @@ get_tvguide_page(MYSQL *mysql, cmyth_chanlist_t chanlist,
 		PRINTF("** SSDEBUG: cache: row: %d, %ld, %d, %s, %s, %s\n", idx, ch,
 						cache[idx].channum, row[3], row[5], row[8]);
 		cache[idx].chanid=ch;
-		cache[idx].recording=0;
-		strncpy ( cache[idx].starttime, row[1], 25);
-		strncpy ( cache[idx].endtime, row[2], 25);
+		cache[idx].event_flags=0;
+		cache[idx].starttime = atol(row[1]);
+		cache[idx].endtime = atol(row[2]);
 		strncpy ( cache[idx].title, row[3], 130);
 		strncpy ( cache[idx].description, row[4], 256);
 		strncpy ( cache[idx].subtitle, row[5], 130);
@@ -333,21 +329,15 @@ get_tvguide_page(MYSQL *mysql, cmyth_chanlist_t chanlist,
   mysql_free_result(res);
 
 
-	/* Query the scheduled programs in this timeframe */
-	strftime(startdate, 16, "%F", start_time);
-	strftime(enddate, 16, "%F", end_time);
-	strftime(starttime, 25, "%T", start_time);
-	strftime(endtime, 25, "%T", end_time);
-
 	sprintf(query,
 		"SELECT chanid, programid \
 		 FROM record \
-		 WHERE startdate = '%s' \
-		 AND enddate = '%s' \
-		 AND starttime < '%s' \
-		 AND endtime > '%s' \
+		 WHERE startdate = FROM_UNIXTIME(%ld,'%%Y-%%m-%%d') \
+		 AND enddate = FROM_UNIXTIME(%ld, '%%Y-%%m-%%d') \
+		 AND starttime < FROM_UNIXTIME(%ld, '%%h:%%i:%%s') \
+		 AND endtime > FROM_UNIXTIME(%ld, '%%h:%%i:%%s') \
 		 AND chanid IN %s",
-		 startdate, enddate, endtime, starttime, channels);
+		 start_time, end_time, end_time, start_time, channels);
 	cmyth_dbg(CMYTH_DBG_ERROR, "%s: query= %s\n", __FUNCTION__, query);
 	if(mysql_query(mysql,query)) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: mysql_query() Failed: %s\n", 
@@ -366,7 +356,7 @@ get_tvguide_page(MYSQL *mysql, cmyth_chanlist_t chanlist,
 			PRINTF("** SSDEBUG: cache chanid is %ld\n", cache[i].chanid);
 			if(cache[i].chanid == ch && strcmp(row[1], cache[i].programid) == 0) {
 				PRINTF("** SSDEBUG: chanid match on %ld\n", ch);
-				cache[i].recording = 1;
+				cache[i].event_flags |= EVENT_WILL_RECORD;
 			}
 		}
 	}
@@ -390,9 +380,9 @@ get_tvguide_page(MYSQL *mysql, cmyth_chanlist_t chanlist,
 							idxs[idx], starttime, endtime);
 			proglist->progs[rows].channum = get_chan_num(idxs[idx], chanlist);
 			proglist->progs[rows].chanid=chanlist->chanlist_list[idxs[idx]].chanid;
-			proglist->progs[rows].recording=cache[i].recording;
-			strncpy ( proglist->progs[rows].starttime, starttime, 25);
-			strncpy ( proglist->progs[rows].endtime, endtime, 25);
+			proglist->progs[rows].event_flags=cache[i].event_flags;
+			proglist->progs[rows].starttime = start_time;
+			proglist->progs[rows].endtime = end_time;
 			strncpy ( proglist->progs[rows].title, "Unknown", 130);
 			strncpy ( proglist->progs[rows].description, 
 				"There are no entries in the database for this channel at this time",
@@ -408,9 +398,9 @@ get_tvguide_page(MYSQL *mysql, cmyth_chanlist_t chanlist,
 							cache[i].chanid, proglist->progs[rows].channum,
 							cache[i].title, cache[i].subtitle, cache[i].category);
 			proglist->progs[rows].chanid=cache[i].chanid;
-			proglist->progs[rows].recording=cache[i].recording;
-			strncpy ( proglist->progs[rows].starttime, cache[i].starttime, 25);
-			strncpy ( proglist->progs[rows].endtime, cache[i].endtime, 25);
+			proglist->progs[rows].event_flags=cache[i].event_flags;
+			proglist->progs[rows].starttime = cache[i].starttime;
+			proglist->progs[rows].endtime = cache[i].endtime;
 			strncpy ( proglist->progs[rows].title, cache[i].title, 130);
 			strncpy ( proglist->progs[rows].description, cache[i].description, 256);
 			strncpy ( proglist->progs[rows].subtitle, cache[i].subtitle, 130);
@@ -499,9 +489,9 @@ myth_load_guide(void * widget, cmyth_database_t db,
 	MYSQL *mysql;
 	int i, j, k, m, prev;
 	time_t curtime, nexttime;
-	struct  tm * tmp, now, later;
+	struct  tm now, later;
 	cmyth_tvguide_progs_t rtrn = proglist;
-	cmyth_tvguide_program_t prog;
+	cmyth_program_t * prog;
 
 	PRINTF("** SSDEBUG: request to load guide: %d\n", index);
 
@@ -517,7 +507,7 @@ myth_load_guide(void * widget, cmyth_database_t db,
 	if(!proglist) {
 		proglist = (cmyth_tvguide_progs_t) cmyth_allocate(sizeof(*proglist));
 		proglist->progs =
-			cmyth_allocate(sizeof(struct cmyth_tvguide_program) * 3 * 4);
+			cmyth_allocate(sizeof(struct cmyth_program) * 3 * 4);
 		proglist->count = 0;
 		proglist->alloc = 0;
 	}
@@ -541,19 +531,24 @@ myth_load_guide(void * widget, cmyth_database_t db,
 	mvpw_reset_array_cells(widget);
 #endif
 	for(j=0;j<3;j++) {
-		tmp = localtime(&curtime);
-		memcpy(&now, tmp, sizeof(struct tm));
+
+		/* Start of 30 minute window */
+		localtime_r(&curtime, &now);
 		now.tm_min = now.tm_min >= 30?30:0;
 		now.tm_sec = 0;
 		curtime = mktime(&now);
+
+		/* End of 30 minute window */
 		nexttime = curtime + 60*30;
-		tmp = localtime(&nexttime);
-		memcpy(&later, tmp, sizeof(struct tm));
+		localtime_r(&nexttime, &later);
 		later.tm_min = later.tm_min >= 30?30:0;
 		later.tm_sec = 0;
+		nexttime = mktime(&later);
+
 		prev = proglist->count;
 		PRINTF("** SSEDBUG: Calling set_guide_mysql2\n");
-		rtrn  = get_tvguide_page(mysql, chanlist, proglist, index, &now, &later);
+		rtrn = get_tvguide_page(mysql, chanlist, proglist, index, curtime,
+														nexttime);
 		PRINTF("** SSEDBUG: done set_guide_mysql2 rtrn = %p\n", rtrn);
 		if(rtrn == NULL)
 			return proglist;
@@ -568,7 +563,7 @@ myth_load_guide(void * widget, cmyth_database_t db,
 			i,
 			rtrn->progs[i].channum,
 			rtrn->progs[i].chanid,
-			rtrn->progs[i].recording,
+			rtrn->progs[i].event_flags,
 			rtrn->progs[i].starttime,
 			rtrn->progs[i].endtime,
 			rtrn->progs[i].title,
@@ -583,10 +578,10 @@ myth_load_guide(void * widget, cmyth_database_t db,
 			/* Fill in the info in the guide */
 #ifdef MERGE_CELLS
 			for(m=0; m<j; m++) {
-					prog = (struct cmyth_tvguide_program *)
+					prog = (struct cmyth_program *)
 											mvpw_get_array_cell_data(widget, m, i-prev-k);
-					if(strcmp(prog->starttime, rtrn->progs[i].starttime) == 0
-					 	&& strcmp(prog->endtime, rtrn->progs[i].endtime) == 0 ) {
+					if(prog->starttime == rtrn->progs[i].starttime
+					 	&& prog->endtime == rtrn->progs[i].endtime ) {
 						/*
 						PRINTF("** SSDEBUG: Need collapse %d cells for %s\n",
 							j-m+1, prog->title);
@@ -596,7 +591,7 @@ myth_load_guide(void * widget, cmyth_database_t db,
 			}
 			mvpw_set_array_cell_span(widget, m, i-prev-k, j-m+1);
 #endif
-			if(rtrn->progs[i].recording) {
+			if(rtrn->progs[i].event_flags & EVENT_WILL_RECORD) {
 				mvpw_set_array_cell_theme(widget, j, i-prev-k, &mvpw_record_theme);
 				PRINTF("** SSDEBUG: setting cell color for cell %d, %d\n",
 							 j, i-prev-k);
@@ -621,10 +616,34 @@ myth_load_guide(void * widget, cmyth_database_t db,
 }
 
 /*
+ * Determines if the program highlighted occurs in the future
+ */
+int
+myth_guide_is_future(void * widget, int xofs)
+{
+	int rtrn;
+	cmyth_program_t *cur;
+	time_t now;
+
+	now = time(NULL);
+
+	cur = mvpw_get_array_cur_cell_data(widget);
+
+	PRINTF("** SSDEBUG: start = %ld\n", cur->starttime);
+
+	if(now <cur->endtime && now > cur->starttime)
+		rtrn = 0;
+	else
+		rtrn = 1;
+
+	return rtrn;
+}
+
+/*
  *
  */
 int
-myth_set_guide_times(void * widget, int xofs)
+myth_set_guide_times(void * widget, int xofs, int time_format_12)
 {
 	mvp_widget_t * prog_widget = (mvp_widget_t *) widget;
 	struct tm *ltime;
@@ -633,6 +652,19 @@ myth_set_guide_times(void * widget, int xofs)
 	static int last_minutes = -1;
 	static int last_ofs = 0;
 	int minutes, rtrn=1;
+	char hour_format[10];
+	char halfhour_format[10];
+
+	if (time_format_12)
+	{
+		strcpy(hour_format, "%I:00 %P");
+		strcpy(halfhour_format, "%I:30 %P");
+	}
+	else
+	{
+		strcpy(hour_format, "%H:00");
+		strcpy(halfhour_format, "%H:30");
+	}
 
 	curtime = time(NULL);
 	curtime += 60*30*xofs;
@@ -651,23 +683,23 @@ myth_set_guide_times(void * widget, int xofs)
 		strftime(timestr, 25, "%b/%d", ltime);
 		mvpw_set_array_col(prog_widget, 0, timestr, NULL);
 		if(minutes < 30) {
-			strftime(timestr, 25, "%H:00", ltime);
+			strftime(timestr, 25, hour_format, ltime);
 			mvpw_set_array_col(prog_widget, 1, timestr, NULL);
-			strftime(timestr, 25, "%H:30", ltime);
+			strftime(timestr, 25, halfhour_format, ltime);
 			mvpw_set_array_col(prog_widget, 2, timestr, NULL);
 			nexthr = curtime + 60*60;
 			ltime = localtime(&nexthr);
-			strftime(timestr, 25, "%H:00", ltime);
+			strftime(timestr, 25, hour_format, ltime);
 			mvpw_set_array_col(prog_widget, 3, timestr, NULL);
 		}
 		else {
-			strftime(timestr, 25, "%H:30", ltime);
+			strftime(timestr, 25, halfhour_format, ltime);
 			mvpw_set_array_col(prog_widget, 1, timestr, NULL);
 			nexthr = curtime + 60*60;
 			ltime = localtime(&nexthr);
-			strftime(timestr, 25, "%H:00", ltime);
+			strftime(timestr, 25, hour_format, ltime);
 			mvpw_set_array_col(prog_widget, 2, timestr, NULL);
-			strftime(timestr, 25, "%H:30", ltime);
+			strftime(timestr, 25, halfhour_format, ltime);
 			mvpw_set_array_col(prog_widget, 3, timestr, NULL);
 		}
 	}
@@ -753,7 +785,7 @@ myth_tvguide_get_active_card(cmyth_recorder_t rec)
  *
  */
 cmyth_chanlist_t
-myth_load_channels2(cmyth_database_t db)
+myth_tvguide_load_channels(cmyth_database_t db, int sort_desc)
 {
 	MYSQL *mysql;
 	MYSQL_RES *res=NULL;
@@ -781,8 +813,10 @@ myth_load_channels2(cmyth_database_t db)
 									FROM cardinput, channel \
 									WHERE cardinput.sourceid=channel.sourceid \
 									AND visible=1 \
-									ORDER BY channumi,callsign ASC");
+									ORDER BY channumi %s, callsign ASC", sort_desc?"DESC":"ASC");
 	cmyth_dbg(CMYTH_DBG_ERROR, "%s: query= %s\n", __FUNCTION__, query);
+
+	PRINTF("** SSDEBUG: The query is %s\n", query);
 
 	if(mysql_query(mysql,query)) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: mysql_query() Failed: %s\n", 
@@ -806,6 +840,7 @@ myth_load_channels2(cmyth_database_t db)
 	}
 	rtrn->chanlist_alloc = res->row_count/ALLOC_FRAC;
 	rtrn->chanlist_count = 0;
+	rtrn->chanlist_sort_desc = sort_desc;
 
 	while((row = mysql_fetch_row(res))) {
 		if(rtrn->chanlist_count == rtrn->chanlist_alloc) {
@@ -841,12 +876,10 @@ myth_load_channels2(cmyth_database_t db)
 			rtrn->chanlist_list[rtrn->chanlist_count].name = cmyth_strdup(row[5]);
 			rtrn->chanlist_count += 1;
 		}
-		/*
 		PRINTF("** SSDEBUG: cardid for channel %d is %ld with count %d\n",
 			rtrn->chanlist_list[rtrn->chanlist_count-1].channum,
 			rtrn->chanlist_list[rtrn->chanlist_count-1].cardids,
 			rtrn->chanlist_count-1);
-		*/
 	}
 	cmyth_dbg(CMYTH_DBG_ERROR, "%s returned rows =  %d\n",__FUNCTION__,
 						res->row_count);

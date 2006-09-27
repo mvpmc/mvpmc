@@ -109,7 +109,7 @@ expose(mvp_widget_t *widget)
 }
 
 static void
-show(mvp_widget_t *widget, int shw)
+show(mvp_widget_t *widget, bool shw)
 {
 	int r, c, i;
 	PRINTF("** SSDEBUG: %s col labels\n", shw?"showing":"hiding");
@@ -476,6 +476,12 @@ mvpw_set_array_cell_fg(mvp_widget_t *widget, int x, int y, uint32_t fg)
 	i = widget->data.array.cols * y + x;
 	if(widget->data.array.cells[i])
 		mvpw_set_text_fg(widget->data.array.cells[i], fg);
+}
+
+int
+mvpw_get_array_cur_cell_x(mvp_widget_t *widget)
+{
+	return widget->data.array.hilite_x;
 }
 
 void

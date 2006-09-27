@@ -1,6 +1,6 @@
 /*
- *  Copyright (C) 2004, 2005, Jon Gettler
- *  http://mvpmc.sourceforge.net/
+ *  Copyright (C) 2004, 2005, 2006, Jon Gettler
+ *  http://www.mvpmc.org/
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -16,8 +16,6 @@
  *  License along with this library; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ident "$Id$"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -120,7 +118,7 @@ av_mute(void)
 }
 
 int
-av_set_mute(int set)
+av_set_mute(bool set)
 {
 	return 0;
 }
@@ -210,7 +208,8 @@ av_set_led(int on)
 }
 
 int
-av_set_pcm_param(unsigned long rate, int type, int mono, int endian, int bits)
+av_set_pcm_param(unsigned long rate, int type, int mono,
+		 bool big_endian, int bits)
 {
 	return 0;
 }
@@ -340,7 +339,7 @@ mvpmod_stop_audit(void)
 }
 
 int
-av_colorbars(int on)
+av_colorbars(bool on)
 {
 	return 0;
 }

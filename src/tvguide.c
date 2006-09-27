@@ -1,6 +1,6 @@
 /*
  *  Copyright (C) 2006, Sergio Slobodrian
- *  http://mvpmc.sourceforge.net/
+ *  http://www.mvpmc.org/
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,8 +16,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
-
-#ident "$Id: video.c,v 1.76 2006/02/16 01:11:40 gettler Exp $"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -65,11 +63,12 @@
 
 extern int showing_guide;
 cmyth_chanlist_t tvguide_chanlist = NULL;
-cmyth_tvguide_progs_t  tvguide_proglist = NULL;
+cmyth_tvguide_progs_t tvguide_proglist = NULL;
 int tvguide_cur_chan_index;
 int tvguide_scroll_ofs_x = 0;
 int tvguide_scroll_ofs_y = 0;
 long tvguide_free_cardids = 0;
+int mythtv_tvguide_sort_desc = 0;
 
 typedef struct {
 	char keys[4];
@@ -96,8 +95,8 @@ static mvpw_text_attr_t livetv_header_attr = {
 
 /* Description window */
 static mvpw_text_attr_t livetv_description_attr = {
-	.wrap = 1,
-	.pack = 1,
+	.wrap = true,
+	.pack = true,
 	.justify = MVPW_TEXT_LEFT,
 	.margin = 9,
 	.font = FONT_LARGE,
@@ -187,7 +186,8 @@ mvp_tvguide_callback(mvp_widget_t *widget, char key)
 												mythtv_livetv_description,
 												mythtv_livetv_clock);
 			/* Update the guide selector to the top left corner */
-			myth_set_guide_times(mythtv_livetv_program_list, tvguide_scroll_ofs_x);
+			myth_set_guide_times(mythtv_livetv_program_list, tvguide_scroll_ofs_x,
+													 mythtv_use_12hour_clock);
 			tvguide_proglist = 
 			myth_load_guide(mythtv_livetv_program_list, mythtv_database,
 														tvguide_chanlist, tvguide_proglist,
@@ -240,7 +240,8 @@ mvp_tvguide_callback(mvp_widget_t *widget, char key)
 			break;
 		case MVPW_KEY_BLANK:
 		case MVPW_KEY_OK:
-			if(tvguide_scroll_ofs_x == 0) {
+			if(myth_guide_is_future(mythtv_livetv_program_list, 
+															tvguide_scroll_ofs_x) == 0) {
 				buf = get_tvguide_selected_channel_str(mythtv_livetv_program_list,
 																							 tvguide_chanlist);
 				PRINTF("** SSDEBUG: switching to channel: %s\n", buf);
@@ -255,7 +256,8 @@ mvp_tvguide_callback(mvp_widget_t *widget, char key)
 													mythtv_livetv_description,
 													mythtv_livetv_clock);
 				/* Update the guide to the top left corner */
-				myth_set_guide_times(mythtv_livetv_program_list, tvguide_scroll_ofs_x);
+				myth_set_guide_times(mythtv_livetv_program_list, tvguide_scroll_ofs_x,
+														 mythtv_use_12hour_clock);
 				tvguide_proglist = 
 				myth_load_guide(mythtv_livetv_program_list, mythtv_database,
 															tvguide_chanlist, tvguide_proglist,
@@ -353,7 +355,8 @@ void scroll_callback(mvp_widget_t *widget, int direction)
 		break;
 	}
 	if(changed) {
-		myth_set_guide_times(mythtv_livetv_program_list, tvguide_scroll_ofs_x);
+		myth_set_guide_times(mythtv_livetv_program_list, tvguide_scroll_ofs_x,
+												 mythtv_use_12hour_clock);
 		tvguide_proglist = 
 		myth_load_guide(mythtv_livetv_program_list, mythtv_database,
 													tvguide_chanlist, tvguide_proglist,
@@ -391,7 +394,7 @@ mvp_tvguide_init(int edge_left, int edge_top, int edge_right,
 	mvpw_set_text_attr(mythtv_livetv_clock, &livetv_header_attr);
 
 	y += 40;
-	h -= 40;
+	h -= 50;
 
 	/* Create the text box that will hold the description text */
 	mythtv_livetv_description = mvpw_create_text(NULL, x, y, w, h,
@@ -404,7 +407,7 @@ mvp_tvguide_init(int edge_left, int edge_top, int edge_right,
 		"This is a test of the description widget which needs to be modified to have the time and some mvpmc marketing above it and then the description below. And jus to see what happens when we exceed the available space since our other widgets are misbehaving we're going to keep adding stuff till it over flows.");
 	*/
 
-	h += 40;
+	h += 50;
 
 	mythtv_livetv_program_list = mvpw_create_array(NULL,
 				25, h, si.cols-50, si.rows/2-10, 0,
@@ -437,19 +440,22 @@ mvp_tvguide_init(int edge_left, int edge_top, int edge_right,
 static void
 mvp_tvguide_clock_timer(mvp_widget_t * widget)
 {
-	static int colon_stat = 1;
+	int next = 60000;
 	time_t curtime;
 	struct tm * now;
 	char tm_buf[16];
 
 	curtime = time(NULL);
 	now = localtime(&curtime);
-	sprintf(tm_buf, "%02d:%02d", now->tm_hour,
-					/*colon_stat == 1?":":" ",*/ now->tm_min);
+	if(now->tm_sec < 60)
+		next = (60 - (now->tm_sec))*1000;
+	mvpw_set_timer(mythtv_livetv_clock, mvp_tvguide_clock_timer, next);
+	if (mythtv_use_12hour_clock)
+		strftime(tm_buf, 16, "%I:%M %P", now);
+	else
+		sprintf(tm_buf, "%02d:%02d", now->tm_hour, now->tm_min);
 
 	mvpw_set_text_str(widget, tm_buf);
-
-	colon_stat ^= 1;
 }
 
 /* This function is called periodically to synchronise the guide */
@@ -462,16 +468,17 @@ static void
 mvp_tvguide_timer(mvp_widget_t * widget)
 {
 	static int tvguide_cur_time = -1;
+	int next = 60000;
+	struct tm * now;
+	time_t curtime;
 
 	/*
 	PRINTF("** SSDEBUG: %s called in %s, on line %d\n", __FUNCTION__, __FILE__,
 				 __LINE__);
 	*/
 
-	/* Reset the timer for a minute from now */
-	/* Ideally, this should get adjusted to fall on an exact 30 */
+	/* Ideally, this should get adjusted to fall on an exact minute */
 	/* second boudary. For now, this is good enough */
-	mvpw_set_timer(mythtv_livetv_program_list, mvp_tvguide_timer, 60000);
 
 	pthread_mutex_lock(&myth_mutex);
 
@@ -481,12 +488,21 @@ mvp_tvguide_timer(mvp_widget_t * widget)
 	if(tvguide_cur_time == -1) {
 		tvguide_cur_chan_index =
 						myth_get_chan_index(tvguide_chanlist, current_prog);
-		/*
+
 		PRINTF("** SSDEBUG: current channel index is: %d\n",
 						tvguide_cur_chan_index);
-		*/
+
  		tvguide_cur_time = 1;
 	}
+
+	/* Reset the timer to synch with the minute mark */
+	curtime = time(NULL);
+	now = localtime(&curtime);
+	if(now->tm_sec < 60) /* In case of leap seconds just use 60 */
+		next = (60 - (now->tm_sec))*1000;
+
+	/* Reset the timer for a minute from now in most cases except the first */
+	mvpw_set_timer(mythtv_livetv_program_list, mvp_tvguide_timer, next);
 
 	/* Determine which recorders are free and save the bit array of
 	 * free recorders for future reference in displaying the guide.
@@ -504,7 +520,8 @@ mvp_tvguide_timer(mvp_widget_t * widget)
 	 * the next 30 minute interval has been hit.
 	 */
 
-	if(myth_set_guide_times(mythtv_livetv_program_list, tvguide_scroll_ofs_x)) {
+	if(myth_set_guide_times(mythtv_livetv_program_list, tvguide_scroll_ofs_x,
+												  mythtv_use_12hour_clock)) {
 		tvguide_proglist = 
 		myth_load_guide(mythtv_livetv_program_list, mythtv_database,
 													tvguide_chanlist, tvguide_proglist,
@@ -532,7 +549,8 @@ mvp_tvguide_start(void)
 	/* and create from scratch so free if it exists */
 
 	tvguide_chanlist = myth_release_chanlist(tvguide_chanlist);
-	tvguide_chanlist = myth_load_channels2(mythtv_database);
+	tvguide_chanlist = myth_tvguide_load_channels(mythtv_database,
+																								mythtv_tvguide_sort_desc);
 	if(tvguide_chanlist == NULL) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s loading channels failed\n", __FUNCTION__);
 		rtrn = -1;

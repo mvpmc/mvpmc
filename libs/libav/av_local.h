@@ -1,9 +1,4 @@
-#ifndef AV_LOCAL_H
-#define AV_LOCAL_H
-
 /*
- *  $Id$
- *
  *  Copyright (C) 2004-2006 Jon Gettler
  *  http://www.mvpmc.org/
  *
@@ -22,19 +17,23 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#define init_mtd	__init_mtd
-#define vid_mode	__vid_mode
-#define aspect		__aspect
-#define set_output_method		__set_output_method
-#define paused		__paused
+#ifndef AV_LOCAL_H
+#define AV_LOCAL_H
+
+#define fd_video		__av_fd_video
+#define fd_audio		__av_fd_audio
+#define state			__av_state
+#define vid_mode		__av_vid_mode
+#define tv_aspect		__av_tv_aspect
 
 extern int fd_video;
 extern int fd_audio;
-extern int paused;
-extern int muted;
-extern int ffwd;
+extern av_state_t state;
 extern av_mode_t vid_mode;
 extern av_tv_aspect_t tv_aspect;
+
+#define init_mtd		__av_init_mtd
+#define set_output_method	__av_set_output_method
 
 extern int init_mtd(void);
 extern int set_output_method(void);

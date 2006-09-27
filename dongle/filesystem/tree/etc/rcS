@@ -44,6 +44,18 @@ pivot_root . live
 /sbin/ifconfig lo 127.0.0.1
 
 #
+# Check for a root password on the kernel command line
+#
+for i in `cat /proc/cmdline` ; do
+    export mvp_$i
+done
+if [ "$mvp_mvpmc_root" != "" ] ; then
+    if [ "$mvp_mvpmc_root" != "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" ] ; then
+	echo "root:${mvp_mvpmc_root}:0:0:root:/:/bin/sh" > /etc/passwd
+    fi
+fi
+
+#
 # Start telnetd
 #
 /usr/sbin/telnetd

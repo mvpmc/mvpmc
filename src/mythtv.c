@@ -1,6 +1,6 @@
 /*
  *  Copyright (C) 2004, 2005, 2006, Jon Gettler
- *  http://mvpmc.sourceforge.net/
+ *  http://www.mvpmc.org/
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -47,7 +47,7 @@
 #define PRINTF(x...)
 #endif
 
-#define BSIZE   (256*1024)
+#define BSIZE   (256*1024*3)
 
 volatile cmyth_file_t mythtv_file;
 extern demux_handle_t *handle;
@@ -96,6 +96,7 @@ int playing_file = 0;
 int running_mythtv = 0;
 int mythtv_main_menu = 0;
 int mythtv_debug = 0;
+int mythtv_use_12hour_clock = 0;
 
 volatile int playing_via_mythtv = 0;
 volatile int close_mythtv = 0;
@@ -339,7 +340,7 @@ mythtv_close_file(void)
 }
 
 static void
-hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
+hilite_callback(mvp_widget_t *widget, char *item, void *key, bool hilite)
 {
 	char *description, *channame;
 	char *pathname = NULL;
@@ -400,10 +401,10 @@ hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
 		mvpw_expose(mythtv_description);
 
 		ts = cmyth_proginfo_rec_start(hi_prog);
-		cmyth_timestamp_to_string(start, ts);
+		cmyth_timestamp_to_display_string(start, ts, mythtv_use_12hour_clock);
 		cmyth_release(ts);
 		ts = cmyth_proginfo_rec_end(hi_prog);
-		cmyth_timestamp_to_string(end, ts);
+		cmyth_timestamp_to_display_string(end, ts, mythtv_use_12hour_clock);
 		cmyth_release(ts);
 		
 		pathname = cmyth_proginfo_pathname(hi_prog);
@@ -1119,7 +1120,7 @@ mythtv_back(mvp_widget_t *widget)
 static void
 pending_hilite_callback(mvp_widget_t *widget,
 			char *item,
-			void *key, int hilite)
+			void *key, bool hilite)
 {
 	int n = (int)key;
 
@@ -1140,10 +1141,10 @@ pending_hilite_callback(mvp_widget_t *widget,
 		description = (char*)cmyth_proginfo_description(prog);
 		channame = (char*)cmyth_proginfo_channame(prog);
 		ts = cmyth_proginfo_rec_start(prog);
-		cmyth_timestamp_to_string(start, ts);
+		cmyth_timestamp_to_display_string(start, ts, mythtv_use_12hour_clock);
 		cmyth_release(ts);
 		ts = cmyth_proginfo_rec_end(prog);
-		cmyth_timestamp_to_string(end, ts);
+		cmyth_timestamp_to_display_string(end, ts, mythtv_use_12hour_clock);
 		cmyth_release(ts);
 
 		ptr = strchr(start, 'T');
@@ -1848,10 +1849,10 @@ mythtv_program(mvp_widget_t *widget)
 			chansign = (char*)cmyth_proginfo_chansign(loc_prog);
 			
 			ts = cmyth_proginfo_start(loc_prog);
-			cmyth_timestamp_to_string(start, ts);
+			cmyth_timestamp_to_display_string(start, ts, mythtv_use_12hour_clock);
 			cmyth_release(ts);
 			ts = cmyth_proginfo_end(loc_prog);
-			cmyth_timestamp_to_string(end, ts);
+			cmyth_timestamp_to_display_string(end, ts, mythtv_use_12hour_clock);
 			cmyth_release(ts);
 		
 			ptr = strchr(start, 'T');
@@ -1964,13 +1965,13 @@ mythtv_proginfo(char *buf, int size)
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
 		    __FUNCTION__, __FILE__, __LINE__);
 	ts = cmyth_proginfo_originalairdate(hi_prog);
-	cmyth_timestamp_to_string(airdate, ts);
+	cmyth_timestamp_to_display_string(airdate, ts, mythtv_use_12hour_clock);
 	cmyth_release(ts);
 	ts = cmyth_proginfo_rec_start(hi_prog);
-	cmyth_timestamp_to_string(start, ts);
+	cmyth_timestamp_to_display_string(start, ts, mythtv_use_12hour_clock);
 	cmyth_release(ts);
 	ts = cmyth_proginfo_rec_end(hi_prog);
-	cmyth_timestamp_to_string(end, ts);
+	cmyth_timestamp_to_display_string(end, ts, mythtv_use_12hour_clock);
 	cmyth_release(ts);
 
 	if ((ptr=strchr(airdate, 'T')) != NULL)
@@ -2602,12 +2603,15 @@ timestr(time_t time)
     static char ret_string[64];
     struct tm loctime;
     localtime_r(&time,&loctime);
-    strftime(ret_string,64, "%Y-%m-%d %H:%M", &loctime);
+    if (mythtv_use_12hour_clock)
+        strftime(ret_string, 64, "%Y-%m-%d %I:%M %p", &loctime);
+    else
+        strftime(ret_string, 64, "%Y-%m-%d %H:%M", &loctime);
     return ret_string;
 }
 
 static void
-hilite_schedule_recording_callback(mvp_widget_t *widget, char *item , void *key, int hilite)
+hilite_schedule_recording_callback(mvp_widget_t *widget, char *item , void *key, bool hilite)
 {
 	int which = (int)key;
 	char buf[550];
@@ -2958,7 +2962,7 @@ prog_finder_char_callback(mvp_widget_t *widget, char *item , void *key)
 }
 
 static void
-hilite_prog_finder_char_callback(mvp_widget_t *widget, char *item , void *key, int hilite)
+hilite_prog_finder_char_callback(mvp_widget_t *widget, char *item , void *key, bool hilite)
 {
 	int which = (int)key;
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) \n",
@@ -2995,7 +2999,7 @@ prog_finder_title_callback(mvp_widget_t *widget, char *item , void *key)
 
  
 static void
-hilite_prog_finder_title_callback(mvp_widget_t *widget, char *item , void *key, int hilite)
+hilite_prog_finder_title_callback(mvp_widget_t *widget, char *item , void *key, bool hilite)
 {
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) \n",
 		__FUNCTION__, __FILE__, __LINE__);
@@ -3025,7 +3029,7 @@ prog_finder_time_callback(mvp_widget_t *widget, char *item , void *key)
 extern char *strptime(const char *buf, const char *format, struct tm *tm);
 
 static void
-hilite_prog_finder_time_callback(mvp_widget_t *widget, char *item , void *key, int hilite)
+hilite_prog_finder_time_callback(mvp_widget_t *widget, char *item , void *key, bool hilite)
 {
 	char buf[550];
 	char startstring[50];

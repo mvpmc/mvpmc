@@ -129,9 +129,6 @@ typedef struct cmyth_chanlist *cmyth_chanlist_t;
 struct cmyth_tvguide_progs;
 typedef struct cmyth_tvguide_progs *cmyth_tvguide_progs_t;
 
-struct cmyth_tvguide_program;
-typedef struct cmyth_tvguide_program *cmyth_tvguide_program_t;
-
 /*
  * -----------------------------------------------------------------
  * Allocation Related Operations
@@ -578,7 +575,8 @@ extern int mythtv_new_livetv(void);
  */
 
 extern cmyth_database_t cmyth_database_init(char *host, char *db_name, char *user, char *pass);
-extern cmyth_chanlist_t myth_load_channels2(cmyth_database_t db);
+extern cmyth_chanlist_t myth_tvguide_load_channels(cmyth_database_t db,
+																									 int sort_desc);
 extern int cmyth_database_set_host(cmyth_database_t db, char *host);
 extern int cmyth_database_set_user(cmyth_database_t db, char *user);
 extern int cmyth_database_set_pass(cmyth_database_t db, char *pass);
@@ -636,12 +634,16 @@ extern time_t cmyth_timestamp_to_unixtime(cmyth_timestamp_t ts);
 
 extern int cmyth_timestamp_to_string(char *str, cmyth_timestamp_t ts);
 
+extern int cmyth_timestamp_to_display_string(char *str, cmyth_timestamp_t ts,
+																						 int time_format_12);
+
 extern int cmyth_datetime_to_string(char *str, cmyth_timestamp_t ts);
 
 extern cmyth_timestamp_t cmyth_datetime_from_string(char *str);
 
 extern int cmyth_timestamp_compare(cmyth_timestamp_t ts1,
 				   cmyth_timestamp_t ts2);
+
 /*
  * -----------------------------------------------------------------
  * Key Frame Operations
@@ -845,6 +847,7 @@ typedef struct cmyth_program {
 	int recording;
 	char rec_status[2];
 	int channum;
+	int event_flags;
 }cmyth_program_t;
 
 extern int cmyth_mysql_insert_into_record(cmyth_database_t db, char * query, char * query1, char * query2, char *title, char * subtitle, char * description, char * callsign);

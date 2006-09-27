@@ -1,8 +1,6 @@
  /*
- *  $Id:
- *
- *  Copyright (C) 2004, John Honeycutt
- *  http://mvpmc.sourceforge.net/
+ *  Copyright (C) 2004-2006, John Honeycutt
+ *  http://www.mvpmc.org/
  *
  *    This program is free software; you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by

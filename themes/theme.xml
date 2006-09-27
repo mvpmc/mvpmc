@@ -10,8 +10,7 @@
      - not be placed in /tmp/themes.  Put them in any other directory and
      - include (or sinclude) them with full pathnames.
      -
-     - http://mvpmc.sourceforge.net/
-     - $Id$
+     - http://www.mvpmc.org/
     -->
 
   <settings name="themes">

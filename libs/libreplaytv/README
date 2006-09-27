@@ -9,7 +9,7 @@ PVR's. i.e. obtaining show guide information, streaming video, etc...
 Much of it is based on the replaypc-0.4.0 source code. http://replaypc.sourceforge.net/
 Where replaypc is a commandline driven toolset, replaytvlib is intended to be a library
 which is linked by applications desiring to communicate with ReplayTV devices.
-The initial user of replaytvlib is MediaMVP. http://mvpmc.sourceforge.net/
+The initial user of replaytvlib is MediaMVP. http://www.mvpmc.org/
 
 Some great replaytv resources are:
   The ReplayTV FAQ page: http://www.replayfaqs.com/

@@ -521,7 +521,7 @@ av_play(void)
 {
 	if (ioctl(fd_audio, AV_SET_AUD_UNPAUSE, 1) < 0)
 		return -1;
-	if (!muted) {
+	if (!state.mute) {
 		if (ioctl(fd_audio, AV_SET_AUD_MUTE, 0) < 0)
 			return -1;
 	}
@@ -533,8 +533,8 @@ av_play(void)
 	if (ioctl(fd_audio, AV_SET_AUD_PLAY, 0) != 0)
 		return -1;
 
-	paused = 0;
-	ffwd = 0;
+	state.pause = 0;
+	state.ffwd = 0;
 
 	return 0;
 }
@@ -554,17 +554,20 @@ av_play(void)
 int
 av_pause(void)
 {
-	if (paused) {
+	int ret;
+
+	if (state.pause) {
 		if (ioctl(fd_audio, AV_SET_AUD_UNPAUSE, 1) < 0)
 			return -1;
-		if (!muted) {
+		if (!state.mute) {
 			if (ioctl(fd_audio, AV_SET_AUD_MUTE, 0) < 0)
 				return -1;
 		}
 		av_attach_fb();
 		av_play();
 		av_sync();
-		paused = 0;
+		state.pause = false;
+		ret = 0;
 	} else {
 		if (ioctl(fd_audio, AV_SET_AUD_MUTE, 1) < 0)
 			return -1;
@@ -572,16 +575,17 @@ av_pause(void)
 			return -1;
 		if (ioctl(fd_video, AV_SET_VID_PAUSE, 0) < 0)
 			return -1;
-		paused = 1;
+		state.pause = true;
+		ret = 1;
 	}
 
-	return paused;
+	return ret;
 }
 
 int
 av_delay_video(int usec)
 {
-	if (paused)
+	if (state.pause)
 		return -1;
 
 	if (ioctl(fd_video, AV_SET_VID_PAUSE, 0) < 0)
@@ -606,23 +610,23 @@ av_delay_video(int usec)
 int
 av_mute(void)
 {
-	if (muted) {
+	if (state.mute) {
 		if (ioctl(fd_audio, AV_SET_AUD_MUTE, 0) < 0)
 			return -1;
-		muted = 0;
+		state.mute = false;
 	} else {
 		if (ioctl(fd_audio, AV_SET_AUD_MUTE, 1) < 0)
 			return -1;
-		muted = 1;
+		state.mute = true;
 	}
 
-	return muted;
+	return state.mute;
 }
 
 int
-av_set_mute(int state)
+av_set_mute(bool mute)
 {
-	if (state == muted)
+	if (mute == state.mute)
 		return 0;
 
 	if (av_mute() < 0)
@@ -645,15 +649,20 @@ av_set_mute(int state)
 int
 av_ffwd(void)
 {
-	if (ffwd == 0)
-		ffwd = 1;
-	else
+	int ffwd;
+
+	if (state.ffwd) {
+		state.ffwd = false;
 		ffwd = 0;
+	} else {
+		state.ffwd = true;
+		ffwd = 1;
+	}
 
 	if (ioctl(fd_video, AV_SET_VID_FFWD, ffwd) < 0)
 		return -1;
 
-	if (ffwd == 0) {
+	if (state.ffwd == false) {
 		if (ioctl(fd_video, AV_SET_VID_PLAY, 0) != 0)
 			return -1;
 		av_sync();
@@ -699,7 +708,7 @@ av_reset(void)
 	if (ioctl(fd_video, AV_SET_VID_RESET, 0x11) < 0)
 		return -1;
 
-	if (muted)
+	if (state.mute)
 		if (ioctl(fd_audio, AV_SET_AUD_MUTE, 0) < 0)
 			return -1;
 
@@ -707,9 +716,9 @@ av_reset(void)
 		return -1;
 	av_sync();
 
-	paused = 0;
-	muted = 0;
-	ffwd = 0;
+	state.pause = false;
+	state.mute = false;
+	state.ffwd = false;
 
 	return 0;
 }
@@ -980,7 +989,7 @@ av_set_audio_output(av_audio_output_t type)
  *				1  - AC3, WAV
  *				2+ - ???
  *	channels	- channels (1 = mono, 2 = stereo)
- *	big_endian	- 1 = big endian, 0 = little endian
+ *	big_endian	- true or false
  *	bits		- 24, 16
  *
  * Returns:
@@ -988,7 +997,7 @@ av_set_audio_output(av_audio_output_t type)
  */
 int
 av_set_pcm_param(unsigned long rate, int type, int channels,
-		 int big_endian, int bits)
+		 bool big_endian, int bits)
 {
 	int iloop;
 	int mix[5];
@@ -1010,12 +1019,10 @@ av_set_pcm_param(unsigned long rate, int type, int channels,
 
 	mix[3] = type;
 
-	if (big_endian == 1)
+	if (big_endian)
 		mix[4] = 1;
-	else if (big_endian == 0)
-		mix[4] = 0;
 	else
-		return -1;
+		mix[4] = 0;
 
 	/*
 	 * if there is an exact match for the frequency, use it.
@@ -1050,14 +1057,14 @@ av_set_pcm_param(unsigned long rate, int type, int channels,
 }
 
 int
-av_get_state(av_state_t *state)
+av_get_state(av_state_t *s)
 {
-	if (state == NULL)
+	if (s == NULL)
 		return -1;
 
-	state->mute = muted;
-	state->pause = paused;
-	state->ffwd = ffwd;
+	s->mute = state.mute;
+	s->pause = state.pause;
+	s->ffwd = state.ffwd;
 
 	return 0;
 }
@@ -1102,9 +1109,16 @@ av_set_volume(int volume)
 }
 
 int
-av_colorbars(int on)
+av_colorbars(bool on)
 {
-	return ioctl(fd_video, AV_SET_VID_COLORBAR, on);
+	int val;
+
+	if (on)
+		val = 1;
+	else
+		val = 0;
+
+	return ioctl(fd_video, AV_SET_VID_COLORBAR, val);
 }
 
 int

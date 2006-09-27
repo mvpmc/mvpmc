@@ -1,6 +1,6 @@
 /*
- *  Copyright (C) 2004, BtB, Jon Gettler
- *  http://mvpmc.sourceforge.net/
+ *  Copyright (C) 2004-2006, BtB, Jon Gettler
+ *  http://www.mvpmc.org/
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -16,8 +16,6 @@
  *  License along with this library; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ident "$Id$"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -255,4 +253,179 @@ osd_drawtext(osd_surface_t *surface, int x, int y, const char *str,
 	}
 
 	PRINTF("drawing lines at %d and %d\n", y, y+h);
+}
+
+/*
+ * XXX: this has not been tested!
+ */
+int
+osd_blend(osd_surface_t *surface,
+	  int x, int y, int w, int h, unsigned long colour)
+{
+	osd_blend_t fblt;
+
+	fblt.handle1 = surface->sfc.handle;
+	fblt.x = x;
+	fblt.y = y;
+	fblt.w = w;
+	fblt.h = h;
+
+	fblt.handle2 = surface->sfc.handle;
+	fblt.x1 = x;
+	fblt.y1 = y;
+	fblt.w1 = w;
+	fblt.h1 = h;
+
+	fblt.colour1 = colour;
+
+	return ioctl(surface->fd, GFX_FB_OSD_BLEND, &fblt);
+}
+
+/*
+ * XXX: this has not been tested!
+ */
+int
+osd_afillblt(osd_surface_t *surface,
+	     int x, int y, int w, int h, unsigned long colour)
+{
+	osd_afillblt_t fblt;
+
+	fblt.handle = surface->sfc.handle;
+	fblt.x = x;
+	fblt.y = y;
+	fblt.w = w;
+	fblt.h = h;
+
+	fblt.colour1 = colour;
+	fblt.colour2 = 0xffffffff;
+	fblt.colour3 = 0xffffffff;
+	fblt.colour4 = 0xffffffff;
+	fblt.colour5 = 0xffffffff;
+	fblt.colour6 = 0xffffffff;
+	fblt.colour7 = 0xffffffff;
+
+	fblt.c[0] = 255;
+	fblt.c[1] = 255;
+
+	return ioctl(surface->fd, GFX_FB_OSD_ADVFILLBLT, fblt);
+}
+
+/*
+ * XXX: this has not been tested!
+ */
+int
+osd_sfc_clip(osd_surface_t *surface,
+	     int left, int top, int right, int bottom)
+{
+	osd_clip_rec_t rec;
+
+	rec.handle = surface->sfc.handle;
+	rec.left = left;
+	rec.top = top;
+	rec.bottom = bottom;
+	rec.right = right;
+
+	return ioctl(surface->fd, GFX_FB_OSD_SFC_CLIP, &rec);
+}
+
+/*
+ * XXX: this has not been tested!
+ */
+int
+osd_get_visual_device_control(osd_surface_t *surface)
+{
+	unsigned long parm[3];
+	int ret;
+
+	if ((ret=ioctl(surface->fd, GFX_FB_GET_VIS_DEV_CTL, &parm)) == 0) {
+		printf("Get Visual Device control\n");
+		printf("ret = %d, parm[0]=%lx,parm[1]=%ld,parm[2]=%ld\n",
+		       ret, parm[0], parm[1], parm[2]);
+	}
+
+	return ret;
+}
+
+/*
+ * XXX: this has not been tested!
+ */
+int
+osd_cur_set_attr(osd_surface_t *surface, int x, int y)
+{
+	unsigned long int data[3];
+
+	data[0] = surface->sfc.handle;
+	data[1] = x;
+	data[2] = y;
+
+	return ioctl(surface->fd, GFX_FB_OSD_CUR_SETATTR, data);
+}
+
+/*
+ * XXX: this has not been tested!
+ */
+int
+move_cursor(osd_surface_t *surface, int x, int y)
+{
+	unsigned long rec[3];
+
+	rec[0] = x;
+	rec[1] = y;
+
+	return ioctl(surface->fd, GFX_FB_OSD_CUR_MOVE_1, rec);
+}
+
+/*
+ * XXX: this has not been tested!
+ */
+int
+osd_get_engine_mode(osd_surface_t *surface)
+{
+	return ioctl(surface->fd, GFX_FB_GET_ENGINE_MODE);
+}
+
+/*
+ * XXX: this has not been tested!
+ */
+int
+set_engine_mode(osd_surface_t *surface, int mode)
+{
+	return ioctl(surface->fd, GFX_FB_SET_ENGINE_MODE, mode);
+}
+
+/*
+ * XXX: this has not been tested!
+ */
+int
+osd_reset_engine(osd_surface_t *surface)
+{
+	return ioctl(surface->fd, GFX_FB_RESET_ENGINE);
+}
+
+/*
+ * XXX: this has not been tested!
+ */
+int
+osd_set_disp_ctrl(osd_surface_t *surface)
+{
+	unsigned long rec[2];
+
+	rec[0] = 5;
+	rec[1] = 0;
+
+	return ioctl(surface->fd, GFX_FB_SET_DISP_CTRL, rec);
+}
+
+/*
+ * XXX: this has not been tested!
+ */
+int
+osd_get_disp_ctrl(osd_surface_t *surface)
+{
+	unsigned long rec[2];
+
+	rec[0] = 1;
+	rec[1] = 0;
+
+	return ioctl(surface->fd, GFX_FB_GET_DISP_CTRL, rec);
 }

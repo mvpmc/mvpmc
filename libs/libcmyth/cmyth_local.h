@@ -213,31 +213,14 @@ struct cmyth_channel {
 
 struct cmyth_chanlist {
 	cmyth_channel_t chanlist_list;
+	int chanlist_sort_desc;
 	int chanlist_count;
 	int chanlist_alloc;
 };
 
 /* Sergio: Added to support the tvguide functionality */
-/* only because the cmyth_proglist has way too many */
-/* elements for what we need */
-struct cmyth_tvguide_program {
-	long chanid;
-	char title[130];
-	char subtitle[130];
-	char description[256];
-	char starttime[25];
-	char endtime[25];
-	char programid[20];
-	char seriesid[12];
-	char category[64];
-	int recording;
-	//char rec_status[2];
-	int channum;
-};
-
-/* Sergio: Added to support the tvguide functionality */
 struct cmyth_tvguide_progs {
-	cmyth_tvguide_program_t progs;
+	cmyth_program_t * progs;
 	int count;
 	int alloc;
 };

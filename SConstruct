@@ -159,6 +159,13 @@ else:
 		env.Depends(dongle, mktree)
 
 	#
+	# Misc tools
+	#
+	if target == 'mvp':
+		misc = env.SConscript('tools/misc/SConscript')
+		passwd = env.SConscript('tools/dongle_passwd/SConscript')
+
+	#
 	# Try and ensure a valid build order (is this really needed?)
 	#
 	env.Depends(libs, inc)

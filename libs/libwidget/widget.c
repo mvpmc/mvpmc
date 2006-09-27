@@ -1,6 +1,6 @@
 /*
- *  Copyright (C) 2004, Jon Gettler
- *  http://mvpmc.sourceforge.net/
+ *  Copyright (C) 2004-2006, Jon Gettler
+ *  http://www.mvpmc.org/
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -16,8 +16,6 @@
  *  License along with this library; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ident "$Id$"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -250,12 +248,12 @@ mvpw_focus(mvp_widget_t *widget)
 {
 	if ((mvpw_get_focus() == widget) &&
 	    !((widget->type == MVPW_DIALOG) &&
-	      (widget->data.dialog.modal == 1)))
+	      widget->data.dialog.modal))
 		return;
 
 	if (widget) {
 		if ((widget->type == MVPW_DIALOG) &&
-		    (widget->data.dialog.modal == 1)) {
+		    widget->data.dialog.modal) {
 			raise_widget(widget, (mvp_widget_t*)modal_focus);
 			modal_focus = widget;
 		} else {
@@ -274,7 +272,7 @@ mvpw_show(mvp_widget_t *widget)
 
 	if (widget) {
 		if ((widget->type == MVPW_DIALOG) &&
-		    (widget->data.dialog.modal == 1)) {
+		    widget->data.dialog.modal) {
 			top = mvpw_get_focus();
 			GrMapWindow(widget->wid);
 			mvpw_focus(widget);
@@ -294,7 +292,7 @@ mvpw_hide(mvp_widget_t *widget)
 	if (widget) {
 		if (widget == modal_focus) {
 			if ((widget->below->type == MVPW_DIALOG) &&
-			    (widget->below->data.dialog.modal == 1)) {
+			    widget->below->data.dialog.modal) {
 				modal_focus = widget->below;
 			} else {
 				modal_focus = NULL;
@@ -344,6 +342,8 @@ mvpw_load_font(char *file)
 void
 mvpw_resize(const mvp_widget_t *widget, int w, int h)
 {
+	memmove((int *)&(widget->width), &w, sizeof(w));
+	memmove((int *)&(widget->height), &h, sizeof(h));
 	GrResizeWindow(widget->wid, w, h);
 }
 
@@ -529,7 +529,7 @@ mvpw_move(mvp_widget_t *widget, int x, int y)
 }
 
 int
-mvpw_font_height(int font, int utf8)
+mvpw_font_height(int font, bool utf8)
 {
 	GR_FONT_INFO finfo;
 
@@ -550,7 +550,7 @@ static void accumulate_width(void *closure, void *closure2, int c) {
 }
 
 int
-mvpw_font_width(int font, char *str, int utf8)
+mvpw_font_width(int font, char *str, bool utf8)
 {
 	GR_FONT_INFO finfo;
 	int i, w = 0;

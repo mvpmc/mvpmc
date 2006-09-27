@@ -1,0 +1,22 @@
+#!/usr/bin/python
+#
+# SConscript
+#
+
+import os
+
+Import ('env')
+
+mvp = env.Copy()
+libdir = mvp['INSTLIBDIR']
+target = mvp['TARG']
+toplevel = mvp['TOPLEVEL']
+bindir = mvp['INSTBINDIR']
+
+mvpdbg = mvp.Program('mvpdbg', [ 'mvpdbg.c' ],
+                     CPPPATH = [ env['INCDIR'], env['INSTINCDIR'], ],
+	             LIBS = [ 'av' ],
+                     LIBPATH = [ libdir ],
+                     LINKFLAGS = [ '-static' ])
+
+Return('mvpdbg')

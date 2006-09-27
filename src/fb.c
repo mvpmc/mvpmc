@@ -1,6 +1,6 @@
 /*
- *  Copyright (C) 2004, 2005, Jon Gettler
- *  http://mvpmc.sourceforge.net/
+ *  Copyright (C) 2004, 2005, 2006, Jon Gettler
+ *  http://www.mvpmc.org/
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,8 +16,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
-
-#ident "$Id$"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -42,7 +40,7 @@
 
 extern mvpw_menu_attr_t fb_attr;
 static mvpw_menu_item_attr_t item_attr = {
-	.selectable = 1,
+	.selectable = true,
 	.fg = MVPW_BLACK,
 	.bg = MVPW_LIGHTGREY,
 	.checkbox_fg = MVPW_GREEN,
@@ -316,7 +314,7 @@ fb_start_thumbnail(void)
 }
 
 static void
-hilite_callback(mvp_widget_t *widget, char *item, void *key, int hilite)
+hilite_callback(mvp_widget_t *widget, char *item, void *key, bool hilite)
 {
 	char path[1024], str[1024], date[64];
 	struct stat64 sb;
