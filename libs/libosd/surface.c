@@ -156,6 +156,8 @@ osd_destroy_surface(osd_surface_t *surface)
 		if (surface->base[i])
 			munmap(surface->base[i], surface->map.map[i].size);
 
+	ioctl(fd, GFX_FB_SFC_FREE, &surface->sfc);
+
 	free(surface);
 	close(fd);
 
@@ -169,7 +171,7 @@ osd_display_surface(osd_surface_t *surface)
 	int fd = surface->fd;
 
 	fb_descriptor[0] = surface->sfc.handle;
-	fb_descriptor[1] = 1;
+	fb_descriptor[1] = 1; 
 	
 	ioctl(fd, GFX_FB_ATTACH, fb_descriptor);
 }
