@@ -60,8 +60,12 @@ extern void osd_destroy_all_surfaces(void);
 /**
  * Display a drawing surface.
  * \param surface drawing surface to display
+ * \retval 0 success
+ * \retval -1 error
  */
-extern void osd_display_surface(osd_surface_t *surface);
+extern int osd_display_surface(osd_surface_t *surface);
+
+extern void osd_undisplay_surface(osd_surface_t *surface);
 
 /**
  * Return the size of the drawing surface
@@ -155,10 +159,12 @@ extern void osd_fill_rect(osd_surface_t *surface, int x, int y, int w, int h,
  * \param bg background text color
  * \param background 0 if background should not be drawn, 1 if it should
  * \param FONT font to use
+ * \retval 0 success
+ * \retval -1 error
  */
-extern void osd_drawtext(osd_surface_t *surface, int x, int y, const char *str,
-			 unsigned int fg, unsigned int bg, 
-			 int background, void *FONT);
+extern int osd_drawtext(osd_surface_t *surface, int x, int y, const char *str,
+			unsigned int fg, unsigned int bg, 
+			int background, void *FONT);
 
 /**
  * Bit blast a rectangle from one drawing surface to another.

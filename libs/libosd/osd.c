@@ -201,7 +201,7 @@ osd_blit(osd_surface_t *dstsfc, int dstx, int dsty,
 	osd_bitblt(dstsfc, dstx, dsty, srcsfc, srcx, srcy, w, h);
 }
 
-void
+int
 osd_drawtext(osd_surface_t *surface, int x, int y, const char *str,
 	     unsigned int fg, unsigned int bg, int background, void *FONT)
 {
@@ -253,16 +253,21 @@ osd_drawtext(osd_surface_t *surface, int x, int y, const char *str,
 	}
 
 	PRINTF("drawing lines at %d and %d\n", y, y+h);
+
+	return 0;
 }
 
 /*
  * XXX: this has not been tested!
  */
 int
-osd_blend(osd_surface_t *surface,
-	  int x, int y, int w, int h, unsigned long colour)
+osd_blend(osd_surface_t *surface, int x, int y, int w, int h,
+	  osd_surface_t *surface2, int x2, int y2, int w2, int h2,
+	  unsigned long colour)
 {
 	osd_blend_t fblt;
+
+	memset(&fblt, 0, sizeof(fblt));
 
 	fblt.handle1 = surface->sfc.handle;
 	fblt.x = x;
@@ -270,9 +275,9 @@ osd_blend(osd_surface_t *surface,
 	fblt.w = w;
 	fblt.h = h;
 
-	fblt.handle2 = surface->sfc.handle;
-	fblt.x1 = x;
-	fblt.y1 = y;
+	fblt.handle2 = surface2->sfc.handle;
+	fblt.x1 = x2;
+	fblt.y1 = y2;
 	fblt.w1 = w;
 	fblt.h1 = h;
 

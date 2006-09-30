@@ -20,93 +20,160 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <sys/time.h>
+#include <time.h>
 
 #include "mvp_osd.h"
 
-osd_surface_t *surface = NULL;
-osd_surface_t *surface2 = NULL;
+#define OSD_COLOR(r,g,b,a)	((a<<24) | (r<<16) | (g<<8) | b)
+
+#define OSD_WHITE	OSD_COLOR(255,255,255,255)
+#define OSD_RED		OSD_COLOR(255,0,0,255)
+#define OSD_BLUE	OSD_COLOR(0,0,255,255)
+#define OSD_GREEN	OSD_COLOR(0,255,0,255)
+#define OSD_BLACK	OSD_COLOR(0,0,0,255)
+
+static int width = 720, height = 480;
+
+static struct timeval start, end, delta;
+
+#define timer_start()	fflush(stdout); gettimeofday(&start, NULL)
+
+#define timer_end()	gettimeofday(&end, NULL)
+
+#define timer_print()	timersub(&end,&start,&delta); \
+			printf("%5.2f seconds\n", \
+			       delta.tv_sec + (delta.tv_usec/1000000.0))
+
+typedef struct {
+	char *name;
+	int sleep;
+	int (*func)(char*);
+} tester_t;
+
+static int
+test_create_surfaces(char *name)
+{
+	int i;
+	int n = 50;
+	osd_surface_t *surface = NULL;
+
+	printf("creating %d surfaces\t", n);
+
+	timer_start();
+
+	for (i=0; i<n; i++) {
+		if ((surface=osd_create_surface(width, height)) == NULL)
+			return -1;
+		if (osd_destroy_surface(surface) < 0)
+			return -1;
+	}
+
+	timer_end();
+
+	surface = NULL;
+
+	return 0;
+}
+
+static int
+test_text(char *name)
+{
+	int i;
+	osd_surface_t *surface = NULL;
+
+	printf("testing %s\t\t", name);
+
+	timer_start();
+
+	if ((surface=osd_create_surface(width, height)) == NULL)
+		goto err;
+
+	for (i=0; i<height; i+=50) {
+		unsigned long c1, c2, c3;
+
+		c1 = rand() | 0xff000000;
+		c2 = rand() | 0xff000000;
+		c3 = rand() | 0xff000000;
+
+		if (osd_drawtext(surface, i, i, "Hello World!",
+				 c1, c2, c3, NULL) < 0)
+			goto err;
+	}
+
+	if (osd_display_surface(surface) < 0)
+		goto err;
+
+	timer_end();
+
+	return 0;
+
+ err:
+	return -1;
+}
+
+static int
+test_rectangles(char *name)
+{
+	int i;
+	int n = 500;
+	osd_surface_t *surface = NULL;
+
+	printf("creating %d rectangles\t", n);
+
+	timer_start();
+
+	if ((surface=osd_create_surface(width, height)) == NULL)
+		goto err;
+
+	if (osd_display_surface(surface) < 0)
+		goto err;
+
+	for (i=0; i<n; i++) {
+		int x, y, w, h;
+		unsigned long c;
+
+		x = rand() % width;
+		y = rand() % height;
+		w = rand() % (width - x);
+		h = rand() % (height - y);
+		c = rand() | 0xff000000;
+
+		osd_fill_rect(surface, x, y, w, h, c);
+	}
+
+	timer_end();
+
+	return 0;
+
+ err:
+	return -1;
+}
+
+static tester_t tests[] = {
+	{ "create surfaces",	0,	test_create_surfaces },
+	{ "text",		2,	test_text },
+	{ "rectangles",		2,	test_rectangles },
+	{ NULL, 0, NULL },
+};
 
 int
 main(int argc, char **argv)
 {
-	int i;
+	int i = 0;
 
-	if ((surface=osd_create_surface(720, 576)) == NULL)
-		return -1;
-	if ((surface2=osd_create_surface(300, 200)) == NULL)
-		return -1;
+	srand(getpid());
 
-	osd_fill_rect(surface, 100, 100, 200, 200, osd_rgba(255, 0, 0, 255));
-	osd_fill_rect(surface, 140, 140, 200, 200, osd_rgba(0, 255, 0, 255));
-	osd_fill_rect(surface, 180, 180, 200, 200, osd_rgba(0, 0, 255, 255));
-
-	osd_fill_rect(surface, 400, 100, 50, 50, osd_rgba(0, 255, 255, 255));
-	osd_fill_rect(surface, 450, 100, 50, 50, osd_rgba(255, 255, 0, 255));
-	osd_fill_rect(surface, 500, 100, 50, 50, osd_rgba(255, 0, 255, 255));
-
-	osd_fill_rect(surface, 400, 150, 50, 50, osd_rgba(255, 110, 0, 255));
-	osd_fill_rect(surface, 450, 150, 50, 50, osd_rgba(255, 165, 0, 255));
-	osd_fill_rect(surface, 500, 150, 50, 50, osd_rgba(0, 255, 105, 255));
-
-	osd_fill_rect(surface, 400, 200, 50, 50, osd_rgba(255, 150, 190, 255));
-	osd_fill_rect(surface, 450, 200, 50, 50, osd_rgba(128, 128, 128, 255));
-	osd_fill_rect(surface, 500, 200, 50, 50, osd_rgba(185, 255, 150, 255));
-
-	osd_drawtext(surface, 250, 250, "Hello World!",
-		     osd_rgba(0, 0, 0, 255),
-		     osd_rgba(0, 255, 255, 255), 1, NULL);
-	osd_drawtext(surface, 250, 325, "Hello World!",
-		     osd_rgba(255, 255, 255, 255),
-		     osd_rgba(255, 110, 0, 255), 1, NULL);
-	osd_drawtext(surface, 250, 400, "Hello World!",
-		     osd_rgba(255, 0, 0, 255),
-		     osd_rgba(255, 255, 255, 255), 1, NULL);
-
-	osd_fill_rect(surface2, 0, 0, 100, 100, osd_rgba(0, 255, 0, 255));
-	osd_display_surface(surface2);
-	osd_blit(surface, 450, 350, surface2, 0, 0, 100, 100);
-	sleep(1);
-	osd_display_surface(surface);
-
-	osd_fill_rect(surface, 550, 250, 50, 50, osd_rgba(185, 255, 150, 255));
-	{
-		unsigned int c;
-		int x, y;
-
-		for (x=550; x<600; x++)
-			for (y=250; y<300; y++) {
-				c = osd_read_pixel(surface, x, y);
-				osd_draw_pixel(surface, x, y, c);
-			}
-	}
-
-	for (i=0; i<720; i+=75) {
-		char text[32];
-		snprintf(text, sizeof(text), "%d", i);
-		osd_draw_vert_line(surface, i, 0, 50,
-				   osd_rgba(255, 0, 0, 255));
-		osd_drawtext(surface, i, 50, text,
-			     osd_rgba(0, 255, 0, 255),
-			     0, 0, NULL);
-	}
-
-	for (i=0; i<576; i+=75) {
-		char text[32];
-		snprintf(text, sizeof(text), "%d", i);
-		osd_draw_horz_line(surface, 0, 50, i,
-				   osd_rgba(255, 0, 0, 255));
-		osd_drawtext(surface, 50, i, text,
-			     osd_rgba(0, 255, 0, 255),
-			     0, 0, NULL);
-	}
-
-	for (i=0; ; i++) {
-		char text[32];
-		snprintf(text, sizeof(text), "%d", i);
-		osd_drawtext(surface, 450, 300, text,
-			     osd_rgba(255, 0, 255, 255),
-			     osd_rgba(0, 0, 0, 255), 1, NULL);
-		usleep(1000);
+	while (tests[i].name) {
+		if (tests[i].func(tests[i].name) == 0) {
+			timer_print();
+			if (tests[i].sleep)
+				sleep(tests[i].sleep);
+		} else {
+			printf("failed\n");
+		}
+		osd_destroy_all_surfaces();
+		i++;
 	}
 
 	return 0;
