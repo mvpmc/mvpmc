@@ -69,10 +69,6 @@ osd_init(PSD psd, int w, int h)
 {
 	osd_surface_t *surface;
 	int width, height;
-#if 1
-	char buf[2048];
-	memset(buf, 0, sizeof(buf));
-#endif
 
 	if ((surface=osd_create_surface(w, h)) == NULL) {
 		return -1;
@@ -103,10 +99,6 @@ static PSD
 OSD_open(PSD psd)
 {
 	osd_surface_t *surface;
-#if 1
-	char buf[2048];
-	memset(buf, 0, sizeof(buf));
-#endif
 
 	if (osd_init(psd, -1, -1) < 0)
 		return NULL;
@@ -264,10 +256,6 @@ OSD_mapmemgc(PSD mempsd,MWCOORD w,MWCOORD h,int planes,int bpp,int linelen,
 	     int size,void *addr)
 {
 	osd_surface_t *surface;
-#if 1
-	char buf[2048];
-	memset(buf, 0, sizeof(buf));
-#endif
 
 	if (osd_init(mempsd, w, h) < 0)
 		return 0;
