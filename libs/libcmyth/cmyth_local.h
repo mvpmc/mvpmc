@@ -341,6 +341,7 @@ struct cmyth_proginfo {
 	unsigned long proginfo_version;
 	char *proginfo_playgroup; /* new in v18 */
 	char *proginfo_recpriority_2;  /* new in V25 */
+	long proginfo_parentid; /* new in V31 */
 };
 
 struct cmyth_proglist {

@@ -2004,6 +2004,22 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 			cmyth_release(buf->proginfo_recpriority_2);
 		buf->proginfo_recpriority_2 = cmyth_strdup(tmp_str);
 	}
+	if (buf->proginfo_version >= 31) {
+		/*
+		 * Get proginfo_parentid (long)
+		 */
+		consumed = cmyth_rcv_long(conn, err,
+					&buf->proginfo_parentid, count);
+		count -= consumed;
+		total += consumed;
+		if (*err) {
+			failed = "cmyth_rcv_long";
+			goto fail;
+		}
+	}
+	
+ 
+	cmyth_dbg(CMYTH_DBG_INFO, "%s: got recording info\n", __FUNCTION__);
 	
  
 	cmyth_dbg(CMYTH_DBG_INFO, "%s: got recording info\n", __FUNCTION__);
