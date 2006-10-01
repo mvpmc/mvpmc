@@ -5,6 +5,16 @@ The MediaMVP Media Center (mvpmc) is an audio/video player for
 the Hauppauge MediaMVP.
 
 
+Licensing
+---------
+
+The mvpmc distribution as a whole is licensed under the GNU General
+Purpose License (GPL) version 2 (see the COPYING file).  Each of
+the libraries, however, are licensed under their own individual
+license (either the GPL or the Lesser GNU General Purpose License (LGPL)).
+Please refer to the COPYING files under the libs directory.
+
+
 Prerequisites
 -------------
 
@@ -15,8 +25,15 @@ following installed on your system:
 
 
 If you do not currently have the cross-compilers installed on your
-system, they will be built as needed.  However, you need to be able
-to write to /opt/crosstool in order for the compilers to build.
+system, they will be built as needed.
+
+
+Source Repository
+-----------------
+
+You can check the source code out with git from the following URL:
+
+	http://git.mvpmc.org/repos/mvpmc.git
 
 
 Building
@@ -39,8 +56,13 @@ To build a new linux kernel, use the following command:
 	$ make kernel
 
 
-To build source code HTML documentation with doxygen, use the following
-command:
+To build a linux 2.4.31, use the following command:
+
+	$ make kernel_31
+
+
+To build source code HTML or PDF documentation with doxygen, use the
+following command:
 
 	$ make docs
 

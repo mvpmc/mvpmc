@@ -75,14 +75,12 @@ while [ "$1" ] ; do
 	esac
 done
 
-# linux 2.4.31 has one more file than 2.4.17
-if [ -f filesystem/kernel_files/serial_stub.o ] ; then
+. filesystem/kernel_files/version
+if [ "$KERNELVER" = "2.4.31" ] ; then
     SERIAL_STUB=filesystem/kernel_files/serial_stub.o
-    KERNELVER=2.4.31
     EXTRAVER=-v1.1-hcwmvp
 else
     SERIAL_STUB=
-    KERNELVER=2.4.17
     EXTRAVER=_mvl21-vdongle
 fi
 

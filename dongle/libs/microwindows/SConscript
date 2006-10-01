@@ -74,4 +74,7 @@ env.SideEffect(['../../install/' + target + '/include/mwobjects.h',
                 '../../install/' + target + '/include/nxdraw.h'],
                build)
 
+env.Depends(build, pwd + '/patches/scr_mvposd.c')
+env.Depends(build, pwd + '/patches/kbd_irm.c')
+
 Return('build')
