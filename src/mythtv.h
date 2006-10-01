@@ -136,6 +136,8 @@ extern mvp_widget_t *mythtv_livetv_clock;
 extern mvp_widget_t *mythtv_livetv_description;
 extern mvp_widget_t *mythtv_livetv_program_list;
 extern mvp_widget_t *mythtv_tvguide_menu;
+extern mvp_widget_t *mythtv_tvguide_dialog;
+extern mvp_widget_t *mythtv_tvguide_tune_warn;
 
 /*
  * -----------------------------------------------------------------
@@ -180,6 +182,7 @@ extern long myth_tvguide_get_free_cardids(cmyth_conn_t control);
 extern long myth_tvguide_get_active_card(cmyth_recorder_t rec);
 extern int mvp_tvguide_sql_check(cmyth_database_t db);
 extern int myth_guide_is_future(void * widget, int xofs);
+extern void mythtv_guide_reset_guide_times(void);
 
 /* ----------------------------------------------------------------- */
 

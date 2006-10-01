@@ -97,9 +97,9 @@ typedef struct {
 	mvp_widget_t **col_labels;
 	mvp_widget_t **cells;
 	int *cell_viz;
-	char ** row_strings;
-	char ** col_strings;
-	char ** cell_strings;
+	//char ** row_strings;
+	//char ** col_strings;
+	//char ** cell_strings;
 	/* A data pointer identifying the corresponding cell that is provided
 	 * by the user and returned to the user when the cell is selected.
 	 */

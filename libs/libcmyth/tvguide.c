@@ -507,7 +507,7 @@ myth_load_guide(void * widget, cmyth_database_t db,
 	if(!proglist) {
 		proglist = (cmyth_tvguide_progs_t) cmyth_allocate(sizeof(*proglist));
 		proglist->progs =
-			cmyth_allocate(sizeof(struct cmyth_program) * 3 * 4);
+			cmyth_allocate(sizeof(*(proglist->progs)) * 3 * 4);
 		proglist->count = 0;
 		proglist->alloc = 0;
 	}
@@ -642,6 +642,7 @@ myth_guide_is_future(void * widget, int xofs)
 /*
  *
  */
+static int guide_times_last_minutes = -1;
 int
 myth_set_guide_times(void * widget, int xofs, int time_format_12)
 {
@@ -649,7 +650,6 @@ myth_set_guide_times(void * widget, int xofs, int time_format_12)
 	struct tm *ltime;
 	char timestr[25];
 	time_t curtime, nexthr;
-	static int last_minutes = -1;
 	static int last_ofs = 0;
 	int minutes, rtrn=1;
 	char hour_format[10];
@@ -674,11 +674,11 @@ myth_set_guide_times(void * widget, int xofs, int time_format_12)
 	minutes = atoi(timestr);
 	*/
 	minutes = ltime->tm_min;
-	if(last_minutes == -1
-	|| (last_minutes < 30 && minutes >= 30)
-	|| minutes < last_minutes
+	if(guide_times_last_minutes == -1
+	|| (guide_times_last_minutes < 30 && minutes >= 30)
+	|| minutes < guide_times_last_minutes
 	|| last_ofs != xofs) {
-		last_minutes = minutes;
+		guide_times_last_minutes = minutes;
 		last_ofs = xofs;
 		strftime(timestr, 25, "%b/%d", ltime);
 		mvpw_set_array_col(prog_widget, 0, timestr, NULL);
@@ -711,6 +711,12 @@ myth_set_guide_times(void * widget, int xofs, int time_format_12)
 	return rtrn;
 }
 
+void
+mythtv_guide_reset_guide_times(void)
+{
+	guide_times_last_minutes = -1;
+}
+
 cmyth_chanlist_t
 myth_release_chanlist(cmyth_chanlist_t cl)
 {
@@ -729,8 +735,10 @@ myth_release_chanlist(cmyth_chanlist_t cl)
 cmyth_tvguide_progs_t
 myth_release_proglist(cmyth_tvguide_progs_t proglist)
 {
-	cmyth_release(proglist->progs);
-	cmyth_release(proglist);
+	if(proglist) {
+		cmyth_release(proglist->progs);
+		cmyth_release(proglist);
+	}
 	return NULL;
 }
 
@@ -832,7 +840,7 @@ myth_tvguide_load_channels(cmyth_database_t db, int sort_desc)
 	 */
 	rtrn = cmyth_allocate(sizeof(*rtrn));
 	rtrn->chanlist_list = (cmyth_channel_t)
-			cmyth_allocate(sizeof(struct cmyth_channel)*res->row_count/ALLOC_FRAC);
+			cmyth_allocate(sizeof(*(rtrn->chanlist_list))*res->row_count/ALLOC_FRAC);
 	if(!rtrn->chanlist_list) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: chanlist allocation failed\n", 
 							__FUNCTION__);

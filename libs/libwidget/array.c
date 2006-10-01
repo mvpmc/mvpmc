@@ -251,6 +251,7 @@ mvpw_array_layout(mvp_widget_t *widget)
 					*	sizeof(*(widget->data.array.cell_data)));
 	}
 
+#if 0
 	/*
 	 * Create the row header string array.
 	 */
@@ -283,7 +284,7 @@ mvpw_array_layout(mvp_widget_t *widget)
 		memset(widget->data.array.cell_strings, 0, r * c
 					*	sizeof(*(widget->data.array.cell_strings)));
 	}
-
+#endif
 	/*
 	 * Create the visibility array.
 	 */

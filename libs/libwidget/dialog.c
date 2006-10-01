@@ -25,6 +25,29 @@
 #include "mvp_widget.h"
 #include "widget.h"
 
+#if 0
+struct widget_list_item;
+struct wli_s {
+	widget_list_item *prev;
+	widget_list_item *next;
+	mvp_widget_t *widget;
+} widget_list_item;
+
+typedef enum {
+	MY_NBR_LEFT = 1,
+	MY_NBR_RIGHT = 2,
+	MY_NBR_UP = 4,
+	MY_NBR_DOWN = 8,
+} layout_relation;
+
+typedef struct wli_s {
+	mvp_widget_t *widget;
+	struct wli_s *prev;
+	struct wli_s *next;
+	struct wli_s *neibr;
+} widget_list_item;
+#endif
+
 static void
 expose(mvp_widget_t *widget)
 {
@@ -83,6 +106,7 @@ mvpw_set_dialog_attr(mvp_widget_t *widget, mvpw_dialog_attr_t *attr)
 
 	text_attr.font = attr->font;
 	text_attr.fg = attr->title_fg;
+	text_attr.bg = attr->title_bg;
 	text_attr.justify = attr->justify_title;
 	text_attr.margin = widget->data.dialog.margin;
 
