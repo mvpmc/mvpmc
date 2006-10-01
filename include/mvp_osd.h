@@ -97,9 +97,11 @@ extern int osd_close(void);
  * \param x horizontal coordinate
  * \param y vertical coordinate
  * \param c color
+ * \retval 0 success
+ * \retval -1 error
  */
-extern void osd_draw_pixel(osd_surface_t *surface, int x, int y,
-			   unsigned int c);
+extern int osd_draw_pixel(osd_surface_t *surface, int x, int y,
+			  unsigned int c);
 
 /**
  * Draw a single pixel on a drawing surface.
@@ -110,10 +112,12 @@ extern void osd_draw_pixel(osd_surface_t *surface, int x, int y,
  * \param Y y channel
  * \param U u channel
  * \param V v channel
+ * \retval 0 success
+ * \retval -1 error
  */
-extern void osd_draw_pixel_ayuv(osd_surface_t *surface, int x, int y,
-				unsigned char a, unsigned char Y,
-				unsigned char U, unsigned char V);
+extern int osd_draw_pixel_ayuv(osd_surface_t *surface, int x, int y,
+			       unsigned char a, unsigned char Y,
+			       unsigned char U, unsigned char V);
 
 /**
  * Draw a horizontal line on a drawing surface.
@@ -136,6 +140,20 @@ extern void osd_draw_horz_line(osd_surface_t *surface, int x1, int x2, int y,
  */
 extern void osd_draw_vert_line(osd_surface_t *surface, int x, int y1, int y2,
 			       unsigned int c);
+
+/**
+ * Draw a line on a drawing surface.
+ * \param surface handle to a drawing surface
+ * \param x1 horizontal coordinate of start of line
+ * \param y1 vertical coordinate of start of line
+ * \param x2 horizontal coordinate of end of line
+ * \param y2 vertical coordinate of end of line
+ * \param c color
+ * \retval 0 success
+ * \retval -1 error
+ */
+extern int osd_draw_line(osd_surface_t *surface,
+			 int x1, int y1, int x2, int y2, unsigned int c);
 
 /**
  * Fill a rectangle on a drawing surface.

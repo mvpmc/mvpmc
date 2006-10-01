@@ -20,7 +20,7 @@ if target == 'mvp':
 	      	              [ 'osdtest.c' ],
 	                      CPPPATH = [ env['INCDIR'] ],
 	                      LIBS = [ 'osd' ],
-	                      LIBPATH = [ '.' ],
+	                      LIBPATH = [ libdir ],
 	                      LINKFLAGS = [ '-static' ])
 	env.Depends(osdtest, lib)
 

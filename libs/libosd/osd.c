@@ -108,7 +108,7 @@ osd_bitblt(osd_surface_t *dstsfc, int xd, int yd,
 	return ioctl(stbgfx, GFX_FB_OSD_BITBLT, &fblt);
 }
 
-void
+int
 osd_draw_pixel_ayuv(osd_surface_t *surface, int x, int y, unsigned char a,
 		    unsigned char Y, unsigned char U, unsigned char V)
 {
@@ -116,7 +116,7 @@ osd_draw_pixel_ayuv(osd_surface_t *surface, int x, int y, unsigned char a,
 	unsigned int line, remainder;
 
 	if ((x >= surface->sfc.width) || (y >= surface->sfc.height))
-		return;
+		return -1;
 
 	remainder = (surface->sfc.width % 4);
 	if (remainder == 0)
@@ -130,9 +130,11 @@ osd_draw_pixel_ayuv(osd_surface_t *surface, int x, int y, unsigned char a,
 	*(surface->base[1] + (offset & 0xfffffffe)) = U;
 	*(surface->base[1] + (offset & 0xfffffffe) + 1) = V;
 	*(surface->base[2] + offset) = a;
+
+	return 0;
 }
 
-void
+int
 osd_draw_pixel(osd_surface_t *surface, int x, int y, unsigned int c)
 {
 	unsigned char r, g, b, a, Y, U, V;
@@ -140,7 +142,60 @@ osd_draw_pixel(osd_surface_t *surface, int x, int y, unsigned int c)
 	c2rgba(c, &r, &g, &b, &a);
 	rgb2yuv(r, g, b, &Y, &U, &V);
 
-	osd_draw_pixel_ayuv(surface, x, y, a, Y, U, V);
+	return osd_draw_pixel_ayuv(surface, x, y, a, Y, U, V);
+}
+
+int
+osd_draw_line(osd_surface_t *surface, int x1, int y1, int x2, int y2,
+	      unsigned int c)
+{
+	int x, y;
+	int i = 0; 
+	double dx, dy;
+
+	x = x1;
+	y = y1;
+
+	if (y2 == y1)
+		dx = 1;
+	else
+		dx = (double)(x2 - x1) / (double)(y2 - y1);
+	if (x2 == x1)
+		dy = 1;
+	else
+		dy = (double)(y2 - y1) / (double)(x2 - x1);
+
+	if ((x1 > x2) && (dx > 0)) {
+		dx = dx * -1;
+	}
+	if ((x1 < x2) && (dx < 0)) {
+		dx = dx * -1;
+	}
+	if ((y1 > y2) && (dy > 0)) {
+		dy = dy * -1;
+	}
+	if ((y1 < y2) && (dy < 0)) {
+		dy = dy * -1;
+	}
+
+	while (1) {
+		x = x1 + dx * i;
+		y = y1 + dy * i;
+		if ((dx > 0) && (x > x2))
+			break;
+		if ((dx < 0) && (x < x2))
+			break;
+		if ((dy > 0) && (y > y2))
+			break;
+		if ((dy < 0) && (y < y2))
+			break;
+		if (osd_draw_pixel(surface, x, y, c) < 0) {
+			return -1;
+		}
+		i++;
+	}
+
+	return 0;
 }
 
 unsigned int

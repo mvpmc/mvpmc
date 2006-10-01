@@ -22,6 +22,7 @@
 #include <unistd.h>
 #include <sys/time.h>
 #include <time.h>
+#include <libgen.h>
 
 #include "mvp_osd.h"
 
@@ -119,7 +120,7 @@ test_rectangles(char *name)
 	int n = 500;
 	osd_surface_t *surface = NULL;
 
-	printf("creating %d rectangles\t", n);
+	printf("drawing %d rectangles\t", n);
 
 	timer_start();
 
@@ -150,17 +151,98 @@ test_rectangles(char *name)
 	return -1;
 }
 
+static int
+test_lines(char *name)
+{
+	int i, j;
+	int p = 10, n = 100;
+	osd_surface_t *surface = NULL;
+
+	printf("drawing %d lines\t", p*n);
+
+	timer_start();
+
+	if ((surface=osd_create_surface(width, height)) == NULL)
+		goto err;
+
+	if (osd_display_surface(surface) < 0)
+		goto err;
+
+	for (i=0; i<p; i++) {
+		int x1, y1;
+		unsigned long c;
+
+		x1 = rand() % width;
+		y1 = rand() % height;
+		c = rand() | 0xff000000;
+
+		for (j=0; j<n; j++) {
+			int x2, y2;
+
+			x2 = rand() % width;
+			y2 = rand() % height;
+
+			if (osd_draw_line(surface, x1, y1, x2, y2, c) < 0)
+				goto err;
+		}
+	}
+
+	timer_end();
+
+	return 0;
+
+ err:
+	return -1;
+}
+
 static tester_t tests[] = {
 	{ "create surfaces",	0,	test_create_surfaces },
 	{ "text",		2,	test_text },
 	{ "rectangles",		2,	test_rectangles },
+	{ "lines",		2,	test_lines },
 	{ NULL, 0, NULL },
 };
+
+void
+print_help(char *prog)
+{
+	printf("Usage: %s [-hl]\n", basename(prog));
+	printf("\t-h        print help\n");
+	printf("\t-l        list tests\n");
+}
+
+void
+print_tests(void)
+{
+	int i = 0;
+
+	while (tests[i].name != NULL) {
+		printf("\t%s\n", tests[i++].name);
+	}
+}
 
 int
 main(int argc, char **argv)
 {
 	int i = 0;
+	int c;
+
+	while ((c=getopt(argc, argv, "hl")) != -1) {
+		switch (c) {
+		case 'h':
+			print_help(argv[0]);
+			exit(0);
+			break;
+		case 'l':
+			print_tests();
+			exit(0);
+			break;
+		default:
+			print_help(argv[0]);
+			exit(1);
+			break;
+		}
+	}
 
 	srand(getpid());
 
