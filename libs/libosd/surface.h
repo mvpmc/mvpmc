@@ -40,7 +40,7 @@ typedef struct {
 	unsigned long height;		/**< surface height */
 	unsigned long flags;
 	unsigned long unknown;
-	unsigned long depth;		/**< number of subplanes */
+	unsigned long background;	/**< background color */
 } stbgfx_sfc_t;
 
 /**

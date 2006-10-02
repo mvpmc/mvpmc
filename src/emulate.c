@@ -193,17 +193,17 @@ int mvp_server_init(void)
     }
     surface_y = si.rows;
 
-    if ( (surface = osd_create_surface(720,surface_y) )  == NULL ) {
+    if ( (surface = osd_create_surface(720,surface_y,0) )  == NULL ) {
         printf("Couldn't create surface\n");
         return -1;
     }
-    if ( (surface2 = osd_create_surface(720,surface_y) )  == NULL ) {
+    if ( (surface2 = osd_create_surface(720,surface_y,0) )  == NULL ) {
         printf("Couldn't create surface\n");
         osd_destroy_surface(surface);
         surface = NULL;
         return -1;
     }
-    if ( (surface_blank = osd_create_surface(720,surface_y) )  == NULL ) {
+    if ( (surface_blank = osd_create_surface(720,surface_y,0) )  == NULL ) {
         printf("Couldn't create surface\n");
         osd_destroy_surface(surface2);
         surface2 = NULL;
@@ -1340,7 +1340,7 @@ Bool media_read_message(stream_t *stream)
             video_clear();
             av_move(0, 0, 0);
             mvpw_set_bg(root, root_color);
-            if ( (surface = osd_create_surface(720,surface_y) )  == NULL ) {
+            if ( (surface = osd_create_surface(720,surface_y,0) )  == NULL ) {
                 printf("Couldn't create surface\n");
             }
             mvpw_set_timer(root, NULL, 0);

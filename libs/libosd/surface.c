@@ -64,7 +64,7 @@ osd_get_surface_size(osd_surface_t *surface, int *w, int *h)
  * osd_create_surface() - create a drawing surface
  */
 osd_surface_t*
-osd_create_surface(int w, int h)
+osd_create_surface(int w, int h, unsigned long color)
 {
 	osd_surface_t *surface;
 	int num = 0;
@@ -101,6 +101,7 @@ osd_create_surface(int w, int h)
 	surface->sfc.height = h;
 	surface->sfc.flags = 0x3f1533;
 	surface->sfc.unknown = 1;
+	surface->sfc.background = color;
 	if (ioctl(fd, GFX_FB_SFC_ALLOC, &surface->sfc) != 0)
 		goto err;
 

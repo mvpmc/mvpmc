@@ -64,7 +64,7 @@ test_create_surfaces(char *name)
 	timer_start();
 
 	for (i=0; i<n; i++) {
-		if ((surface=osd_create_surface(width, height)) == NULL)
+		if ((surface=osd_create_surface(width, height, 0)) == NULL)
 			return -1;
 		if (osd_destroy_surface(surface) < 0)
 			return -1;
@@ -87,7 +87,7 @@ test_text(char *name)
 
 	timer_start();
 
-	if ((surface=osd_create_surface(width, height)) == NULL)
+	if ((surface=osd_create_surface(width, height, 0)) == NULL)
 		goto err;
 
 	for (i=0; i<height; i+=50) {
@@ -124,7 +124,7 @@ test_rectangles(char *name)
 
 	timer_start();
 
-	if ((surface=osd_create_surface(width, height)) == NULL)
+	if ((surface=osd_create_surface(width, height, 0)) == NULL)
 		goto err;
 
 	if (osd_display_surface(surface) < 0)
@@ -162,7 +162,7 @@ test_lines(char *name)
 
 	timer_start();
 
-	if ((surface=osd_create_surface(width, height)) == NULL)
+	if ((surface=osd_create_surface(width, height, 0)) == NULL)
 		goto err;
 
 	if (osd_display_surface(surface) < 0)

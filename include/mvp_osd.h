@@ -40,9 +40,10 @@ typedef struct osd_surface_s osd_surface_t;
  * Create a new drawing surface
  * \param w surface width (-1 for full width)
  * \param h surface height (-1 for full height)
+ * \param color background color
  * \return handle to the new surface
  */
-extern osd_surface_t *osd_create_surface(int w, int h);
+extern osd_surface_t *osd_create_surface(int w, int h, unsigned long color);
 
 /**
  * Destroy a drawing surface.
