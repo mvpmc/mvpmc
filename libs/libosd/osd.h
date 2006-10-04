@@ -134,8 +134,9 @@ extern void gfx_init(void);
 /*
  * XXX: The following functions have not been tested!
  */
-extern int osd_blend(osd_surface_t *surface,
-		     int x, int y, int w, int h, unsigned long colour);
+extern int osd_blend(osd_surface_t *surface, int x, int y, int w, int h,
+		     osd_surface_t *surface2, int x2, int y2, int w2, int h2,
+		     unsigned long colour);
 extern int osd_afillblt(osd_surface_t *surface,
 			int x, int y, int w, int h, unsigned long colour);
 extern int osd_sfc_clip(osd_surface_t *surface,

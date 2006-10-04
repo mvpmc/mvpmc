@@ -60,8 +60,12 @@ extern void osd_destroy_all_surfaces(void);
 /**
  * Display a drawing surface.
  * \param surface drawing surface to display
+ * \retval 0 success
+ * \retval -1 error
  */
-extern void osd_display_surface(osd_surface_t *surface);
+extern int osd_display_surface(osd_surface_t *surface);
+
+extern void osd_undisplay_surface(osd_surface_t *surface);
 
 /**
  * Return the size of the drawing surface
@@ -93,9 +97,11 @@ extern int osd_close(void);
  * \param x horizontal coordinate
  * \param y vertical coordinate
  * \param c color
+ * \retval 0 success
+ * \retval -1 error
  */
-extern void osd_draw_pixel(osd_surface_t *surface, int x, int y,
-			   unsigned int c);
+extern int osd_draw_pixel(osd_surface_t *surface, int x, int y,
+			  unsigned int c);
 
 /**
  * Draw a single pixel on a drawing surface.
@@ -106,10 +112,12 @@ extern void osd_draw_pixel(osd_surface_t *surface, int x, int y,
  * \param Y y channel
  * \param U u channel
  * \param V v channel
+ * \retval 0 success
+ * \retval -1 error
  */
-extern void osd_draw_pixel_ayuv(osd_surface_t *surface, int x, int y,
-				unsigned char a, unsigned char Y,
-				unsigned char U, unsigned char V);
+extern int osd_draw_pixel_ayuv(osd_surface_t *surface, int x, int y,
+			       unsigned char a, unsigned char Y,
+			       unsigned char U, unsigned char V);
 
 /**
  * Draw a horizontal line on a drawing surface.
@@ -134,6 +142,20 @@ extern void osd_draw_vert_line(osd_surface_t *surface, int x, int y1, int y2,
 			       unsigned int c);
 
 /**
+ * Draw a line on a drawing surface.
+ * \param surface handle to a drawing surface
+ * \param x1 horizontal coordinate of start of line
+ * \param y1 vertical coordinate of start of line
+ * \param x2 horizontal coordinate of end of line
+ * \param y2 vertical coordinate of end of line
+ * \param c color
+ * \retval 0 success
+ * \retval -1 error
+ */
+extern int osd_draw_line(osd_surface_t *surface,
+			 int x1, int y1, int x2, int y2, unsigned int c);
+
+/**
  * Fill a rectangle on a drawing surface.
  * \param surface handle to a drawing surface
  * \param x horizontal coordinate
@@ -155,10 +177,12 @@ extern void osd_fill_rect(osd_surface_t *surface, int x, int y, int w, int h,
  * \param bg background text color
  * \param background 0 if background should not be drawn, 1 if it should
  * \param FONT font to use
+ * \retval 0 success
+ * \retval -1 error
  */
-extern void osd_drawtext(osd_surface_t *surface, int x, int y, const char *str,
-			 unsigned int fg, unsigned int bg, 
-			 int background, void *FONT);
+extern int osd_drawtext(osd_surface_t *surface, int x, int y, const char *str,
+			unsigned int fg, unsigned int bg, 
+			int background, void *FONT);
 
 /**
  * Bit blast a rectangle from one drawing surface to another.

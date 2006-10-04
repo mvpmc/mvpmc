@@ -69,7 +69,7 @@ osd_create_surface(int w, int h)
 	osd_surface_t *surface;
 	int num = 0;
 	int i;
-	int fd;
+	static int fd = -1;
 
 	if (w == -1)
 		w = full_width;
@@ -83,9 +83,11 @@ osd_create_surface(int w, int h)
 			return NULL;
 		gfx_init();
 	}
-	if ((fd=open("/dev/stbgfx", O_RDWR)) < 0) {
-		printf("dev open failed!\n");
-		return NULL;
+	if (fd < 0) {
+		if ((fd=open("/dev/stbgfx", O_RDWR)) < 0) {
+			printf("dev open failed!\n");
+			return NULL;
+		}
 	}
 
 	PRINTF("%s(): stbgfx %d\n", __FUNCTION__, stbgfx);
@@ -156,15 +158,15 @@ osd_destroy_surface(osd_surface_t *surface)
 		if (surface->base[i])
 			munmap(surface->base[i], surface->map.map[i].size);
 
-	ioctl(fd, GFX_FB_SFC_FREE, &surface->sfc);
+	if (ioctl(fd, GFX_FB_SFC_FREE, surface->sfc.handle) < 0)
+		return -1;
 
 	free(surface);
-	close(fd);
 
 	return 0;
 }
 
-void
+int
 osd_display_surface(osd_surface_t *surface)
 {
 	unsigned long fb_descriptor[2];
@@ -173,7 +175,19 @@ osd_display_surface(osd_surface_t *surface)
 	fb_descriptor[0] = surface->sfc.handle;
 	fb_descriptor[1] = 1; 
 	
-	ioctl(fd, GFX_FB_ATTACH, fb_descriptor);
+	return ioctl(fd, GFX_FB_ATTACH, fb_descriptor);
+}
+
+void
+osd_undisplay_surface(osd_surface_t *surface)
+{
+	unsigned long fb_descriptor[2];
+	int fd = surface->fd;
+
+	fb_descriptor[0] = surface->sfc.handle;
+	fb_descriptor[1] = 1; 
+	
+	ioctl(fd, GFX_FB_SFC_DETACH, fb_descriptor);
 }
 
 void
