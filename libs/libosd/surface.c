@@ -39,6 +39,8 @@ static osd_surface_t *all[128];
 
 static int full_width = 720, full_height = 480;
 
+static osd_surface_t *visible = NULL;
+
 void
 osd_set_screen_size(int w, int h)
 {
@@ -67,7 +69,6 @@ osd_surface_t*
 osd_create_surface(int w, int h, unsigned long color)
 {
 	osd_surface_t *surface;
-	int num = 0;
 	int i;
 	static int fd = -1;
 
@@ -122,7 +123,11 @@ osd_create_surface(int w, int h, unsigned long color)
 				   surface->map.map[2].addr)) == MAP_FAILED)
 		goto err;
 
-	surface->display.num = num;
+	surface->fd = fd;
+
+	if (osd_get_display_options(surface) < 0)
+		goto err;
+
 	PRINTF("surface 0x%.8x created of size %d x %d   [%d]\n",
 	       surface, w, h, surface->map.map[0].size);
 
@@ -131,8 +136,6 @@ osd_create_surface(int w, int h, unsigned long color)
 		i++;
 	if (i < 128)
 		all[i] = surface;
-
-	surface->fd = fd;
 
 	return surface;
 
@@ -176,7 +179,12 @@ osd_display_surface(osd_surface_t *surface)
 	fb_descriptor[0] = surface->sfc.handle;
 	fb_descriptor[1] = 1; 
 	
-	return ioctl(fd, GFX_FB_ATTACH, fb_descriptor);
+	if (ioctl(fd, GFX_FB_ATTACH, fb_descriptor) < 0)
+		return -1;
+
+	visible = surface;
+
+	return 0;
 }
 
 void
@@ -189,6 +197,8 @@ osd_undisplay_surface(osd_surface_t *surface)
 	fb_descriptor[1] = 1; 
 	
 	ioctl(fd, GFX_FB_SFC_DETACH, fb_descriptor);
+
+	visible = NULL;
 }
 
 void
@@ -200,4 +210,12 @@ osd_destroy_all_surfaces(void)
 		if (all[i])
 			osd_destroy_surface(all[i]);
 	}
+
+	visible = NULL;
+}
+
+osd_surface_t*
+osd_get_visible_surface(void)
+{
+	return visible;
 }

@@ -127,9 +127,11 @@ extern int osd_draw_pixel_ayuv(osd_surface_t *surface, int x, int y,
  * \param x2 horizontal coordinate of end of line
  * \param y vertical coordinate
  * \param c color
+ * \retval 0 success
+ * \retval -1 error
  */
-extern void osd_draw_horz_line(osd_surface_t *surface, int x1, int x2, int y,
-			       unsigned int c);
+extern int osd_draw_horz_line(osd_surface_t *surface, int x1, int x2, int y,
+			      unsigned int c);
 
 /**
  * Draw a vertical line on a drawing surface.
@@ -138,9 +140,11 @@ extern void osd_draw_horz_line(osd_surface_t *surface, int x1, int x2, int y,
  * \param y1 vertical coordinate of start of line
  * \param y2 vertical coordinate of end of line
  * \param c color
+ * \retval 0 success
+ * \retval -1 error
  */
-extern void osd_draw_vert_line(osd_surface_t *surface, int x, int y1, int y2,
-			       unsigned int c);
+extern int osd_draw_vert_line(osd_surface_t *surface, int x, int y1, int y2,
+			      unsigned int c);
 
 /**
  * Draw a line on a drawing surface.
@@ -164,9 +168,11 @@ extern int osd_draw_line(osd_surface_t *surface,
  * \param w width of rectangle
  * \param h height of rectangle
  * \param c color
+ * \retval 0 success
+ * \retval -1 error
  */
-extern void osd_fill_rect(osd_surface_t *surface, int x, int y, int w, int h,
-			  unsigned int c);
+extern int osd_fill_rect(osd_surface_t *surface, int x, int y, int w, int h,
+			 unsigned int c);
 
 /**
  * Draw a text string on a drawing surface.
@@ -195,9 +201,11 @@ extern int osd_drawtext(osd_surface_t *surface, int x, int y, const char *str,
  * \param srcy source vertical coordinate
  * \param w width of rectangle
  * \param h height of rectangle
+ * \retval 0 success
+ * \retval -1 error
  */
-extern void osd_blit(osd_surface_t *dstsfc, int dstx, int dsty,
-		     osd_surface_t *srcsfc, int srcx, int srcy, int w, int h);
+extern int osd_blit(osd_surface_t *dstsfc, int dstx, int dsty,
+		    osd_surface_t *srcsfc, int srcx, int srcy, int w, int h);
 
 /**
  * Return the color of a specified pixel.
@@ -207,6 +215,13 @@ extern void osd_blit(osd_surface_t *dstsfc, int dstx, int dsty,
  * \return pixel color
  */
 extern unsigned int osd_read_pixel(osd_surface_t *surface, int x, int y);
+
+extern int osd_get_display_control(osd_surface_t *surface, int type);
+extern int osd_set_display_control(osd_surface_t *surface, int type, int value);
+extern int osd_set_display_options(osd_surface_t *surface, unsigned char option);
+extern int osd_get_display_options(osd_surface_t *surface);
+extern int osd_set_engine_mode(osd_surface_t *surface, int mode);
+extern osd_surface_t* osd_get_visible_surface(void);
 
 /**
  * Convert RGBA into a pixel color.

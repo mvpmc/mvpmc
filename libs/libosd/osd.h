@@ -102,6 +102,11 @@ typedef struct {
 	unsigned long bottom;
 } osd_clip_rec_t; 
 
+typedef struct {
+	int type;
+	int value;
+} osd_display_control_t;
+
 /**
  * Convert a color from RGB to YUV.
  * \param r red
@@ -145,9 +150,6 @@ extern int osd_get_visual_device_control(osd_surface_t *surface);
 extern int osd_cur_set_attr(osd_surface_t *surface, int x, int y);
 extern int move_cursor(osd_surface_t *surface, int x, int y);
 extern int osd_get_engine_mode(osd_surface_t *surface);
-extern int set_engine_mode(osd_surface_t *surface, int mode);
 extern int osd_reset_engine(osd_surface_t *surface);
-extern int osd_set_disp_ctrl(osd_surface_t *surface);
-extern int osd_get_disp_ctrl(osd_surface_t *surface);
 
 #endif /* STBGFX_H */
