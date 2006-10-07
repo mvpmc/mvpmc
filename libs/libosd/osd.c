@@ -448,11 +448,8 @@ osd_cur_set_attr(osd_surface_t *surface, int x, int y)
 	return ioctl(surface->fd, GFX_FB_OSD_CUR_SETATTR, data);
 }
 
-/*
- * XXX: this has not been tested!
- */
 int
-move_cursor(osd_surface_t *surface, int x, int y)
+osd_move_cursor(osd_surface_t *surface, int x, int y)
 {
 	unsigned long rec[3];
 

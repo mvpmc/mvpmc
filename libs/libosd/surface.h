@@ -78,6 +78,7 @@ struct osd_surface_s {
 	stbgfx_sfc_t sfc;
 	unsigned char *base[3];
 	int fd;
+	osd_surface_type_t type;
 };
 
 #define GFX_FB_SFC_ALLOC	_IOWR(0xfb,1,int)

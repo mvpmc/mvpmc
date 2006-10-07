@@ -36,6 +36,11 @@
 
 typedef struct osd_surface_s osd_surface_t;
 
+typedef enum {
+	OSD_CURSOR=0,
+	OSD_DRAWING=1,
+} osd_surface_type_t;
+
 /**
  * Create a new drawing surface
  * \param w surface width (-1 for full width)
@@ -43,7 +48,8 @@ typedef struct osd_surface_s osd_surface_t;
  * \param color background color
  * \return handle to the new surface
  */
-extern osd_surface_t *osd_create_surface(int w, int h, unsigned long color);
+extern osd_surface_t *osd_create_surface(int w, int h, unsigned long color,
+					 osd_surface_type_t type);
 
 /**
  * Destroy a drawing surface.
@@ -222,6 +228,7 @@ extern int osd_set_display_options(osd_surface_t *surface, unsigned char option)
 extern int osd_get_display_options(osd_surface_t *surface);
 extern int osd_set_engine_mode(osd_surface_t *surface, int mode);
 extern osd_surface_t* osd_get_visible_surface(void);
+extern int osd_move_cursor(osd_surface_t *surface, int x, int y);
 
 /**
  * Convert RGBA into a pixel color.

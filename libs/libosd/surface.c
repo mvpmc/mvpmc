@@ -62,11 +62,8 @@ osd_get_surface_size(osd_surface_t *surface, int *w, int *h)
 	return 0;
 }
 
-/*
- * osd_create_surface() - create a drawing surface
- */
 osd_surface_t*
-osd_create_surface(int w, int h, unsigned long color)
+osd_create_surface(int w, int h, unsigned long color, osd_surface_type_t type)
 {
 	osd_surface_t *surface;
 	int i;
@@ -100,11 +97,21 @@ osd_create_surface(int w, int h, unsigned long color)
 	memset(&surface->sfc, 0, sizeof(surface->sfc));
 	surface->sfc.width = w;
 	surface->sfc.height = h;
-	surface->sfc.flags = 0x3f1533;
-	surface->sfc.unknown = 1;
 	surface->sfc.background = color;
-	if (ioctl(fd, GFX_FB_SFC_ALLOC, &surface->sfc) != 0)
+
+	if (type == OSD_DRAWING) {
+		surface->sfc.flags = 0x3f1533;
+		surface->sfc.unknown = 1;
+	} else if (type == OSD_CURSOR) {
+		surface->sfc.flags = 0x102008;
+		surface->sfc.unknown = 0;
+	} else {
 		goto err;
+	}
+
+	if (ioctl(fd, GFX_FB_SFC_ALLOC, &surface->sfc) != 0) {
+		goto err;
+	}
 
 	memset(&surface->map, 0, sizeof(surface->map));
 	surface->map.map[0].unknown = surface->sfc.handle;
@@ -137,6 +144,8 @@ osd_create_surface(int w, int h, unsigned long color)
 	if (i < 128)
 		all[i] = surface;
 
+	surface->type = type;
+
 	return surface;
 
  err:
@@ -151,6 +160,9 @@ osd_destroy_surface(osd_surface_t *surface)
 {
 	int i;
 	int fd = surface->fd;
+
+	if (surface == visible)
+		visible = NULL;
 
 	i = 0;
 	while ((all[i] != surface) && (i < 128))
@@ -177,12 +189,17 @@ osd_display_surface(osd_surface_t *surface)
 	int fd = surface->fd;
 
 	fb_descriptor[0] = surface->sfc.handle;
-	fb_descriptor[1] = 1; 
+
+	if (surface->type == OSD_DRAWING)
+		fb_descriptor[1] = 1; 
+	else
+		fb_descriptor[1] = 0; 
 	
 	if (ioctl(fd, GFX_FB_ATTACH, fb_descriptor) < 0)
 		return -1;
 
-	visible = surface;
+	if (surface->type == OSD_DRAWING)
+		visible = surface;
 
 	return 0;
 }

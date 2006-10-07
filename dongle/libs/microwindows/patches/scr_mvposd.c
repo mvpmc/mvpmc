@@ -70,7 +70,7 @@ osd_init(PSD psd, int w, int h)
 	osd_surface_t *surface;
 	int width, height;
 
-	if ((surface=osd_create_surface(w, h, 0)) == NULL) {
+	if ((surface=osd_create_surface(w, h, 0, OSD_DRAWING)) == NULL) {
 		return -1;
 	}
 	if (osd_get_surface_size(surface, &width, &height) < 0)

@@ -26,6 +26,10 @@
 
 #include "mvp_osd.h"
 
+#if !defined(__powerpc__)
+#error unsupported architecture
+#endif
+
 #define OSD_COLOR(r,g,b,a)	((a<<24) | (r<<16) | (g<<8) | b)
 
 #define OSD_WHITE	OSD_COLOR(255,255,255,255)
@@ -35,6 +39,8 @@
 #define OSD_BLACK	OSD_COLOR(0,0,0,255)
 
 static int width = 720, height = 480;
+
+static unsigned long lr;
 
 static struct timeval start, end, delta;
 
@@ -47,11 +53,16 @@ static struct timeval start, end, delta;
 			         delta.tv_sec + (delta.tv_usec/1000000.0)); \
 			printf(buf)
 
-typedef struct {
-	char *name;
-	int sleep;
-	int (*func)(char*);
-} tester_t;
+#define FAIL		{ \
+				__dummy_func(); \
+				asm ("mflr %0" : "=r" (lr)); \
+				goto err; \
+			}
+
+void
+__dummy_func(void)
+{
+}
 
 static int
 test_sanity(char *name)
@@ -63,15 +74,16 @@ test_sanity(char *name)
 
 	timer_start();
 
-	if ((surface=osd_create_surface(width, height, 0)) == NULL)
-		return -1;
+	if ((surface=osd_create_surface(width, height,
+					0, OSD_DRAWING)) == NULL)
+		FAIL;
 
 	c1 = rand() | 0xff000000;
 	c2 = rand() | 0xff000000;
 	c3 = rand() | 0xff000000;
 
 	if (osd_drawtext(surface, 0, 0, "Hello World!", c1, c2, c3, NULL) < 0)
-		goto err;
+		FAIL;
 
 	timer_end();
 
@@ -93,19 +105,20 @@ test_create_surfaces(char *name)
 	timer_start();
 
 	for (i=0; i<n; i++) {
-		if ((surface=osd_create_surface(width, height, 0)) == NULL)
-			goto err;
+		if ((surface=osd_create_surface(width, height,
+						0, OSD_DRAWING)) == NULL)
+			FAIL;
 		if (i == 0) {
 			if (osd_display_surface(surface) < 0)
-				goto err;
+				FAIL;
 			if (osd_drawtext(surface, 100, 200,
 					 "Creating surfaces!",
 					 OSD_GREEN, OSD_BLACK, OSD_BLACK,
 					 NULL) < 0)
-				goto err;
+				FAIL;
 		} else {
 			if (osd_destroy_surface(surface) < 0)
-				goto err;
+				FAIL;
 		}
 	}
 
@@ -127,8 +140,9 @@ test_text(char *name)
 
 	timer_start();
 
-	if ((surface=osd_create_surface(width, height, 0)) == NULL)
-		goto err;
+	if ((surface=osd_create_surface(width, height,
+					0, OSD_DRAWING)) == NULL)
+		FAIL;
 
 	for (i=0; i<height; i+=50) {
 		unsigned long c1, c2, c3;
@@ -139,11 +153,11 @@ test_text(char *name)
 
 		if (osd_drawtext(surface, i, i, "Hello World!",
 				 c1, c2, c3, NULL) < 0)
-			goto err;
+			FAIL;
 	}
 
 	if (osd_display_surface(surface) < 0)
-		goto err;
+		FAIL;
 
 	timer_end();
 
@@ -164,11 +178,12 @@ test_rectangles(char *name)
 
 	timer_start();
 
-	if ((surface=osd_create_surface(width, height, 0)) == NULL)
-		goto err;
+	if ((surface=osd_create_surface(width, height,
+					0, OSD_DRAWING)) == NULL)
+		FAIL;
 
 	if (osd_display_surface(surface) < 0)
-		goto err;
+		FAIL;
 
 	for (i=0; i<n; i++) {
 		int x, y, w, h;
@@ -180,7 +195,8 @@ test_rectangles(char *name)
 		h = rand() % (height - y);
 		c = rand() | 0xff000000;
 
-		osd_fill_rect(surface, x, y, w, h, c);
+		if (osd_fill_rect(surface, x, y, w, h, c) < 0)
+			FAIL;
 	}
 
 	timer_end();
@@ -202,11 +218,12 @@ test_lines(char *name)
 
 	timer_start();
 
-	if ((surface=osd_create_surface(width, height, 0)) == NULL)
-		goto err;
+	if ((surface=osd_create_surface(width, height,
+					0, OSD_DRAWING)) == NULL)
+		FAIL;
 
 	if (osd_display_surface(surface) < 0)
-		goto err;
+		FAIL;
 
 	for (i=0; i<p; i++) {
 		int x1, y1;
@@ -223,7 +240,7 @@ test_lines(char *name)
 			y2 = rand() % height;
 
 			if (osd_draw_line(surface, x1, y1, x2, y2, c) < 0)
-				goto err;
+				FAIL;
 		}
 	}
 
@@ -244,27 +261,28 @@ test_display_control(char *name)
 
 	timer_start();
 
-	if ((surface=osd_create_surface(width, height, OSD_BLUE)) == NULL)
-		goto err;
+	if ((surface=osd_create_surface(width, height,
+					OSD_BLUE, OSD_DRAWING)) == NULL)
+		FAIL;
 
 	if (osd_set_engine_mode(surface, 0) < 0)
-		goto err;
+		FAIL;
 
 	if (osd_display_surface(surface) < 0)
-		goto err;
+		FAIL;
 
 	if (osd_get_display_control(surface, 2) < 0)
-		goto err;
+		FAIL;
 	if (osd_get_display_control(surface, 3) < 0)
-		goto err;
+		FAIL;
 	if (osd_get_display_control(surface, 4) < 0)
-		goto err;
+		FAIL;
 	if (osd_get_display_control(surface, 5) < 0)
-		goto err;
+		FAIL;
 	if (osd_get_display_control(surface, 7) < 0)
-		goto err;
+		FAIL;
 	if (osd_get_display_options(surface) < 0)
-		goto err;
+		FAIL;
 
 	timer_end();
 
@@ -288,13 +306,14 @@ test_blit(char *name)
 
 	timer_start();
 
-	if ((surface=osd_create_surface(width, height, 0)) == NULL)
-		goto err;
-	if ((hidden=osd_create_surface(width, height, 0)) == NULL)
-		goto err;
+	if ((surface=osd_create_surface(width, height,
+					0, OSD_DRAWING)) == NULL)
+		FAIL;
+	if ((hidden=osd_create_surface(width, height, 0, OSD_DRAWING)) == NULL)
+		FAIL;
 
 	if (osd_display_surface(surface) < 0)
-		goto err;
+		FAIL;
 
 	w = width / 4;
 	h = height / 4;
@@ -313,10 +332,10 @@ test_blit(char *name)
 				int ey = y1 + (rand() % h);
 				if (osd_draw_line(hidden,
 						  mx, my, ex, ey, c) < 0)
-					goto err;
+					FAIL;
 			}
 			if (osd_blit(surface, x1, y1, hidden, x1, y1, w, h) < 0)
-				goto err;
+				FAIL;
 		}
 	}
 
@@ -328,6 +347,68 @@ test_blit(char *name)
 	return -1;
 }
 
+static int
+test_cursor(char *name)
+{
+	osd_surface_t *surface = NULL, *cursor = NULL;
+	int i;
+	int x, y;
+
+	printf("testing cursor\t\t");
+
+	timer_start();
+
+	if ((surface=osd_create_surface(width, height,
+					0, OSD_DRAWING)) == NULL)
+		FAIL;
+
+	if ((cursor=osd_create_surface(20, 20, 0, OSD_CURSOR)) == NULL)
+		FAIL;
+
+	for (x=0; x<20; x++) {
+		for (y=0; y<20; y++) {
+			if (osd_draw_pixel(cursor, x, y, OSD_RED) < 0)
+				FAIL;
+		}
+	}
+
+	if (osd_fill_rect(surface, 50, 50, 20, 20, OSD_RED) < 0)
+		FAIL;
+
+	for (y=100; y<300; y+=30) {
+		if (osd_fill_rect(surface, 50, y, 400, 10, OSD_WHITE) < 0)
+			FAIL;
+	}
+
+	if (osd_display_surface(surface) < 0)
+		FAIL;
+
+	if (osd_display_surface(cursor) < 0)
+		FAIL;
+
+	x = y = 0;
+	for (i=0; i<100; i++) {
+		x += 4;
+		y += 4;
+		if (osd_move_cursor(cursor, x, y) < 0)
+			FAIL;
+		usleep(10000);
+	}
+
+	timer_end();
+
+	return 0;
+
+ err:
+	return -1;
+}
+
+typedef struct {
+	char *name;
+	int sleep;
+	int (*func)(char*);
+} tester_t;
+
 static tester_t tests[] = {
 	{ "sanity",		0,	test_sanity },
 	{ "create surfaces",	0,	test_create_surfaces },
@@ -336,6 +417,7 @@ static tester_t tests[] = {
 	{ "lines",		2,	test_lines },
 	{ "display control",	2,	test_display_control },
 	{ "blit",		2,	test_blit },
+	{ "cursor",		2,	test_cursor },
 	{ NULL, 0, NULL },
 };
 
@@ -364,6 +446,7 @@ main(int argc, char **argv)
 	int c;
 	char buf[256];
 	osd_surface_t *surface;
+	int ret = 0;
 
 	while ((c=getopt(argc, argv, "hl")) != -1) {
 		switch (c) {
@@ -398,11 +481,12 @@ main(int argc, char **argv)
 				sleep(tests[i].sleep);
 			}
 		} else {
-			printf("failed\n");
+			printf("failed at 0x%.8lx\n", lr);
+			ret = -1;
 		}
 		osd_destroy_all_surfaces();
 		i++;
 	}
 
-	return 0;
+	return ret;
 }
