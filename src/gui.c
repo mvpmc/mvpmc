@@ -55,6 +55,9 @@
 
 static int prefetch_delay;
 
+int MYTHTV_RECORD_START=0;
+int MYTHTV_RECORD_END=0;
+
 void fb_prefetch(mvp_widget_t *widget) {
 	mvpw_set_timer(widget, fb_prefetch, prefetch_delay);
 	if( fb_next_image(0) == -1 ) {
@@ -131,6 +134,19 @@ static mvpw_menu_attr_t settings_attr = {
 	.margin = 4,
 };
 
+static mvpw_dialog_attr_t settings_dialog_attr_active = {
+	.font = FONT_STANDARD,
+	.fg = MVPW_WHITE,
+	.bg = MVPW_DARKGREY,
+	.title_fg = MVPW_BLACK,
+	.title_bg = MVPW_RED,
+	.modal = 0,
+	.border_size = 0,
+	.margin = 4,
+	.justify_title = MVPW_TEXT_CENTER,
+	.justify_body = MVPW_TEXT_CENTER,
+};
+
 static mvpw_dialog_attr_t settings_dialog_attr = {
 	.font = FONT_STANDARD,
 	.fg = MVPW_WHITE,
@@ -173,6 +189,20 @@ static mvpw_menu_attr_t themes_attr = {
 };
 
 mvpw_menu_attr_t mythtv_attr = {
+	.font = FONT_STANDARD,
+	.fg = MVPW_BLACK,
+	.bg = MVPW_LIGHTGREY,
+	.hilite_fg = MVPW_WHITE,
+	.hilite_bg = MVPW_DARKGREY2,
+	.title_fg = MVPW_WHITE,
+	.title_bg = MVPW_BLUE,
+	.border_size = 2,
+	.border = MVPW_DARKGREY2,
+	.margin = 4,
+	.utf8 = true,
+};
+
+mvpw_menu_attr_t mythtv_attr_1 = {
 	.font = FONT_STANDARD,
 	.fg = MVPW_BLACK,
 	.bg = MVPW_LIGHTGREY,
@@ -749,6 +779,9 @@ theme_attr_t theme_attr[] = {
 	{ .name = "myth_browser",
 	  .type = WIDGET_MENU,
 	  .attr.menu = &mythtv_attr },
+	{ .name = "myth_browser",
+	  .type = WIDGET_MENU,
+	  .attr.menu = &mythtv_attr_1 },
 	{ .name = "myth_delete",
 	  .type = WIDGET_MENU,
 	  .attr.menu = &mythtv_popup_attr },
@@ -776,6 +809,9 @@ theme_attr_t theme_attr[] = {
 	{ .name = "settings_dialog",
 	  .type = WIDGET_DIALOG,
 	  .attr.dialog = &settings_dialog_attr },
+	{ .name = "settings_dialog",
+	  .type = WIDGET_DIALOG,
+	  .attr.dialog = &settings_dialog_attr_active },
 	{ .name = "settings_ip",
 	  .type = WIDGET_TEXT,
 	  .attr.text = &settings_ip_attr },
@@ -918,7 +954,10 @@ static mvp_widget_t *ct_bg_box;
 mvp_widget_t *file_browser;
 mvp_widget_t *mythtv_browser;
 mvp_widget_t *mythtv_sched_1;
-mvp_widget_t *mythtv_sched_2;
+mvp_widget_t *mythtv_sched_option_1; //recording options
+mvp_widget_t *mythtv_sched_option_2; //start early
+mvp_widget_t *mythtv_sched_option_3; //end late
+mvp_widget_t *mythtv_sched_option_4; //recording group
 mvp_widget_t *mythtv_prog_finder_1;
 mvp_widget_t *mythtv_prog_finder_2;
 mvp_widget_t *mythtv_prog_finder_3;
@@ -2645,7 +2684,6 @@ mythtv_key_callback(mvp_widget_t *widget, char key)
 			if (mythtv_back(widget) == 0) {
 				mvpw_hide(mythtv_browser);
 				mvpw_hide(mythtv_sched_1);
-				mvpw_hide(mythtv_sched_2);
 				mvpw_hide(mythtv_prog_finder_1);
 				mvpw_hide(mythtv_prog_finder_2);
 				mvpw_hide(mythtv_prog_finder_3);
@@ -3890,7 +3928,7 @@ settings_av_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mvpw_add_menu_item(settings_check, "SPDIF Passthru",
 				   (void*)AUD_OUTPUT_PASSTHRU,
 				   &settings_item_attr);
-
+fprintf (stderr, "audio_output_mode=%d\n",audio_output_mode);
 		mvpw_check_menu_item(settings_check,
 				     (void*)audio_output_mode, 1);
 		break;
@@ -4742,6 +4780,245 @@ mythtv_schedule_keymovement_callback(mvp_widget_t *widget, char key)
                 return;
 }
 
+extern void schedule_recording_callback(mvp_widget_t*,char*,void*);
+
+static void 
+mythtv_sched_option_2_key_callback(mvp_widget_t *widget, char key)
+{
+	char buf[3];
+	int change = 1;
+	void *i;
+	int time=MYTHTV_RECORD_START;
+	switch (key) {
+		case MVPW_KEY_EXIT:
+			mvpw_hide(mythtv_sched_option_1);
+                	mvpw_hide(mythtv_sched_option_2);
+                	mvpw_hide(mythtv_sched_option_3);
+                	mvpw_hide(mythtv_sched_option_4);
+                	mvpw_clear_menu(mythtv_sched_option_1);
+                	mvpw_clear_menu(mythtv_sched_option_4);
+		//	mvpw_set_dialog_attr(mythtv_sched_option_2, &settings_dialog_attr);
+		//	mvpw_set_dialog_attr(mythtv_sched_option_3, &settings_dialog_attr);
+			snprintf (buf,sizeof(buf), "0");
+			mvpw_set_dialog_text(mythtv_sched_option_2, buf);
+			mvpw_set_dialog_text(mythtv_sched_option_3, buf);
+			mvpw_set_dialog_title(mythtv_sched_option_2, "Start Early");
+			mvpw_set_dialog_title(mythtv_sched_option_3, "End Late");
+			MYTHTV_RECORD_START=0;
+			MYTHTV_RECORD_END=0;
+                	gui_mesg("Recording Options", "Recording NOT scheduled");
+                	mvpw_show(mythtv_sched_1);
+			change=0;
+			return;
+			break;
+		case MVPW_KEY_RIGHT:
+		//	mvpw_set_dialog_attr(mythtv_sched_option_2, &settings_dialog_attr);
+		//	mvpw_set_dialog_attr(mythtv_sched_option_3, &settings_dialog_attr_active);
+		//	mvpw_set_dialog_title(mythtv_sched_option_2, "Start Early");
+		//	mvpw_set_dialog_title(mythtv_sched_option_3, "End Late");
+			mvpw_focus(mythtv_sched_option_3);
+			break;		
+		case MVPW_KEY_UP:
+			time++;
+			break;
+		case MVPW_KEY_LEFT:
+		//	mvpw_set_dialog_attr(mythtv_sched_option_2, &settings_dialog_attr);
+		//	mvpw_set_dialog_title(mythtv_sched_option_2, "Start Early");
+			mvpw_focus(mythtv_sched_option_1);
+			break;
+		case MVPW_KEY_DOWN:
+			time--;
+			break;
+		case MVPW_KEY_ZERO ... MVPW_KEY_NINE:
+			snprintf (buf,sizeof(buf),"%c",(char)key);
+			time=atoi(buf);
+			break;
+		case MVPW_KEY_OK:
+			change=0;
+		//	mvpw_set_dialog_attr(mythtv_sched_option_2, &settings_dialog_attr);
+		//	mvpw_set_dialog_attr(mythtv_sched_option_3, &settings_dialog_attr);
+		//	mvpw_set_dialog_title(mythtv_sched_option_2, "Start Early");
+		//	mvpw_set_dialog_title(mythtv_sched_option_3, "End Late");
+			i=mvpw_menu_get_hilite(mythtv_sched_option_1);
+			schedule_recording_callback(mythtv_sched_option_1,mvpw_get_menu_item(mythtv_sched_option_1,i),i);
+			break;
+	}
+	if (change) {	
+		if ( (time<0) || (time>99) ) { time=0; }
+		MYTHTV_RECORD_START=time;
+		snprintf (buf,sizeof(buf), "%d", MYTHTV_RECORD_START);
+		mvpw_set_dialog_text(mythtv_sched_option_2, buf);
+		snprintf (buf,sizeof(buf), "%d", MYTHTV_RECORD_END);
+		mvpw_set_dialog_text(mythtv_sched_option_3, buf);
+	}
+}
+
+static void 
+mythtv_sched_option_3_key_callback(mvp_widget_t *widget, char key)
+{
+	char buf[3];
+	int change = 1;
+	int time=MYTHTV_RECORD_END;
+	void *i;
+	switch (key) {
+		case MVPW_KEY_EXIT:
+			mvpw_hide(mythtv_sched_option_1);
+                	mvpw_hide(mythtv_sched_option_2);
+                	mvpw_hide(mythtv_sched_option_3);
+                	mvpw_hide(mythtv_sched_option_4);
+                	mvpw_clear_menu(mythtv_sched_option_1);
+                	mvpw_clear_menu(mythtv_sched_option_4);
+                	gui_mesg("Recording Options", "Recording NOT scheduled");
+		//	mvpw_set_dialog_attr(mythtv_sched_option_2, &settings_dialog_attr);
+		//	mvpw_set_dialog_attr(mythtv_sched_option_3, &settings_dialog_attr);
+			snprintf (buf,sizeof(buf), "0");
+			mvpw_set_dialog_text(mythtv_sched_option_2, buf);
+			mvpw_set_dialog_text(mythtv_sched_option_3, buf);
+		//	mvpw_set_dialog_title(mythtv_sched_option_2, "Start Early");
+		//	mvpw_set_dialog_title(mythtv_sched_option_3, "End Late");
+			MYTHTV_RECORD_START=0;
+			MYTHTV_RECORD_END=0;
+                	mvpw_show(mythtv_sched_1);
+			change=0;
+			return;
+			break;
+		case MVPW_KEY_RIGHT:
+		//	mvpw_set_dialog_attr(mythtv_sched_option_3, &settings_dialog_attr);
+		//	mvpw_set_dialog_title(mythtv_sched_option_3, "End Late");
+			mvpw_focus(mythtv_sched_option_4);
+			break;		
+		case MVPW_KEY_UP:
+			time++;
+			break;
+		case MVPW_KEY_LEFT:
+		//	mvpw_set_dialog_attr(mythtv_sched_option_3, &settings_dialog_attr);
+		//	mvpw_set_dialog_attr(mythtv_sched_option_2, &settings_dialog_attr_active);
+		//	mvpw_set_dialog_title(mythtv_sched_option_2, "Start Early");
+		//	mvpw_set_dialog_title(mythtv_sched_option_3, "End Late");
+			mvpw_focus(mythtv_sched_option_2);
+			break;
+		case MVPW_KEY_DOWN:
+			time--;
+			break;
+		case MVPW_KEY_ZERO ... MVPW_KEY_NINE:
+			snprintf (buf,sizeof(buf),"%c",(char)key);
+			time=atoi(buf);
+			break;
+		case MVPW_KEY_OK:
+			change=0;
+		//	mvpw_set_dialog_attr(mythtv_sched_option_2, &settings_dialog_attr);
+		//	mvpw_set_dialog_attr(mythtv_sched_option_3, &settings_dialog_attr);
+		//	mvpw_set_dialog_title(mythtv_sched_option_2, "Start Early");
+		//	mvpw_set_dialog_title(mythtv_sched_option_3, "End Late");
+			i=mvpw_menu_get_hilite(mythtv_sched_option_1);
+			schedule_recording_callback(mythtv_sched_option_1,mvpw_get_menu_item(mythtv_sched_option_1,i),i);
+			break;
+	}
+	
+	if (change) {
+		if ( (time<0) || (time>99) ) { time=0; }
+		MYTHTV_RECORD_END=time;
+		snprintf (buf,sizeof(buf), "%d" , MYTHTV_RECORD_START);
+		mvpw_set_dialog_text(mythtv_sched_option_2, buf);
+		snprintf (buf,sizeof(buf), "%d" , MYTHTV_RECORD_END);
+		mvpw_set_dialog_text(mythtv_sched_option_3, buf);
+	}
+}
+
+static void 
+mythtv_sched_option_4_key_callback(mvp_widget_t *widget, char key)
+{
+	char buf[3];
+	void *i;
+	switch (key) {
+		case MVPW_KEY_EXIT:
+			mvpw_hide(mythtv_sched_option_1);
+                	mvpw_hide(mythtv_sched_option_2);
+                	mvpw_hide(mythtv_sched_option_3);
+                	mvpw_hide(mythtv_sched_option_4);
+                	mvpw_clear_menu(mythtv_sched_option_1);
+                	mvpw_clear_menu(mythtv_sched_option_4);
+		//	mvpw_set_dialog_attr(mythtv_sched_option_2, &settings_dialog_attr);
+		//	mvpw_set_dialog_attr(mythtv_sched_option_3, &settings_dialog_attr);
+			snprintf (buf,sizeof(buf), "0");
+			mvpw_set_dialog_text(mythtv_sched_option_2, buf);
+			mvpw_set_dialog_text(mythtv_sched_option_3, buf);
+		//	mvpw_set_dialog_title(mythtv_sched_option_2, "Start Early");
+		//	mvpw_set_dialog_title(mythtv_sched_option_3, "End Late");
+			MYTHTV_RECORD_START=0;
+			MYTHTV_RECORD_END=0;
+                	gui_mesg("Recording Options", "Recording NOT scheduled");
+                	mvpw_show(mythtv_sched_1);
+			return;
+			break;
+		case MVPW_KEY_RIGHT:
+			break;		
+		case MVPW_KEY_LEFT:
+		//	mvpw_set_dialog_attr(mythtv_sched_option_3, &settings_dialog_attr_active);
+		//	mvpw_set_dialog_title(mythtv_sched_option_3, "End Late");
+			snprintf (buf,sizeof(buf), "%d" , MYTHTV_RECORD_END);
+			mvpw_set_dialog_text(mythtv_sched_option_3, buf);
+			mvpw_focus(mythtv_sched_option_3);
+			break;
+		case MVPW_KEY_OK:
+		//	mvpw_set_dialog_attr(mythtv_sched_option_2, &settings_dialog_attr);
+		//	mvpw_set_dialog_attr(mythtv_sched_option_3, &settings_dialog_attr);
+		//	mvpw_set_dialog_title(mythtv_sched_option_2, "Start Early");
+		//	mvpw_set_dialog_title(mythtv_sched_option_3, "End Late");
+			i=mvpw_menu_get_hilite(mythtv_sched_option_1);
+			schedule_recording_callback(mythtv_sched_option_1,mvpw_get_menu_item(mythtv_sched_option_1,i),i);
+			break;
+	}
+}
+
+static void 
+mythtv_schedule_options_keymovement_callback(mvp_widget_t *widget, char key)
+{
+	char buf[3];
+	if ( key == MVPW_KEY_EXIT ) {
+		mvpw_hide(mythtv_sched_option_1);
+		mvpw_hide(mythtv_sched_option_2);
+		mvpw_hide(mythtv_sched_option_3);
+		mvpw_hide(mythtv_sched_option_4);
+		mvpw_clear_menu(mythtv_sched_option_1);
+		mvpw_clear_menu(mythtv_sched_option_4);
+		snprintf (buf,sizeof(buf), "0");
+		mvpw_set_dialog_text(mythtv_sched_option_2, buf);
+		mvpw_set_dialog_text(mythtv_sched_option_3, buf);
+		MYTHTV_RECORD_START=0;
+		MYTHTV_RECORD_END=0;
+		gui_mesg("Recording Options", "Recording NOT scheduled");
+		mvpw_show(mythtv_sched_1);
+		return;
+	}
+	switch (key) {
+                case MVPW_KEY_LEFT:
+			return;
+                        break;
+                case MVPW_KEY_OK:
+			return;
+			break;
+                case MVPW_KEY_RIGHT:
+		//	mvpw_set_dialog_attr(mythtv_sched_option_2, &settings_dialog_attr_active);
+		//	mvpw_set_dialog_title(mythtv_sched_option_2, "Start Early");
+			snprintf (buf,sizeof(buf), "%d" , MYTHTV_RECORD_START);
+			mvpw_set_dialog_text(mythtv_sched_option_2, buf);
+			mvpw_focus(mythtv_sched_option_2);
+                        break;
+                case MVPW_KEY_UP:
+			return;
+			break;
+                case MVPW_KEY_DOWN:
+			return;
+			break;
+                default:
+                        return;
+                        break;
+        }
+                return;
+
+}
+
 static void
 mythtv_prog_finder_char_search_keymovement_callback(mvp_widget_t *widget, char key)
 {
@@ -4855,24 +5132,12 @@ mythtv_prog_finder_time_search_keymovement_callback(mvp_widget_t *widget, char k
 static void
 run_mythtv_guide_menu(void)
 { 
+        mvpw_set_key(mythtv_sched_1,mythtv_schedule_keymovement_callback);
+	mvpw_set_key(mythtv_sched_option_1,mythtv_schedule_options_keymovement_callback);
 
-	fprintf(stderr, "%s : start\n",__FUNCTION__);
-	mvpw_set_key(mythtv_sched_1,mythtv_schedule_keymovement_callback);
-	fprintf(stderr, "%s : back from\n",__FUNCTION__);
-
-	mythtv_guide_menu(mythtv_sched_1);
+        mythtv_guide_menu(mythtv_sched_1,mythtv_sched_option_1,mythtv_sched_option_2, mythtv_sched_option_3,mythtv_sched_option_4);
 	mvpw_hide(mythtv_menu);
 	mvpw_focus(mythtv_sched_1);
-
-
-/*	if (mythtv_guide_menu(mythtv_sched_1,mythtv_sched_2) == 0) {
-		mvpw_hide(mythtv_menu);
-		mvpw_focus(mythtv_sched_1);
-	} else {
-		mythtv_state = MYTHTV_STATE_MAIN;
-	}
-*/
-
 }
 
 static void
@@ -4943,14 +5208,6 @@ myth_menu_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mythtv_state = MYTHTV_STATE_SCHEDULE;
 		fprintf (stderr, "db user = mysqlptr.user=%s\n",mysqlptr->user);
 		run_mythtv_guide_menu();
-/*
-		if (mythtv_guide_menu(mythtv_sched_1,mythtv_sched_2) == 0) {
-			mvpw_hide(mythtv_menu);
-			mvpw_focus(mythtv_sched_1);
-		} else {
-			mythtv_state = MYTHTV_STATE_MAIN;
-		}
-*/
 		break;
 	case 4:
 		mythtv_state = MYTHTV_STATE_PROG_FINDER;
@@ -5028,12 +5285,6 @@ myth_browser_init(void)
 
 	mvpw_set_key(mythtv_menu, mythtv_menu_callback);
 
-/*	
-	mythtv_sched_1 = mvpw_create_menu(NULL,50,100,100,si.rows-190,mythtv_attr.bg, mythtv_attr.border,mythtv_attr.border_size);
-	mythtv_sched_2 = mvpw_create_menu(NULL,250,50,100,si.rows-190,mythtv_attr.bg, mythtv_attr.border,mythtv_attr.border_size);
-	  XXX: what should the height be?
-*/
-	 
 	mythtv_sched_1 = mvpw_create_menu(NULL,
 					  viewport_edges[EDGE_LEFT]+iid.width,
 					  viewport_edges[EDGE_TOP],
@@ -5043,26 +5294,31 @@ myth_browser_init(void)
 					  si.rows-190,
 					  mythtv_attr.bg, mythtv_attr.border,
 					  mythtv_attr.border_size);
-
-/*	mythtv_sched_3 = mvpw_create_menu(NULL,
-					  viewport_edges[EDGE_LEFT]+iid.width,
-					  viewport_edges[EDGE_TOP],
-					  (50+si.cols-iid.width-
-					  viewport_edges[EDGE_LEFT]-
-					  viewport_edges[EDGE_RIGHT])/2,
-					  si.rows-190,
-					  mythtv_attr.bg, mythtv_attr.border,
-					  mythtv_attr.border_size);
-*/
-	mythtv_sched_2 = mvpw_create_menu(
-			NULL,
-			285+viewport_edges[EDGE_LEFT]+iid.width,
+	mythtv_sched_option_1 = mvpw_create_menu(NULL,
+			viewport_edges[EDGE_LEFT]+iid.width,
 			viewport_edges[EDGE_TOP],
-			(50+si.cols-iid.width-viewport_edges[EDGE_LEFT]-viewport_edges[EDGE_RIGHT])/2,
+			(si.cols-iid.width-
+			(viewport_edges[EDGE_LEFT]-
+			viewport_edges[EDGE_RIGHT]))/2-50,
 			si.rows-190,
 			mythtv_attr.bg, 
 			mythtv_attr.border,
-		  	mythtv_attr.border_size);
+			mythtv_attr.border_size);
+	mythtv_sched_option_2 = mvpw_create_dialog(NULL,
+			459, 50, 75, 55,
+			mythtv_attr.bg,
+			mythtv_attr.border,
+			mythtv_attr.border_size);
+	mythtv_sched_option_3 = mvpw_create_dialog(NULL,
+			550, 50, 75, 55,
+			mythtv_attr.bg,
+			mythtv_attr.border,
+			mythtv_attr.border_size);
+	mythtv_sched_option_4 = mvpw_create_menu(NULL,
+			459, 150, 125, 150,
+			mythtv_attr.bg,
+			mythtv_attr.border,
+			mythtv_attr.border_size);
 
 	mythtv_prog_finder_1 = mvpw_create_menu(NULL,
 			viewport_edges[EDGE_LEFT]+iid.width,
@@ -5109,17 +5365,36 @@ myth_browser_init(void)
 
 	mvpw_set_key(mythtv_browser, mythtv_key_callback);
 	mvpw_set_key(mythtv_sched_1, mythtv_key_callback);
-	mvpw_set_key(mythtv_sched_2, mythtv_key_callback);
 /*	mvpw_set_key(mythtv_prog_finder_1, mythtv_key_callback);
 	mvpw_set_key(mythtv_prog_finder_2, mythtv_key_callback);*/
 	mvpw_set_key(mythtv_prog_finder_3, mythtv_key_callback);
 
 	mvpw_set_menu_attr(mythtv_browser, &mythtv_attr);
 	mvpw_set_menu_attr(mythtv_sched_1, &mythtv_attr);
-	mvpw_set_menu_attr(mythtv_sched_2, &mythtv_attr);
 	mvpw_set_menu_attr(mythtv_prog_finder_1, &mythtv_attr);
 	mvpw_set_menu_attr(mythtv_prog_finder_2, &mythtv_attr);
-	mvpw_set_menu_attr(mythtv_prog_finder_3, &mythtv_attr);
+
+	mvpw_set_menu_attr(mythtv_sched_option_1, &mythtv_attr);
+	mvpw_set_menu_attr(mythtv_sched_option_4, &mythtv_attr);
+	mvpw_set_key(mythtv_sched_option_4, mythtv_sched_option_4_key_callback);
+
+	mvpw_set_dialog_attr(mythtv_sched_option_2, &settings_dialog_attr);
+	mvpw_set_key(mythtv_sched_option_2, mythtv_sched_option_2_key_callback);
+	mvpw_set_dialog_title(mythtv_sched_option_2, "Start Early");
+	mvpw_set_dialog_text(mythtv_sched_option_2, "0" );
+	
+	mvpw_set_dialog_attr(mythtv_sched_option_3, &settings_dialog_attr);
+	mvpw_set_key(mythtv_sched_option_3, mythtv_sched_option_3_key_callback);
+	mvpw_set_dialog_title(mythtv_sched_option_3, "End Late");
+	mvpw_set_dialog_text(mythtv_sched_option_3, "0" );
+
+	mythtv_attr.checkboxes = 1;
+	mythtv_attr_1.checkboxes = 1;
+	mvpw_set_menu_attr(mythtv_sched_option_1, &mythtv_attr);
+	mvpw_set_menu_attr(mythtv_sched_option_4, &mythtv_attr_1);
+
+	mvpw_set_menu_title(mythtv_sched_option_1, "Scheduling Options");
+	mvpw_set_menu_title(mythtv_sched_option_4, "Recording Groups");
 
 	h = FONT_HEIGHT(description_attr);
 

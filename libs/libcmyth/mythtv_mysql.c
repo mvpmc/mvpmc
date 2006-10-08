@@ -198,6 +198,81 @@ cmyth_mysql_escape_chars(cmyth_database_t db, char * string)
 	return (N_string);
 }
 
+int 
+cmyth_get_offset_mysql(cmyth_database_t db, int type, char *recordid, int chanid, char *title, char *subtitle, char *description, char *seriesid, char *programid)
+{
+	MYSQL_RES *res=NULL;
+	MYSQL_ROW row;
+	char query[1000];
+	int count;
+
+	if(cmyth_db_check_connection(db) != 0)
+	{
+               cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_db_check_connection failed\n", __FUNCTION__);
+               fprintf(stderr,"%s: cmyth_db_check_connection failed\n", __FUNCTION__);
+	       return -1;
+	}
+	if (type == 1) { // startoffset
+		sprintf (query,"SELECT startoffset FROM record WHERE (recordid='%s' AND chanid=%d AND title='%s' AND subtitle='%s' AND description='%s' AND seriesid='%s' AND programid='%s')",recordid,chanid,title,subtitle,description,seriesid,programid);
+	}
+	else if (type == 0) { //endoffset
+		sprintf (query,"SELECT endoffset FROM record WHERE (recordid='%s' AND chanid=%d AND title='%s' AND subtitle='%s' AND description='%s' AND seriesid='%s' AND programid='%s')",recordid,chanid,title,subtitle,description,seriesid,programid);
+	}
+
+	cmyth_dbg(CMYTH_DBG_ERROR, "%s : query=%s\n",__FUNCTION__, query);
+	
+        if(mysql_query(db->mysql,query)) {
+                 cmyth_dbg(CMYTH_DBG_ERROR, "%s: mysql_query() Failed: %s\n", __FUNCTION__, mysql_error(db->mysql));
+		return -1;
+        }
+        res = mysql_store_result(db->mysql);
+	if ( (count = mysql_num_rows(res)) >0) {
+		row = mysql_fetch_row(res);
+		fprintf(stderr, "row grabbed done count=%d\n",count);
+        	mysql_free_result(res);
+		return atoi(row[0]);
+	}
+	else {
+        	mysql_free_result(res);
+		return 0;
+	}
+}
+
+char *
+cmyth_get_recordid_mysql(cmyth_database_t db, int chanid, char *title, char *subtitle, char *description, char *seriesid, char *programid)
+{
+	MYSQL_RES *res=NULL;
+	MYSQL_ROW row;
+	char query[1000];
+	int count;
+
+	if(cmyth_db_check_connection(db) != 0)
+	{
+               cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_db_check_connection failed\n", __FUNCTION__);
+               fprintf(stderr,"%s: cmyth_db_check_connection failed\n", __FUNCTION__);
+	       return NULL;
+	}
+	sprintf (query,"SELECT recordid FROM record WHERE (chanid=%d AND title='%s' AND subtitle='%s' AND description='%s' AND seriesid='%s' AND programid='%s')",chanid,title,subtitle,description,seriesid,programid);
+
+	cmyth_dbg(CMYTH_DBG_ERROR, "%s : query=%s\n",__FUNCTION__, query);
+	
+        if(mysql_query(db->mysql,query)) {
+                 cmyth_dbg(CMYTH_DBG_ERROR, "%s: mysql_query() Failed: %s\n", __FUNCTION__, mysql_error(db->mysql));
+		return NULL;
+        }
+        res = mysql_store_result(db->mysql);
+	if ( (count = mysql_num_rows(res)) >0) {
+		row = mysql_fetch_row(res);
+		fprintf(stderr, "row grabbed done count=%d\n",count);
+        	mysql_free_result(res);
+		return row[0];
+	}
+	else {
+        	mysql_free_result(res);
+		return "NULL";
+	}
+}
+
 int
 cmyth_mysql_insert_into_record(cmyth_database_t db, char * query, char * query1, char * query2, char *title, char * subtitle, char * description, char * callsign)
 {
@@ -229,18 +304,7 @@ cmyth_mysql_insert_into_record(cmyth_database_t db, char * query, char * query1,
 	cmyth_release(N_title);
 	cmyth_release(N_subtitle);
 	cmyth_release(N_callsign);
-
-/*
-	fprintf (stderr, "\n\n\n\n");
-	fprintf (stderr, "query = %s\n",query);
-	fprintf (stderr, "N_title = %s\n",N_title);
-	fprintf (stderr, "N_subtitle = %s\n",N_subtitle);
-	fprintf (stderr, "N_description = %s\n",N_description);
-	fprintf (stderr, "query1 = %s\n",query1);
-	fprintf (stderr, "N_callsign=%s\n",N_callsign);
-	fprintf (stderr, "query2 = %s\n",query2);
-	fprintf (stderr, "N_query = %s\n",N_query);
-*/
+	cmyth_dbg(CMYTH_DBG_ERROR, "mysql query :%s\n",N_query);
 
         if(mysql_real_query(db->mysql,N_query,(unsigned int) strlen(N_query))) {
                 cmyth_dbg(CMYTH_DBG_ERROR, "%s: mysql_query() Failed: %s\n", 
@@ -404,6 +468,8 @@ cmyth_mysql_get_guide(cmyth_database_t db, cmyth_program_t **prog, time_t startt
 		bind_results[10].buffer = &((*prog)[rows].callsign);
 		bind_results[11].buffer = &((*prog)[rows].name);
 		bind_results[12].buffer = (char *)&((*prog)[rows].sourceid);
+		(*prog)[rows].startoffset=0;
+		(*prog)[rows].endoffset=0;
 		if(mysql_stmt_bind_result(stmt,bind_results))
 		{
 		    fprintf(stderr,"%s, mysql_stmt_bind_result() failed: %s\n",
@@ -432,6 +498,45 @@ cmyth_mysql_get_guide(cmyth_database_t db, cmyth_program_t **prog, time_t startt
         cmyth_dbg(CMYTH_DBG_ERROR, "%s: rows= %d\n", __FUNCTION__, rows);
 	return rows;
 }
+
+int 
+cmyth_mysql_get_recgroups(cmyth_database_t db, cmyth_recgroups_t **sqlrecgroups)
+{
+	MYSQL_RES *res=NULL;
+	MYSQL_ROW row;
+        const char *query="SELECT DISTINCT recgroup FROM record";
+	int rows=0;
+	int n=0;
+
+	if(cmyth_db_check_connection(db) != 0)
+	{
+               cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_db_check_connection failed\n",
+                           __FUNCTION__);
+               fprintf(stderr,"%s: cmyth_db_check_connection failed\n", __FUNCTION__);
+	       return -1;
+	}
+
+        cmyth_dbg(CMYTH_DBG_ERROR, "%s: query= %s\n", __FUNCTION__, query);
+        if(mysql_query(db->mysql,query)) {
+                 cmyth_dbg(CMYTH_DBG_ERROR, "%s: mysql_query() Failed: %s\n", 
+                           __FUNCTION__, mysql_error(db->mysql));
+		return -1;
+        }
+        res = mysql_store_result(db->mysql);
+        while((row = mysql_fetch_row(res))) {
+        	if (rows == n ) {
+                	n++;
+                       	*sqlrecgroups=realloc(*sqlrecgroups,sizeof(**sqlrecgroups)*(n));
+               	}
+		sizeof_strncpy ( (*sqlrecgroups)[rows].recgroups, row[0]);
+        	cmyth_dbg(CMYTH_DBG_ERROR, "(*sqlrecgroups)[%d].recgroups =  %s\n",rows, (*sqlrecgroups)[rows].recgroups);
+		rows++;
+        }
+        mysql_free_result(res);
+        cmyth_dbg(CMYTH_DBG_ERROR, "%s: rows= %d\n", __FUNCTION__, rows);
+	return rows;
+}
+
 
 int
 cmyth_mysql_get_prog_finder_char_title(cmyth_database_t db, cmyth_program_t **prog, time_t starttime, char *program_name) 
@@ -476,9 +581,9 @@ cmyth_mysql_get_prog_finder_char_title(cmyth_database_t db, cmyth_program_t **pr
                 	n++;
                        	*prog=realloc(*prog,sizeof(**prog)*(n));
                	}
-			sizeof_strncpy ( (*prog)[rows].title, row[0]);
-        		cmyth_dbg(CMYTH_DBG_ERROR, "prog[%d].title =  %s\n",rows, (*prog)[rows].title);
-			rows++;
+		sizeof_strncpy ( (*prog)[rows].title, row[0]);
+        	cmyth_dbg(CMYTH_DBG_ERROR, "prog[%d].title =  %s\n",rows, (*prog)[rows].title);
+		rows++;
         }
         mysql_free_result(res);
         cmyth_dbg(CMYTH_DBG_ERROR, "%s: rows= %d\n", __FUNCTION__, rows);
