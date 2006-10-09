@@ -1693,9 +1693,17 @@ int http_main(void)
 
             mvpw_set_text_str(fb_name, "Connecting to server");
 
+            retcode = 0;
+            do {
+                if ( retcode < 0 ) {
+                    usleep(50000);
+                    mvpw_set_text_str(fb_name, "Connecting to vlc. Press stop to exit");
+                }
             retcode = connect(httpsock, (struct sockaddr *)&server_addr,sizeof(server_addr));
+            } while ( retcode < 0 && using_vlc == 1 && errno == ECONNREFUSED && audio_stop == 0 );
+
             if (retcode != 0) {
-                fprintf(outlog,"connect() failed %d\n",retcode);
+                fprintf(outlog,"connect() failed %d error %d\n",retcode,errno);
                 mvpw_set_text_str(fb_name, "Connection Error");
                 instream = NULL;
                 rcs = NULL;
