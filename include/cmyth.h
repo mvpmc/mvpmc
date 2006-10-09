@@ -728,10 +728,6 @@ extern int cmyth_proginfo_get_recorder_num(cmyth_conn_t control,
 					   cmyth_rec_num_t rnum,
 					   cmyth_proginfo_t prog);
 
-extern char *cmyth_proginfo_string(cmyth_proginfo_t prog);
-
-extern char *cmyth_chaninfo_string(cmyth_proginfo_t prog);
-
 /**
  * Retrieve the title of a program.
  * \param prog proginfo handle
