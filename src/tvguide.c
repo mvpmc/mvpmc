@@ -69,6 +69,7 @@ int tvguide_scroll_ofs_x = 0;
 int tvguide_scroll_ofs_y = 0;
 long tvguide_free_cardids = 0;
 int mythtv_tvguide_sort_desc = 0;
+static int tvguide_popup_menu = 0;
 
 typedef struct {
 	char keys[4];
@@ -106,6 +107,7 @@ static mvpw_text_attr_t livetv_description_attr = {
 	.border_size = 0,
 };
 
+/* TV guide array widget */
 static mvpw_array_attr_t livetv_program_list_attr = {
 	.rows = 4,
 	.cols = 3,
@@ -116,12 +118,33 @@ static mvpw_array_attr_t livetv_program_list_attr = {
 	.row_label_fg = MVPW_WHITE,
 	.row_label_bg = MVPW_DARKGREY,
 	.col_label_fg = MVPW_WHITE,
-	.col_label_bg = MVPW_RGBA(25,112,25,255),
+	.col_label_bg = MVPW_DARK_GREEN,
 	.cell_fg = MVPW_WHITE,
 	.cell_bg = MVPW_MIDNIGHTBLUE,
 	.hilite_fg = MVPW_BLACK,
 	.hilite_bg = MVPW_ALMOSTWHITEGREY,
 	.cell_rounded = 0,
+};
+
+/* The popup menu for scheduling auto tune and programs */
+mvpw_menu_attr_t tvguide_popup_attr = {
+	.font = FONT_LARGE,
+	.fg = MVPW_WHITE,
+	.bg = MVPW_LIGHTGREY,
+	.hilite_fg = MVPW_WHITE,
+	.hilite_bg = MVPW_DARK_GREEN,
+	.title_fg = MVPW_WHITE,
+	.title_bg = MVPW_MIDNIGHTBLUE,
+	.border_size = 6,
+	.border = MVPW_BLACK,
+	.margin = 4,
+};
+
+static mvpw_menu_item_attr_t tvguide_menu_item_attr = {
+	.selectable = true,
+	.fg = MVPW_WHITE,
+	.bg = MVPW_RGBA(25,112,25,255),
+	.checkbox_fg = MVPW_GREEN,
 };
 
 void
@@ -266,6 +289,9 @@ mvp_tvguide_callback(mvp_widget_t *widget, char key)
 			}
 			else {
 				/* Future, item. Schedule it */
+				//tvguide_popup_menu = 1;
+				//mvpw_show(mythtv_tvguide_menu);
+				//mvpw_focus(mythtv_tvguide_menu);
 			}
 			rtrn = 1;
 			break;
@@ -365,20 +391,50 @@ void scroll_callback(mvp_widget_t *widget, int direction)
 	}
 }
 
+static
+void tvguide_menu_key_callback(mvp_widget_t *widget, char key)
+{
+	switch (key) {
+	case MVPW_KEY_EXIT:
+	case MVPW_KEY_MENU:
+		tvguide_popup_menu = 0;
+		mvpw_hide(widget);
+		mvpw_focus(root);
+		break;
+	}
+}
+
+static void
+tvguide_menu_select_callback(mvp_widget_t *widget, char *item, void *key)
+{
+	//char buf[256];
+
+	//mvpw_hide(widget);
+
+	switch ((int)key) {
+	case 1: // Autotune
+		//fb_shuffle(1);
+		break;
+	case 2: // Record
+		//snprintf(buf, sizeof(buf), "%d", volume);
+		//mvpw_set_dialog_text(volume_dialog, buf);
+		//mvpw_show(volume_dialog);
+		//mvpw_focus(volume_dialog);
+		break;
+	case 3: // Cancel
+			mvpw_hide(widget);
+			mvpw_focus(root);
+		break;
+	default:
+		break;
+	}
+}
+
 int
 mvp_tvguide_init(int edge_left, int edge_top, int edge_right,
 								 int edge_bottom)
 {
 	int x, y, w, h;
-	/*
-	char * col_strings[] = {"Fri 4/8", "9:00", "9:30", "10:00"};
-	char * row_strings[] = {"627\nSPACE", "615\nA&E", "525\nANIML", "524\nGEO"};
-	char * cell_strings[] = {"Enterprise", "Supernatural", "Program",
-			"Windtalkers", "Herbie", "Cheetahs", "Mad Mike", "Untamed NA",
-			"Bevis & Butthead", "Hitchhiker's Guide",
-			"So long and thanks for all the fish",
-			"Fourty Two"};
-	*/
 
 
 	/* The viewport eats up too much real estate for now */
@@ -429,6 +485,37 @@ mvp_tvguide_init(int edge_left, int edge_top, int edge_right,
 	mvpw_hilite_array_cell(mythtv_livetv_program_list,0,0,1);
 
 	mvpw_set_array_scroll(mythtv_livetv_program_list, scroll_callback);
+
+	/* Create the menu for future programs (schedule or autotune) */
+
+	h = 4 * FONT_HEIGHT(tvguide_popup_attr);
+	w = 200;
+	x = (si.cols - w) / 2;
+	y = (si.rows - h) / 2;
+	//x = (edge_right - edge_left - w) / 2;
+	//y = (edge_bottom - edge_top - h) / 2;
+
+	mythtv_tvguide_menu =
+						mvpw_create_menu(NULL, x, y, w, h,
+				  	tvguide_popup_attr.bg, tvguide_popup_attr.border,
+				  	tvguide_popup_attr.border_size);
+
+	tvguide_popup_attr.checkboxes = 0;
+	mvpw_set_menu_attr(mythtv_tvguide_menu, &tvguide_popup_attr);
+	mvpw_set_menu_title(mythtv_tvguide_menu, "Program Menu");
+
+	mvpw_set_key(mythtv_tvguide_menu, tvguide_menu_key_callback);
+
+	tvguide_menu_item_attr.select = tvguide_menu_select_callback;
+	tvguide_menu_item_attr.fg = tvguide_popup_attr.fg;
+	tvguide_menu_item_attr.bg = tvguide_popup_attr.bg;
+	mvpw_add_menu_item(mythtv_tvguide_menu, "Auto Tune",
+			   (void*)1, &tvguide_menu_item_attr);
+	mvpw_add_menu_item(mythtv_tvguide_menu, "Record",
+			   (void*)2, &tvguide_menu_item_attr);
+	mvpw_add_menu_item(mythtv_tvguide_menu, "Cancel",
+			   (void*)3, &tvguide_menu_item_attr);
+
 
 	return 1;
 }
@@ -548,7 +635,7 @@ mvp_tvguide_start(void)
 	/* combine all identical entries with a list of recorders for each */
 	/* and create from scratch so free if it exists */
 
-	tvguide_chanlist = myth_release_chanlist(tvguide_chanlist);
+	//tvguide_chanlist = myth_release_chanlist(tvguide_chanlist);
 	tvguide_chanlist = myth_tvguide_load_channels(mythtv_database,
 																								mythtv_tvguide_sort_desc);
 	if(tvguide_chanlist == NULL) {
@@ -577,6 +664,8 @@ mvp_tvguide_stop(void)
 {
 	mvpw_set_timer(mythtv_livetv_program_list, NULL, 0);
 	mvpw_set_timer(mythtv_livetv_clock, NULL, 0);
+	tvguide_chanlist = myth_release_chanlist(tvguide_chanlist);
+	tvguide_proglist = myth_release_proglist(tvguide_proglist);
 
 	return 0;
 }

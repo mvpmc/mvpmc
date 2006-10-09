@@ -135,6 +135,7 @@ extern int mythtv_livetv_chain_update(char * buf);
 extern mvp_widget_t *mythtv_livetv_clock;
 extern mvp_widget_t *mythtv_livetv_description;
 extern mvp_widget_t *mythtv_livetv_program_list;
+extern mvp_widget_t *mythtv_tvguide_menu;
 
 /*
  * -----------------------------------------------------------------
@@ -188,7 +189,7 @@ extern int mythtv_livetv_menu(void);
 extern int mythtv_program_runtime(void);
 extern void mythtv_set_popup_menu(mythtv_state_t state);
 
-extern int mythtv_guide_menu(mvp_widget_t*);
+extern int mythtv_guide_menu(mvp_widget_t*, mvp_widget_t*, mvp_widget_t*, mvp_widget_t*, mvp_widget_t*);
 extern int mythtv_guide_menu_move(mvp_widget_t* widget,int distance);
 
 extern int mythtv_prog_finder_char_menu(mvp_widget_t*, mvp_widget_t*, mvp_widget_t*);
@@ -254,3 +255,18 @@ extern void mythtv_fullscreen(void);
 }
 
 #endif /* MYTHTV_H */
+
+
+struct guide_options {
+        mvp_widget_t *pane1;
+        mvp_widget_t *pane2;
+        mvp_widget_t *pane3;
+        mvp_widget_t *pane4;
+        mvp_widget_t *widget;
+	int sqlcount;
+	int nrecgroups;
+};
+
+extern int MYTHTV_RECORD_START;
+extern int MYTHTV_RECORD_END;
+

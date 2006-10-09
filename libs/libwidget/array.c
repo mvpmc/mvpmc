@@ -62,15 +62,22 @@ destroy(mvp_widget_t *widget)
 		}
 		free(widget->data.array.row_labels);
 	}
-	for(r = 0; r < widget->data.array.rows; r++)
-		for(c = 0; c < widget->data.array.cols; c++) {
-			i = widget->data.array.cols * r + c;
-			if(widget->data.array.cells[i]) {
-				mvpw_destroy(widget->data.array.cells[i]);
+	if(widget->data.array.cells) {
+		for(r = 0; r < widget->data.array.rows; r++)
+			for(c = 0; c < widget->data.array.cols; c++) {
+				i = widget->data.array.cols * r + c;
+				if(widget->data.array.cells[i]) {
+					mvpw_destroy(widget->data.array.cells[i]);
+				}
 			}
-		}
-	free(widget->data.array.cells);
-	free(widget->data.array.cell_viz);
+		free(widget->data.array.cells);
+	}
+	if(widget->data.array.cell_viz)
+		free(widget->data.array.cell_viz);
+	if(widget->data.array.cell_data)
+		free(widget->data.array.cell_data);
+	if(widget->data.array.cell_theme)
+		free(widget->data.array.cell_theme);
 }
 
 static void

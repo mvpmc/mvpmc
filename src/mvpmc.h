@@ -259,7 +259,7 @@ extern void playlist_next();
 extern void playlist_randomize(void);
 
 extern int gui_init(char*, char*);
-extern int mw_init(char *server, char *replaytv);
+extern int mw_init(void);
 extern int display_init(void);
 
 extern void audio_clear(void);

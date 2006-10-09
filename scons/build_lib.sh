@@ -133,6 +133,7 @@ else
 	    cp --remove-destination src/Configs/config.mvp src/config
 	fi
 	cd src
+	cp ../../../patches/*.c drivers
 	make
 	cd ..
 	cp src/lib/*.a $INSTALL/lib

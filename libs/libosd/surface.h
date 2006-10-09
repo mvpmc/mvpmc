@@ -81,7 +81,7 @@ struct osd_surface_s {
 };
 
 #define GFX_FB_SFC_ALLOC	_IOWR(0xfb,1,int)
-#define GFX_FB_SFC_FREE		_IOWR(0xfb,2,int*)
+#define GFX_FB_SFC_FREE		_IOW(0xfb,2,int)
 #define GFX_FB_MAP		_IOWR(0xfb,3,int)
 #define GFX_FB_SFC_UNMAP	_IOWR(0xfb,4,int*)
 #define GFX_FB_SET_PAL_1	_IOWR(0xfb,5,int*)
@@ -103,7 +103,7 @@ struct osd_surface_s {
 #define GFX_FB_OSD_BITBLT	_IOW(0xfb,51,osd_bitblt_t*)
 #define GFX_FB_OSD_FILLBLT	_IOW(0xfb,53,osd_fillblt_t*)
 #define GFX_FB_OSD_ADVFILLBLT	_IOW(0xfb,54,osd_afillblt_t*)
-#define GFX_FB_OSD_BLEND	_IOW(0xfb,55,int*)
+#define GFX_FB_OSD_BLEND	_IOW(0xfb,55,osd_blend_t*)
 #define GFX_FB_OSD_ADVBLEND	_IOW(0xfb,56,int*)
 #define GFX_FB_OSD_RESIZE	_IOW(0xfb,58,int*)
 #define GFX_FB_ENGINE_WAIT	_IOW(0xfb,60,int)

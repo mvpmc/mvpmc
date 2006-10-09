@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# $Id: SConscript 20 2006-03-14 05:26:56Z gettler $
+# libdemux
 #
 
 Import ('env')
@@ -14,19 +14,23 @@ src = [ 'demux.c','stream.c' ]
 
 lib = env.StaticLibrary('demux', src, CPPPATH = [ env['INCDIR'], '.' ])
 
-if target == 'host':
-    demuxtest_t = env.Program('demuxtest_t',['demuxtest_t.c'],
+demuxtest_t = env.Program('demuxtest_t',['demuxtest_t.c'],
+    			  CPPPATH=[ env['INCDIR'], '.'],
+			  LIBS = [ 'demux','pthread' ],
+			  LIBPATH = [ '.' ],
+	                  LINKFLAGS = [ '-static' ])
+
+demuxtest = env.Program('demuxtest',['demuxtest.c'],
     			CPPPATH=[ env['INCDIR'], '.'],
 			LIBS = [ 'demux','pthread' ],
-			LIBPATH = [ 'obj/host/' ]);
+			LIBPATH = [ '.' ],
+	                LINKFLAGS = [ '-static' ])
 
-    demuxtest = env.Program('demuxtest',['demuxtest.c'],
-    			CPPPATH=[ env['INCDIR'], '.'],
-			LIBS = [ 'demux' ],
-			LIBPATH = [ 'obj/host/' ]);
+env.Depends(demuxtest_t, lib)
+env.Depends(demuxtest, lib)
 
-    env.Install(bindir,demuxtest)
-    env.Install(bindir,demuxtest_t)
+env.Install(bindir,demuxtest)
+env.Install(bindir,demuxtest_t)
 
 inst = env.Install(libdir, lib)
 

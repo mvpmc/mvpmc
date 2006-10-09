@@ -1,0 +1,10 @@
+#!/usr/bin/python
+#
+# dongle_passwd
+#
+
+import os
+
+dongle_passwd = Program('dongle_passwd', 'dongle_passwd.c', LIBS = 'crypt')
+
+Return('dongle_passwd')

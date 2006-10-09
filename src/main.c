@@ -924,7 +924,7 @@ main(int argc, char **argv)
 	}
 	osd_set_screen_size(width, height);
 
-	if (mw_init(mythtv_server, replaytv_server) < 0) {
+	if (mw_init() < 0) {
 		fprintf(stderr, "failed to initialize microwindows!\n");
 		exit(1);
 	}

@@ -25,5 +25,8 @@ rm -f $TARGET/*.o
 cp $FILES $TARGET
 
 if [ -f $SERIAL ] ; then
+    echo "KERNELVER=2.4.31" > ${TARGET}/version
     cp $SERIAL $TARGET
+else
+    echo "KERNELVER=2.4.17" > ${TARGET}/version
 fi

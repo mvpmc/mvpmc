@@ -918,6 +918,16 @@ extern int mvpw_set_dialog_title(mvp_widget_t *widget, char *title);
  */
 extern int mvpw_set_dialog_text(mvp_widget_t *widget, char *text);
 
+/**
+ * Gett the dialog body text.
+ * \param widget widget handle
+ * \retval char * 
+ * \retval NULL error
+ */
+extern char * mvpw_get_dialog_text(mvp_widget_t *widget);
+
+extern void mvpw_get_dialog_attr(mvp_widget_t *widget,
+				mvpw_dialog_attr_t *attr);
 /*
  * surface widget
  */
@@ -959,6 +969,7 @@ extern int mvpw_fill_rect(mvp_widget_t *widget, int x, int y, int w, int h, uint
 #define MVPW_RED		MVPW_RGBA(255,0,0,255)
 #define MVPW_DARK_RED MVPW_RGBA(170, 15, 15, 255)
 #define MVPW_GREEN		MVPW_RGBA(0,255,0,255)
+#define MVPW_DARK_GREEN MVPW_RGBA(25,112,25,255)
 #define MVPW_BLUE		MVPW_RGBA(0,0,255,255)
 #define MVPW_MIDNIGHTBLUE	MVPW_RGBA(25,25,112,255)
 #define MVPW_CYAN		MVPW_RGBA(0,255,255,255)
