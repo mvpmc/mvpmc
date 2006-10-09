@@ -355,8 +355,7 @@ cmyth_proginfo_dup(cmyth_proginfo_t p)
  * Failure: -(ERRNO)
  */
 int
-programinfo_stop_recording(cmyth_conn_t control,
-			   cmyth_proginfo_t prog)
+cmyth_proginfo_stop_recording(cmyth_conn_t control, cmyth_proginfo_t prog)
 {
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s\n", __FUNCTION__);
 	return -ENOSYS;
@@ -380,8 +379,7 @@ programinfo_stop_recording(cmyth_conn_t control,
  * Failure: -(ERRNO)
  */
 int
-programinfo_check_recording(cmyth_conn_t control,
-			    cmyth_proginfo_t prog)
+cmyth_proginfo_check_recording(cmyth_conn_t control, cmyth_proginfo_t prog)
 {
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s\n", __FUNCTION__);
 	return -ENOSYS;
@@ -2178,7 +2176,7 @@ cmyth_proginfo_fill(cmyth_conn_t control, cmyth_proginfo_t prog)
 }
 
 /*
- * cmyth_proginfo_get_detailfill(cmyth_conn_t control, cmyth_proginfo_t prog)
+ * cmyth_proginfo_get_detail(cmyth_conn_t control, cmyth_proginfo_t prog)
  *
  * Scope: PUBLIC
  *
