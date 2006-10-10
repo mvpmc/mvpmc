@@ -208,6 +208,90 @@ test_rectangles(char *name)
 }
 
 static int
+test_circles(char *name)
+{
+	int i;
+	int n = 30;
+	osd_surface_t *surface = NULL;
+
+	printf("drawing %d circles\t", n);
+
+	timer_start();
+
+	if ((surface=osd_create_surface(width, height,
+					0, OSD_DRAWING)) == NULL)
+		FAIL;
+
+	if (osd_display_surface(surface) < 0)
+		FAIL;
+
+	for (i=0; i<n; i++) {
+		int x, y, r, f;
+		unsigned long c;
+
+		x = rand() % width;
+		y = rand() % height;
+		r = rand() % 100;
+		c = rand() | 0xff000000;
+		f = rand() % 2;
+
+		if (osd_draw_circle(surface, x, y, r, f, c) < 0)
+			FAIL;
+	}
+
+	timer_end();
+
+	return 0;
+
+ err:
+	return -1;
+}
+
+static int
+test_polygons(char *name)
+{
+	int i;
+	int n = 100;
+	osd_surface_t *surface = NULL;
+
+	printf("drawing %d polygons\t", n);
+
+	timer_start();
+
+	if ((surface=osd_create_surface(width, height,
+					0, OSD_DRAWING)) == NULL)
+		FAIL;
+
+	if (osd_display_surface(surface) < 0)
+		FAIL;
+
+	for (i=0; i<n; i++) {
+		int x[12], y[12];
+		int n, i;
+		unsigned long c;
+
+		n = (rand() % 8) + 3;
+
+		for (i=0; i<n; i++) {
+			x[i] = rand() % width;
+			y[i] = rand() % height;
+		}
+
+		c = rand() | 0xff000000;
+
+		if (osd_draw_polygon(surface, x, y, n, c) < 0)
+			FAIL;
+	}
+
+	timer_end();
+
+	return 0;
+
+ err:
+	return -1;
+}
+
+static int
 test_lines(char *name)
 {
 	int i, j;
@@ -414,7 +498,9 @@ static tester_t tests[] = {
 	{ "create surfaces",	0,	test_create_surfaces },
 	{ "text",		2,	test_text },
 	{ "rectangles",		2,	test_rectangles },
+	{ "circles",		2,	test_circles },
 	{ "lines",		2,	test_lines },
+	{ "polygons",		2,	test_polygons },
 	{ "display control",	2,	test_display_control },
 	{ "blit",		2,	test_blit },
 	{ "cursor",		2,	test_cursor },

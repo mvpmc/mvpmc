@@ -88,8 +88,10 @@ extern int osd_get_surface_size(osd_surface_t *surface, int *w, int *h);
  * Set the full size of the screen.
  * \param w screen width
  * \param h screen height
+ * \retval 0 success
+ * \retval -1 error
  */
-extern void osd_set_screen_size(int w, int h);
+extern int osd_set_screen_size(int w, int h);
 
 /**
  * Shut down access to the hardware OSD device.
@@ -229,6 +231,12 @@ extern int osd_get_display_options(osd_surface_t *surface);
 extern int osd_set_engine_mode(osd_surface_t *surface, int mode);
 extern osd_surface_t* osd_get_visible_surface(void);
 extern int osd_move_cursor(osd_surface_t *surface, int x, int y);
+extern int osd_draw_circle(osd_surface_t *surface, int xc, int yc, int radius,
+			   int filled, unsigned long c);
+extern int osd_draw_polygon(osd_surface_t *surface, int *x, int *y, int n,
+			    unsigned long c);
+extern int osd_draw_pixel_list(osd_surface_t *surface, int *x, int *y, int n,
+			       unsigned int c);
 
 /**
  * Convert RGBA into a pixel color.

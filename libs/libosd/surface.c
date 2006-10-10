@@ -41,11 +41,16 @@ static int full_width = 720, full_height = 480;
 
 static osd_surface_t *visible = NULL;
 
-void
+int
 osd_set_screen_size(int w, int h)
 {
+	if ((w > 720) || (h > 576))
+		return -1;
+
 	full_width = w;
 	full_height = h;
+
+	return 0;
 }
 
 int

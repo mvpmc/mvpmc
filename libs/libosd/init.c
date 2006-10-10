@@ -175,6 +175,12 @@ yuv2rgb(unsigned char y, unsigned char u, unsigned char v,
 }
 
 int
+osd_open(void)
+{
+	return 0;
+}
+
+int
 osd_close(void)
 {
 	close(stbgfx);

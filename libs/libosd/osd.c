@@ -152,56 +152,136 @@ osd_draw_pixel(osd_surface_t *surface, int x, int y, unsigned int c)
 }
 
 int
-osd_draw_line(osd_surface_t *surface, int x1, int y1, int x2, int y2,
-	      unsigned int c)
+osd_draw_pixel_list(osd_surface_t *surface, int *x, int *y, int n,
+		    unsigned int c)
 {
-	int x, y;
-	int i = 0; 
-	double dx, dy;
+	unsigned char r, g, b, a, Y, U, V;
+	int i;
 
 	if (surface == NULL)
 		return -1;
 
-	x = x1;
-	y = y1;
+	c2rgba(c, &r, &g, &b, &a);
+	rgb2yuv(r, g, b, &Y, &U, &V);
 
-	if (y2 == y1)
-		dx = 1;
-	else
-		dx = (double)(x2 - x1) / (double)(y2 - y1);
-	if (x2 == x1)
-		dy = 1;
-	else
-		dy = (double)(y2 - y1) / (double)(x2 - x1);
-
-	if ((x1 > x2) && (dx > 0)) {
-		dx = dx * -1;
-	}
-	if ((x1 < x2) && (dx < 0)) {
-		dx = dx * -1;
-	}
-	if ((y1 > y2) && (dy > 0)) {
-		dy = dy * -1;
-	}
-	if ((y1 < y2) && (dy < 0)) {
-		dy = dy * -1;
-	}
-
-	while (1) {
-		x = x1 + dx * i;
-		y = y1 + dy * i;
-		if ((dx > 0) && (x > x2))
-			break;
-		if ((dx < 0) && (x < x2))
-			break;
-		if ((dy > 0) && (y > y2))
-			break;
-		if ((dy < 0) && (y < y2))
-			break;
-		if (osd_draw_pixel(surface, x, y, c) < 0) {
+	for (i=0; i<n; i++) {
+		if (osd_draw_pixel(surface, x[i], y[i], c) < 0)
 			return -1;
+	}
+
+	return 0;
+}
+
+int
+osd_draw_line(osd_surface_t *surface, int x1, int y1, int x2, int y2,
+	      unsigned int c)
+{
+	int dx, dy;
+	double t = 0.5;
+
+	if (surface == NULL)
+		return -1;
+
+	dy = y2 - y1;
+	dx = x2 - x1;
+
+	osd_draw_pixel(surface, x1, y1, c);
+
+	if (abs(dx) > abs(dy)) {
+		double m = (double)dy / (double)dx;
+		t += y1;
+		dx = (dx < 0) ? -1 : 1;
+		m *= dx;
+		while (x1 != x2) {
+			x1 += dx;
+			t += m;
+			osd_draw_pixel(surface, x1, (int)t, c);
 		}
-		i++;
+	} else {
+		double m = (double)dx / (double)dy;
+		t += x1;
+		dy = (dy < 0) ? -1 : 1;
+		m *= dy;
+		while (y1 != y2) {
+			y1 += dy;
+			t += m;
+			osd_draw_pixel(surface, (int)t, y1, c);
+		}
+	}
+
+	return 0;
+}
+
+int
+osd_draw_polygon(osd_surface_t *surface, int *x, int *y, int n,
+		 unsigned long c)
+{
+	int i;
+
+	if (surface == NULL)
+		return -1;
+
+	if (n < 3)
+		return -1;
+
+	for (i=0; i<n; i++) {
+		int sx, sy, dx, dy;
+
+		sx = x[i];
+		sy = y[i];
+		if ((i+1) == n) {
+			dx = x[0];
+			dy = y[0];
+		} else {
+			dx = x[i+1];
+			dy = y[i+1];
+		}
+		if (osd_draw_line(surface, sx, sy, dx, dy, c) < 0)
+			return -1;
+	}
+
+	return 0;
+}
+
+int
+osd_draw_circle(osd_surface_t *surface, int xc, int yc, int radius,
+		int filled, unsigned long c)
+{
+	int x, y, d;
+
+	if (surface == NULL)
+		return -1;
+
+	x = 0;
+	y = radius;
+	d = 3 - (2*radius);
+
+	while (x <= y) {
+		if (filled == 0) {
+			osd_draw_pixel(surface, xc+x, yc+y, c);
+			osd_draw_pixel(surface, xc-x, yc+y, c);
+			osd_draw_pixel(surface, xc+x, yc-y, c);
+			osd_draw_pixel(surface, xc-x, yc-y, c);
+			osd_draw_pixel(surface, xc+y, yc+x, c);
+			osd_draw_pixel(surface, xc-y, yc+x, c);
+			osd_draw_pixel(surface, xc+y, yc-x, c);
+			osd_draw_pixel(surface, xc-y, yc-x, c);
+		} else {
+			osd_fill_rect(surface, xc-x, yc-y, 2*x, y, c);
+			osd_fill_rect(surface, xc-y, yc-x, y, 2*x, c);
+			osd_fill_rect(surface, xc-x, yc-y, x, 2*y, c);
+			osd_fill_rect(surface, xc-y, yc-x, 2*y, x, c);
+			osd_fill_rect(surface, xc, yc, y, x, c);
+			osd_fill_rect(surface, xc, yc, x, y, c);
+		}
+
+		if (d < 0) {
+			d = d + (4*x) + 6;
+		} else {
+			d = d + (4*(x-y)) + 10;
+			y-=1;
+		}
+		x++;
 	}
 
 	return 0;
