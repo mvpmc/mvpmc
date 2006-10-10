@@ -72,6 +72,7 @@ mvpw_create_surface(mvp_widget_t *parent,
 		pixid = GrNewPixmap(w, h, NULL);
 	}
 	widget->data.surface.wid = pixid;
+	widget->data.surface.pixtype = si.pixtype;
 	widget->data.surface.foreground = 0;
 	widget->data.surface.fd = 0;	
 	
@@ -82,6 +83,7 @@ int
 mvpw_get_surface_attr(mvp_widget_t *widget, mvpw_surface_attr_t *surface)
 {
 	surface->wid = widget->data.surface.wid;
+	surface->pixtype = widget->data.surface.pixtype;
 	surface->foreground = widget->data.surface.foreground;
 	surface->fd = widget->data.surface.fd;
 	return 0;
@@ -91,6 +93,7 @@ int
 mvpw_set_surface_attr(mvp_widget_t *widget, mvpw_surface_attr_t *surface)
 {
 	widget->data.surface.wid = surface->wid;
+	widget->data.surface.pixtype = surface->pixtype;
 	widget->data.surface.foreground = surface->foreground;
 	widget->data.surface.fd = surface->fd;
 	return 0;

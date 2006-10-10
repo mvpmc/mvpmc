@@ -216,6 +216,7 @@ typedef struct {
  * Drawing surface data.
  */
 typedef struct {
+	int		pixtype;	
 	int		wid;		/**< drawing window id */
 	MWPIXELVAL	foreground;	/**< foreground color */
 	int		fd;
