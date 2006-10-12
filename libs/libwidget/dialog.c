@@ -372,6 +372,15 @@ mvpw_get_dialog_title(mvp_widget_t *widget)
 	return rtrn;
 }
 
+char *
+mvpw_get_dialog_text(mvp_widget_t *widget)
+{
+	if (widget == NULL)
+		return NULL;
+
+	return 	mvpw_get_text_str(widget->data.dialog.text_widget);
+}
+
 int
 mvpw_set_dialog_text(mvp_widget_t *widget, char *text)
 {

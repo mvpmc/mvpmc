@@ -941,6 +941,16 @@ extern int mvpw_set_dialog_text(mvp_widget_t *widget, char *text);
  */
 extern int mvpw_add_dialog_button(mvp_widget_t *widget, char *text);
 
+/**
+ * Gett the dialog body text.
+ * \param widget widget handle
+ * \retval char * 
+ * \retval NULL error
+ */
+extern char * mvpw_get_dialog_text(mvp_widget_t *widget);
+
+extern void mvpw_get_dialog_attr(mvp_widget_t *widget,
+				mvpw_dialog_attr_t *attr);
 /*
  * surface widget
  */

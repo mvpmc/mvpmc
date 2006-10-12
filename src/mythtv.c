@@ -79,10 +79,20 @@ static volatile cmyth_proglist_t episode_plist;
 static volatile cmyth_proglist_t pending_plist;
 
 cmyth_program_t *sqlprog=NULL;
+struct guide_options *myptr=NULL;
+cmyth_recgroups_t *sqlrecgroups=NULL;
+
+typedef struct
+{
+    time_t starttime, endtime;
+    struct guide_options *myptr;
+} mythtv_schedule_data_t;
+
 
 volatile cmyth_recorder_t mythtv_recorder;
 volatile cmyth_database_t mythtv_database;
 
+extern void mythtv_schedule_recording(mvp_widget_t*, char *item , void *key, int type); 
 
 static volatile int pending_dirty = 0;
 static volatile int episode_dirty = 0;
@@ -632,7 +642,7 @@ load_episodes(void)
 	} else {
 		fprintf(stderr, "Using cached episode data\n");
 	}
-	fprintf(stderr, "'cmyth_proglist_get_all_recorded' worked\n");
+	cmyth_dbg(CMYTH_DBG_DEBUG,"'cmyth_proglist_get_all_recorded' worked\n");
 
 	count = cmyth_proglist_get_count(ep_list);
 
@@ -2426,175 +2436,17 @@ mythtv_test_exit(void)
 		    __FUNCTION__, __FILE__, __LINE__);
 }
 
-void 
-mythtv_schedule_recording(mvp_widget_t *widget, char *item , void *key, int type)
-{
-	int which = (int) mvpw_menu_get_hilite(widget);
-	char buf[32];
-	char query[700];
-	char query1[700];
-	char query2[500];
-	char msg[45];
-	char guierrormsg[45];
-	int err=0;
-	int rec_id=0;
-	cmyth_conn_t ctrl = cmyth_hold(control);
-	char *string;
-	unsigned int len;
-	int rcrd = sqlprog[which].recording;
-
-	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) \n",
-		__FUNCTION__, __FILE__, __LINE__);
-	fprintf(stderr,"DB version = %d\n",cmyth_conn_get_protocol_version(control));
-	switch (which) {
-		default:
-			fprintf(stderr, "Recording status = %d\n", sqlprog[which].recording);
-			if(rcrd == 1 || rcrd == 2 || rcrd == 10 ) {
-				fprintf(stderr, "MythTV - Episode already scheduled or recorded, do not duplicate\n");
-				break;
-			}
-			
-		       	len = strlen(sqlprog[which].seriesid);
-			string=malloc(len * sizeof(char));
-
-			string = cmyth_mysql_escape_chars(mythtv_database,sqlprog[which].seriesid);
- 
-			fprintf(stderr, "Seriesid = %s\n",string);
-
-			switch (cmyth_conn_get_protocol_version(control)) {
-
-			case 15:
-				sprintf(query, "REPLACE INTO record ( \
-					recordid,type,chanid,starttime,startdate,endtime, \
-					enddate,\
-					title,\
-					subtitle, \
-					description, \
-					category,profile,recpriority,autoexpire,maxepisodes, \
-					maxnewest, startoffset,endoffset,recgroup,dupmethod,dupin, \
-					station,\
-					seriesid,programid,search, autotranscode,autocommflag,autouserjob1,autouserjob2,autouserjob3, \
-					autouserjob4, findday,findtime,findid, inactive, parentid) values \
-					(NULL,'%d','%d',FROM_UNIXTIME(%d), \
-					 FROM_UNIXTIME(%d),FROM_UNIXTIME(%d), \
-					FROM_UNIXTIME(%d),", 
-					type, sqlprog[which].chanid,
-					(int)sqlprog[which].starttime,
-					(int)sqlprog[which].starttime,
-					(int)sqlprog[which].endtime,
-					(int)sqlprog[which].endtime);
-				sprintf(query1, " \
-					,'%s','Default','0','0','0', \
-					'0','0','0','Default','6','15',", \
-					sqlprog[which].category); 
-				sprintf(query2,",'%s','%s','0','0','1','0','0','0', \
-					'0','5',FROM_UNIXTIME(%d),'732800.33333333','0','0')", \
-					sqlprog[which].seriesid,sqlprog[which].programid,(int)sqlprog[which].starttime );
-				break;
-			case 20:
-				sprintf(guierrormsg, "No MythTV SQL support\nMythTV version: %d\n", 20);
-				gui_error(guierrormsg);
-				break;
-			case 26 ... 30:
-				sprintf(query, "REPLACE INTO record ( \
-					recordid,type,chanid,starttime,startdate,endtime, \
-					enddate,search,\
-					title,\
-					subtitle, \
-					description, \
-					profile,recpriority,category,maxnewest,inactive,maxepisodes, \
-					autoexpire,startoffset,endoffset,recgroup,dupmethod,dupin, \
-					station,\
-					seriesid,programid,autocommflag,findday,findtime,findid, \
-					autotranscode,transcoder,tsdefault,autouserjob1,autouserjob2,autouserjob3, \
-					autouserjob4) values \
-					(NULL,'%d','%d',FROM_UNIXTIME(%d), \
-					 FROM_UNIXTIME(%d), FROM_UNIXTIME(%d), \
-					 FROM_UNIXTIME(%d),'',", 
-					type, sqlprog[which].chanid,
-					(int)sqlprog[which].starttime,
-					(int)sqlprog[which].starttime,
-					(int)sqlprog[which].endtime,
-					(int)sqlprog[which].endtime);
-				sprintf(query1, " \
-					,'Default','0','','0','0','0', \
-					'0','0','0','Default','6','15',"); 
-				sprintf(query2,",'%s','%s','1','5',FROM_UNIXTIME(%d),'732800.33333333', \
-					'0','0','1.00','0','0','0', \
-					'0')", \
-					sqlprog[which].seriesid,sqlprog[which].programid,(int)sqlprog[which].starttime );
-				break;
-			default:
-				sprintf(guierrormsg, "No MythTV SQL support\nMythTV version: %d\n", cmyth_conn_get_protocol_version(control));
-				gui_error(guierrormsg);
-				goto out;	
-				break;
-			}
-	                cmyth_dbg(CMYTH_DBG_DEBUG, "%s query = [%s]\n %d", __FUNCTION__, query,err);
-
-			if ((rec_id=cmyth_mysql_insert_into_record(mythtv_database,query,query1,query2,sqlprog[which].title,sqlprog[which].subtitle,sqlprog[which].description,sqlprog[which].callsign) ) <= 0 ) {
-        		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1)\n",
-               			__FUNCTION__, __FILE__, __LINE__);
-			goto err;
-			} 
-			else {
-				sprintf(msg,"RESCHEDULE_RECORDINGS %d",rec_id);
-				if ((err=cmyth_schedule_recording(ctrl,msg))<0){
-					cmyth_dbg(CMYTH_DBG_ERROR,
-					"%s: cmyth_sschedule_recording() failed (%d)\n", 
-					__FUNCTION__,err);
-					fprintf (stderr, "Error scheduling recording : %d\n",err);
-					goto err;
-				} 
-				sqlprog[which].recording = 1;
-			} 
-			break;
-		} /* first switch */
-
-	if ( sqlprog[which].recording ) {
-		sprintf(buf, "Recording Scheduled\n");
-		mvpw_set_text_str(program_info_widget, buf);
-		mvpw_show(program_info_widget);
-		item_attr.fg = mythtv_colors.pending_will_record;	
-		mvpw_menu_set_item_attr(widget, key, &item_attr);
-	}
-	out:
-		cmyth_release(ctrl);
-		return;
-
-	err:
-		sprintf(buf, "ERROR-Recording NOT Scheduled\n");
-		mvpw_set_text_str(program_info_widget, buf);
-		mvpw_show(program_info_widget);
-		cmyth_release(ctrl);
-		return;
-}
-
-extern void mythtv_schedule_recording(mvp_widget_t*, char *item , void *key, int type);
-
 static void
-schedule_recording_callback(mvp_widget_t *widget, char *item , void *key)
+mythtv_schedule_options_move(mvp_widget_t *widget, char *item , void *key, bool hilite)
 {
-	int which = (int)key;
-
-	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) \n",
-		__FUNCTION__, __FILE__, __LINE__);
-	fprintf(stderr,"DB version = %d\n",cmyth_conn_get_protocol_version(control));
-	switch (which) {
-		case 0:
-			mythtv_guide_menu_move(widget,PROGRAM_ADJUST);
-			item_attr.fg = mythtv_colors.menu_item;	
-			break;
-		case 1:
-			mythtv_guide_menu_move(widget,-PROGRAM_ADJUST);
-			item_attr.fg = mythtv_colors.menu_item;	
-			break;
-		default:
-			/* Record only this showing */
-			mythtv_schedule_recording(widget, item , key, 1);
-		break;
-		} /* first switch */
-	return;
+       	int i = (int)key;
+       	mvpw_check_menu_item(widget, (void*)0, 0);
+       	mvpw_check_menu_item(widget, (void*)1, 0);
+       	mvpw_check_menu_item(widget, (void*)2, 0);
+       	mvpw_check_menu_item(widget, (void*)3, 0);
+       	mvpw_check_menu_item(widget, (void*)4, 0);
+       	mvpw_check_menu_item(widget, (void*)5, 0);
+      	mvpw_check_menu_item(widget, (void*)i, 1);
 }
 
 static char *
@@ -2610,6 +2462,140 @@ timestr(time_t time)
     return ret_string;
 }
 
+void
+schedule_recording_callback(mvp_widget_t *widget, char *item , void *key)
+{
+	int which = (int)key;
+	mythtv_schedule_data_t * user_data = mvpw_get_user_data(widget);
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace)  which:%d  item=%s\n",
+		__FUNCTION__, __FILE__, __LINE__,which,item);
+	if (which==0) { 
+		fprintf (stderr, "which = 0 so return\n");
+		return;
+	}
+
+	mvpw_hide(user_data->myptr->pane1);
+	mvpw_hide(user_data->myptr->pane2);
+	mvpw_hide(user_data->myptr->pane3);
+	mvpw_hide(user_data->myptr->pane4);
+	switch (which) {
+		case 0:
+			/* do not record */
+			gui_mesg("Recording Options", "Recording NOT scheduled");
+			break;
+		case 1:
+			/* record only this showing */
+			mythtv_schedule_recording(user_data->myptr->widget, item , (void*)which, 1);
+			break;
+		case 2:
+			/* record this program in this timeslot every day */
+			mythtv_schedule_recording(user_data->myptr->widget, item , (void*)which, 2);
+			break;
+		case 3:
+			/* record this program in this timeslot every week */
+			mythtv_schedule_recording(user_data->myptr->widget, item , (void*)which, 5);
+			break;
+		case 4:
+			/* record any time on channel */
+			mythtv_schedule_recording(user_data->myptr->widget, item , (void*)which, 3);
+			break;
+		case 5:
+			/* record any time on any channel */
+			mythtv_schedule_recording(user_data->myptr->widget, item , (void*)which, 4);
+			break;
+		default:
+			/* do not record */
+			gui_mesg("Recording Options", "Recording NOT scheduled");
+			break;
+	} 
+	mvpw_show(user_data->myptr->widget);
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s return\n", __FUNCTION__);
+	return;
+}
+
+static void
+schedule_recording_callback_popup(mvp_widget_t *widget, char *item , void *key)
+{
+	mythtv_schedule_data_t *user_data;
+	int which = (int)key;
+     	char buf[65];
+	char *recordid;
+	int startoffset;
+	int endoffset;
+	int i;
+
+	switch (which) {
+		case -1:
+			mythtv_guide_menu_move(widget,-PROGRAM_ADJUST);
+			break;	
+		case -2:
+			mythtv_guide_menu_move(widget,PROGRAM_ADJUST);
+			break;	
+		default:
+			recordid=cmyth_get_recordid_mysql(mythtv_database,sqlprog[which].chanid,
+					cmyth_mysql_escape_chars(mythtv_database,sqlprog[which].title),
+					cmyth_mysql_escape_chars(mythtv_database,sqlprog[which].subtitle),
+					cmyth_mysql_escape_chars(mythtv_database,sqlprog[which].description),
+					sqlprog[which].seriesid,
+					sqlprog[which].programid
+				);
+			if (strcmp(recordid, "NULL")!=0) { // found a previous schedule
+			// need to pull offsets for recordid	
+				startoffset = cmyth_get_offset_mysql(mythtv_database,1,recordid,
+					sqlprog[which].chanid,
+					cmyth_mysql_escape_chars(mythtv_database,sqlprog[which].title),
+					cmyth_mysql_escape_chars(mythtv_database,sqlprog[which].subtitle),
+					cmyth_mysql_escape_chars(mythtv_database,sqlprog[which].description),
+					sqlprog[which].seriesid,
+					sqlprog[which].programid
+				);
+				endoffset = cmyth_get_offset_mysql(mythtv_database,0,recordid,
+					sqlprog[which].chanid,
+					cmyth_mysql_escape_chars(mythtv_database,sqlprog[which].title),
+					cmyth_mysql_escape_chars(mythtv_database,sqlprog[which].subtitle),
+					cmyth_mysql_escape_chars(mythtv_database,sqlprog[which].description),
+					sqlprog[which].seriesid,
+					sqlprog[which].programid
+				);
+				MYTHTV_RECORD_START=startoffset;	
+				MYTHTV_RECORD_END=endoffset;	
+			}
+			user_data = mvpw_get_user_data(widget);
+       			item_attr.select=schedule_recording_callback;
+       			item_attr.hilite=mythtv_schedule_options_move;
+			mvpw_clear_menu(user_data->myptr->pane1);
+			mvpw_clear_menu(user_data->myptr->pane4);
+			user_data->myptr->widget=widget;
+	       		mvpw_hide(widget);
+	       		sprintf (buf, "Schedule Recording");
+	       		mvpw_set_menu_title(user_data->myptr->pane1,buf);
+	       		sprintf (buf, "Record any time on channel %d",sqlprog[which].channum);
+	       		mvpw_add_menu_item(user_data->myptr->pane1, "Don't record this program", (void*)0, &item_attr);
+	       		mvpw_add_menu_item(user_data->myptr->pane1, "Record only this showing" , (void*)1, &item_attr);
+	       		mvpw_add_menu_item(user_data->myptr->pane1, "Record this program in this timeslot every day", (void*)2, &item_attr);
+	       		mvpw_add_menu_item(user_data->myptr->pane1, "Record this program in this timeslot every week", (void*)3, &item_attr);
+	       		mvpw_add_menu_item(user_data->myptr->pane1, buf, (void*)4, &item_attr);
+	       		mvpw_add_menu_item(user_data->myptr->pane1, "Record any time on any channel", (void*)5, &item_attr);
+	       		mvpw_check_menu_item(user_data->myptr->pane1, 0, 1);
+
+       			item_attr.select=NULL;
+			for (i=0;i<user_data->myptr->nrecgroups;i++) {
+	 			mvpw_add_menu_item(user_data->myptr->pane4, sqlrecgroups[i].recgroups, (void*)i, &item_attr);
+			}
+			mvpw_check_menu_item(user_data->myptr->pane4, 0, 1);
+
+	 	      	mvpw_show(user_data->myptr->pane1);
+	 	      	mvpw_show(user_data->myptr->pane2);
+	 	      	mvpw_show(user_data->myptr->pane3);
+	 	      	mvpw_show(user_data->myptr->pane4);
+
+ 		      	mvpw_focus(user_data->myptr->pane1);
+			mvpw_set_user_data(user_data->myptr->pane1,(void *)user_data);
+			break;
+	}	
+	return;
+}
+
 static void
 hilite_schedule_recording_callback(mvp_widget_t *widget, char *item , void *key, bool hilite)
 {
@@ -2617,11 +2603,10 @@ hilite_schedule_recording_callback(mvp_widget_t *widget, char *item , void *key,
 	char buf[550];
 	char *record_message;
 	char startstring[50];
-	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace)  which =%d\n",
-		__FUNCTION__, __FILE__, __LINE__, which);
-
 	if(which >= 0)
 	{
+			cmyth_dbg(CMYTH_DBG_DEBUG, "which=%d sqlprog[which].recording=%d\n",
+				which,sqlprog[which].recording);
 			switch (sqlprog[which].recording) {
 				case 1:
 					record_message = "Recording";
@@ -2656,7 +2641,6 @@ hilite_schedule_recording_callback(mvp_widget_t *widget, char *item , void *key,
 				default:
 					record_message = "Not Scheduled to record";
 			}
-
 			sprintf(startstring, "%s - ",timestr(sqlprog[which].starttime));
 			strcat(startstring,timestr(sqlprog[which].endtime));
 			sprintf(buf, "%s\n%s\n%d - %s  - Tuner %d\n%s",record_message,startstring,sqlprog[which].channum,sqlprog[which].callsign,sqlprog[which].sourceid,sqlprog[which].description);
@@ -2668,6 +2652,205 @@ hilite_schedule_recording_callback(mvp_widget_t *widget, char *item , void *key,
 	    mvpw_set_text_str(program_info_widget,"");
 	    mvpw_show(program_info_widget);
 	}
+}
+
+void 
+mythtv_schedule_recording(mvp_widget_t *widget, char *item , void *key, int type)
+{
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s return\n", __FUNCTION__);
+
+	int which = (int) mvpw_menu_get_hilite(widget);
+	int record_option = (int) key;    //will be 0 if not using schedule options
+	mythtv_schedule_data_t * user_data = mvpw_get_user_data(widget);
+	char buf[256];
+	char query[700];
+	char query1[700];
+	char query2[500];
+	char msg[45];
+	char guierrormsg[45];
+	int sqlcount=user_data->myptr->sqlcount;
+	int err=0;
+	int i,rec_id=0;
+	cmyth_conn_t ctrl = cmyth_hold(control);
+	char *string;
+	unsigned int len;
+	//int rcrd = sqlprog[which].recording;
+	char *startoffset,*endoffset;
+	char *recordid=NULL;
+
+	startoffset=mvpw_get_dialog_text(user_data->myptr->pane2);
+	endoffset=mvpw_get_dialog_text(user_data->myptr->pane3);
+
+	int rgroup=(int) mvpw_menu_get_hilite(user_data->myptr->pane4);
+
+	MYTHTV_RECORD_START=0;
+	MYTHTV_RECORD_END=0;
+
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) \n",
+		__FUNCTION__, __FILE__, __LINE__);
+	fprintf(stderr,"DB version = %d\n",cmyth_conn_get_protocol_version(control));
+	fprintf(stderr,"Recording TYPE = %d\n",record_option);
+	switch (which) {
+		default:
+			fprintf(stderr, "Recording status = %d\n", sqlprog[which].recording);
+			fprintf (stderr, "recordid = %s\n",recordid);
+			recordid=cmyth_get_recordid_mysql(mythtv_database, sqlprog[which].chanid,
+				cmyth_mysql_escape_chars(mythtv_database,sqlprog[which].title),
+				cmyth_mysql_escape_chars(mythtv_database,sqlprog[which].subtitle), 
+				cmyth_mysql_escape_chars(mythtv_database,sqlprog[which].description),
+				sqlprog[which].seriesid,
+				sqlprog[which].programid
+			);
+
+			// above lines fix this issue, but leaving for now
+			//if(rcrd == 1 || rcrd == 2 || rcrd == 10 ) {  
+			//	fprintf(stderr, "MythTV - Episode already scheduled or recorded, do not duplicate\n");
+			//}
+			
+		       	len = strlen(sqlprog[which].seriesid);
+			string=malloc(len * sizeof(char));
+
+			string = cmyth_mysql_escape_chars(mythtv_database,sqlprog[which].seriesid);
+ 
+			switch (cmyth_conn_get_protocol_version(control)) {
+
+			case 15:
+				sprintf(query, "REPLACE INTO record ( \
+					recordid,type,chanid,starttime,startdate,endtime, \
+					enddate,\
+					title,\
+					subtitle, \
+					description, \
+					category,profile,recpriority,autoexpire,maxepisodes, \
+					maxnewest, startoffset,endoffset,recgroup,dupmethod,dupin, \
+					station,\
+					seriesid,programid,search, autotranscode,autocommflag,autouserjob1,autouserjob2,autouserjob3, \
+					autouserjob4, findday,findtime,findid, inactive, parentid) values \
+					('%s','%d','%d',FROM_UNIXTIME(%d), \
+					 FROM_UNIXTIME(%d),FROM_UNIXTIME(%d), \
+					FROM_UNIXTIME(%d),", recordid, 
+					type, sqlprog[which].chanid,
+					(int)sqlprog[which].starttime,
+					(int)sqlprog[which].starttime,
+					(int)sqlprog[which].endtime,
+					(int)sqlprog[which].endtime);
+				sprintf(query1, " \
+					,'%s','Default','0','0','0', \
+					'0','0','0','Default','6','15',", \
+					sqlprog[which].category); 
+				sprintf(query2,",'%s','%s','0','0','1','0','0','0', \
+					'0','5',FROM_UNIXTIME(%d),'732800.33333333','0','0')", \
+					sqlprog[which].seriesid,sqlprog[which].programid,(int)sqlprog[which].starttime );
+				break;
+			case 20:
+				sprintf(guierrormsg, "No MythTV SQL support\nMythTV version: %d\n", 20);
+				gui_error(guierrormsg);
+				break;
+			case 26 ... 30:
+				sprintf(query, "REPLACE INTO record ( \
+					recordid,type,chanid,starttime,startdate,endtime, \
+					enddate,search,\
+					title,\
+					subtitle, \
+					description, \
+					profile,recpriority,category,maxnewest,inactive,maxepisodes, \
+					autoexpire,startoffset,endoffset,recgroup,dupmethod,dupin, \
+					station,\
+					seriesid,programid,autocommflag,findday,findtime,findid, \
+					autotranscode,transcoder,tsdefault,autouserjob1,autouserjob2,autouserjob3, \
+					autouserjob4) values \
+					('%s','%d','%d',FROM_UNIXTIME(%d), \
+					 FROM_UNIXTIME(%d), FROM_UNIXTIME(%d), \
+					 FROM_UNIXTIME(%d),'',", recordid,
+					type, sqlprog[which].chanid,
+					(int)sqlprog[which].starttime,
+					(int)sqlprog[which].starttime,
+					(int)sqlprog[which].endtime,
+					(int)sqlprog[which].endtime);
+				sprintf(query1, " ,'Default','0','','0','0','0','0', '%s', '%s','%s','6','15',",startoffset,endoffset,sqlrecgroups[rgroup].recgroups);
+				sprintf(query2,",'%s','%s','1','5',FROM_UNIXTIME(%d),'732800.33333333', \
+					'0','0','1.00','0','0','0', \
+					'0')", \
+					sqlprog[which].seriesid,sqlprog[which].programid,(int)sqlprog[which].starttime);
+				break;
+			default:
+				sprintf(guierrormsg, "No MythTV SQL support\nMythTV version: %d\n", cmyth_conn_get_protocol_version(control));
+				gui_error(guierrormsg);
+				goto out;	
+				break;
+			}
+			if ((rec_id=cmyth_mysql_insert_into_record(mythtv_database,query,query1,query2,sqlprog[which].title,sqlprog[which].subtitle,sqlprog[which].description,sqlprog[which].callsign) ) <= 0 ) {
+        			cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1)\n",
+               				__FUNCTION__, __FILE__, __LINE__);
+				goto err;
+			} 
+			else {
+				sprintf(msg,"RESCHEDULE_RECORDINGS %d",rec_id);
+				if ((err=cmyth_schedule_recording(ctrl,msg))<0){
+					cmyth_dbg(CMYTH_DBG_ERROR,
+					"%s: cmyth_sschedule_recording() failed (%d)\n", 
+					__FUNCTION__,err);
+					fprintf (stderr, "Error scheduling recording : %d\n",err);
+					goto err;
+				} 
+				sqlprog[which].recording = 2;
+			} 
+			break;
+		} /* first switch */
+
+	if ( sqlprog[which].recording) {
+		sprintf(buf, "Recording Scheduled\n");
+		mvpw_set_text_str(program_info_widget, buf);
+		mvpw_show(program_info_widget);
+
+		mvpw_clear_menu(widget);
+		item_attr.select = schedule_recording_callback_popup;
+		item_attr.hilite = hilite_schedule_recording_callback;
+		item_attr.fg = mythtv_attr.fg;
+		item_attr.bg = mythtv_attr.bg;
+		mvpw_add_menu_item(widget, "Get Next Hour", (void*)-2, &item_attr);
+		mvpw_add_menu_item(widget, "Get Previous Hour", (void*)-1, &item_attr);
+       		for (i=0; i<sqlcount; i++) {
+                	switch (sqlprog[i].recording) {
+                        	case 1:
+                        	        item_attr.fg = mythtv_colors.pending_will_record;
+                        	        break;
+                        	case 2:
+                        	        item_attr.fg = mythtv_colors.pending_will_record;
+                        	        break;
+                        	case 3:
+                        	        item_attr.fg = mythtv_colors.pending_conflict;
+                        	        break;
+                        	case 4 ... 10:
+                        	case 99:
+                        	        item_attr.fg = mythtv_colors.pending_other;
+                        	        break;
+                        	default:
+                        	        item_attr.fg = mythtv_attr.fg;
+                	}
+			snprintf(buf, sizeof(buf),"%d (%s): %s - %s",sqlprog[i].channum,sqlprog[i].callsign,sqlprog[i].title,sqlprog[i].subtitle);
+        		mvpw_add_menu_item(widget, buf , (void*)(i), &item_attr);
+        		cmyth_dbg(CMYTH_DBG_DEBUG, "Menu added %d : %s : recording=%d : so=%d : eo=%d\n", i, buf,sqlprog [i].recording,sqlprog[i].startoffset,sqlprog[i].endoffset);
+		}
+
+//		item_attr.fg = mythtv_colors.pending_will_record;
+//		snprintf(buf, sizeof(buf),"%d (%s): %s - %s",sqlprog[which].channum,sqlprog[which].callsign,sqlprog[which].title,sqlprog[which].subtitle);
+//		mvpw_add_menu_item(widget, buf, (void *)which, &item_attr);
+//		mvpw_menu_set_item_attr(widget, (void*)which, &item_attr); 
+
+	}
+	mvpw_set_dialog_text(user_data->myptr->pane2,"0");
+	mvpw_set_dialog_text(user_data->myptr->pane3,"0");
+	out:
+		cmyth_release(ctrl);
+		return;
+
+	err:
+		sprintf(buf, "ERROR-Recording NOT Scheduled\n");
+		mvpw_set_text_str(program_info_widget, buf);
+		mvpw_show(program_info_widget);
+		cmyth_release(ctrl);
+		return;
 }
 
 int 
@@ -2697,7 +2880,7 @@ myth_sql_program_info(time_t now, int sqlcount, int all)
                 pending_dirty = 0;
         }
         else {
-                /* fprintf(stderr, "Using cached pending data -- %s\n", __FUNCTION__); */
+                fprintf(stderr, "Using cached pending data -- %s\n", __FUNCTION__);
                 pnd_list = cmyth_hold(pending_plist);
         }
         count = cmyth_proglist_get_count(pnd_list);
@@ -2719,7 +2902,6 @@ myth_sql_program_info(time_t now, int sqlcount, int all)
                 channel_id = (long)cmyth_proginfo_chan_id(prog);
 		seriesid = (char*)cmyth_proginfo_seriesid(prog);
 		programid = (char*)cmyth_proginfo_programid(prog);
-
                 ts = cmyth_proginfo_rec_start(prog);
                 start =cmyth_timestamp_to_unixtime(ts);
 
@@ -2739,14 +2921,13 @@ myth_sql_program_info(time_t now, int sqlcount, int all)
 
                 card_id = cmyth_proginfo_card_id(prog);
                 snprintf(card, sizeof(card), "%ld", card_id);
-
                 for (j=0; j<sqlcount; j++) {
                         if ( (strcmp(sqlprog[j].title,title) == 0) && 
 				(sqlprog[j].chanid == channel_id) &&
 				(strcmp(sqlprog[j].seriesid, seriesid) ==0) &&
 				(strcmp(sqlprog[j].programid, programid) == 0) && 
 				(sqlprog[j].starttime == start) ) {
-				fprintf(stderr, "Title (%d-%d): %s,\t\tStatus: %d\nStartSQL %d\t\tStartMyth %d\n", i, j, title, status, (int)sqlprog[j].starttime, (int)start);
+				fprintf(stderr, "** Title (%d-%d): %s,\t\tStatus: %d\nStartSQL %d\t\tStartMyth %d\n", i, j, title, status, (int)sqlprog[j].starttime, (int)start);
                                 switch (status) {
                                         case RS_RECORDING:
                                                 sqlprog[j].recording=1;
@@ -2795,14 +2976,6 @@ myth_sql_program_info(time_t now, int sqlcount, int all)
         return 0;
 }
 
-
-typedef struct
-{
-    time_t starttime, endtime;
-} mythtv_schedule_data_t;
-
-
-
 /**
  * Update/first show guide/scheduling menu
  * \param widget the menu widget
@@ -2812,21 +2985,28 @@ typedef struct
  * \return -1 failure
  */
 static int
-mythtv_guide_menu_update(mvp_widget_t *widget, time_t starttime, time_t endtime)
+mythtv_guide_menu_update(mvp_widget_t *widget, time_t starttime, time_t endtime, mvp_widget_t *pane1, mvp_widget_t *pane2, mvp_widget_t *pane3, mvp_widget_t *pane4)
 {
 	int i=0,sqlcount,count;
 	char buf[256];
 	mythtv_schedule_data_t * user_data = mvpw_get_user_data(widget);
+
 	if(user_data == NULL)
 	{
 	    user_data = malloc(sizeof(*user_data));
+	    user_data->myptr = malloc(sizeof(*myptr));
 	    mvpw_set_user_data(widget,(void *)user_data);
 	}
+
 	user_data->starttime = starttime;
 	user_data->endtime = endtime;
-	
 
-	item_attr.select = schedule_recording_callback;
+	user_data->myptr->pane1 = pane1; //recording options
+       	user_data->myptr->pane2 = pane2; //early start
+       	user_data->myptr->pane3 = pane3; //end late
+       	user_data->myptr->pane4 = pane4; //recording groups
+	
+	item_attr.select = schedule_recording_callback_popup;
 	item_attr.hilite = hilite_schedule_recording_callback;
 	item_attr.fg = mythtv_attr.fg;
 	item_attr.bg = mythtv_attr.bg;
@@ -2849,6 +3029,10 @@ mythtv_guide_menu_update(mvp_widget_t *widget, time_t starttime, time_t endtime)
 		free(sqlprog);
 		sqlprog=NULL;
 	}
+	if (sqlrecgroups != NULL) { 
+		free(sqlrecgroups);
+		sqlrecgroups=NULL;
+	}
 
         sqlcount=cmyth_mysql_get_guide(mythtv_database,&sqlprog,starttime,endtime);
 
@@ -2862,6 +3046,17 @@ mythtv_guide_menu_update(mvp_widget_t *widget, time_t starttime, time_t endtime)
 		free(sqlprog);
 		goto out;
 	}
+       	user_data->myptr->sqlcount = sqlcount;
+
+	if ( (user_data->myptr->nrecgroups=cmyth_mysql_get_recgroups(mythtv_database, &sqlrecgroups))<1) {
+		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1)\n",
+			__FUNCTION__, __FILE__, __LINE__); 
+		snprintf(buf, sizeof(buf),"No Rec Groups retuned from Database...\nDatabase Error.  Please check your settings\n" );
+		mvpw_add_menu_item(widget, buf , (void*)i, &item_attr);
+		goto out;
+
+	}	
+	//fprintf (stderr, "back from recgroups call : sqlrecgroups[0].recgroup=%s : total=%d\n",sqlrecgroups[0].recgroups,user_data->myptr->nrecgroups);
 	
 	if (myth_sql_program_info(starttime,sqlcount, 0) <0) {
 		cmyth_dbg(CMYTH_DBG_DEBUG, "error returned from %s [#%s] line: %d\n", __FUNCTION__ ,sqlcount,__LINE__); 
@@ -2897,6 +3092,7 @@ mythtv_guide_menu_update(mvp_widget_t *widget, time_t starttime, time_t endtime)
 
 		snprintf(buf, sizeof(buf),"%d (%s): %s - %s",sqlprog[i].channum,sqlprog[i].callsign,sqlprog[i].title,sqlprog[i].subtitle); 
 		mvpw_add_menu_item(widget, buf , (void*)(i), &item_attr);
+		cmyth_dbg(CMYTH_DBG_DEBUG, "Menu added %d : %s : recording=%d : so=%d : eo=%d\n", i, buf,sqlprog[i].recording,sqlprog[i].startoffset,sqlprog[i].endoffset); 
 	}
 	out:
 		mvpw_show(widget);
@@ -2923,7 +3119,7 @@ mythtv_guide_menu_move(mvp_widget_t *widget, int distance)
 	
 	starttime = user_data->starttime + distance;
 	endtime = user_data->endtime + distance;
-	return mythtv_guide_menu_update(widget, starttime,endtime);
+	return mythtv_guide_menu_update(widget, starttime,endtime,user_data->myptr->pane1,user_data->myptr->pane2,user_data->myptr->pane3,user_data->myptr->pane4);
 }
 
 
@@ -2934,13 +3130,13 @@ mythtv_guide_menu_move(mvp_widget_t *widget, int distance)
  * \return -1 failure
  */
 int
-mythtv_guide_menu(mvp_widget_t *widget) 
+mythtv_guide_menu(mvp_widget_t *widget, mvp_widget_t *p1, mvp_widget_t *p2, mvp_widget_t *p3, mvp_widget_t *p4) 
 {
 	time_t starttime, endtime;
 	starttime = time(NULL);
 	starttime -= starttime % 3600;
 	endtime = starttime + PROGRAM_ADJUST;
-	return mythtv_guide_menu_update(widget, starttime, endtime);
+	return mythtv_guide_menu_update(widget, starttime, endtime, p1, p2, p3, p4);
 }
 
 static void
@@ -3021,7 +3217,7 @@ prog_finder_time_callback(mvp_widget_t *widget, char *item , void *key)
 			/* Record only this showing */
 			mythtv_schedule_recording(widget, item , key, 1);
 			break;
-		} /* first switch */
+		} 
 
 	return;
 }
@@ -3053,6 +3249,7 @@ hilite_prog_finder_time_callback(mvp_widget_t *widget, char *item , void *key, b
 	}
 
 }
+	
 
 int
 mythtv_prog_finder_char_menu_right (int direction, mvp_widget_t *widget, mvp_widget_t *widget2, mvp_widget_t *widget3) 

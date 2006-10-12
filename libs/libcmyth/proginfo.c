@@ -357,8 +357,7 @@ cmyth_proginfo_dup(cmyth_proginfo_t p)
  * Failure: -(ERRNO)
  */
 int
-programinfo_stop_recording(cmyth_conn_t control,
-			   cmyth_proginfo_t prog)
+cmyth_proginfo_stop_recording(cmyth_conn_t control, cmyth_proginfo_t prog)
 {
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s\n", __FUNCTION__);
 	return -ENOSYS;
@@ -382,8 +381,7 @@ programinfo_stop_recording(cmyth_conn_t control,
  * Failure: -(ERRNO)
  */
 int
-programinfo_check_recording(cmyth_conn_t control,
-			    cmyth_proginfo_t prog)
+cmyth_proginfo_check_recording(cmyth_conn_t control, cmyth_proginfo_t prog)
 {
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s\n", __FUNCTION__);
 	return -ENOSYS;
@@ -657,228 +655,6 @@ cmyth_proginfo_chan_id(cmyth_proginfo_t prog)
 		return -EINVAL;
 	}
 	return prog->proginfo_chanId;
-}
-
-/*
- * cmyth_proginfo_string(cmyth_proginfo_t prog)
- *
- *
- * Scope: PRIVATE (mapped to __cmyth_proginfo_string)
- *
- * Description
- *
- * Translates a cmyth_proginfo_t into a MythTV protocol string for
- * use in making requests.
- *
- * Return Value:
- *
- * Success: A pointer to a malloc'ed string.
- *
- * Failure: NULL
- */
-char *
-cmyth_proginfo_string(cmyth_proginfo_t prog)
-{
-	unsigned len = ((2 * CMYTH_LONGLONG_LEN) + 
-			(4 * CMYTH_TIMESTAMP_LEN) +
-			(14 * CMYTH_LONG_LEN));
-	char start_ts[CMYTH_TIMESTAMP_LEN + 1];
-	char end_ts[CMYTH_TIMESTAMP_LEN + 1];
-	char rec_start_ts[CMYTH_TIMESTAMP_LEN + 1];
-	char rec_end_ts[CMYTH_TIMESTAMP_LEN + 1];
-	char originalairdate[CMYTH_TIMESTAMP_LEN + 1];
-	char lastmodified[CMYTH_TIMESTAMP_LEN + 1];
-	char *ret;
-
-	len += strlen(prog->proginfo_title);
-	len += strlen(prog->proginfo_subtitle);
-	len += strlen(prog->proginfo_description);
-	len += strlen(prog->proginfo_category);
-	len += strlen(prog->proginfo_chanstr);
-	len += strlen(prog->proginfo_chansign);
-	len += strlen(prog->proginfo_channame);
-	len += strlen(prog->proginfo_url);
-	len += strlen(prog->proginfo_hostname);
-
-	ret = malloc(len + 1+2048);
-	if (!ret) {
-		return NULL;
-	}
-	cmyth_timestamp_to_string(start_ts, prog->proginfo_start_ts);
-	cmyth_timestamp_to_string(end_ts, prog->proginfo_end_ts);
-	cmyth_timestamp_to_string(rec_start_ts, prog->proginfo_rec_start_ts);
-	cmyth_timestamp_to_string(rec_end_ts, prog->proginfo_rec_end_ts);
-	cmyth_timestamp_to_string(originalairdate,
-				  prog->proginfo_originalairdate);
-	cmyth_timestamp_to_string(lastmodified, prog->proginfo_lastmodified);
-	
-	if (prog->proginfo_version >= 8) {
-		sprintf(ret,
-			"%s[]:[]%s[]:[]%s[]:[]%s[]:[]%ld[]:[]"
-			"%s[]:[]%s[]:[]%s[]:[]%s[]:[]%lld[]:[]"
-			"%lld[]:[]%s[]:[]%s[]:[]%s[]:[]%ld[]:[]"
-			"%ld[]:[]%s[]:[]%ld[]:[]%ld[]:[]%ld[]:[]"
-			"%s[]:[]%ld[]:[]%ld[]:[]%ld[]:[]%ld[]:[]"
-			"%ld[]:[]%s[]:[]%s[]:[]%ld[]:[]%ld[]:[]"
-			"%s[]:[]%s[]:[]%s[]:[]%s[]:[]",
-			prog->proginfo_title,
-			prog->proginfo_subtitle,
-			prog->proginfo_description,
-			prog->proginfo_category,
-			prog->proginfo_chanId,
-			prog->proginfo_chanstr,
-			prog->proginfo_chansign,
-			prog->proginfo_chanicon,
-			prog->proginfo_url,
-			prog->proginfo_Length >> 32,
-			(prog->proginfo_Length & 0xffffffff),
-			start_ts,
-			end_ts,
-			prog->proginfo_unknown_0,
-			prog->proginfo_recording,
-			prog->proginfo_override,
-			prog->proginfo_hostname,
-			prog->proginfo_source_id,
-			prog->proginfo_card_id,
-			prog->proginfo_input_id,
-			prog->proginfo_rec_priority,
-			prog->proginfo_rec_status,
-			prog->proginfo_record_id,
-			prog->proginfo_rec_type,
-			prog->proginfo_rec_dups,
-			prog->proginfo_unknown_1,
-			rec_start_ts,
-			rec_end_ts,
-			prog->proginfo_repeat,
-			prog->proginfo_program_flags,
-			prog->proginfo_recgroup,
-			prog->proginfo_chancommfree,
-			prog->proginfo_chan_output_filters,
-			prog->proginfo_seriesid);
-		if(prog->proginfo_version >= 13)
-		{
-		    sprintf(ret+strlen(ret),"%s[]:[]%s[]:[]%s[]:[]%s[]:[]",
-			prog->proginfo_programid,
-			lastmodified,
-			prog->proginfo_stars,
-			originalairdate);
-		}
-		if(prog->proginfo_version >= 15)
-		{
-		    sprintf(ret+strlen(ret),"%ld[]:[]",
-			prog->proginfo_hasairdate);
-		}
-		if(prog->proginfo_version >= 18)
-		{
-		    sprintf(ret+strlen(ret),"%s[]:[]",
-			prog->proginfo_playgroup);
-		}
-		if(prog->proginfo_version >= 25)
-		{
-		    sprintf(ret+strlen(ret),"%s[]:[]",
-			prog->proginfo_recpriority_2);
-		}
-		if(prog->proginfo_version >= 31)
-		{
-		    sprintf(ret+strlen(ret),"%ld[]:[]",
-			prog->proginfo_parentid);
-		}
-	} else { /* Assume Version 1 */
-		sprintf(ret,
-			"%s[]:[]%s[]:[]%s[]:[]%s[]:[]%ld[]:[]"
-			"%s[]:[]%s[]:[]%s[]:[]%s[]:[]%lld[]:[]"
-			"%lld[]:[]%s[]:[]%s[]:[]%ld[]:[]%ld[]:[]"
-			"%ld[]:[]%s[]:[]%ld[]:[]%ld[]:[]%ld[]:[]"
-			"%s[]:[]%ld[]:[]%ld[]:[]%ld[]:[]%ld[]:[]"
-			"%s[]:[]%s[]:[]%ld[]:[]%ld",
-			prog->proginfo_title,
-			prog->proginfo_subtitle,
-			prog->proginfo_description,
-			prog->proginfo_category,
-			prog->proginfo_chanId,
-			prog->proginfo_chanstr,
-			prog->proginfo_chansign,
-			prog->proginfo_channame,
-			prog->proginfo_url,
-			prog->proginfo_Length >> 32,
-			(prog->proginfo_Length & 0xffffffff),
-			start_ts,
-			end_ts,
-			prog->proginfo_conflicting,
-			prog->proginfo_recording,
-			prog->proginfo_override,
-			prog->proginfo_hostname,
-			prog->proginfo_source_id,
-			prog->proginfo_card_id,
-			prog->proginfo_input_id,
-			prog->proginfo_rec_priority,
-			prog->proginfo_rec_status,
-			prog->proginfo_record_id,
-			prog->proginfo_rec_type,
-			prog->proginfo_rec_dups,
-			rec_start_ts,
-			rec_end_ts,
-			prog->proginfo_repeat,
-			prog->proginfo_program_flags);
-	}
-	return ret;
-}
-
-/*
- * cmyth_chaninfo_string(cmyth_proginfo_t prog)
- *
- *
- * Scope: PRIVATE (mapped to __cmyth_chaninfo_string)
- *
- * Description
- *
- * Translates a cmyth_proginfo_t into a MythTV protocol string for
- * use in making requests.
- *
- * Return Value:
- *
- * Success: A pointer to a malloc'ed string.
- *
- * Failure: NULL
- */
-char *
-cmyth_chaninfo_string(cmyth_proginfo_t prog)
-{
-	unsigned len = 2 * CMYTH_TIMESTAMP_LEN + CMYTH_LONG_LEN;
-	char start_ts[CMYTH_TIMESTAMP_LEN + 1];
-	char end_ts[CMYTH_TIMESTAMP_LEN + 1];
-	char *ret;
-
-	len += strlen(prog->proginfo_title);
-	len += strlen(prog->proginfo_subtitle);
-	len += strlen(prog->proginfo_description);
-	len += strlen(prog->proginfo_category);
-	len += strlen(prog->proginfo_chanstr);
-	len += strlen(prog->proginfo_chansign);
-	len += strlen(prog->proginfo_channame);
-	len += strlen(prog->proginfo_url);
-
-	ret = malloc(len + 1 +2048);
-	if (!ret) {
-		return NULL;
-	}
-	cmyth_timestamp_to_string(start_ts, prog->proginfo_start_ts);
-	cmyth_timestamp_to_string(end_ts, prog->proginfo_end_ts);
-	sprintf(ret,
-		"%s[]:[]%s[]:[]%s[]:[]%s[]:[]%s[]:[]"
-		"%s[]:[]%s[]:[]%s[]:[]%s[]:[]%s[]:[]%ld",
-		prog->proginfo_title,
-		prog->proginfo_subtitle,
-		prog->proginfo_description,
-		prog->proginfo_category,
-		start_ts,
-		end_ts,
-		prog->proginfo_chansign,
-		prog->proginfo_url,
-		prog->proginfo_channame,
-		prog->proginfo_chanstr,
-		prog->proginfo_chanId);
-	return ret;
 }
 
 /*
@@ -1641,7 +1417,7 @@ cmyth_proginfo_fill(cmyth_conn_t control, cmyth_proginfo_t prog)
 }
 
 /*
- * cmyth_proginfo_get_detailfill(cmyth_conn_t control, cmyth_proginfo_t prog)
+ * cmyth_proginfo_get_detail(cmyth_conn_t control, cmyth_proginfo_t prog)
  *
  * Scope: PUBLIC
  *
