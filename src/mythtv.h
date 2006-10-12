@@ -183,6 +183,11 @@ extern long myth_tvguide_get_active_card(cmyth_recorder_t rec);
 extern int mvp_tvguide_sql_check(cmyth_database_t db);
 extern int myth_guide_is_future(void * widget, int xofs);
 extern void mythtv_guide_reset_guide_times(void);
+extern int myth_tvguide_add_hilite(time_t start_time, int chan_num,
+																	 mvpw_array_cell_theme *theme);
+extern int myth_tvguide_remove_hilite(time_t start_time, int chan_num);
+extern void myth_tvguide_clear_hilites(void);
+
 
 /* ----------------------------------------------------------------- */
 

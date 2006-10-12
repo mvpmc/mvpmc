@@ -216,6 +216,14 @@ static mvpw_dialog_attr_t tvguide_tune_warn_attr = {
 	.justify_body = MVPW_TEXT_LEFT,
 };
 
+static mvpw_array_cell_theme at_theme = {
+	.cell_fg = MVPW_RGBA(0,255,255,255),
+	.cell_bg = MVPW_MIDNIGHTBLUE,
+	.hilite_fg = MVPW_WHITE,
+	.hilite_bg = MVPW_RGBA(81,48,27,255),
+};
+
+
 /* Functions that handle the autotune list */
 /*
  * This function searches the auto tune list for an item that
@@ -407,6 +415,12 @@ auto_tune_loop(void *arg)
 				mythtv_channel_set(tune_to->chanstr);
 				auto_tune_remove(tune_to->chanstr, tune_to->start_time,
 												 tune_to->end_time);
+				myth_tvguide_remove_hilite(tune_to->start_time, atoi(tune_to->chanstr));
+				tvguide_proglist = 
+				myth_load_guide(mythtv_livetv_program_list, mythtv_database,
+													tvguide_chanlist, tvguide_proglist,
+													tvguide_cur_chan_index, &tvguide_scroll_ofs_x,
+													&tvguide_scroll_ofs_y, tvguide_free_cardids);
 				tvguide_cur_chan_index =
 				myth_get_chan_index(tvguide_chanlist, current_prog);
 				showing_guide = 0;
@@ -756,6 +770,13 @@ tvguide_warn_dialog_key_callback(mvp_widget_t *widget, char key)
 				if(tune_to) {
 					auto_tune_remove(tune_to->chanstr, tune_to->start_time,
 											 		tune_to->end_time);
+					myth_tvguide_remove_hilite(tune_to->start_time,
+																		 atoi(tune_to->chanstr));
+					tvguide_proglist = 
+					myth_load_guide(mythtv_livetv_program_list, mythtv_database,
+													tvguide_chanlist, tvguide_proglist,
+													tvguide_cur_chan_index, &tvguide_scroll_ofs_x,
+													&tvguide_scroll_ofs_y, tvguide_free_cardids);
 				}
 				auto_tune_state.ack = 0;
 				auto_tune_state.warn = 0;
@@ -814,6 +835,13 @@ tvguide_menu_select_callback(mvp_widget_t *widget, char *item, void *key)
 																	sel_prog->endtime)) == NULL) {
 			auto_tune_add(buf, sel_prog->title, sel_prog->starttime,
 										sel_prog->endtime);
+			myth_tvguide_add_hilite(sel_prog->starttime, atoi(buf),
+															&at_theme);
+			tvguide_proglist = 
+			myth_load_guide(mythtv_livetv_program_list, mythtv_database,
+													tvguide_chanlist, tvguide_proglist,
+													tvguide_cur_chan_index, &tvguide_scroll_ofs_x,
+													&tvguide_scroll_ofs_y, tvguide_free_cardids);
 			mvpw_set_dialog_title(mythtv_tvguide_dialog, "Autotune Event Scheduled");
 			localtime_r(&(sel_prog->starttime), &start);
 			localtime_r(&(sel_prog->endtime), &end);
@@ -1034,8 +1062,8 @@ mvp_tvguide_clock_timer(mvp_widget_t * widget)
 		pthread_cond_signal(&auto_tune_cond);
 	}
 	if(auto_tune_state.warn == 1 && auto_tune_state.ack == 0
-		 && should_auto_tune(curtime + 60) != NULL) {
-		PRINTF("** SSDEBUG: 60 seconds from autotune\n");
+		 && should_auto_tune(curtime + 15) != NULL) {
+		PRINTF("** SSDEBUG: 15 seconds from autotune\n");
 		auto_tune_state.ack = 1;
 	}
 	if(should_auto_tune(curtime+2) != NULL) {
@@ -1180,6 +1208,7 @@ mvp_tvguide_stop(void)
 	auto_tune_state.term = 1;
 	pthread_cond_signal(&auto_tune_cond);
 	auto_tune_list_clear();
+	myth_tvguide_clear_hilites();
 	//pthread_kill(auto_tune_thread, SIGURG);
 
 	return 0;
