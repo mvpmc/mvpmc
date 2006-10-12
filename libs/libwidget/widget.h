@@ -42,6 +42,7 @@ typedef enum {
 	MVPW_DIALOG,		/**< dialog box */
 	MVPW_SURFACE,		/**< drawing surface */
 	MVPW_ARRAY,		/**< array */
+	MVPW_DLG_BTN, /**< dialog button */
 } mvpw_id_t;
 
 /**
@@ -199,18 +200,42 @@ typedef struct {
 /**
  * Dialog box data.
  */
+#define MVPW_MAX_DLG_BUTTON_CT 3
 typedef struct {
 	int		 modal;		/**< modal */
 	GR_COLOR	 fg;		/**< foreground color */
 	GR_COLOR	 title_fg;	/**< title foreground color */
 	GR_COLOR	 title_bg;	/**< title background color */
+	GR_COLOR   button_bg;
+	GR_COLOR	 button_fg;
+	GR_COLOR	 button_h_bg;
+	GR_COLOR	 button_h_fg;
 	int		 font;		/**< font id */
 	mvp_widget_t	*title_widget;	/**< title widget */
 	mvp_widget_t	*text_widget;	/**< text widget */
 	mvp_widget_t	*image_widget;	/**< image widget */
+	int button_ct; /**< Number of buttons */
+	mvp_widget_t *buttons[MVPW_MAX_DLG_BUTTON_CT]; /**< buttons */
+	char *button_strs[MVPW_MAX_DLG_BUTTON_CT];
+	int cur_button;
 	int		 margin;	/**< margin in pixel */
 	bool		 utf8;		/**< utf8 encoding */
 } mvpw_dialog_t;
+
+/**
+ * Dialog box button
+ */
+typedef struct {
+	int		 font;		/**< font id */
+	GR_COLOR	fg;
+	GR_COLOR	bg;
+	GR_COLOR	h_fg;
+	GR_COLOR	h_bg;
+	int tabstop;
+	bool rounded;
+	GR_COLOR 	border;		/**< border color */
+	int 		border_size;	/**< border size in pixels */
+} mvpw_dlg_btn_t;
 
 /**
  * Drawing surface data.
@@ -285,6 +310,7 @@ struct mvp_widget_s {
 		mvpw_bitmap_t		bitmap;
 		mvpw_dialog_t		dialog;
 		mvpw_surface_t		surface;
+		mvpw_dlg_btn_t	button;
 	} data;
 };
 

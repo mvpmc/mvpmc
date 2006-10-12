@@ -61,6 +61,7 @@
 #define FONT_HEIGHT(x)	(mvpw_font_height(x.font,x.utf8) + (2 * x.margin))
 #define FONT_WIDTH(x,c)	(mvpw_font_width(x.font,c,x.utf8))
 #define AT_BLK_CT	10
+#define AT_WARN 5
 
 struct auto_tune_s {
 	time_t start_time;
@@ -89,7 +90,11 @@ typedef struct {
 	int term;
 } auto_tune_state_s;
 
-static auto_tune_state_s auto_tune_state = {0,0};
+static auto_tune_state_s auto_tune_state = {
+	.warn = 0,
+	.ack = 0,
+	.term = 0,
+};
 
 
 extern int showing_guide;
@@ -198,7 +203,11 @@ static mvpw_dialog_attr_t tvguide_tune_warn_attr = {
 	.fg = MVPW_WHITE,
 	.bg = MVPW_RGBA(20,20,20,100),
 	.title_fg = MVPW_WHITE,
-	.title_bg = MVPW_RGBA(81,48,27,100),
+	.title_bg = MVPW_RGBA(81,48,27,150),
+	.button_fg = MVPW_RGBA(255,255,255,150),
+	.button_bg = MVPW_RGBA(21,103,113,200),
+	.button_h_fg = MVPW_RGBA(0,0,0,255),
+	.button_h_bg = MVPW_RGBA(255,255,255,255),
 	.modal = true,
 	.border = MVPW_RGBA(81,48,27,100),
 	.border_size = 6,
@@ -294,7 +303,7 @@ auto_tune_add(char *chanstr, char *title, time_t start_time, time_t end_time)
 		rtrn->chanstr[9] = '\0';
 		strncpy(rtrn->title, title, 150);
 		rtrn->chanstr[149] = '\0';
-		printf("** SSDEBUG: Auto tune @ %ld,%ld to channel %s at pos %d\n",
+		PRINTF("** SSDEBUG: Auto tune @ %ld,%ld to channel %s at pos %d\n",
 					 start_time, end_time, rtrn->chanstr, auto_tune_list->at_count);
 	}
 
@@ -324,6 +333,7 @@ auto_tune_remove(char *chanstr, time_t start_time, time_t end_time)
 			while(i < auto_tune_list->at_count) {
 				memmove(&(auto_tune_list->at_list[i-1]), &(auto_tune_list->at_list[i]),
 								sizeof(struct auto_tune_s));
+				i++;
 			}
 			auto_tune_list->at_count--;
 			rtrn = 1;
@@ -339,6 +349,18 @@ auto_tune_remove(char *chanstr, time_t start_time, time_t end_time)
 	return rtrn;
 }
 
+static void
+auto_tune_list_clear(void)
+{
+	if(auto_tune_list) {
+		if(auto_tune_list->at_list) {
+			cmyth_release(auto_tune_list->at_list);
+		}
+		cmyth_release(auto_tune_list);
+		auto_tune_list = NULL;
+	}
+}
+
 /*
  * This is a thread that handles channel changes for auto tune events.
  */
@@ -348,44 +370,62 @@ auto_tune_loop(void *arg)
 	pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 	auto_tune_t tune_to;
 	time_t curtime;
+	mvp_widget_t *tmp;
+	static int t_state = 0;
 
 	pthread_mutex_lock(&mutex);
 
 	while (1) {
 		pthread_cond_wait(&auto_tune_cond, &mutex);
 		if(auto_tune_state.term) {
+			PRINTF("** SSDEBUG: Terminating auto tune loop\n");
 			pthread_mutex_unlock(&mutex);
 			break;
 		} else if(auto_tune_state.warn && !auto_tune_state.ack) {
+			PRINTF("** SSDEBUG: Entering dialog wait loop\n");
+			mvpw_dialog_set_cur_button(mythtv_tvguide_tune_warn, 0);
 			mvpw_show(mythtv_tvguide_tune_warn);
 			while(auto_tune_state.warn && !auto_tune_state.ack) {
 				sleep(1);
+				tmp = mvpw_get_dialog_title(mythtv_tvguide_tune_warn);
+				if(t_state) {
+					mvpw_set_text_bg(tmp, MVPW_RGBA(81,48,27,255));
+					t_state ^= 1;
+				}
+				else {
+					mvpw_set_text_bg(tmp, MVPW_RGBA(81,48,27,150));
+					t_state ^= 1;
+				}
 			}
 			mvpw_hide(mythtv_tvguide_tune_warn);
 		}
-		else {
+		else if(auto_tune_state.warn && auto_tune_state.ack) {
+			PRINTF("** SSDEBUG: Tuning to auto tune channel\n");
 			curtime = time(NULL);
 			tune_to = should_auto_tune(curtime);
-			mythtv_channel_set(tune_to->chanstr);
-			auto_tune_remove(tune_to->chanstr, tune_to->start_time, tune_to->end_time);
-			tvguide_cur_chan_index =
-			myth_get_chan_index(tvguide_chanlist, current_prog);
-			showing_guide = 0;
-			tvguide_scroll_ofs_x = 0;
-			tvguide_scroll_ofs_y = 0;
-			mvp_tvguide_video_topright(0);
-			mvp_tvguide_hide(mythtv_livetv_program_list,
-												mythtv_livetv_description,
-												mythtv_livetv_clock);
-			/* Update the guide to the top left corner */
-			myth_set_guide_times(mythtv_livetv_program_list, tvguide_scroll_ofs_x,
-												 	mythtv_use_12hour_clock);
-			tvguide_proglist = 
-			myth_load_guide(mythtv_livetv_program_list, mythtv_database,
-														tvguide_chanlist, tvguide_proglist,
-														tvguide_cur_chan_index, &tvguide_scroll_ofs_x,
-														&tvguide_scroll_ofs_y, tvguide_free_cardids);
-			auto_tune_state.warn = auto_tune_state.ack = 0;
+			if(tune_to) {
+				mythtv_channel_set(tune_to->chanstr);
+				auto_tune_remove(tune_to->chanstr, tune_to->start_time,
+												 tune_to->end_time);
+				tvguide_cur_chan_index =
+				myth_get_chan_index(tvguide_chanlist, current_prog);
+				showing_guide = 0;
+				tvguide_scroll_ofs_x = 0;
+				tvguide_scroll_ofs_y = 0;
+				mvp_tvguide_video_topright(0);
+				mvp_tvguide_hide(mythtv_livetv_program_list,
+													mythtv_livetv_description,
+													mythtv_livetv_clock);
+				/* Update the guide to the top left corner */
+				myth_set_guide_times(mythtv_livetv_program_list, tvguide_scroll_ofs_x,
+												 		mythtv_use_12hour_clock);
+				tvguide_proglist = 
+				myth_load_guide(mythtv_livetv_program_list, mythtv_database,
+															tvguide_chanlist, tvguide_proglist,
+															tvguide_cur_chan_index, &tvguide_scroll_ofs_x,
+															&tvguide_scroll_ofs_y, tvguide_free_cardids);
+				auto_tune_state.warn = auto_tune_state.ack = auto_tune_state.term = 0;
+			}
 		}
 	}
 
@@ -574,25 +614,30 @@ mvp_tvguide_callback(mvp_widget_t *widget, char key)
 			rtrn = 1;
 			break;
 		case MVPW_KEY_RED:
-			printf("** SSEDBUG: Red Button\n");
+			PRINTF("** SSEDBUG: Red Button\n");
 			curtime = time(NULL);
 			tune_to = should_auto_tune(curtime + 30*60);
-			mvpw_set_dialog_title(mythtv_tvguide_tune_warn, "Autotune Event Pending");
-			localtime_r(&(tune_to->start_time), &start);
-			localtime_r(&(tune_to->end_time), &end);
-			if (mythtv_use_12hour_clock) {
-				strftime(tm_buf_start, 16, "%I:%M %P", &start);
-				strftime(tm_buf_end, 16, "%I:%M %P", &end);
+			if(tune_to) {
+				mvpw_set_dialog_title(mythtv_tvguide_tune_warn,
+															"Autotune in 5 Minutes");
+				localtime_r(&(tune_to->start_time), &start);
+				localtime_r(&(tune_to->end_time), &end);
+				if (mythtv_use_12hour_clock) {
+					strftime(tm_buf_start, 16, "%I:%M %P", &start);
+					strftime(tm_buf_end, 16, "%I:%M %P", &end);
+				}
+				else {
+					sprintf(tm_buf_start, "%02d:%02d", start.tm_hour, start.tm_min);
+					sprintf(tm_buf_start, "%02d:%02d", end.tm_hour, end.tm_min);
+				}
+				sprintf(msg, "%s\nChannel:%s Starting: %s Ending: %s", tune_to->title,
+										tune_to->chanstr, tm_buf_start, tm_buf_end);
+				mvpw_set_dialog_text(mythtv_tvguide_tune_warn, msg);
+				auto_tune_state.warn = 1;
+				auto_tune_state.ack = 0;
+				PRINTF("** SSDEBUG: autotune dialog setup\n");
+				pthread_cond_signal(&auto_tune_cond);
 			}
-			else {
-				sprintf(tm_buf_start, "%02d:%02d", start.tm_hour, start.tm_min);
-				sprintf(tm_buf_start, "%02d:%02d", end.tm_hour, end.tm_min);
-			}
-			sprintf(msg, "%s\nChannel:%s Starting: %s Ending: %s", tune_to->title,
-									tune_to->chanstr, tm_buf_start, tm_buf_end);
-			mvpw_set_dialog_text(mythtv_tvguide_tune_warn, msg);
-			auto_tune_state.warn = 1;
-			pthread_cond_signal(&auto_tune_cond);
 			rtrn = 1;
 		break;
 		case MVPW_KEY_GREEN:
@@ -669,6 +714,70 @@ void scroll_callback(mvp_widget_t *widget, int direction)
 	}
 }
 
+static void
+tvguide_dialog_key_callback(mvp_widget_t *widget, char key)
+{
+
+	switch(key) {
+		case MVPW_KEY_EXIT:
+		case MVPW_KEY_OK:
+			mvpw_hide(widget);
+		break;
+		default:
+		break;
+	}
+}
+
+static void
+tvguide_warn_dialog_key_callback(mvp_widget_t *widget, char key)
+{
+	auto_tune_t tune_to;
+	time_t curtime;
+
+	switch(key) {
+		case MVPW_KEY_RIGHT:
+		case MVPW_KEY_UP:
+			mvpw_dialog_next_button(widget);
+		break;
+		case MVPW_KEY_LEFT:
+		case MVPW_KEY_DOWN:
+			mvpw_dialog_prev_button(widget);
+		break;
+		case MVPW_KEY_OK:
+			if(mvpw_dialog_cur_button_i(widget) == 0) {
+				PRINTF("** SSDEBUG: OK Button keep\n");
+				auto_tune_state.ack = 1;
+				mvpw_hide(widget);
+			}
+			else {
+				PRINTF("** SSDEBUG: OK Button discard\n");
+				curtime = time(NULL);
+				tune_to = should_auto_tune(curtime + AT_WARN*60);
+				if(tune_to) {
+					auto_tune_remove(tune_to->chanstr, tune_to->start_time,
+											 		tune_to->end_time);
+				}
+				auto_tune_state.ack = 0;
+				auto_tune_state.warn = 0;
+				mvpw_hide(widget);
+			}
+		break;
+		case MVPW_KEY_GREEN:
+			PRINTF("** SSDEBUG: Green Button\n");
+			auto_tune_state.ack = 0;
+			auto_tune_state.warn = 0;
+			mvpw_hide(widget);
+		break;
+		default:
+			PRINTF("** SSDEBUG: Default on dialog key callback\n");
+			if(auto_tune_state.warn) {
+				auto_tune_state.ack = 1;
+			}
+			mvpw_hide(widget);
+		break;
+	}
+}
+
 static
 void tvguide_menu_key_callback(mvp_widget_t *widget, char key)
 {
@@ -681,24 +790,6 @@ void tvguide_menu_key_callback(mvp_widget_t *widget, char key)
 		break;
 	}
 }
-
-static void
-tvguide_dialog_key_callback(mvp_widget_t *widget, char key)
-{
-	switch(key) {
-		case MVPW_KEY_GREEN:
-			auto_tune_state.ack = 0;
-			auto_tune_state.warn = 0;
-		break;
-		default:
-			if(auto_tune_state.warn) {
-				auto_tune_state.ack = 1;
-			}
-			mvpw_hide(widget);
-		break;
-	}
-}
-
 
 static void
 tvguide_menu_select_callback(mvp_widget_t *widget, char *item, void *key)
@@ -765,7 +856,6 @@ mvp_tvguide_init(int edge_left, int edge_top, int edge_right,
 								 int edge_bottom)
 {
 	int x, y, w, h;
-
 
 	/* The viewport eats up too much real estate for now */
 	x = 25; /*edge_left; */
@@ -843,12 +933,15 @@ mvp_tvguide_init(int edge_left, int edge_top, int edge_right,
 	tvguide_menu_item_attr.select = tvguide_menu_select_callback;
 	mvpw_add_menu_item(mythtv_tvguide_menu, "Auto Tune",
 			   (void*)1, &tvguide_menu_item_attr);
-	mvpw_add_menu_item(mythtv_tvguide_menu, "Record",
-			   (void*)2, &tvguide_menu_item_attr);
+	//mvpw_add_menu_item(mythtv_tvguide_menu, "Record",
+			   //(void*)2, &tvguide_menu_item_attr);
 	mvpw_add_menu_item(mythtv_tvguide_menu, "Cancel",
 			   (void*)3, &tvguide_menu_item_attr);
 
 	
+	/* Informational dialog to confirm an auto tune event or the
+	 * successful scheduling of a program for recording.
+	 */
 	h = 4 * FONT_HEIGHT(tvguide_popup_attr);
 	w = 400;
 	x = (si.cols - w) / 2;
@@ -862,7 +955,14 @@ mvp_tvguide_init(int edge_left, int edge_top, int edge_right,
 
 	mvpw_set_key(mythtv_tvguide_dialog, tvguide_dialog_key_callback);
 
-	h = 3 * FONT_HEIGHT(tvguide_popup_attr);
+
+	/*
+	 * Dialog widget to query the user about an autotue event and
+	 * whether or not the user wants to proceed with the auto
+	 * tune event.
+	 */
+	PRINTF("** SSDEBUG: Creating base dialog widget\n");
+	h = 4 * FONT_HEIGHT(tvguide_tune_warn_attr);
 	w = 500;
 	x = (si.cols - w) / 2;
 	y = (si.rows - h) - 20;
@@ -871,10 +971,13 @@ mvp_tvguide_init(int edge_left, int edge_top, int edge_right,
 				   tvguide_tune_warn_attr.bg,
 				   tvguide_tune_warn_attr.border, tvguide_tune_warn_attr.border_size);
 
-	mvpw_set_dialog_attr(mythtv_tvguide_tune_warn, &tvguide_dialog_attr);
+	mvpw_add_dialog_button(mythtv_tvguide_tune_warn, "Keep");
+	mvpw_add_dialog_button(mythtv_tvguide_tune_warn, "Discard");
+	mvpw_set_dialog_attr(mythtv_tvguide_tune_warn, &tvguide_tune_warn_attr);
 
-	mvpw_set_key(mythtv_tvguide_tune_warn, tvguide_dialog_key_callback);
+	mvpw_set_key(mythtv_tvguide_tune_warn, tvguide_warn_dialog_key_callback);
 
+	PRINTF("** SSDEBUG: Tvguide dialog creation complete\n");
 
 	return 1;
 }
@@ -912,8 +1015,8 @@ mvp_tvguide_clock_timer(mvp_widget_t * widget)
 	/* guide may end up showing the wrong current show depending on */
 	/* which thread updates it last */
 	if(auto_tune_state.warn == 0 &&
-		 (tune_to = should_auto_tune(curtime + 5*60)) != NULL) {
-		mvpw_set_dialog_title(mythtv_tvguide_tune_warn, "Autotune Event Pending");
+		 (tune_to = should_auto_tune(curtime + AT_WARN*60)) != NULL) {
+		mvpw_set_dialog_title(mythtv_tvguide_tune_warn, "Autotune in 5 Minutes");
 		localtime_r(&(tune_to->start_time), &start);
 		localtime_r(&(tune_to->end_time), &end);
 		if (mythtv_use_12hour_clock) {
@@ -932,14 +1035,20 @@ mvp_tvguide_clock_timer(mvp_widget_t * widget)
 	}
 	if(auto_tune_state.warn == 1 && auto_tune_state.ack == 0
 		 && should_auto_tune(curtime + 60) != NULL) {
-		 auto_tune_state.ack = 1;
+		PRINTF("** SSDEBUG: 60 seconds from autotune\n");
+		auto_tune_state.ack = 1;
 	}
+	if(should_auto_tune(curtime+2) != NULL) {
+		pthread_cond_signal(&auto_tune_cond);
+	}
+#if 0
 	if(should_auto_tune(curtime) != NULL) {
 		mvpw_set_timer(mythtv_livetv_clock, mvp_tvguide_clock_timer, 15000);
 	}
 	if(should_auto_tune(curtime-15) != NULL) {
 		pthread_cond_signal(&auto_tune_cond);
 	}
+#endif
 }
 
 /* This function is called periodically to synchronise the guide */
@@ -1070,6 +1179,7 @@ mvp_tvguide_stop(void)
 	mythtv_guide_reset_guide_times();
 	auto_tune_state.term = 1;
 	pthread_cond_signal(&auto_tune_cond);
+	auto_tune_list_clear();
 	//pthread_kill(auto_tune_thread, SIGURG);
 
 	return 0;
