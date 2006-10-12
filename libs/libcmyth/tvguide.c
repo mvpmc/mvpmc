@@ -30,9 +30,8 @@
 #include <mvp_widget.h>
 
 #define ALLOC_FRAC 10
-//#define ALLOC_BLK 12
 #define EVENT_WILL_RECORD 1
-#define EVENT_AUTO_SWITCH 2
+#define EVENT_AUTO_TUNE 2
 
 #define MERGE_CELLS 1
 
@@ -45,12 +44,151 @@ int ssdebug = 0;
 #define TRC(fmt, args...) 
 #endif
 
+struct cell_hilite_s {
+	time_t start_time;
+	int chan_num;
+	mvpw_array_cell_theme * theme;
+};
+typedef struct cell_hilite_s *cell_hilite_t;
+
+struct cell_hilite_list_s {
+	cell_hilite_t list;
+	int count;
+	int avail;
+};
+typedef struct cell_hilite_list_s *cell_hilite_list_t;
+
 static mvpw_array_cell_theme mvpw_record_theme = {
 	.cell_fg = MVPW_YELLOW,
 	.cell_bg = MVPW_MIDNIGHTBLUE,
 	.hilite_fg = MVPW_MIDNIGHTBLUE,
 	.hilite_bg = MVPW_YELLOW,
 };
+
+static cell_hilite_list_t hilites = NULL;
+
+int
+myth_tvguide_add_hilite(time_t start_time, int chan_num,
+													mvpw_array_cell_theme *theme)
+{
+	int rtrn = 0;
+	int sz,av;
+
+	printf("** SSDEBUG: adding hilite on start time: %ld, chan %d\n",
+				 start_time, chan_num);
+	if(hilites == NULL) {
+		hilites = cmyth_allocate(sizeof(*hilites));
+		if(hilites) {
+			hilites->list = cmyth_allocate(sizeof(*(hilites->list))*ALLOC_FRAC);
+			if(hilites->list) {
+				rtrn = 1;
+				av = hilites->avail = ALLOC_FRAC;
+				sz = hilites->count = 0;
+			}
+			else {
+				cmyth_release(hilites);
+				hilites = NULL;
+			}
+		}
+	}
+	else {
+		sz = hilites->count;
+		av = hilites->avail;
+		if(sz == av) {
+			av += ALLOC_FRAC;
+			hilites->list =
+								cmyth_reallocate(hilites->list, sizeof(*(hilites->list))*av);
+			if(hilites->list) {
+				rtrn = 1;
+				hilites->avail = av;
+			}
+			else {
+				cmyth_release(hilites);
+				hilites = NULL;
+			}
+		}
+	}
+
+	if(rtrn == 1) {
+		hilites->list[sz].start_time = start_time;
+		hilites->list[sz].chan_num = chan_num;
+		hilites->list[sz].theme = theme;
+		sz++;
+		hilites->count = sz;
+	}
+
+	return rtrn;
+}
+
+int
+myth_tvguide_remove_hilite(time_t start_time, int chan_num)
+{
+	int rtrn = 0;
+	int i;
+
+	printf("** SSDEBUG: removing hilite on start time: %ld, chan %d\n",
+				 start_time, chan_num);
+	if(hilites) {
+		for(i=0; i<hilites->count; i++) {
+			if(hilites->list[i].start_time == start_time
+					&& hilites->list[i].chan_num == chan_num)
+				break;
+		}
+		if(i == hilites->count - 1) {
+			hilites->count--;
+			rtrn = 1;
+		}
+		else if(i < hilites->count) {
+			i++;
+			while(i<hilites->count) {
+				memmove(&(hilites->list[i-1]), &(hilites->list[i]),
+								sizeof(struct cell_hilite_s));
+				i++;
+			}
+			hilites->count--;
+			rtrn = 1;
+		}
+		if(hilites->count == 0) {
+			cmyth_release(hilites->list);
+			cmyth_release(hilites);
+			hilites = NULL;
+		}
+	}
+
+	return rtrn;
+}
+
+void
+myth_tvguide_clear_hilites(void)
+{
+	if(hilites) {
+		if(hilites->list)
+			cmyth_release(hilites->list);
+		cmyth_release(hilites);
+	}
+	hilites = NULL;
+}
+
+static cell_hilite_t
+myth_tvguide_should_hilite(time_t start_time, int chan_num)
+{
+	int i;
+	cell_hilite_t rtrn = NULL;
+
+	printf("** SSDEBUG: checking hilite on start time: %ld, chan %d\n",
+				 start_time, chan_num);
+	if(hilites) {
+		for(i=0;i<hilites->count;i++) {
+			if(hilites->list[i].start_time == start_time
+					&& hilites->list[i].chan_num == chan_num) {
+				rtrn = &(hilites->list[i]);
+				break;
+			}
+		}
+	}
+
+	return rtrn;
+}
 
 int
 mvp_tvguide_sql_check(cmyth_database_t db)
@@ -362,6 +500,12 @@ get_tvguide_page(MYSQL *mysql, cmyth_chanlist_t chanlist,
 	}
   mysql_free_result(res);
 
+	/* Now flag all programs with auto tune set */
+	for(i=0; i<cache_ct; i++) {
+		if(myth_tvguide_should_hilite(cache[i].starttime, cache[i].channum))
+			cache[i].event_flags |= EVENT_AUTO_TUNE;
+	}
+
 	rows = proglist->count;
 	for(idx=0;idx<4;idx++) {
 
@@ -507,7 +651,7 @@ myth_load_guide(void * widget, cmyth_database_t db,
 	if(!proglist) {
 		proglist = (cmyth_tvguide_progs_t) cmyth_allocate(sizeof(*proglist));
 		proglist->progs =
-			cmyth_allocate(sizeof(struct cmyth_program) * 3 * 4);
+			cmyth_allocate(sizeof(*(proglist->progs)) * 3 * 4);
 		proglist->count = 0;
 		proglist->alloc = 0;
 	}
@@ -596,6 +740,14 @@ myth_load_guide(void * widget, cmyth_database_t db,
 				PRINTF("** SSDEBUG: setting cell color for cell %d, %d\n",
 							 j, i-prev-k);
 			}
+			else if(rtrn->progs[i].event_flags & EVENT_AUTO_TUNE) {
+				printf("** SSDEBUG: setting cell color for cell %d, %d\n",
+							 j, i-prev-k);
+				mvpw_set_array_cell_theme(widget, j, i-prev-k,
+					myth_tvguide_should_hilite(rtrn->progs[i].starttime,
+																		rtrn->progs[i].channum)->theme);
+					
+			}
 			else {
 				mvpw_set_array_cell_theme(widget, j, i-prev-k, NULL);
 			}
@@ -642,6 +794,7 @@ myth_guide_is_future(void * widget, int xofs)
 /*
  *
  */
+static int guide_times_last_minutes = -1;
 int
 myth_set_guide_times(void * widget, int xofs, int time_format_12)
 {
@@ -649,7 +802,6 @@ myth_set_guide_times(void * widget, int xofs, int time_format_12)
 	struct tm *ltime;
 	char timestr[25];
 	time_t curtime, nexthr;
-	static int last_minutes = -1;
 	static int last_ofs = 0;
 	int minutes, rtrn=1;
 	char hour_format[10];
@@ -674,11 +826,11 @@ myth_set_guide_times(void * widget, int xofs, int time_format_12)
 	minutes = atoi(timestr);
 	*/
 	minutes = ltime->tm_min;
-	if(last_minutes == -1
-	|| (last_minutes < 30 && minutes >= 30)
-	|| minutes < last_minutes
+	if(guide_times_last_minutes == -1
+	|| (guide_times_last_minutes < 30 && minutes >= 30)
+	|| minutes < guide_times_last_minutes
 	|| last_ofs != xofs) {
-		last_minutes = minutes;
+		guide_times_last_minutes = minutes;
 		last_ofs = xofs;
 		strftime(timestr, 25, "%b/%d", ltime);
 		mvpw_set_array_col(prog_widget, 0, timestr, NULL);
@@ -711,6 +863,12 @@ myth_set_guide_times(void * widget, int xofs, int time_format_12)
 	return rtrn;
 }
 
+void
+mythtv_guide_reset_guide_times(void)
+{
+	guide_times_last_minutes = -1;
+}
+
 cmyth_chanlist_t
 myth_release_chanlist(cmyth_chanlist_t cl)
 {
@@ -729,8 +887,10 @@ myth_release_chanlist(cmyth_chanlist_t cl)
 cmyth_tvguide_progs_t
 myth_release_proglist(cmyth_tvguide_progs_t proglist)
 {
-	cmyth_release(proglist->progs);
-	cmyth_release(proglist);
+	if(proglist) {
+		cmyth_release(proglist->progs);
+		cmyth_release(proglist);
+	}
 	return NULL;
 }
 
@@ -832,7 +992,7 @@ myth_tvguide_load_channels(cmyth_database_t db, int sort_desc)
 	 */
 	rtrn = cmyth_allocate(sizeof(*rtrn));
 	rtrn->chanlist_list = (cmyth_channel_t)
-			cmyth_allocate(sizeof(struct cmyth_channel)*res->row_count/ALLOC_FRAC);
+			cmyth_allocate(sizeof(*(rtrn->chanlist_list))*res->row_count/ALLOC_FRAC);
 	if(!rtrn->chanlist_list) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: chanlist allocation failed\n", 
 							__FUNCTION__);

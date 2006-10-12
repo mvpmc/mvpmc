@@ -411,6 +411,7 @@ extern void mvpw_get_text_attr(mvp_widget_t *widget, mvpw_text_attr_t *attr);
  * \param fg color
  */
 extern void mvpw_set_text_fg(mvp_widget_t *widget, uint32_t fg);
+extern void mvpw_set_text_bg(mvp_widget_t *widget, uint32_t bg);
 
 /**
  * Get the foreground color of a text widget.
@@ -862,6 +863,10 @@ typedef struct {
 	uint32_t 	bg;		/**< background color */
 	uint32_t 	title_fg;	/**< title foreground color */
 	uint32_t 	title_bg;	/**< title background color */
+	uint32_t	button_fg;
+	uint32_t	button_bg;
+	uint32_t	button_h_fg;
+	uint32_t	button_h_bg;
 	uint32_t 	border;		/**< border color */
 	int 		border_size;	/**< border size in pixels */
 	char 		*image;		/**< image filename */
@@ -872,6 +877,7 @@ typedef struct {
 	bool	 	justify_body;	/**< body justification */
 	bool	 	utf8;		/**< utf8 character encoding */
 } mvpw_dialog_attr_t;
+
 
 /**
  * Create a dialog widget.
@@ -909,6 +915,14 @@ extern int mvpw_set_dialog_attr(mvp_widget_t *widget,
  */
 extern int mvpw_set_dialog_title(mvp_widget_t *widget, char *title);
 
+extern mvp_widget_t *mvpw_get_dialog_title(mvp_widget_t *widget);
+extern void mvpw_dialog_next_button(mvp_widget_t *widget);
+extern void mvpw_dialog_prev_button(mvp_widget_t *widget);
+extern int mvpw_dialog_cur_button_i(mvp_widget_t *widget);
+extern char * mvpw_dialog_cur_button_s(mvp_widget_t *widget);
+extern void mvpw_dialog_set_cur_button(mvp_widget_t *widget, int button);
+
+
 /**
  * Set the dialog body text.
  * \param widget widget handle
@@ -917,6 +931,15 @@ extern int mvpw_set_dialog_title(mvp_widget_t *widget, char *title);
  * \retval -1 error
  */
 extern int mvpw_set_dialog_text(mvp_widget_t *widget, char *text);
+
+/**
+ * Add one of 3 possible buttons to the bottom of the dialog
+ * \param widget widget handle
+ * \param text text string
+ * \retval 0 success
+ * \retval -1 error
+ */
+extern int mvpw_add_dialog_button(mvp_widget_t *widget, char *text);
 
 /**
  * Gett the dialog body text.

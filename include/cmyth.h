@@ -670,6 +670,9 @@ extern cmyth_posmap_t cmyth_posmap_create(void);
  * -----------------------------------------------------------------
  */
 
+/**
+ * Program recording status.
+ */
 typedef enum {
 	RS_DELETED = -5,
 	RS_STOPPED = -4,
@@ -689,17 +692,35 @@ typedef enum {
 	RS_TUNER_BUSY = 12,
 } cmyth_proginfo_rec_status_t;
 
+/**
+ * Create a new program info data structure.
+ * \return proginfo handle
+ */
 extern cmyth_proginfo_t cmyth_proginfo_create(void);
 
-extern int cmyth_progrino_stop_recording(cmyth_conn_t control,
+extern int cmyth_proginfo_stop_recording(cmyth_conn_t control,
 					 cmyth_proginfo_t prog);
 
 extern int cmyth_proginfo_check_recording(cmyth_conn_t control,
 					  cmyth_proginfo_t prog);
 
+/**
+ * Delete a program.
+ * \param control backend control handle
+ * \param prog proginfo handle
+ * \retval 0 success
+ * \retval <0 error
+ */
 extern int cmyth_proginfo_delete_recording(cmyth_conn_t control,
 					   cmyth_proginfo_t prog);
 
+/**
+ * Delete a program such that it may be recorded again.
+ * \param control backend control handle
+ * \param prog proginfo handle
+ * \retval 0 success
+ * \retval <0 error
+ */
 extern int cmyth_proginfo_forget_recording(cmyth_conn_t control,
 					   cmyth_proginfo_t prog);
 
@@ -707,61 +728,180 @@ extern int cmyth_proginfo_get_recorder_num(cmyth_conn_t control,
 					   cmyth_rec_num_t rnum,
 					   cmyth_proginfo_t prog);
 
-extern char *cmyth_proginfo_string(cmyth_proginfo_t prog);
-
-extern char *cmyth_chaninfo_string(cmyth_proginfo_t prog);
-
+/**
+ * Retrieve the title of a program.
+ * \param prog proginfo handle
+ * \return null-terminated string
+ */
 extern char *cmyth_proginfo_title(cmyth_proginfo_t prog);
 
+/**
+ * Retrieve the subtitle of a program.
+ * \param prog proginfo handle
+ * \return null-terminated string
+ */
 extern char *cmyth_proginfo_subtitle(cmyth_proginfo_t prog);
 
+/**
+ * Retrieve the description of a program.
+ * \param prog proginfo handle
+ * \return null-terminated string
+ */
 extern char *cmyth_proginfo_description(cmyth_proginfo_t prog);
 
+/**
+ * Retrieve the category of a program.
+ * \param prog proginfo handle
+ * \return null-terminated string
+ */
 extern char *cmyth_proginfo_category(cmyth_proginfo_t prog);
 
+/**
+ * Retrieve the channel number of a program.
+ * \param prog proginfo handle
+ * \return null-terminated string
+ */
 extern char *cmyth_proginfo_chanstr(cmyth_proginfo_t prog);
 
+/**
+ * Retrieve the channel name of a program.
+ * \param prog proginfo handle
+ * \return null-terminated string
+ */
 extern char *cmyth_proginfo_chansign(cmyth_proginfo_t prog);
 
+/**
+ * Retrieve the channel name of a program.
+ * \param prog proginfo handle
+ * \return null-terminated string
+ */
 extern char *cmyth_proginfo_channame(cmyth_proginfo_t prog);
 
+/**
+ * Retrieve the channel number of a program.
+ * \param prog proginfo handle
+ * \return channel number
+ */
 extern long cmyth_proginfo_chan_id(cmyth_proginfo_t prog);
 
+/**
+ * Retrieve the pathname of a program file.
+ * \param prog proginfo handle
+ * \return null-terminated string
+ */
 extern char *cmyth_proginfo_pathname(cmyth_proginfo_t prog);
 
+/**
+ * Retrieve the series ID of a program.
+ * \param prog proginfo handle
+ * \return null-terminated string
+ */
 extern char *cmyth_proginfo_seriesid(cmyth_proginfo_t prog);
 
+/**
+ * Retrieve the program ID of a program.
+ * \param prog proginfo handle
+ * \return null-terminated string
+ */
 extern char *cmyth_proginfo_programid(cmyth_proginfo_t prog);
 
+/**
+ * Retrieve the critics rating (number of stars) of a program.
+ * \param prog proginfo handle
+ * \return null-terminated string
+ */
 extern char *cmyth_proginfo_stars(cmyth_proginfo_t prog);
 
+/**
+ * Retrieve the start time of a program.
+ * \param prog proginfo handle
+ * \return timestamp handle
+ */
 extern cmyth_timestamp_t cmyth_proginfo_rec_start(cmyth_proginfo_t prog);
 
+/**
+ * Retrieve the end time of a program.
+ * \param prog proginfo handle
+ * \return timestamp handle
+ */
 extern cmyth_timestamp_t cmyth_proginfo_rec_end(cmyth_proginfo_t prog);
 
+/**
+ * Retrieve the original air date of a program.
+ * \param prog proginfo handle
+ * \return timestamp handle
+ */
 extern cmyth_timestamp_t cmyth_proginfo_originalairdate(cmyth_proginfo_t prog);
 
+/**
+ * Retrieve the recording status of a program.
+ * \param prog proginfo handle
+ * \return recording status
+ */
 extern cmyth_proginfo_rec_status_t cmyth_proginfo_rec_status(
 	cmyth_proginfo_t prog);
 
+/**
+ * Retrieve the size, in bytes, of a program.
+ * \param prog proginfo handle
+ * \return program length
+ */
 extern long long cmyth_proginfo_length(cmyth_proginfo_t prog);
 
+/**
+ * Retrieve the hostname of the MythTV backend that recorded a program.
+ * \param prog proginfo handle
+ * \return MythTV backend hostname
+ */
 extern char *cmyth_proginfo_host(cmyth_proginfo_t prog);
 
+/**
+ * Determine if two proginfo handles refer to the same program.
+ * \param a proginfo handle a
+ * \param b proginfo handle b
+ * \retval 0 programs are the same
+ * \retval -1 programs are different
+ */
 extern int cmyth_proginfo_compare(cmyth_proginfo_t a, cmyth_proginfo_t b);
 
+/**
+ * Retrieve the program length in seconds.
+ * \param prog proginfo handle
+ * \return program length in seconds
+ */
 extern int cmyth_proginfo_length_sec(cmyth_proginfo_t prog);
 
 extern cmyth_proginfo_t cmyth_proginfo_get_detail(cmyth_conn_t control,
 						  cmyth_proginfo_t p);
 
+/**
+ * Retrieve the start time of a program.
+ * \param prog proginfo handle
+ * \return timestamp handle
+ */
 extern cmyth_timestamp_t cmyth_proginfo_start(cmyth_proginfo_t prog);
 
+/**
+ * Retrieve the end time of a program.
+ * \param prog proginfo handle
+ * \return timestamp handle
+ */
 extern cmyth_timestamp_t cmyth_proginfo_end(cmyth_proginfo_t prog);
 
+/**
+ * Retrieve the card ID where the program was recorded.
+ * \param prog proginfo handle
+ * \return card ID
+ */
 extern long cmyth_proginfo_card_id(cmyth_proginfo_t prog);
 
+/**
+ * Retrieve the recording group of a program.
+ * \param prog proginfo handle
+ * \return null-terminated string
+ */
 extern char *cmyth_proginfo_recgroup(cmyth_proginfo_t prog);
+
 /*
  * -----------------------------------------------------------------
  * Program List Operations
