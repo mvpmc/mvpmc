@@ -819,10 +819,13 @@ video_callback(mvp_widget_t *widget, char key)
 			av_stop();
 			av_reset();
 			if (state.mute)
-				av_set_mute(1);
+				av_set_mute(0);
 			av_play();
 			mvpw_hide(ffwd_widget);
 		} else {
+			av_get_state(&state);
+			if (!state.mute)
+				av_set_mute(1);
 			mvpw_show(ffwd_widget);
 			mvpw_hide(pause_widget);
 			screensaver_disable();
