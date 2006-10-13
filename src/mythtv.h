@@ -136,6 +136,8 @@ extern mvp_widget_t *mythtv_livetv_clock;
 extern mvp_widget_t *mythtv_livetv_description;
 extern mvp_widget_t *mythtv_livetv_program_list;
 extern mvp_widget_t *mythtv_tvguide_menu;
+extern mvp_widget_t *mythtv_tvguide_dialog;
+extern mvp_widget_t *mythtv_tvguide_tune_warn;
 
 /*
  * -----------------------------------------------------------------
@@ -180,6 +182,12 @@ extern long myth_tvguide_get_free_cardids(cmyth_conn_t control);
 extern long myth_tvguide_get_active_card(cmyth_recorder_t rec);
 extern int mvp_tvguide_sql_check(cmyth_database_t db);
 extern int myth_guide_is_future(void * widget, int xofs);
+extern void mythtv_guide_reset_guide_times(void);
+extern int myth_tvguide_add_hilite(time_t start_time, int chan_num,
+																	 mvpw_array_cell_theme *theme);
+extern int myth_tvguide_remove_hilite(time_t start_time, int chan_num);
+extern void myth_tvguide_clear_hilites(void);
+
 
 /* ----------------------------------------------------------------- */
 
@@ -189,7 +197,7 @@ extern int mythtv_livetv_menu(void);
 extern int mythtv_program_runtime(void);
 extern void mythtv_set_popup_menu(mythtv_state_t state);
 
-extern int mythtv_guide_menu(mvp_widget_t*);
+extern int mythtv_guide_menu(mvp_widget_t*, mvp_widget_t*, mvp_widget_t*, mvp_widget_t*, mvp_widget_t*);
 extern int mythtv_guide_menu_move(mvp_widget_t* widget,int distance);
 
 extern int mythtv_prog_finder_char_menu(mvp_widget_t*, mvp_widget_t*, mvp_widget_t*);
@@ -255,3 +263,18 @@ extern void mythtv_fullscreen(void);
 }
 
 #endif /* MYTHTV_H */
+
+
+struct guide_options {
+        mvp_widget_t *pane1;
+        mvp_widget_t *pane2;
+        mvp_widget_t *pane3;
+        mvp_widget_t *pane4;
+        mvp_widget_t *widget;
+	int sqlcount;
+	int nrecgroups;
+};
+
+extern int MYTHTV_RECORD_START;
+extern int MYTHTV_RECORD_END;
+
