@@ -74,7 +74,7 @@ myth_tvguide_add_hilite(time_t start_time, int chan_num,
 	int rtrn = 0;
 	int sz,av;
 
-	printf("** SSDEBUG: adding hilite on start time: %ld, chan %d\n",
+	PRINTF("** SSDEBUG: adding hilite on start time: %ld, chan %d\n",
 				 start_time, chan_num);
 	if(hilites == NULL) {
 		hilites = cmyth_allocate(sizeof(*hilites));
@@ -126,7 +126,7 @@ myth_tvguide_remove_hilite(time_t start_time, int chan_num)
 	int rtrn = 0;
 	int i;
 
-	printf("** SSDEBUG: removing hilite on start time: %ld, chan %d\n",
+	PRINTF("** SSDEBUG: removing hilite on start time: %ld, chan %d\n",
 				 start_time, chan_num);
 	if(hilites) {
 		for(i=0; i<hilites->count; i++) {
@@ -175,7 +175,7 @@ myth_tvguide_should_hilite(time_t start_time, int chan_num)
 	int i;
 	cell_hilite_t rtrn = NULL;
 
-	printf("** SSDEBUG: checking hilite on start time: %ld, chan %d\n",
+	PRINTF("** SSDEBUG: checking hilite on start time: %ld, chan %d\n",
 				 start_time, chan_num);
 	if(hilites) {
 		for(i=0;i<hilites->count;i++) {
@@ -741,7 +741,7 @@ myth_load_guide(void * widget, cmyth_database_t db,
 							 j, i-prev-k);
 			}
 			else if(rtrn->progs[i].event_flags & EVENT_AUTO_TUNE) {
-				printf("** SSDEBUG: setting cell color for cell %d, %d\n",
+				PRINTF("** SSDEBUG: setting cell color for cell %d, %d\n",
 							 j, i-prev-k);
 				mvpw_set_array_cell_theme(widget, j, i-prev-k,
 					myth_tvguide_should_hilite(rtrn->progs[i].starttime,

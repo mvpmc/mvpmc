@@ -138,6 +138,7 @@ extern mvp_widget_t *mythtv_livetv_program_list;
 extern mvp_widget_t *mythtv_tvguide_menu;
 extern mvp_widget_t *mythtv_tvguide_dialog;
 extern mvp_widget_t *mythtv_tvguide_tune_warn;
+extern mvp_widget_t *mythtv_tvguide_tune_conflict;
 
 /*
  * -----------------------------------------------------------------
