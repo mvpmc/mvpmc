@@ -62,6 +62,7 @@
 #include <mvp_av.h>
 #include <mvp_demux.h>
 #include <mvp_osd.h>
+#include <mvp_string.h>
 #include <ts_demux.h>
 
 #include "mvpmc.h"
