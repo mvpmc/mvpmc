@@ -27,6 +27,7 @@
 #include <mysql/mysql.h>
 #include <cmyth.h>
 #include <cmyth_local.h>
+#include <mvp_string.h>
 
 #if 0
 #define PRINTF(x...) PRINTF(x)
@@ -114,7 +115,8 @@ cmyth_database_set_name(cmyth_database_t db, char *name)
 	    return 1;
 }
 
-int
+
+static int
 cmyth_db_check_connection(cmyth_database_t db)
 {
     int new_conn = 0;
@@ -148,6 +150,18 @@ cmyth_db_check_connection(cmyth_database_t db)
 	}
     }
     return 0;
+}
+
+MYSQL *
+cmyth_db_get_connection(cmyth_database_t db)
+{
+    if(cmyth_db_check_connection(db) != 0)
+    {
+       cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_db_check_connection failed\n",
+       					__FUNCTION__);
+       return NULL;
+    }
+    return db->mysql;
 }
 
 int 
@@ -325,176 +339,56 @@ cmyth_mysql_insert_into_record(cmyth_database_t db, char * query, char * query1,
 int
 cmyth_mysql_get_guide(cmyth_database_t db, cmyth_program_t **prog, time_t starttime, time_t endtime) 
 {
-	MYSQL_STMT *stmt = NULL;
-	MYSQL_RES *prepare_meta_result;
-	static MYSQL_BIND bind_params[4];
-	static MYSQL_BIND bind_results[13];
-	static my_bool firsttime = 1;
-	static my_bool res_is_null[13];
-	static my_bool res_error[13];
-	static unsigned long res_length[13];
-        const char *query = "SELECT program.chanid,UNIX_TIMESTAMP(program.starttime),UNIX_TIMESTAMP(program.endtime),program.title,program.description,program.subtitle,program.programid,program.seriesid,program.category,channel.channum,channel.callsign,channel.name,channel.sourceid FROM program LEFT JOIN channel on program.chanid=channel.chanid WHERE ( starttime>=FROM_UNIXTIME(?) and starttime<FROM_UNIXTIME(?) ) OR ( starttime <FROM_UNIXTIME(?) and endtime > FROM_UNIXTIME(?)) ORDER BY CAST(channel.channum AS UNSIGNED), program.starttime ASC ";
+	MYSQL_RES *res= NULL;
+	MYSQL_ROW row;
+        const char *query_str = "SELECT program.chanid,UNIX_TIMESTAMP(program.starttime),UNIX_TIMESTAMP(program.endtime),program.title,program.description,program.subtitle,program.programid,program.seriesid,program.category,channel.channum,channel.callsign,channel.name,channel.sourceid FROM program INNER JOIN channel WHERE program.chanid=channel.chanid AND ( ( starttime>=? and starttime<? ) OR ( starttime <? and endtime > ?) ) ORDER BY CAST(channel.channum AS UNSIGNED), program.starttime ASC ";
 	int rows=0;
 	int n=0;
-	int done = 0;
-	int result;
-	if(firsttime)
-	{
-	    int i;
-	    for(i = 0; i < sizeof(bind_params)/sizeof(*bind_params);i++)
-	    {
-		bind_params[i].buffer_type = MYSQL_TYPE_LONG;
-		bind_params[i].is_null = 0;
-		bind_params[i].length = 0;
-	    }
-	    for(i = 0; i < sizeof(bind_results)/sizeof(*bind_results);i++)
-	    {
-		bind_results[i].is_null = &res_is_null[i];
-		bind_results[i].error = &res_error[i];
-		bind_results[i].length = &res_length[i];
-	    }
-	    bind_results[0].buffer_type = MYSQL_TYPE_LONG;
-	    bind_results[1].buffer_type = MYSQL_TYPE_LONG;
-	    bind_results[2].buffer_type = MYSQL_TYPE_LONG;
-	    bind_results[3].buffer_type = MYSQL_TYPE_STRING;
-	    bind_results[3].buffer_length = sizeof((*prog)[0].title);
-	    bind_results[4].buffer_type = MYSQL_TYPE_STRING;
-	    bind_results[4].buffer_length = sizeof((*prog)[0].description);
-	    bind_results[5].buffer_type = MYSQL_TYPE_STRING;
-	    bind_results[5].buffer_length = sizeof((*prog)[0].subtitle);
-	    bind_results[6].buffer_type = MYSQL_TYPE_STRING;
-	    bind_results[6].buffer_length = sizeof((*prog)[0].programid);
-	    bind_results[7].buffer_type = MYSQL_TYPE_STRING;
-	    bind_results[7].buffer_length = sizeof((*prog)[0].seriesid);
-	    bind_results[8].buffer_type = MYSQL_TYPE_STRING;
-	    bind_results[8].buffer_length = sizeof((*prog)[0].category);
-	    bind_results[9].buffer_type = MYSQL_TYPE_LONG;
-	    bind_results[10].buffer_type = MYSQL_TYPE_STRING;
-	    bind_results[10].buffer_length = sizeof((*prog)[0].callsign);
-	    bind_results[11].buffer_type = MYSQL_TYPE_STRING;
-	    bind_results[11].buffer_length = sizeof((*prog)[0].name);
-	    bind_results[12].buffer_type = MYSQL_TYPE_LONG;
-	    firsttime = 0;
-	}
+	cmyth_mysql_query_t * query;
+	query = cmyth_mysql_query_create(db,query_str);
 
-	if(cmyth_db_check_connection(db) != 0)
+	if(cmyth_mysql_query_param_unixtime(query,starttime) < 0
+	    || cmyth_mysql_query_param_unixtime(query,endtime) < 0
+	    || cmyth_mysql_query_param_unixtime(query,starttime) < 0
+	    || cmyth_mysql_query_param_unixtime(query,starttime) < 0)
 	{
-               cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_db_check_connection failed\n",
-                           __FUNCTION__);
-               fprintf(stderr,"%s: cmyth_db_check_connection failed\n", __FUNCTION__);
-	       return -1;
-	}
-
-	stmt=mysql_stmt_init(db->mysql);
-	if(!stmt)
-	{
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: mysql_stmt_init(), out of memory\n",
-                           __FUNCTION__);
-		fprintf(stderr, "mysql_stmt_init(),out of memory");
-		return -1;
-	}
-	if(mysql_stmt_prepare(stmt,query,strlen(query)))
-	{
-	    cmyth_dbg(CMYTH_DBG_ERROR, "%s: mysql_stmt_prepare(), Failed: %s\n",
-				       __FUNCTION__, mysql_stmt_error(stmt));
-
-	    fprintf(stderr, " mysql_stmt_prepare(), SELECT failed\n");
-	    fprintf(stderr, " %s\n", mysql_stmt_error(stmt));
-	    mysql_stmt_close(stmt);
+	    cmyth_dbg(CMYTH_DBG_ERROR,"%s, binding of query parameters failed! Maybe we're out of memory?\n", __FUNCTION__);
+	    cmyth_release(query);
 	    return -1;
-	}
-	if(mysql_stmt_param_count(stmt) != sizeof(bind_params)/sizeof(*bind_params))
+ 	}
+	res = cmyth_mysql_query_result(query);
+	cmyth_release(query);
+	if(res == NULL)
 	{
-	    fprintf(stderr,"%s: Awooga! MySQL expects a different number of parameters to a statement to what we expected\n",__FUNCTION__);
-	    exit(1);
-	}
-	bind_params[0].buffer = (char *) &starttime;
-	bind_params[1].buffer = (char *) &endtime;
-	bind_params[2].buffer = (char *) &starttime;
-	bind_params[3].buffer = (char *) &starttime;
-	if(mysql_stmt_bind_param(stmt,bind_params))
-	{
-	    fprintf(stderr,"%s, mysql_stmt_bind_param() failed: %s\n",
-			    	__FUNCTION__, mysql_stmt_error(stmt));
-	    mysql_stmt_close(stmt);
+	    cmyth_dbg(CMYTH_DBG_ERROR,"%s, finalisation/execution of query failed!\n", __FUNCTION__);
 	    return -1;
 	}
 
-	/* Fetch result set meta information */
-	prepare_meta_result = mysql_stmt_result_metadata(stmt);
-	if (!prepare_meta_result)
-	{
-	    fprintf(stderr,
-	     " mysql_stmt_result_metadata(), returned no meta information\n");
-	    fprintf(stderr, " %s\n", mysql_stmt_error(stmt));
-	    mysql_stmt_close(stmt);
-	    return -1;
-	}
 
-	/* Get total columns in the query */
-	if(mysql_num_fields(prepare_meta_result) != sizeof(bind_results)/sizeof(*bind_results))/* validate column count */
-	{
-	      fprintf(stderr, "%s, invalid column count returned by MySQL\n",
-		      	__FUNCTION__);
-	      exit(1);
-	}
-
-	/* Execute the SELECT query */
-	if (mysql_stmt_execute(stmt))
-	{
-	    fprintf(stderr, "%s: mysql_stmt_execute(), failed\n", __FUNCTION__);
-	    fprintf(stderr, " %s\n", mysql_stmt_error(stmt));
-	    mysql_stmt_close(stmt);
-	    return -1;
-	}
-
-	while(rows == 0 || !done) {
+	while((row = mysql_fetch_row(res))) {
         	if (rows >= n) {
                 	n+=10;
                        	*prog=realloc(*prog,sizeof(**prog)*(n));
                	}
-		bind_results[0].buffer = (char *)&((*prog)[rows].chanid);
-           	cmyth_dbg(CMYTH_DBG_ERROR, "prog[%d].chanid =  %d\n",rows, (*prog)[rows].chanid);
+		(*prog)[rows].chanid = safe_atoi(row[0]);
                	(*prog)[rows].recording=0;
-		bind_results[1].buffer = (char *)&((*prog)[rows].starttime);
-		bind_results[2].buffer = (char *)&((*prog)[rows].endtime);
-		bind_results[3].buffer = &((*prog)[rows].title);
-		bind_results[4].buffer = &((*prog)[rows].description);
-		bind_results[5].buffer = &((*prog)[rows].subtitle);
-		bind_results[6].buffer = &((*prog)[rows].programid);
-		bind_results[7].buffer = &((*prog)[rows].seriesid);
-		bind_results[8].buffer = &((*prog)[rows].category);
-		bind_results[9].buffer = (char *)&((*prog)[rows].channum);
-		bind_results[10].buffer = &((*prog)[rows].callsign);
-		bind_results[11].buffer = &((*prog)[rows].name);
-		bind_results[12].buffer = (char *)&((*prog)[rows].sourceid);
+		(*prog)[rows].starttime= (time_t)safe_atol(row[1]);
+		(*prog)[rows].endtime= (time_t)safe_atol(row[2]);
+		sizeof_strncpy((*prog)[rows].title, row[3]);
+		sizeof_strncpy((*prog)[rows].description, row[4]);
+		sizeof_strncpy((*prog)[rows].subtitle, row[5]);
+		sizeof_strncpy((*prog)[rows].programid, row[6]);
+		sizeof_strncpy((*prog)[rows].seriesid, row[7]);
+		sizeof_strncpy((*prog)[rows].category, row[8]);
+		(*prog)[rows].channum = safe_atoi(row[9]);
+		sizeof_strncpy((*prog)[rows].callsign, row[10]);
+		sizeof_strncpy((*prog)[rows].name, row[11]);
+		(*prog)[rows].sourceid = safe_atoi(row[12]);
 		(*prog)[rows].startoffset=0;
 		(*prog)[rows].endoffset=0;
-		if(mysql_stmt_bind_result(stmt,bind_results))
-		{
-		    fprintf(stderr,"%s, mysql_stmt_bind_result() failed: %s\n",
-			    	__FUNCTION__, mysql_stmt_error(stmt));
-		}
-		result = mysql_stmt_fetch(stmt);
-		if(result == 0 || result== MYSQL_DATA_TRUNCATED)
-		{
-		    cmyth_dbg(CMYTH_DBG_ERROR, "prog[%d].chanid =  %ld\n",rows, (*prog)[rows].chanid);
-		    cmyth_dbg(CMYTH_DBG_ERROR, "prog[%d].title =  %s\n",rows, (*prog)[rows].title);
-		}
-		else 
-		{
-		    if (result != MYSQL_NO_DATA)
-		    {
-			fprintf(stderr,"%s, mysql_stmt_fetch() failed: %s\n",
-			    	__FUNCTION__, mysql_stmt_error(stmt));
-		    }
-		    done = 1;
-		    rows--;
-		}
           	rows++;
         }
-        mysql_stmt_free_result(stmt);
-        mysql_stmt_close(stmt);
+        mysql_free_result(res);
         cmyth_dbg(CMYTH_DBG_ERROR, "%s: rows= %d\n", __FUNCTION__, rows);
 	return rows;
 }
