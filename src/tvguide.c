@@ -482,9 +482,7 @@ mvp_tvguide_video_topright(int on)
 		av_move(410, 0, 3);
 		/*av_move(si.cols/2, 0, 3); */
 	} else {
-		/*
 		PRINTF("av_move(0,0,0): %s [%s,%d]\n", __FUNCTION__, __FILE__, __LINE__);
-		*/
 		av_move(0, 0, 0);
 	}
 }
@@ -515,12 +513,6 @@ mvp_tvguide_callback(mvp_widget_t *widget, char key)
 {
 	int rtrn = 0;
 	char * buf;
-	//time_t curtime;
-	//auto_tune_t tune_to;
-	//struct tm start,end;
-	//char tm_buf_start[16];
-	//char tm_buf_end[16];
-	//char msg[128];
 
 	switch(key) {
 		case MVPW_KEY_GUIDE:
@@ -576,9 +568,7 @@ mvp_tvguide_callback(mvp_widget_t *widget, char key)
 			rtrn = 1;
 			break;
 		case MVPW_KEY_ZERO ... MVPW_KEY_NINE:
-			/*
 			PRINTF("In %s number key %d \n", __FUNCTION__, key);
-			*/
 			/* Use a timer to get up to 3 keys. */
 			if(number_keys.key_ct < 3) {
 				sprintf(number_keys.keys, "%s%d", number_keys.keys, key);
@@ -655,51 +645,6 @@ mvp_tvguide_callback(mvp_widget_t *widget, char key)
 		case MVPW_KEY_RECORD:
 			rtrn = 1;
 			break;
-/*
-		case MVPW_KEY_RED:
-			PRINTF("** SSEDBUG: Red Button\n");
-			curtime = time(NULL);
-			tune_to = should_auto_tune(curtime + 30*60);
-			if(tune_to) {
-				mvpw_set_dialog_title(mythtv_tvguide_tune_warn,
-															"Autotune in 5 Minutes");
-				localtime_r(&(tune_to->start_time), &start);
-				localtime_r(&(tune_to->end_time), &end);
-				if (mythtv_use_12hour_clock) {
-					strftime(tm_buf_start, 16, "%I:%M %P", &start);
-					strftime(tm_buf_end, 16, "%I:%M %P", &end);
-				}
-				else {
-					sprintf(tm_buf_start, "%02d:%02d", start.tm_hour, start.tm_min);
-					sprintf(tm_buf_start, "%02d:%02d", end.tm_hour, end.tm_min);
-				}
-				sprintf(msg, "%s\nChannel:%s Starting: %s Ending: %s", tune_to->title,
-										tune_to->chanstr, tm_buf_start, tm_buf_end);
-				mvpw_set_dialog_text(mythtv_tvguide_tune_warn, msg);
-				auto_tune_state.warn = 1;
-				auto_tune_state.ack = 0;
-				PRINTF("** SSDEBUG: autotune dialog setup\n");
-				pthread_cond_signal(&auto_tune_cond);
-			}
-			rtrn = 1;
-		break;
-		case MVPW_KEY_GREEN:
-			auto_tune_state.ack = 0;
-			auto_tune_state.warn = 0;
-			rtrn = 1;
-		break;
-		case MVPW_KEY_RED:
-		        PRINTF("Showing 4x3 widget\n");
-			mvpw_hide(wss_16_9_image);
-			mvpw_show(wss_4_3_image);
-		        break;
-
-		case MVPW_KEY_GREEN:
-		        PRINTF("Showing 16x9 widget\n");
-			mvpw_hide(wss_4_3_image);
-			mvpw_show(wss_16_9_image);
-		        break;
-*/
 		case MVPW_KEY_VOL_UP:
 		case MVPW_KEY_VOL_DOWN:
 			break;
@@ -773,8 +718,6 @@ tvguide_dialog_key_callback(mvp_widget_t *widget, char key)
 static void
 tvguide_warn_dialog_key_callback(mvp_widget_t *widget, char key)
 {
-	//auto_tune_t tune_to;
-	//time_t curtime;
 
 	switch(key) {
 		case MVPW_KEY_RIGHT:
@@ -798,21 +741,6 @@ tvguide_warn_dialog_key_callback(mvp_widget_t *widget, char key)
 				mvpw_hide(widget);
 			}
 		break;
-#if 0
-		case MVPW_KEY_GREEN:
-			PRINTF("** SSDEBUG: Green Button\n");
-			auto_tune_state.ack = 0;
-			auto_tune_state.warn = 0;
-			mvpw_hide(widget);
-		break;
-		default:
-			PRINTF("** SSDEBUG: Default on dialog key callback\n");
-			if(auto_tune_state.warn) {
-				auto_tune_state.ack = 1;
-			}
-			mvpw_hide(widget);
-		break;
-#endif
 	}
 }
 
@@ -892,21 +820,6 @@ tvguide_conflict_dialog_key_callback(mvp_widget_t *widget, char key)
 				mvpw_focus(root);
 			}
 		break;
-#if 0
-		case MVPW_KEY_GREEN:
-			PRINTF("** SSDEBUG: Green Button\n");
-			auto_tune_state.ack = 0;
-			auto_tune_state.warn = 0;
-			mvpw_hide(widget);
-		break;
-		default:
-			PRINTF("** SSDEBUG: Default on dialog key callback\n");
-			if(auto_tune_state.warn) {
-				auto_tune_state.ack = 1;
-			}
-			mvpw_hide(widget);
-		break;
-#endif
 	}
 }
 
@@ -933,8 +846,6 @@ tvguide_menu_select_callback(mvp_widget_t *widget, char *item, void *key)
 	cmyth_program_t *sel_prog;
 	auto_tune_t clsn;
 	struct tm start,end;
-
-	//mvpw_hide(widget);
 
 	switch ((int)key) {
 	case 1: // Autotune
