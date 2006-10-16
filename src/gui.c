@@ -1030,6 +1030,7 @@ mvp_widget_t *mythtv_slow_connect;
 mvp_widget_t *mythtv_tvguide_menu;
 mvp_widget_t *mythtv_tvguide_dialog;
 mvp_widget_t *mythtv_tvguide_tune_warn;
+mvp_widget_t *mythtv_tvguide_tune_conflict;
 
 static int screensaver_enabled = 0;
 volatile int screensaver_timeout = 60;

@@ -344,6 +344,7 @@ mvpw_dialog_set_cur_button(mvp_widget_t *widget, int button)
 			button_attr.bg = widget->data.dialog.button_h_bg;
 			mvpw_set_text_attr(buttons[button], &button_attr);
 			mvpw_expose(buttons[button]);
+			widget->data.dialog.cur_button = button;
 		}
 	}
 
