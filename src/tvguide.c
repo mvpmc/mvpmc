@@ -1064,7 +1064,10 @@ mvp_tvguide_init(int edge_left, int edge_top, int edge_right,
 
 	/* Create the menu for future programs (schedule or autotune) */
 
-	h = 4 * FONT_HEIGHT(tvguide_popup_attr);
+	/* The one below is commented out until we add schedule */
+	/* after that we use the commented one and remove the other */
+	//h = 4 * FONT_HEIGHT(tvguide_popup_attr);
+	h = 3 * FONT_HEIGHT(tvguide_popup_attr);
 	w = 200;
 	x = (si.cols - w) / 2;
 	y = (si.rows - h) / 2;
