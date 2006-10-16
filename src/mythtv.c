@@ -79,7 +79,6 @@ static volatile cmyth_proglist_t episode_plist;
 static volatile cmyth_proglist_t pending_plist;
 
 cmyth_program_t *sqlprog=NULL;
-struct guide_options *myptr=NULL;
 cmyth_recgroups_t *sqlrecgroups=NULL;
 
 typedef struct
@@ -2994,7 +2993,7 @@ mythtv_guide_menu_update(mvp_widget_t *widget, time_t starttime, time_t endtime,
 	if(user_data == NULL)
 	{
 	    user_data = malloc(sizeof(*user_data));
-	    user_data->myptr = malloc(sizeof(*myptr));
+	    user_data->myptr = malloc(sizeof(*(user_data->myptr)));
 	    mvpw_set_user_data(widget,(void *)user_data);
 	}
 
