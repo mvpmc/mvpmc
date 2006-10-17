@@ -571,6 +571,9 @@ main(int argc, char **argv)
 				if (git_diffs[0] != '\0') {
 					printf("git diffs: %s\n", git_diffs);
 				}
+				if (git_revision[0] != '\0') {
+					printf("git revision: %s\n", git_revision);
+				}
 				exit(0);
 			}
 			if (strcmp(opts[opt_index].name, "vlc") == 0) {
