@@ -35,6 +35,7 @@
 #include <mvp_widget.h>
 #include <mvp_av.h>
 #include <mvp_demux.h>
+#include <mvp_string.h>
 #include <cmyth.h>
 
 #include "mvpmc.h"
