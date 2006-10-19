@@ -1064,7 +1064,10 @@ mvp_tvguide_init(int edge_left, int edge_top, int edge_right,
 
 	/* Create the menu for future programs (schedule or autotune) */
 
-	h = 4 * FONT_HEIGHT(tvguide_popup_attr);
+	/* The one below is commented out until we add schedule */
+	/* after that we use the commented one and remove the other */
+	//h = 4 * FONT_HEIGHT(tvguide_popup_attr);
+	h = 3 * FONT_HEIGHT(tvguide_popup_attr);
 	w = 200;
 	x = (si.cols - w) / 2;
 	y = (si.rows - h) / 2;
@@ -1189,10 +1192,26 @@ mvp_tvguide_clock_timer(mvp_widget_t * widget)
 
 	mvpw_set_text_str(widget, tm_buf);
 
-	/* Delay the auto tune by 15 seconds to allow any show switches */
-	/* to complete so as not to confuse the tvguide. Otherwise the */
-	/* guide may end up showing the wrong current show depending on */
-	/* which thread updates it last */
+	
+	/* Sometimes the backend is slow to respond and the current_prog
+	 * used to update the guide index still reflects the previous channel
+	 * that was being watched. This interim code is a workaround to
+	 * prevent this but ideally the ability to register a callback
+	 * on proginfo changes and update the chan index only when the
+	 * callback is invoked.
+	 */
+	if(!myth_is_chan_index(tvguide_chanlist, current_prog,
+												 tvguide_cur_chan_index)) {
+		printf("** SSEDBUG: Adjusting chan index\n");
+		tvguide_cur_chan_index =
+						myth_get_chan_index(tvguide_chanlist, current_prog);
+		tvguide_proglist = 
+			myth_load_guide(mythtv_livetv_program_list, mythtv_database,
+													tvguide_chanlist, tvguide_proglist,
+													tvguide_cur_chan_index, &tvguide_scroll_ofs_x,
+													&tvguide_scroll_ofs_y, tvguide_free_cardids);
+	}
+
 	if(auto_tune_state.warn == 0 &&
 		 (tune_to = should_auto_tune(curtime + AT_WARN*60)) != NULL) {
 		mvpw_set_dialog_title(mythtv_tvguide_tune_warn, "Autotune");
@@ -1280,7 +1299,7 @@ mvp_tvguide_timer(mvp_widget_t * widget)
 	if(myth_set_guide_times(mythtv_livetv_program_list, tvguide_scroll_ofs_x,
 												  mythtv_use_12hour_clock)) {
 		tvguide_proglist = 
-		myth_load_guide(mythtv_livetv_program_list, mythtv_database,
+			myth_load_guide(mythtv_livetv_program_list, mythtv_database,
 													tvguide_chanlist, tvguide_proglist,
 													tvguide_cur_chan_index, &tvguide_scroll_ofs_x,
 													&tvguide_scroll_ofs_y, tvguide_free_cardids);
@@ -1324,7 +1343,7 @@ mvp_tvguide_start(void)
 	mvpw_set_timer(mythtv_livetv_program_list, mvp_tvguide_timer, 100);
 	PRINTF("** SSDEBUG: timer started\n");
 
-	mvpw_set_timer(mythtv_livetv_clock, mvp_tvguide_clock_timer, 2000);
+	mvpw_set_timer(mythtv_livetv_clock, mvp_tvguide_clock_timer, 1000);
 
 	auto_tune_state.warn = auto_tune_state.ack = auto_tune_state.term = 0;
 	pthread_cond_init(&auto_tune_cond, NULL);

@@ -79,7 +79,6 @@ static volatile cmyth_proglist_t episode_plist;
 static volatile cmyth_proglist_t pending_plist;
 
 cmyth_program_t *sqlprog=NULL;
-struct guide_options *myptr=NULL;
 cmyth_recgroups_t *sqlrecgroups=NULL;
 
 typedef struct
@@ -2657,7 +2656,7 @@ hilite_schedule_recording_callback(mvp_widget_t *widget, char *item , void *key,
 void 
 mythtv_schedule_recording(mvp_widget_t *widget, char *item , void *key, int type)
 {
-	cmyth_dbg(CMYTH_DBG_DEBUG, "%s return\n", __FUNCTION__);
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s begin\n", __FUNCTION__);
 
 	int which = (int) mvpw_menu_get_hilite(widget);
 	int record_option = (int) key;    //will be 0 if not using schedule options
@@ -2668,20 +2667,34 @@ mythtv_schedule_recording(mvp_widget_t *widget, char *item , void *key, int type
 	char query2[500];
 	char msg[45];
 	char guierrormsg[45];
-	int sqlcount=user_data->myptr->sqlcount;
+	int sqlcount=0;
 	int err=0;
 	int i,rec_id=0;
 	cmyth_conn_t ctrl = cmyth_hold(control);
 	char *string;
 	unsigned int len;
 	//int rcrd = sqlprog[which].recording;
-	char *startoffset,*endoffset;
+	char *startoffset=NULL,*endoffset=NULL;
 	char *recordid=NULL;
+	int rgroup=0;
+	int newschedule=0;
 
-	startoffset=mvpw_get_dialog_text(user_data->myptr->pane2);
-	endoffset=mvpw_get_dialog_text(user_data->myptr->pane3);
-
-	int rgroup=(int) mvpw_menu_get_hilite(user_data->myptr->pane4);
+	if (user_data==NULL) {
+		newschedule=0;
+		startoffset="0";
+		endoffset="0";
+		if ( sqlrecgroups == NULL) {
+			sqlrecgroups=realloc(sqlrecgroups,sizeof(*sqlrecgroups)*(1));
+			sizeof_strncpy(sqlrecgroups[rgroup].recgroups, "Default");
+		}
+	}
+	else {
+		newschedule=1;
+		sqlcount=user_data->myptr->sqlcount;
+		startoffset=mvpw_get_dialog_text(user_data->myptr->pane2);
+		endoffset=mvpw_get_dialog_text(user_data->myptr->pane3);
+		rgroup=(int)mvpw_menu_get_hilite(user_data->myptr->pane4);
+	}
 
 	MYTHTV_RECORD_START=0;
 	MYTHTV_RECORD_END=0;
@@ -2802,45 +2815,48 @@ mythtv_schedule_recording(mvp_widget_t *widget, char *item , void *key, int type
 		sprintf(buf, "Recording Scheduled\n");
 		mvpw_set_text_str(program_info_widget, buf);
 		mvpw_show(program_info_widget);
-
-		mvpw_clear_menu(widget);
-		item_attr.select = schedule_recording_callback_popup;
-		item_attr.hilite = hilite_schedule_recording_callback;
-		item_attr.fg = mythtv_attr.fg;
-		item_attr.bg = mythtv_attr.bg;
-		mvpw_add_menu_item(widget, "Get Next Hour", (void*)-2, &item_attr);
-		mvpw_add_menu_item(widget, "Get Previous Hour", (void*)-1, &item_attr);
-       		for (i=0; i<sqlcount; i++) {
-                	switch (sqlprog[i].recording) {
-                        	case 1:
-                        	        item_attr.fg = mythtv_colors.pending_will_record;
-                        	        break;
-                        	case 2:
-                        	        item_attr.fg = mythtv_colors.pending_will_record;
-                        	        break;
-                        	case 3:
-                        	        item_attr.fg = mythtv_colors.pending_conflict;
-                        	        break;
-                        	case 4 ... 10:
-                        	case 99:
-                        	        item_attr.fg = mythtv_colors.pending_other;
-                        	        break;
-                        	default:
-                        	        item_attr.fg = mythtv_attr.fg;
-                	}
-			snprintf(buf, sizeof(buf),"%d (%s): %s - %s",sqlprog[i].channum,sqlprog[i].callsign,sqlprog[i].title,sqlprog[i].subtitle);
-        		mvpw_add_menu_item(widget, buf , (void*)(i), &item_attr);
-        		cmyth_dbg(CMYTH_DBG_DEBUG, "Menu added %d : %s : recording=%d : so=%d : eo=%d\n", i, buf,sqlprog [i].recording,sqlprog[i].startoffset,sqlprog[i].endoffset);
+		if (newschedule) {
+			mvpw_clear_menu(widget);
+			item_attr.select = schedule_recording_callback_popup;
+			item_attr.hilite = hilite_schedule_recording_callback;
+			item_attr.fg = mythtv_attr.fg;
+			item_attr.bg = mythtv_attr.bg;
+			mvpw_add_menu_item(widget, "Get Next Hour", (void*)-2, &item_attr);
+			mvpw_add_menu_item(widget, "Get Previous Hour", (void*)-1, &item_attr);
+	       		for (i=0; i<sqlcount; i++) {
+       		         	switch (sqlprog[i].recording) {
+                	        	case 1:
+                        		        item_attr.fg = mythtv_colors.pending_will_record;
+                        		        break;
+                        		case 2:
+                        		        item_attr.fg = mythtv_colors.pending_will_record;
+                        		        break;
+                        		case 3:
+                        		        item_attr.fg = mythtv_colors.pending_conflict;
+                        		        break;
+                        		case 4 ... 10:
+                       		 	case 99:
+                        		        item_attr.fg = mythtv_colors.pending_other;
+                        		        break;
+                        		default:
+                        		        item_attr.fg = mythtv_attr.fg;
+                		}
+				snprintf(buf, sizeof(buf),"%d (%s): %s - %s",sqlprog[i].channum,sqlprog[i].callsign,sqlprog[i].title,sqlprog[i].subtitle);
+        			mvpw_add_menu_item(widget, buf , (void*)(i), &item_attr);
+        			cmyth_dbg(CMYTH_DBG_DEBUG, "Menu added %d : %s : recording=%d : so=%d : eo=%d\n", i, buf,sqlprog [i].recording,sqlprog[i].startoffset,sqlprog[i].endoffset);
+			}
 		}
-
-//		item_attr.fg = mythtv_colors.pending_will_record;
-//		snprintf(buf, sizeof(buf),"%d (%s): %s - %s",sqlprog[which].channum,sqlprog[which].callsign,sqlprog[which].title,sqlprog[which].subtitle);
-//		mvpw_add_menu_item(widget, buf, (void *)which, &item_attr);
-//		mvpw_menu_set_item_attr(widget, (void*)which, &item_attr); 
-
+		else {
+			item_attr.fg = mythtv_colors.pending_will_record;
+			snprintf(buf, sizeof(buf),"%d (%s): %s - %s",sqlprog[which].channum,sqlprog[which].callsign,sqlprog[which].title,sqlprog[which].subtitle);
+			mvpw_add_menu_item(widget, buf, (void *)which, &item_attr);
+			mvpw_menu_set_item_attr(widget, (void*)which, &item_attr); 
+		}
 	}
-	mvpw_set_dialog_text(user_data->myptr->pane2,"0");
-	mvpw_set_dialog_text(user_data->myptr->pane3,"0");
+	if (newschedule) {
+		mvpw_set_dialog_text(user_data->myptr->pane2,"0");
+		mvpw_set_dialog_text(user_data->myptr->pane3,"0");
+	}
 	out:
 		cmyth_release(ctrl);
 		return;
@@ -2994,7 +3010,7 @@ mythtv_guide_menu_update(mvp_widget_t *widget, time_t starttime, time_t endtime,
 	if(user_data == NULL)
 	{
 	    user_data = malloc(sizeof(*user_data));
-	    user_data->myptr = malloc(sizeof(*myptr));
+	    user_data->myptr = malloc(sizeof(*(user_data->myptr)));
 	    mvpw_set_user_data(widget,(void *)user_data);
 	}
 
