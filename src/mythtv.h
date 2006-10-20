@@ -162,6 +162,8 @@ extern int myth_get_chan_index_from_str(cmyth_chanlist_t chanlist,
 															 char * chan);
 extern int myth_get_chan_index_from_int(cmyth_chanlist_t chanlist,
 															 int nchan);
+extern int myth_is_chan_index(cmyth_chanlist_t chanlist, cmyth_proginfo_t prog,
+                   						int index);
 extern cmyth_tvguide_progs_t myth_load_guide(mvp_widget_t *widget,
 												cmyth_database_t mythtv_database,
 												cmyth_chanlist_t chanlist,

@@ -471,4 +471,39 @@ extern cmyth_file_t cmyth_file_create(cmyth_conn_t control);
 #define cmyth_timestamp_diff __cmyth_timestamp_diff
 extern int cmyth_timestamp_diff(cmyth_timestamp_t, cmyth_timestamp_t);
 
+/*
+ * From mythtv_mysql.c
+ */
+
+extern MYSQL * cmyth_db_get_connection(cmyth_database_t db);
+
+
+/*
+ * From mysql_query.c
+ */
+
+typedef struct cmyth_mysql_query_s cmyth_mysql_query_t;
+
+extern cmyth_mysql_query_t * cmyth_mysql_query_create(cmyth_database_t db, const char * query_string);
+
+extern void cmyth_mysql_query_reset(cmyth_mysql_query_t *query);
+
+extern int cmyth_mysql_query_param_long(cmyth_mysql_query_t * query,long param);
+
+extern int cmyth_mysql_query_param_ulong(cmyth_mysql_query_t * query,unsigned long param);
+
+extern int cmyth_mysql_query_param_int(cmyth_mysql_query_t * query,int param);
+
+extern int cmyth_mysql_query_param_uint(cmyth_mysql_query_t * query,int param);
+
+extern int cmyth_mysql_query_param_unixtime(cmyth_mysql_query_t * query, time_t param);
+
+extern int cmyth_mysql_query_param_str(cmyth_mysql_query_t * query, const char *param);
+
+extern char * cmyth_mysql_query_string(cmyth_mysql_query_t * query);
+
+extern MYSQL_RES * cmyth_mysql_query_result(cmyth_mysql_query_t * query);
+
+
+
 #endif /* __CMYTH_LOCAL_H */

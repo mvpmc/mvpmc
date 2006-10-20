@@ -312,6 +312,25 @@ myth_get_chan_index(cmyth_chanlist_t chanlist, cmyth_proginfo_t prog)
 }
 
 /*
+ * Returns 1 if the current prog and chan index are the same
+ * 0 otherwise.
+ */
+int
+myth_is_chan_index(cmyth_chanlist_t chanlist, cmyth_proginfo_t prog,
+									 int index)
+{
+	int rtrn = 0;
+	cmyth_proginfo_t lprog = cmyth_hold(prog);
+
+	if(chanlist->chanlist_list[index].chanid == lprog->proginfo_chanId)
+		rtrn = 1;
+
+	cmyth_release(prog);
+
+	return rtrn;
+}
+
+/*
  *
  */
 static int

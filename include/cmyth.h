@@ -24,9 +24,6 @@
 #ifndef __CMYTH_H
 #define __CMYTH_H
 
-#define safe_strncpy(dest,src,n) ((dest)[(n)-1]='\0',strncpy(dest,src,(n)-1))
-#define sizeof_strncpy(dest,src) (safe_strncpy(dest,src,sizeof(dest)))
-
 /*
  * -----------------------------------------------------------------
  * Types
