@@ -35,6 +35,7 @@
 #include <mvp_widget.h>
 #include <mvp_av.h>
 #include <mvp_demux.h>
+#include <mvp_string.h>
 #include <cmyth.h>
 
 #include "mvpmc.h"
@@ -3059,7 +3060,7 @@ mythtv_guide_menu_update(mvp_widget_t *widget, time_t starttime, time_t endtime,
 		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1)\n",
 			__FUNCTION__, __FILE__, __LINE__); 
 		snprintf(buf, sizeof(buf),"No Guide retuned from Database...\nDatabase Error.  Please check your settings\n" );
-		mvpw_add_menu_item(widget, buf , (void*)i, &item_attr);
+		mvpw_add_menu_item(widget, buf , (void*)-1, &item_attr);
 		free(sqlprog);
 		goto out;
 	}
