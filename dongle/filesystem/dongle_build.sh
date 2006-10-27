@@ -105,12 +105,12 @@ fi
 if [ "$KERNELVER" = "2.4.31" ] ; then
 	#
 	# The squashfs size is limited to the amount allocated by Hauppauge
-	# in sdram bank1 (0xa0d00000-0xa0eb4fff).
+	# in sdram bank1 (0xa0d00000-0xa0ee4fff).
 	#
 	SIZE=`stat -c %s ${RAMDISK}`
 	echo "squashfs filesystem is $SIZE bytes"
-	if [ $SIZE -gt 1789952 ] ; then
-		echo "squashfs filesystem exceeds the limit of 1789952 bytes!"
+	if [ $SIZE -gt 1986560 ] ; then
+		echo "squashfs filesystem exceeds the limit of 1986560 bytes!"
 		exit 1
 	fi
 fi
