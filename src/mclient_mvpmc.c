@@ -146,8 +146,9 @@ receive_mpeg_data (int s, receive_mpeg_header * data, int bytes_read)
 
     if (debug)
     {
-        printf ("mclient:     Address:%8.8d Cntr:%8.8d     Seq:%8.8d  BytesIn:%8.8d\n",
-                ntohs (data->wptr), data->control, ntohs (data->seq), bytes_read);
+        printf
+            ("mclient:     Address:%8.8d Cntr:%8.8d     Seq:%8.8d  BytesIn:%8.8d\n",
+             ntohs (data->wptr), data->control, ntohs (data->seq), bytes_read);
 
         if (seq_history == ntohs (data->seq))
         {
@@ -631,10 +632,16 @@ receive_volume_data (unsigned short *data, int bytes_read)
          */
         vol_mvpmc = 0;
         i = 0;
-        while ((volume_server[i] != vol_server) & (i <= 40))
+        while ((volume_server[i] <= vol_server) & (i <= 40))
         {
             i++;
         }
+
+        if (i > 40)
+        {
+            i = 40;
+        }
+
         vol_mvpmc = volume_adj[i];
 
         {
