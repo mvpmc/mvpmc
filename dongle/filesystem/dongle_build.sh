@@ -109,12 +109,6 @@ fi
 ../tools/squashfs/squashfs2.2-r2/squashfs-tools/mksquashfs filesystem/install ${RAMDISK} -be -all-root -if filesystem/devtable || error "mksquashfs failed"
 
 if [ "$KERNELVER" = "2.4.31" ] ; then
-    cp ${RAMDISK} filesystem/install_wrapper/etc/rootfs.img
-    rm -f ${RAMDISK}
-    ../tools/squashfs/squashfs2.2-r2/squashfs-tools/mksquashfs filesystem/install_wrapper ${RAMDISK} -be -all-root -if filesystem/devtable || error "mksquashfs failed"
-fi
-
-if [ "$KERNELVER" = "2.4.31" ] ; then
 	#
 	# The squashfs size is limited to the amount allocated by the linux
 	# kernel in sdram bank1 (0xa0d00000-0xa0f00000).
@@ -125,6 +119,12 @@ if [ "$KERNELVER" = "2.4.31" ] ; then
 		echo "squashfs filesystem exceeds the limit of 2097152 bytes!"
 		exit 1
 	fi
+fi
+
+if [ "$KERNELVER" = "2.4.31" ] ; then
+    cp ${RAMDISK} filesystem/install_wrapper/etc/rootfs.img
+    rm -f ${RAMDISK}
+    ../tools/squashfs/squashfs2.2-r2/squashfs-tools/mksquashfs filesystem/install_wrapper ${RAMDISK} -be -all-root -if filesystem/devtable || error "mksquashfs failed"
 fi
 
 make_dongle filesystem/kernel_files/vmlinux.gz ${RAMDISK}
