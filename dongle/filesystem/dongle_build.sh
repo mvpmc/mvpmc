@@ -87,10 +87,16 @@ fi
 #
 # Copy the kernel libraries into the fs dir
 #
-rm -rf filesystem/install/lib/modules
-mkdir -p filesystem/install/lib/modules/${KERNELVER}${EXTRAVER}/misc
-cp filesystem/tree/lib/modules/${KERNELVER}${EXTRAVER}/misc/*.o filesystem/install/lib/modules/${KERNELVER}${EXTRAVER}/misc
-cp filesystem/hcw/linux-${KERNELVER}/*.o filesystem/install/lib/modules/${KERNELVER}${EXTRAVER}/misc
+if [ "$KERNELVER" = "2.4.31" ] ; then
+    MODDIR=filesystem/install_wrapper/lib/modules
+else
+    MODDIR=filesystem/install/lib/modules
+fi
+
+rm -rf ${MODDIR}
+mkdir -p ${MODDIR}/${KERNELVER}${EXTRAVER}/misc
+cp filesystem/tree/lib/modules/${KERNELVER}${EXTRAVER}/misc/*.o ${MODDIR}/${KERNELVER}${EXTRAVER}/misc
+cp filesystem/hcw/linux-${KERNELVER}/*.o ${MODDIR}/${KERNELVER}${EXTRAVER}/misc
 mkdir -p filesystem/install/memory
 mkdir -p filesystem/install/union
 
@@ -103,14 +109,20 @@ fi
 ../tools/squashfs/squashfs2.2-r2/squashfs-tools/mksquashfs filesystem/install ${RAMDISK} -be -all-root -if filesystem/devtable || error "mksquashfs failed"
 
 if [ "$KERNELVER" = "2.4.31" ] ; then
+    cp ${RAMDISK} filesystem/install_wrapper/etc/rootfs.img
+    rm -f ${RAMDISK}
+    ../tools/squashfs/squashfs2.2-r2/squashfs-tools/mksquashfs filesystem/install_wrapper ${RAMDISK} -be -all-root -if filesystem/devtable || error "mksquashfs failed"
+fi
+
+if [ "$KERNELVER" = "2.4.31" ] ; then
 	#
-	# The squashfs size is limited to the amount allocated by Hauppauge
-	# in sdram bank1 (0xa0d00000-0xa0ee4fff).
+	# The squashfs size is limited to the amount allocated by the linux
+	# kernel in sdram bank1 (0xa0d00000-0xa0f00000).
 	#
 	SIZE=`stat -c %s ${RAMDISK}`
 	echo "squashfs filesystem is $SIZE bytes"
-	if [ $SIZE -gt 1986560 ] ; then
-		echo "squashfs filesystem exceeds the limit of 1986560 bytes!"
+	if [ $SIZE -gt 2097152 ] ; then
+		echo "squashfs filesystem exceeds the limit of 2097152 bytes!"
 		exit 1
 	fi
 fi
