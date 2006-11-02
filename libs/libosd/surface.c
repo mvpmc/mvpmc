@@ -69,6 +69,10 @@ osd_create_surface(int w, int h, unsigned long color, osd_surface_type_t type)
 	int i;
 	static int fd = -1;
 
+	if (type == OSD_FB) {
+		return fb_create(w, h, color);
+	}
+
 	if (w == -1)
 		w = full_width;
 	if (h == -1)
@@ -174,8 +178,10 @@ osd_destroy_surface(osd_surface_t *surface)
 		if (surface->base[i])
 			munmap(surface->base[i], surface->map.map[i].size);
 
-	if (ioctl(fd, GFX_FB_SFC_FREE, surface->sfc.handle) < 0)
-		return -1;
+	if (surface->type != OSD_FB) {
+		if (ioctl(fd, GFX_FB_SFC_FREE, surface->sfc.handle) < 0)
+			return -1;
+	}
 
 	free(surface);
 

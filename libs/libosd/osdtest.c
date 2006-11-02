@@ -26,6 +26,10 @@
 
 #include "mvp_osd.h"
 
+#define INCLUDE_LINUX_LOGO_DATA
+#define __initdata
+#include <linux/linux_logo.h>
+
 #if !defined(__powerpc__)
 #error unsupported architecture
 #endif
@@ -403,6 +407,48 @@ test_cursor(char *name)
 	return -1;
 }
 
+static int
+test_fb(char *name)
+{
+	osd_surface_t *surface = NULL;
+	osd_fb_image_t image;
+	int x, y;
+
+	printf("testing framebuffer\t");
+
+	timer_start();
+
+	if ((surface=osd_create_surface(width, height, 0x20, OSD_FB)) == NULL)
+		FAIL;
+
+	image.colors = LINUX_LOGO_COLORS;
+	image.width = 80;
+	image.height = 80;
+	image.red = linux_logo_red;
+	image.green = linux_logo_green;
+	image.blue = linux_logo_blue;
+	image.image = linux_logo;
+
+	x = (width - image.width) / 2;
+	y = (height - image.height) / 2;
+
+	if (fb_draw_image(surface, &image, x, y) < 0)
+		FAIL;
+
+	timer_end();
+
+	return 0;
+
+ err:
+	return -1;
+}
+
+static void
+fb_clear(void)
+{
+	osd_create_surface(width, height, 0x20, OSD_FB);
+}
+
 typedef struct {
 	char *name;
 	int sleep;
@@ -418,6 +464,7 @@ static tester_t tests[] = {
 	{ "display control",	2,	test_display_control },
 	{ "blit",		2,	test_blit },
 	{ "cursor",		2,	test_cursor },
+	{ "fb",			2,	test_fb },
 	{ NULL, 0, NULL },
 };
 
@@ -467,6 +514,8 @@ main(int argc, char **argv)
 
 	srand(getpid());
 
+	fb_clear();
+
 	while (tests[i].name) {
 		if (tests[i].func(tests[i].name) == 0) {
 			timer_print();
@@ -487,6 +536,8 @@ main(int argc, char **argv)
 		osd_destroy_all_surfaces();
 		i++;
 	}
+
+	fb_clear();
 
 	return ret;
 }

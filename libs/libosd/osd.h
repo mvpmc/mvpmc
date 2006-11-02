@@ -152,4 +152,5 @@ extern int move_cursor(osd_surface_t *surface, int x, int y);
 extern int osd_get_engine_mode(osd_surface_t *surface);
 extern int osd_reset_engine(osd_surface_t *surface);
 
+extern osd_surface_t* fb_create(int w, int h, unsigned long color);
 #endif /* STBGFX_H */
