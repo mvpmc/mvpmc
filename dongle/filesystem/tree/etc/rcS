@@ -27,7 +27,10 @@ do_ntp() {
 #
 # Unmount the old root device (in case we did a pivot_root already)
 #
-/bin/umount /oldroot
+if [ "$KERNVER" != "2.4.17_mvl21-vdongle" ] ; then
+	/bin/umount /oldroot
+	/sbin/freeramdisk /dev/ram0
+fi
 
 #
 # Create the tmpfs filesystem and mount it on top of the squashfs root
