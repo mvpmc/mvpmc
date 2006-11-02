@@ -93,7 +93,9 @@ else
     MODDIR=filesystem/install/lib/modules
 fi
 
-rm -rf ${MODDIR}
+rm -rf filesystem/install/lib/modules
+rm -rf filesystem/install_wrapper/lib/modules
+
 mkdir -p ${MODDIR}/${KERNELVER}${EXTRAVER}/misc
 cp filesystem/tree/lib/modules/${KERNELVER}${EXTRAVER}/misc/*.o ${MODDIR}/${KERNELVER}${EXTRAVER}/misc
 cp filesystem/hcw/linux-${KERNELVER}/*.o ${MODDIR}/${KERNELVER}${EXTRAVER}/misc

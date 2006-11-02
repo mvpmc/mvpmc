@@ -37,7 +37,6 @@ fi
 # filesystem with unionfs.
 #
 mount -t tmpfs -o "size=1M" tmpfs /memory
-insmod -f unionfs
 mount -t unionfs -o dirs=/memory=rw:/=ro unionfs /union
 cd /union
 mkdir live
