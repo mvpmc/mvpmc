@@ -37,6 +37,9 @@ fi
 # filesystem with unionfs.
 #
 mount -t tmpfs -o "size=1M" tmpfs /memory
+if [ "$KERNVER" = "2.4.17_mvl21-vdongle" ] ; then
+    insmod -f unionfs
+fi
 mount -t unionfs -o dirs=/memory=rw:/=ro unionfs /union
 cd /union
 mkdir live
