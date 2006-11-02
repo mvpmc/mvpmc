@@ -5376,6 +5376,7 @@ myth_browser_init(void)
 	mvpw_set_menu_attr(mythtv_sched_1, &mythtv_attr);
 	mvpw_set_menu_attr(mythtv_prog_finder_1, &mythtv_attr);
 	mvpw_set_menu_attr(mythtv_prog_finder_2, &mythtv_attr);
+	mvpw_set_menu_attr(mythtv_prog_finder_3, &mythtv_attr);
 
 	mvpw_set_menu_attr(mythtv_sched_option_1, &mythtv_attr);
 	mvpw_set_menu_attr(mythtv_sched_option_4, &mythtv_attr);

@@ -34,6 +34,7 @@ for i in $PATCHES ; do
 done
 
 patch -p1 -d linux-2.4.31 < patches/misc-embedded.patch
+patch -p1 -d linux-2.4.31 < patches/rd_size.patch
 
 cd linux-2.4.31
 patch -p1 < ../patches/cifs_24.patch

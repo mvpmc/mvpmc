@@ -9,9 +9,11 @@ STRIP=${CROSS}strip
 
 echo STRIP $STRIP
 
-DIRS="bin sbin usr/bin usr/sbin lib dev proc var usr/share usr/share/mvpmc usr/share/udhcpc etc tmp"
+DIRS="bin sbin usr/bin usr/sbin lib dev proc var usr/share usr/share/mvpmc usr/share/udhcpc etc tmp oldroot"
+WRAPPER_DIRS="bin sbin etc usr/bin usr/sbin dev tmp lib proc mnt"
 
 BIN="busybox mvpmc ntpclient"
+WRAPPER_BIN="busybox"
 
 SBIN=""
 
@@ -20,18 +22,29 @@ USRBIN=""
 USRSBIN=""
 
 rm -rf filesystem/install
+rm -rf filesystem/install_wrapper
 
 for i in $DIRS ; do
     mkdir -p filesystem/install/$i
+done
+for i in $WRAPPER_DIRS ; do
+    mkdir -p filesystem/install_wrapper/$i
 done
 
 cd filesystem/tree
 tar -cf - * | tar -xf - -C ../install
 cd ../..
+cd filesystem/wrapper
+tar -cf - * | tar -xf - -C ../install_wrapper
+cd ../..
 
 for i in $BIN ; do
     cp -d install/mvp/bin/$i filesystem/install/bin
     $STRIP filesystem/install/bin/$i
+done
+for i in $WRAPPER_BIN ; do
+    cp -d install/mvp/bin/$i filesystem/install_wrapper/bin
+    $STRIP filesystem/install_wrapper/bin/$i
 done
 
 for i in $SBIN ; do
@@ -50,9 +63,12 @@ for i in $USRSBIN ; do
 done
 
 awk -F/ '{if(/^\/bin\/[^\/]+$/) { system("ln -s busybox filesystem/install" $0 ) } else {rp=sprintf("%" NF-2 "s", ""); gsub(/./,"../",rp); system("ln -sf " rp "bin/busybox filesystem/install" $0) }}' apps/busybox/mvp/busybox-*/busybox.links
+awk -F/ '{if(/^\/bin\/[^\/]+$/) { system("ln -s busybox filesystem/install_wrapper" $0 ) } else {rp=sprintf("%" NF-2 "s", ""); gsub(/./,"../",rp); system("ln -sf " rp "bin/busybox filesystem/install_wrapper" $0) }}' apps/busybox/mvp/busybox-*/busybox.links
 
 cp -d install/mvp/usr/share/mvpmc/* filesystem/install/usr/share/mvpmc
 cp -d install/mvp/linuxrc filesystem/install
+
+cp -d install/mvp/linuxrc filesystem/install_wrapper
 
 #filesystem/kernel_copy.sh kernel/linux-2.4.17/mvpdist/kernel filesystem/kernel_files
 

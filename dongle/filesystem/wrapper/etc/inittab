@@ -1,0 +1,5 @@
+#
+# inittab
+#
+::sysinit:/etc/rcS
+::restart:/sbin/init
