@@ -1,0 +1,44 @@
+#!/bin/sh
+#
+# Startup script for the wrapper filesystem
+#
+
+ROOTDEV=/dev/mtd5
+ROOTBLK=/dev/mtdblock5
+
+#
+# Load the Hauppauge kernel modules
+#
+insmod os_core
+insmod av_core _fmt=1
+insmod ircombo
+insmod gfx
+insmod osdfb
+
+#
+# Draw the splash screen on the framebuffer
+#
+/bin/splash
+
+#
+# Load the mvpmc kernel modules
+#
+insmod ac3_mod
+insmod mvpstb_mod.o mvpmod_major=230
+insmod -f unionfs
+
+mount -t proc /proc /proc
+
+#
+# Switch to the embedded filesystem, if it exists.
+#
+if [ -n /etc/rootfs.img ] ; then
+    dd if=/etc/rootfs.img of=$ROOTDEV
+    mount $ROOTBLK /mnt
+    cd /mnt
+    /sbin/pivot_root . oldroot
+    umount /oldroot/proc
+    kill -QUIT 1
+else
+    echo embedded filesystem not found
+fi

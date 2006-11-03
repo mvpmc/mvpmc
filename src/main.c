@@ -62,6 +62,7 @@
 #include <mvp_av.h>
 #include <mvp_demux.h>
 #include <mvp_osd.h>
+#include <mvp_string.h>
 #include <ts_demux.h>
 
 #include "mvpmc.h"
@@ -570,6 +571,9 @@ main(int argc, char **argv)
 				printf("Built at: %s\n", compile_time);
 				if (git_diffs[0] != '\0') {
 					printf("git diffs: %s\n", git_diffs);
+				}
+				if (git_revision[0] != '\0') {
+					printf("git revision: %s\n", git_revision);
 				}
 				exit(0);
 			}

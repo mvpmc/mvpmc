@@ -20,6 +20,8 @@
 #ifndef SURFACE_H
 #define SURFACE_H
 
+#include <linux/fb.h>
+
 /**
  * STB Graphics Display.
  */
@@ -79,6 +81,7 @@ struct osd_surface_s {
 	unsigned char *base[3];
 	int fd;
 	osd_surface_type_t type;
+	struct fb_fix_screeninfo finfo;
 };
 
 #define GFX_FB_SFC_ALLOC	_IOWR(0xfb,1,int)

@@ -1,0 +1,14 @@
+--- linux-2.4.31/drivers/mtd/maps/ramdisk.c	2006-10-30 22:19:33.000000000 -0600
++++ linux-2.4.31-new/drivers/mtd/maps/ramdisk.c	2006-10-30 23:08:13.000000000 -0600
+@@ -156,7 +156,11 @@
+ 		hcwmvp_sdram_mtd->module = THIS_MODULE;
+ 		//hcwmvp_sdram_mtd->erasesize = 0xF0000;
+ 		//add_mtd_device(hcwmvp_sdram_mtd);
++#ifdef CONFIG_BLK_DEV_INITRD
++		root_size = 0x200000;
++#else
+ 		root_size = in_be32((u32*)hcwmvp_sdram_map.map_priv_2);
++#endif
+ 		//root_size |= in_be16((u16*)(hcwmvp_sdram_map.map_priv_2+2));
+ 		//KDBG("root_size =%x \n", root_size);
+ 		hcwmvp_sdram_partitions[0].size = root_size;

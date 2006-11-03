@@ -20,10 +20,21 @@ version = os.system(toplevel + '/src/version.sh ' + toplevel + ' ' + toplevel + 
 
 if target == 'host':
 	libx11dir = ['/usr/X11R6/lib']
-	libx11 = ['X11', 'pthread', 'rt', 'Xau', 'dl']
+	libx11 = ['X11', 'pthread', 'rt', 'Xau', 'dl', 'Xdmcp']
 else:
 	libx11dir = []
 	libx11 = []
+
+if target == 'mvp':
+	splash = mvp.Program('splash',
+                             ['splash.c'],
+                             CPPPATH = [ env['INCDIR'], env['INSTINCDIR'],
+                                         '.', '../include' ],
+                             LIBS = ['osd', 'av'],
+                             LIBPATH = [ libdir ],
+                             LINKFLAGS = [ '-static' ])
+
+			
 
 mvpmc = mvp.Program('mvpmc',
                     ['audio.c', 'colorlist.c', 'config.c', 'display.c',
@@ -43,7 +54,10 @@ mvpmc = mvp.Program('mvpmc',
                     LIBPATH = [ libdir, mysql_libdir ] + libx11dir,
                     LINKFLAGS = [ '-static' ])
 
-inst = env.Install(bindir, mvpmc)
+if target == 'mvp':
+	inst = env.Install(bindir, [ mvpmc, splash ])
+else:
+	inst = env.Install(bindir, mvpmc)
 
 env.Depends(mvpmc, version)
 

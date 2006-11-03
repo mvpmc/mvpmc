@@ -39,7 +39,18 @@ typedef struct osd_surface_s osd_surface_t;
 typedef enum {
 	OSD_CURSOR=0,
 	OSD_DRAWING=1,
+	OSD_FB=2,
 } osd_surface_type_t;
+
+typedef struct {
+	int colors;
+	int width;
+	int height;
+	unsigned char *red;
+	unsigned char *green;
+	unsigned char *blue;
+	unsigned char *image;
+} osd_fb_image_t;
 
 /**
  * Create a new drawing surface
@@ -251,6 +262,9 @@ osd_rgba(unsigned char r, unsigned char g, unsigned char b, unsigned char a)
 {
 	return (a<<24) | (r<<16) | (g<<8) | b;
 }
+
+extern int fb_draw_image(osd_surface_t *surface, osd_fb_image_t *image,
+			 int x, int y);
 
 #endif /* MVP_OSD_H */
 

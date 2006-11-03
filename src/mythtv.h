@@ -136,6 +136,9 @@ extern mvp_widget_t *mythtv_livetv_clock;
 extern mvp_widget_t *mythtv_livetv_description;
 extern mvp_widget_t *mythtv_livetv_program_list;
 extern mvp_widget_t *mythtv_tvguide_menu;
+extern mvp_widget_t *mythtv_tvguide_dialog;
+extern mvp_widget_t *mythtv_tvguide_tune_warn;
+extern mvp_widget_t *mythtv_tvguide_tune_conflict;
 
 /*
  * -----------------------------------------------------------------
@@ -159,6 +162,8 @@ extern int myth_get_chan_index_from_str(cmyth_chanlist_t chanlist,
 															 char * chan);
 extern int myth_get_chan_index_from_int(cmyth_chanlist_t chanlist,
 															 int nchan);
+extern int myth_is_chan_index(cmyth_chanlist_t chanlist, cmyth_proginfo_t prog,
+                   						int index);
 extern cmyth_tvguide_progs_t myth_load_guide(mvp_widget_t *widget,
 												cmyth_database_t mythtv_database,
 												cmyth_chanlist_t chanlist,
@@ -180,6 +185,12 @@ extern long myth_tvguide_get_free_cardids(cmyth_conn_t control);
 extern long myth_tvguide_get_active_card(cmyth_recorder_t rec);
 extern int mvp_tvguide_sql_check(cmyth_database_t db);
 extern int myth_guide_is_future(void * widget, int xofs);
+extern void mythtv_guide_reset_guide_times(void);
+extern int myth_tvguide_add_hilite(time_t start_time, int chan_num,
+																	 mvpw_array_cell_theme *theme);
+extern int myth_tvguide_remove_hilite(time_t start_time, int chan_num);
+extern void myth_tvguide_clear_hilites(void);
+
 
 /* ----------------------------------------------------------------- */
 

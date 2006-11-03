@@ -87,26 +87,35 @@ expose(mvp_widget_t *widget)
 	GrSetGCForeground(gcr, widget->data.text.text_bg);
 
 	if (widget->data.text.rounded) {
+		width = mvpw_font_width(widget->data.text.font,
+					widget->data.text.str,
+					widget->data.text.utf8);
 		dia = widget->height / 2;
 		indent = dia / 2;
+		if(widget->data.text.justify == MVPW_TEXT_CENTER) {
+			i = (widget->width - width)/2 - dia + indent/2;
+		}
+		else if(widget->data.text.justify == MVPW_TEXT_RIGHT) {
+			i = widget->width - width - dia + indent/2;
+		}
+		else {
+			i = 0;
+		}
 		GrArc(widget->wid, gcr,
-		      dia, dia,
+		      dia+i, dia,
 		      dia, dia,
 		      0, 0,
 		      0, dia,
 		      GR_PIE);
-		width = mvpw_font_width(widget->data.text.font,
-					widget->data.text.str,
-					widget->data.text.utf8);
 		if (width > widget->width - (2*dia))
 			width = widget->width - (2*dia);
 		GrArc(widget->wid, gcr,
-		      dia+width, dia,
+		      dia+width+i, dia,
 		      dia, dia,
 		      0+width, dia,
 		      0+width, 0,
 		      GR_PIE);
-		GrFillRect(widget->wid, gcr, dia, 0, width, widget->height);
+		GrFillRect(widget->wid, gcr, dia+i, 0, width, widget->height);
 	}
 
 	str = widget->data.text.str;
@@ -383,6 +392,7 @@ mvpw_set_text_attr(mvp_widget_t *widget, mvpw_text_attr_t *attr)
 		GrSetWindowBorderColor(widget->wid, attr->border);
 		widget->border_color = attr->border;
 	}
+
 	widget->border_size = attr->border_size;
 
 	mvpw_expose(widget);
@@ -411,6 +421,16 @@ mvpw_set_text_fg(mvp_widget_t *widget, uint32_t fg)
 {
 	if(widget)
 		widget->data.text.fg = fg;
+}
+
+void
+mvpw_set_text_bg(mvp_widget_t *widget, uint32_t bg)
+{
+	if(widget) {
+		widget->data.text.text_bg = bg;
+		GrSetWindowBackgroundColor(widget->wid, bg);
+		widget->bg = bg;
+	}
 }
 
 uint32_t

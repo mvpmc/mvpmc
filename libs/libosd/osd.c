@@ -593,7 +593,6 @@ osd_get_display_control(osd_surface_t *surface, int type)
 
 	if (ioctl(surface->fd, GFX_FB_GET_DISP_CTRL, &ctrl) < 0)
 		return -1;
-
 	return ctrl.value;
 }
 

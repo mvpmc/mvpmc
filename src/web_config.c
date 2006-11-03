@@ -1078,6 +1078,7 @@ int mvp_load_data(FILE *stream,char *line)
                             case WEB_CONFIG_STATUS:
                                 tm = time(NULL);
                                 ptm = localtime(&tm);
+                                fprintf(stream,"Built: %s<BR />", compile_time);
                                 fprintf(stream,"System Time %s<BR />",asctime(ptm));
                                 fprintf(stream, "%s/%s<BR />", cwd, current_hilite);
                                 if (audio_playing) {
@@ -1410,8 +1411,13 @@ void load_web_config(char *font)
     } else {
         filebrowser_disable = 0;
     }
-    if (IS_WEB_ENABLED(WEB_CONFIG_USE_VLC) && vlc_server == NULL ) {
+    if (IS_WEB_ENABLED(WEB_CONFIG_USE_VLC) ) {
+        if (vlc_server == NULL ) {
         vlc_server = strdup(web_config->vlc_server);
+        } else if (strcmp(vlc_server,web_config->vlc_server) ){
+            free(vlc_server);
+            vlc_server = strdup(web_config->vlc_server);
+    }
     }
     if (NOT_WEB_ENABLED(WEB_CONFIG_USE_MPLAYER) ){
         mplayer_disable = 1;

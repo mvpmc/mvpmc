@@ -3,6 +3,8 @@
 # mvpmc startup script
 #
 
+KERNVER=`/bin/uname -r`
+
 #
 # Connect to the first available NTP server
 #
@@ -18,16 +20,26 @@ do_ntp() {
 }
 
 #
-# Mount everything in /etc/fstab
+# Unmount everything in /etc/fstab
 #
 /bin/umount -a
+
+#
+# Unmount the old root device (in case we did a pivot_root already)
+#
+if [ "$KERNVER" != "2.4.17_mvl21-vdongle" ] ; then
+	/bin/umount /oldroot
+	/sbin/freeramdisk /dev/ram0
+fi
 
 #
 # Create the tmpfs filesystem and mount it on top of the squashfs root
 # filesystem with unionfs.
 #
 mount -t tmpfs -o "size=1M" tmpfs /memory
-insmod -f unionfs
+if [ "$KERNVER" = "2.4.17_mvl21-vdongle" ] ; then
+    insmod -f unionfs
+fi
 mount -t unionfs -o dirs=/memory=rw:/=ro unionfs /union
 cd /union
 mkdir live
@@ -63,14 +75,15 @@ fi
 #
 # Load kernel modules
 #
-insmod os_core
-insmod av_core _fmt=1
-insmod ircombo
-insmod gfx
-insmod osdfb
-insmod ac3_mod
-insmod mvpstb_mod.o mvpmod_major=230
-#insmod xrmod
+if [ "$KERNVER" = "2.4.17_mvl21-vdongle" ] ; then
+    insmod os_core
+    insmod av_core _fmt=1
+    insmod ircombo
+    insmod gfx
+    insmod osdfb
+    insmod ac3_mod
+    insmod mvpstb_mod.o mvpmod_major=230
+fi
 
 #
 # default timezone to US Central
