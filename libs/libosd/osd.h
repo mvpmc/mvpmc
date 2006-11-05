@@ -24,88 +24,48 @@
  * On-Screen-Display hardware interface.
  */
 
-#define gfx_init		__osd_gfx_init
+#include "fb.h"
+#include "gfx.h"
+
+#define full_width	__osd_full_width
+#define full_height	__osd_full_height
+#define all		__osd_all
+#define visible		__osd_visible
+
+typedef struct {
+	int (*destroy)(osd_surface_t*);
+	int (*display)(osd_surface_t*);
+	int (*undisplay)(osd_surface_t*);
+	int (*palette_init)(osd_surface_t*);
+	int (*palette_add_color)(osd_surface_t*, unsigned int);
+	int (*draw_pixel)(osd_surface_t*, int, int, unsigned int);
+	int (*draw_pixel_ayuv)(osd_surface_t*, int, int,
+			       unsigned char, unsigned char,
+			       unsigned char, unsigned char);
+	unsigned int (*read_pixel)(osd_surface_t*, int, int);
+	int (*draw_horz_line)(osd_surface_t*, int, int, int, unsigned int);
+	int (*draw_vert_line)(osd_surface_t*, int, int, int, unsigned int);
+	int (*fill_rect)(osd_surface_t*, int, int, int, int, unsigned int);
+	int (*blit)(osd_surface_t*, int, int, osd_surface_t*, int, int,
+		    int, int);
+	int (*draw_indexed_image)(osd_surface_t*, osd_indexed_image_t*,
+				  int, int);
+} osd_func_t;
 
 /**
- * Fill BLT structure.
+ * OSD Surface.
  */
-typedef struct {
-	unsigned long handle;		/**< surface handle */
-	unsigned long x;		/**< horizontal coordinate */
-	unsigned long y;		/**< vertical coordinate */
-	unsigned long width;		/**< fill width */
-	unsigned long height;		/**< fill height */
-	unsigned long colour;		/**< RGB color */
-} osd_fillblt_t; 
-
-/**
- * OSD blend.
- */
-typedef struct {
-	unsigned long handle1;
-	unsigned long x;
-	unsigned long y;
-	unsigned long w;
-	unsigned long h;
-	unsigned long handle2;
-	unsigned long x1;
-	unsigned long y1;
-	unsigned long w1;
-	unsigned long h1;
-	unsigned long colour1;
-} osd_blend_t;
-
-/**
- * Advanced fill.
- */
-typedef struct {
-	unsigned long handle;
-	unsigned long x;
-	unsigned long y;
-	unsigned long w;
-	unsigned long h;
-	unsigned long colour1;
-	unsigned long colour2;
-	unsigned long colour3;
-	unsigned long colour4;
-	unsigned long colour5;
-	unsigned long colour6;
-	unsigned long colour7;
-	unsigned char c[2];
-} osd_afillblt_t;
-
-/**
- * Bit Block Transfer.
- */
-typedef struct {
-	unsigned long dst_handle;	/**< destination surface handle */
-	unsigned long dst_x;		/**< destination horizontal */
-	unsigned long dst_y;		/**< destination vertical */
-	unsigned long width;		/**< block width */
-	unsigned long height;		/**< block height */
-	unsigned long src_handle;	/**< source surface handle */
-	unsigned long src_x;		/**< source horizontal */
-	unsigned long src_y;		/**< source vertical */
-	unsigned long u1;
-	unsigned long u2;
-	unsigned char u3;
-} osd_bitblt_t; 
-
-/**
- * Clip Rectangle.
- */
-typedef struct {
-	unsigned long handle;
-	unsigned long left;
-	unsigned long top;
-	unsigned long right;
-	unsigned long bottom;
-} osd_clip_rec_t; 
-
-typedef struct {
-	int type;
-	int value;
-} osd_display_control_t;
+struct osd_surface_s {
+	int fd;
+	osd_type_t type;
+	osd_func_t *fp;
+	int width;
+	int height;
+	union {
+		fb_data_t fb;
+		gfx_data_t gfx;
+	} data;
+};
 
 /**
  * Convert a color from RGB to YUV.
@@ -131,26 +91,25 @@ extern void rgb2yuv(unsigned char r, unsigned char g, unsigned char b,
 extern void yuv2rgb(unsigned char y, unsigned char u, unsigned char v,
 		    unsigned char *r, unsigned char *g, unsigned char *b);
 
-/**
- * Initialize the graphics device.
- */
-extern void gfx_init(void);
+static inline unsigned long
+rgba2c(unsigned char r, unsigned char g, unsigned char b, unsigned char a)
+{
+	return (a<<24) | (r<<16) | (g<<8) | b;
+}
 
-/*
- * XXX: The following functions have not been tested!
- */
-extern int osd_blend(osd_surface_t *surface, int x, int y, int w, int h,
-		     osd_surface_t *surface2, int x2, int y2, int w2, int h2,
-		     unsigned long colour);
-extern int osd_afillblt(osd_surface_t *surface,
-			int x, int y, int w, int h, unsigned long colour);
-extern int osd_sfc_clip(osd_surface_t *surface,
-			int left, int top, int right, int bottom);
-extern int osd_get_visual_device_control(osd_surface_t *surface);
-extern int osd_cur_set_attr(osd_surface_t *surface, int x, int y);
-extern int move_cursor(osd_surface_t *surface, int x, int y);
-extern int osd_get_engine_mode(osd_surface_t *surface);
-extern int osd_reset_engine(osd_surface_t *surface);
+static inline void
+c2rgba(unsigned long c, unsigned char *r, unsigned char *g, unsigned char *b,
+       unsigned char *a)
+{
+	*a = (c & 0xff000000) >> 24;
+	*r = (c & 0x00ff0000) >> 16;
+	*g = (c & 0x0000ff00) >> 8;
+	*b = (c & 0x000000ff);
+}
 
-extern osd_surface_t* fb_create(int w, int h, unsigned long color);
+extern int full_width, full_height;
+
+extern osd_surface_t *all[];
+extern osd_surface_t *visible;
+
 #endif /* STBGFX_H */

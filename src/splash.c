@@ -32,7 +32,7 @@ int
 main(int argc, char **argv)
 {
 	osd_surface_t *surface;
-	osd_fb_image_t image;
+	osd_indexed_image_t image;
 	int x, y;
 
 	av_init();
@@ -52,7 +52,7 @@ main(int argc, char **argv)
 	x = (720 - image.width) / 2;
 	y = (480 - image.height) / 2;
 
-	if (fb_draw_image(surface, &image, x, y) < 0) {
+	if (osd_draw_indexed_image(surface, &image, x, y) < 0) {
 		exit(1);
 	}
 

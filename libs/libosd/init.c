@@ -26,7 +26,6 @@
 
 #include "mvp_osd.h"
 
-#include "surface.h"
 #include "osd.h"
 
 #if 0

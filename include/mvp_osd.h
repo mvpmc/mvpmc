@@ -38,9 +38,9 @@ typedef struct osd_surface_s osd_surface_t;
 
 typedef enum {
 	OSD_CURSOR=0,
-	OSD_DRAWING=1,
+	OSD_GFX=1,
 	OSD_FB=2,
-} osd_surface_type_t;
+} osd_type_t;
 
 typedef struct {
 	int colors;
@@ -50,7 +50,7 @@ typedef struct {
 	unsigned char *green;
 	unsigned char *blue;
 	unsigned char *image;
-} osd_fb_image_t;
+} osd_indexed_image_t;
 
 /**
  * Create a new drawing surface
@@ -60,7 +60,7 @@ typedef struct {
  * \return handle to the new surface
  */
 extern osd_surface_t *osd_create_surface(int w, int h, unsigned long color,
-					 osd_surface_type_t type);
+					 osd_type_t type);
 
 /**
  * Destroy a drawing surface.
@@ -263,8 +263,10 @@ osd_rgba(unsigned char r, unsigned char g, unsigned char b, unsigned char a)
 	return (a<<24) | (r<<16) | (g<<8) | b;
 }
 
-extern int fb_draw_image(osd_surface_t *surface, osd_fb_image_t *image,
-			 int x, int y);
+extern int osd_draw_indexed_image(osd_surface_t *surface,
+				  osd_indexed_image_t *image, int x, int y);
+extern int osd_palette_add_color(osd_surface_t *surface, unsigned int c);
+extern int osd_palette_init(osd_surface_t *surface);
 
 #endif /* MVP_OSD_H */
 

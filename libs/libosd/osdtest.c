@@ -23,6 +23,7 @@
 #include <sys/time.h>
 #include <time.h>
 #include <libgen.h>
+#include <string.h>
 
 #include "mvp_osd.h"
 
@@ -43,6 +44,8 @@
 #define OSD_BLACK	OSD_COLOR(0,0,0,255)
 
 static int width = 720, height = 480;
+
+static char *test = NULL;
 
 static unsigned long lr;
 
@@ -77,8 +80,7 @@ test_sanity(char *name)
 	printf("testing osd sanity\t");
 	timer_start();
 
-	if ((surface=osd_create_surface(width, height,
-					0, OSD_DRAWING)) == NULL)
+	if ((surface=osd_create_surface(width, height, 0, OSD_GFX)) == NULL)
 		FAIL;
 
 	c1 = rand() | 0xff000000;
@@ -109,7 +111,7 @@ test_create_surfaces(char *name)
 
 	for (i=0; i<n; i++) {
 		if ((surface=osd_create_surface(width, height,
-						0, OSD_DRAWING)) == NULL)
+						0, OSD_GFX)) == NULL)
 			FAIL;
 		if (i == 0) {
 			if (osd_display_surface(surface) < 0)
@@ -144,7 +146,7 @@ test_text(char *name)
 	timer_start();
 
 	if ((surface=osd_create_surface(width, height,
-					0, OSD_DRAWING)) == NULL)
+					0, OSD_GFX)) == NULL)
 		FAIL;
 
 	for (i=0; i<height; i+=50) {
@@ -182,7 +184,7 @@ test_rectangles(char *name)
 	timer_start();
 
 	if ((surface=osd_create_surface(width, height,
-					0, OSD_DRAWING)) == NULL)
+					0, OSD_GFX)) == NULL)
 		FAIL;
 
 	if (osd_display_surface(surface) < 0)
@@ -222,7 +224,7 @@ test_circles(char *name)
 	timer_start();
 
 	if ((surface=osd_create_surface(width, height,
-					0, OSD_DRAWING)) == NULL)
+					0, OSD_GFX)) == NULL)
 		FAIL;
 
 	if (osd_display_surface(surface) < 0)
@@ -262,7 +264,7 @@ test_polygons(char *name)
 	timer_start();
 
 	if ((surface=osd_create_surface(width, height,
-					0, OSD_DRAWING)) == NULL)
+					0, OSD_GFX)) == NULL)
 		FAIL;
 
 	if (osd_display_surface(surface) < 0)
@@ -306,7 +308,7 @@ test_lines(char *name)
 	timer_start();
 
 	if ((surface=osd_create_surface(width, height,
-					0, OSD_DRAWING)) == NULL)
+					0, OSD_GFX)) == NULL)
 		FAIL;
 
 	if (osd_display_surface(surface) < 0)
@@ -349,7 +351,7 @@ test_display_control(char *name)
 	timer_start();
 
 	if ((surface=osd_create_surface(width, height,
-					OSD_BLUE, OSD_DRAWING)) == NULL)
+					OSD_BLUE, OSD_GFX)) == NULL)
 		FAIL;
 
 	if (osd_set_engine_mode(surface, 0) < 0)
@@ -394,9 +396,9 @@ test_blit(char *name)
 	timer_start();
 
 	if ((surface=osd_create_surface(width, height,
-					0, OSD_DRAWING)) == NULL)
+					0, OSD_GFX)) == NULL)
 		FAIL;
-	if ((hidden=osd_create_surface(width, height, 0, OSD_DRAWING)) == NULL)
+	if ((hidden=osd_create_surface(width, height, 0, OSD_GFX)) == NULL)
 		FAIL;
 
 	if (osd_display_surface(surface) < 0)
@@ -446,7 +448,7 @@ test_cursor(char *name)
 	timer_start();
 
 	if ((surface=osd_create_surface(width, height,
-					0, OSD_DRAWING)) == NULL)
+					0, OSD_GFX)) == NULL)
 		FAIL;
 
 	if ((cursor=osd_create_surface(20, 20, 0, OSD_CURSOR)) == NULL)
@@ -494,7 +496,7 @@ static int
 test_fb(char *name)
 {
 	osd_surface_t *surface = NULL;
-	osd_fb_image_t image;
+	osd_indexed_image_t image;
 	int x, y;
 
 	printf("testing framebuffer\t");
@@ -502,6 +504,9 @@ test_fb(char *name)
 	timer_start();
 
 	if ((surface=osd_create_surface(width, height, 0x20, OSD_FB)) == NULL)
+		FAIL;
+
+	if (osd_display_surface(surface) < 0)
 		FAIL;
 
 	image.colors = LINUX_LOGO_COLORS;
@@ -515,7 +520,10 @@ test_fb(char *name)
 	x = (width - image.width) / 2;
 	y = (height - image.height) / 2;
 
-	if (fb_draw_image(surface, &image, x, y) < 0)
+	if (osd_draw_indexed_image(surface, &image, x, y) < 0)
+		FAIL;
+
+	if (osd_palette_add_color(surface, OSD_GREEN) < 0)
 		FAIL;
 
 	timer_end();
@@ -549,16 +557,17 @@ static tester_t tests[] = {
 	{ "display control",	2,	test_display_control },
 	{ "blit",		2,	test_blit },
 	{ "cursor",		2,	test_cursor },
-	{ "fb",			2,	test_fb },
+	{ "framebuffer",	2,	test_fb },
 	{ NULL, 0, NULL },
 };
 
 void
 print_help(char *prog)
 {
-	printf("Usage: %s [-hl]\n", basename(prog));
+	printf("Usage: %s [-hl] [-t test]\n", basename(prog));
 	printf("\t-h        print help\n");
 	printf("\t-l        list tests\n");
+	printf("\t-t test   perform individual test\n");
 }
 
 void
@@ -580,7 +589,7 @@ main(int argc, char **argv)
 	osd_surface_t *surface;
 	int ret = 0;
 
-	while ((c=getopt(argc, argv, "hl")) != -1) {
+	while ((c=getopt(argc, argv, "hlt:")) != -1) {
 		switch (c) {
 		case 'h':
 			print_help(argv[0]);
@@ -589,6 +598,9 @@ main(int argc, char **argv)
 		case 'l':
 			print_tests();
 			exit(0);
+			break;
+		case 't':
+			test = strdup(optarg);
 			break;
 		default:
 			print_help(argv[0]);
@@ -602,6 +614,10 @@ main(int argc, char **argv)
 	fb_clear();
 
 	while (tests[i].name) {
+		if (test && (strcmp(test, tests[i].name) != 0)) {
+			i++;
+			continue;
+		}
 		if (tests[i].func(tests[i].name) == 0) {
 			timer_print();
 			if (tests[i].sleep) {
