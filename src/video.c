@@ -72,13 +72,14 @@ pthread_cond_t video_cond = PTHREAD_COND_INITIALIZER;
 static sem_t   write_threads_idle_sem;
 
 int fd = -1;
+int fd_http = -1;
 extern int http_playing;
 
 static av_stc_t seek_stc;
 static int seek_seconds;
 volatile int seeking = 0;
 volatile int jumping = 0;
-static volatile long long jump_target;
+volatile long long jump_target;
 static volatile int seek_bps;
 static volatile int seek_attempts;
 static volatile int gop_seek_attempts;
@@ -92,7 +93,7 @@ static volatile int audio_checks = 0;
 static volatile int pcm_decoded = 0;
 volatile int paused = 0;
 static int zoomed = 0;
-static int display_on = 0, display_on_alt = 0;
+int display_on = 0, display_on_alt = 0;
 
 static volatile int thruput = 0;
 static volatile int thruput_count = 0;
@@ -110,10 +111,6 @@ static volatile int ac3len = 0, ac3more = 0;
 static volatile int video_reopen = 0;
 volatile int video_playing = 0;
 
-static void disable_osd(void);
-
-static int file_open(void);
-static int file_read(char*, int);
 static long long file_seek(long long, int);
 static long long file_size(void);
 
@@ -144,7 +141,6 @@ video_callback_t mvp_functions = {
 	.key       = NULL,
 	.halt_stream = NULL,
 };
-
 
 volatile video_callback_t *video_functions = NULL;
 
@@ -571,7 +567,7 @@ seek_by(int seconds)
 	pthread_cond_broadcast(&video_cond);
 }
 
-static void
+void
 disable_osd(void)
 {
 	set_osd_callback(OSD_BITRATE, NULL);
@@ -582,7 +578,7 @@ disable_osd(void)
 	set_osd_callback(OSD_TIMECODE, NULL);
 }
 
-static void
+void
 enable_osd(void)
 {
 	set_osd_callback(OSD_PROGRESS, video_progress);
@@ -1228,7 +1224,7 @@ file_seek(long long offset, int whence)
 	return lseek(fd, offset, whence);
 }
 
-static int
+int
 file_read(char *buf, int len)
 {
 	/*
@@ -1249,7 +1245,7 @@ file_read(char *buf, int len)
 	return read(fd, buf, len);
 }
 
-static int
+int
 file_open(void)
 {
 	seeking = 1;
@@ -1281,6 +1277,13 @@ file_open(void)
 		printf("opened %s\n", current);
 	} else {
 		printf("http opened %s\n", current);
+		fd_http=open(current, O_RDONLY|O_LARGEFILE);
+		if (fd_http < 0) {
+			printf("Open failed errno %d file %s\n",
+			       errno, current);
+			video_reopen = 0;
+			return -1;
+		}
 	}
 
 	if (video_reopen == 1) {

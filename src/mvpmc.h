@@ -167,6 +167,11 @@ extern volatile video_callback_t *video_functions;
 extern video_callback_t file_functions;
 
 /**
+ * Video playback functions for playing files from the filesystem via VLC
+ */
+extern video_callback_t vlc_functions;
+
+/**
  * Is a video currently playing?
  */
 extern volatile int video_playing;
@@ -257,6 +262,15 @@ extern void video_set_root(void);
 extern void playlist_play(mvp_widget_t*);
 extern void playlist_next();
 extern void playlist_randomize(void);
+
+extern int file_open(void);
+extern int file_read(char*, int);
+extern int fd_http;
+extern volatile long long jump_target;
+extern int display_on;
+extern int display_on_alt;
+extern void enable_osd(void);
+extern void disable_osd(void);
 
 extern int gui_init(char*, char*);
 extern int mw_init(void);
@@ -403,6 +417,32 @@ typedef struct {
 	} attr;
 } theme_attr_t;
 
+// Stream input buffer size for http/vlc
+#define  LINE_SIZE 1024 
+
+// VLC specifics 
+#define VLC_VLM_PORT "4212"
+#define VLC_HTTP_PORT "5212"
+#define VLC_MP3_TRANSCODE "setup mvpmc output #transcode{acodec=mp3,ab=128,channels=2}:duplicate{dst=std{access=http,mux=raw,url=:%s}}\r\n"
+#define VLC_DIVX_TRANSCODE "setup mvpmc output #transcode{vcodec=mp2v,vb=2048,scale=1,acodec=mpga,ab=192,channels=2}:duplicate{dst=std{access=http,mux=ts,dst=:%s}}\r\n"
+
+// VLC command types
+typedef enum {
+        VLC_CREATE_BROADCAST,
+        VLC_CONTROL,
+	VLC_CONTEXTSEEK
+} vlc_command_type_t;
+
+extern int using_vlc;
+extern int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char *VlcCommandArg);
+extern char *vlc_server;
+extern int vlc_seek(int pos);
+extern int vlc_pause();
+extern int vlc_cmd(char *cmd);
+extern int vlc_ctxseek(int offset);
+extern int vlc_ctxffrew(int offset);
+extern void vlc_setreconnect(int reconnecting);
+
 extern theme_attr_t theme_attr[];
 
 extern int theme_parse(char *file);
@@ -479,7 +519,6 @@ extern int fb_next_image(int offset);
 
 extern void doexit(int sig);
 
-extern char *vlc_server;
 extern int mplayer_disable;
 extern int rfb_mode;
 extern int flicker;

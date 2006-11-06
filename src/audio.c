@@ -126,7 +126,6 @@ typedef enum {
 int http_playing = 0;
 extern int mplayer_disable;
 int mplayer_helper_connect(FILE *outlog,char *url,int stopme);
-int vlc_connect(FILE *log,char *url,int type);
 
 static audio_file_t audio_type;
 
@@ -769,7 +768,7 @@ audio_clear(void)
         if ( using_helper == 1 ) {
             mplayer_helper_connect(outlog,NULL,1);
         }
-        vlc_connect(outlog,NULL,1);
+	vlc_connect(outlog,NULL,1,VLC_CREATE_BROADCAST,NULL);
         using_vlc = 0;
         usleep(3000);
         if ( using_helper == 1 ) {
@@ -1373,7 +1372,6 @@ void http_buffer(int message_length,int offset);
 int http_metadata(char *metaString,int metaWork,int metaData);
 int create_shoutcast_playlist(int limit);
 
-#define  LINE_SIZE 256 
 #define  MAX_URL_LEN 275
 #define  MAX_PLAYLIST 5
 #define  MAX_META_LEN 256
@@ -1477,8 +1475,6 @@ static int http_play(int afd)
     return rc;
 }
 
-
-#define VLC_HTTP_PORT "5212"
 #define SHOUTCAST_DOWNLOAD "http://www.shoutcast.com/sbin/newxml.phtml?"
 
 FILE *shoutOut;
@@ -1598,11 +1594,12 @@ int http_main(void)
             if (ContentType==CONTENT_DIVX || streamType > 101) {
                 vlcType = 100;
             }
-            if (vlc_connect(outlog,url[curEntry-1],vlcType) < 0 ) {
+            if (vlc_connect(outlog,url[curEntry-1],vlcType,VLC_CREATE_BROADCAST,NULL) < 0 ) {
                 retcode = -1;
                 using_vlc = 0;
                 break;
             }
+	   
             
             snprintf(url[curEntry-1],MAX_URL_LEN,"http://%s:%s",vlc_server,VLC_HTTP_PORT);
             using_vlc = 1;
@@ -2260,7 +2257,7 @@ int http_main(void)
             if (outlog==NULL) {
                 outlog = fopen("/usr/share/mvpmc/connect.log","a");
             }
-            vlc_connect(outlog,NULL,1);
+            vlc_connect(outlog,NULL,1, VLC_CREATE_BROADCAST,NULL);
             using_vlc = 0;
         } else {
             using_helper = 2;
@@ -2569,162 +2566,6 @@ int http_read_stream(unsigned int httpsock,int metaInt,int offset)
 
 #include <ctype.h>
 
-#define VLC_VLM_PORT "4212"
-
-#define VLC_MP3_TRANSCODE "setup mvpmc output #transcode{acodec=mp3,ab=128,channels=2}:duplicate{dst=std{access=http,mux=raw,url=:%s}}\r\n"
-#define VLC_DIVX_TRANSCODE "setup mvpmc output #transcode{vcodec=mp2v,vb=2048,scale=1,acodec=mpga,ab=192,channels=2}:duplicate{dst=std{access=http,mux=ts,dst=:%s}}\r\n"
-
-
-int vlc_connect(FILE *outlog,char *url,int ContentType)
-{
-    struct sockaddr_in server_addr; 
-    struct hostent* remoteHost;
-    char vlc_port[5];
-    FILE *instream;
-    char line_data[LINE_SIZE];
-    int vlc_sock=-1;
-    int i;
-    char *ptr;
-
-
-    char *vlc_connects[]= {
-        NULL,
-        "del mvpmc\r\n",
-        "new mvpmc broadcast enabled\r\n",
-        "setup mvpmc input %s\r\n",
-        NULL,
-        "setup mvpmc option sout-http-mime=%s/mpeg\r\n",
-        "control mvpmc play\r\n"
-    };
-
-
-
-    int rc;
-
-    int retcode=-1;
-
-    remoteHost = gethostbyname(vlc_server);
-
-    if (remoteHost!=NULL) {
-     
-        vlc_sock = socket(AF_INET, SOCK_STREAM, 0);
-
-        server_addr.sin_family = AF_INET;
-        strcpy(vlc_port,VLC_VLM_PORT);
-        server_addr.sin_port = htons(atoi(vlc_port));
-
-        memcpy ((char *) &server_addr.sin_addr, (char *) remoteHost->h_addr, remoteHost->h_length);
-        
-        struct timeval stream_tv;
-        memset((char *)&stream_tv,0,sizeof(struct timeval));
-        stream_tv.tv_sec = 10;
-        int optionsize = sizeof(stream_tv);
-
-        setsockopt(vlc_sock, SOL_SOCKET, SO_SNDTIMEO, &stream_tv, optionsize);
-        mvpw_set_text_str(fb_name, "Connecting to vlc");
-    
-        retcode = connect(vlc_sock, (struct sockaddr *)&server_addr,sizeof(server_addr));
-
-        if (retcode == 0) {
-            char *newurl;
-            if (url!=NULL) {
-                if (*url!='"' && strchr(url,' ') ){
-                    newurl = malloc(strlen(url)+3);
-                    snprintf(newurl,strlen(url)+3,"\"%s\"",url);
-                } else {
-                    newurl = strdup(url);
-                }
-            } else {
-                newurl = NULL;
-            }
-
-            instream = fdopen(vlc_sock,"r+b");
-            setbuf(instream,NULL);
-
-            for (i=0;i < 7 ;i++) {
-                rc=recv(vlc_sock, line_data, LINE_SIZE-1, 0);
-                if ( feof(instream) || ferror(instream) ) break;
-                if (rc != -1 ) {
-                    line_data[rc]=0;
-                    ptr=strchr(line_data,0xff);
-                    if (ptr!=0) {
-                        *ptr=0;
-                    }
-                    fprintf(outlog,"%s",line_data);
-                    if (ContentType==2) {
-                        break;
-                    }
-                    switch (i) {
-                        case 0:
-                            fprintf(instream,"admin\r\n");
-                            fprintf(outlog,"admin\n");
-                            if (ContentType==0 || ContentType==100) {
-                                i++;
-                            }
-                            break;
-                        case 1:
-                            fprintf(instream,vlc_connects[i]);
-                            fprintf(outlog,vlc_connects[i],newurl);
-                            ContentType = 2;
-                            break;
-                        case 3:
-                            fprintf(instream,vlc_connects[i],newurl);
-                            fprintf(outlog,vlc_connects[i],newurl);
-                            break;
-                        case 4:
-                            if ( ContentType == 100 ) {
-                                fprintf(instream,VLC_DIVX_TRANSCODE,VLC_HTTP_PORT);
-                                fprintf(outlog,VLC_DIVX_TRANSCODE,VLC_HTTP_PORT);
-                            } else {
-                                fprintf(instream,VLC_MP3_TRANSCODE,VLC_HTTP_PORT);
-                                fprintf(outlog,VLC_MP3_TRANSCODE,VLC_HTTP_PORT);
-                            }
-                            break;
-                        case 5:
-                            if (ContentType == 100) {
-                                fprintf(instream,vlc_connects[i],"video");
-                                fprintf(outlog,vlc_connects[i],"video");
-                            } else {
-                                fprintf(instream,vlc_connects[i],"audio");
-                                fprintf(outlog,vlc_connects[i],"audio");
-                            }
-                            break;
-                        case 2:
-                            if (strncmp(current,"vlc://",6) == 0 ) {
-                                fprintf(instream,"load %s",&current[6]);
-                                fprintf(outlog,"load %s",&current[6]);
-                                ContentType = 2;
-                                break;
-                            }
-                        default:
-                            fprintf(instream,vlc_connects[i]);
-                            fprintf(outlog,vlc_connects[i]);
-                            break;
-                    }
-                } else {
-                    break;
-                }
-            }
-            if (url!=NULL) {
-                free(newurl);
-            }
-            fflush(outlog);
-            shutdown(vlc_sock,SHUT_RDWR);
-            close(vlc_sock);            
-        } else {
-            mvpw_set_text_str(fb_name, "VLC connection timeout");
-            fprintf(outlog,"VLC connection timeout\nCannot connect to %s:%s\n",vlc_server,vlc_port);
-            retcode = -1;
-        }
-    } else {
-        mvpw_set_text_str(fb_name, "VLC/VLM setup error");
-        fprintf(outlog,"VLC/VLM setup error\nCannot find %s\n",vlc_server);
-        retcode = -1;
-    }
-    return retcode;
-}
-
-
 int is_streaming(char *url)
 {
     char *types[]= {
@@ -2746,6 +2587,12 @@ int is_streaming(char *url)
         ".FLV",
         ".WMV",
         ".AVI",
+	".mp4",
+	".MP4",
+	".rm",
+	".RM",
+	".ogm",
+	".OGM",
         NULL
     };
     int i=0;

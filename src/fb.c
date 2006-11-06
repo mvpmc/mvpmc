@@ -243,7 +243,15 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 
 		current = strdup(path);
 
-		video_functions = &file_functions;
+		if (is_streaming(item) > 100) {
+			// Use VLC callbacks for streaming items
+			video_functions = &vlc_functions;
+			// Allow broadcast messages to be sent so
+			// we can start the stream
+			vlc_setreconnect(0);
+		} else {
+			video_functions = &file_functions;
+		}
 
 		add_osd_widget(fb_program_widget, OSD_PROGRAM,
 			       osd_settings.program, NULL);
@@ -437,7 +445,8 @@ add_files(mvp_widget_t *fbw)
 	do_glob(fbw, WC);
     if (vlc_server!=NULL) {
         char *vlc[] = { "*.divx", "*.DIVX", "*.flv", "*.FLV", "*.avi", "*.AVI", "*.wmc", 
-                        "*.WMV", "*.wma", "*.WMA", NULL };
+                        "*.WMV", "*.wma", "*.WMA", "*.mp4", "*.MP4", 
+			"*.rm", "*.RM", "*.ogm", "*.OGM", NULL };
 	    do_glob(fbw, vlc);
     }
 }
