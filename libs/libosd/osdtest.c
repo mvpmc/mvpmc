@@ -479,7 +479,7 @@ test_cursor(char *name)
 	for (i=0; i<100; i++) {
 		x += 4;
 		y += 4;
-		if (osd_move_cursor(cursor, x, y) < 0)
+		if (osd_move(cursor, x, y) < 0)
 			FAIL;
 		usleep(10000);
 	}

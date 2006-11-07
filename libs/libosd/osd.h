@@ -50,6 +50,20 @@ typedef struct {
 		    int, int);
 	int (*draw_indexed_image)(osd_surface_t*, osd_indexed_image_t*,
 				  int, int);
+	int (*blend)(osd_surface_t*, int, int, int, int,
+		     osd_surface_t*, int, int, int, int, unsigned long);
+	int (*afillblt)(osd_surface_t*, int, int, int, int, unsigned long);
+	int (*clip)(osd_surface_t*, int, int, int, int);
+	int (*get_dev_control)(osd_surface_t*);
+	int (*set_attr)(osd_surface_t*, int, int);
+	int (*move)(osd_surface_t*, int, int);
+	int (*get_engine_mode)(osd_surface_t*);
+	int (*set_engine_mode)(osd_surface_t*, int);
+	int (*reset_engine)(osd_surface_t*);
+	int (*set_display_control)(osd_surface_t*, int, int);
+	int (*get_display_control)(osd_surface_t*, int);
+	int (*get_display_options)(osd_surface_t*);
+	int (*set_display_options)(osd_surface_t*, unsigned char);
 } osd_func_t;
 
 /**

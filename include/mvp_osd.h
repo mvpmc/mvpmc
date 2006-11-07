@@ -241,7 +241,7 @@ extern int osd_set_display_options(osd_surface_t *surface, unsigned char option)
 extern int osd_get_display_options(osd_surface_t *surface);
 extern int osd_set_engine_mode(osd_surface_t *surface, int mode);
 extern osd_surface_t* osd_get_visible_surface(void);
-extern int osd_move_cursor(osd_surface_t *surface, int x, int y);
+extern int osd_move(osd_surface_t *surface, int x, int y);
 extern int osd_draw_circle(osd_surface_t *surface, int xc, int yc, int radius,
 			   int filled, unsigned long c);
 extern int osd_draw_polygon(osd_surface_t *surface, int *x, int *y, int n,

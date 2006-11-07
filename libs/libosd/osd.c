@@ -486,3 +486,166 @@ osd_palette_add_color(osd_surface_t *surface, unsigned int c)
 	else
 		return -1;
 }
+
+int
+osd_blend(osd_surface_t *surface, int x, int y, int w, int h,
+	  osd_surface_t *surface2, int x2, int y2, int w2, int h2,
+	  unsigned long colour)
+{
+	if (surface == NULL)
+		return -1;
+
+	if (surface->type != surface2->type)
+		return -1;
+
+	if (surface->fp->blend)
+		return surface->fp->blend(surface, x, y, w, h,
+					  surface2, x2, y2, w2, h2, colour);
+	else
+		return -1;
+}
+
+int
+osd_afillblt(osd_surface_t *surface,
+	     int x, int y, int w, int h, unsigned long colour)
+{
+	if (surface == NULL)
+		return -1;
+
+	if (surface->fp->afillblt)
+		return surface->fp->afillblt(surface, x, y, w, h, colour);
+	else
+		return -1;
+}
+
+int
+osd_clip(osd_surface_t *surface, int left, int top, int right, int bottom)
+{
+	if (surface == NULL)
+		return -1;
+
+	if (surface->fp->clip)
+		return surface->fp->clip(surface, left, top, right, bottom);
+	else
+		return -1;
+}
+
+int
+osd_get_visual_device_control(osd_surface_t *surface)
+{
+	if (surface == NULL)
+		return -1;
+
+	if (surface->fp->get_dev_control)
+		return surface->fp->get_dev_control(surface);
+	else
+		return -1;
+}
+
+int
+osd_cur_set_attr(osd_surface_t *surface, int x, int y)
+{
+	if (surface == NULL)
+		return -1;
+
+	if (surface->fp->set_attr)
+		return surface->fp->set_attr(surface, x, y);
+	else
+		return -1;
+}
+
+int
+osd_move(osd_surface_t *surface, int x, int y)
+{
+	if (surface == NULL)
+		return -1;
+
+	if (surface->fp->move)
+		return surface->fp->move(surface, x, y);
+	else
+		return -1;
+}
+
+int
+osd_get_engine_mode(osd_surface_t *surface)
+{
+	if (surface == NULL)
+		return -1;
+
+	if (surface->fp->get_engine_mode)
+		return surface->fp->get_engine_mode(surface);
+	else
+		return -1;
+}
+
+int
+osd_set_engine_mode(osd_surface_t *surface, int mode)
+{
+	if (surface == NULL)
+		return -1;
+
+	if (surface->fp->set_engine_mode)
+		return surface->fp->set_engine_mode(surface, mode);
+	else
+		return -1;
+}
+
+int
+osd_reset_engine(osd_surface_t *surface)
+{
+	if (surface == NULL)
+		return -1;
+
+	if (surface->fp->reset_engine)
+		return surface->fp->reset_engine(surface);
+	else
+		return -1;
+}
+
+int
+osd_set_display_control(osd_surface_t *surface, int type, int value)
+{
+	if (surface == NULL)
+		return -1;
+
+	if (surface->fp->set_display_control)
+		return surface->fp->set_display_control(surface, type, value);
+	else
+		return -1;
+}
+
+int
+osd_get_display_control(osd_surface_t *surface, int type)
+{
+	if (surface == NULL)
+		return -1;
+
+	if (surface->fp->get_display_control)
+		return surface->fp->get_display_control(surface, type);
+	else
+		return -1;
+}
+
+int
+osd_get_display_options(osd_surface_t *surface)
+{
+	if (surface == NULL)
+		return -1;
+
+	if (surface->fp->get_display_options)
+		return surface->fp->get_display_options(surface);
+	else
+		return -1;
+}
+
+int
+osd_set_display_options(osd_surface_t *surface, unsigned char option)
+{
+	if (surface == NULL)
+		return -1;
+
+	if (surface->fp->set_display_options)
+		return surface->fp->set_display_options(surface, option);
+	else
+		return -1;
+}
