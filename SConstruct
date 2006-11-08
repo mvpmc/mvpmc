@@ -103,10 +103,7 @@ else:
 	#
 	# do the application build
 	#
-	incdir = 'dongle/install/' + target + '/include'
-	inc = env.Command(incdir + '/mvp_osd.h', 0,
-			  'mkdir -p ' + incdir +
-			  ' && cp include/*.h ' + incdir)
+	inc = env.SConscript('include/SConscript')
 	dir = env['BUILD_DIR']
 
 	#

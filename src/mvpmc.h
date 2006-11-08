@@ -50,7 +50,7 @@ typedef enum {
 	OSD_PROGRESS,			/**< progress meter */
 	OSD_PROGRAM,			/**< program description */
 	OSD_TIMECODE,			/**< timecode */
-} osd_type_t;
+} vid_osd_type_t;
 
 /**
  * Playlist menu items

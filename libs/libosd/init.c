@@ -26,7 +26,6 @@
 
 #include "mvp_osd.h"
 
-#include "surface.h"
 #include "osd.h"
 
 #if 0
@@ -172,6 +171,12 @@ yuv2rgb(unsigned char y, unsigned char u, unsigned char v,
 	*r = R;
 	*g = G;
 	*b = B;
+}
+
+int
+osd_open(void)
+{
+	return 0;
 }
 
 int

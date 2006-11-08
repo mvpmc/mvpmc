@@ -27,7 +27,6 @@
 
 #include "mvp_osd.h"
 
-#include "surface.h"
 #include "osd.h"
 #include "font.h"
 
@@ -48,151 +47,169 @@ extern osd_font_t font_CaslonRoman_1_25;
 osd_font_t *osd_default_font = &font_CaslonRoman_1_25;
 #endif
 
-/*
- */
-static inline unsigned long
-rgba2c(unsigned char r, unsigned char g, unsigned char b, unsigned char a)
+int full_width = 720, full_height = 480;
+
+osd_surface_t *all[128];
+
+osd_surface_t *visible = NULL;
+
+int
+osd_draw_pixel(osd_surface_t *surface, int x, int y, unsigned int c)
 {
-	return (a<<24) | (r<<16) | (g<<8) | b;
-}
+	if (surface == NULL)
+		return -1;
 
-static inline void
-c2rgba(unsigned long c, unsigned char *r, unsigned char *g, unsigned char *b,
-       unsigned char *a)
-{
-	*a = (c & 0xff000000) >> 24;
-	*r = (c & 0x00ff0000) >> 16;
-	*g = (c & 0x0000ff00) >> 8;
-	*b = (c & 0x000000ff);
-}
-
-static int
-osd_fillblt(osd_surface_t *sfc, int x, int y, int width, int height, 
-	    unsigned int c)
-{
-	osd_fillblt_t fblt;
-
-	fblt.handle = sfc->sfc.handle;
-	fblt.x = x;
-	fblt.y = y;
-	fblt.width = width;
-	fblt.height = height;
-	fblt.colour = c;
-
-	return ioctl(stbgfx, GFX_FB_OSD_FILLBLT, &fblt);
-}
-
-static int
-osd_bitblt(osd_surface_t *dstsfc, int xd, int yd,
-	   osd_surface_t *srcsfc, int x, int y, int width, int height)
-{
-	osd_bitblt_t fblt;
-
-	memset(&fblt, 0, sizeof(fblt));
-
-	fblt.dst_handle = dstsfc->sfc.handle;
-	fblt.dst_x = xd;
-	fblt.dst_y = yd;
-
-	fblt.src_handle = srcsfc->sfc.handle;
-	fblt.src_x = x;
-	fblt.src_y = y;
-
-	fblt.width = width;
-	fblt.height = height;
-
-	fblt.u1 = 1;
-	fblt.u2 = 0;
-	fblt.u3 = 0x0f;
-
-	return ioctl(stbgfx, GFX_FB_OSD_BITBLT, &fblt);
+	if (surface->fp->draw_pixel)
+		return surface->fp->draw_pixel(surface, x, y, c);
+	else
+		return -1;
 }
 
 int
 osd_draw_pixel_ayuv(osd_surface_t *surface, int x, int y, unsigned char a,
 		    unsigned char Y, unsigned char U, unsigned char V)
 {
-	int offset;
-	unsigned int line, remainder;
-
-	if ((x >= surface->sfc.width) || (y >= surface->sfc.height))
+	if (surface == NULL)
 		return -1;
 
-	remainder = (surface->sfc.width % 4);
-	if (remainder == 0)
-		line = surface->sfc.width;
-	else
-		line = surface->sfc.width + (4 - remainder);
-
-	offset = (y * line) + x;
-
-	*(surface->base[0] + offset) = Y;
-	*(surface->base[1] + (offset & 0xfffffffe)) = U;
-	*(surface->base[1] + (offset & 0xfffffffe) + 1) = V;
-	*(surface->base[2] + offset) = a;
-
-	return 0;
+	if (surface->fp->draw_pixel_ayuv) {
+		return surface->fp->draw_pixel_ayuv(surface, x, y, a, Y, U, V);
+	} else {
+		unsigned char r, g, b;
+		unsigned int c;
+		yuv2rgb(Y, U, V, &r, &g, &b);
+		c = rgba2c(r, g, b, a);
+		return osd_draw_pixel(surface, x, y, c);
+	}
 }
 
 int
-osd_draw_pixel(osd_surface_t *surface, int x, int y, unsigned int c)
+osd_draw_pixel_list(osd_surface_t *surface, int *x, int *y, int n,
+		    unsigned int c)
 {
-	unsigned char r, g, b, a, Y, U, V;
+	int i;
 
-	c2rgba(c, &r, &g, &b, &a);
-	rgb2yuv(r, g, b, &Y, &U, &V);
+	if (surface == NULL)
+		return -1;
 
-	return osd_draw_pixel_ayuv(surface, x, y, a, Y, U, V);
+	for (i=0; i<n; i++) {
+		if (osd_draw_pixel(surface, x[i], y[i], c) < 0)
+			return -1;
+	}
+
+	return 0;
 }
 
 int
 osd_draw_line(osd_surface_t *surface, int x1, int y1, int x2, int y2,
 	      unsigned int c)
 {
-	int x, y;
-	int i = 0; 
-	double dx, dy;
+	int dx, dy;
+	double t = 0.5;
 
-	x = x1;
-	y = y1;
+	if (surface == NULL)
+		return -1;
 
-	if (y2 == y1)
-		dx = 1;
-	else
-		dx = (double)(x2 - x1) / (double)(y2 - y1);
-	if (x2 == x1)
-		dy = 1;
-	else
-		dy = (double)(y2 - y1) / (double)(x2 - x1);
+	dy = y2 - y1;
+	dx = x2 - x1;
 
-	if ((x1 > x2) && (dx > 0)) {
-		dx = dx * -1;
-	}
-	if ((x1 < x2) && (dx < 0)) {
-		dx = dx * -1;
-	}
-	if ((y1 > y2) && (dy > 0)) {
-		dy = dy * -1;
-	}
-	if ((y1 < y2) && (dy < 0)) {
-		dy = dy * -1;
-	}
+	osd_draw_pixel(surface, x1, y1, c);
 
-	while (1) {
-		x = x1 + dx * i;
-		y = y1 + dy * i;
-		if ((dx > 0) && (x > x2))
-			break;
-		if ((dx < 0) && (x < x2))
-			break;
-		if ((dy > 0) && (y > y2))
-			break;
-		if ((dy < 0) && (y < y2))
-			break;
-		if (osd_draw_pixel(surface, x, y, c) < 0) {
-			return -1;
+	if (abs(dx) > abs(dy)) {
+		double m = (double)dy / (double)dx;
+		t += y1;
+		dx = (dx < 0) ? -1 : 1;
+		m *= dx;
+		while (x1 != x2) {
+			x1 += dx;
+			t += m;
+			osd_draw_pixel(surface, x1, (int)t, c);
 		}
-		i++;
+	} else {
+		double m = (double)dx / (double)dy;
+		t += x1;
+		dy = (dy < 0) ? -1 : 1;
+		m *= dy;
+		while (y1 != y2) {
+			y1 += dy;
+			t += m;
+			osd_draw_pixel(surface, (int)t, y1, c);
+		}
+	}
+
+	return 0;
+}
+
+int
+osd_draw_polygon(osd_surface_t *surface, int *x, int *y, int n,
+		 unsigned long c)
+{
+	int i;
+
+	if (surface == NULL)
+		return -1;
+
+	if (n < 3)
+		return -1;
+
+	for (i=0; i<n; i++) {
+		int sx, sy, dx, dy;
+
+		sx = x[i];
+		sy = y[i];
+		if ((i+1) == n) {
+			dx = x[0];
+			dy = y[0];
+		} else {
+			dx = x[i+1];
+			dy = y[i+1];
+		}
+		if (osd_draw_line(surface, sx, sy, dx, dy, c) < 0)
+			return -1;
+	}
+
+	return 0;
+}
+
+int
+osd_draw_circle(osd_surface_t *surface, int xc, int yc, int radius,
+		int filled, unsigned long c)
+{
+	int x, y, d;
+
+	if (surface == NULL)
+		return -1;
+
+	x = 0;
+	y = radius;
+	d = 3 - (2*radius);
+
+	while (x <= y) {
+		if (filled == 0) {
+			osd_draw_pixel(surface, xc+x, yc+y, c);
+			osd_draw_pixel(surface, xc-x, yc+y, c);
+			osd_draw_pixel(surface, xc+x, yc-y, c);
+			osd_draw_pixel(surface, xc-x, yc-y, c);
+			osd_draw_pixel(surface, xc+y, yc+x, c);
+			osd_draw_pixel(surface, xc-y, yc+x, c);
+			osd_draw_pixel(surface, xc+y, yc-x, c);
+			osd_draw_pixel(surface, xc-y, yc-x, c);
+		} else {
+			osd_fill_rect(surface, xc-x, yc-y, 2*x, y, c);
+			osd_fill_rect(surface, xc-y, yc-x, y, 2*x, c);
+			osd_fill_rect(surface, xc-x, yc-y, x, 2*y, c);
+			osd_fill_rect(surface, xc-y, yc-x, 2*y, x, c);
+			osd_fill_rect(surface, xc, yc, y, x, c);
+			osd_fill_rect(surface, xc, yc, x, y, c);
+		}
+
+		if (d < 0) {
+			d = d + (4*x) + 6;
+		} else {
+			d = d + (4*(x-y)) + 10;
+			y-=1;
+		}
+		x++;
 	}
 
 	return 0;
@@ -201,59 +218,91 @@ osd_draw_line(osd_surface_t *surface, int x1, int y1, int x2, int y2,
 unsigned int
 osd_read_pixel(osd_surface_t *surface, int x, int y)
 {
-	int offset;
-	unsigned char r, g, b, a, Y, U, V;
-	unsigned int line, remainder;
+	if (surface == NULL)
+		return -1;
 
-	if ((x >= surface->sfc.width) || (y >= surface->sfc.height))
-		return 0;
-
-	remainder = (surface->sfc.width % 4);
-	if (remainder == 0)
-		line = surface->sfc.width;
+	if (surface->fp->read_pixel)
+		return surface->fp->read_pixel(surface, x, y);
 	else
-		line = surface->sfc.width + (4 - remainder);
-
-	offset = (y * line) + x;
-
-	Y = *(surface->base[0] + offset);
-	U = *(surface->base[1] + (offset & 0xfffffffe));
-	V = *(surface->base[1] + (offset & 0xfffffffe) + 1);
-	a = *(surface->base[2] + offset);
-
-	yuv2rgb(Y, U, V, &r, &g, &b);
-
-	PRINTF("YUVa: %d %d %d %d  RGB: %d %d %d\n", Y, U, V, a, r, g, b);
-
-	return (a << 24) | (r << 16) | (g << 8) | b;
+		return -1;
 }
 
-void
+int
 osd_draw_horz_line(osd_surface_t *surface, int x1, int x2, int y,
 		   unsigned int c)
 {
-	osd_fillblt(surface, x1, y, x2-x1+1, 1, c);
+	if (surface == NULL)
+		return -1;
+
+	if (surface->fp->draw_horz_line)
+		return surface->fp->draw_horz_line(surface, x1, x2, y, c);
+	else
+		return osd_draw_line(surface, x1, y, x2, y, c);
 }
 
-void
+int
 osd_draw_vert_line(osd_surface_t *surface, int x, int y1, int y2,
 		   unsigned int c)
 {
-	osd_fillblt(surface, x, y1, 1, y2-y1+1, c);
+	if (surface == NULL)
+		return -1;
+
+	if (surface->fp->draw_vert_line)
+		return surface->fp->draw_vert_line(surface, x, y1, y2, c);
+	else
+		return osd_draw_line(surface, x, y1, x, y2, c);
 }
 
-void
+int
 osd_fill_rect(osd_surface_t *surface, int x, int y, int w, int h,
 	      unsigned int c)
 {
-	osd_fillblt(surface, x, y, w, h, c);
+	if (surface == NULL)
+		return -1;
+
+	if (surface->fp->fill_rect)
+		return surface->fp->fill_rect(surface, x, y, w, h, c);
+	else
+		return -1;
 }
 
-void
+int
+osd_draw_rect(osd_surface_t *surface, int x, int y, int w, int h,
+	      unsigned int c, int fill)
+{
+	if (surface == NULL)
+		return -1;
+
+	if (fill) {
+		return osd_fill_rect(surface, x, y, w, h, c);
+	}
+
+	osd_draw_line(surface, x, y, x+w, y, c);
+	osd_draw_line(surface, x, y, x, y+h, c);
+	osd_draw_line(surface, x+w, y, x+w, y+h, c);
+	osd_draw_line(surface, x, y+h, x+w, y+h, c);
+
+	return 0;
+}
+
+int
 osd_blit(osd_surface_t *dstsfc, int dstx, int dsty,
 	 osd_surface_t *srcsfc, int srcx, int srcy, int w, int h)
 {
-	osd_bitblt(dstsfc, dstx, dsty, srcsfc, srcx, srcy, w, h);
+	if ((dstsfc == NULL) || (srcsfc == NULL))
+		return -1;
+
+	if (dstsfc->type != srcsfc->type)
+		return -1;
+
+	if (dstsfc == srcsfc)
+		return -1;
+
+	if (dstsfc->fp->blit)
+		return dstsfc->fp->blit(dstsfc, dstx, dsty,
+					srcsfc, srcx, srcy, w, h);
+	else
+		return -1;
 }
 
 int
@@ -263,6 +312,9 @@ osd_drawtext(osd_surface_t *surface, int x, int y, const char *str,
 	osd_font_t *font = FONT;
 	int h, n, i;
 	int Y, X, cx, swidth;
+
+	if (surface == NULL)
+		return -1;
 
 #if 1
 	if (font == NULL)
@@ -279,7 +331,7 @@ osd_drawtext(osd_surface_t *surface, int x, int y, const char *str,
 
 	if (background) {
 		int w = swidth / n;
-		osd_fillblt(surface, x-w, y-h/2, (2*w)+swidth, h*2, bg);
+		osd_draw_rect(surface, x-w, y-h/2, (2*w)+swidth, h*2, bg, 1);
 	}
 
 	X = 0;
@@ -312,180 +364,288 @@ osd_drawtext(osd_surface_t *surface, int x, int y, const char *str,
 	return 0;
 }
 
-/*
- * XXX: this has not been tested!
- */
+osd_surface_t*
+osd_create_surface(int w, int h, unsigned long color, osd_type_t type)
+{
+	switch (type) {
+	case OSD_FB:
+		return fb_create(w, h, color);
+		break;
+	case OSD_CURSOR:
+	case OSD_GFX:
+		return gfx_create(w, h, color, type);
+		break;
+	}
+
+	return NULL;
+}
+
+int
+osd_set_screen_size(int w, int h)
+{
+	if ((w > 720) || (h > 576))
+		return -1;
+
+	full_width = w;
+	full_height = h;
+
+	return 0;
+}
+
+int
+osd_get_surface_size(osd_surface_t *surface, int *w, int *h)
+{
+	if (surface == NULL)
+		return -1;
+
+	if (w)
+		*w = surface->width;
+	if (h)
+		*h = surface->height;
+
+	return 0;
+}
+
+int
+osd_display_surface(osd_surface_t *surface)
+{
+	if (surface == NULL)
+		return -1;
+
+	if (surface->fp->display)
+		return surface->fp->display(surface);
+	else
+		return -1;
+}
+
+int
+osd_draw_indexed_image(osd_surface_t *surface,
+		       osd_indexed_image_t *image, int x, int y)
+{
+	if (surface == NULL)
+		return -1;
+
+	if (surface->fp->draw_indexed_image)
+		return surface->fp->draw_indexed_image(surface, image, x, y);
+	else
+		return -1;
+}
+
+int
+osd_destroy_surface(osd_surface_t *surface)
+{
+	int i;
+
+	if (surface == NULL)
+		return -1;
+
+	if (surface == visible)
+		visible = NULL;
+
+	i = 0;
+	while ((all[i] != surface) && (i < 128))
+		i++;
+	if (i < 128)
+		all[i] = NULL;
+
+	if (surface->fp->destroy)
+		surface->fp->destroy(surface);
+
+	free(surface);
+
+	return 0;
+}
+
+void
+osd_destroy_all_surfaces(void)
+{
+	int i;
+
+	for (i=0; i<128; i++) {
+		if (all[i])
+			osd_destroy_surface(all[i]);
+	}
+
+	visible = NULL;
+}
+
+osd_surface_t*
+osd_get_visible_surface(void)
+{
+	return visible;
+}
+
+int
+osd_palette_add_color(osd_surface_t *surface, unsigned int c)
+{
+	if (surface == NULL)
+		return -1;
+
+	if (surface->fp->palette_add_color)
+		return surface->fp->palette_add_color(surface, c);
+	else
+		return -1;
+}
+
 int
 osd_blend(osd_surface_t *surface, int x, int y, int w, int h,
 	  osd_surface_t *surface2, int x2, int y2, int w2, int h2,
 	  unsigned long colour)
 {
-	osd_blend_t fblt;
+	if (surface == NULL)
+		return -1;
 
-	memset(&fblt, 0, sizeof(fblt));
+	if (surface->type != surface2->type)
+		return -1;
 
-	fblt.handle1 = surface->sfc.handle;
-	fblt.x = x;
-	fblt.y = y;
-	fblt.w = w;
-	fblt.h = h;
-
-	fblt.handle2 = surface2->sfc.handle;
-	fblt.x1 = x2;
-	fblt.y1 = y2;
-	fblt.w1 = w;
-	fblt.h1 = h;
-
-	fblt.colour1 = colour;
-
-	return ioctl(surface->fd, GFX_FB_OSD_BLEND, &fblt);
+	if (surface->fp->blend)
+		return surface->fp->blend(surface, x, y, w, h,
+					  surface2, x2, y2, w2, h2, colour);
+	else
+		return -1;
 }
 
-/*
- * XXX: this has not been tested!
- */
 int
 osd_afillblt(osd_surface_t *surface,
 	     int x, int y, int w, int h, unsigned long colour)
 {
-	osd_afillblt_t fblt;
+	if (surface == NULL)
+		return -1;
 
-	fblt.handle = surface->sfc.handle;
-	fblt.x = x;
-	fblt.y = y;
-	fblt.w = w;
-	fblt.h = h;
-
-	fblt.colour1 = colour;
-	fblt.colour2 = 0xffffffff;
-	fblt.colour3 = 0xffffffff;
-	fblt.colour4 = 0xffffffff;
-	fblt.colour5 = 0xffffffff;
-	fblt.colour6 = 0xffffffff;
-	fblt.colour7 = 0xffffffff;
-
-	fblt.c[0] = 255;
-	fblt.c[1] = 255;
-
-	return ioctl(surface->fd, GFX_FB_OSD_ADVFILLBLT, fblt);
+	if (surface->fp->afillblt)
+		return surface->fp->afillblt(surface, x, y, w, h, colour);
+	else
+		return -1;
 }
 
-/*
- * XXX: this has not been tested!
- */
 int
-osd_sfc_clip(osd_surface_t *surface,
-	     int left, int top, int right, int bottom)
+osd_clip(osd_surface_t *surface, int left, int top, int right, int bottom)
 {
-	osd_clip_rec_t rec;
+	if (surface == NULL)
+		return -1;
 
-	rec.handle = surface->sfc.handle;
-	rec.left = left;
-	rec.top = top;
-	rec.bottom = bottom;
-	rec.right = right;
-
-	return ioctl(surface->fd, GFX_FB_OSD_SFC_CLIP, &rec);
+	if (surface->fp->clip)
+		return surface->fp->clip(surface, left, top, right, bottom);
+	else
+		return -1;
 }
 
-/*
- * XXX: this has not been tested!
- */
 int
 osd_get_visual_device_control(osd_surface_t *surface)
 {
-	unsigned long parm[3];
-	int ret;
+	if (surface == NULL)
+		return -1;
 
-	if ((ret=ioctl(surface->fd, GFX_FB_GET_VIS_DEV_CTL, &parm)) == 0) {
-		printf("Get Visual Device control\n");
-		printf("ret = %d, parm[0]=%lx,parm[1]=%ld,parm[2]=%ld\n",
-		       ret, parm[0], parm[1], parm[2]);
-	}
-
-	return ret;
+	if (surface->fp->get_dev_control)
+		return surface->fp->get_dev_control(surface);
+	else
+		return -1;
 }
 
-/*
- * XXX: this has not been tested!
- */
 int
 osd_cur_set_attr(osd_surface_t *surface, int x, int y)
 {
-	unsigned long int data[3];
+	if (surface == NULL)
+		return -1;
 
-	data[0] = surface->sfc.handle;
-	data[1] = x;
-	data[2] = y;
-
-	return ioctl(surface->fd, GFX_FB_OSD_CUR_SETATTR, data);
+	if (surface->fp->set_attr)
+		return surface->fp->set_attr(surface, x, y);
+	else
+		return -1;
 }
 
-/*
- * XXX: this has not been tested!
- */
 int
-move_cursor(osd_surface_t *surface, int x, int y)
+osd_move(osd_surface_t *surface, int x, int y)
 {
-	unsigned long rec[3];
+	if (surface == NULL)
+		return -1;
 
-	rec[0] = x;
-	rec[1] = y;
-
-	return ioctl(surface->fd, GFX_FB_OSD_CUR_MOVE_1, rec);
+	if (surface->fp->move)
+		return surface->fp->move(surface, x, y);
+	else
+		return -1;
 }
 
-/*
- * XXX: this has not been tested!
- */
 int
 osd_get_engine_mode(osd_surface_t *surface)
 {
-	return ioctl(surface->fd, GFX_FB_GET_ENGINE_MODE);
+	if (surface == NULL)
+		return -1;
+
+	if (surface->fp->get_engine_mode)
+		return surface->fp->get_engine_mode(surface);
+	else
+		return -1;
 }
 
-/*
- * XXX: this has not been tested!
- */
 int
-set_engine_mode(osd_surface_t *surface, int mode)
+osd_set_engine_mode(osd_surface_t *surface, int mode)
 {
-	return ioctl(surface->fd, GFX_FB_SET_ENGINE_MODE, mode);
+	if (surface == NULL)
+		return -1;
+
+	if (surface->fp->set_engine_mode)
+		return surface->fp->set_engine_mode(surface, mode);
+	else
+		return -1;
 }
 
-/*
- * XXX: this has not been tested!
- */
 int
 osd_reset_engine(osd_surface_t *surface)
 {
-	return ioctl(surface->fd, GFX_FB_RESET_ENGINE);
+	if (surface == NULL)
+		return -1;
+
+	if (surface->fp->reset_engine)
+		return surface->fp->reset_engine(surface);
+	else
+		return -1;
 }
 
-/*
- * XXX: this has not been tested!
- */
 int
-osd_set_disp_ctrl(osd_surface_t *surface)
+osd_set_display_control(osd_surface_t *surface, int type, int value)
 {
-	unsigned long rec[2];
+	if (surface == NULL)
+		return -1;
 
-	rec[0] = 5;
-	rec[1] = 0;
-
-	return ioctl(surface->fd, GFX_FB_SET_DISP_CTRL, rec);
+	if (surface->fp->set_display_control)
+		return surface->fp->set_display_control(surface, type, value);
+	else
+		return -1;
 }
 
-/*
- * XXX: this has not been tested!
- */
 int
-osd_get_disp_ctrl(osd_surface_t *surface)
+osd_get_display_control(osd_surface_t *surface, int type)
 {
-	unsigned long rec[2];
+	if (surface == NULL)
+		return -1;
 
-	rec[0] = 1;
-	rec[1] = 0;
+	if (surface->fp->get_display_control)
+		return surface->fp->get_display_control(surface, type);
+	else
+		return -1;
+}
 
-	return ioctl(surface->fd, GFX_FB_GET_DISP_CTRL, rec);
+int
+osd_get_display_options(osd_surface_t *surface)
+{
+	if (surface == NULL)
+		return -1;
+
+	if (surface->fp->get_display_options)
+		return surface->fp->get_display_options(surface);
+	else
+		return -1;
+}
+
+int
+osd_set_display_options(osd_surface_t *surface, unsigned char option)
+{
+	if (surface == NULL)
+		return -1;
+
+	if (surface->fp->set_display_options)
+		return surface->fp->set_display_options(surface, option);
+	else
+		return -1;
 }

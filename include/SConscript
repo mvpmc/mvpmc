@@ -1,0 +1,21 @@
+#!/usr/bin/python
+#
+# SConscript
+#
+
+import os
+
+Import ('env')
+
+mvp = env.Copy()
+target = mvp['TARG']
+toplevel = mvp['TOPLEVEL']
+
+incdir = toplevel + '/dongle/install/' + target + '/include'
+
+headers = [ 'cmyth.h', 'mvp_av.h', 'mvp_demux.h', 'mvp_osd.h', 'mvp_widget.h',
+            'refcnt.h', 'rfbproto.h', 'vncviewer.h' ]
+
+inst = env.Install(incdir, headers)
+
+Return('inst')

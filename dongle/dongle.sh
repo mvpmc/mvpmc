@@ -13,7 +13,7 @@ DIRS="bin sbin usr/bin usr/sbin lib dev proc var usr/share usr/share/mvpmc usr/s
 WRAPPER_DIRS="bin sbin etc usr/bin usr/sbin dev tmp lib proc mnt"
 
 BIN="busybox mvpmc ntpclient"
-WRAPPER_BIN="busybox"
+WRAPPER_BIN="busybox splash"
 
 SBIN=""
 
