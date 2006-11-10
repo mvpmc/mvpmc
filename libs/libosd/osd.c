@@ -285,6 +285,41 @@ osd_draw_rect(osd_surface_t *surface, int x, int y, int w, int h,
 	return 0;
 }
 
+static int
+blit_copy(osd_surface_t *dstsfc, int dstx, int dsty,
+	  osd_surface_t *srcsfc, int srcx, int srcy, int w, int h)
+{
+	int x, y;
+	unsigned int c;
+
+	if ((srcsfc->fp->read_pixel == NULL) ||
+	    (dstsfc->fp->draw_pixel == NULL))
+		return -1;
+
+	if ((dstx <= 0) || ((dstx+w) >= dstsfc->width))
+		return -1;
+	if ((dsty <= 0) || ((dsty+h) >= dstsfc->height))
+		return -1;
+	if ((srcx <= 0) || ((srcx+w) >= srcsfc->width))
+		return -1;
+	if ((srcy <= 0) || ((srcy+h) >= srcsfc->height))
+		return -1;
+
+	for (x=0; x<w; x++) {
+		for (y=0; y<h; y++) {
+			c = srcsfc->fp->read_pixel(srcsfc, srcx+x, srcy+y);
+			if (dstsfc->fp->palette_add_color)
+				dstsfc->fp->palette_add_color(dstsfc, c);
+			if (dstsfc->fp->draw_pixel(dstsfc,
+						   dstx+x, dsty+y, c) != 0) {
+				return -1;
+			}
+		}
+	}
+
+	return 0;
+}
+
 int
 osd_blit(osd_surface_t *dstsfc, int dstx, int dsty,
 	 osd_surface_t *srcsfc, int srcx, int srcy, int w, int h)
@@ -292,8 +327,10 @@ osd_blit(osd_surface_t *dstsfc, int dstx, int dsty,
 	if ((dstsfc == NULL) || (srcsfc == NULL))
 		return -1;
 
-	if (dstsfc->type != srcsfc->type)
-		return -1;
+	if (dstsfc->type != srcsfc->type) {
+		return blit_copy(dstsfc, dstx, dsty,
+				 srcsfc, srcx, srcy, w, h);
+	}
 
 	if (dstsfc == srcsfc)
 		return -1;

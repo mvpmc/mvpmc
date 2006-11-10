@@ -161,12 +161,33 @@ fb_fill_rect(osd_surface_t *surface, int x, int y, int width, int height,
 	return 0;
 }
 
+static unsigned int
+fb_read_pixel(osd_surface_t *surface, int x, int y)
+{
+	unsigned int c;
+	int r, g, b, i;
+
+	if ((x < 0) || (x >= surface->width))
+		return -1;
+	if ((y < 0) || (y >= surface->height))
+		return -1;
+
+	i = surface->data.fb.base[(y*surface->width) + x];
+	r = surface->data.fb.red[i] >> 8;
+	g = surface->data.fb.green[i] >> 8;
+	b = surface->data.fb.blue[i] >> 8;
+	c = rgba2c(r, g, b, 0xff);
+
+	return c;
+}
+
 static osd_func_t fp = {
 	.display = fb_display_surface,
 	.destroy = fb_destroy_surface,
 	.palette_add_color = fb_add_color,
 	.draw_indexed_image = fb_draw_image,
 	.draw_pixel = fb_draw_pixel,
+	.read_pixel = fb_read_pixel,
 	.fill_rect = fb_fill_rect,
 };
 
@@ -204,15 +225,19 @@ fb_create(int w, int h, unsigned long color)
 		goto err;
 	}
 
+	fd = surface->fd;
+	surface->fp = &fp;
+
+	surface->width = w;
+	surface->height = h;
+
+	fb_add_color(surface, color);
+
 	for (x=0; x<w; x++) {
 		for (y=0; y<h; y++) {
-			draw_pixel(surface, x, y, color);
+			fb_draw_pixel(surface, x, y, color);
 		}
 	}
-
-	fd = surface->fd;
-
-	surface->fp = &fp;
 
 	return surface;
 

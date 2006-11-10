@@ -503,7 +503,7 @@ test_fb(char *name)
 
 	timer_start();
 
-	if ((surface=osd_create_surface(width, height, 0x20, OSD_FB)) == NULL)
+	if ((surface=osd_create_surface(width, height, OSD_BLACK, OSD_FB)) == NULL)
 		FAIL;
 
 	if (osd_display_surface(surface) < 0)
@@ -534,10 +534,62 @@ test_fb(char *name)
 	return -1;
 }
 
+static int
+test_blit2(char *name)
+{
+	osd_surface_t *fb = NULL;
+	osd_surface_t *osd = NULL;
+	osd_indexed_image_t image;
+	int x, y;
+
+	printf("testing blit2\t\t");
+
+	timer_start();
+
+	if ((fb=osd_create_surface(width, height, OSD_BLACK, OSD_FB)) == NULL)
+		FAIL;
+
+	if ((osd=osd_create_surface(width, height, OSD_RED, OSD_GFX)) == NULL)
+		FAIL;
+
+	if (osd_display_surface(osd) < 0)
+		FAIL;
+
+	image.colors = LINUX_LOGO_COLORS;
+	image.width = 80;
+	image.height = 80;
+	image.red = linux_logo_red;
+	image.green = linux_logo_green;
+	image.blue = linux_logo_blue;
+	image.image = linux_logo;
+
+	x = (width - image.width) / 2;
+	y = (height - image.height) / 2;
+
+	if (osd_draw_indexed_image(fb, &image, x, y) < 0)
+		FAIL;
+
+	if (osd_blit(osd, x-80, y, fb, x, y, 80, 80) < 0)
+		FAIL;
+	if (osd_blit(osd, x+80, y, fb, x, y, 80, 80) < 0)
+		FAIL;
+	if (osd_blit(osd, x, y-80, fb, x, y, 80, 80) < 0)
+		FAIL;
+	if (osd_blit(osd, x, y+80, fb, x, y, 80, 80) < 0)
+		FAIL;
+
+	timer_end();
+
+	return 0;
+
+ err:
+	return -1;
+}
+
 static void
 fb_clear(void)
 {
-	osd_create_surface(width, height, 0x20, OSD_FB);
+	osd_create_surface(width, height, OSD_BLACK, OSD_FB);
 }
 
 typedef struct {
@@ -558,6 +610,7 @@ static tester_t tests[] = {
 	{ "blit",		2,	test_blit },
 	{ "cursor",		2,	test_cursor },
 	{ "framebuffer",	2,	test_fb },
+	{ "blit2",		2,	test_blit2 },
 	{ NULL, 0, NULL },
 };
 
