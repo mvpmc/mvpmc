@@ -45,6 +45,14 @@
 
 #include "mvpmc.h"
 
+/*
+ * vlc_control.c
+ *
+ * Maintained by Robin Rawson-Tetley <robin@rawsontetley.org>
+ * This file contains code from Martin Vallevand and Robin Rawson-Tetley
+ */
+
+
 static long long vlc_stream_size(void);
 static long long vlc_stream_seek(long long, int);
 static int vlc_key(char);
@@ -53,22 +61,24 @@ extern int errno;
 extern char *vlc_server;	//config.c
 extern int http_main(void); 	// audio.c
 
+/* 
+ * Whether or not VLC_BROADCAST messages are enabled (disabling
+ * them allows us to go through the http_main cycle again and
+ * connect to an already running VLC stream)
+ */
+int vlc_broadcast_enabled = 1;
 
-// Whether or not VLC_BROADCAST messages are enabled (disabling
-// them allows us to go through the http_main cycle again and
-// connect to an already running stream)
-int vlc_reconnect = 0;
-
-// The last seen position in the stream during pause. We only
-// go to the network once during pause. This is also set by
-// all seek functions so that when the osd asks for our current
-// position we don't have to go to the network again
-int vlc_pausepos = -1;
-
-void vlc_setreconnect(int reconnecting) 
-{
-    vlc_reconnect = reconnecting;
-}
+/*
+ * The last seen position in the vlc stream. We only
+ * go to the network once during pause and OK/BLANK OSD enabling. 
+ * This is also set by all seek functions so that when the osd asks 
+ * for our current position we don't have to go to the network again.
+ * If the vlc_get_pct_pos() routine finds -1 in this variable, it will
+ * populate it by interrogating the stream using the VLC telnet 
+ * interface. Pausing and bringing up the OSD will reset this value to
+ * -1 to ensure fresh info. 
+ */
+int vlc_cachedstreampos = -1;
 
 /* video_callback_t for vlc functions */
 video_callback_t vlc_functions = {
@@ -83,19 +93,30 @@ video_callback_t vlc_functions = {
 };
 
 /*
- * Main routine to connect to VLC telnet interface. Is capable of sending
- * the following command types:
+ * Main routine to connect to VLC telnet interface. 
+ * 
+ * outlog:		The log file to print messages to
+ * url:			The URL to the file to play on the VLC box
+ * ContentType:		The type of content - >=100 is video
+ * VlcCommandType:	One of:
  *
- * VLC_BROADCAST   - transpose/start streaming message
- * VLC_CONTROL     - any other VLC command
- * VLC_DESTROY     - issues del mvpmc to destroy the broadcast
- * VLC_CONTEXTSEEK - receive stream info and seek based on context
- * 		     return value is new stream position percentage
- * VLC_CURPOS	   - interrogates the stream for the current position
+ * 	VLC_BROADCAST   - Create the transcoding stream
+ * 	VLC_CONTROL     - control mvpmc <command>
+ * 	VLC_DESTROY     - issues del mvpmc to destroy the stream
  *
- * VlcCommandArgs should be a command for "control mvpmc %s" if the
- * type is VLC_CONTROL, offset is an offset seek percentage for 
- * VLC_CONTEXTSEEK.
+ * 	VLC_SEEK_PCT    - receive stream info and seek based on a percentage
+ *                        offset of current percentage position.
+ * 	    	          return value is new stream position percentage
+ *
+ * 	VLC_PCTPOS   	- interrogates the stream for the current percentage
+ * 	                  position.return value is stream position percentage.
+ *
+ * VlcCommandArgs:	A VLC telnet command for control mvpmc %s (but
+ * 			only if VlcCommandType == VLC_CONTROL)
+ *
+ * offset:		An offset percentage value if
+ * 		        VlcCommandType == VLC_SEEK_PCT
+ *
  */
 int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char *VlcCommandArgs, int offset)
 {
@@ -129,8 +150,8 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
         "control mvpmc %s\r\n"
     };
 
-    // CONTEXTSEEK commands
-    char *vlc_cts[]= {
+    // SEEK_PCT commands
+    char *vlc_pct[]= {
         NULL,
 	"show mvpmc\r\n",
 	NULL,
@@ -144,14 +165,14 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
         vlc_commands_size = 2;
     } else if (VlcCommandType == VLC_DESTROY) {
         vlc_commands_size = 2;
-    } else if (VlcCommandType == VLC_CONTEXTSEEK) {
+    } else if (VlcCommandType == VLC_SEEK_PCT) {
         vlc_commands_size = 4;
-    } else if (VlcCommandType == VLC_CURPOS) {
+    } else if (VlcCommandType == VLC_PCTPOS) {
         vlc_commands_size = 4;
     }
 
-    fprintf(outlog, "dont send broadcast == %d\n", vlc_reconnect);
-    if ((VlcCommandType == VLC_CREATE_BROADCAST) && (vlc_reconnect == 1)) {	
+    fprintf(outlog, "broadcast messages enabled == %d\n", vlc_broadcast_enabled);
+    if ((VlcCommandType == VLC_CREATE_BROADCAST) && (vlc_broadcast_enabled == 0)) {	
         return 0;
     }
 
@@ -287,7 +308,7 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
                                 fprintf(outlog, vlc_controls[i]);
                                 break;
                         }
-                    } else if (VlcCommandType == VLC_CONTEXTSEEK) {
+                    } else if (VlcCommandType == VLC_SEEK_PCT) {
 		        switch (i) {
 				case 0:
 				    // Send authentication
@@ -296,8 +317,8 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
 				    break;
 				case 1:
 				    // SHOW MVPMC command
-				    fprintf(instream,vlc_cts[i]);
-				    fprintf(outlog,vlc_cts[i]);
+				    fprintf(instream,vlc_pct[i]);
+				    fprintf(outlog,vlc_pct[i]);
 				    break;
 				case 2:
 				    // Parse the show mvpmc response and
@@ -308,16 +329,16 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
 					fprintf(outlog, "VLC: couln't find 'position : '");
 					return -1;
 			 	    }
-				    // Adjust offsets of string pointer to beginning of
+				    // Adjust offset of string pointer to beginning of
 				    // numeric value for position
 				    vpos += 11;
 				    // Parse the current % position
 				    mpos = (int) (strtod(vpos, NULL) * (double) 100);
-				    fprintf(outlog, "Position: %d\n", mpos);
+				    fprintf(outlog, "\nPosition: %d%%\n", mpos);
 				    // Calculate new position
 				    fprintf(outlog, "Offset: %d\n", offset);
 				    newpos = mpos + offset;
-				    fprintf(outlog, "Position: %d\n", newpos);
+				    fprintf(outlog, "NewPosition: %d%%\n", newpos);
 				    // Is the new position out of range?
 				    // Bail if it is and return the current pos
 				    if (newpos > 99 || newpos < 0) {
@@ -325,22 +346,22 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
 			                close(vlc_sock);
 				    	return mpos;
 				    }
-				    // Send seek
+				    // Send seek command to new position
 				    i++;
-				    fprintf(instream,vlc_cts[i],newpos);
-				    fprintf(outlog,vlc_cts[i],newpos);
+				    fprintf(instream,vlc_pct[i],newpos);
+				    fprintf(outlog,vlc_pct[i],newpos);
 				    // Update position for osd
-				    vlc_pausepos = newpos;
+				    vlc_cachedstreampos = newpos;
 				    // Cleanup
 			            shutdown(vlc_sock,SHUT_RDWR);
 			            close(vlc_sock);
 				    return newpos;
 				default:
-				    fprintf(instream,vlc_cts[i]);
-				    fprintf(outlog,vlc_cts[i]);
+				    fprintf(instream,vlc_pct[i]);
+				    fprintf(outlog,vlc_pct[i]);
 				    break;
 			}
-                    } else if (VlcCommandType == VLC_CURPOS) {
+                    } else if (VlcCommandType == VLC_PCTPOS) {
 		        switch (i) {
 				case 0:
 				    // Send authentication
@@ -348,8 +369,8 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
 				    break;
 				case 1:
 				    // SHOW MVPMC command
-				    fprintf(instream,vlc_cts[i]);
-				    fprintf(outlog,vlc_cts[i]);
+				    fprintf(instream,vlc_pct[i]);
+				    fprintf(outlog,vlc_pct[i]);
 				    break;
 				case 2:
 				    // Parse the show mvpmc response and
@@ -359,18 +380,18 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
 					fprintf(outlog, "VLC: couln't find 'position : '");
 					return -1;
 			 	    }
-				    // Adjust offsets of string pointer to beginning of
+				    // Adjust offset of string pointer to beginning of
 				    // numeric value for position
 				    vpos += 11;
 				    // Parse the current % position
 				    mpos = (int) (strtod(vpos, NULL) * (double) 100);
-				    fprintf(outlog, "Position: %d\n", mpos);
+				    fprintf(outlog, "Position: %d%%\n", mpos);
 			            shutdown(vlc_sock,SHUT_RDWR);
 			            close(vlc_sock);            
 				    return mpos;
 				default:
-				    fprintf(instream,vlc_cts[i]);
-				    fprintf(outlog,vlc_cts[i]);
+				    fprintf(instream,vlc_pct[i]);
+				    fprintf(outlog,vlc_pct[i]);
 				    break;
 			}
 
@@ -399,34 +420,15 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
 }
 
 /*
- * VLC last seeked to position for context
+ * Tells VLC to seek to a given percentage
+ * of the playing stream. 
  */
-int lastpos = 0;
-
-/*
- * Tells VLC to seek to a given position (percentage)
- * in the stream. 
- */
-int vlc_seek(int pos)
+int vlc_seek_pct(int pos)
 {
     char cmd[10];
     sprintf(cmd, "seek %d", pos);
-    lastpos = pos;
-    vlc_pausepos = pos;
+    vlc_cachedstreampos = pos;
     return vlc_cmd(cmd);
-}
-
-/*
- * Tells VLC to seek to a given offset from the last
- * seeked position (as long as it's not outside 0-99).
- */
-int vlc_ctxseek(int offset)
-{
-    int newpos = lastpos + offset;
-    if (newpos < 0 || newpos > 99) return 0;
-    lastpos += offset;
-    vlc_pausepos = lastpos;
-    return vlc_seek(lastpos);
 }
 
 /*
@@ -446,7 +448,7 @@ int vlc_stop()
 }
 
 /*
- * Destroys the mvpmc broadcast
+ * Stops and destroys the mvpmc vlc stream
  */
 int vlc_destroy()
 {
@@ -458,8 +460,9 @@ int vlc_destroy()
 
 /*
  * Sends a command to the VLC telnet interface.
- * Just a wrapper around vlc_connect to save passing lots of args
- * and having to open the log every time.
+ * This is a wrapper around vlc_connect with a VLC_CONTROL message
+ * to save passing lots of args and having to open the log every 
+ * time. The command sent is "control mvpmc <cmd>"
  */
 int vlc_cmd(char *cmd)
 {
@@ -470,15 +473,15 @@ int vlc_cmd(char *cmd)
 }
 
 /*
- * Uses context to go backwards and forwards a percentage
+ * Moves backwards and forwards a percentage
  * of the stream in VLC by calculating the current position
- * as a percentage.
- * Uses vlc_connect with VLC_CONTEXTSEEK
+ * as a percentage and adding the offset.
+ * Uses vlc_connect with VLC_SEEK_PCT
  */
-int vlc_ctxffrew(int offset)
+int vlc_seek_pct_relative(int offset)
 {
     FILE *outlog = fopen("/usr/share/mvpmc/connect.log", "a");
-    int rv = vlc_connect(outlog, NULL, 100, VLC_CONTEXTSEEK, NULL, offset);
+    int rv = vlc_connect(outlog, NULL, 100, VLC_SEEK_PCT, NULL, offset);
     fclose(outlog);
     return rv;
 }
@@ -487,34 +490,33 @@ int vlc_ctxffrew(int offset)
  * Returns the current percentage position of the playing
  * VLC stream.
  */
-int vlc_curpos()
+int vlc_get_pct_pos()
 {
 
     FILE *outlog = fopen("/usr/share/mvpmc/connect.log", "a");
-    int rv = vlc_pausepos;
+    int rv = vlc_cachedstreampos;
     
     // If we have an already stored pause position, return
     // that instead of going to the network again
-    if (vlc_pausepos == -1) {
-        rv = vlc_connect(outlog, NULL, 100, VLC_CURPOS, NULL, 0);
-	vlc_pausepos = rv;
+    if (vlc_cachedstreampos == -1) {
+        rv = vlc_connect(outlog, NULL, 100, VLC_PCTPOS, NULL, 0);
+	vlc_cachedstreampos = rv;
     }
-
-    fprintf(outlog, "Curpos: %d\n", rv);
+    fprintf(outlog, "VLC_PCT_POS: %d%%\n", rv);
     fclose(outlog);
     return rv;
 }
 
 
 /* Video pause function for vlc */
-void vlc_ctl_pause(void)
+void vlc_key_pause(void)
 {
 	av_pause();
 	mvpw_show(pause_widget);
 	mvpw_hide(ffwd_widget);
 	paused = 1;
 	// Reset our stored pause position so we can look it up for the osd
-	vlc_pausepos = -1;   
+	vlc_cachedstreampos = -1;   
 	if (pause_osd && !display_on && (display_on_alt < 2)) {
 		display_on_alt = 2;
 		enable_osd();
@@ -524,10 +526,10 @@ void vlc_ctl_pause(void)
 }
 
  /* Video unpause function for vlc */
-void vlc_ctl_unpause(void)
+void vlc_key_unpause(void)
 {
 	// Stop broadcast messages being sent
- 	vlc_setreconnect(1);
+ 	vlc_broadcast_enabled = 0;
 
 	// Stop the a/v stream altogether	
 	audio_clear();
@@ -569,19 +571,37 @@ vlc_key(char key)
 
 	case MVPW_KEY_ZERO ... MVPW_KEY_NINE:
 		timed_osd(seek_osd_timeout*1000);
-		vlc_seek(10 * key);
+		vlc_seek_pct(10 * key);
 		break;
-
+	
+	case MVPW_KEY_CHAN_DOWN:
+	case MVPW_KEY_DOWN:
 	case MVPW_KEY_LEFT:
+	case MVPW_KEY_REWIND:
 		// Rewind VLC stream by 2%
 		timed_osd(seek_osd_timeout*1000);
-		vlc_ctxffrew(-2);
+		vlc_seek_pct_relative(-2);
 		break;
 
+	case MVPW_KEY_CHAN_UP:
+	case MVPW_KEY_UP:
 	case MVPW_KEY_RIGHT:
+	case MVPW_KEY_FFWD:
 		// Fast forward VLC stream by 2%
 		timed_osd(seek_osd_timeout*1000);
-		vlc_ctxffrew(2);
+		vlc_seek_pct_relative(2);
+		break;
+
+	case MVPW_KEY_SKIP:
+		// Fast forward VLC stream by 5%
+		timed_osd(seek_osd_timeout*1000);
+		vlc_seek_pct_relative(5);
+		break;
+
+	case MVPW_KEY_REPLAY:
+		// Rewind VLC stream by 5%
+		timed_osd(seek_osd_timeout*1000);
+		vlc_seek_pct_relative(-5);
 		break;
 
 	case MVPW_KEY_RECORD:
@@ -600,15 +620,15 @@ vlc_key(char key)
 	case MVPW_KEY_PAUSE:
 		// Pause or Unpause the av and stream
 		if ( !paused )
-			vlc_ctl_pause();
+			vlc_key_pause();
 		else 
-			vlc_ctl_unpause();
+			vlc_key_unpause();
 		break;
 
 	case MVPW_KEY_PLAY:
 		// Unpause the av and reconnect to the stream
 		if ( paused ) 
-			vlc_ctl_unpause();
+			vlc_key_unpause();
 		break;
 
 	case MVPW_KEY_STOP:
@@ -617,6 +637,22 @@ vlc_key(char key)
 		vlc_stop();
 		vlc_destroy();
 		back_to_guide_menu();
+		break;
+
+	case MVPW_KEY_BLANK:
+	case MVPW_KEY_OK:
+		// Reset our stored stream position so that
+		// the osd shows where we are correctly.
+		vlc_cachedstreampos = -1;   
+		if (display_on || display_on_alt) {
+			disable_osd();
+			mvpw_expose(root);
+			display_on = 1;
+			display_on_alt = 0;
+		} else {
+			enable_osd();
+		}
+		display_on = !display_on;
 		break;
 
 	default:
@@ -648,7 +684,7 @@ vlc_stream_size(void)
 static long long
 vlc_stream_seek(long long offset, int whence)
 {
-	return (long long) (vlc_curpos() * 1000);
+	return (long long) (vlc_get_pct_pos() * 1000);
 }
 
 

@@ -432,21 +432,21 @@ typedef struct {
 typedef enum {
         VLC_CREATE_BROADCAST,
         VLC_CONTROL,
-	VLC_CURPOS,
+	VLC_PCTPOS,
 	VLC_DESTROY,
-	VLC_CONTEXTSEEK
+	VLC_SEEK_PCT
 } vlc_command_type_t;
 
 extern int using_vlc;
-extern int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char *VlcCommandArg, int offset);
+extern int vlc_broadcast_enabled;
 extern char *vlc_server;
-extern int vlc_seek(int pos);
+extern int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char *VlcCommandArg, int offset);
 extern int vlc_stop();
 extern int vlc_destroy();
 extern int vlc_cmd(char *cmd);
-extern int vlc_ctxseek(int offset);
-extern int vlc_ctxffrew(int offset);
-extern void vlc_setreconnect(int reconnecting);
+extern int vlc_get_pct_pos();
+extern int vlc_seek_pct(int pos);
+extern int vlc_seek_pct_relative(int offset);
 
 extern theme_attr_t theme_attr[];
 
