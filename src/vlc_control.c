@@ -108,6 +108,11 @@ video_callback_t vlc_functions = {
  *                        offset of current percentage position.
  * 	    	          return value is new stream position percentage
  *
+ * 	VLC_SEEK_SEC	- interrogates the stream for the current percentage
+ * 			  position, calcaultes one second in percent and 
+ * 			  moves backwards or forwards by the offset.
+ * 			  return value is the new stream position percentage.
+ *
  * 	VLC_PCTPOS   	- interrogates the stream for the current percentage
  * 	                  position.return value is stream position percentage.
  *
@@ -132,6 +137,12 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
     char *vpos;
     int mpos;
     int newpos = 0;
+    char *vlength;
+    double dpos = 0;
+    double dlength = 0;
+    double donesec = 0;
+    double doffsetpct = 0;
+    double dseekpos = 0;
 
     // BROADCAST commands
     char *vlc_connects[]= {
@@ -158,6 +169,15 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
         "control mvpmc seek %d\r\n"
     };
 
+    // SEEK_SEC commands
+    char *vlc_sec[]= {
+        NULL,
+	"show mvpmc\r\n",
+	NULL,
+        "control mvpmc seek %f\r\n"
+    };
+
+
 
     if (VlcCommandType == VLC_CREATE_BROADCAST) {
         vlc_commands_size = 7;
@@ -167,6 +187,8 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
         vlc_commands_size = 2;
     } else if (VlcCommandType == VLC_SEEK_PCT) {
         vlc_commands_size = 4;
+    } else if (VlcCommandType == VLC_SEEK_SEC) {
+	vlc_commands_size = 4;
     } else if (VlcCommandType == VLC_PCTPOS) {
         vlc_commands_size = 4;
     }
@@ -334,11 +356,9 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
 				    vpos += 11;
 				    // Parse the current % position
 				    mpos = (int) (strtod(vpos, NULL) * (double) 100);
-				    fprintf(outlog, "\nPosition: %d%%\n", mpos);
 				    // Calculate new position
-				    fprintf(outlog, "Offset: %d\n", offset);
 				    newpos = mpos + offset;
-				    fprintf(outlog, "NewPosition: %d%%\n", newpos);
+				    fprintf(outlog, "\nPosition: %d%%, Offset: %d%%, NewPosition: %d%%\n", mpos, offset, newpos);
 				    // Is the new position out of range?
 				    // Bail if it is and return the current pos
 				    if (newpos > 99 || newpos < 0) {
@@ -361,6 +381,82 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
 				    fprintf(outlog,vlc_pct[i]);
 				    break;
 			}
+                    } else if (VlcCommandType == VLC_SEEK_SEC) {
+			switch (i) {
+				case 0:
+				    // Send authentication
+				    fprintf(instream,"admin\r\n");
+				    fprintf(outlog,"admin\n");
+				    break;
+				case 1:
+				    // SHOW MVPMC command
+				    fprintf(instream,vlc_sec[i]);
+				    fprintf(outlog,vlc_sec[i]);
+				    break;
+				case 2:
+				    // Parse the show mvpmc response and
+				    // extract the 'position : p' value and
+				    // length : l value.
+				    // One we have that, calculate percentage for
+				    // one second, apply an offset and seek
+				    vpos = strstr(line_data, "position : ");
+				    if (vpos == NULL) {
+					fprintf(outlog, "VLC: couln't find 'position : '");
+					return -1;
+				    }
+				    vlength = strstr(line_data, "length : ");
+				    if (vpos == NULL) {
+					fprintf(outlog, "VLC: couln't find 'length : '");
+					return -1;
+				    }
+				    // Adjust offset of string pointers to beginning of
+				    // numeric value for position and length
+				    vpos += 11;
+				    vlength += 9;
+				    // Parse the current % position
+				    dpos = strtod(vpos, NULL) * (double) 100;
+				    // Parse the current length
+				    dlength = strtod(vlength, NULL);
+				    // If length is < 0 then we have an older VLC with the
+				    // overflow bug - log and error and do nothing
+				    if (dlength < 0) {
+					fprintf(outlog, "Detected VLC with overflow length bug - cannot do second seek!");
+					shutdown(vlc_sock,SHUT_RDWR);
+					close(vlc_sock);
+					return (int) dpos;
+				    }
+				    // Calculate one second percent (VLC reports length
+				    // and time values in microseconds - 10^-6)
+				    donesec = (1000000 / dlength) * (double) 100;
+				    // Calculate offset percentage
+				    doffsetpct = donesec * (double) offset;
+				    // Calculate new seek position
+				    dseekpos = doffsetpct + dpos;
+				    fprintf(outlog, "Pos: %f%%, Length: %f, Onesec: %f%%, NewPos: %f%% \n", 
+				    	dpos, dlength, donesec, dseekpos);
+				    // Is the new position out of range?
+				    // Bail if it is and return the current pos
+				    if (dseekpos > 99 || dseekpos < 0) {
+					shutdown(vlc_sock,SHUT_RDWR);
+					close(vlc_sock);
+					return (int) dpos;
+				    }
+				    // Send seek command to new position
+				    i++;
+				    fprintf(instream,vlc_sec[i],dseekpos);
+				    fprintf(outlog,vlc_sec[i],dseekpos);
+				    // Update position for osd
+				    vlc_cachedstreampos = (int) dseekpos;
+				    // Cleanup
+				    shutdown(vlc_sock,SHUT_RDWR);
+				    close(vlc_sock);
+				    return newpos;
+				default:
+				    fprintf(instream,vlc_sec[i]);
+				    fprintf(outlog,vlc_sec[i]);
+				    break;
+			}
+
                     } else if (VlcCommandType == VLC_PCTPOS) {
 		        switch (i) {
 				case 0:
@@ -487,6 +583,21 @@ int vlc_seek_pct_relative(int offset)
 }
 
 /*
+ * Moves backwards and forwards a number of seconds
+ * in the stream in VLC by calculating the current position
+ * as an exact percentage, figuring out how much of a pct
+ * represents one second, and then adding the offset.
+ * Uses vlc_connect with VLC_SEEK_SEC
+ */
+int vlc_seek_sec_relative(int offset)
+{
+    FILE *outlog = fopen("/usr/share/mvpmc/connect.log", "a");
+    int rv = vlc_connect(outlog, NULL, 100, VLC_SEEK_SEC, NULL, offset);
+    fclose(outlog);
+    return rv;
+}
+
+/*
  * Returns the current percentage position of the playing
  * VLC stream.
  */
@@ -574,9 +685,20 @@ vlc_key(char key)
 		vlc_seek_pct(10 * key);
 		break;
 	
+	case MVPW_KEY_LEFT:
+		// Rewind VLC stream by 10 seconds
+		timed_osd(seek_osd_timeout*1000);
+		vlc_seek_sec_relative(-10);
+		break;
+
+	case MVPW_KEY_RIGHT:
+		// Rewind VLC stream by 30 seconds
+		timed_osd(seek_osd_timeout*1000);
+		vlc_seek_sec_relative(30);
+		break;
+
 	case MVPW_KEY_CHAN_DOWN:
 	case MVPW_KEY_DOWN:
-	case MVPW_KEY_LEFT:
 	case MVPW_KEY_REWIND:
 		// Rewind VLC stream by 2%
 		timed_osd(seek_osd_timeout*1000);
@@ -585,7 +707,6 @@ vlc_key(char key)
 
 	case MVPW_KEY_CHAN_UP:
 	case MVPW_KEY_UP:
-	case MVPW_KEY_RIGHT:
 	case MVPW_KEY_FFWD:
 		// Fast forward VLC stream by 2%
 		timed_osd(seek_osd_timeout*1000);

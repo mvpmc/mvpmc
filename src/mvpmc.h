@@ -434,7 +434,8 @@ typedef enum {
         VLC_CONTROL,
 	VLC_PCTPOS,
 	VLC_DESTROY,
-	VLC_SEEK_PCT
+	VLC_SEEK_PCT,
+	VLC_SEEK_SEC,
 } vlc_command_type_t;
 
 extern int using_vlc;
@@ -447,6 +448,7 @@ extern int vlc_cmd(char *cmd);
 extern int vlc_get_pct_pos();
 extern int vlc_seek_pct(int pos);
 extern int vlc_seek_pct_relative(int offset);
+extern int vlc_seek_sec_relative(int offset);
 
 extern theme_attr_t theme_attr[];
 
