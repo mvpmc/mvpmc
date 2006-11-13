@@ -110,10 +110,6 @@ gfx_draw_pixel(osd_surface_t *surface, int x, int y, unsigned int c)
 {
 	unsigned char r, g, b, a, Y, U, V;
 
-	if (surface->type == OSD_FB) {
-		return fb_draw_pixel(surface, x, y, c);
-	}
-
 	c2rgba(c, &r, &g, &b, &a);
 	rgb2yuv(r, g, b, &Y, &U, &V);
 
@@ -145,16 +141,12 @@ gfx_display_surface(osd_surface_t *surface)
 
 	fb_descriptor[0] = surface->data.gfx.sfc.handle;
 
-	if (surface->type == OSD_GFX)
-		fb_descriptor[1] = 1; 
-	else
-		fb_descriptor[1] = 0; 
+	fb_descriptor[1] = 1; 
 	
 	if (ioctl(fd, GFX_FB_ATTACH, fb_descriptor) < 0)
 		return -1;
 
-	if (surface->type == OSD_GFX)
-		visible = surface;
+	visible = surface;
 
 	return 0;
 }
@@ -335,20 +327,6 @@ gfx_cur_set_attr(osd_surface_t *surface, int x, int y)
 	return ioctl(surface->fd, GFX_FB_OSD_CUR_SETATTR, data);
 }
 
-static int
-gfx_move_cursor(osd_surface_t *surface, int x, int y)
-{
-	unsigned long rec[3];
-
-	if (surface->type != OSD_CURSOR)
-		return -1;
-
-	rec[0] = x;
-	rec[1] = y;
-
-	return ioctl(surface->fd, GFX_FB_OSD_CUR_MOVE_1, rec);
-}
-
 /*
  * XXX: this has not been tested!
  */
@@ -423,7 +401,7 @@ gfx_set_display_options(osd_surface_t *surface, unsigned char option)
 	return ioctl(surface->fd, GFX_FB_SET_DISPLAY, &surface->data.gfx.display);
 }
 
-static osd_func_t fp = {
+osd_func_t fp_gfx = {
 	.destroy = gfx_destroy_surface,
 	.display = gfx_display_surface,
 	.undisplay = gfx_undisplay_surface,
@@ -442,7 +420,6 @@ static osd_func_t fp = {
 	.clip = gfx_clip,
 	.get_dev_control = gfx_get_visual_device_control,
 	.set_attr = gfx_cur_set_attr,
-	.move = gfx_move_cursor,
 	.get_engine_mode = gfx_get_engine_mode,
 	.set_engine_mode = gfx_set_engine_mode,
 	.reset_engine = gfx_reset_engine,
@@ -453,7 +430,7 @@ static osd_func_t fp = {
 };
 
 osd_surface_t*
-gfx_create(int w, int h, unsigned long color, osd_type_t type)
+gfx_create(int w, int h, unsigned long color)
 {
 	osd_surface_t *surface;
 	int i;
@@ -489,15 +466,8 @@ gfx_create(int w, int h, unsigned long color, osd_type_t type)
 	surface->data.gfx.sfc.height = h;
 	surface->data.gfx.sfc.background = color;
 
-	if (type == OSD_GFX) {
-		surface->data.gfx.sfc.flags = 0x3f1533;
-		surface->data.gfx.sfc.unknown = 1;
-	} else if (type == OSD_CURSOR) {
-		surface->data.gfx.sfc.flags = 0x102008;
-		surface->data.gfx.sfc.unknown = 0;
-	} else {
-		goto err;
-	}
+	surface->data.gfx.sfc.flags = 0x3f1533;
+	surface->data.gfx.sfc.unknown = 1;
 
 	if (ioctl(fd, GFX_FB_SFC_ALLOC, &surface->data.gfx.sfc) != 0) {
 		goto err;
@@ -529,13 +499,13 @@ gfx_create(int w, int h, unsigned long color, osd_type_t type)
 	       surface, w, h, surface->data.gfx.map.map[0].size);
 
 	i = 0;
-	while ((all[i] != NULL) && (i < 128))
+	while ((all[i] != NULL) && (i < OSD_MAX_SURFACES))
 		i++;
-	if (i < 128)
+	if (i < OSD_MAX_SURFACES)
 		all[i] = surface;
 
-	surface->type = type;
-	surface->fp = &fp;
+	surface->type = OSD_GFX;
+	surface->fp = &fp_gfx;
 
 	surface->width = w;
 	surface->height = h;

@@ -49,7 +49,7 @@ osd_font_t *osd_default_font = &font_CaslonRoman_1_25;
 
 int full_width = 720, full_height = 480;
 
-osd_surface_t *all[128];
+osd_surface_t *all[OSD_MAX_SURFACES];
 
 osd_surface_t *visible = NULL;
 
@@ -409,8 +409,10 @@ osd_create_surface(int w, int h, unsigned long color, osd_type_t type)
 		return fb_create(w, h, color);
 		break;
 	case OSD_CURSOR:
+		return cursor_create(w, h, color);
+		break;
 	case OSD_GFX:
-		return gfx_create(w, h, color, type);
+		return gfx_create(w, h, color);
 		break;
 	}
 
@@ -480,9 +482,9 @@ osd_destroy_surface(osd_surface_t *surface)
 		visible = NULL;
 
 	i = 0;
-	while ((all[i] != surface) && (i < 128))
+	while ((all[i] != surface) && (i < OSD_MAX_SURFACES))
 		i++;
-	if (i < 128)
+	if (i < OSD_MAX_SURFACES)
 		all[i] = NULL;
 
 	if (surface->fp->destroy)
@@ -498,7 +500,7 @@ osd_destroy_all_surfaces(void)
 {
 	int i;
 
-	for (i=0; i<128; i++) {
+	for (i=0; i<OSD_MAX_SURFACES; i++) {
 		if (all[i])
 			osd_destroy_surface(all[i]);
 	}

@@ -71,6 +71,12 @@ __dummy_func(void)
 {
 }
 
+static void
+fb_clear(void)
+{
+	osd_create_surface(width, height, OSD_BLACK, OSD_FB);
+}
+
 static int
 test_sanity(char *name)
 {
@@ -451,20 +457,37 @@ test_cursor(char *name)
 					0, OSD_GFX)) == NULL)
 		FAIL;
 
-	if ((cursor=osd_create_surface(20, 20, 0, OSD_CURSOR)) == NULL)
+	if ((cursor=osd_create_surface(64, 76, OSD_WHITE, OSD_CURSOR)) == NULL)
 		FAIL;
 
-	for (x=0; x<20; x++) {
-		for (y=0; y<20; y++) {
-			if (osd_draw_pixel(cursor, x, y, OSD_RED) < 0)
-				FAIL;
-		}
-	}
-
-	if (osd_fill_rect(surface, 50, 50, 20, 20, OSD_RED) < 0)
+	if (osd_palette_add_color(cursor, OSD_BLACK) < 0)
+		FAIL;
+	if (osd_palette_add_color(cursor, OSD_BLUE) < 0)
+		FAIL;
+	if (osd_palette_add_color(cursor, OSD_GREEN) < 0)
+		FAIL;
+	if (osd_palette_add_color(cursor, OSD_RED) < 0)
+		FAIL;
+	if (osd_palette_add_color(cursor, 0) < 0)
 		FAIL;
 
-	for (y=100; y<300; y+=30) {
+	if (osd_fill_rect(cursor, 0, 0, 64, 16, OSD_RED) < 0)
+		FAIL;
+	if (osd_fill_rect(cursor, 0, 16, 64, 16, 0) < 0)
+		FAIL;
+	if (osd_fill_rect(cursor, 0, 32, 64, 16, OSD_BLUE) < 0)
+		FAIL;
+	if (osd_fill_rect(cursor, 0, 48, 64, 16, OSD_GREEN) < 0)
+		FAIL;
+
+	if (osd_fill_rect(surface, 64, 64, 64, 64, OSD_RED) < 0)
+		FAIL;
+	if (osd_fill_rect(surface, 128, 64, 64, 64, OSD_GREEN) < 0)
+		FAIL;
+	if (osd_fill_rect(surface, 196, 64, 64, 64, OSD_BLUE) < 0)
+		FAIL;
+
+	for (y=150; y<300; y+=30) {
 		if (osd_fill_rect(surface, 50, y, 400, 10, OSD_WHITE) < 0)
 			FAIL;
 	}
@@ -578,18 +601,14 @@ test_blit2(char *name)
 	if (osd_blit(osd, x, y+80, fb, x, y, 80, 80) < 0)
 		FAIL;
 
+	fb_clear();
+
 	timer_end();
 
 	return 0;
 
  err:
 	return -1;
-}
-
-static void
-fb_clear(void)
-{
-	osd_create_surface(width, height, OSD_BLACK, OSD_FB);
 }
 
 typedef struct {
@@ -600,13 +619,13 @@ typedef struct {
 
 static tester_t tests[] = {
 	{ "sanity",		0,	test_sanity },
-	{ "create surfaces",	0,	test_create_surfaces },
+	{ "surfaces",		0,	test_create_surfaces },
 	{ "text",		2,	test_text },
 	{ "rectangles",		2,	test_rectangles },
 	{ "circles",		2,	test_circles },
 	{ "lines",		2,	test_lines },
 	{ "polygons",		2,	test_polygons },
-	{ "display control",	2,	test_display_control },
+	{ "display",		2,	test_display_control },
 	{ "blit",		2,	test_blit },
 	{ "cursor",		2,	test_cursor },
 	{ "framebuffer",	2,	test_fb },
