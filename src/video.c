@@ -114,7 +114,6 @@ volatile int video_playing = 0;
 static long long file_seek(long long, int);
 static long long file_size(void);
 
-static void timed_osd(int);
 int seek_osd_timeout = 0;
 int pause_osd = 0;
 
@@ -1646,7 +1645,7 @@ seek_disable_osd(mvp_widget_t *widget)
 	mvpw_expose(root);
 }
 
-static void
+void
 timed_osd(int timeout)
 {
 	if ((timeout == 0) || display_on)

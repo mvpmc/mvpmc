@@ -248,7 +248,7 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 			video_functions = &vlc_functions;
 			// Allow broadcast messages to be sent so
 			// we can start the stream
-			vlc_setreconnect(0);
+			vlc_broadcast_enabled = 1;
 		} else {
 			video_functions = &file_functions;
 		}
