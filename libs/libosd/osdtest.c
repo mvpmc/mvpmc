@@ -42,6 +42,16 @@
 #define OSD_BLUE	OSD_COLOR(0,0,255,255)
 #define OSD_GREEN	OSD_COLOR(0,255,0,255)
 #define OSD_BLACK	OSD_COLOR(0,0,0,255)
+#define OSD_YELLOW	OSD_COLOR(255,255,0,255)
+#define OSD_ORANGE	OSD_COLOR(255,180,0,255)
+#define OSD_PURPLE	OSD_COLOR(255,0,234,255)
+#define OSD_BROWN	OSD_COLOR(118,92,0,255)
+#define OSD_CYAN	OSD_COLOR(0,255,234,255)
+
+typedef struct {
+	unsigned int c;
+	char name[24];
+} color_name_t;
 
 static int width = 720, height = 480;
 
@@ -611,6 +621,55 @@ test_blit2(char *name)
 	return -1;
 }
 
+static int
+test_color(char *name)
+{
+	int i, y = 20;
+	osd_surface_t *surface = NULL;
+	color_name_t colors[] = {
+		{ OSD_WHITE, "white" },
+		{ OSD_RED, "red" },
+		{ OSD_BLUE, "blue" },
+		{ OSD_GREEN, "green" },
+		{ OSD_YELLOW, "yellow" },
+		{ OSD_ORANGE, "orange" },
+		{ OSD_PURPLE, "purple" },
+		{ OSD_BROWN, "brown" },
+		{ OSD_CYAN, "cyan" },
+	};
+	int ncolors = sizeof(colors)/sizeof(colors[0]);
+
+	printf("testing %s\t\t", name);
+
+	timer_start();
+
+	if ((surface=osd_create_surface(width, height, 0, OSD_GFX)) == NULL)
+		FAIL;
+
+	for (i=0; i<ncolors; i++) {
+		unsigned long c;
+
+		c = colors[i].c;
+
+		if (osd_drawtext(surface, 300, y, colors[i].name,
+				 c, OSD_BLACK, 1, NULL) < 0)
+			FAIL;
+		if (osd_fill_rect(surface, 400, y, 100, 20, c) < 0)
+			FAIL;
+		y += 50;
+	}
+
+	if (osd_display_surface(surface) < 0)
+		FAIL;
+
+	timer_end();
+
+	return 0;
+
+ err:
+	return -1;
+}
+
 typedef struct {
 	char *name;
 	int sleep;
@@ -630,6 +689,7 @@ static tester_t tests[] = {
 	{ "cursor",		2,	test_cursor },
 	{ "framebuffer",	2,	test_fb },
 	{ "blit2",		2,	test_blit2 },
+	{ "color",		2,	test_color },
 	{ NULL, 0, NULL },
 };
 
