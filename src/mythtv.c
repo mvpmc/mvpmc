@@ -2469,10 +2469,10 @@ schedule_recording_callback(mvp_widget_t *widget, char *item , void *key)
 	mythtv_schedule_data_t * user_data = mvpw_get_user_data(widget);
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace)  which:%d  item=%s\n",
 		__FUNCTION__, __FILE__, __LINE__,which,item);
-	if (which==0) { 
-		fprintf (stderr, "which = 0 so return\n");
-		return;
-	}
+	//if (which==0) { 
+	//	fprintf (stderr, "which = 0 so return\n");
+	//	return;
+	//}
 
 	mvpw_hide(user_data->myptr->pane1);
 	mvpw_hide(user_data->myptr->pane2);
@@ -2481,7 +2481,7 @@ schedule_recording_callback(mvp_widget_t *widget, char *item , void *key)
 	switch (which) {
 		case 0:
 			/* do not record */
-			gui_mesg("Recording Options", "Recording NOT scheduled");
+			mythtv_schedule_recording(user_data->myptr->widget, item , (void*)which, 8);
 			break;
 		case 1:
 			/* record only this showing */
@@ -2807,13 +2807,18 @@ mythtv_schedule_recording(mvp_widget_t *widget, char *item , void *key, int type
 					fprintf (stderr, "Error scheduling recording : %d\n",err);
 					goto err;
 				} 
-				sqlprog[which].recording = 2;
+				if (type == 8) {
+					sqlprog[which].recording = 99;
+				}
+				else {
+					sqlprog[which].recording = 2;
+				}
 			} 
 			break;
 		} /* first switch */
 
 	if ( sqlprog[which].recording) {
-		sprintf(buf, "Recording Scheduled\n");
+		sprintf(buf, "Modified Recording Scheduled\n");
 		mvpw_set_text_str(program_info_widget, buf);
 		mvpw_show(program_info_widget);
 		if (newschedule) {
