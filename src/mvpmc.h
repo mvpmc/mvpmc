@@ -425,8 +425,6 @@ typedef struct {
 // VLC specifics 
 #define VLC_VLM_PORT "4212"
 #define VLC_HTTP_PORT "5212"
-#define VLC_MP3_TRANSCODE "setup mvpmc output #transcode{acodec=mp3,ab=128,channels=2}:duplicate{dst=std{access=http,mux=raw,url=:%s}}\r\n"
-#define VLC_DIVX_TRANSCODE "setup mvpmc output #transcode{vcodec=mp2v,vb=2048,scale=1,acodec=mpga,ab=192,channels=2}:duplicate{dst=std{access=http,mux=ts,dst=:%s}}\r\n"
 
 // VLC command types
 typedef enum {
