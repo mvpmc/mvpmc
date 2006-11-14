@@ -923,6 +923,9 @@ static mvp_widget_t *settings_mythtv_filter_pending;
 static mvp_widget_t *settings_check;
 static mvp_widget_t *settings_nocheck;
 static mvp_widget_t *settings_mclient;
+static mvp_widget_t *settings_vlc;
+static mvp_widget_t *settings_vlc_vb;
+static mvp_widget_t *settings_vlc_ab;
 static mvp_widget_t *settings_playback;
 static mvp_widget_t *settings_help;
 static mvp_widget_t *settings_startup;
@@ -1088,6 +1091,7 @@ typedef enum {
 	SETTINGS_MAIN_MYTHTV,
 	SETTINGS_MAIN_TVGUIDE,
 	SETTINGS_MAIN_MCLIENT,
+	SETTINGS_MAIN_VLC,
 	SETTINGS_MAIN_OSD,
 	SETTINGS_MAIN_PLAYBACK,
 	SETTINGS_MAIN_SAVE,
@@ -1112,6 +1116,25 @@ typedef enum {
 	SETTINGS_MYTHTV_RECGROUP_FILTER,
 	SETTINGS_MYTHTV_PENDING,
 } settings_mythtv_t;
+
+typedef enum {
+	SETTINGS_VLC_VIDEOTRANSCODING = 1,
+	SETTINGS_VLC_AUDIOTRANSCODING,
+	SETTINGS_VLC_VIDEOBITRATE,
+	SETTINGS_VLC_AUDIOBITRATE
+} settings_vlc_t;
+
+typedef enum {
+	VLC_TRANSCODE_VIDEO_DVD = 1,
+	VLC_TRANSCODE_VIDEO_SVCD,
+	VLC_TRANSCODE_VIDEO_VCD,
+	VLC_TRANSCODE_VIDEO_NONE
+} settings_vlc_transcode_video_t;
+
+typedef enum {
+	VLC_TRANSCODE_AUDIO_MP3 = 1,
+	VLC_TRANSCODE_AUDIO_FLAC
+} settings_vlc_transcode_audio_t;
 
 typedef enum {
 	SETTINGS_TVGUIDE_CLOCK_12 = 1,
@@ -1174,6 +1197,13 @@ enum {
 mythtv_filter_t mythtv_filter = MYTHTV_FILTER_NONE;
 
 static void settings_display_mode_callback(mvp_widget_t*, char*, void*);
+static void settings_vlc_video_callback(mvp_widget_t *widget, char *item, void *key);
+static void settings_vlc_audio_callback(mvp_widget_t *widget, char *item, void *key);
+extern char* vlc_vopts;
+extern char* vlc_aopts;
+extern int vlc_vb;
+extern int vlc_ab;
+
 
 static void main_menu_items(void);
 
@@ -1559,6 +1589,78 @@ settings_mythtv_rg_key_callback(mvp_widget_t *widget, char key)
 		mvpw_show(settings_mythtv);
 		mvpw_focus(settings_mythtv);
 		break;
+	}
+}
+
+static void
+settings_vlc_key_callback(mvp_widget_t *widget, char key)
+{
+	switch (key) {
+	case MVPW_KEY_EXIT:
+		mvpw_hide(widget);
+		mvpw_show(settings_vlc);
+		mvpw_focus(settings_vlc);
+		break;
+	}
+}
+
+static void
+settings_vlc_vb_key_callback(mvp_widget_t *widget, char key)
+{
+	char buf[16];
+	int change = 0;
+	switch (key) {
+	case MVPW_KEY_EXIT:
+		mvpw_hide(widget);
+		mvpw_show(settings_vlc);
+		mvpw_focus(settings_vlc);
+		break;
+	case MVPW_KEY_UP:
+	case MVPW_KEY_RIGHT:
+		vlc_vb += 128;
+		change = 1;
+		break;
+	case MVPW_KEY_DOWN:
+	case MVPW_KEY_LEFT:
+		vlc_vb -= 128;
+		change = 1;
+		break;
+	}
+	if (change) {
+		if (vlc_vb < 0)
+			vlc_vb = 0;
+		snprintf(buf, sizeof(buf), "%d", vlc_vb);
+		mvpw_set_dialog_text(settings_vlc_vb, buf);
+	}
+}
+
+static void
+settings_vlc_ab_key_callback(mvp_widget_t *widget, char key)
+{
+	char buf[16];
+	int change = 0;
+	switch (key) {
+	case MVPW_KEY_EXIT:
+		mvpw_hide(widget);
+		mvpw_show(settings_vlc);
+		mvpw_focus(settings_vlc);
+		break;
+	case MVPW_KEY_UP:
+	case MVPW_KEY_RIGHT:
+		vlc_ab += 16;
+		change = 1;
+		break;
+	case MVPW_KEY_DOWN:
+	case MVPW_KEY_LEFT:
+		vlc_ab -= 16;
+		change = 1;
+		break;
+	}
+	if (change) {
+		if (vlc_ab < 0)
+			vlc_ab = 0;
+		snprintf(buf, sizeof(buf), "%d", vlc_ab);
+		mvpw_set_dialog_text(settings_vlc_ab, buf);
 	}
 }
 
@@ -3545,6 +3647,10 @@ settings_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mvpw_show(settings_mclient);
 		mvpw_focus(settings_mclient);
 		break;
+	case SETTINGS_MAIN_VLC:
+		mvpw_show(settings_vlc);
+		mvpw_focus(settings_vlc);
+		break;
 	case SETTINGS_MAIN_OSD:
 		mvpw_show(settings_osd);
 		mvpw_focus(settings_osd);
@@ -3716,6 +3822,89 @@ startup_select_callback(mvp_widget_t *widget, char *item, void *key)
 }
 
 static void
+vlc_select_callback(mvp_widget_t *widget, char *item, void *key)
+{
+	char buf[16];
+	mvpw_hide(widget);
+	mvpw_clear_menu(settings_check);
+
+	switch ((settings_vlc_t) key) {
+	case SETTINGS_VLC_VIDEOTRANSCODING:
+		
+		mvpw_set_key(settings_check, settings_vlc_key_callback);
+		mvpw_get_menu_attr(settings_check, &settings_attr);
+		settings_item_attr.select = settings_vlc_video_callback;
+		mvpw_set_menu_attr(settings_check, &settings_attr);
+
+		mvpw_set_menu_title(settings_check, "VLC Video Transcoding Options");
+		mvpw_add_menu_item(settings_check, "DVD Quality (720x480)",
+				   (void*)VLC_TRANSCODE_VIDEO_DVD,
+				   &settings_item_attr);
+		mvpw_add_menu_item(settings_check, "SVCD Quality (480x480)",
+				   (void*)VLC_TRANSCODE_VIDEO_SVCD,
+				   &settings_item_attr);
+		mvpw_add_menu_item(settings_check, "VCD Quality (352x240)",
+				   (void*)VLC_TRANSCODE_VIDEO_VCD,
+				   &settings_item_attr);
+		mvpw_add_menu_item(settings_check, "None (set by remote VLC options)",
+				   (void*)VLC_TRANSCODE_VIDEO_NONE,
+				   &settings_item_attr);
+
+		if (vlc_vopts == NULL || strcmp(vlc_vopts, "dvd") == 0) 
+			mvpw_check_menu_item(settings_check, (void*) 1, 1);
+		else if (strcmp(vlc_vopts, "svcd") == 0)
+			mvpw_check_menu_item(settings_check, (void*) 2, 1);
+		else if (strcmp(vlc_vopts, "vcd") == 0)
+			mvpw_check_menu_item(settings_check, (void*) 3, 1);
+		else
+			mvpw_check_menu_item(settings_check, (void*) 4, 1);
+
+		mvpw_show(settings_check);
+		mvpw_focus(settings_check);
+		break;
+
+	case SETTINGS_VLC_AUDIOTRANSCODING:
+
+		mvpw_set_key(settings_check, settings_vlc_key_callback);
+		mvpw_get_menu_attr(settings_check, &settings_attr);
+		settings_item_attr.select = settings_vlc_audio_callback;
+		mvpw_set_menu_attr(settings_check, &settings_attr);
+
+		mvpw_set_menu_title(settings_check, "VLC Audio Transcoding Options");
+		mvpw_add_menu_item(settings_check, "MP3",
+				   (void*)VLC_TRANSCODE_AUDIO_MP3,
+				   &settings_item_attr);
+		mvpw_add_menu_item(settings_check, "FLAC",
+				   (void*)VLC_TRANSCODE_AUDIO_FLAC,
+				   &settings_item_attr);
+
+		if (vlc_aopts == NULL || strcmp(vlc_aopts, "mp3") == 0) 
+			mvpw_check_menu_item(settings_check, (void*) 1, 1);
+		else if (strcmp(vlc_aopts, "flac") == 0)
+			mvpw_check_menu_item(settings_check, (void*) 2, 1);
+		
+		mvpw_show(settings_check);
+		mvpw_focus(settings_check);
+		break;
+
+	case SETTINGS_VLC_VIDEOBITRATE:
+		snprintf(buf, sizeof(buf), "%d", vlc_vb);
+		mvpw_set_dialog_text(settings_vlc_vb, buf);
+		mvpw_show(settings_vlc_vb);
+		mvpw_focus(settings_vlc_vb);
+		break;
+
+	case SETTINGS_VLC_AUDIOBITRATE:
+		snprintf(buf, sizeof(buf), "%d", vlc_ab);
+		mvpw_set_dialog_text(settings_vlc_ab, buf);
+		mvpw_show(settings_vlc_ab);
+		mvpw_focus(settings_vlc_ab);
+		break;
+	}
+
+}
+
+static void
 mclient_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
 	char buf[16];
@@ -3840,6 +4029,57 @@ settings_av_aspect_callback(mvp_widget_t *widget, char *item, void *key)
 	    re_exec();
 #endif
 }
+
+static void
+settings_vlc_video_callback(mvp_widget_t *widget, char *item, void *key)
+{
+	int i;
+	settings_vlc_transcode_video_t k = (settings_vlc_transcode_video_t) key;
+
+	// Clear all check items
+	for (i = 1; i < 5; i++)
+		mvpw_check_menu_item(settings_check, (void*)i, 0);
+
+	// Find which one chosen and store the setting
+	if (k == VLC_TRANSCODE_VIDEO_DVD) {
+		vlc_vopts = "dvd";
+		mvpw_check_menu_item(settings_check, (void*)1, 1);
+	}
+	if (k == VLC_TRANSCODE_VIDEO_SVCD) {
+		vlc_vopts = "svcd";
+		mvpw_check_menu_item(settings_check, (void*)2, 1);
+	}
+	if (k == VLC_TRANSCODE_VIDEO_VCD) {
+		vlc_vopts = "vcd";
+		mvpw_check_menu_item(settings_check, (void*)3, 1);
+	}
+	if (k == VLC_TRANSCODE_VIDEO_NONE) {
+		vlc_vopts = "none";
+		mvpw_check_menu_item(settings_check, (void*)4, 1);
+	}
+}
+
+static void
+settings_vlc_audio_callback(mvp_widget_t *widget, char *item, void *key)
+{
+	int i;
+	settings_vlc_transcode_audio_t k = (settings_vlc_transcode_audio_t) key;
+
+	// Clear all check items
+	for (i = 1; i < 3; i++)
+		mvpw_check_menu_item(settings_check, (void*)i, 0);
+
+	// Find which one chosen and store the setting
+	if (k == VLC_TRANSCODE_AUDIO_MP3) {
+		vlc_aopts = "mp3";
+		mvpw_check_menu_item(settings_check, (void*)1, 1);
+	}
+	if (k == VLC_TRANSCODE_AUDIO_FLAC) {
+		vlc_aopts = "flac";
+		mvpw_check_menu_item(settings_check, (void*)2, 1);
+	}
+}
+
 
 static void
 settings_av_audio_callback(mvp_widget_t *widget, char *item, void *key)
@@ -4025,6 +4265,8 @@ settings_init(void)
 			   (void*)SETTINGS_MAIN_MCLIENT, &settings_item_attr);
 	mvpw_add_menu_item(settings, "MythTV",
 			   (void*)SETTINGS_MAIN_MYTHTV, &settings_item_attr);
+	mvpw_add_menu_item(settings, "VLC Streaming",
+			   (void*)SETTINGS_MAIN_VLC, &settings_item_attr);
 	mvpw_add_menu_item(settings, "TV Guide",
 			   (void*)SETTINGS_MAIN_TVGUIDE, &settings_item_attr);
 	mvpw_add_menu_item(settings, "On-Screen-Display",
@@ -4163,6 +4405,35 @@ settings_init(void)
 			   "Recording Group Filtering",
 			   (void*)SETTINGS_MYTHTV_RECGROUP_FILTER,
 			   &settings_item_attr);
+
+	/*
+	 * vlc settings menu
+	 */
+	settings_vlc = mvpw_create_menu(NULL, x, y, w, h,
+					   settings_attr.bg,
+					   settings_attr.border,
+					   settings_attr.border_size);
+	settings_attr.checkboxes = 0;
+	mvpw_set_menu_attr(settings_vlc, &settings_attr);
+	mvpw_set_menu_title(settings_vlc, "VLC Settings");
+	mvpw_set_key(settings_vlc, settings_item_key_callback);
+
+	settings_item_attr.hilite = NULL;
+	settings_item_attr.select = vlc_select_callback;
+
+	mvpw_add_menu_item(settings_vlc,
+			   "Video Transcoding",
+			   (void*)SETTINGS_VLC_VIDEOTRANSCODING, &settings_item_attr);
+	mvpw_add_menu_item(settings_vlc,
+			   "Audio Transcoding",
+			   (void*)SETTINGS_VLC_AUDIOTRANSCODING, &settings_item_attr);
+	mvpw_add_menu_item(settings_vlc,
+			   "Video Bitrate",
+			   (void*)SETTINGS_VLC_VIDEOBITRATE, &settings_item_attr);
+	mvpw_add_menu_item(settings_vlc,
+			   "Audio Bitrate",
+			   (void*)SETTINGS_VLC_AUDIOBITRATE, &settings_item_attr);
+
 
 	/*
 	 * tvguide settings menu
@@ -4448,6 +4719,33 @@ settings_init(void)
 	mvpw_set_dialog_title(settings_mythtv_program,
 			      "MythTV Program TCP Receive Buffer");
 	mvpw_set_dialog_text(settings_mythtv_program, "");
+
+        /*
+	 * VLC bitrate widgets
+	 */
+	settings_vlc_vb = mvpw_create_dialog(NULL, x, y, w, h,
+						settings_dialog_attr.bg,
+						settings_dialog_attr.border,
+						settings_dialog_attr.border_size);
+	mvpw_set_dialog_attr(settings_vlc_vb,
+			     &settings_dialog_attr);
+	mvpw_set_key(settings_vlc_vb,
+		     settings_vlc_vb_key_callback);
+	mvpw_set_dialog_title(settings_vlc_vb,
+			      "VLC Video Bitrate (0 = Auto)");
+	mvpw_set_dialog_text(settings_vlc_vb, "");
+	settings_vlc_ab = mvpw_create_dialog(NULL, x, y, w, h,
+						settings_dialog_attr.bg,
+						settings_dialog_attr.border,
+						settings_dialog_attr.border_size);
+	mvpw_set_dialog_attr(settings_vlc_ab,
+			     &settings_dialog_attr);
+	mvpw_set_key(settings_vlc_ab,
+		     settings_vlc_ab_key_callback);
+	mvpw_set_dialog_title(settings_vlc_ab,
+			      "VLC Audio Bitrate (0 = Auto)");
+	mvpw_set_dialog_text(settings_vlc_ab, "");
+
 
 	/*
 	 * IP Address entry widget

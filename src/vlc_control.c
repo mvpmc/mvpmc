@@ -75,7 +75,7 @@ extern int http_main(void); 	// audio.c
 #define VLC_MP3_TRANSCODE "setup mvpmc output #transcode{acodec=mp3,ab=%d,channels=2}:duplicate{dst=std{access=http,mux=raw,url=:%s}}\r\n"
 
 /* VLC command for audio transcoding to flac */
-#define VLC_FLAC_TRANSCODE "setup mvpmc output #transcode{acodec=flac,ab=%d,channels=2}:duplicate{dst=std{access=http,mux=raw,url=:%s}}\r\n"
+#define VLC_FLAC_TRANSCODE "setup mvpmc output #transcode{acodec=flac,channels=2}:duplicate{dst=std{access=http,mux=raw,url=:%s}}\r\n"
 
 /* VLC command for video/audio transcode to mpeg 2 */
 #define VLC_VIDEO_TRANSCODE "setup mvpmc output #transcode{vcodec=mp2v,vb=%d,venc=ffmpeg{keyint=3},scale=1,audio-sync,soverlay,deinterlace,width=%s,height=%s,canvas-width=%s,canvas-height=%s,canvas-aspect=%s,fps=%s,acodec=mpga,ab=%d,channels=2}:duplicate{dst=std{access=http,mux=ts,dst=:%s}}\r\n"
@@ -634,7 +634,7 @@ char* vlc_get_audio_transcode()
 	if ((vlc_aopts == NULL) || (strcmp(vlc_aopts, "flac") != 0))
 		sprintf(vlc_transcode_message, VLC_MP3_TRANSCODE, ab, VLC_HTTP_PORT);
 	else
-		sprintf(vlc_transcode_message, VLC_FLAC_TRANSCODE, ab, VLC_HTTP_PORT);
+		sprintf(vlc_transcode_message, VLC_FLAC_TRANSCODE, VLC_HTTP_PORT);
 	return vlc_transcode_message;
 }
 
@@ -874,17 +874,6 @@ vlc_key(char key)
 		if ( paused ) 
 			vlc_key_unpause();
 		break;
-
-	/* Use video.c implentation with audio_clear()
-	 * instead for thumbnail play on file browser
-	case MVPW_KEY_STOP:
-	case MVPW_KEY_EXIT:
-		// Stop the broadcast and delete it
-		vlc_stop();
-		vlc_destroy();
-		back_to_guide_menu();
-		break;
-	*/
 
 	case MVPW_KEY_BLANK:
 	case MVPW_KEY_OK:
