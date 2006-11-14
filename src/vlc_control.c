@@ -221,6 +221,7 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
         vlc_commands_size = 4;
     }
 
+    // If broadcast messages are disabled and this is one, bail out now.
     fprintf(outlog, "broadcast messages enabled == %d\n", vlc_broadcast_enabled);
     if ((VlcCommandType == VLC_CREATE_BROADCAST) && (vlc_broadcast_enabled == 0)) {	
         return 0;
