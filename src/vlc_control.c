@@ -566,10 +566,10 @@ char* vlc_get_video_transcode()
 
 	if (config->av_mode == AV_MODE_PAL) {
 		canvas_height = "576";
-		fps = "25.000";
+		fps = "25.0000";
 	} else {
 		canvas_height = "480";
-		fps = "23.976";
+		fps = "29.9700";
 	}
 
 
