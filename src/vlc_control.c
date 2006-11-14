@@ -767,7 +767,6 @@ void vlc_key_unpause(void)
  	vlc_broadcast_enabled = 0;
 
 	// Stop the a/v stream altogether	
-	audio_clear();
 	video_clear();
 
 	// Resume playing the VLC stream 
