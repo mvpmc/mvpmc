@@ -96,6 +96,13 @@ char vlc_transcode_message[512];
 int vlc_broadcast_enabled = 1;
 
 /*
+ * The last URL we played. Stored so that if we try to play it
+ * again while it's still running, we can abandon the 
+ * setup request and connect back to the running stream.
+ */
+char* vlc_lastplayed_url = NULL;
+
+/*
  * The last seen position in the vlc stream. We only
  * go to the network once during pause and OK/BLANK OSD enabling. 
  * This is also set by all seek functions so that when the osd asks 
@@ -226,6 +233,18 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
     if ((VlcCommandType == VLC_CREATE_BROADCAST) && (vlc_broadcast_enabled == 0)) {	
         return 0;
     }
+
+    // If we're trying to start a stream on a URL that's already 
+    // playing, abandon the request so we connect back to it.
+    if ((VlcCommandType == VLC_CREATE_BROADCAST) && (vlc_lastplayed_url != NULL)) {
+        if ((strcmp(vlc_lastplayed_url, url) == 0) && (audio_playing == 1)) {
+	    return 0;
+	}
+    }
+
+    // Store the url if it's a CREATE_BROADCAST message
+    if (VlcCommandType == VLC_CREATE_BROADCAST)
+    	vlc_lastplayed_url = strdup(url);
 
     int rc;
     int retcode=-1;
@@ -810,43 +829,43 @@ vlc_key(char key)
 		break;
 	
 	case MVPW_KEY_LEFT:
-		// Rewind VLC stream by 10 seconds
-		timed_osd(seek_osd_timeout*1000);
-		vlc_seek_sec_relative(-10);
-		break;
-
-	case MVPW_KEY_RIGHT:
-		// Rewind VLC stream by 30 seconds
-		timed_osd(seek_osd_timeout*1000);
-		vlc_seek_sec_relative(30);
-		break;
-
-	case MVPW_KEY_CHAN_DOWN:
-	case MVPW_KEY_DOWN:
-	case MVPW_KEY_REWIND:
 		// Rewind VLC stream by 2%
 		timed_osd(seek_osd_timeout*1000);
 		vlc_seek_pct_relative(-2);
 		break;
 
-	case MVPW_KEY_CHAN_UP:
-	case MVPW_KEY_UP:
-	case MVPW_KEY_FFWD:
+	case MVPW_KEY_RIGHT:
 		// Fast forward VLC stream by 2%
 		timed_osd(seek_osd_timeout*1000);
 		vlc_seek_pct_relative(2);
 		break;
 
-	case MVPW_KEY_SKIP:
+	case MVPW_KEY_CHAN_DOWN:
+	case MVPW_KEY_DOWN:
+	case MVPW_KEY_REWIND:
+		// Rewind VLC stream by 5%
+		timed_osd(seek_osd_timeout*1000);
+		vlc_seek_pct_relative(-5);
+		break;
+
+	case MVPW_KEY_CHAN_UP:
+	case MVPW_KEY_UP:
+	case MVPW_KEY_FFWD:
 		// Fast forward VLC stream by 5%
 		timed_osd(seek_osd_timeout*1000);
 		vlc_seek_pct_relative(5);
 		break;
 
-	case MVPW_KEY_REPLAY:
-		// Rewind VLC stream by 5%
+	case MVPW_KEY_SKIP:
+		// FFWD VLC stream by 30 seconds
 		timed_osd(seek_osd_timeout*1000);
-		vlc_seek_pct_relative(-5);
+		vlc_seek_sec_relative(30);
+		break;
+
+	case MVPW_KEY_REPLAY:
+		// Rewind VLC stream by 10 seconds
+		timed_osd(seek_osd_timeout*1000);
+		vlc_seek_sec_relative(-10);
 		break;
 
 	case MVPW_KEY_RECORD:
