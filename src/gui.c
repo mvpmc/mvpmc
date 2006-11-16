@@ -893,6 +893,7 @@ mvp_widget_t *iw;
 
 static void (*settings_ip_change)(char*);
 static void settings_ip_change_mythtv(char*);
+static void settings_ip_change_vlc(char*);
 static void settings_ip_change_mclient(char*);
 
 static mvp_widget_t *settings_ip_change_widget;
@@ -1118,7 +1119,8 @@ typedef enum {
 } settings_mythtv_t;
 
 typedef enum {
-	SETTINGS_VLC_VIDEOTRANSCODING = 1,
+	SETTINGS_VLC_IP = 1,
+	SETTINGS_VLC_VIDEOTRANSCODING,
 	SETTINGS_VLC_AUDIOTRANSCODING,
 	SETTINGS_VLC_VIDEOBITRATE,
 	SETTINGS_VLC_AUDIOBITRATE
@@ -1200,6 +1202,7 @@ static void settings_display_mode_callback(mvp_widget_t*, char*, void*);
 static void settings_vlc_video_callback(mvp_widget_t *widget, char *item, void *key);
 static void settings_vlc_audio_callback(mvp_widget_t *widget, char *item, void *key);
 extern char* vlc_vopts;
+extern char* vlc_server;
 extern char* vlc_aopts;
 extern int vlc_vb;
 extern int vlc_ab;
@@ -1755,6 +1758,17 @@ settings_ip_change_mythtv(char *buf)
 
 	config->bitmask |= CONFIG_MYTHTV_IP;
 	strncpy(config->mythtv_ip, buf, sizeof(config->mythtv_ip));
+}
+
+static void
+settings_ip_change_vlc(char *buf)
+{
+	printf("Setting new VLC IP address: %s\n", buf);
+
+	if (vlc_server) {
+		free(mythtv_server);
+	}
+	vlc_server = strdup(buf);
 }
 
 static void
@@ -3824,11 +3838,45 @@ startup_select_callback(mvp_widget_t *widget, char *item, void *key)
 static void
 vlc_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
-	char buf[16];
+	int old[4] = { 0, 0, 0, 0 };
+	char buf[18];
+	int i;
+	uint32_t c;
+	mvpw_text_attr_t attr;
+
 	mvpw_hide(widget);
 	mvpw_clear_menu(settings_check);
 
 	switch ((settings_vlc_t) key) {
+	case SETTINGS_VLC_IP:
+		mvpw_set_text_str(settings_ip_label, "VLC Server");
+		if (vlc_server) {
+			sscanf(vlc_server, "%d.%d.%d.%d",
+			       &old[0], &old[1], &old[2], &old[3]);
+		}
+		for (i=0; i<4; i++) {
+			snprintf(buf, sizeof(buf), "%d", old[i]);
+			mvpw_set_text_str(settings_ip_new[i], buf);
+		}
+		strncpy(buf, "0", sizeof(buf));
+		for (i=0; i<4; i++) {
+			mvpw_set_text_attr(settings_ip_new[i],
+					   &settings_ip_attr);
+			mvpw_set_bg(settings_ip_new[i], settings_ip_attr.bg);
+		}
+		mvpw_get_text_attr(settings_ip_new[0], &attr);
+		c = attr.fg;
+		attr.fg = attr.bg;
+		attr.bg = c;
+		mvpw_set_text_attr(settings_ip_new[0], &attr);
+		mvpw_set_bg(settings_ip_new[0], c);
+		settings_ip_change = settings_ip_change_vlc;
+		settings_ip_change_widget = settings_vlc;
+		mvpw_show(settings_help);
+		mvpw_show(settings_ip);
+		mvpw_focus(settings_ip);
+		break;
+
 	case SETTINGS_VLC_VIDEOTRANSCODING:
 		
 		mvpw_set_key(settings_check, settings_vlc_key_callback);
@@ -4420,6 +4468,10 @@ settings_init(void)
 
 	settings_item_attr.hilite = NULL;
 	settings_item_attr.select = vlc_select_callback;
+
+	mvpw_add_menu_item(settings_vlc,
+			   "VLC Server IP",
+			   (void*)SETTINGS_VLC_IP, &settings_item_attr);
 
 	mvpw_add_menu_item(settings_vlc,
 			   "Video Transcoding",
