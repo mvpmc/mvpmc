@@ -132,10 +132,6 @@ char *mythtv_server = NULL;
 char *replaytv_server = NULL;
 char *mclient_server = NULL;
 char *vlc_server = NULL;
-char *vlc_vopts = NULL;
-char *vlc_aopts = NULL;
-int vlc_vb = 0;
-int vlc_ab = 0;
 char *mvp_server = NULL;
 
 char vnc_server[256];
@@ -591,18 +587,19 @@ main(int argc, char **argv)
 			}
 			if (strcmp(opts[opt_index].name, "vlc") == 0) {
 				vlc_server = strdup(optarg);
+				sizeof_strncpy(config->vlc_ip, optarg);
 			}
 			if (strcmp(opts[opt_index].name, "vlc-vopts") == 0) {
-				vlc_vopts = strdup(optarg);
+				sizeof_strncpy(config->vlc_vopts, optarg);
 			}
 			if (strcmp(opts[opt_index].name, "vlc-aopts") == 0) {
-				vlc_aopts = strdup(optarg);
+				sizeof_strncpy(config->vlc_aopts, optarg);
 			}
 			if (strcmp(opts[opt_index].name, "vlc-vb") == 0) {
-				vlc_vb = atoi(optarg);
+				config->vlc_vb = atoi(optarg);
 			}
 			if (strcmp(opts[opt_index].name, "vlc-ab") == 0) {
-				vlc_ab = atoi(optarg);
+				config->vlc_ab = atoi(optarg);
 			}
 			if (strcmp(opts[opt_index].name, "emulate") == 0) {
 				mvp_server = strdup(optarg);

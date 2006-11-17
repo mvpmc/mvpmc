@@ -185,6 +185,7 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 			mvpw_hide(widget);
 			mvpw_hide(fb_progress);
 			av_move(0, 0, 0);
+			screensaver_disable();
 			return;
 		}
 	}

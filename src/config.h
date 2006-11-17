@@ -59,6 +59,11 @@ typedef struct {
 #define CONFIG_STARTUP_SELECT	0x01000000
 #define CONFIG_DISPLAY_TYPE	0x02000000
 #define CONFIG_MYTHTV_FILTER	0x04000000
+#define CONFIG_VLC_IP		0x08000000
+#define CONFIG_VLC_VOPTS	0x10000000
+#define CONFIG_VLC_AOPTS	0x20000000
+#define CONFIG_VLC_VB		0x40000000
+#define CONFIG_VLC_AB		0x80000000
 
 #define MYTHTV_RG_MAX	32
 
@@ -109,6 +114,13 @@ typedef struct {
 	int			use_12_hour_clock;
 	mythtv_filter_t		mythtv_filter;
 	mysql_config_t		mysql;
+
+	char			vlc_ip[64];
+	char			vlc_vopts[6];
+	char			vlc_aopts[6];
+	int			vlc_vb;
+	int			vlc_ab;
+
 } config_t;
 
 extern config_t *config;
@@ -145,6 +157,11 @@ extern config_t *config;
 #define CONFIG_ITEM_MYTHTV_RG_SHOW	0x0019
 #define CONFIG_ITEM_DISPLAY_TYPE	0x0020
 #define CONFIG_ITEM_MYTHTV_FILTER	0x0021
+#define CONFIG_ITEM_VLC_IP		0x0022
+#define CONFIG_ITEM_VLC_VOPTS		0x0023
+#define CONFIG_ITEM_VLC_AOPTS		0x0024
+#define CONFIG_ITEM_VLC_VB		0x0025
+#define CONFIG_ITEM_VLC_AB		0x0026
 
 /*
  * The flags in config_list_t

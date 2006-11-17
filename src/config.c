@@ -394,6 +394,11 @@ get_item(config_item_t *item, int override)
 		ITEM_FIXED(MYTHTV_PROGRAMS, mythtv_programs);
 		ITEM_FIXED(DISPLAY_TYPE, display_type);
 		ITEM_FIXED(MYTHTV_FILTER, mythtv_filter);
+		ITEM_STRING(VLC_IP, vlc_ip);
+		ITEM_STRING(VLC_VOPTS, vlc_vopts);
+		ITEM_STRING(VLC_AOPTS, vlc_aopts);
+		ITEM_FIXED(VLC_VB, vlc_vb);
+		ITEM_FIXED(VLC_AB, vlc_ab);
 	case CONFIG_ITEM_MYTHTV_RG_HIDE:
 	case CONFIG_ITEM_MYTHTV_RG_SHOW:
 		config->bitmask |= CONFIG_MYTHTV_RECGROUP;
@@ -498,6 +503,17 @@ save_config_file(char *file)
 		goto err;
 	if (add_item(list, CONFIG_ITEM_MYTHTV_FILTER) < 0) 
 		goto err;
+	if (add_item(list, CONFIG_ITEM_VLC_IP) < 0) 
+		goto err;
+	if (add_item(list, CONFIG_ITEM_VLC_VOPTS) < 0) 
+		goto err;
+	if (add_item(list, CONFIG_ITEM_VLC_AOPTS) < 0) 
+		goto err;
+	if (add_item(list, CONFIG_ITEM_VLC_VB) < 0) 
+		goto err;
+	if (add_item(list, CONFIG_ITEM_VLC_AB) < 0) 
+		goto err;
+
 
 	list->crc = 0;
 	list->version = CONFIG_VERSION;
@@ -589,6 +605,8 @@ set_config(void)
 		mythtv_server = strdup(config->mythtv_ip);
 	if (config->bitmask & CONFIG_MCLIENT_IP)
 		mclient_server = strdup(config->mclient_ip);
+	if (config->bitmask & CONFIG_VLC_IP)
+		mythtv_server = strdup(config->vlc_ip);
 	if (config->bitmask & CONFIG_PLAYBACK_OSD)
 		seek_osd_timeout = config->playback_osd;
 	if (config->bitmask & CONFIG_PLAYBACK_PAUSE)

@@ -64,11 +64,6 @@ char* vlc_get_audio_transcode();
 
 extern int errno;
 extern char *vlc_server;	// main.c
-extern char *vlc_vopts;
-extern char *vlc_aopts;
-extern int vlc_vb;
-extern int vlc_ab;
-
 extern int http_main(void); 	// audio.c
 
 /* VLC command for audio transcoding to mp3 */
@@ -575,12 +570,12 @@ char* vlc_get_video_transcode()
 
 
 	/* bitrate settings */
-	int ab = vlc_ab;
+	int ab = config->vlc_ab;
 	if (ab == 0) ab = 192;
-	int vb = vlc_vb;
+	int vb = config->vlc_vb;
 
 	/** DVD scaling settings */
-	if (vlc_vopts == NULL || strcmp(vlc_vopts, "dvd") == 0) {
+	if (*config->vlc_vopts == 0 || strcmp(config->vlc_vopts, "dvd") == 0) {
 		if (vb == 0) vb = 4192;
 		canvas_width = "720";
 		sprintf(vlc_transcode_message, VLC_VIDEO_TRANSCODE, 
@@ -590,7 +585,7 @@ char* vlc_get_video_transcode()
 	}
 
 	/** SVCD scaling settings */
-	if (strcmp(vlc_vopts, "svcd") == 0) {
+	if (strcmp(config->vlc_vopts, "svcd") == 0) {
 		if (vb == 0) vb = 2778;
 		canvas_width = "480";
 		sprintf(vlc_transcode_message, VLC_VIDEO_TRANSCODE, 
@@ -600,7 +595,7 @@ char* vlc_get_video_transcode()
 	}
 
 	/** VCD scaling settings */
-	if (strcmp(vlc_vopts, "vcd") == 0) {
+	if (strcmp(config->vlc_vopts, "vcd") == 0) {
 		if (vb == 0) vb = 1152;
 		canvas_width = "352";
 		if (config->av_mode == AV_MODE_PAL)
@@ -629,10 +624,10 @@ char* vlc_get_audio_transcode()
 {
 
 	/* Audio bitrate settings */
-	int ab = vlc_ab;
+	int ab = config->vlc_ab;
 	if (ab == 0) ab = 192;
 
-	if ((vlc_aopts == NULL) || (strcmp(vlc_aopts, "flac") != 0))
+	if ((*config->vlc_aopts == 0) || (strcmp(config->vlc_aopts, "flac") != 0))
 		sprintf(vlc_transcode_message, VLC_MP3_TRANSCODE, ab, VLC_HTTP_PORT);
 	else
 		sprintf(vlc_transcode_message, VLC_FLAC_TRANSCODE, VLC_HTTP_PORT);
@@ -788,7 +783,7 @@ void vlc_key_unpause(void)
 	mvpw_hide(pause_widget);
 	mvpw_hide(mute_widget);
 	paused = 0;
-
+	screensaver_disable();
 }
 
 

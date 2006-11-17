@@ -1201,12 +1201,7 @@ mythtv_filter_t mythtv_filter = MYTHTV_FILTER_NONE;
 static void settings_display_mode_callback(mvp_widget_t*, char*, void*);
 static void settings_vlc_video_callback(mvp_widget_t *widget, char *item, void *key);
 static void settings_vlc_audio_callback(mvp_widget_t *widget, char *item, void *key);
-extern char* vlc_vopts;
 extern char* vlc_server;
-extern char* vlc_aopts;
-extern int vlc_vb;
-extern int vlc_ab;
-
 
 static void main_menu_items(void);
 
@@ -1620,19 +1615,19 @@ settings_vlc_vb_key_callback(mvp_widget_t *widget, char key)
 		break;
 	case MVPW_KEY_UP:
 	case MVPW_KEY_RIGHT:
-		vlc_vb += 128;
+		config->vlc_vb += 128;
 		change = 1;
 		break;
 	case MVPW_KEY_DOWN:
 	case MVPW_KEY_LEFT:
-		vlc_vb -= 128;
+		config->vlc_vb -= 128;
 		change = 1;
 		break;
 	}
 	if (change) {
-		if (vlc_vb < 0)
-			vlc_vb = 0;
-		snprintf(buf, sizeof(buf), "%d", vlc_vb);
+		if (config->vlc_vb < 0)
+			config->vlc_vb = 0;
+		snprintf(buf, sizeof(buf), "%d", config->vlc_vb);
 		mvpw_set_dialog_text(settings_vlc_vb, buf);
 	}
 }
@@ -1650,19 +1645,19 @@ settings_vlc_ab_key_callback(mvp_widget_t *widget, char key)
 		break;
 	case MVPW_KEY_UP:
 	case MVPW_KEY_RIGHT:
-		vlc_ab += 16;
+		config->vlc_ab += 16;
 		change = 1;
 		break;
 	case MVPW_KEY_DOWN:
 	case MVPW_KEY_LEFT:
-		vlc_ab -= 16;
+		config->vlc_ab -= 16;
 		change = 1;
 		break;
 	}
 	if (change) {
-		if (vlc_ab < 0)
-			vlc_ab = 0;
-		snprintf(buf, sizeof(buf), "%d", vlc_ab);
+		if (config->vlc_ab < 0)
+			config->vlc_ab = 0;
+		snprintf(buf, sizeof(buf), "%d", config->vlc_ab);
 		mvpw_set_dialog_text(settings_vlc_ab, buf);
 	}
 }
@@ -1769,6 +1764,9 @@ settings_ip_change_vlc(char *buf)
 		free(vlc_server);
 	}
 	vlc_server = strdup(buf);
+
+	config->bitmask |= CONFIG_VLC_IP;
+	strncpy(config->vlc_ip, buf, sizeof(config->vlc_ip));
 }
 
 static void
@@ -3898,11 +3896,11 @@ vlc_select_callback(mvp_widget_t *widget, char *item, void *key)
 				   (void*)VLC_TRANSCODE_VIDEO_NONE,
 				   &settings_item_attr);
 
-		if (vlc_vopts == NULL || strcmp(vlc_vopts, "dvd") == 0) 
+		if (*config->vlc_vopts == 0 || strcmp(config->vlc_vopts, "dvd") == 0) 
 			mvpw_check_menu_item(settings_check, (void*) 1, 1);
-		else if (strcmp(vlc_vopts, "svcd") == 0)
+		else if (strcmp(config->vlc_vopts, "svcd") == 0)
 			mvpw_check_menu_item(settings_check, (void*) 2, 1);
-		else if (strcmp(vlc_vopts, "vcd") == 0)
+		else if (strcmp(config->vlc_vopts, "vcd") == 0)
 			mvpw_check_menu_item(settings_check, (void*) 3, 1);
 		else
 			mvpw_check_menu_item(settings_check, (void*) 4, 1);
@@ -3926,9 +3924,9 @@ vlc_select_callback(mvp_widget_t *widget, char *item, void *key)
 				   (void*)VLC_TRANSCODE_AUDIO_FLAC,
 				   &settings_item_attr);
 
-		if (vlc_aopts == NULL || strcmp(vlc_aopts, "mp3") == 0) 
+		if (*config->vlc_aopts == 0 || strcmp(config->vlc_aopts, "mp3") == 0) 
 			mvpw_check_menu_item(settings_check, (void*) 1, 1);
-		else if (strcmp(vlc_aopts, "flac") == 0)
+		else if (strcmp(config->vlc_aopts, "flac") == 0)
 			mvpw_check_menu_item(settings_check, (void*) 2, 1);
 		
 		mvpw_show(settings_check);
@@ -3936,14 +3934,14 @@ vlc_select_callback(mvp_widget_t *widget, char *item, void *key)
 		break;
 
 	case SETTINGS_VLC_VIDEOBITRATE:
-		snprintf(buf, sizeof(buf), "%d", vlc_vb);
+		snprintf(buf, sizeof(buf), "%d", config->vlc_vb);
 		mvpw_set_dialog_text(settings_vlc_vb, buf);
 		mvpw_show(settings_vlc_vb);
 		mvpw_focus(settings_vlc_vb);
 		break;
 
 	case SETTINGS_VLC_AUDIOBITRATE:
-		snprintf(buf, sizeof(buf), "%d", vlc_ab);
+		snprintf(buf, sizeof(buf), "%d", config->vlc_ab);
 		mvpw_set_dialog_text(settings_vlc_ab, buf);
 		mvpw_show(settings_vlc_ab);
 		mvpw_focus(settings_vlc_ab);
@@ -4090,19 +4088,19 @@ settings_vlc_video_callback(mvp_widget_t *widget, char *item, void *key)
 
 	// Find which one chosen and store the setting
 	if (k == VLC_TRANSCODE_VIDEO_DVD) {
-		vlc_vopts = "dvd";
+		strncpy(config->vlc_vopts, "dvd", sizeof(config->vlc_vopts));
 		mvpw_check_menu_item(settings_check, (void*)1, 1);
 	}
 	if (k == VLC_TRANSCODE_VIDEO_SVCD) {
-		vlc_vopts = "svcd";
+		strncpy(config->vlc_vopts, "svcd", sizeof(config->vlc_vopts));
 		mvpw_check_menu_item(settings_check, (void*)2, 1);
 	}
 	if (k == VLC_TRANSCODE_VIDEO_VCD) {
-		vlc_vopts = "vcd";
+		strncpy(config->vlc_vopts, "vcd", sizeof(config->vlc_vopts));
 		mvpw_check_menu_item(settings_check, (void*)3, 1);
 	}
 	if (k == VLC_TRANSCODE_VIDEO_NONE) {
-		vlc_vopts = "none";
+		strncpy(config->vlc_vopts, "none", sizeof(config->vlc_vopts));
 		mvpw_check_menu_item(settings_check, (void*)4, 1);
 	}
 }
@@ -4119,11 +4117,11 @@ settings_vlc_audio_callback(mvp_widget_t *widget, char *item, void *key)
 
 	// Find which one chosen and store the setting
 	if (k == VLC_TRANSCODE_AUDIO_MP3) {
-		vlc_aopts = "mp3";
+		strncpy(config->vlc_aopts, "mp3", sizeof(config->vlc_aopts));
 		mvpw_check_menu_item(settings_check, (void*)1, 1);
 	}
 	if (k == VLC_TRANSCODE_AUDIO_FLAC) {
-		vlc_aopts = "flac";
+		strncpy(config->vlc_aopts, "flac", sizeof(config->vlc_aopts));
 		mvpw_check_menu_item(settings_check, (void*)2, 1);
 	}
 }
@@ -6317,8 +6315,8 @@ about_init(void)
 		"Audio: mp3, ogg, wav, ac3\n"
 		"Video: mpeg1, mpeg2\n"
 		"Images: bmp, gif, png, jpeg\n"
-		"Servers: MythTV, ReplayTV, NFS, CIFS, VNC, SlimServer, "
-		"HTTP, Hauppauge\n";
+		"Servers: MythTV, ReplayTV, NFS, CIFS, VLC, SlimServer, "
+		"VNC, HTTP, Hauppauge\n";
 	struct utsname myname;
 
 	splash_update("Creating about dialog");
