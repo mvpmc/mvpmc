@@ -1766,7 +1766,7 @@ settings_ip_change_vlc(char *buf)
 	printf("Setting new VLC IP address: %s\n", buf);
 
 	if (vlc_server) {
-		free(mythtv_server);
+		free(vlc_server);
 	}
 	vlc_server = strdup(buf);
 }
