@@ -2469,10 +2469,10 @@ schedule_recording_callback(mvp_widget_t *widget, char *item , void *key)
 	mythtv_schedule_data_t * user_data = mvpw_get_user_data(widget);
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace)  which:%d  item=%s\n",
 		__FUNCTION__, __FILE__, __LINE__,which,item);
-	if (which==0) { 
-		fprintf (stderr, "which = 0 so return\n");
-		return;
-	}
+	//if (which==0) { 
+	//	fprintf (stderr, "which = 0 so return\n");
+	//	return;
+	//}
 
 	mvpw_hide(user_data->myptr->pane1);
 	mvpw_hide(user_data->myptr->pane2);
@@ -2481,7 +2481,7 @@ schedule_recording_callback(mvp_widget_t *widget, char *item , void *key)
 	switch (which) {
 		case 0:
 			/* do not record */
-			gui_mesg("Recording Options", "Recording NOT scheduled");
+			mythtv_schedule_recording(user_data->myptr->widget, item , (void*)which, 8);
 			break;
 		case 1:
 			/* record only this showing */
@@ -2807,13 +2807,18 @@ mythtv_schedule_recording(mvp_widget_t *widget, char *item , void *key, int type
 					fprintf (stderr, "Error scheduling recording : %d\n",err);
 					goto err;
 				} 
-				sqlprog[which].recording = 2;
+				if (type == 8) {
+					sqlprog[which].recording = 99;
+				}
+				else {
+					sqlprog[which].recording = 2;
+				}
 			} 
 			break;
 		} /* first switch */
 
 	if ( sqlprog[which].recording) {
-		sprintf(buf, "Recording Scheduled\n");
+		sprintf(buf, "Modified Recording Scheduled\n");
 		mvpw_set_text_str(program_info_widget, buf);
 		mvpw_show(program_info_widget);
 		if (newschedule) {
@@ -3068,13 +3073,11 @@ mythtv_guide_menu_update(mvp_widget_t *widget, time_t starttime, time_t endtime,
 	if ( (user_data->myptr->nrecgroups=cmyth_mysql_get_recgroups(mythtv_database, &sqlrecgroups))<1) {
 		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1)\n",
 			__FUNCTION__, __FILE__, __LINE__); 
-		snprintf(buf, sizeof(buf),"No Rec Groups retuned from Database...\nDatabase Error.  Please check your settings\n" );
-		mvpw_add_menu_item(widget, buf , (void*)i, &item_attr);
-		goto out;
-
+		if (sqlrecgroups == NULL) {
+			sqlrecgroups=realloc(sqlrecgroups,sizeof(*sqlrecgroups)*(1));
+			sizeof_strncpy(sqlrecgroups[0].recgroups, "Default");
+		}
 	}	
-	//fprintf (stderr, "back from recgroups call : sqlrecgroups[0].recgroup=%s : total=%d\n",sqlrecgroups[0].recgroups,user_data->myptr->nrecgroups);
-	
 	if (myth_sql_program_info(starttime,sqlcount, 0) <0) {
 		cmyth_dbg(CMYTH_DBG_DEBUG, "error returned from %s [#%s] line: %d\n", __FUNCTION__ ,sqlcount,__LINE__); 
 	}
