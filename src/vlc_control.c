@@ -174,7 +174,7 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
         "new mvpmc broadcast enabled\r\n",
         "setup mvpmc input %s\r\n",
         NULL,
-        "setup mvpmc option sout-http-mime=%s/mpeg\r\n",
+        "setup mvpmc option sout-http-mime=%s/%s\r\n",
         "control mvpmc play\r\n"
     };
 
@@ -307,11 +307,17 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
                                 break;
                             case 5:
                                 if (ContentType == 100) {
-                                    fprintf(instream,vlc_connects[i],"video");
-                                    fprintf(outlog,vlc_connects[i],"video");
+                                    fprintf(instream,vlc_connects[i],"video", "mpeg");
+                                    fprintf(outlog,vlc_connects[i],"video", "mpeg");
                                 } else {
-                                    fprintf(instream,vlc_connects[i],"audio");
-                                    fprintf(outlog,vlc_connects[i],"audio");
+				    if (strcmp(config->vlc_aopts, "flac") == 0) {
+				        fprintf(instream,vlc_connects[i],"audio", "flac");
+                                        fprintf(outlog,vlc_connects[i],"audio", "flac");
+				    }
+                                    else {
+				        fprintf(instream,vlc_connects[i],"audio", "mpeg");
+                                        fprintf(outlog,vlc_connects[i],"audio", "mpeg");
+				    }
                                 }
                                 break;
                             case 2:
