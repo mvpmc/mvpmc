@@ -1,7 +1,6 @@
 #!/bin/sh
-#
-# $Id: nfsmount.sh,v 1.1 2004/10/15 03:49:41 gettler Exp $
-#
+
+KERNVER=`/bin/uname -r`
 
 SERVER=$1
 MNT=$2
@@ -15,4 +14,10 @@ if [ "$MNT" = "" ] ; then
     exit 1
 fi
 
-mount -t nfs -o nolock,rsize=4096,wsize=4096 $SERVER $MNT
+if [ "$KERNVER" = "2.4.17_mvl21-vdongle" ] ; then
+    RSIZE=4096
+else
+    RSIZE=1024
+fi
+
+mount -t nfs -o nolock,rsize=${RSIZE},wsize=4096 $SERVER $MNT
