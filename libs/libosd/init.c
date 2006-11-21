@@ -107,6 +107,8 @@ gfx_init(void)
 		conv_VR[i] = 0.5 * (double)i;
 		conv_RV[i] = 1.370 * ((double)i - 128);
 	}
+
+	cursor_init();
 }
 
 /*

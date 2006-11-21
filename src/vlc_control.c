@@ -44,6 +44,9 @@
 #include <mvp_demux.h>
 
 #include "mvpmc.h"
+#include "mythtv.h"
+#include "replaytv.h"
+#include "config.h"
 
 /*
  * vlc_control.c
@@ -56,10 +59,29 @@
 static long long vlc_stream_size(void);
 static long long vlc_stream_seek(long long, int);
 static int vlc_key(char);
+char* vlc_get_video_transcode();
+char* vlc_get_audio_transcode();
 
 extern int errno;
-extern char *vlc_server;	//config.c
+extern char *vlc_server;	// main.c
 extern int http_main(void); 	// audio.c
+
+/* VLC command for audio transcoding to mp3 */
+#define VLC_MP3_TRANSCODE "setup mvpmc output #transcode{acodec=mp3,ab=%d,channels=2}:duplicate{dst=std{access=http,mux=raw,url=:%s}}\r\n"
+
+/* VLC command for audio transcoding to flac */
+#define VLC_FLAC_TRANSCODE "setup mvpmc output #transcode{acodec=flac,channels=2}:duplicate{dst=std{access=http,mux=raw,url=:%s}}\r\n"
+
+/* VLC command for video/audio transcode to mpeg 2 */
+#define VLC_VIDEO_TRANSCODE "setup mvpmc output #transcode{vcodec=mp2v,vb=%d,venc=ffmpeg{keyint=3},scale=1,audio-sync,soverlay,deinterlace,width=%s,height=%s,canvas-width=%s,canvas-height=%s,canvas-aspect=%s,fps=%s,acodec=mpga,ab=%d,channels=2}:duplicate{dst=std{access=http,mux=ts,dst=:%s}}\r\n"
+
+/* VLC command video/audio transcode to mpeg 2 without scaling */
+#define VLC_VIDEO_NOSCALE_TRANSCODE "setup mvpmc output #transcode{vcodec=mp2v,vb=%d,scale=1,fps=%s,acodec=mpga,ab=%d,channels=2}:duplicate{dst=std{access=http,mux=ts,dst=:%s}}\r\n"
+
+/*
+ * Buffer for the transcoding request to be sent to VLC
+ */
+char vlc_transcode_message[512];
 
 /* 
  * Whether or not VLC_BROADCAST messages are enabled (disabling
@@ -120,7 +142,8 @@ video_callback_t vlc_functions = {
  * 			only if VlcCommandType == VLC_CONTROL)
  *
  * offset:		An offset percentage value if
- * 		        VlcCommandType == VLC_SEEK_PCT
+ * 		        VlcCommandType == VLC_SEEK_PCT, or number
+ * 		        of seconds for VLC_SEEK_SEC
  *
  */
 int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char *VlcCommandArgs, int offset)
@@ -151,7 +174,7 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
         "new mvpmc broadcast enabled\r\n",
         "setup mvpmc input %s\r\n",
         NULL,
-        "setup mvpmc option sout-http-mime=%s/mpeg\r\n",
+        "setup mvpmc option sout-http-mime=%s/%s\r\n",
         "control mvpmc play\r\n"
     };
 
@@ -193,6 +216,7 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
         vlc_commands_size = 4;
     }
 
+    // If broadcast messages are disabled and this is one, bail out now.
     fprintf(outlog, "broadcast messages enabled == %d\n", vlc_broadcast_enabled);
     if ((VlcCommandType == VLC_CREATE_BROADCAST) && (vlc_broadcast_enabled == 0)) {	
         return 0;
@@ -253,6 +277,8 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
                         break;
                     }
                     if (VlcCommandType == VLC_CREATE_BROADCAST) {
+		    	// New stream means we reset our cached position
+			vlc_cachedstreampos = -1;
                         switch (i) {
                             case 0:
                                 fprintf(instream,"admin\r\n");
@@ -272,20 +298,26 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
                                 break;
                             case 4:
                                 if ( ContentType == 100 ) {
-                                    fprintf(instream,VLC_DIVX_TRANSCODE,VLC_HTTP_PORT);
-                                    fprintf(outlog,VLC_DIVX_TRANSCODE,VLC_HTTP_PORT);
+                                    fprintf(instream,vlc_get_video_transcode());
+                                    fprintf(outlog,vlc_get_video_transcode());
                                 } else {
-                                    fprintf(instream,VLC_MP3_TRANSCODE,VLC_HTTP_PORT);
-                                    fprintf(outlog,VLC_MP3_TRANSCODE,VLC_HTTP_PORT);
+                                    fprintf(instream,vlc_get_audio_transcode());
+                                    fprintf(outlog,vlc_get_audio_transcode());
                                 }
                                 break;
                             case 5:
                                 if (ContentType == 100) {
-                                    fprintf(instream,vlc_connects[i],"video");
-                                    fprintf(outlog,vlc_connects[i],"video");
+                                    fprintf(instream,vlc_connects[i],"video", "mpeg");
+                                    fprintf(outlog,vlc_connects[i],"video", "mpeg");
                                 } else {
-                                    fprintf(instream,vlc_connects[i],"audio");
-                                    fprintf(outlog,vlc_connects[i],"audio");
+				    if (strcmp(config->vlc_aopts, "flac") == 0) {
+				        fprintf(instream,vlc_connects[i],"audio", "flac");
+                                        fprintf(outlog,vlc_connects[i],"audio", "flac");
+				    }
+                                    else {
+				        fprintf(instream,vlc_connects[i],"audio", "mpeg");
+                                        fprintf(outlog,vlc_connects[i],"audio", "mpeg");
+				    }
                                 }
                                 break;
                             case 2:
@@ -516,6 +548,100 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
 }
 
 /*
+ * Reads the MVPMC config items for TV aspect and
+ * mode. It uses these to construct a VLC transcode request
+ * for appropriate quality video. Resizes the output
+ * stream to scale to the canvas if dvd/svcd/vcd is selected.
+ */
+char* vlc_get_video_transcode()
+{
+	char* aspect;
+	char* canvas_width;
+	char* canvas_height;
+	char* fps;
+
+	/** Figure out height and FPS */
+	if (config->av_tv_aspect == AV_TV_ASPECT_16x9)
+		aspect = "16:9";
+	else
+		aspect = "4:3";
+
+	if (config->av_mode == AV_MODE_PAL) {
+		canvas_height = "576";
+		fps = "25.0000";
+	} else {
+		canvas_height = "480";
+		fps = "29.9700";
+	}
+
+
+	/* bitrate settings */
+	int ab = config->vlc_ab;
+	if (ab == 0) ab = 192;
+	int vb = config->vlc_vb;
+
+	/** DVD scaling settings */
+	if (*config->vlc_vopts == 0 || strcmp(config->vlc_vopts, "dvd") == 0) {
+		if (vb == 0) vb = 4192;
+		canvas_width = "720";
+		sprintf(vlc_transcode_message, VLC_VIDEO_TRANSCODE, 
+			vb, canvas_width, canvas_height, canvas_width, 
+			canvas_height, aspect, fps, ab, VLC_HTTP_PORT);
+		return vlc_transcode_message;
+	}
+
+	/** SVCD scaling settings */
+	if (strcmp(config->vlc_vopts, "svcd") == 0) {
+		if (vb == 0) vb = 2778;
+		canvas_width = "480";
+		sprintf(vlc_transcode_message, VLC_VIDEO_TRANSCODE, 
+			vb, canvas_width, canvas_height, canvas_width, 
+			canvas_height, aspect, fps, ab, VLC_HTTP_PORT);
+		return vlc_transcode_message;
+	}
+
+	/** VCD scaling settings */
+	if (strcmp(config->vlc_vopts, "vcd") == 0) {
+		if (vb == 0) vb = 1152;
+		canvas_width = "352";
+		if (config->av_mode == AV_MODE_PAL)
+			canvas_height = "288";
+		else
+			canvas_height = "240";
+		sprintf(vlc_transcode_message, VLC_VIDEO_TRANSCODE, 
+			vb, canvas_width, canvas_height, canvas_width, 
+			canvas_height, aspect, fps, ab, VLC_HTTP_PORT);
+		return vlc_transcode_message;
+	}
+
+
+	/** No scaling settings */
+	if (vb == 0) vb = 2048;
+	sprintf(vlc_transcode_message, VLC_VIDEO_NOSCALE_TRANSCODE, 
+		vb, fps, ab, VLC_HTTP_PORT);
+	return vlc_transcode_message;
+}
+
+/*
+ * Returns the VLC transcode request for mp3
+ * audio of the target.
+ */
+char* vlc_get_audio_transcode()
+{
+
+	/* Audio bitrate settings */
+	int ab = config->vlc_ab;
+	if (ab == 0) ab = 192;
+
+	if ((*config->vlc_aopts == 0) || (strcmp(config->vlc_aopts, "flac") != 0))
+		sprintf(vlc_transcode_message, VLC_MP3_TRANSCODE, ab, VLC_HTTP_PORT);
+	else
+		sprintf(vlc_transcode_message, VLC_FLAC_TRANSCODE, VLC_HTTP_PORT);
+	return vlc_transcode_message;
+}
+
+
+/*
  * Tells VLC to seek to a given percentage
  * of the playing stream. 
  */
@@ -643,7 +769,6 @@ void vlc_key_unpause(void)
  	vlc_broadcast_enabled = 0;
 
 	// Stop the a/v stream altogether	
-	audio_clear();
 	video_clear();
 
 	// Resume playing the VLC stream 
@@ -664,7 +789,7 @@ void vlc_key_unpause(void)
 	mvpw_hide(pause_widget);
 	mvpw_hide(mute_widget);
 	paused = 0;
-
+	screensaver_disable();
 }
 
 
@@ -686,43 +811,43 @@ vlc_key(char key)
 		break;
 	
 	case MVPW_KEY_LEFT:
-		// Rewind VLC stream by 10 seconds
-		timed_osd(seek_osd_timeout*1000);
-		vlc_seek_sec_relative(-10);
-		break;
-
-	case MVPW_KEY_RIGHT:
-		// Rewind VLC stream by 30 seconds
-		timed_osd(seek_osd_timeout*1000);
-		vlc_seek_sec_relative(30);
-		break;
-
-	case MVPW_KEY_CHAN_DOWN:
-	case MVPW_KEY_DOWN:
-	case MVPW_KEY_REWIND:
 		// Rewind VLC stream by 2%
 		timed_osd(seek_osd_timeout*1000);
 		vlc_seek_pct_relative(-2);
 		break;
 
-	case MVPW_KEY_CHAN_UP:
-	case MVPW_KEY_UP:
-	case MVPW_KEY_FFWD:
+	case MVPW_KEY_RIGHT:
 		// Fast forward VLC stream by 2%
 		timed_osd(seek_osd_timeout*1000);
 		vlc_seek_pct_relative(2);
 		break;
 
-	case MVPW_KEY_SKIP:
+	case MVPW_KEY_CHAN_DOWN:
+	case MVPW_KEY_DOWN:
+	case MVPW_KEY_REWIND:
+		// Rewind VLC stream by 5%
+		timed_osd(seek_osd_timeout*1000);
+		vlc_seek_pct_relative(-5);
+		break;
+
+	case MVPW_KEY_CHAN_UP:
+	case MVPW_KEY_UP:
+	case MVPW_KEY_FFWD:
 		// Fast forward VLC stream by 5%
 		timed_osd(seek_osd_timeout*1000);
 		vlc_seek_pct_relative(5);
 		break;
 
-	case MVPW_KEY_REPLAY:
-		// Rewind VLC stream by 5%
+	case MVPW_KEY_SKIP:
+		// FFWD VLC stream by 30 seconds
 		timed_osd(seek_osd_timeout*1000);
-		vlc_seek_pct_relative(-5);
+		vlc_seek_sec_relative(30);
+		break;
+
+	case MVPW_KEY_REPLAY:
+		// Rewind VLC stream by 10 seconds
+		timed_osd(seek_osd_timeout*1000);
+		vlc_seek_sec_relative(-10);
 		break;
 
 	case MVPW_KEY_RECORD:
@@ -750,14 +875,6 @@ vlc_key(char key)
 		// Unpause the av and reconnect to the stream
 		if ( paused ) 
 			vlc_key_unpause();
-		break;
-
-	case MVPW_KEY_STOP:
-	case MVPW_KEY_EXIT:
-		// Stop the broadcast and delete it
-		vlc_stop();
-		vlc_destroy();
-		back_to_guide_menu();
 		break;
 
 	case MVPW_KEY_BLANK:

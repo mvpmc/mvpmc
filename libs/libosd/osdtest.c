@@ -42,6 +42,16 @@
 #define OSD_BLUE	OSD_COLOR(0,0,255,255)
 #define OSD_GREEN	OSD_COLOR(0,255,0,255)
 #define OSD_BLACK	OSD_COLOR(0,0,0,255)
+#define OSD_YELLOW	OSD_COLOR(255,255,0,255)
+#define OSD_ORANGE	OSD_COLOR(255,180,0,255)
+#define OSD_PURPLE	OSD_COLOR(255,0,234,255)
+#define OSD_BROWN	OSD_COLOR(118,92,0,255)
+#define OSD_CYAN	OSD_COLOR(0,255,234,255)
+
+typedef struct {
+	unsigned int c;
+	char name[24];
+} color_name_t;
 
 static int width = 720, height = 480;
 
@@ -69,6 +79,12 @@ static struct timeval start, end, delta;
 void
 __dummy_func(void)
 {
+}
+
+static void
+fb_clear(void)
+{
+	osd_create_surface(width, height, OSD_BLACK, OSD_FB);
 }
 
 static int
@@ -451,20 +467,37 @@ test_cursor(char *name)
 					0, OSD_GFX)) == NULL)
 		FAIL;
 
-	if ((cursor=osd_create_surface(20, 20, 0, OSD_CURSOR)) == NULL)
+	if ((cursor=osd_create_surface(64, 76, OSD_WHITE, OSD_CURSOR)) == NULL)
 		FAIL;
 
-	for (x=0; x<20; x++) {
-		for (y=0; y<20; y++) {
-			if (osd_draw_pixel(cursor, x, y, OSD_RED) < 0)
-				FAIL;
-		}
-	}
-
-	if (osd_fill_rect(surface, 50, 50, 20, 20, OSD_RED) < 0)
+	if (osd_palette_add_color(cursor, OSD_BLACK) < 0)
+		FAIL;
+	if (osd_palette_add_color(cursor, OSD_BLUE) < 0)
+		FAIL;
+	if (osd_palette_add_color(cursor, OSD_GREEN) < 0)
+		FAIL;
+	if (osd_palette_add_color(cursor, OSD_RED) < 0)
+		FAIL;
+	if (osd_palette_add_color(cursor, 0) < 0)
 		FAIL;
 
-	for (y=100; y<300; y+=30) {
+	if (osd_fill_rect(cursor, 0, 0, 64, 16, OSD_RED) < 0)
+		FAIL;
+	if (osd_fill_rect(cursor, 0, 16, 64, 16, 0) < 0)
+		FAIL;
+	if (osd_fill_rect(cursor, 0, 32, 64, 16, OSD_BLUE) < 0)
+		FAIL;
+	if (osd_fill_rect(cursor, 0, 48, 64, 16, OSD_GREEN) < 0)
+		FAIL;
+
+	if (osd_fill_rect(surface, 64, 64, 64, 64, OSD_RED) < 0)
+		FAIL;
+	if (osd_fill_rect(surface, 128, 64, 64, 64, OSD_GREEN) < 0)
+		FAIL;
+	if (osd_fill_rect(surface, 196, 64, 64, 64, OSD_BLUE) < 0)
+		FAIL;
+
+	for (y=150; y<300; y+=30) {
 		if (osd_fill_rect(surface, 50, y, 400, 10, OSD_WHITE) < 0)
 			FAIL;
 	}
@@ -503,7 +536,7 @@ test_fb(char *name)
 
 	timer_start();
 
-	if ((surface=osd_create_surface(width, height, 0x20, OSD_FB)) == NULL)
+	if ((surface=osd_create_surface(width, height, OSD_BLACK, OSD_FB)) == NULL)
 		FAIL;
 
 	if (osd_display_surface(surface) < 0)
@@ -534,10 +567,107 @@ test_fb(char *name)
 	return -1;
 }
 
-static void
-fb_clear(void)
+static int
+test_blit2(char *name)
 {
-	osd_create_surface(width, height, 0x20, OSD_FB);
+	osd_surface_t *fb = NULL;
+	osd_surface_t *osd = NULL;
+	osd_indexed_image_t image;
+	int x, y;
+
+	printf("testing blit2\t\t");
+
+	timer_start();
+
+	if ((fb=osd_create_surface(width, height, OSD_BLACK, OSD_FB)) == NULL)
+		FAIL;
+
+	if ((osd=osd_create_surface(width, height, OSD_RED, OSD_GFX)) == NULL)
+		FAIL;
+
+	if (osd_display_surface(osd) < 0)
+		FAIL;
+
+	image.colors = LINUX_LOGO_COLORS;
+	image.width = 80;
+	image.height = 80;
+	image.red = linux_logo_red;
+	image.green = linux_logo_green;
+	image.blue = linux_logo_blue;
+	image.image = linux_logo;
+
+	x = (width - image.width) / 2;
+	y = (height - image.height) / 2;
+
+	if (osd_draw_indexed_image(fb, &image, x, y) < 0)
+		FAIL;
+
+	if (osd_blit(osd, x-80, y, fb, x, y, 80, 80) < 0)
+		FAIL;
+	if (osd_blit(osd, x+80, y, fb, x, y, 80, 80) < 0)
+		FAIL;
+	if (osd_blit(osd, x, y-80, fb, x, y, 80, 80) < 0)
+		FAIL;
+	if (osd_blit(osd, x, y+80, fb, x, y, 80, 80) < 0)
+		FAIL;
+
+	fb_clear();
+
+	timer_end();
+
+	return 0;
+
+ err:
+	return -1;
+}
+
+static int
+test_color(char *name)
+{
+	int i, y = 20;
+	osd_surface_t *surface = NULL;
+	color_name_t colors[] = {
+		{ OSD_WHITE, "white" },
+		{ OSD_RED, "red" },
+		{ OSD_BLUE, "blue" },
+		{ OSD_GREEN, "green" },
+		{ OSD_YELLOW, "yellow" },
+		{ OSD_ORANGE, "orange" },
+		{ OSD_PURPLE, "purple" },
+		{ OSD_BROWN, "brown" },
+		{ OSD_CYAN, "cyan" },
+	};
+	int ncolors = sizeof(colors)/sizeof(colors[0]);
+
+	printf("testing %s\t\t", name);
+
+	timer_start();
+
+	if ((surface=osd_create_surface(width, height, 0, OSD_GFX)) == NULL)
+		FAIL;
+
+	for (i=0; i<ncolors; i++) {
+		unsigned long c;
+
+		c = colors[i].c;
+
+		if (osd_drawtext(surface, 300, y, colors[i].name,
+				 c, OSD_BLACK, 1, NULL) < 0)
+			FAIL;
+		if (osd_fill_rect(surface, 400, y, 100, 20, c) < 0)
+			FAIL;
+		y += 50;
+	}
+
+	if (osd_display_surface(surface) < 0)
+		FAIL;
+
+	timer_end();
+
+	return 0;
+
+ err:
+	return -1;
 }
 
 typedef struct {
@@ -548,16 +678,18 @@ typedef struct {
 
 static tester_t tests[] = {
 	{ "sanity",		0,	test_sanity },
-	{ "create surfaces",	0,	test_create_surfaces },
+	{ "surfaces",		0,	test_create_surfaces },
 	{ "text",		2,	test_text },
 	{ "rectangles",		2,	test_rectangles },
 	{ "circles",		2,	test_circles },
 	{ "lines",		2,	test_lines },
 	{ "polygons",		2,	test_polygons },
-	{ "display control",	2,	test_display_control },
+	{ "display",		2,	test_display_control },
 	{ "blit",		2,	test_blit },
 	{ "cursor",		2,	test_cursor },
 	{ "framebuffer",	2,	test_fb },
+	{ "blit2",		2,	test_blit2 },
+	{ "color",		2,	test_color },
 	{ NULL, 0, NULL },
 };
 

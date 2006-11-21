@@ -768,7 +768,7 @@ audio_clear(void)
         if ( using_helper == 1 ) {
             mplayer_helper_connect(outlog,NULL,1);
         }
-	vlc_connect(outlog,NULL,1,VLC_CREATE_BROADCAST,NULL, 0);
+	vlc_connect(outlog,NULL,1,VLC_DESTROY,NULL, 0);
         using_vlc = 0;
         usleep(3000);
         if ( using_helper == 1 ) {
@@ -2257,7 +2257,7 @@ int http_main(void)
             if (outlog==NULL) {
                 outlog = fopen("/usr/share/mvpmc/connect.log","a");
             }
-            vlc_connect(outlog,NULL,1, VLC_CREATE_BROADCAST,NULL,0);
+            vlc_connect(outlog,NULL,1, VLC_DESTROY,NULL,0);
             using_vlc = 0;
         } else {
             using_helper = 2;

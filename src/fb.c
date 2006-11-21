@@ -178,12 +178,14 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 	}
 
 	printf("%s(): path '%s'\n", __FUNCTION__, path);
+
 	if (current && (strcmp(path, current) == 0)) {
 		printf("selected current item\n");
-		if (is_video(item)) {
+		if (is_video(item) || (is_streaming(item) > 100)) {
 			mvpw_hide(widget);
 			mvpw_hide(fb_progress);
 			av_move(0, 0, 0);
+			screensaver_disable();
 			return;
 		}
 	}
@@ -247,7 +249,7 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 			// Use VLC callbacks for streaming items
 			video_functions = &vlc_functions;
 			// Allow broadcast messages to be sent so
-			// we can start the stream
+			// we can tell VLC to start the stream
 			vlc_broadcast_enabled = 1;
 		} else {
 			video_functions = &file_functions;
