@@ -9,7 +9,8 @@ dir = env['BUILD_DIR']
 target = env['TARG']
 libdir = env['INSTLIBDIR']
 
-src = [ 'gfx.c', 'init.c', 'fb.c', 'osd.c', 'fonts/CaslonRoman-1.25.c']
+src = [ 'cursor.c', 'gfx.c', 'init.c', 'fb.c', 'osd.c',
+	'fonts/CaslonRoman-1.25.c']
 
 lib = env.StaticLibrary('osd', src, CPPPATH = [ env['INCDIR'], '.' ])
 

@@ -24,15 +24,18 @@
  * On-Screen-Display hardware interface.
  */
 
+typedef struct osd_func_s osd_func_t;
+
 #include "fb.h"
 #include "gfx.h"
+#include "cursor.h"
 
 #define full_width	__osd_full_width
 #define full_height	__osd_full_height
 #define all		__osd_all
 #define visible		__osd_visible
 
-typedef struct {
+struct osd_func_s {
 	int (*destroy)(osd_surface_t*);
 	int (*display)(osd_surface_t*);
 	int (*undisplay)(osd_surface_t*);
@@ -64,7 +67,7 @@ typedef struct {
 	int (*get_display_control)(osd_surface_t*, int);
 	int (*get_display_options)(osd_surface_t*);
 	int (*set_display_options)(osd_surface_t*, unsigned char);
-} osd_func_t;
+};
 
 /**
  * OSD Surface.
@@ -78,6 +81,7 @@ struct osd_surface_s {
 	union {
 		fb_data_t fb;
 		gfx_data_t gfx;
+		cursor_data_t cursor;
 	} data;
 };
 
@@ -125,5 +129,7 @@ extern int full_width, full_height;
 
 extern osd_surface_t *all[];
 extern osd_surface_t *visible;
+
+#define OSD_MAX_SURFACES	128
 
 #endif /* STBGFX_H */

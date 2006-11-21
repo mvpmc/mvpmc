@@ -75,8 +75,8 @@ typedef struct {
 #define GFX_FB_SFC_FREE		_IOW(0xfb,2,int)
 #define GFX_FB_MAP		_IOWR(0xfb,3,int)
 #define GFX_FB_SFC_UNMAP	_IOWR(0xfb,4,int*)
-#define GFX_FB_SET_PAL_1	_IOWR(0xfb,5,int*)
-#define GFX_FB_SET_PAL_2	_IOW(0xfb,6,int*)
+#define GFX_FB_GET_PALETTE	_IOWR(0xfb,5,int*)
+#define GFX_FB_SET_PALETTE	_IOW(0xfb,6,int*)
 #define GFX_FB_OSD_SURFACE	_IO(0xfb,7)
 #define GFX_FB_SFC_SET_SHARE	_IOW(0xfb,8,int)
 #define GFX_FB_OSD_CUR_SETATTR	_IOW(0xfb,9,int*)
@@ -201,7 +201,7 @@ typedef struct {
 	int value;
 } gfx_display_control_t;
 
-osd_surface_t* gfx_create(int w, int h, unsigned long color, osd_type_t type);
+osd_surface_t* gfx_create(int w, int h, unsigned long color);
 
 /**
  * Initialize the graphics device.
@@ -223,5 +223,9 @@ extern int osd_cur_set_attr(osd_surface_t *surface, int x, int y);
 extern int osd_move_cursor(osd_surface_t *surface, int x, int y);
 extern int osd_get_engine_mode(osd_surface_t *surface);
 extern int osd_reset_engine(osd_surface_t *surface);
+
+#define fp_gfx		__osd_fp_gfx
+
+extern osd_func_t fp_gfx;
 
 #endif /* OSD_GFX_H */
