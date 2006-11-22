@@ -35,7 +35,7 @@ diff -Narup linux-2.4.31-orig/drivers/net/Makefile linux-2.4.31/drivers/net/Make
 diff -Narup linux-2.4.31-orig/drivers/net/smc91111.c linux-2.4.31/drivers/net/smc91111.c
 --- linux-2.4.31-orig/drivers/net/smc91111.c	1969-12-31 16:00:00.000000000 -0800
 +++ linux-2.4.31/drivers/net/smc91111.c	2005-08-03 09:52:34.000000000 -0700
-@@ -0,0 +1,3746 @@
+@@ -0,0 +1,3767 @@
 +/*------------------------------------------------------------------------
 + . smc91111.c
 + . This is a driver for SMSC's 91C111 single-chip Ethernet device.
@@ -1438,7 +1438,7 @@ diff -Narup linux-2.4.31-orig/drivers/net/smc91111.c linux-2.4.31/drivers/net/sm
 +	lp->ctl_ephloop = 0;
 +	lp->ctl_miiop = 0;
 +	lp->ctl_autoneg = 1;	//1
-+	lp->ctl_rfduplx = 0;	//Haup=> negotiate for HALF?
++	lp->ctl_rfduplx = 1;	//Haup=> negotiate for HALF? mvpmc=> FULL
 +	lp->ctl_rspeed = 100;	//100
 +	lp->ctl_afduplx = 0;	//1
 +	lp->ctl_aspeed = 100;	//100
@@ -3780,6 +3780,27 @@ diff -Narup linux-2.4.31-orig/drivers/net/smc91111.c linux-2.4.31/drivers/net/sm
 +#endif
 +		// Update the last phy 18 variable
 +		lp->lastPhy18 = phy18;
++
++// if Fullduplex and 100Mbit Detected we set swfdup
++		if ( lp->lastPhy18 & PHY_INT_DPLXDET &&
++					lp->lastPhy18 & PHY_INT_SPDDET )
++		{
++			if ( !(lp->tcr_cur_mode & TCR_SWFDUP) )
++			{
++				PRINTK2("SMC91111 detect 100Mbit Full Duplex.. enable swfdup\n");
++				lp->tcr_cur_mode |= TCR_SWFDUP;
++				lp->ctl_swfdup=1;
++				smc_modify_regbit(0, ioaddr, TCR_REG, TCR_SWFDUP, 1);
++			}
++		}
++		else if ( lp->tcr_cur_mode & TCR_SWFDUP )
++		{
++			PRINTK2("SMC91111 no 100Mbit Full Duplex detected.. disable swfdup\n");
++			lp->tcr_cur_mode &= ~TCR_SWFDUP;
++			lp->ctl_swfdup=0;
++			smc_modify_regbit(0, ioaddr, TCR_REG, TCR_SWFDUP, 0);
++		}
++		
 +	}
 +}
 diff -Narup linux-2.4.31-orig/drivers/net/smc91111.h linux-2.4.31/drivers/net/smc91111.h
