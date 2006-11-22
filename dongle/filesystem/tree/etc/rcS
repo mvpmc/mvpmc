@@ -93,10 +93,6 @@ TZ=CST+6CDT,M4.1.0/2,M10.5.0/2; export TZ
 #
 # configure eth0
 #
-echo 0 > /proc/sys/dev/eth0/autoneg
-echo 1 > /proc/sys/dev/eth0/rfduplx
-echo 1 > /proc/sys/dev/eth0/swfdup
-echo 1 > /proc/sys/dev/eth0/autoneg
 udhcpc
 . /etc/udhcpc.config
 
