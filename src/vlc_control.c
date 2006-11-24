@@ -102,6 +102,19 @@ int vlc_broadcast_enabled = 1;
  */
 int vlc_cachedstreampos = -1;
 
+/* The last seen position in micro (millionths) seconds of
+ * the stream. This is updated by vlc_connect when the VLC_PCTPOS
+ * call is made. This is used by the vlc_timecode callback to display
+ * an accurate timecode of where we are in the stream.
+ */
+double vlc_cachedstreamtime = -1;
+
+/* Cache of length and calculated end time of vlc movie */
+double vlc_cachedstreamlength = -1;
+int vlc_totalhours = 0;
+int vlc_totalminutes = 0;
+int vlc_totalseconds = 0;
+
 /* video_callback_t for vlc functions */
 video_callback_t vlc_functions = {
 	.open      = file_open,
@@ -402,8 +415,8 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
 				    i++;
 				    fprintf(instream,vlc_pct[i],newpos);
 				    fprintf(outlog,vlc_pct[i],newpos);
-				    // Update position for osd
-				    vlc_cachedstreampos = newpos;
+				    // Tell OSD to update
+				    vlc_cachedstreampos = -1;
 				    // Cleanup
 			            shutdown(vlc_sock,SHUT_RDWR);
 			            close(vlc_sock);
@@ -477,8 +490,8 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
 				    i++;
 				    fprintf(instream,vlc_sec[i],dseekpos);
 				    fprintf(outlog,vlc_sec[i],dseekpos);
-				    // Update position for osd
-				    vlc_cachedstreampos = (int) dseekpos;
+				    // Tell OSD to update
+				    vlc_cachedstreampos = -1;
 				    // Cleanup
 				    shutdown(vlc_sock,SHUT_RDWR);
 				    close(vlc_sock);
@@ -514,6 +527,35 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
 				    // Parse the current % position
 				    mpos = (int) (strtod(vpos, NULL) * (double) 100);
 				    fprintf(outlog, "Position: %d%%\n", mpos);
+				    // Extract the 'time: t' value
+				    vpos = strstr(line_data, "time : ");
+				    if (vpos != NULL) {
+				        // Update the cached stream time for OSD timecode
+				        vpos += 7;
+					vlc_cachedstreamtime = strtod(vpos, NULL);
+					fprintf(outlog, "Timecode: %f\n", vlc_cachedstreamtime);
+				    }
+				    // Extract the 'length: l' value
+				    vpos = strstr(line_data, "length : ");
+				    if (vpos != NULL) {
+				        // Update the cached stream length and calculate total
+					vpos += 9;
+					vlc_cachedstreamlength = strtod(vpos, NULL);
+					fprintf(outlog, "Length: %f\n", vlc_cachedstreamlength);
+					// If it's not a negative number (no overflow bug), 
+					// calculate the total hours, minutes and seconds for OSD
+					if (vlc_cachedstreamlength > 0) {
+					    vlc_totalseconds = (int) (vlc_cachedstreamlength / 1000000);
+				 	    vlc_totalhours = vlc_totalseconds / (60 * 60);
+					    vlc_totalminutes = (vlc_totalseconds / 60) % 60;
+					    vlc_totalseconds = vlc_totalseconds % 60;
+					}
+					else {
+					    vlc_totalhours = 0;
+					    vlc_totalminutes = 0;
+					    vlc_totalseconds = 0;
+					}
+				    }
 			            shutdown(vlc_sock,SHUT_RDWR);
 			            close(vlc_sock);            
 				    return mpos;
@@ -649,7 +691,7 @@ int vlc_seek_pct(int pos)
 {
     char cmd[10];
     sprintf(cmd, "seek %d", pos);
-    vlc_cachedstreampos = pos;
+    vlc_cachedstreampos = -1;
     return vlc_cmd(cmd);
 }
 
@@ -923,6 +965,31 @@ static long long
 vlc_stream_seek(long long offset, int whence)
 {
 	return (long long) (vlc_get_pct_pos() * 1000);
+}
+
+/* Callback function from the OSD to set the timecode
+ * for the VLC stream.
+ */
+void vlc_timecode(char* timecode)
+{
+	// Check position
+	vlc_get_pct_pos();
+
+	// If the time value is negative, we have a VLC with the
+	// overflow bug - display timecode as unavailable
+	if (vlc_cachedstreamtime < 0) {
+		snprintf(timecode, sizeof(timecode), "N/A");
+		return;
+	}
+
+	// Format VLC timecode for display
+	int seconds = (int) (vlc_cachedstreamtime / 1000000);
+	int hours = seconds / (60 * 60);
+	int minutes = (seconds / 60) % 60;
+	seconds = seconds % 60;
+	snprintf(timecode, 32, 
+  	     "%.2d:%.2d:%.2d / %.2d:%.2d:%.2d",
+	     hours, minutes, seconds, vlc_totalhours, vlc_totalminutes, vlc_totalseconds);
 }
 
 

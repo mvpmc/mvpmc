@@ -401,6 +401,9 @@ video_timecode(mvp_widget_t *widget)
 				 hours, minutes, seconds);
 		}
 	}
+	if (using_vlc) {
+		vlc_timecode(buf);
+	}
 	mvpw_set_text_str(time_widget, buf);
 }
 
