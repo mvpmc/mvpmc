@@ -601,6 +601,10 @@ char* vlc_get_video_transcode()
 	char* canvas_width;
 	char* canvas_height;
 	char* fps;
+	int is_pal = 0;
+
+	// if (config->av_mode == AV_MODE_PAL) is_pal = 1;
+	if (si.rows > 480) is_pal = 1;
 
 	/** Figure out height and FPS */
 	if (config->av_tv_aspect == AV_TV_ASPECT_16x9)
@@ -608,14 +612,13 @@ char* vlc_get_video_transcode()
 	else
 		aspect = "4:3";
 
-	if (config->av_mode == AV_MODE_PAL) {
+	if (is_pal) {
 		canvas_height = "576";
 		fps = "25.0000";
 	} else {
 		canvas_height = "480";
 		fps = "29.9700";
 	}
-
 
 	/* bitrate settings */
 	int ab = config->vlc_ab;
@@ -646,7 +649,7 @@ char* vlc_get_video_transcode()
 	if (strcmp(config->vlc_vopts, "vcd") == 0) {
 		if (vb == 0) vb = 1152;
 		canvas_width = "352";
-		if (config->av_mode == AV_MODE_PAL)
+		if (is_pal)
 			canvas_height = "288";
 		else
 			canvas_height = "240";
