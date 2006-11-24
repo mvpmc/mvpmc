@@ -7,7 +7,7 @@ ROOTDEV=/dev/mtd5
 ROOTBLK=/dev/mtdblock5
 
 #
-# Load the Hauppauge kernel modules
+# Load the critical Hauppauge kernel modules
 #
 insmod os_core
 insmod av_core _fmt=1
@@ -21,11 +21,13 @@ insmod osdfb
 /bin/splash
 
 #
-# Load the mvpmc kernel modules
+# Load the other kernel modules
 #
 insmod ac3_mod
 insmod mvpstb_mod.o mvpmod_major=230
 insmod -f unionfs
+insmod xrmod
+insmod tiwlan_drv
 
 mount -t proc /proc /proc
 
