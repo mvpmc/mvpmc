@@ -59,6 +59,10 @@ typedef struct {
 	ti_ssid_t ssid[32];
 } ti_ssid_ret_t;
 
+static int sockfd = -1;
+static int config_started = 0;
+static char default_ssid[128];
+
 static struct option opts[] = {
 	{ "help", no_argument, 0, 'h' },
 	{ 0, 0, 0, 0 }
@@ -151,6 +155,7 @@ read_vpd(void)
 
 	if (network[0] != '\0') {
 		printf("Default wireless network: '%s'\n", network);
+		strcpy(default_ssid, network);
 	} else {
 		printf("No default wireless network found in flash\n");
 	}
@@ -214,6 +219,63 @@ start_config_manager(int fd, char *name)
 
 	printf("config manager started!\n");
 
+	config_started = 1;
+
+	return 0;
+}
+
+static int
+up_device(int fd, char *name)
+{
+	ti_dev_t dev;
+	unsigned long buf[256];
+
+	printf("Bringing up eth1...\n");
+	sleep(1);
+
+	memset(&dev, 0, sizeof(dev));
+	memset(&buf, 0, sizeof(buf));
+	strcpy(dev.device, DEVNAME);
+	dev.arg2 = 0x00224420;
+	dev.arg3 = 0x1;
+	dev.arg4 = 0x75;
+	dev.ptr = (void*)buf;
+
+	if (ioctl(sockfd, SIOCDEVPRIVATE+1, &dev) != 0) {
+		perror("ioctl(SIOCDEVPRIVATE+1)");
+		return -1;
+	}
+
+	memset(&dev, 0, sizeof(dev));
+	memset(&buf, 0, sizeof(buf));
+	strcpy(dev.device, DEVNAME);
+	dev.arg2 = 0x00222018;
+	dev.arg3 = 0x2;
+	dev.arg4 = 0x24;
+	dev.ptr = (void*)buf;
+
+	buf[0] = strlen(default_ssid);
+	strcpy((char*)(&buf[1]), default_ssid);
+
+	printf("Using SSID: '%s'\n", default_ssid);
+	sleep(1);
+
+	if (ioctl(sockfd, SIOCDEVPRIVATE, &dev) != 0) {
+		perror("ioctl(SIOCDEVPRIVATE)");
+		return -1;
+	}
+
+	memset(&dev, 0, sizeof(dev));
+	strcpy(dev.device, DEVNAME);
+	dev.arg2 = 0x00223028;
+	dev.arg3 = 0x1;
+	dev.arg4 = 0x4;
+
+	if (ioctl(sockfd, SIOCDEVPRIVATE+1, &dev) != 0) {
+		perror("ioctl(SIOCDEVPRIVATE+1)");
+		return -1;
+	}
+
 	return 0;
 }
 
@@ -244,7 +306,6 @@ get_ssid_list(int fd, char *name)
 		return -1;
 	}
 
-
 	memset(&dev, 0, sizeof(dev));
 	memset(&ssid, 0, sizeof(ssid));
 	strcpy(dev.device, name);
@@ -260,21 +321,20 @@ get_ssid_list(int fd, char *name)
 
 	n = ssid.count;
 
-	printf("Found %d wireless networks!\n", n);
+	if (n > 0)
+		printf("Found %d wireless networks!\n", n);
 
 	for (i=0; i<n; i++) {
 		printf("Found SSID: '%s'\n", ssid.ssid[i].name);
 	}
 
-
-	return 0;
+	return n;
 }
 
 static int
 init(void)
 {
 	struct ifreq ifr;
-	int sockfd;
 	unsigned long buf[256];
 	ti_dev_t dev;
 
@@ -333,10 +393,23 @@ init(void)
 		return -1;
 	}
 
-	if (get_ssid_list(sockfd, DEVNAME) < 0)
-		return -1;
+	memset(&dev, 0, sizeof(dev));
+	strcpy(dev.device, DEVNAME);
+	dev.arg2 = 0x00222020;
 
-	close(sockfd);
+	if (ioctl(sockfd, SIOCDEVPRIVATE, &dev) != 0) {
+		perror("ioctl(SIOCDEVPRIVATE)");
+		return -1;
+	}
+
+	memset(&dev, 0, sizeof(dev));
+	strcpy(dev.device, DEVNAME);
+	dev.arg2 = 0x00222c20;
+
+	if (ioctl(sockfd, SIOCDEVPRIVATE, &dev) != 0) {
+		perror("ioctl(SIOCDEVPRIVATE)");
+		return -1;
+	}
 
 	return 0;
 }
@@ -344,7 +417,7 @@ init(void)
 int
 main(int argc, char **argv)
 {
-	int c;
+	int c, n;
 	int opt_index;
 
 	while ((c=getopt_long(argc, argv, "h", opts, &opt_index)) != -1) {
@@ -367,6 +440,29 @@ main(int argc, char **argv)
 
 	if (init() != 0) {
 		fprintf(stderr, "initialization failed!\n");
+		exit(1);
+	}
+
+	n = get_ssid_list(sockfd, DEVNAME);
+
+	/*
+	 * After starting the config manager, we may need to wait a bit...
+	 */
+	if ((n == 0) && (config_started == 1)) {
+		sleep(1);
+		n = get_ssid_list(sockfd, DEVNAME);
+	}
+
+	if (n < 0) {
+		fprintf(stderr, "SSID probe failed!\n");
+		exit(1);
+	} else if (n == 0) {
+		printf("Found 0 wireless networks!\n");
+		exit(1);
+	}
+
+	if (up_device(sockfd, DEVNAME) < 0) {
+		fprintf(stderr, "device bringup failed!\n");
 		exit(1);
 	}
 
