@@ -30,8 +30,6 @@
 #include <errno.h>
 #include <fcntl.h>
 
-#include "mvp_av.h"
-
 #define DEVNAME		"eth1"
 
 typedef struct {
@@ -57,14 +55,19 @@ typedef struct {
 typedef struct {
 	unsigned int count;
 	ti_ssid_t ssid[32];
-} ti_ssid_ret_t;
+} ti_ssid_list_t;
 
 static int sockfd = -1;
 static int config_started = 0;
 static char default_ssid[128];
+static ti_ssid_list_t slist;
+static int verbose = 0;
 
 static struct option opts[] = {
 	{ "help", no_argument, 0, 'h' },
+	{ "probe", no_argument, 0, 'p' },
+	{ "ssid", required_argument, 0, 's' },
+	{ "verbose", no_argument, 0, 'v' },
 	{ 0, 0, 0, 0 }
 };
 
@@ -72,6 +75,10 @@ static void
 print_help(char *prog)
 {
 	printf("Usage: %s <options>\n", prog);
+	printf("\t-h      \tprint this help\n");
+	printf("\t-p      \tprobe for wireless networks\n");
+	printf("\t-s ssid \tSSID to use\n");
+	printf("\t-v      \tverbose\n");
 }
 
 static int
@@ -81,8 +88,6 @@ read_vpd(void)
 	short *mtd;
 	char *vpd, *network;
 	char path[64];
-	av_mode_t video;
-	av_video_aspect_t ratio;
 
 	if ((fd=open("/proc/mtd", O_RDONLY)) > 0) {
 		FILE *f = fdopen(fd, "r");
@@ -124,47 +129,25 @@ read_vpd(void)
 
 	close(fd);
 
-	video = mtd[2119];
-	ratio = mtd[2125];
-
-	switch (video) {
-	case AV_MODE_NTSC:
-		printf("TV Mode: NTSC\n");
-		break;
-	case AV_MODE_PAL:
-		printf("TV Mode: PAL\n");
-		break;
-	default:
-		printf("TV Mode: Unknown\n");
-		break;
-	}
-
-	switch (ratio) {
-	case AV_TV_ASPECT_4x3:
-		printf("TV Aspect Ratio: 4x3\n");
-		break;
-	case AV_TV_ASPECT_16x9:
-		printf("TV Aspect Ratio: 16x9\n");
-		break;
-	default:
-		printf("TV Aspect Ratio: Unknown\n");
-		break;
-	}
-
 	network = vpd+0x2008;
 
 	if (network[0] != '\0') {
-		printf("Default wireless network: '%s'\n", network);
+		if (verbose)
+			printf("Default wireless network: '%s'\n", network);
 		strcpy(default_ssid, network);
 	} else {
-		printf("No default wireless network found in flash\n");
+		if (verbose)
+			printf("No default wireless network found in flash\n");
 	}
 
 	if (vpd[0x3000] != '\0') {
-		printf("Default server: %d.%d.%d.%d\n",
-		       vpd[0x3000], vpd[0x3001], vpd[0x3002], vpd[0x3003]);
+		if (verbose)
+			printf("Default server: %d.%d.%d.%d\n",
+			       vpd[0x3000], vpd[0x3001],
+			       vpd[0x3002], vpd[0x3003]);
 	} else {
-		printf("No default server found in flash\n");
+		if (verbose)
+			printf("No default server found in flash\n");
 	}
 
 	free(mtd);
@@ -191,7 +174,8 @@ init_device(int fd, char *name)
 		return -1;
 	}
 
-	printf("device initialized!\n");
+	if (verbose)
+		printf("device initialized!\n");
 
 	return 0;
 }
@@ -210,14 +194,16 @@ start_config_manager(int fd, char *name)
 
 	if (ioctl(fd, SIOCDEVPRIVATE, &dev) != 0) {
 		if (errno == EALREADY) {
-			printf("config manager already running!\n");
+			if (verbose)
+				printf("config manager already running!\n");
 			return 0;
 		}
 		perror("ioctl(SIOCDEVPRIVATE)");
 		return -1;
 	}
 
-	printf("config manager started!\n");
+	if (verbose)
+		printf("config manager started!\n");
 
 	config_started = 1;
 
@@ -230,8 +216,8 @@ up_device(int fd, char *name)
 	ti_dev_t dev;
 	unsigned long buf[256];
 
-	printf("Bringing up eth1...\n");
-	sleep(1);
+	if (verbose)
+		printf("Bringing up eth1...\n");
 
 	memset(&dev, 0, sizeof(dev));
 	memset(&buf, 0, sizeof(buf));
@@ -257,11 +243,24 @@ up_device(int fd, char *name)
 	buf[0] = strlen(default_ssid);
 	strcpy((char*)(&buf[1]), default_ssid);
 
-	printf("Using SSID: '%s'\n", default_ssid);
-	sleep(1);
+	if (verbose)
+		printf("Using SSID: '%s'\n", default_ssid);
 
 	if (ioctl(sockfd, SIOCDEVPRIVATE, &dev) != 0) {
 		perror("ioctl(SIOCDEVPRIVATE)");
+		return -1;
+	}
+
+	memset(&dev, 0, sizeof(dev));
+	memset(&buf, 0, sizeof(buf));
+	strcpy(dev.device, DEVNAME);
+	dev.arg2 = 0x00224420;
+	dev.arg3 = 0x1;
+	dev.arg4 = 0x75;
+	dev.ptr = (void*)buf;
+
+	if (ioctl(sockfd, SIOCDEVPRIVATE+1, &dev) != 0) {
+		perror("ioctl(SIOCDEVPRIVATE+1)");
 		return -1;
 	}
 
@@ -276,6 +275,13 @@ up_device(int fd, char *name)
 		return -1;
 	}
 
+#if 0
+	if (verbose) {
+		printf("Signal strength: %ddb\n", (int)dev.ptr);
+		printf("Signal strength: %p\n", dev.ptr);
+	}
+#endif
+
 	return 0;
 }
 
@@ -283,8 +289,7 @@ static int
 get_ssid_list(int fd, char *name)
 {
 	ti_dev_t dev;
-	ti_ssid_ret_t ssid;
-	int n, i;
+	int n;
 
 	memset(&dev, 0, sizeof(dev));
 	strcpy(dev.device, name);
@@ -307,26 +312,22 @@ get_ssid_list(int fd, char *name)
 	}
 
 	memset(&dev, 0, sizeof(dev));
-	memset(&ssid, 0, sizeof(ssid));
+	memset(&slist, 0, sizeof(slist));
 	strcpy(dev.device, name);
 	dev.arg2 = 0x0022200c;
 	dev.arg3 = 0x1;
 	dev.arg4 = 0x2710;
-	dev.ptr = (void*)&ssid;
+	dev.ptr = (void*)&slist;
 
 	if (ioctl(fd, SIOCDEVPRIVATE, &dev) != 0) {
 		perror("ioctl(SIOCDEVPRIVATE)");
 		return -1;
 	}
 
-	n = ssid.count;
+	n = slist.count;
 
-	if (n > 0)
+	if ((n > 0) && verbose)
 		printf("Found %d wireless networks!\n", n);
-
-	for (i=0; i<n; i++) {
-		printf("Found SSID: '%s'\n", ssid.ssid[i].name);
-	}
 
 	return n;
 }
@@ -417,14 +418,26 @@ init(void)
 int
 main(int argc, char **argv)
 {
-	int c, n;
+	int c, n, i;
 	int opt_index;
+	int do_probe = 0;
+	char *ssid = NULL;
+	int found = 0;
 
-	while ((c=getopt_long(argc, argv, "h", opts, &opt_index)) != -1) {
+	while ((c=getopt_long(argc, argv, "hps:v", opts, &opt_index)) != -1) {
 		switch (c) {
 		case 'h':
 			print_help(argv[0]);
 			exit(0);
+			break;
+		case 'p':
+			do_probe = 1;
+			break;
+		case 's':
+			ssid = strdup(optarg);
+			break;
+		case 'v':
+			verbose = 1;
 			break;
 		default:
 			print_help(argv[0]);
@@ -457,8 +470,29 @@ main(int argc, char **argv)
 		fprintf(stderr, "SSID probe failed!\n");
 		exit(1);
 	} else if (n == 0) {
-		printf("Found 0 wireless networks!\n");
+		fprintf(stderr, "no wireless networks found!\n");
 		exit(1);
+	}
+
+	if (do_probe) {
+		for (i=0; i<n; i++) {
+			printf("Found SSID: '%s'\n", slist.ssid[i].name);
+		}
+		exit(0);
+	}
+
+	if (ssid) {
+		strcpy(default_ssid, ssid);
+	}
+
+	for (i=0; i<n; i++) {
+		if (strcmp(default_ssid, slist.ssid[i].name) == 0)
+			found = 1;
+	}
+
+	if (!found) {
+		printf("Warning: SSID '%s' not found during probe!\n",
+		       default_ssid);
 	}
 
 	if (up_device(sockfd, DEVNAME) < 0) {
@@ -466,7 +500,7 @@ main(int argc, char **argv)
 		exit(1);
 	}
 
-	printf("success!\n");
+	printf("wireless network using SSID '%s'\n", default_ssid);
 
 	return 0;
 }
