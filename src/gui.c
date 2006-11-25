@@ -6315,8 +6315,8 @@ about_init(void)
 		"Audio: mp3, ogg, wav, ac3\n"
 		"Video: mpeg1, mpeg2\n"
 		"Images: bmp, gif, png, jpeg\n"
-		"Servers: MythTV, ReplayTV, NFS, CIFS, VLC, SlimServer, "
-		"VNC, HTTP, Hauppauge\n";
+		"Servers: MythTV, ReplayTV, NFS, CIFS, SlimServer,\n"
+		"VLC, VNC, HTTP, Hauppauge\n";
 	struct utsname myname;
 
 	splash_update("Creating about dialog");
