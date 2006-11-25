@@ -60,6 +60,7 @@ typedef struct {
 static int sockfd = -1;
 static int config_started = 0;
 static char default_ssid[128];
+static char default_wep[128];
 static ti_ssid_list_t slist;
 static int verbose = 0;
 
@@ -68,6 +69,7 @@ static struct option opts[] = {
 	{ "probe", no_argument, 0, 'p' },
 	{ "ssid", required_argument, 0, 's' },
 	{ "verbose", no_argument, 0, 'v' },
+	{ "wep", required_argument, 0, 'w' },
 	{ 0, 0, 0, 0 }
 };
 
@@ -86,7 +88,7 @@ read_vpd(void)
 {
 	int fd, i = 0;
 	short *mtd;
-	char *vpd, *network;
+	char *vpd, *network, *wep;
 	char path[64];
 
 	if ((fd=open("/proc/mtd", O_RDONLY)) > 0) {
@@ -130,6 +132,7 @@ read_vpd(void)
 	close(fd);
 
 	network = vpd+0x2008;
+	wep = vpd+0x2035;
 
 	if (network[0] != '\0') {
 		if (verbose)
@@ -138,6 +141,15 @@ read_vpd(void)
 	} else {
 		if (verbose)
 			printf("No default wireless network found in flash\n");
+	}
+
+	if (wep[0] != '\0') {
+		if (verbose)
+			printf("WEP key found!\n");
+		strcpy(default_wep, wep);
+	} else {
+		if (verbose)
+			printf("WEP key not found!\n");
 	}
 
 	if (vpd[0x3000] != '\0') {
@@ -184,6 +196,7 @@ static int
 start_config_manager(int fd, char *name)
 {
 	ti_dev_t dev;
+	unsigned long buf[256];
 
 	memset(&dev, 0, sizeof(dev));
 	strcpy(dev.device, name);
@@ -206,6 +219,38 @@ start_config_manager(int fd, char *name)
 		printf("config manager started!\n");
 
 	config_started = 1;
+
+	memset(&dev, 0, sizeof(dev));
+	strcpy(dev.device, DEVNAME);
+	dev.arg2 = 0x00223818;
+	dev.arg3 = 0x1;
+	dev.arg4 = 0x4;
+	dev.ptr = (void*)0x0;
+
+	if (ioctl(sockfd, SIOCDEVPRIVATE+1, &dev) != 0) {
+		perror("ioctl(SIOCDEVPRIVATE+1)");
+		return -1;
+	}
+
+	memset(&dev, 0, sizeof(dev));
+	strcpy(dev.device, DEVNAME);
+	dev.arg2 = 0x00222018;
+	dev.arg3 = 0x2;
+	dev.arg4 = 0x24;
+	dev.ptr = (void*)buf;
+
+	buf[0] = 0x00000008;
+	memcpy(buf+1, "NON-SSID", 8);
+	buf[3] = 0x00000000;
+	buf[4] = 0x00000000;
+	buf[5] = 0x00000000;
+	buf[6] = 0x00000000;
+	buf[7] = 0x00000000;
+
+	if (ioctl(sockfd, SIOCDEVPRIVATE, &dev) != 0) {
+		perror("ioctl(SIOCDEVPRIVATE)");
+		return -1;
+	}
 
 	return 0;
 }
@@ -285,7 +330,192 @@ up_device(int fd, char *name)
 	return 0;
 }
 
+static void
+wep_copy(char *buf, char *key)
+{
+	int i, len;
+
+	len = strlen(key) / 2;
+
+	for (i=0; i<len; i++) {
+		int h, l;
+
+		h = key[i*2];
+		l = key[i*2+1];
+
+		if ((h>='0') && (h<='9')) {
+			h = h - '0';
+		} else {
+			h = h - 'A' + 10;
+		}
+		if ((l>='0') && (l<='9')) {
+			l = l - '0';
+		} else {
+			l = l - 'A' + 10;
+		}
+
+		buf[i] = (h << 4) | l;
+	}
+}
+
 static int
+up_device_wep(int fd, char *name)
+{
+	ti_dev_t dev;
+	unsigned long buf[256];
+
+	if (verbose)
+		printf("Bringing up WEP-enabled eth1...\n");
+
+	if (init_device(sockfd, DEVNAME) < 0)
+		return -1;
+
+	if (start_config_manager(sockfd, DEVNAME) < 0)
+		return -1;
+
+#if 0
+	memset(&dev, 0, sizeof(dev));
+	memset(&buf, 0, sizeof(buf));
+	strcpy(dev.device, DEVNAME);
+	dev.arg2 = 0x00224420;
+	dev.arg3 = 0x1;
+	dev.arg4 = 0x75;
+	dev.ptr = (void*)buf;
+	strcpy((char*)buf, default_ssid);
+
+	if (ioctl(sockfd, SIOCDEVPRIVATE+1, &dev) != 0) {
+		perror("ioctl(SIOCDEVPRIVATE+1)");
+		return -1;
+	}
+
+	memset(&dev, 0, sizeof(dev));
+	memset(&buf, 0, sizeof(buf));
+	strcpy(dev.device, DEVNAME);
+	dev.arg2 = 0x00222018;
+	dev.arg3 = 0x2;
+	dev.arg4 = 0x24;
+	dev.ptr = (void*)buf;
+
+	buf[0] = strlen(default_ssid);
+	strcpy((char*)(&buf[1]), default_ssid);
+
+	if (verbose)
+		printf("Using SSID: '%s'\n", default_ssid);
+
+	if (ioctl(sockfd, SIOCDEVPRIVATE, &dev) != 0) {
+		perror("ioctl(SIOCDEVPRIVATE)");
+		return -1;
+	}
+#endif
+
+	memset(&dev, 0, sizeof(dev));
+	strcpy(dev.device, DEVNAME);
+	dev.arg2 = 0x00223410;
+	dev.arg3 = 0x2;
+	dev.arg4 = 0x4;
+
+	if (ioctl(sockfd, SIOCDEVPRIVATE, &dev) != 0) {
+		perror("ioctl(SIOCDEVPRIVATE)");
+		return -1;
+	}
+
+	memset(&dev, 0, sizeof(dev));
+	strcpy(dev.device, DEVNAME);
+	dev.arg2 = 0x00223488;
+	dev.arg3 = 0x2;
+	dev.arg4 = 0x4;
+
+	if (ioctl(sockfd, SIOCDEVPRIVATE, &dev) != 0) {
+		/*
+		 * XXX: this error seems normal
+		 */
+#if 0
+		perror("ioctl(SIOCDEVPRIVATE)");
+		return -1;
+#endif
+	}
+
+	memset(&dev, 0, sizeof(dev));
+	memset(&buf, 0, sizeof(buf));
+	strcpy(dev.device, DEVNAME);
+	dev.arg2 = 0x00223404;
+	dev.arg3 = 0x2;
+	dev.arg4 = 0x2c;
+	dev.ptr = (void*)buf;
+
+	buf[0] = 0x2c;
+	buf[1] = 0x80000000;
+	buf[2] = 0xd;
+	wep_copy((char*)(buf+3), default_wep);
+
+	if (ioctl(sockfd, SIOCDEVPRIVATE, &dev) != 0) {
+		perror("ioctl(SIOCDEVPRIVATE)");
+		return -1;
+	}
+
+	memset(&dev, 0, sizeof(dev));
+	memset(&buf, 0, sizeof(buf));
+	strcpy(dev.device, DEVNAME);
+	dev.arg2 = 0x00222018;
+	dev.arg3 = 0x2;
+	dev.arg4 = 0x24;
+	dev.ptr = (void*)buf;
+
+	buf[0] = strlen(default_ssid);
+	strcpy((char*)(&buf[1]), default_ssid);
+
+	if (verbose)
+		printf("Using SSID: '%s'\n", default_ssid);
+
+	if (ioctl(sockfd, SIOCDEVPRIVATE, &dev) != 0) {
+		perror("ioctl(SIOCDEVPRIVATE)");
+		return -1;
+	}
+
+	memset(&dev, 0, sizeof(dev));
+	memset(&buf, 0, sizeof(buf));
+	strcpy(dev.device, DEVNAME);
+	dev.arg2 = 0x00224420;
+	dev.arg3 = 0x1;
+	dev.arg4 = 0x75;
+	dev.ptr = (void*)buf;
+	strcpy((char*)(&buf[0]), default_ssid);
+
+	if (ioctl(sockfd, SIOCDEVPRIVATE+1, &dev) != 0) {
+		perror("ioctl(SIOCDEVPRIVATE+1)");
+		return -1;
+	}
+
+	memset(&dev, 0, sizeof(dev));
+	memset(&buf, 0, sizeof(buf));
+	strcpy(dev.device, DEVNAME);
+	dev.arg2 = 0x00224420;
+	dev.arg3 = 0x1;
+	dev.arg4 = 0x75;
+	dev.ptr = (void*)buf;
+
+	if (ioctl(sockfd, SIOCDEVPRIVATE+1, &dev) != 0) {
+		perror("ioctl(SIOCDEVPRIVATE+1)");
+		return -1;
+	}
+
+#if 0
+	memset(&dev, 0, sizeof(dev));
+	strcpy(dev.device, DEVNAME);
+	dev.arg2 = 0x00223028;
+	dev.arg3 = 0x1;
+	dev.arg4 = 0x4;
+
+	if (ioctl(sockfd, SIOCDEVPRIVATE+1, &dev) != 0) {
+		perror("ioctl(SIOCDEVPRIVATE+1)");
+		return -1;
+	}
+#endif
+
+	return 0;
+}
+
+int
 get_ssid_list(int fd, char *name)
 {
 	ti_dev_t dev;
@@ -336,7 +566,6 @@ static int
 init(void)
 {
 	struct ifreq ifr;
-	unsigned long buf[256];
 	ti_dev_t dev;
 
 	strncpy(ifr.ifr_name, DEVNAME, IFNAMSIZ);
@@ -361,38 +590,6 @@ init(void)
 
 	if (start_config_manager(sockfd, DEVNAME) < 0)
 		return -1;
-
-	memset(&dev, 0, sizeof(dev));
-	strcpy(dev.device, DEVNAME);
-	dev.arg2 = 0x00223818;
-	dev.arg3 = 0x1;
-	dev.arg4 = 0x4;
-	dev.ptr = (void*)0x0;
-
-	if (ioctl(sockfd, SIOCDEVPRIVATE+1, &dev) != 0) {
-		perror("ioctl(SIOCDEVPRIVATE+1)");
-		return -1;
-	}
-
-	memset(&dev, 0, sizeof(dev));
-	strcpy(dev.device, DEVNAME);
-	dev.arg2 = 0x00222018;
-	dev.arg3 = 0x2;
-	dev.arg4 = 0x24;
-	dev.ptr = (void*)buf;
-
-	buf[0] = 0x00000008;
-	memcpy(buf+1, "NON-SSID", 8);
-	buf[3] = 0x00000000;
-	buf[4] = 0x00000000;
-	buf[5] = 0x00000000;
-	buf[6] = 0x00000000;
-	buf[7] = 0x00000000;
-
-	if (ioctl(sockfd, SIOCDEVPRIVATE, &dev) != 0) {
-		perror("ioctl(SIOCDEVPRIVATE)");
-		return -1;
-	}
 
 	memset(&dev, 0, sizeof(dev));
 	strcpy(dev.device, DEVNAME);
@@ -421,10 +618,12 @@ main(int argc, char **argv)
 	int c, n, i;
 	int opt_index;
 	int do_probe = 0;
-	char *ssid = NULL;
+	char *ssid = NULL, *key = NULL;
 	int found = 0;
+	int with_wep = -1;
 
-	while ((c=getopt_long(argc, argv, "hps:v", opts, &opt_index)) != -1) {
+	while ((c=getopt_long(argc, argv,
+			      "hps:w:v", opts, &opt_index)) != -1) {
 		switch (c) {
 		case 'h':
 			print_help(argv[0]);
@@ -435,6 +634,16 @@ main(int argc, char **argv)
 			break;
 		case 's':
 			ssid = strdup(optarg);
+			break;
+		case 'w':
+			if (strcasecmp(optarg, "off") == 0) {
+				with_wep = 0;
+			} else if (strcasecmp(optarg, "on") == 0) {
+				with_wep = 1;
+			} else {
+				with_wep = 1;
+				key = strdup(optarg);
+			}
 			break;
 		case 'v':
 			verbose = 1;
@@ -450,6 +659,8 @@ main(int argc, char **argv)
 		fprintf(stderr, "VPD read failed!\n");
 		exit(1);
 	}
+	if (key)
+		strcpy(default_wep, key);
 
 	if (init() != 0) {
 		fprintf(stderr, "initialization failed!\n");
@@ -495,12 +706,21 @@ main(int argc, char **argv)
 		       default_ssid);
 	}
 
-	if (up_device(sockfd, DEVNAME) < 0) {
-		fprintf(stderr, "device bringup failed!\n");
-		exit(1);
+	if ((default_wep[0] == '\0') || (with_wep == 0)) {
+		if (up_device(sockfd, DEVNAME) < 0) {
+			fprintf(stderr, "device bringup failed!\n");
+			exit(1);
+		}
+		printf("wireless network enabled: SSID '%s' without WEP\n",
+		       default_ssid);
+	} else {
+		if (up_device_wep(sockfd, DEVNAME) < 0) {
+			fprintf(stderr, "device bringup failed!\n");
+			exit(1);
+		}
+		printf("wireless network enabled: SSID '%s' with WEP\n",
+		       default_ssid);
 	}
-
-	printf("wireless network using SSID '%s'\n", default_ssid);
 
 	return 0;
 }
