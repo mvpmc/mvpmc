@@ -42,7 +42,7 @@ elif target == 'host':
 	crossroot='';
 elif target == 'kernel':
 	print "kernel build"
-	if kernver == '2.4.31':
+	if kernver != '2.4.17':
 		powerpc = 'powerpc-405-linux-uclibc'
 		gcc = 'gcc-3.4.5-uClibc-0.9.28'
 		crossroot = toolchains + '/' + powerpc + '/' + gcc + '/'
@@ -89,7 +89,7 @@ if target == 'kernel':
 	# do the kernel build
 	#
 	cc = env['CC']
-	if kernver == '2.4.31':
+	if kernver != '2.4.17':
 		kern = env.SConscript('dongle/kernel/linux-2.4.31/SConscript')
 		gccbuild = 'tools/toolchains/uclibc/SConscript'
 	else:
