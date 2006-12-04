@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# $Id: SConscript 20 2006-03-14 05:26:56Z gettler $
+# libvnc
 #
 
 Import ('env')
@@ -18,10 +18,13 @@ if target == 'host':
 
 src = [ 'd3des.c', 'nanox.c', 'rfbproto.c', 'sockets.c', 'vncauth.c' ]
 
-lib = vnc.StaticLibrary('vnc', src,
+static = vnc.StaticLibrary('vnc', src,
+                        CPPFLAGS = cppflags,
+                        CPPPATH = [ env['INCDIR'], env['INSTINCDIR'], '.' ])
+shared = vnc.SharedLibrary('vnc', src,
                         CPPFLAGS = cppflags,
                         CPPPATH = [ env['INCDIR'], env['INSTINCDIR'], '.' ])
 
-inst = vnc.Install(libdir, lib)
+inst = env.Install(libdir, [ static, shared ])
 
 Return('inst')

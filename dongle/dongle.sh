@@ -6,6 +6,7 @@
 set -e
 
 STRIP=${CROSS}strip
+TOOLLIB=`dirname ${CROSS}`/../lib
 
 echo STRIP $STRIP
 
@@ -20,6 +21,10 @@ SBIN=""
 USRBIN=""
 
 USRSBIN=""
+
+LIB="libav.so libcmyth.so libdemux.so libosd.so libts_demux.so libvnc.so libwidget.so libvorbisidec.so.1.0.2 libvorbisidec.so.1"
+TLIB="libc.so.0 libm.so.0 libcrypt.so.0 libgcc_s_nof.so.1 libpthread.so.0"
+TLIB2="ld-uClibc-0.9.28.so ld-uClibc.so.0"
 
 rm -rf filesystem/install
 rm -rf filesystem/install_wrapper
@@ -37,6 +42,21 @@ cd ../..
 cd filesystem/wrapper
 tar -cf - * | tar -xf - -C ../install_wrapper
 cd ../..
+
+for i in $LIB ; do
+    cp -d install/mvp/lib/$i filesystem/install/lib
+    $STRIP filesystem/install/lib/$i
+done
+for i in $TLIB ; do
+    cp $TOOLLIB/$i filesystem/install/lib
+    $STRIP filesystem/install/lib/$i
+    cp $TOOLLIB/$i filesystem/install_wrapper/lib
+    $STRIP filesystem/install_wrapper/lib/$i
+done
+for i in $TLIB2 ; do
+    cp -d $TOOLLIB/$i filesystem/install/lib
+    cp -d $TOOLLIB/$i filesystem/install_wrapper/lib
+done
 
 for i in $BIN ; do
     cp -d install/mvp/bin/$i filesystem/install/bin
@@ -61,6 +81,8 @@ for i in $USRSBIN ; do
     cp -d install/mvp/usr/sbin/$i filesystem/install/usr/sbin
     $STRIP filesystem/install/usr/sbin/$i
 done
+
+cp $TOOLLIB/../powerpc-405-linux-uclibc/target_utils/ldd filesystem/install/usr/bin
 
 awk -F/ '{if(/^\/bin\/[^\/]+$/) { system("ln -s busybox filesystem/install" $0 ) } else {rp=sprintf("%" NF-2 "s", ""); gsub(/./,"../",rp); system("ln -sf " rp "bin/busybox filesystem/install" $0) }}' apps/busybox/mvp/busybox-*/busybox.links
 awk -F/ '{if(/^\/bin\/[^\/]+$/) { system("ln -s busybox filesystem/install_wrapper" $0 ) } else {rp=sprintf("%" NF-2 "s", ""); gsub(/./,"../",rp); system("ln -sf " rp "bin/busybox filesystem/install_wrapper" $0) }}' apps/busybox/mvp/busybox-*/busybox.links

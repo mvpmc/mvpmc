@@ -12,7 +12,8 @@ bindir = env['INSTBINDIR']
 
 src = [ 'demux.c','stream.c' ]
 
-lib = env.StaticLibrary('demux', src, CPPPATH = [ env['INCDIR'], '.' ])
+static = env.StaticLibrary('demux', src, CPPPATH = [ env['INCDIR'], '.' ])
+shared = env.SharedLibrary('demux', src, CPPPATH = [ env['INCDIR'], '.' ])
 
 demuxtest_t = env.Program('demuxtest_t',['demuxtest_t.c'],
     			  CPPPATH=[ env['INCDIR'], '.'],
@@ -26,12 +27,12 @@ demuxtest = env.Program('demuxtest',['demuxtest.c'],
 			LIBPATH = [ '.' ],
 	                LINKFLAGS = [ '-static' ])
 
-env.Depends(demuxtest_t, lib)
-env.Depends(demuxtest, lib)
+env.Depends(demuxtest_t, static)
+env.Depends(demuxtest, static)
 
 env.Install(bindir,demuxtest)
 env.Install(bindir,demuxtest_t)
 
-inst = env.Install(libdir, lib)
+inst = env.Install(libdir, [ static, shared ])
 
 Return('inst')

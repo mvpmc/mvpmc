@@ -12,9 +12,10 @@ libdir = env['INSTLIBDIR']
 src = [ 'cursor.c', 'gfx.c', 'init.c', 'fb.c', 'osd.c',
 	'fonts/CaslonRoman-1.25.c']
 
-lib = env.StaticLibrary('osd', src, CPPPATH = [ env['INCDIR'], '.' ])
+static = env.StaticLibrary('osd', src, CPPPATH = [ env['INCDIR'], '.' ])
+shared = env.SharedLibrary('osd', src, CPPPATH = [ env['INCDIR'], '.' ])
 
-inst = env.Install(libdir, lib)
+inst = env.Install(libdir, [ static, shared ])
 
 if target == 'mvp':
 	osdtest = env.Program('osdtest',
@@ -23,6 +24,6 @@ if target == 'mvp':
 	                      LIBS = [ 'osd' ],
 	                      LIBPATH = [ libdir ],
 	                      LINKFLAGS = [ '-static' ])
-	env.Depends(osdtest, lib)
+	env.Depends(osdtest, static)
 
 Return('inst')
