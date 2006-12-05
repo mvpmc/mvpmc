@@ -48,14 +48,6 @@
 #include "replaytv.h"
 #include "config.h"
 
-/*
- * vlc_control.c
- *
- * Maintained by Robin Rawson-Tetley <robin@rawsontetley.org>
- * This file contains code from Martin Vallevand and Robin Rawson-Tetley
- */
-
-
 static long long vlc_stream_size(void);
 static long long vlc_stream_seek(long long, int);
 static int vlc_key(char);
