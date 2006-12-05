@@ -13,17 +13,17 @@ echo STRIP $STRIP
 DIRS="bin sbin usr/bin usr/sbin lib dev proc var usr/share usr/share/mvpmc usr/share/udhcpc etc tmp oldroot"
 WRAPPER_DIRS="bin sbin etc usr/bin usr/sbin dev tmp lib proc mnt"
 
-BIN="busybox mvpmc ntpclient"
+BIN="busybox mvpmc ntpclient scp"
 WRAPPER_BIN="busybox splash"
 
-SBIN=""
+SBIN="dropbearmulti dropbear dropbearkey"
 
 USRBIN=""
 
 USRSBIN=""
 
 LIB="libav.so libcmyth.so libdemux.so libosd.so libts_demux.so libvnc.so libwidget.so libvorbisidec.so.1.0.2 libvorbisidec.so.1"
-TLIB="libc.so.0 libm.so.0 libcrypt.so.0 libgcc_s_nof.so.1 libpthread.so.0"
+TLIB="libc.so.0 libm.so.0 libcrypt.so.0 libgcc_s_nof.so.1 libpthread.so.0 libutil.so.0"
 TLIB2="ld-uClibc-0.9.28.so ld-uClibc.so.0"
 
 rm -rf filesystem/install
@@ -95,6 +95,7 @@ cp -d install/mvp/linuxrc filesystem/install_wrapper
 #filesystem/kernel_copy.sh kernel/linux-2.4.17/mvpdist/kernel filesystem/kernel_files
 
 find filesystem/install -name .svn | xargs rm -rf
+find filesystem/install -name .gitmo | xargs rm -rf
 
 filesystem/dongle_build.sh -o ../dongle.bin.mvpmc -k filesystem/kernel_files
 
