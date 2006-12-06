@@ -266,7 +266,6 @@ extern void timed_osd(int timeout);
 
 extern int file_open(void);
 extern int file_read(char*, int);
-extern int fd_http;
 extern volatile long long jump_target;
 extern int display_on;
 extern int display_on_alt;
