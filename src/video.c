@@ -72,7 +72,6 @@ pthread_cond_t video_cond = PTHREAD_COND_INITIALIZER;
 static sem_t   write_threads_idle_sem;
 
 int fd = -1;
-int fd_http = -1;
 extern int http_playing;
 
 static av_stc_t seek_stc;
@@ -1265,27 +1264,20 @@ file_open(void)
 	pthread_kill(audio_write_thread, SIGURG);
 
 	if ( http_playing == 0 ) {
-        if (gui_state != MVPMC_STATE_EMULATE) {
-            fd=open(current, O_RDONLY|O_LARGEFILE);
-        } else {
-            fd = open("/tmp/FIFO", O_RDONLY);
-        }
-		if (fd < 0) {
-			printf("Open failed errno %d file %s\n",
-			       errno, current);
-			video_reopen = 0;
-			return -1;
+		if (gui_state != MVPMC_STATE_EMULATE) {
+		    fd=open(current, O_RDONLY|O_LARGEFILE);
+		} else {
+		    fd = open("/tmp/FIFO", O_RDONLY);
 		}
-		printf("opened %s\n", current);
+			if (fd < 0) {
+				printf("Open failed errno %d file %s\n",
+				       errno, current);
+				video_reopen = 0;
+				return -1;
+			}
+			printf("opened %s\n", current);
 	} else {
 		printf("http opened %s\n", current);
-		fd_http=open(current, O_RDONLY|O_LARGEFILE);
-		if (fd_http < 0) {
-			printf("Open failed errno %d file %s\n",
-			       errno, current);
-			video_reopen = 0;
-			return -1;
-		}
 	}
 
 	if (video_reopen == 1) {
