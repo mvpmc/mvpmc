@@ -91,9 +91,17 @@ fi
 TZ=CST+6CDT,M4.1.0/2,M10.5.0/2; export TZ
 
 #
-# configure eth0
+# configure the default ethernet interface (eth0 is wired, eth1 wireless)
 #
-udhcpc
+ticonfig
+if [ $? -eq 0 ] ; then
+    udhcpc -i eth1
+    if [ $? -ne 0 ] ; then
+	udhcpc -i eth0
+    fi
+else
+    udhcpc
+fi
 . /etc/udhcpc.config
 
 #
