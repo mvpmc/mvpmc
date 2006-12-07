@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# $Id: SConscript 20 2006-03-14 05:26:56Z gettler $
+# libwidget
 #
 
 Import ('env')
@@ -13,9 +13,11 @@ src = [ 'bitmap.c', 'checkbox.c', 'container.c', 'dialog.c', 'graph.c',
         'image.c', 'menu.c', 'surface.c', 'text.c', 'widget.c', 'utf8.c',
         'image_jpeg.c', 'array.c' ]
 
-lib = env.StaticLibrary('widget', src,
+static = env.StaticLibrary('widget', src,
+                        CPPPATH = [ env['INCDIR'], env['INSTINCDIR'], '.' ])
+shared = env.SharedLibrary('widget', src,
                         CPPPATH = [ env['INCDIR'], env['INSTINCDIR'], '.' ])
 
-inst = env.Install(libdir, lib)
+inst = env.Install(libdir, [ static, shared ])
 
 Return('inst')

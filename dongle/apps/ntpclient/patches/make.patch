@@ -5,8 +5,8 @@
  CFLAGS += -Wall -Wpointer-arith -Wcast-align -Wcast-qual -Wshadow \
   -Waggregate-return -Wnested-externs -Winline -Wwrite-strings \
 - -Wstrict-prototypes
-+ -Wstrict-prototypes -static
-+LDFLAGS = -static
++ -Wstrict-prototypes
++LDFLAGS =
  
  CFLAGS += -O
  

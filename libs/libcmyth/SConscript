@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# $Id: SConscript 20 2006-03-14 05:26:56Z gettler $
+# libcmyth
 #
 
 Import ('env')
@@ -15,8 +15,9 @@ src = [ 'alloc.c','bookmark.c', 'connection.c', 'debug.c', 'event.c',
         'proglist.c', 'rec_num.c', 'recorder.c', 'ringbuf.c', 'socket.c',
         'timestamp.c', 'livetv.c', 'tvguide.c', 'mysql_query.c' ]
 
-lib = env.StaticLibrary('cmyth', src, CPPPATH = [ env['INCDIR'],  toplevel + '/dongle/install/mvp/lib/mysql', '.', toplevel + '/dongle/install/mvp/include' ])
+static = env.StaticLibrary('cmyth', src, CPPPATH = [ env['INCDIR'],  toplevel + '/dongle/install/mvp/lib/mysql', '.', toplevel + '/dongle/install/mvp/include' ])
+shared = env.SharedLibrary('cmyth', src, CPPPATH = [ env['INCDIR'],  toplevel + '/dongle/install/mvp/lib/mysql', '.', toplevel + '/dongle/install/mvp/include' ])
 
-inst = env.Install(libdir, lib)
+inst = env.Install(libdir, [ static, shared ])
 
 Return('inst')

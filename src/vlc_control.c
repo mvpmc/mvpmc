@@ -48,14 +48,6 @@
 #include "replaytv.h"
 #include "config.h"
 
-/*
- * vlc_control.c
- *
- * Maintained by Robin Rawson-Tetley <robin@rawsontetley.org>
- * This file contains code from Martin Vallevand and Robin Rawson-Tetley
- */
-
-
 static long long vlc_stream_size(void);
 static long long vlc_stream_seek(long long, int);
 static int vlc_key(char);
@@ -77,6 +69,13 @@ extern int http_main(void); 	// audio.c
 
 /* VLC command video/audio transcode to mpeg 2 without scaling */
 #define VLC_VIDEO_NOSCALE_TRANSCODE "setup mvpmc output #transcode{vcodec=mp2v,vb=%d,scale=1,fps=%s,acodec=mpga,ab=%d,channels=2}:duplicate{dst=std{access=http,mux=ts,dst=:%s}}\r\n"
+
+/* The number of calls vlc_get_pct_pos will receive before it updates the cached position */
+#define OSD_UPDATE_CALLS 5
+
+/* Macros for sending VLC log messages */
+#define VLC_LOG_FILE(args...) fprintf(outlog, args); printf(args)
+#define VLC_LOG_STDOUT(args...) printf(args)
 
 /*
  * Buffer for the transcoding request to be sent to VLC
@@ -230,7 +229,7 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
     }
 
     // If broadcast messages are disabled and this is one, bail out now.
-    fprintf(outlog, "broadcast messages enabled == %d\n", vlc_broadcast_enabled);
+    VLC_LOG_STDOUT("VLC: broadcast messages enabled == %d\n", vlc_broadcast_enabled);
     if ((VlcCommandType == VLC_CREATE_BROADCAST) && (vlc_broadcast_enabled == 0)) {	
         return 0;
     }
@@ -285,94 +284,92 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
                     if (ptr!=0) {
                         *ptr=0;
                     }
-                    fprintf(outlog,"%s",line_data);
                     if (ContentType==2) {
                         break;
                     }
                     if (VlcCommandType == VLC_CREATE_BROADCAST) {
 		    	// New stream means we reset our cached position
 			vlc_cachedstreampos = -1;
+			// We want to see all VLC responses for initial connect
+			VLC_LOG_FILE("VLC: %s",line_data);
                         switch (i) {
                             case 0:
                                 fprintf(instream,"admin\r\n");
-                                fprintf(outlog,"admin\n");
                                 if (ContentType==0 || ContentType==100) {
                                     i++;
                                 }
                                 break;
                             case 1:
                                 fprintf(instream,vlc_connects[i]);
-                                fprintf(outlog,vlc_connects[i],newurl);
+                                VLC_LOG_FILE(vlc_connects[i],newurl);
                                 ContentType = 2;
                                 break;
                             case 3:
                                 fprintf(instream,vlc_connects[i],newurl);
-                                fprintf(outlog,vlc_connects[i],newurl);
+                                VLC_LOG_FILE(vlc_connects[i],newurl);
                                 break;
                             case 4:
                                 if ( ContentType == 100 ) {
                                     fprintf(instream,vlc_get_video_transcode());
-                                    fprintf(outlog,vlc_get_video_transcode());
+                                    VLC_LOG_FILE(vlc_get_video_transcode());
                                 } else {
                                     fprintf(instream,vlc_get_audio_transcode());
-                                    fprintf(outlog,vlc_get_audio_transcode());
+                                    VLC_LOG_FILE(vlc_get_audio_transcode());
                                 }
                                 break;
                             case 5:
                                 if (ContentType == 100) {
                                     fprintf(instream,vlc_connects[i],"video", "mpeg");
-                                    fprintf(outlog,vlc_connects[i],"video", "mpeg");
+                                    VLC_LOG_FILE(vlc_connects[i],"video", "mpeg");
                                 } else {
 				    if (strcmp(config->vlc_aopts, "flac") == 0) {
 				        fprintf(instream,vlc_connects[i],"audio", "flac");
-                                        fprintf(outlog,vlc_connects[i],"audio", "flac");
+                                        VLC_LOG_FILE(vlc_connects[i],"audio", "flac");
 				    }
                                     else {
 				        fprintf(instream,vlc_connects[i],"audio", "mpeg");
-                                        fprintf(outlog,vlc_connects[i],"audio", "mpeg");
+                                        VLC_LOG_FILE(vlc_connects[i],"audio", "mpeg");
 				    }
                                 }
                                 break;
                             case 2:
                                 if (strncmp(current,"vlc://",6) == 0 ) {
                                     fprintf(instream,"load %s",&current[6]);
-                                    fprintf(outlog,"load %s",&current[6]);
+                                    VLC_LOG_FILE("load %s",&current[6]);
                                     ContentType = 2;
                                     break;
                                 }
                             default:
                                 fprintf(instream,vlc_connects[i]);
-                                fprintf(outlog,vlc_connects[i]);
+                                VLC_LOG_FILE(vlc_connects[i]);
                                 break;
                         }
                     } else if (VlcCommandType == VLC_CONTROL) {
                         switch(i) {
                             case 0:
                                 fprintf(instream,"admin\r\n");
-                                fprintf(outlog,"admin\n");
                                 break; 
                             case 1:
                                 fprintf(instream,vlc_controls[i],VlcCommandArgs);
-                                fprintf(outlog,vlc_controls[i],VlcCommandArgs);
+                                VLC_LOG_FILE(vlc_controls[i],VlcCommandArgs);
                                 break;
                             default:
                                 fprintf(instream, vlc_controls[i]);
-                                fprintf(outlog, vlc_controls[i]);
+                                VLC_LOG_FILE(vlc_controls[i]);
                                 break;
                         }
                     } else if (VlcCommandType == VLC_DESTROY) {
                         switch(i) {
                             case 0:
                                 fprintf(instream,"admin\r\n");
-                                fprintf(outlog,"admin\n");
                                 break; 
                             case 1:
                                 fprintf(instream,vlc_connects[i]);
-                                fprintf(outlog,vlc_connects[i]);
+                                VLC_LOG_FILE(vlc_connects[i]);
                                 break;
                             default:
                                 fprintf(instream, vlc_controls[i]);
-                                fprintf(outlog, vlc_controls[i]);
+                                VLC_LOG_FILE(vlc_controls[i]);
                                 break;
                         }
                     } else if (VlcCommandType == VLC_SEEK_PCT) {
@@ -380,12 +377,10 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
 				case 0:
 				    // Send authentication
 				    fprintf(instream,"admin\r\n");
-				    fprintf(outlog,"admin\n");
 				    break;
 				case 1:
 				    // SHOW MVPMC command
 				    fprintf(instream,vlc_pct[i]);
-				    fprintf(outlog,vlc_pct[i]);
 				    break;
 				case 2:
 				    // Parse the show mvpmc response and
@@ -393,7 +388,7 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
 				    // One we have that, apply an offset and seek
 				    vpos = strstr(line_data, "position : ");
 				    if (vpos == NULL) {
-					fprintf(outlog, "VLC: couln't find 'position : '");
+					VLC_LOG_FILE("VLC: couln't find 'position : '");
 					return -1;
 			 	    }
 				    // Adjust offset of string pointer to beginning of
@@ -403,7 +398,7 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
 				    mpos = (int) (strtod(vpos, NULL) * (double) 100);
 				    // Calculate new position
 				    newpos = mpos + offset;
-				    fprintf(outlog, "\nPosition: %d%%, Offset: %d%%, NewPosition: %d%%\n", mpos, offset, newpos);
+				    VLC_LOG_FILE("\nVLC: VLC_SEEK_PCT Position: %d%%, Offset: %d%%, NewPosition: %d%%\n", mpos, offset, newpos);
 				    // Is the new position out of range?
 				    // Bail if it is and return the current pos
 				    if (newpos > 99 || newpos < 0) {
@@ -414,7 +409,7 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
 				    // Send seek command to new position
 				    i++;
 				    fprintf(instream,vlc_pct[i],newpos);
-				    fprintf(outlog,vlc_pct[i],newpos);
+				    VLC_LOG_FILE(vlc_pct[i],newpos);
 				    // Tell OSD to update
 				    vlc_cachedstreampos = -1;
 				    // Cleanup
@@ -423,7 +418,7 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
 				    return newpos;
 				default:
 				    fprintf(instream,vlc_pct[i]);
-				    fprintf(outlog,vlc_pct[i]);
+				    VLC_LOG_FILE(vlc_pct[i]);
 				    break;
 			}
                     } else if (VlcCommandType == VLC_SEEK_SEC) {
@@ -431,12 +426,10 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
 				case 0:
 				    // Send authentication
 				    fprintf(instream,"admin\r\n");
-				    fprintf(outlog,"admin\n");
 				    break;
 				case 1:
 				    // SHOW MVPMC command
 				    fprintf(instream,vlc_sec[i]);
-				    fprintf(outlog,vlc_sec[i]);
 				    break;
 				case 2:
 				    // Parse the show mvpmc response and
@@ -446,12 +439,12 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
 				    // one second, apply an offset and seek
 				    vpos = strstr(line_data, "position : ");
 				    if (vpos == NULL) {
-					fprintf(outlog, "VLC: couln't find 'position : '");
+					VLC_LOG_FILE("VLC: couln't find 'position : '");
 					return -1;
 				    }
 				    vlength = strstr(line_data, "length : ");
 				    if (vpos == NULL) {
-					fprintf(outlog, "VLC: couln't find 'length : '");
+					VLC_LOG_FILE("VLC: couln't find 'length : '");
 					return -1;
 				    }
 				    // Adjust offset of string pointers to beginning of
@@ -465,7 +458,7 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
 				    // If length is < 0 then we have an older VLC with the
 				    // overflow bug - log and error and do nothing
 				    if (dlength < 0) {
-					fprintf(outlog, "Detected VLC with overflow length bug - cannot do second seek!");
+					VLC_LOG_FILE("VLC: Detected overflow bug - cannot do second seek!");
 					shutdown(vlc_sock,SHUT_RDWR);
 					close(vlc_sock);
 					return (int) dpos;
@@ -477,7 +470,7 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
 				    doffsetpct = donesec * (double) offset;
 				    // Calculate new seek position
 				    dseekpos = doffsetpct + dpos;
-				    fprintf(outlog, "Pos: %f%%, Length: %f, Onesec: %f%%, NewPos: %f%% \n", 
+				    VLC_LOG_FILE("VLC: VLC_SEEK_SEC Pos: %f%%, Length: %f, Onesec: %f%%, NewPos: %f%% \n", 
 				    	dpos, dlength, donesec, dseekpos);
 				    // Is the new position out of range?
 				    // Bail if it is and return the current pos
@@ -489,7 +482,7 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
 				    // Send seek command to new position
 				    i++;
 				    fprintf(instream,vlc_sec[i],dseekpos);
-				    fprintf(outlog,vlc_sec[i],dseekpos);
+				    VLC_LOG_FILE(vlc_sec[i],dseekpos);
 				    // Tell OSD to update
 				    vlc_cachedstreampos = -1;
 				    // Cleanup
@@ -498,7 +491,7 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
 				    return newpos;
 				default:
 				    fprintf(instream,vlc_sec[i]);
-				    fprintf(outlog,vlc_sec[i]);
+				    VLC_LOG_FILE(vlc_sec[i]);
 				    break;
 			}
 
@@ -511,14 +504,13 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
 				case 1:
 				    // SHOW MVPMC command
 				    fprintf(instream,vlc_pct[i]);
-				    fprintf(outlog,vlc_pct[i]);
 				    break;
 				case 2:
 				    // Parse the show mvpmc response and
 				    // extract the 'position : p' value
 				    vpos = strstr(line_data, "position : ");
 				    if (vpos == NULL) {
-					fprintf(outlog, "VLC: couln't find 'position : '");
+					VLC_LOG_STDOUT("VLC: couln't find 'position : '");
 					return -1;
 			 	    }
 				    // Adjust offset of string pointer to beginning of
@@ -526,14 +518,12 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
 				    vpos += 11;
 				    // Parse the current % position
 				    mpos = (int) (strtod(vpos, NULL) * (double) 100);
-				    fprintf(outlog, "Position: %d%%\n", mpos);
 				    // Extract the 'time: t' value
 				    vpos = strstr(line_data, "time : ");
 				    if (vpos != NULL) {
 				        // Update the cached stream time for OSD timecode
 				        vpos += 7;
 					vlc_cachedstreamtime = strtod(vpos, NULL);
-					fprintf(outlog, "Timecode: %f\n", vlc_cachedstreamtime);
 				    }
 				    // Extract the 'length: l' value
 				    vpos = strstr(line_data, "length : ");
@@ -541,7 +531,7 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
 				        // Update the cached stream length and calculate total
 					vpos += 9;
 					vlc_cachedstreamlength = strtod(vpos, NULL);
-					fprintf(outlog, "Length: %f\n", vlc_cachedstreamlength);
+					VLC_LOG_STDOUT("VLC: VLC_PCTPOS Position: %d%%, Time: %f, Length: %f\n", mpos, vlc_cachedstreamtime, vlc_cachedstreamlength);
 					// If it's not a negative number (no overflow bug), 
 					// calculate the total hours, minutes and seconds for OSD
 					if (vlc_cachedstreamlength > 0) {
@@ -561,7 +551,7 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
 				    return mpos;
 				default:
 				    fprintf(instream,vlc_pct[i]);
-				    fprintf(outlog,vlc_pct[i]);
+				    VLC_LOG_STDOUT(vlc_pct[i]);
 				    break;
 			}
 
@@ -578,12 +568,12 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
             close(vlc_sock);            
         } else {
             mvpw_set_text_str(fb_name, "VLC connection timeout");
-            fprintf(outlog,"VLC connection timeout\nCannot connect to %s:%s\n",vlc_server,vlc_port);
+            VLC_LOG_FILE("VLC connection timeout\nCannot connect to %s:%s\n",vlc_server,vlc_port);
             retcode = -1;
         }
     } else {
         mvpw_set_text_str(fb_name, "VLC/VLM setup error");
-        fprintf(outlog,"VLC/VLM setup error\nCannot find %s\n",vlc_server);
+        VLC_LOG_FILE("VLC/VLM setup error\nCannot find %s\n",vlc_server);
         retcode = -1;
     }
     return retcode;
@@ -601,6 +591,10 @@ char* vlc_get_video_transcode()
 	char* canvas_width;
 	char* canvas_height;
 	char* fps;
+	int is_pal = 0;
+
+	// if (config->av_mode == AV_MODE_PAL) is_pal = 1;
+	if (si.rows > 480) is_pal = 1;
 
 	/** Figure out height and FPS */
 	if (config->av_tv_aspect == AV_TV_ASPECT_16x9)
@@ -608,14 +602,13 @@ char* vlc_get_video_transcode()
 	else
 		aspect = "4:3";
 
-	if (config->av_mode == AV_MODE_PAL) {
+	if (is_pal) {
 		canvas_height = "576";
 		fps = "25.0000";
 	} else {
 		canvas_height = "480";
 		fps = "29.9700";
 	}
-
 
 	/* bitrate settings */
 	int ab = config->vlc_ab;
@@ -646,7 +639,7 @@ char* vlc_get_video_transcode()
 	if (strcmp(config->vlc_vopts, "vcd") == 0) {
 		if (vb == 0) vb = 1152;
 		canvas_width = "352";
-		if (config->av_mode == AV_MODE_PAL)
+		if (is_pal)
 			canvas_height = "288";
 		else
 			canvas_height = "240";
@@ -774,14 +767,22 @@ int vlc_get_pct_pos()
 
     FILE *outlog = fopen("/usr/share/mvpmc/connect.log", "a");
     int rv = vlc_cachedstreampos;
+    static int interval = 0;
     
-    // If we have an already stored pause position, return
+    // Use an interval so that every OSD_UPDATE_CALLS to this
+    // function, we update the position from the network
+    // anyway - this keeps the OSD fresh if viewed while 
+    // the movie is playing
+    interval++;
+
+    // If we have an already stored pause position, and we
+    // haven't hit our update limit, return
     // that instead of going to the network again
-    if (vlc_cachedstreampos == -1) {
+    if (vlc_cachedstreampos == -1 || interval == OSD_UPDATE_CALLS) {
         rv = vlc_connect(outlog, NULL, 100, VLC_PCTPOS, NULL, 0);
 	vlc_cachedstreampos = rv;
+	interval = 0;
     }
-    fprintf(outlog, "VLC_PCT_POS: %d%%\n", rv);
     fclose(outlog);
     return rv;
 }
@@ -936,7 +937,7 @@ vlc_key(char key)
 		break;
 
 	default:
-		printf("No http key defined %d \n", key);
+		VLC_LOG_STDOUT("VLC: No key defined %d \n", key);
 		rtnval = -1;
 		break;
 	}

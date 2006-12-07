@@ -30,7 +30,7 @@
 +#
 +# Build Options
 +#
-+CONFIG_STATIC=y
++# CONFIG_STATIC is not set
 +# CONFIG_DISABLE_SHARED is not set
 +# CONFIG_BUILD_LIBBUSYBOX is not set
 +# CONFIG_FEATURE_FULL_LIBBUSYBOX is not set

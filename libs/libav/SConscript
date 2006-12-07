@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# $Id: SConscript 20 2006-03-14 05:26:56Z gettler $
+# libav
 #
 
 Import ('env')
@@ -15,8 +15,9 @@ if target == 'mvp':
 else:
     src = [ 'sim.c', 'wss.c', 'videvents.c']
 
-lib = env.StaticLibrary('av', src, CPPPATH = [env['INCDIR'], env['INSTINCDIR']])
+static = env.StaticLibrary('av', src, CPPPATH = [env['INCDIR'], env['INSTINCDIR']])
+shared = env.SharedLibrary('av', src, CPPPATH = [env['INCDIR'], env['INSTINCDIR']])
 
-inst = env.Install(libdir, lib)
+inst = env.Install(libdir, [ static, shared ])
 
 Return('inst')
