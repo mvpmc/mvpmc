@@ -34,6 +34,12 @@ if target == 'mvp':
                              LIBPATH = [ libdir ],
                              LINKFLAGS = [ '-static' ])
 
+	vpdread = mvp.Program('vpdread',
+                             ['vpdread.c'],
+                             CPPPATH = [ env['INCDIR'], env['INSTINCDIR'],
+                                         '.', '../include' ],
+                             LIBPATH = [ libdir ],
+                             LINKFLAGS = [ '-static' ])
 			
 
 mvpmc = mvp.Program('mvpmc',
@@ -55,7 +61,7 @@ mvpmc = mvp.Program('mvpmc',
                     LINKFLAGS = [ '-static' ])
 
 if target == 'mvp':
-	inst = env.Install(bindir, [ mvpmc, splash ])
+	inst = env.Install(bindir, [ mvpmc, splash, vpdread ])
 else:
 	inst = env.Install(bindir, mvpmc)
 

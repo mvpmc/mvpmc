@@ -138,17 +138,46 @@ if [ "$NTP" != "" ] ; then
     do_ntp "$NTP" &
 fi
 
-#
-# If mvpmc is not running, run it with some reasonable options.
-#
+
+
+# If mvpmc is not running from the dhcp try other methods
+
+
 if [ -z "`pidof mvpmc`" ] ; then
-    if [ -z $SERVER ] ; then
-        if [ -z $HOST ] ; then
-	    mvpmc -s $IP -c $IP -R "ip=discover" --startup setup --emulate ? &
-        else
-	    mvpmc -s $HOST -c $HOST --vlc $HOST -R "ip=discover" --emulate ? &
-        fi    
-    else        
-	mvpmc -s $SERVER -c $SERVER --vlc $SERVER -R "ip=discover" --emulate ? &
+    #
+    # First try and load dongle.bin.config from the named share on the dongle.bin server
+    #     
+    vpdread -t
+    . /etc/tftp.config
+    mkdir /etc/mvpmc
+    mount.cifs "//${TFTP}/mvpmc" /etc/mvpmc -o username=guest,password=guest,ro ;
+    if [ -e "/etc/mvpmc/dongle.bin.config" ] ; then
+        cp /etc/mvpmc/dongle.bin.config /etc/dongle.config
+        . /etc/dongle.config
     fi
-fi
+    #
+    # mounting a share failed lets try a tftp from the same server
+    #
+    if [ -z "`pidof mvpmc`" ] ; then    
+        tftp -g -l /etc/dongle.config -r dongle.bin.config ${TFTP}
+        tftp -g -l /tmp/themes/default.xml -r dongle.bin.xml ${TFTP}
+        . /etc/dongle.config
+    fi
+    
+    #
+    # If mvpmc is still not running, run it with some reasonable options.
+    #
+    if [ -z "`pidof mvpmc`" ] ; then
+        if [ -z $SERVER ] ; then
+            if [ -z $HOST ] ; then
+    	        mvpmc -s ${TFTP} -c ${TFTP} -R "ip=discover" --startup setup --emulate ? &
+            else
+    	        mvpmc -s $HOST -c $HOST --vlc $HOST -R "ip=discover" --emulate ? &
+            fi    
+        else        
+    	    mvpmc -s $SERVER -c $SERVER --vlc $SERVER -R "ip=discover" --emulate ? &
+        fi
+    fi    
+fi    
+
+

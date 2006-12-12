@@ -1071,7 +1071,7 @@ int mvp_load_data(FILE *stream,char *line)
                                 fprintf(stream,"VALUE=\"%s\"",web_config->share_disk[id-WEB_CONFIG_NET_REMOTE1].remote_dir);
                                 break;
                             case WEB_CONFIG_VLC_SERVER:
-                                fprintf(stream,"VALUE=\"%s\"",web_config->vlc_ip);
+                                fprintf(stream,"VALUE=\"%s\"",config->vlc_ip);
                                 break;
                             case WEB_CONFIG_MVP_SERVER:
                                 fprintf(stream,"VALUE=\"%s\"",web_config->mvp_server);
