@@ -128,12 +128,13 @@ video_callback_t file_functions = {
 };
 
 int mvp_file_read(char *,int);
+long long mvp_seek(long long,int);
 
 video_callback_t mvp_functions = {
 	.open      = file_open,
 	.read      = mvp_file_read,
 	.read_dynb = NULL,
-	.seek      = NULL,
+	.seek      = mvp_seek,
 	.size      = NULL,
 	.notify    = NULL,
 	.key       = NULL,
@@ -170,7 +171,9 @@ video_thumbnail(int on)
 		enable = 1;
 	} else {
 		av_wss_redraw();
-		av_move(0, 0, 0);
+        if (gui_state != MVPMC_STATE_EMULATE) {
+		    av_move(0, 0, 0);
+        }
 		if (enable)
 			screensaver_disable();
 		enable = 0;
@@ -233,6 +236,9 @@ video_subtitle_check(mvp_widget_t *widget)
 	else
 		mvpw_set_timer(root, video_subtitle_check, 1000);
 
+    if (gui_state == MVPMC_STATE_EMULATE ) {
+        return;
+    }
 	if (! (mvpw_visible(file_browser) ||
 	       mvpw_visible(playlist_widget) ||
 	       mvpw_visible(mythtv_browser) ||
@@ -1264,18 +1270,18 @@ file_open(void)
 	pthread_kill(audio_write_thread, SIGURG);
 
 	if ( http_playing == 0 ) {
-		if (gui_state != MVPMC_STATE_EMULATE) {
-		    fd=open(current, O_RDONLY|O_LARGEFILE);
-		} else {
-		    fd = open("/tmp/FIFO", O_RDONLY);
+        if (gui_state != MVPMC_STATE_EMULATE) {
+            fd=open(current, O_RDONLY|O_LARGEFILE);
+        } else {
+            fd = open("/tmp/FIFO", O_RDONLY);
+        }
+		if (fd < 0) {
+			printf("Open failed errno %d file %s\n",
+			       errno, current);
+			video_reopen = 0;
+			return -1;
 		}
-			if (fd < 0) {
-				printf("Open failed errno %d file %s\n",
-				       errno, current);
-				video_reopen = 0;
-				return -1;
-			}
-			printf("opened %s\n", current);
+		printf("opened %s\n", current);
 	} else {
 		printf("http opened %s\n", current);
 	}
@@ -1369,7 +1375,7 @@ video_read_start(void *arg)
 		if (video_reopen) {
 			if (video_functions->open() == 0) {
 				video_reopen = 0;
-                                tsmode = TS_MODE_UNKNOWN;
+                tsmode = TS_MODE_UNKNOWN;
 			} else {
 				fprintf(stderr, "video open failed!\n");
 				video_playing = 0;
@@ -1426,14 +1432,14 @@ video_read_start(void *arg)
 			inbuf = inbuf_static;
 
 			if (tsmode == TS_MODE_UNKNOWN) {
-			  if (tslen > 0) {
-                            tsmode = ts_demux_is_ts(tshandle, tsbuf, tslen);
-			    printf("auto detection transport stream returned %d\n", tsmode);
-			    if (tsmode == TS_MODE_NO)
-			      len = tslen;
-			  }
+			    if (tslen > 0) {
+                    tsmode = ts_demux_is_ts(tshandle, tsbuf, tslen);
+			        printf("auto detection transport stream returned %d\n", tsmode);
+			        if (tsmode == TS_MODE_NO)
+			        len = tslen;
+			    }
 			} else if (tsmode == TS_MODE_NO) {
-			  len = tslen;
+			    len = tslen;
 			} else {
 			  len = ts_demux_transform(tshandle, tsbuf, tslen, inbuf, sizeof(inbuf_static));			
 			  int resyncs = ts_demux_resync_count(tshandle);

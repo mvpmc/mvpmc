@@ -104,6 +104,8 @@ static struct option opts[] = {
 	{ "use-mplayer", no_argument, 0, 0 },
 	{ "emulate", required_argument, 0, 0},
 	{ "rfb-mode", required_argument, 0, 0},
+    { "rtwin", required_argument, 0, 0},
+    { "fs-rtwin", required_argument, 0, 0},
 	{ "flicker", no_argument, 0, 0},
 	{ "mythtv-db", required_argument, 0, 'y'},
 	{ "mythtv-username", required_argument, 0, 'u'},
@@ -136,6 +138,8 @@ char *mvp_server = NULL;
 
 char vnc_server[256];
 int vnc_port = 0;
+int rtwin = -1;
+int fs_rtwin = 0;
 
 int fontid;
 extern demux_handle_t *handle;
@@ -182,6 +186,8 @@ static int shmid;
 static int web_shmid;
 #endif
 
+
+int set_route(int rtwin);
 
 char *config_file = NULL;
 
@@ -278,6 +284,8 @@ print_help(char *prog)
 	printf("\t--emulate server \tIP address or ?\n");
 	printf("\t--rfb-mode mode\t(0, 1, 2)\n");
 	printf("\t--flicker \tflicker mode on\n");
+	printf("\t--rtwin size \tbuffer size of global rt_window\n");
+	printf("\t--fs-rtwin size \tbuffer size of filesystem rt_window\n");
 }
 
 /*
@@ -567,8 +575,17 @@ main(int argc, char **argv)
 				if ( web_port == 23 || web_port== 443 || web_port == 8005 ) {
        			    fprintf(stderr, "The port (%d) is not supported!\n",web_port);
 				    web_port = 0;
-				} 
+				}
 			}
+			if (strcmp(opts[opt_index].name, "rtwin") == 0) {
+				rtwin = atoi(optarg_tmp);
+    			set_route(rtwin);
+
+			}
+			if (strcmp(opts[opt_index].name, "fs-rtwin") == 0) {
+				fs_rtwin = atoi(optarg_tmp);
+			}
+
 			if (strcmp(opts[opt_index].name, "version") == 0) {
 				printf("MediaMVP Media Center\n");
 				printf("http://www.mvpmc.org/\n");
@@ -865,6 +882,8 @@ main(int argc, char **argv)
 	spawn_child();
 #endif
 
+    // init here for globals 
+    memset(web_config, 0, sizeof(web_config_t));
 	if (web_port) {
 		load_web_config(font);
 	}
@@ -1140,7 +1159,13 @@ switch_gui_state(mvpmc_state_t new)
 {
 	if (new == gui_state)
 		return;
-    
+ 
+    if (gui_state==MVPMC_STATE_FILEBROWSER) {
+		set_route(web_config->rtwin);
+    } else if (new==MVPMC_STATE_FILEBROWSER) {
+		set_route(web_config->fs_rtwin);
+    }
+ 
     if (new==MVPMC_STATE_REPLAYTV && web_port==80) {
         web_server = 0;
     } else if (gui_state==MVPMC_STATE_REPLAYTV && web_port==80 ) {

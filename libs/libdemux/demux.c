@@ -117,6 +117,7 @@ demux_put(demux_handle_t *handle, void *buf, int len)
 		return -1;
 
  loop:
+	PRINTF("demux_put(): state %x len %d\n", handle->state, len);
 	if (len == 0)
 		return 0;
 
@@ -124,17 +125,20 @@ demux_put(demux_handle_t *handle, void *buf, int len)
 	case 1 ... 4:
 		/* frame header */
 		ret += add_buffer(handle, buf, len);
-		PRINTF("demux_put(): added %d of %d bytes\n", ret, len);
+        PRINTF("demux_put(): added %d of %d bytes state %x\n", ret, len,handle->state);
 		break;
 	case MPEG_program_end_code:
 	case pack_start_code:
 	case system_header_start_code:
 	case user_data_start_code:
-	case video_stream_0 ... video_stream_7:
-	case audio_stream_0 ... audio_stream_7:
+	case video_stream_0 ... video_stream_F:
+	case audio_stream_0 ... audio_stream_F:
 	case private_stream_2:
 	case private_stream_1:
-	case padding_stream:
+    case padding_stream:
+    case 0xb3:
+    case 0xb5:
+        
 		/* middle of frame */
 		n = parse_frame(handle, buf, len, handle->state);
 		PRINTF("demux_put(): parsed %d of %d bytes\n", n, len);
@@ -146,6 +150,7 @@ demux_put(demux_handle_t *handle, void *buf, int len)
 		break;
 	default:
 		ret = -1;
+		PRINTF("demux_put(): parsed %d of %d bytes state %x\n", -1, len,handle->state);
 		break;
 	}
 
@@ -725,4 +730,14 @@ demux_set_video_stream(demux_handle_t *handle, unsigned int id)
 	}
 
 	return -1;
+}
+
+int demux_get_iframe(demux_handle_t *handle)
+{
+    return handle->allow_iframe;
+}
+
+void demux_set_iframe(demux_handle_t *handle,int type)
+{
+    handle->allow_iframe = type;
 }
