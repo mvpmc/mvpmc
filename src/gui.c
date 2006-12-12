@@ -66,6 +66,7 @@ void fb_prefetch(mvp_widget_t *widget) {
 	}
 }
 
+void myFormatSetup(void);
 
 volatile int running_replaytv = 0;
 volatile int mythtv_livetv = 0;
@@ -92,6 +93,7 @@ mvpw_menu_attr_t fb_attr = {
 	.border_size = 2,
 	.border = MVPW_DARKGREY2,
 	.margin = 4,
+	.utf8 = 1,
 };
 
 mvpw_menu_attr_t fb_popup_attr = {
@@ -361,7 +363,7 @@ static mvpw_text_attr_t description_attr = {
 	.border_size = 0,
 };
 
-static mvpw_text_attr_t display_attr = {
+mvpw_text_attr_t display_attr = {
 	.wrap = false,
 	.pack = false,
 	.justify = MVPW_TEXT_LEFT,
@@ -371,6 +373,7 @@ static mvpw_text_attr_t display_attr = {
 	.bg = mvpw_color_alpha(MVPW_BLACK, 0x80),
 	.border = MVPW_BLACK,
 	.border_size = 0,
+	.utf8 = 1,
 };
 
 static mvpw_text_attr_t mythtv_program_attr = {
@@ -3046,38 +3049,6 @@ void vnc_timer_callback(mvp_widget_t *widget)
 
 int mvp_server_init(void);
 int mvp_server_register(void);
-void mvp_server_stop(void);
-void mvp_server_cleanup(void);
-void mvp_server_remote_key(char key);
-void mvp_timer_callback(mvp_widget_t *widget);
-
-static void mvp_key_callback(mvp_widget_t *widget, char key)
-{
-    static int wasGo = 0;
-	if(wasGo==1 && key==MVPW_KEY_EXIT) {
-        wasGo = 0;
-        mvp_server_stop();
-        mvp_server_cleanup();
-		mvpw_destroy(widget);
-		mvpw_show(main_menu);
-        mvpw_show(mvpmc_logo);
-        mvpw_focus(main_menu);
-		screensaver_enable();
-	} else if(wasGo==0 && key==MVPW_KEY_GO) {
-        wasGo = 1;
-    } else {
-        wasGo = 0;
-        mvp_server_remote_key(key);
-    }
-}
-
-void mvp_fdinput_callback(mvp_widget_t *widget, int fd)
-{
-	if (!HandleRFBServerMessage()) {
-		printf("Error updating screen\n");
-		mvp_key_callback(widget, MVPW_KEY_GO);	
-    }
-}
 
 
 static int
@@ -3132,7 +3103,7 @@ file_browser_init(void)
 	fb_time = widget;
 
 	widget = mvpw_create_text(contain, 0, 0, w/2, h,
-				  display_attr.bg,
+		 		  display_attr.bg,
 				  display_attr.border,
 				  display_attr.border_size);
 	display_attr.justify = MVPW_TEXT_RIGHT;
@@ -5654,7 +5625,7 @@ myth_browser_init(void)
 			si.rows-190,
 			mythtv_attr.bg, 
 			mythtv_attr.border,
-			mythtv_attr.border_size);
+		  	mythtv_attr.border_size);
 	mythtv_sched_option_2 = mvpw_create_dialog(NULL,
 			459, 50, 75, 55,
 			mythtv_attr.bg,
@@ -5952,64 +5923,21 @@ main_select_callback(mvp_widget_t *widget, char *item, void *key)
         mvpw_set_timer(mclient, mclient_idle_callback, 100);
 		break;
     case MM_VNC:
-	case MM_EMULATE:
-        if (k==MM_VNC) {
-    	    printf("Connecting to %s %i\n", vnc_server, vnc_port);
+        printf("Connecting to %s %i\n", vnc_server, vnc_port);
 
-            if (!ConnectToRFBServer(vnc_server, vnc_port) ||
-    		    !InitialiseRFBConnection(rfbsock)) {
-    			char buf[256];
-    			snprintf(buf, sizeof(buf),
-    				 "Unable to connect to VNC at %s:%i",
-    				 vnc_server, vnc_port);
-    			gui_error(buf);
-    			return;
-            }
-		}
-
-		myFormat.bitsPerPixel = si.bpp;
-		myFormat.depth = si.bpp;
-#ifdef MVPMC_HOST
-		myFormat.bigEndian = 0;
-#else
-		myFormat.bigEndian = 1;
-#endif
-		myFormat.trueColour = (myFormat.depth == 8 && !useBGR233) ? 0 : 1;
-		if (myFormat.trueColour) {
-			printf("TrueColour - %i bpp\n", si.bpp);
-			switch (si.bpp) {
-			case 8:
-				myFormat.redMax = myFormat.greenMax = 7;
-				myFormat.blueMax = 3;
-				myFormat.redShift = 0;
-				myFormat.greenShift = 3;
-				myFormat.blueShift = 6;
-				break;
-			case 16:
-				myFormat.redMax = myFormat.blueMax = 31;
-				myFormat.greenMax = 63;
-				myFormat.redShift = 11;
-				myFormat.greenShift = 5;
-				myFormat.blueShift = 0;
-				break;
-			default:
-				myFormat.redMax = myFormat.greenMax = myFormat.blueMax = 255;
-				myFormat.redShift = 16;
-				myFormat.greenShift = 8;
-				myFormat.blueShift = 0;
-				break;
-			}
-		}
-		screensaver_disable();
-        if (k==MM_EMULATE) {
-		    switch_gui_state(MVPMC_STATE_EMULATE);
-            if (mvp_server_init() == -1 ) {
-                return;
-            }
-        } else {
-            if (!SetFormatAndEncodings()) return;
+        if (!ConnectToRFBServer(vnc_server, vnc_port) ||
+            !InitialiseRFBConnection(rfbsock)) {
+            char buf[256];
+            snprintf(buf, sizeof(buf),
+                 "Unable to connect to VNC at %s:%i",
+                 vnc_server, vnc_port);
+            gui_error(buf);
+            return;
         }
-        
+        myFormatSetup();
+
+        if (!SetFormatAndEncodings()) return;
+
         printf("Connection Successful\n");
 
 #ifdef MVPMC_HOST
@@ -6018,26 +5946,48 @@ main_select_callback(mvp_widget_t *widget, char *item, void *key)
 		vnc_widget = mvpw_create_surface(NULL, 30, 30, si.cols - 60, si.rows - 60, 0, 0, 0, False);
 		//vnc_widget = mvpw_create_surface(NULL, 60, 60, 200, 200, 0, 0, 0, True);
 #endif
-
+		screensaver_disable();
+		mvpw_set_key(vnc_widget, vnc_key_callback);
+        
         mvpw_get_surface_attr(vnc_widget, &surface);
 		surface.fd = rfbsock;
-		GrRegisterInput(rfbsock); /* register the RFB socket */
 		mvpw_set_surface_attr(vnc_widget, &surface);
-        if (k==MM_EMULATE) {
-            mvp_server_register();
-		    mvpw_set_timer(vnc_widget, mvp_timer_callback, 5000);
-		    mvpw_set_key(vnc_widget, mvp_key_callback);
-		    mvpw_set_fdinput(vnc_widget, mvp_fdinput_callback);	
-        } else {
-		    mvpw_set_timer(vnc_widget, vnc_timer_callback, 100); 
-		    mvpw_set_key(vnc_widget, vnc_key_callback);
-		    mvpw_set_fdinput(vnc_widget, vnc_fdinput_callback);	
-        }
+		mvpw_set_fdinput(vnc_widget, vnc_fdinput_callback);	
+		GrRegisterInput(rfbsock); /* register the RFB socket */
+		mvpw_set_timer(vnc_widget, vnc_timer_callback, 100); 
+
 		mvpw_hide(mvpmc_logo);
 		mvpw_hide(main_menu);
 		mvpw_show(vnc_widget);
 		mvpw_focus(vnc_widget);	
 
+		canvas = surface.wid;
+		break;
+	case MM_EMULATE:
+        myFormatSetup();
+		screensaver_disable();
+		switch_gui_state(MVPMC_STATE_EMULATE);
+        if (mvp_server_init() == -1 ) {
+            return;
+        }
+        printf("Connection Successful\n");
+
+#ifdef MVPMC_HOST
+		vnc_widget = mvpw_create_surface(NULL, 0, 0, si.cols, si.rows, MVPW_TRANSPARENT, 0, 0, True);
+#else
+		vnc_widget = mvpw_create_surface(NULL, 30, 30, si.cols - 60, si.rows - 60, MVPW_TRANSPARENT, 0, 0, False);
+#endif
+        mvpw_get_surface_attr(vnc_widget, &surface);
+		surface.fd = rfbsock;
+        surface.foreground = MVPW_TRANSPARENT;
+		GrRegisterInput(rfbsock); /* register the RFB socket */
+		mvpw_set_surface_attr(vnc_widget, &surface);
+        mvp_server_register();
+		mvpw_hide(mvpmc_logo);
+        mvpw_hide(emulate_image);
+		mvpw_hide(main_menu);
+		mvpw_show(vnc_widget);
+		mvpw_focus(vnc_widget);
 		canvas = surface.wid;
 		break;
 	}
@@ -6362,7 +6312,7 @@ about_init(void)
 	return 0;
 }
 
-static int 
+static int
 livetv_programs_init(void)
 {
 
@@ -6374,7 +6324,7 @@ livetv_programs_init(void)
 													viewport_edges[EDGE_BOTTOM]);
 }
 
-static int 
+static int
 slow_to_connect_init(void)
 {
 	int h, w, x, y;
@@ -7541,4 +7491,63 @@ gui_init(char *server, char *replaytv)
 		break;
         }
 	return 0;
+}
+void myFormatSetup(void)
+{
+		myFormat.bitsPerPixel = si.bpp;
+		myFormat.depth = si.bpp;
+#ifdef MVPMC_HOST
+		myFormat.bigEndian = 0;
+#else
+		myFormat.bigEndian = 1;
+#endif
+		myFormat.trueColour = (myFormat.depth == 8 && !useBGR233) ? 0 : 1;
+		if (myFormat.trueColour) {
+			printf("TrueColour - %i bpp\n", si.bpp);
+			switch (si.bpp) {
+			case 8:
+				myFormat.redMax = myFormat.greenMax = 7;
+				myFormat.blueMax = 3;
+				myFormat.redShift = 0;
+				myFormat.greenShift = 3;
+				myFormat.blueShift = 6;
+				break;
+			case 16:
+				myFormat.redMax = myFormat.blueMax = 31;
+				myFormat.greenMax = 63;
+				myFormat.redShift = 11;
+				myFormat.greenShift = 5;
+				myFormat.blueShift = 0;
+				break;
+			default:
+				myFormat.redMax = myFormat.greenMax = myFormat.blueMax = 255;
+				myFormat.redShift = 16;
+				myFormat.greenShift = 8;
+				myFormat.blueShift = 0;
+				break;
+			}
+		}
+}
+
+void mvp_server_stop(void);
+void mvp_server_remote_key(char key);
+
+void mvp_key_callback(mvp_widget_t *widget, char key)
+{
+    static int wasGo = 0;
+	if(key==MVPW_KEY_POWER || (wasGo==1 && key==MVPW_KEY_EXIT)) {
+        wasGo = 0;
+        mvp_server_stop();
+		mvpw_destroy(widget);
+		mvpw_show(main_menu);
+        mvpw_show(emulate_image);
+        mvpw_show(mvpmc_logo);
+        mvpw_focus(main_menu);
+		screensaver_enable();
+	} else if(wasGo==0 && key==MVPW_KEY_GO) {
+        wasGo = 1;
+    } else {
+        wasGo = 0;
+        mvp_server_remote_key(key);
+    }
 }

@@ -43,8 +43,8 @@
 #define RDC_SETTINGS        0x0a
 #define RDC_DISPLAY_ON      0x0b          /* Fake */
 #define RDC_DISPLAY_OFF     0x0c          /* Fake */
+#define RDC_SCALE           0x0d
 
-#define RDC_SKIP            0x0d          /* Fake */
 #define RDC_BACK            0x0e          /* Fake */
 #define RDC_SEEK_PERCENT    0x0f          /* Fake */
 
@@ -121,22 +121,29 @@
 
 
 typedef struct {
-    int       sock;
-    int       rfbsock;
-    int       directsock;
-    char     *uri;
-    int64_t   length;
-    int64_t   current_position;
-    u_int8_t   last_command;
-    int32_t   blocklen;
-    int       outfd;
-    u_int8_t   mediatype;
-    int        socks[2];
-    char      *inbuf;
-    int        inbuflen;
-    int        inbufpos;
-    char       fileid[2];
+    int			sock;
+    int			rfbsock;
+    int			directsock;
+    char		*uri;
+    int64_t		length;
+    int64_t		current_position;
+    u_int8_t	last_command;
+    u_int8_t	last_key;
+    int32_t		blocklen;
+    int			outfd;
+    u_int8_t	mediatype;
+    int			socks[2];
+    char		*inbuf;
+    int			inbuflen;
+    long		inbufpos;
+    char		fileid[2];
+	long    	out_position;
+	long		request_read;
+    long        queued;
+    int         direction;
+	int			bps;
+	int			avg_bps;
+    int         volume;
 } stream_t;
 
 extern stream_t mystream;
-
