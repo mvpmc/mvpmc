@@ -2445,7 +2445,7 @@ int displayOSDFile(char *filename)
     printf("%x\n",fread(buf1,sizeof(char),osdHeader.alpha_len,infile));
     fclose(infile);
     printf("%x %x %x %x\n",osdHeader.x,osdHeader.y,osdHeader.w,osdHeader.h);
-    RectangleUpdateHauppaugeAYVU(osdHeader.x,osdHeader.y,osdHeader.w,osdHeader.h,(unsigned char *)buf,buf1);
+    RectangleUpdateHauppaugeAYVU(osdHeader.x,osdHeader.y,osdHeader.w,osdHeader.h,(unsigned char *)buf,(unsigned char *)buf1);
     free(buf);
     free(buf1);
     osd_blit(surface,0,0,surface2,0,0,720,surface_y);
