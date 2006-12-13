@@ -110,7 +110,7 @@ Bool vnc_debug = False;
 #define rfbEncodingAYVU       257
 
 
-void RectangleUpdateHauppaugeAYVU(int x0, int y0, int w, int h,  unsigned char *buf,char *buf1);
+void RectangleUpdateHauppaugeAYVU(int x0, int y0, int w, int h,  unsigned char *buf,unsigned char *buf1);
 
 
 
