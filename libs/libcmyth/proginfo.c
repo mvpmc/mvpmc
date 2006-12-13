@@ -144,6 +144,9 @@ cmyth_proginfo_destroy(cmyth_proginfo_t p)
 	if (p->proginfo_originalairdate) {
 		cmyth_release(p->proginfo_originalairdate);
 	}
+	if (p->proginfo_storagegroup) {
+		cmyth_release(p->proginfo_storagegroup);
+	}
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s }\n", __FUNCTION__);
 }
 
@@ -246,6 +249,7 @@ cmyth_proginfo_create(void)
 	ret->proginfo_version = 12;
         ret->proginfo_hasairdate = 0;
 	ret->proginfo_playgroup = NULL;
+	ret->proginfo_storagegroup = NULL;
 	ret->proginfo_recpriority_2 = NULL;
 	ret->proginfo_parentid = 0;
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s }\n", __FUNCTION__);
@@ -333,6 +337,7 @@ cmyth_proginfo_dup(cmyth_proginfo_t p)
 	ret->proginfo_version = p->proginfo_version;
         ret->proginfo_hasairdate = p->proginfo_hasairdate;
 	ret->proginfo_playgroup = cmyth_hold(p->proginfo_playgroup);
+	ret->proginfo_storagegroup = cmyth_hold(p->proginfo_storagegroup);
 	ret->proginfo_recpriority_2 = cmyth_hold(p->proginfo_recpriority_2);
 	ret->proginfo_parentid = p->proginfo_parentid;
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s }\n", __FUNCTION__);
@@ -524,6 +529,10 @@ delete_command(cmyth_conn_t control, cmyth_proginfo_t prog, char *cmd)
 		if (control->conn_version >= 31) {
 		    sprintf(buf + strlen(buf), "%ld[]:[]",
 		    		prog->proginfo_parentid);
+		}
+		if (control->conn_version >= 32) {
+		    sprintf(buf + strlen(buf), "%s[]:[]",
+		    		prog->proginfo_storagegroup);
 		}
 	}
 
@@ -1313,6 +1322,11 @@ fill_command(cmyth_conn_t control, cmyth_proginfo_t prog, char *cmd)
 		{
 		    sprintf(buf+strlen(buf),"%ld[]:[]",
 			    prog->proginfo_parentid);
+		}
+		if(control->conn_version >= 32)
+		{
+		    sprintf(buf+strlen(buf),"%s[]:[]",
+			    prog->proginfo_storagegroup);
 		}
 	}
 

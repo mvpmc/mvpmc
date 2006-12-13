@@ -338,4 +338,8 @@ extern mvp_widget_t* mvpw_create(mvp_widget_t *parent, GR_COORD x, GR_COORD y,
  */
 extern void mvpw_destroy(mvp_widget_t *widget);
 
+#define widescreen	__mvpw_widescreen
+
+extern bool widescreen;
+
 #endif /* WIDGET_H */

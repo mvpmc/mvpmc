@@ -293,6 +293,7 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 			printf("Displaying image '%s'\n", path);
 			if (mvpw_load_image_jpeg(iw, path) == 0) {
 				mvpw_show_image_jpeg(iw);
+				av_wss_update_aspect(WSS_ASPECT_UNKNOWN);
 			} else {
 				mvpw_set_image(iw, path);
 			}
@@ -599,6 +600,7 @@ fb_next_image(int offset)
 			offset = loaded_offset;
 		} else {
 			loaded_status = mvpw_load_image_jpeg(iw, current);
+			av_wss_update_aspect(WSS_ASPECT_UNKNOWN);
 			offset = 1;
 			loaded_offset = 1;
 		}
@@ -654,6 +656,7 @@ fb_next_image(int offset)
 	free(current);
 	current = strdup(path);
 	loaded_status = mvpw_load_image_jpeg(iw, current);
+	av_wss_update_aspect(WSS_ASPECT_UNKNOWN);
 
 	return 0;
 }

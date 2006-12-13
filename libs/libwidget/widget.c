@@ -23,6 +23,7 @@
 #include <string.h>
 
 #include "mvp_widget.h"
+#include "mvp_av.h"
 #include "widget.h"
 #include "utf8.h"
 
@@ -44,6 +45,8 @@ static void (*screensaver_callback)(mvp_widget_t*, int) = NULL;
 static void (*idle)(void);
 static void (*keystroke_callback)(char);
 static void (*fdinput_callback)(void);
+
+bool widescreen = false;
 
 static mvp_widget_t*
 find_widget(GR_WINDOW_ID wid)
@@ -961,4 +964,12 @@ void mvpw_set_user_data(mvp_widget_t *widget,void *user_data)
 void *mvpw_get_user_data(mvp_widget_t *widget)
 {
     return widget->user_data;
+}
+
+int
+mvpw_set_aspect(bool ws)
+{
+	widescreen = ws;
+
+	return 0;
 }

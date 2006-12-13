@@ -325,11 +325,6 @@ extern int av_current_stc(av_stc_t *stc);
  */
 extern int av_delay_video(int usec);
 
-extern void av_wss_update_aspect(av_wss_aspect_t aspect);
-extern void av_wss_init();
-extern void av_wss_visible(int isVisible);
-extern void av_wss_redraw();
-
 extern int vid_event_add(unsigned int pts, eventq_type_t type, void * info);
 extern int vid_event_wait_next(eventq_type_t * type, void **info);
 
