@@ -2329,7 +2329,7 @@ long long mvp_seek(long long how_much, int whence)
     return 0;
 }
 
-void RectangleUpdateHauppaugeAYVU(int x0, int y0, int w, int h,  unsigned char *buf,char *buf1)
+void RectangleUpdateHauppaugeAYVU(int x0, int y0, int w, int h,  unsigned char *buf,unsigned char *buf1)
 {
     int   x,y;
     unsigned char   a1,a2,y1,y2,u,v;
