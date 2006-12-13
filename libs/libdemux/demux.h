@@ -63,6 +63,7 @@ struct demux_handle_s {
 	stream_t *video;
 	int state;
 	int frame_state;
+    int allow_iframe;
 	int remain;
 	unsigned int size;
 	unsigned char buf[16];

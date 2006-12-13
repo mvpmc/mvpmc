@@ -652,7 +652,7 @@ parse_video_stream(unsigned char *pRingBuf, unsigned int tail,unsigned int head,
 					    ((ringbuf(i+7) >> 1) << 15) |
 					    (ringbuf(i+6) << 22) |
 					    (((ringbuf(i+5) >> 1) & 0x7) << 30);
-				    PRINTF("pts 0x%.8x\n", pts);
+				    PRINTF("pts 0x%.8x\n", pLD->pts);
 			    }
 			    if (pLD->dts) {
 				    if(!ringbuf_valid(i+14))
@@ -662,7 +662,7 @@ parse_video_stream(unsigned char *pRingBuf, unsigned int tail,unsigned int head,
 					    ((ringbuf(i+12) >> 1) << 15) |
 					    (ringbuf(i+13) << 22) |
 					    (((ringbuf(i+14) >> 1) & 0x7) << 30);
-				    PRINTF("dts 0x%.8x\n", dts);
+				    PRINTF("dts 0x%.8x\n",pLD->dts);
 			    }
 			    if(handle->seeking &&
 				    !(seekingFoundStart > 1 && syncFound))
@@ -1423,12 +1423,12 @@ parse_frame(demux_handle_t *handle, unsigned char *buf, int len, int type)
 		}
 		break;
 	case video_stream_0 ... video_stream_F:
-		PRINTF("found video stream, stream %p\n", handle->video);
+		PRINTF("found video stream, stream %p %x\n", handle->video, type);
 
 		register_stream(handle->video, type, STREAM_MPEG);
 
 		if (handle->video->attr->current == -1)
-			handle->video->attr->current = type;
+			handle->video->attr->current = type;    
 
 		if (((len-ret) + handle->bufsz) >= 2) {
 			n = 2 - handle->bufsz;
@@ -1516,11 +1516,43 @@ parse_frame(demux_handle_t *handle, unsigned char *buf, int len, int type)
 			m = stream_add(handle, handle->video, buf, (len-ret));
 			PRINTF("line %d: n %d m %d\n", __LINE__, n, m);
 			handle->remain = n - m;
-			handle->frame_state = 2;
-			buf += m;
-			ret += m;
-		}
-		break;
+            handle->frame_state = 2;
+            buf += m;
+            ret += m;
+        }
+        break;
+
+    case 0xb3:
+    case 0xb5:
+    case 0xb8:
+    case 0x00:
+//    case 0x01 ... 0xaf:
+        if (handle->allow_iframe) {
+            PRINTF("found new video stream, stream %p %x\n", handle->video, type);
+            // add directly
+            header[0] = 0;
+            header[1] = 0;
+            header[2] = 1;
+            header[3] = type;
+            if (stream_add(handle, handle->video,header, 4) != 4) {
+                break;
+            }
+            m = stream_add(handle, handle->video, buf, len-ret);
+            if ((len-ret) == m) {
+                handle->state = 1;
+            } else {
+                handle->remain = (len-ret) - m;
+                handle->frame_state = 2;
+            }
+            PRINTF("line %d: n %d m %d remain %d\n", __LINE__, len, m,handle->remain);
+            buf += m;
+            ret += m;
+        } else {
+		    /* reset to start of frame */
+		    handle->state = 1;
+		    PRINTF("frame not allowed here 0x%.2x\n", type);
+        }
+        break;
 	case audio_stream_0 ... audio_stream_F:
 		PRINTF("found audio stream\n");
 
@@ -1679,7 +1711,7 @@ add_buffer(demux_handle_t *handle, void *b, int len)
 			PRINTF("parse_frame() returned %d at offset %d\n",
 			       n, ret);
 			if (handle->state != 1) {
-				PRINTF("breaking out of state 4\n");
+				PRINTF("breaking out of state 4 %x\n",handle->state);
 				handle->bytes++;
 				ret++;
 				buf++;

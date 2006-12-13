@@ -29,7 +29,8 @@ def GetSourceFile(url, output_dir, env):
   node = env.SourceCode( munged, env.WGet() )
   return node
 
-url = 'http://matt.ucc.asn.au/dropbear/releases/dropbear-0.48.1.tar.gz'
+#url = 'http://matt.ucc.asn.au/dropbear/releases/dropbear-0.48.1.tar.gz'
+url = 'http://www.mvpmc.org/dl/dropbear-0.48.1.tar.gz'
 pwd = os.getcwd()
 
 build = env.Command('../../install/' + target + '/sbin/dropbear', 0,

@@ -48,17 +48,21 @@ typedef struct {
     char share_user[16];
     char share_password[16];
     struct shared_disk_t share_disk[3];
-    char vlc_server[64];
+    char filler[64];
     char mvp_server[64];
     int rfb_mode;
     int flicker;
     int control;
     char wol_mac[18];
+	int rtwin;
+	int fs_rtwin;
 } web_config_t;
 
 extern web_config_t *web_config;
 
 extern int web_port;
+extern int rtwin;
+extern int fs_rtwin;
 
 extern int web_server;
 
