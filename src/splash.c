@@ -37,7 +37,7 @@ main(int argc, char **argv)
 
 	av_init();
 
-	if ((surface=osd_create_surface(720, 480, 0x20, OSD_FB)) == NULL) {
+	if ((surface=osd_create_surface(720, 480, 0x0, OSD_FB)) == NULL) {
 		exit(1);
 	}
 

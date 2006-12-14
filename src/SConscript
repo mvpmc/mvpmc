@@ -34,7 +34,7 @@ if target == 'mvp':
                                          '.', '../include' ],
                              LIBS = ['osd', 'av'],
                              LIBPATH = [ libdir ],
-                             LINKFLAGS = [ '-static' ])
+                             LINKFLAGS = [ '' ])
 
 	vpdread = mvp.Program('vpdread',
                              ['vpdread.c'],
@@ -50,7 +50,7 @@ mvpmc = mvp.Program('mvpmc',
 		     'mclient.c', 'mclient_mvpmc.c', 'mclient_cli.c',
 		     'mythtv.c', 'mythtv_livetv.c', 'tvguide.c',
 		     'playlist.c', 'replaytv.c', 'theme.c', 'video.c',
-		     'version.c', 'vlc_control.c', 'web_config.c' ],
+		     'version.c', 'vlc_control.c', 'web_config.c', 'wss.c' ],
                     CPPPATH = [ env['INCDIR'], env['INSTINCDIR'],
                                 '.', '../include' ],
                     LIBS = ['widget', 'nano-X', 'mwengine', 'mwdrivers',

@@ -25,7 +25,6 @@
 #include "nano-X.h"
 #include "mvp_widget.h"
 #include "widget.h"
-#include "mvp_av.h"
 #include "jpeglib.h"
 
 unsigned char *buffer;
@@ -249,15 +248,12 @@ mvpw_load_image_jpeg(mvp_widget_t *widget, char *file)
 
 	xasp = 1;
 	yasp = 1;
-	if(IS_4x3(av_get_tv_aspect())) {
-	    	av_wss_update_aspect(WSS_ASPECT_FULL_4x3);
-		xasp *= 4;
-		yasp *= 3;
-	}
-	if (IS_16x9(av_get_tv_aspect())) {
-	    	av_wss_update_aspect(WSS_ASPECT_FULL_16x9);
+	if (widescreen) {
 		xasp *= 16;
 		yasp *= 9;
+	} else {
+		xasp *= 4;
+		yasp *= 3;
 	}
 
 	switch( orient  ) {

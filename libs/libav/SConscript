@@ -10,10 +10,10 @@ target = env['TARG']
 libdir = env['INSTLIBDIR']
 
 if target == 'mvp':
-    src = [ 'av.c', 'init.c', 'io.c', 'mtd.c', 'mvpstb_api.c', 'wss.c',
+    src = [ 'av.c', 'init.c', 'io.c', 'mtd.c', 'mvpstb_api.c',
     	    'videvents.c']
 else:
-    src = [ 'sim.c', 'wss.c', 'videvents.c']
+    src = [ 'sim.c', 'videvents.c']
 
 static = env.StaticLibrary('av', src, CPPPATH = [env['INCDIR'], env['INSTINCDIR']])
 shared = env.SharedLibrary('av', src, CPPPATH = [env['INCDIR'], env['INSTINCDIR']])
