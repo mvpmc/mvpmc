@@ -68,7 +68,7 @@ mvpmc = mvp.Program('mvpmc',
                     LINKFLAGS = linkflags)
 
 if target == 'mvp':
-	inst = env.Install(bindir, [ mvpmc, splash, ticonfig vpdread ])
+	inst = env.Install(bindir, [ mvpmc, splash, ticonfig, vpdread ])
 else:
 	inst = env.Install(bindir, mvpmc)
 
