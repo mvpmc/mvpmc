@@ -260,15 +260,34 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
         retcode = connect(vlc_sock, (struct sockaddr *)&server_addr,sizeof(server_addr));
 
         if (retcode == 0) {
-            char *newurl;
+
+            char *newurl = NULL;
             if (url!=NULL) {
-                if (*url!='"' && strchr(url,' ') ){
-                    newurl = malloc(strlen(url)+3);
-                    snprintf(newurl,strlen(url)+3,"\"%s\"",url);
-                } else {
+	        // Don't touch the URL if it starts with a quote (ie. 
+		// comes from a playlist).
+                if (*url!='"') {
+		    // If there are single/double quotes or spaces in the filename, 
+		    // escape the quotes and quote the filename.
+		    if (strchr(url, '\'') || strchr(url, '"') || strchr(url, ' ')) {
+		        newurl = malloc(strlen(url)+32);
+			sprintf(newurl, "\"");
+			for (i = 0; i < strlen(url); i++) {
+			    // Apostrophe
+			    if ( *(url + i) == '\'') 
+			        strcat(newurl, "\\'");
+		            // Double quote
+			    else if ( *(url + i) == '"') 
+			        strcat(newurl, "\\\"");
+			    else 
+			        strncat(newurl, url + i, 1);
+			}
+			strcat(newurl, "\"");
+		    }
+                } 
+		if (newurl == NULL) {
                     newurl = strdup(url);
-                }
-            } else {
+		}
+	    } else {
                 newurl = NULL;
             }
 
