@@ -2329,7 +2329,7 @@ long long mvp_seek(long long how_much, int whence)
     return 0;
 }
 
-void RectangleUpdateHauppaugeAYVU(int x0, int y0, int w, int h,  unsigned char *buf,char *buf1)
+void RectangleUpdateHauppaugeAYVU(int x0, int y0, int w, int h,  unsigned char *buf,unsigned char *buf1)
 {
     int   x,y;
     unsigned char   a1,a2,y1,y2,u,v;
@@ -2445,7 +2445,7 @@ int displayOSDFile(char *filename)
     printf("%x\n",fread(buf1,sizeof(char),osdHeader.alpha_len,infile));
     fclose(infile);
     printf("%x %x %x %x\n",osdHeader.x,osdHeader.y,osdHeader.w,osdHeader.h);
-    RectangleUpdateHauppaugeAYVU(osdHeader.x,osdHeader.y,osdHeader.w,osdHeader.h,(unsigned char *)buf,buf1);
+    RectangleUpdateHauppaugeAYVU(osdHeader.x,osdHeader.y,osdHeader.w,osdHeader.h,(unsigned char *)buf,(unsigned char *)buf1);
     free(buf);
     free(buf1);
     osd_blit(surface,0,0,surface2,0,0,720,surface_y);
