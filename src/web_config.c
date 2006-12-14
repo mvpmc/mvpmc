@@ -43,6 +43,7 @@
 #include <sys/mman.h>
 #include <sys/wait.h>
 #include <netinet/in.h>
+#include <net/if.h>
 #include <arpa/inet.h>
 #include <dirent.h>
 #include <time.h>
@@ -99,7 +100,7 @@ static void file_details(FILE *stream, char* dir, char* name );
 static void send_error(FILE *stream, int status, char* title, char* extra_header, char* text );
 static void send_headers(FILE *stream, int status, char* title, char* extra_header, char* mime_type, off_t length, time_t mod );
 static char* get_mime_type( char* name );
-static void strdecode( char* to, char* from );
+void strdecode( char* to, char* from );
 static void post_post_garbage_hack( FILE *stream,int conn_fd );
 static void set_ndelay( int fd );
 static void clear_ndelay( int fd );
@@ -152,6 +153,13 @@ www_mvpmc_start(void *arg) {
     optval = 1;
     setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR,
                (const void *)&optval , sizeof(int));
+
+    
+    /* we only want eth0 */
+    struct ifreq interface;
+    strncpy(interface.ifr_ifrn.ifrn_name, "eth0", IFNAMSIZ);
+    setsockopt(listenfd, SOL_SOCKET, SO_BINDTODEVICE,
+               (char *)&interface, sizeof(interface)); 
 
     /* bind port to socket */
     bzero((char *) &serveraddr, sizeof(serveraddr));
@@ -450,8 +458,7 @@ get_mime_type( char* name )
     return "text/plain; charset=iso-8859-1";
 }
 
-static void
-strdecode( char* to, char* from )
+void strdecode( char* to, char* from )
 {
     for ( ; *from != '\0'; ++to, ++from ) {
         if ( from[0] == '%' && isxdigit( from[1] ) && isxdigit( from[2] ) ) {
@@ -848,7 +855,7 @@ int mvp_config_general(char *line)
                     snprintf(web_config->share_disk[id-WEB_CONFIG_NET_REMOTE1].remote_dir,64,"%s",equals);
                     break;
                 case WEB_CONFIG_VLC_SERVER:
-                    snprintf(web_config->vlc_server,64,"%s",equals);
+//                    snprintf(web_config->vlc_server,64,"%s",equals);
                     break;
                 case WEB_CONFIG_MVP_SERVER:
                     snprintf(web_config->mvp_server,64,"%s",equals);
@@ -1064,7 +1071,7 @@ int mvp_load_data(FILE *stream,char *line)
                                 fprintf(stream,"VALUE=\"%s\"",web_config->share_disk[id-WEB_CONFIG_NET_REMOTE1].remote_dir);
                                 break;
                             case WEB_CONFIG_VLC_SERVER:
-                                fprintf(stream,"VALUE=\"%s\"",web_config->vlc_server);
+                                fprintf(stream,"VALUE=\"%s\"",config->vlc_ip);
                                 break;
                             case WEB_CONFIG_MVP_SERVER:
                                 fprintf(stream,"VALUE=\"%s\"",web_config->mvp_server);
@@ -1266,7 +1273,6 @@ void load_web_config(char *font)
     web_config_file = fopen (WEB_CONFIG_FILENAME,"rb");
     if (web_config_file !=NULL ) {
         printf("web file open\n");
-        memset(web_config, 0, sizeof(*web_config));
         fread((char *)web_config,sizeof(web_config_t),1,web_config_file);
         fclose(web_config_file);
         char live_environ[75];
@@ -1275,7 +1281,6 @@ void load_web_config(char *font)
         setenv("TZ",web_config->tz,1);
 
     } else {
-        memset(web_config, 0, sizeof(web_config_t));
         snprintf(web_config->tz,30,"%s",getenv("TZ"));
         snprintf(web_config->cwd,64,"%s",cwd);
         web_config->startup_this_feature = startup_this_feature;
@@ -1284,7 +1289,14 @@ void load_web_config(char *font)
         strcpy(web_config->font,"/etc/helvR10.fnt");
         
         web_config->bitmask = 0;
-       
+
+		if (fs_rtwin>=0 && rtwin==-1) {
+			web_config->rtwin = 0;
+		} else {
+			web_config->rtwin = rtwin;
+		}
+		web_config->fs_rtwin = fs_rtwin;
+
         if (config->bitmask & CONFIG_MYTHTV_IP) {
             web_config->bitmask |=1;
         }
@@ -1307,9 +1319,8 @@ void load_web_config(char *font)
         if (filebrowser_disable==0) {
             web_config->bitmask |=64;
         }
-        if ( vlc_server != NULL ) {
+        if (config->bitmask & CONFIG_VLC_IP) {
             web_config->bitmask |=128;
-	        snprintf(web_config->vlc_server,64,"%s",vlc_server);
         }
         if (mplayer_disable==0) {
             web_config->bitmask |=256;
@@ -1413,11 +1424,11 @@ void load_web_config(char *font)
     }
     if (IS_WEB_ENABLED(WEB_CONFIG_USE_VLC) ) {
         if (vlc_server == NULL ) {
-        vlc_server = strdup(web_config->vlc_server);
-        } else if (strcmp(vlc_server,web_config->vlc_server) ){
+            vlc_server = strdup(config->vlc_ip);
+        } else if (strcmp(vlc_server,config->vlc_ip) ){
             free(vlc_server);
-            vlc_server = strdup(web_config->vlc_server);
-    }
+            vlc_server = strdup(config->vlc_ip);
+        }
     }
     if (NOT_WEB_ENABLED(WEB_CONFIG_USE_MPLAYER) ){
         mplayer_disable = 1;
@@ -1479,3 +1490,125 @@ int wol_wake(void)
     return rc;
 }
 
+/* Portions of the following code was taken from code at
+   http://hams.sourceforge.net/    */
+
+/* $Id: listener.c,v 1.4 2005/10/27 13:25:28 dl9sau Exp $
+ *
+ * Copyright (c) 1996 Jörg Reuter (jreuter@poboxes.com)
+ *
+*/
+
+
+int del_kernel_ip_route(char *dev, long ip,long Mask);
+int add_kernel_ip_route(char *dev, long ip, long mask,int irtt,int window);
+
+int set_route(int window)
+{
+    char command[128];
+    FILE * in;
+    int update = 0;
+    unsigned long dest,gw,Mask;
+    unsigned int Flags,RefCnt,Use,Metric,MTU,rt_window,IRTT;
+	if (window<0) return 0;
+    in = fopen("/proc/net/route", "r");
+    if (in==NULL)printf("%d\n",errno);
+    while (fgets(command,128,in)!=NULL) {
+        if ( strncmp(command,"eth0",4)==0 ) {
+            sscanf(&command[5],"%lx %lx %u %u %u %u %lx %u %u %u",
+            &dest,&gw,&Flags,&RefCnt,&Use,&Metric,&Mask,&MTU,&rt_window,&IRTT);
+            if (gw==0 && dest!=0xffffffff && dest!=0 && window!=rt_window) {
+                update = 1;
+                break;
+            }
+        }
+    }
+    fclose(in);
+    if (update) {
+        printf("Dest %lx %lx %u %u %u %u %lx %u rt_window-%u %u new window %d\n", dest,gw,Flags,RefCnt,Use,Metric,Mask,MTU,rt_window,IRTT,window);
+        del_kernel_ip_route("eth0",dest,Mask);
+        add_kernel_ip_route("eth0",dest,Mask,-1,window);
+    }
+    return 0;
+}
+
+
+#include <sys/ioctl.h>
+#include <net/route.h>
+
+int del_kernel_ip_route(char *dev, long ip, long mask)
+{
+	int fds;
+	struct rtentry rt;
+	struct sockaddr_in *isa,*ism;
+
+	fds = socket(AF_INET, SOCK_DGRAM, 0);
+
+	memset((char *) &rt, 0, sizeof(struct rtentry));
+	isa = (struct sockaddr_in *) &rt.rt_dst;
+		
+	isa->sin_family = AF_INET;
+	isa->sin_addr.s_addr = ip;
+
+	rt.rt_flags = RTF_UP;	
+	rt.rt_dev = dev;
+
+    ism = (struct sockaddr_in *) &rt.rt_genmask;
+	ism->sin_family = AF_INET;
+	ism->sin_addr.s_addr = mask;
+
+	if (ioctl(fds, SIOCDELRT, &rt) < 0){
+		perror("IP SIOCDELRT");
+		close(fds);
+		return 1;
+	}
+	close(fds);
+	return 0;
+}
+
+
+int add_kernel_ip_route(char *dev, long ip, long mask,int irtt,int window)
+{
+	int fds;
+	struct rtentry rt;
+	struct sockaddr_in *isa;
+
+    fds = socket(AF_INET, SOCK_DGRAM, 0);
+
+	memset((char *) &rt, 0, sizeof(rt));
+
+	isa = (struct sockaddr_in *) &rt.rt_dst;
+	
+	isa->sin_family = AF_INET;
+	isa->sin_port = 0;
+	isa->sin_addr.s_addr = ip;
+	
+	rt.rt_flags = RTF_UP;
+	rt.rt_dev = dev;
+
+	if (irtt != -1){
+		rt.rt_irtt = irtt;
+		rt.rt_flags |= RTF_IRTT;
+	}
+
+	if (window != -1){
+		rt.rt_window = window;
+		rt.rt_flags |= RTF_WINDOW;
+	} else {
+		rt.rt_window = 0;
+		rt.rt_flags |= RTF_WINDOW;
+    }
+
+	isa = (struct sockaddr_in *) &rt.rt_genmask;
+	isa->sin_family = AF_INET;
+	isa->sin_addr.s_addr = mask;
+	
+	if (ioctl(fds, SIOCADDRT, &rt) < 0)
+	{
+		perror("IP SIOCADDRT");
+		close(fds);
+		return 1;
+	}
+	close(fds);
+	return 0;
+}

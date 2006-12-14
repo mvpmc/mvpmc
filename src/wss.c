@@ -2,19 +2,19 @@
  *  Copyright (C) 2004, 2005, 2006, Jon Gettler
  *  http://www.mvpmc.org/
  *
- *  This library is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU Lesser General Public
- *  License as published by the Free Software Foundation; either
- *  version 2.1 of the License, or (at your option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
- *  This library is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  Lesser General Public License for more details.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU Lesser General Public
- *  License along with this library; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
 #include <mvp_widget.h>
@@ -141,6 +141,13 @@ void av_wss_update_aspect(av_wss_aspect_t new_wss_ar)
 {
     if(wss_surface == NULL)
 	return;
+    if (new_wss_ar == WSS_ASPECT_UNKNOWN) {
+	    if (av_get_tv_aspect() == AV_TV_ASPECT_16x9) {
+		    new_wss_ar = WSS_ASPECT_FULL_16x9;
+	    } else {
+		    new_wss_ar = WSS_ASPECT_FULL_4x3;
+	    }
+    }
     printf("Setting WSS aspect to: %d\n",new_wss_ar);
     fflush(stdout);
     /* Do the pal bit first: */
@@ -178,7 +185,7 @@ void av_wss_update_aspect(av_wss_aspect_t new_wss_ar)
     wss_update_surface();
 }
 
-void av_wss_init(void)
+void av_wss_init(int (*display)(int))
 {
     /*Start by initialising PAL stuff*/
     /*put in runin/startcode as defined in ETSI EN 300 294*/

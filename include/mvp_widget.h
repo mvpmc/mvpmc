@@ -985,6 +985,8 @@ extern int mvpw_set_surface(mvp_widget_t *widget, char *image, int x, int y, int
 extern int mvpw_copy_area(mvp_widget_t *widget, int x, int y, int srcwid, int srcx, int srcy, int width, int height);
 extern int mvpw_fill_rect(mvp_widget_t *widget, int x, int y, int w, int h, uint32_t* color);
 
+extern int mvpw_set_aspect(bool widescreen);
+
 /*
  * common colors
  */

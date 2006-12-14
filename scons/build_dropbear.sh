@@ -82,9 +82,9 @@ if [ -f configure ] ; then
     make clean
     make PROGRAMS="dropbear dropbearkey scp" MULTI=1
     cp dropbearmulti $INSTALL/sbin/dropbearmulti
-    ln -s ./dropbearmulti $INSTALL/sbin/dropbear
-    ln -s ./dropbearmulti $INSTALL/sbin/dropbearkey
-    ln -s ../sbin/dropbearmulti $INSTALL/bin/scp
+    ln -sf ./dropbearmulti $INSTALL/sbin/dropbear
+    ln -sf ./dropbearmulti $INSTALL/sbin/dropbearkey
+    ln -sf ../sbin/dropbearmulti $INSTALL/bin/scp
 else
     make oldconfig
     make install

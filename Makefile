@@ -34,6 +34,7 @@ clean:
 distclean: clean
 	rm -rf dongle/install
 	rm -rf dongle/filesystem/install
+	rm -rf dongle/filesystem/install_wrapper
 	rm -rf dongle/kernel/filesystem
 	rm -rf dongle/kernel/linux-2.4.17/ac3
 	rm -rf dongle/kernel/linux-2.4.17/mvpdist

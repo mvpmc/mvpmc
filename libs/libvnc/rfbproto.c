@@ -35,6 +35,11 @@ static Bool HandleHextileEncoding8(int x, int y, int w, int h);
 static Bool HandleHextileEncoding16(int x, int y, int w, int h);
 static Bool HandleHextileEncoding32(int x, int y, int w, int h);
 
+
+Bool HandlerfbHauppaugeOsd(void);
+Bool RDCSendPing(void);
+Bool HandlePing(void);
+
 int rfbsock;
 char *desktopName;
 rfbPixelFormat myFormat;
@@ -104,6 +109,8 @@ Bool vnc_debug = False;
 #define rfbEncodingRGBA       256
 #define rfbEncodingAYVU       257
 
+
+void RectangleUpdateHauppaugeAYVU(int x0, int y0, int w, int h,  unsigned char *buf,unsigned char *buf1);
 
 
 
@@ -597,10 +604,10 @@ HandleRFBServerMessage()
                                     return False;
                                 }
 
-                                destlen = 720 * 480 * 2;
+                                destlen = 720 * 576 * 2;
                                 out = calloc(destlen,sizeof(char));
                                 if ( ( ret = uncompress(out,&destlen,buf,len) ) != 0 ) {
-                                    printf("Ret bad %d\n",ret);
+                                    printf("7 Ret bad %d\n",ret);
                                     free(buf);
                                     free(out);
                                     return False;
@@ -612,7 +619,6 @@ HandleRFBServerMessage()
                             }
                         case rfbEncodingHauppaugeAYVU:
                             {
-                                printf("Hauppauge 8 untested\n");
                                 CARD32  len;
                                 CARD8   *buf;
                                 CARD8   *out;
@@ -638,17 +644,17 @@ HandleRFBServerMessage()
                                     free(buf);
                                     return False;
                                 }
-                                destlen = 720 * 576 * 2;
+                                destlen = 768 * 576 * 2;
                                 out = calloc(destlen,sizeof(char));
 
                                 if ( ( ret = uncompress(out,&destlen,buf,len) ) != 0 ) {
-                                    printf("Ret bad %d\n",ret);
+                                    printf("8 Ret bad %d\n",ret);
                                     free(buf);
                                     free(out);
                                     return False;
                                 }
                                 free(buf);
-
+                                
                                 if (!ReadExact(rfbsock,(char *)&len,4) ){
                                     free(out);
                                     return False;
@@ -675,18 +681,18 @@ HandleRFBServerMessage()
                                 }
                                 destlen = 768 * 576;
                                 out2 = calloc(destlen,sizeof(char));
-
+                                memset(out2,destlen,0xff);
                                 if ( ( ret = uncompress(out2,&destlen,buf,len) ) != 0 ) {
-                                    printf("Ret alpha bad %d\n",ret);
+                                    printf("8 Ret alpha bad %d\n",ret);
                                     free(buf);
                                     free(out);
                                     free(out2);
                                     return False;
                                 }
                                 free(buf);
-                                free(out2);
-                                RectangleUpdateYUV(rect.r.x, rect.r.y, rect.r.w, rect.r.h, out);
+                                RectangleUpdateHauppaugeAYVU(rect.r.x, rect.r.y, rect.r.w, rect.r.h, out,out2);
                                 free(out);                                
+                                free(out2);
                                 break;
                             }
                         case rfbEncodingHauppauge2:
@@ -716,11 +722,11 @@ HandleRFBServerMessage()
                                     free(buf);
                                     return False;
                                 }
-                                destlen = 720 * 480;
+                                destlen = 768 * 576;
                                 out1 = calloc(destlen,sizeof(char));
 
                                 if ( ( ret = uncompress(out1,&destlen,buf,len) ) != 0 ) {
-                                    printf("Ret bad %d\n",ret);
+                                    printf("9 Ret bad %d\n",ret);
                                     free(buf);
                                     free(out1);
                                     return False;
@@ -749,10 +755,10 @@ HandleRFBServerMessage()
                                     free(out1);
                                     return False;
                                 }
-                                destlen = 720 * 480;
+                                destlen = 768 * 576;
                                 out2 = calloc(destlen,sizeof(char));
                                 if ( ( ret = uncompress(out2,&destlen,buf,len) ) != 0 ) {
-                                    printf("Ret bad %d\n",ret);
+                                    printf("9a Ret bad %d\n",ret);
                                     free(buf);
                                     free(out1);
                                     free(out2);
@@ -782,7 +788,7 @@ HandleRFBServerMessage()
                                     free(buf);
                                     return False;
                                 }
-                                destlen = 720 * 480 * 2;
+                                destlen = 720 * 576 * 2;
                                 out = calloc(destlen,sizeof(char));
 
                                 if ( ( ret = uncompress(out,&destlen,buf,len) ) != 0 ) {
@@ -814,7 +820,7 @@ HandleRFBServerMessage()
                                     free(buf);
                                     return False;
                                 }
-                                destlen = 720 * 480 * 2;
+                                destlen = 720 * 576 * 2;
                                 out = calloc(destlen,sizeof(char));
 
                                 if ( ( ret = uncompress(out,&destlen,buf,len) ) != 0 ) {
@@ -1117,6 +1123,9 @@ HandleRFBServerMessage()
                                 }
                                 break;
                             }
+                        case 101:
+                            HandlerfbHauppaugeOsd();
+                            break;
 
                         default:
                             fprintf(stderr,"%s: unknown rect encoding %d\n",programName,
@@ -1178,10 +1187,14 @@ HandleRFBServerMessage()
             }
         case 8:
             {
+                return HandlePing();
+                /*
                 if (!ReadExact(rfbsock, (char *)&msg, 1))
                     return False;
-
+                    
                 break;
+                */
+                
             }
         default:
             fprintf(stderr,"%s: unknown message type %d from VNC server\n",

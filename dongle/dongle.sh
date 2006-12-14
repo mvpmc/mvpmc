@@ -13,7 +13,7 @@ echo STRIP $STRIP
 DIRS="bin sbin usr/bin usr/sbin lib dev proc var usr/share usr/share/mvpmc usr/share/udhcpc etc tmp oldroot"
 WRAPPER_DIRS="bin sbin etc usr/bin usr/sbin dev tmp lib proc mnt"
 
-BIN="busybox mvpmc ntpclient scp ticonfig"
+BIN="busybox mvpmc ntpclient scp ticonfig vpdread"
 WRAPPER_BIN="busybox splash"
 
 SBIN="dropbearmulti dropbear dropbearkey"
@@ -26,7 +26,8 @@ LIB="libav.so libcmyth.so libdemux.so libosd.so libts_demux.so libvnc.so libwidg
 TLIB="libc.so.0 libm.so.0 libcrypt.so.0 libgcc_s_nof.so.1 libpthread.so.0 libutil.so.0"
 LDLIB="ld-uClibc-0.9.28.so ld-uClibc.so.0"
 
-WRAPPERLIB="libc.so.0 libcrypt.so.0 libgcc_s_nof.so.1"
+WRAPPERLIB="libav.so libosd.so"
+TWRAPPERLIB="libc.so.0 libcrypt.so.0 libgcc_s_nof.so.1"
 
 rm -rf filesystem/install
 rm -rf filesystem/install_wrapper
@@ -57,8 +58,12 @@ for i in $LDLIB ; do
     cp -d $TOOLLIB/$i filesystem/install/lib
     cp -d $TOOLLIB/$i filesystem/install_wrapper/lib
 done
-for i in $WRAPPERLIB ; do
+for i in $TWRAPPERLIB ; do
     cp $TOOLLIB/$i filesystem/install_wrapper/lib
+    $STRIP filesystem/install_wrapper/lib/$i
+done
+for i in $WRAPPERLIB ; do
+    cp -d install/mvp/lib/$i filesystem/install_wrapper/lib
     $STRIP filesystem/install_wrapper/lib/$i
 done
 

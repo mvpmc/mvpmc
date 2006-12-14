@@ -532,4 +532,9 @@ extern char *mclient_server;
 
 extern char cwd[];
 
+extern void av_wss_update_aspect(av_wss_aspect_t aspect);
+extern void av_wss_init();
+extern void av_wss_visible(int isVisible);
+extern void av_wss_redraw();
+
 #endif /* MVPMC_H */
