@@ -81,6 +81,7 @@ print_help(char *prog)
 	printf("\t-p      \tprobe for wireless networks\n");
 	printf("\t-s ssid \tSSID to use\n");
 	printf("\t-v      \tverbose\n");
+	printf("\t-w key  \tWEP key\n");
 }
 
 static int
@@ -373,41 +374,6 @@ up_device_wep(int fd, char *name)
 	if (start_config_manager(sockfd, DEVNAME) < 0)
 		return -1;
 
-#if 0
-	memset(&dev, 0, sizeof(dev));
-	memset(&buf, 0, sizeof(buf));
-	strcpy(dev.device, DEVNAME);
-	dev.arg2 = 0x00224420;
-	dev.arg3 = 0x1;
-	dev.arg4 = 0x75;
-	dev.ptr = (void*)buf;
-	strcpy((char*)buf, default_ssid);
-
-	if (ioctl(sockfd, SIOCDEVPRIVATE+1, &dev) != 0) {
-		perror("ioctl(SIOCDEVPRIVATE+1)");
-		return -1;
-	}
-
-	memset(&dev, 0, sizeof(dev));
-	memset(&buf, 0, sizeof(buf));
-	strcpy(dev.device, DEVNAME);
-	dev.arg2 = 0x00222018;
-	dev.arg3 = 0x2;
-	dev.arg4 = 0x24;
-	dev.ptr = (void*)buf;
-
-	buf[0] = strlen(default_ssid);
-	strcpy((char*)(&buf[1]), default_ssid);
-
-	if (verbose)
-		printf("Using SSID: '%s'\n", default_ssid);
-
-	if (ioctl(sockfd, SIOCDEVPRIVATE, &dev) != 0) {
-		perror("ioctl(SIOCDEVPRIVATE)");
-		return -1;
-	}
-#endif
-
 	memset(&dev, 0, sizeof(dev));
 	strcpy(dev.device, DEVNAME);
 	dev.arg2 = 0x00223410;
@@ -498,19 +464,6 @@ up_device_wep(int fd, char *name)
 		perror("ioctl(SIOCDEVPRIVATE+1)");
 		return -1;
 	}
-
-#if 0
-	memset(&dev, 0, sizeof(dev));
-	strcpy(dev.device, DEVNAME);
-	dev.arg2 = 0x00223028;
-	dev.arg3 = 0x1;
-	dev.arg4 = 0x4;
-
-	if (ioctl(sockfd, SIOCDEVPRIVATE+1, &dev) != 0) {
-		perror("ioctl(SIOCDEVPRIVATE+1)");
-		return -1;
-	}
-#endif
 
 	return 0;
 }
@@ -659,8 +612,17 @@ main(int argc, char **argv)
 		fprintf(stderr, "VPD read failed!\n");
 		exit(1);
 	}
-	if (key)
+	if (key) {
+		if (strlen(key) == 13) {
+			fprintf(stderr, "64-bit WEP not supported!\n");
+			exit(1);
+		}
+		if (strlen(key) != 26) {
+			fprintf(stderr, "incorrect WEP key length!\n");
+			exit(1);
+		}
 		strcpy(default_wep, key);
+	}
 
 	if (init() != 0) {
 		fprintf(stderr, "initialization failed!\n");
