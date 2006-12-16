@@ -77,6 +77,14 @@ export CC=${CROSS}gcc
 export INSTALL=$INSTALL
 export INSTALL_PREFIX=$INSTALL
 
+if [ "`basename $PWD`" = "mtd" ] ; then
+    export CROSS
+    cd util
+    make flashcp
+    cp flashcp $INSTALL/bin
+    exit $?
+fi
+
 if [ -f configure ] ; then
     ./configure --prefix=$INSTALL --host=powerpc
     make install

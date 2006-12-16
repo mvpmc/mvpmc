@@ -13,7 +13,7 @@ echo STRIP $STRIP
 DIRS="bin sbin usr/bin usr/sbin lib dev proc var usr/share usr/share/mvpmc usr/share/udhcpc etc tmp oldroot"
 WRAPPER_DIRS="bin sbin etc usr/bin usr/sbin dev tmp lib proc mnt"
 
-BIN="busybox mvpmc ntpclient scp ticonfig vpdread"
+BIN="busybox flashcp mvpmc ntpclient scp ticonfig vpdread"
 WRAPPER_BIN="busybox splash"
 
 SBIN="dropbearmulti dropbear dropbearkey"
