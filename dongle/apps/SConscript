@@ -7,8 +7,8 @@ Import('env')
 busybox = env.SConscript(['busybox/SConscript'])
 ntp = env.SConscript(['ntpclient/SConscript'])
 dropbear = env.SConscript(['dropbear/SConscript'])
+fusermount = env.SConscript(['fuse/SConscript'])
 
 apps = env.Depends(ntp, busybox)
-apps = env.Depends(busybox, dropbear)
 
 Return('apps')

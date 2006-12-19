@@ -12,6 +12,7 @@ rm -rf linux-2.4.31
 rm -rf unionfs-1.0.14
 rm -rf ac3
 rm -rf mvpstb
+rm -rf fuse/fuse-2.5.3
 
 mkdir -p $TARBALLS_DIR
 if [[ ! -a $TARBALLS_DIR/linux-2.4.31.tar.bz2 ]] ; then
