@@ -2413,10 +2413,10 @@ int http_read_stream(unsigned int httpsock,int metaInt,int offset)
         if (httpsock > n)  n = httpsock ;
 
         /*
-         * Wait until we receive data from server or up to 100ms
-         * (1/10 of a second).
+         * Wait until we receive data from server or up to 2s
          */
-        stream_tv.tv_usec = 100000;
+        stream_tv.tv_sec =  2;
+        stream_tv.tv_usec = 0;
         
         if (select(n + 1, &read_fds, NULL, NULL, &stream_tv) == -1) {
             if (errno != EINTR && errno != EAGAIN) {
