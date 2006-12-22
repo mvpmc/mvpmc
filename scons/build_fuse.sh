@@ -83,7 +83,7 @@ export INSTALL_PREFIX=$INSTALL
 
 if [ -f configure ] ; then
     if [ "$FUSEO" = "N" ] ; then
-        ./configure --host=powerpc-linux -with-gnu-ld --disable-debug  --enable-lib --enable-util --enable-example=no
+        ./configure --host=powerpc-linux -with-gnu-ld --disable-debug  --enable-lib --enable-util --enable-example=no --disable-kernel-module
         make
         cp util/fusermount $INSTALL/sbin/fusermount
     else
