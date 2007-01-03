@@ -1,0 +1,46 @@
+#!/usr/bin/python
+#
+# build fusermount and library files 
+#
+
+import os
+
+Import('env')
+
+home = os.environ['HOME']
+cc = env['CC']
+cross = env['CROSS']
+downloads = env['DOWNLOADS']
+target = env['TARG']
+
+file = downloads + '/fuse-2.5.3.tar.gz'
+
+e = Environment()
+e.Tool('WGet', toolpath=['../../../scons'])
+
+def GetSourceFile(url, output_dir, env):
+  '''
+  Create a node for a file retrieved via wget.
+  This node can be used as a dependency in other rules.
+  '''
+  # Nab everything after the last slash as the filename
+  basefilename = str(url)[str( url).rfind(os.sep) + 1:]
+  munged = output_dir + os.sep + basefilename + os.sep + url
+  node = env.SourceCode( munged, env.WGet() )
+  return node
+
+
+url = 'http://www.mvpmc.org/dl/fuse-2.5.3.tar.gz'
+pwd = os.getcwd()
+
+build = env.Command('../../install/' + target + '/sbin/fusermount', 0,
+                    'scons/build_fuse.sh -d ' + pwd + '/' + target +
+                    '/fuse-2.5.3 -i ' + file + ' ' +
+                    '-c ' + cross + ' ' +
+                    '-I ' + pwd + '/../../install/' + target + ' -k N' )
+
+if not os.path.exists(file):
+	dl = GetSourceFile(url, '#' + downloads, e)
+	env.Depends(build, dl)
+
+Return('build')

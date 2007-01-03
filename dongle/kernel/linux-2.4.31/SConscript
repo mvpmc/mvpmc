@@ -14,6 +14,11 @@ pwd = os.getcwd()
 
 downloads = home + '/downloads'
 
-kernel = env.Command(pwd + '../../filesystem/kernel_files/vmlinux.gz', 0, 'cd ' + pwd + ' && ./build_kernel.sh ' + downloads + ' ' + cross)
+kernel_31 = env.Command(pwd + '../../filesystem/kernel_files/vmlinux.gz', 0, 'cd ' + pwd + ' && ./build_kernel.sh ' + downloads + ' ' + cross)
+fuseo = env.SConscript(['fuse/SConscript'])
+
+kernel = env.Depends(fuseo,kernel_31)
+
+
 Return('kernel')
 

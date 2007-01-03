@@ -16,7 +16,7 @@ WRAPPER_DIRS="bin sbin etc usr/bin usr/sbin dev tmp lib proc mnt"
 BIN="busybox flashcp mvpmc ntpclient scp ticonfig vpdread"
 WRAPPER_BIN="busybox splash"
 
-SBIN="dropbearmulti dropbear dropbearkey"
+SBIN="dropbearmulti dropbear dropbearkey fusermount"
 
 USRBIN=""
 
