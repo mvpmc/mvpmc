@@ -263,7 +263,7 @@ up_device(int fd, char *name)
 	unsigned long buf[256];
 
 	if (verbose)
-		printf("Bringing up eth1...\n");
+		printf("Bringing up %s...\n", name);
 
 	memset(&dev, 0, sizeof(dev));
 	memset(&buf, 0, sizeof(buf));
@@ -366,7 +366,7 @@ up_device_wep(int fd, char *name)
 	unsigned long buf[256];
 
 	if (verbose)
-		printf("Bringing up WEP-enabled eth1...\n");
+		printf("Bringing up WEP-enabled %s...\n", name);
 
 	if (init_device(sockfd, DEVNAME) < 0)
 		return -1;
