@@ -82,7 +82,7 @@ typedef struct {
 #define GFX_FB_OSD_CUR_SETATTR	_IOW(0xfb,9,int*)
 #define GFX_FB_ATTACH		_IOW(0xfb,11,int)
 #define GFX_FB_SFC_DETACH	_IOW(0xfb,12,int*)
-#define GFX_FB_MOVE_DISPLAY	_IOWR(0xfb,13,int)
+#define GFX_FB_GET_DISPLAY	_IOWR(0xfb,13,stbgfx_display_t*)
 #define GFX_FB_SET_DISPLAY	_IOW(0xfb,14,stbgfx_display_t*)
 #define GFX_FB_OSD_CUR_MOVE_1	_IOW(0xfb,15,int*)
 #define GFX_FB_OSD_CUR_MOVE_2	_IOW(0xfb,16,int)
