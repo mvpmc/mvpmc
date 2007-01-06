@@ -387,7 +387,7 @@ gfx_get_display_control(osd_surface_t *surface, int type)
 static int
 gfx_get_display_options(osd_surface_t *surface)
 {
-	if (ioctl(surface->fd, GFX_FB_SET_DISPLAY, &surface->data.gfx.display) < 0)
+	if (ioctl(surface->fd, GFX_FB_GET_DISPLAY, &surface->data.gfx.display) < 0)
 		return -1;
 
 	return surface->data.gfx.display.option;
