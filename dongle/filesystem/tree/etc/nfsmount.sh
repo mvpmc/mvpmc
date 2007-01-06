@@ -17,7 +17,7 @@ fi
 if [ "$KERNVER" = "2.4.17_mvl21-vdongle" ] ; then
     RSIZE=4096
 else
-    RSIZE=1024
+    RSIZE=2048
 fi
 
 mount -t nfs -o nolock,rsize=${RSIZE},wsize=4096 $SERVER $MNT
