@@ -244,6 +244,8 @@ struct cmyth_recorder {
 struct cmyth_file {
 	cmyth_conn_t file_data;		/**< backend connection */
 	long file_id;			/**< file identifier */
+	/** callback when close is completed */
+	void (*closed_callback)(cmyth_file_t file);
 	unsigned long long file_start;	/**< file start offest */
 	unsigned long long file_length;	/**< file length */
 	unsigned long long file_pos;	/**< current file position */

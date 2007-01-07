@@ -48,7 +48,8 @@
 #define PRINTF(x...)
 #endif
 
-#define BSIZE   (256*1024*3)
+#define MAX_BSIZE   (256*1024*3)
+#define MIN_BSIZE   (1024*2)
 
 volatile cmyth_file_t mythtv_file;
 extern demux_handle_t *handle;
@@ -71,6 +72,10 @@ static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t seek_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t myth_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t event_cond = PTHREAD_COND_INITIALIZER;
+static pthread_mutex_t request_block_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t close_file_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t close_file_cond = PTHREAD_COND_INITIALIZER;
+
 
 volatile cmyth_conn_t control;		/* master backend */
 static volatile cmyth_conn_t event;		/* master backend */
@@ -112,6 +117,9 @@ volatile int playing_via_mythtv = 0;
 volatile int close_mythtv = 0;
 volatile int changing_channel = 0;
 static volatile int video_reading = 0;
+static volatile int mythtv_prevent_request_block = 0; /* if > 0 stops a new request_block request being made */
+static volatile int mythtv_doing_request_block = 0; /* Flag to indicate that a request_block is currently in progress, and data will need to be read before we can send another command */
+static volatile int mythtv_close_file_state = 0; /* Indicates whether a close is in-progress */
 
 static pthread_t control_thread, wd_thread, event_thread;
 
@@ -322,16 +330,61 @@ mythtv_shutdown(int display)
 	cmyth_alloc_show();
 }
 
+
+/* Called as a callback by cmyth_file_destroy when it's complete */
 static void
-mythtv_close_file(void)
+mythtv_close_complete(cmyth_file_t file)
+{
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
+		    __FUNCTION__, __FILE__, __LINE__);
+	/* Signal main close_file function that it can bail */
+	pthread_mutex_lock(&close_file_mutex);
+	mythtv_close_file_state = 0;
+	pthread_cond_broadcast(&close_file_cond);
+	pthread_mutex_unlock(&close_file_mutex);
+
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) }\n",
+		    __FUNCTION__, __FILE__, __LINE__);
+}
+
+/* Set mythtv_file to NULL and block until it's closed */
+static void
+mythtv_close_just_file(void)
 {
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
 		    __FUNCTION__, __FILE__, __LINE__);
 	if (playing_via_mythtv && mythtv_file) {
 		fprintf(stderr, "%s(): closing file\n", __FUNCTION__);
+		/* Have to wait for a request_block to finish before making
+		 * the pointer mythtv_file NULL. mythbackend's REQUEST_BLOCK
+		 * will wait until we've read most of the data before returning
+		 * and we can't read if mythtv_file is NULL
+		 */
+		mythtv_prevent_request_block++;
+		pthread_mutex_lock(&request_block_mutex);
+		mythtv_close_file_state = 1;
+		cmyth_file_set_closed_callback(mythtv_file,mythtv_close_complete);
 		CHANGE_GLOBAL_REF(mythtv_file, NULL);
+		mythtv_prevent_request_block--;
+		pthread_mutex_unlock(&request_block_mutex);
+		pthread_mutex_lock(&close_file_mutex);
+		while(mythtv_close_file_state)
+		{
+		    pthread_cond_wait(&close_file_cond,&close_file_mutex);
+		}
+		pthread_mutex_unlock(&close_file_mutex);
 	}
 
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) }\n",
+		    __FUNCTION__, __FILE__, __LINE__);
+}
+
+static void
+mythtv_close_file(void)
+{
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
+		    __FUNCTION__, __FILE__, __LINE__);
+    	mythtv_close_just_file();
 	if (current_prog) {
 		fprintf(stderr, "%s(): releasing current prog\n",
 			__FUNCTION__);
@@ -341,12 +394,8 @@ mythtv_close_file(void)
 	close_mythtv = 0;
 	playing_file = 0;
 
-	/*
-	 * Wakeup anybody that is sleeping in a system call.
-	 */
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) }\n",
 		    __FUNCTION__, __FILE__, __LINE__);
-	pthread_kill(control_thread, SIGURG);
 }
 
 static void
@@ -1599,7 +1648,7 @@ static void*
 control_start(void *arg)
 {
 	int len = 0;
-	int size = BSIZE;
+	int size = MAX_BSIZE;
 	demux_attr_t *attr;
 	pid_t pid;
 
@@ -1637,11 +1686,12 @@ control_start(void *arg)
 		video_reading = 1;
 
 		do {
+		        int video_Bps = video_get_byterate();
 			if (seeking || jumping) {
 				size = 1024*96;
 			} else {
 				if ((attr->video.bufsz -
-				     attr->video.stats.cur_bytes) < BSIZE) {
+				     attr->video.stats.cur_bytes) < MAX_BSIZE) {
 					if (paused) {
 						usleep(1000);
 						continue;
@@ -1650,7 +1700,7 @@ control_start(void *arg)
 						attr->video.stats.cur_bytes -
 						1024;
 				} else {
-					size = BSIZE;
+					size = MAX_BSIZE;
 				}
 
 				if (((mythtv_file == NULL) &&
@@ -1658,23 +1708,57 @@ control_start(void *arg)
 				    close_mythtv)
 					break;
 			
-				if (size < 2048) {
+				if (size < MIN_BSIZE) {
 					usleep(1000);
 					continue;
 				}
 			}
+			
+			/* Try to never request more than half a second of
+			 * data, this means request_block doesn't block for
+			 * so long, making seek, stop, etc operations
+			 * much quicker
+			 */
 
-			if (changing_channel) {
+			if(video_Bps *.5 < size)
+			{
+			    size = video_Bps *.5;
+			    if(size < MIN_BSIZE)
+				size = MIN_BSIZE;
+			}
+
+			if (changing_channel || mythtv_prevent_request_block) {
 				usleep(1000);
 				continue;
 			}
 
-			if (mythtv_livetv) {
+			/* Prevent any close attempt whilst we're blocking
+			 * on a request_block. Mythbackend doesn't respond to
+			 * a request_block until its managed to write the data
+			 * to the data socket. If we didn't have this exclusive
+			 * mutex with close-type operations then the reading
+			 * thread would be stopped (becase mythtv_file would
+			 * be NULL), and therefore request_block wouldn't
+			 * return until mythbackend had hit a timeout trying
+			 * to send on the data socket.
+			 *
+			 * We have to allow request_block to complete because
+			 * mythfrontend won't process the "DONE" message
+			 * until its finnished processing the "REQUEST_BLOCK"
+			 */
+			pthread_mutex_lock(&request_block_mutex);
+			mythtv_doing_request_block = 1;
+			if(!mythtv_prevent_request_block)
+			{
+			    if (mythtv_livetv) {
 				len = cmyth_livetv_request_block(mythtv_recorder, size);
-			}
-			else
+			    }
+			    else
 				len = cmyth_file_request_block(mythtv_file,
 							       size);
+			}
+			mythtv_doing_request_block = 0;
+			pthread_mutex_unlock(&request_block_mutex);
 
 			/*
 			 * Will block if another command is executing
@@ -2098,8 +2182,8 @@ mythtv_open(void)
 		return -1;
 	}
 
+	mythtv_close_just_file();
 	printf("connecting to mythtv (slave) backend %s\n", host);
-	CHANGE_GLOBAL_REF(mythtv_file, NULL);
 	if ((c = cmyth_conn_connect_ctrl(host, port, 1024, mythtv_tcp_control))
 	    == NULL) {
 		cmyth_release(loc_prog);
@@ -2113,7 +2197,7 @@ mythtv_open(void)
 
 	playing_via_mythtv = 1;
 
-	if ((f = cmyth_conn_connect_file(loc_prog, c, BSIZE,
+	if ((f = cmyth_conn_connect_file(loc_prog, c, MAX_BSIZE,
 					    mythtv_tcp_program)) == NULL) {
 		cmyth_release(loc_prog);
 		video_clear();
@@ -2124,7 +2208,11 @@ mythtv_open(void)
 			    __FUNCTION__, __FILE__, __LINE__);
 		return -1;
 	}
+	mythtv_prevent_request_block++;
+	pthread_mutex_lock(&request_block_mutex);
 	CHANGE_GLOBAL_REF(mythtv_file, f);
+	mythtv_prevent_request_block--;
+	pthread_mutex_unlock(&request_block_mutex);
 	cmyth_release(f);
 	cmyth_release(c);
 	cmyth_release(loc_prog);
@@ -2160,21 +2248,14 @@ mythtv_seek(long long offset, int whence)
 		goto out;
 	}
 
-	if (!mythtv_livetv) {
-		size = mythtv_size();
-		if (size < 0) {
-			fprintf(stderr, "seek failed, stream size unknown\n");
-			goto out;
-		}
-		if (((size < offset) && (whence == SEEK_SET)) ||
-		    ((size < offset + seek_pos) && (whence == SEEK_CUR))) {
-			fprintf(stderr, "cannot seek past end of file\n");
-			goto out;
-		}
-	}
 
+	/*Stop any fresh request_block operations starting before we do the
+	 *seek, and flush out buffers
+	 */
+	mythtv_prevent_request_block++;
 	pthread_mutex_lock(&seek_mutex);
 	pthread_mutex_lock(&myth_mutex);
+
 
 	while (1) {
 		char buf[4096];
@@ -2205,6 +2286,8 @@ mythtv_seek(long long offset, int whence)
 			break;
 
 		if (len == 0) {
+			if (mythtv_doing_request_block)
+			    count = 0;
 			if (count++ > 4)
 				break;
 			else
@@ -2216,11 +2299,34 @@ mythtv_seek(long long offset, int whence)
 			PRINTF("%s(): read %d bytes\n", __FUNCTION__, len);
 		}
 	}
+	/* Now that we've read enough data to ensure that request_block has
+	 * completed we can place our lock and do the rest of our jub
+	 */
+	pthread_mutex_lock(&request_block_mutex);
+	if (!mythtv_livetv) {
+		/* Unlock myth_mutex because mythtv_size tries to lock it and
+		 * blocks */
+		pthread_mutex_unlock(&myth_mutex);
+		size = mythtv_size();
+		if (size < 0) {
+			fprintf(stderr, "seek failed, stream size unknown\n");
+			goto out;
+		}
+		if (((size < offset) && (whence == SEEK_SET)) ||
+		    ((size < offset + seek_pos) && (whence == SEEK_CUR))) {
+			fprintf(stderr, "cannot seek past end of file\n");
+			goto out;
+		}
+		pthread_mutex_lock(&myth_mutex);
+	}
 
 	if (mythtv_livetv)
 		seek_pos = cmyth_livetv_seek(r, offset, whence);
 	else
 		seek_pos = cmyth_file_seek(f, offset, whence);
+
+	mythtv_prevent_request_block--;
+	pthread_mutex_unlock(&request_block_mutex);
 
 	PRINTF("%s(): pos %lld\n", __FUNCTION__, seek_pos);
 

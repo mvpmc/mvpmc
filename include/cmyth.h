@@ -947,6 +947,10 @@ extern long long cmyth_file_seek(cmyth_file_t file,
 
 extern int cmyth_file_select(cmyth_file_t file, struct timeval *timeout);
 
+extern void cmyth_file_set_closed_callback(cmyth_file_t file,
+					void (*callback)(cmyth_file_t));
+
+
 /*
  * -----------------------------------------------------------------
  * Free Space Operations

@@ -86,11 +86,32 @@ cmyth_file_destroy(cmyth_file_t file)
 		cmyth_release(file->file_control);
 		pthread_mutex_unlock(&mutex);
 	}
+	if (file->closed_callback) {
+	    (file->closed_callback)(file);
+	}
 	if (file->file_data) {
 		cmyth_release(file->file_data);
 	}
 
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s }\n", __FUNCTION__);
+}
+
+/*
+ * cmyth_file_set_closed_callback(cmyth_file_t file, void (*callback)(cmyth_file_t))
+ *
+ * Scope: PUBLIC
+ *
+ * Description
+ *
+ * Sets a callback which will be called when a file connection has been
+ * signalled as done. Passing in NULL means no callback.
+ */
+
+void cmyth_file_set_closed_callback(cmyth_file_t file, void (*callback)(cmyth_file_t))
+{
+    if(!file)
+	return;
+    file->closed_callback = callback;
 }
 
 /*
@@ -128,6 +149,7 @@ cmyth_file_create(cmyth_conn_t control)
 	ret->file_start = 0;
 	ret->file_length = 0;
 	ret->file_pos = 0;
+	ret->closed_callback = NULL;
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s }\n", __FUNCTION__);
 	return ret;
 }

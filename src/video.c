@@ -79,7 +79,7 @@ static int seek_seconds;
 volatile int seeking = 0;
 volatile int jumping = 0;
 volatile long long jump_target;
-static volatile int seek_bps;
+static volatile int seek_Bps;
 static volatile int seek_attempts;
 static volatile int gop_seek_attempts;
 static volatile int pts_seek_attempts;
@@ -412,19 +412,31 @@ video_timecode(mvp_widget_t *widget)
 	mvpw_set_text_str(time_widget, buf);
 }
 
+int
+video_get_byterate()
+{
+    if(handle != NULL)
+    {
+	demux_attr_t *attr = demux_get_attr(handle);
+	if(attr != NULL && attr->Bps > 1024)
+	    return attr->Bps;
+    }
+    return 512 * 1024; /* Default to 4Mbps (0.5MBps) */
+}
+
 void
 video_bitrate(mvp_widget_t *widget)
 {
 	demux_attr_t *attr;
 	av_stc_t stc;
 	char buf[32];
-	int mb;
+	int Mb;
 
 	attr = demux_get_attr(handle);
 	av_current_stc(&stc);
-	mb = (attr->bps * 8) / (1024 * 1024);
-	snprintf(buf, sizeof(buf), "%d.%.2d mbps",
-		 mb, (attr->bps * 8) / (1024 * 1024 / 100) - (mb * 100));
+	Mb = (attr->Bps * 8) / (1024 * 1024);
+	snprintf(buf, sizeof(buf), "%d.%.2d Mbps",
+		 Mb, (attr->Bps * 8) / (1024 * 1024 / 100) - (Mb * 100));
 	mvpw_set_text_str(bps_widget, buf);
 }
 
@@ -467,7 +479,7 @@ osd_callback(mvp_widget_t *widget)
 {
 	struct stat64 sb;
 	long long offset = 0;
-	int off, mb;
+	int off, Mb;
 	char buf[32];
 	av_stc_t stc;
 	demux_attr_t *attr;
@@ -484,9 +496,9 @@ osd_callback(mvp_widget_t *widget)
 
 	attr = demux_get_attr(handle);
 	av_current_stc(&stc);
-	mb = (attr->bps * 8) / (1024 * 1024);
-	snprintf(buf, sizeof(buf), "mbps: %d.%.2d   Time: %.2d:%.2d:%.2d",
-		 mb, (attr->bps * 8) / (1024 * 1024 / 100) - (mb * 100),
+	Mb = (attr->Bps * 8) / (1024 * 1024);
+	snprintf(buf, sizeof(buf), "Mbps: %d.%.2d   Time: %.2d:%.2d:%.2d",
+		 Mb, (attr->Bps * 8) / (1024 * 1024 / 100) - (Mb * 100),
 		 stc.hour, stc.minute, stc.second);
 	mvpw_set_text_str(bps_widget, buf);
 }
@@ -517,13 +529,13 @@ seek_by(int seconds)
 
 	av_current_stc(&seek_stc);
 
-	seek_bps = ((1024*1024) * 4) / 8;  /* default to 4 megabits per second */
+	seek_Bps = ((1024*1024) * 4) / 8;  /* default to 4 megabits per second */
 	gop_time = 0;
 	if ( attr->gop_valid ) {
 		gop_time = (attr->gop.hour*60 + attr->gop.minute)*60 +
 			attr->gop.second;
-		if (attr->bps)
-			seek_bps = attr->bps;
+		if (attr->Bps)
+			seek_Bps = attr->Bps;
 	}
 	pts_time = attr->gop.pts/PTS_HZ;
 	stc_time = (seek_stc.hour*60 + seek_stc.minute)*60 + seek_stc.second;
@@ -550,7 +562,7 @@ seek_by(int seconds)
 	size = video_functions->size();
 
 	seek_seconds = seek_start_seconds + seconds;
-	delta = seek_bps * seconds;
+	delta = seek_Bps * seconds;
 
 	/*
 	 * Abort the seek if near the end of the file
@@ -560,8 +572,8 @@ seek_by(int seconds)
 		return;
 	}
 
-	PRINTF("%d bps, currently %lld + %d\n",
-	       seek_bps, seek_start_pos, delta);
+	PRINTF("%d Bps, currently %lld + %d\n",
+	       seek_Bps, seek_start_pos, delta);
 
 	gettimeofday((struct timeval*)&seek_timeval, NULL);
 	seek_attempts = 16;
@@ -1131,7 +1143,7 @@ static int
 do_seek(void)
 {
 	demux_attr_t *attr;
-	int seconds, new_seek_bps;
+	int seconds, new_seek_Bps;
 	long long offset;
 	struct timeval now, delta;
 	static int count = 0;
@@ -1176,18 +1188,18 @@ do_seek(void)
 	}
 
 	/*
-	 * Recompute bps from actual time and position differences
+	 * Recompute Bps from actual time and position differences
 	 * provided the time difference is big enough
 	 */
 	if ( abs(seconds - seek_start_seconds) > SEEK_FUDGE ) {
 		offset = video_functions->seek(0, SEEK_CUR);
-		new_seek_bps = (offset - seek_start_pos) /
+		new_seek_Bps = (offset - seek_start_pos) /
 			(seconds - seek_start_seconds);
-		if ( new_seek_bps > 10000 ) /* Sanity check */
-			seek_bps = new_seek_bps;
+		if ( new_seek_Bps > 10000 ) /* Sanity check */
+			seek_Bps = new_seek_Bps;
 	}
 
-	PRINTF("New BPS %d\n", seek_bps);
+	PRINTF("New Bps %d\n", seek_Bps);
 	
 	if ( abs(seconds - seek_seconds) <= SEEK_FUDGE ) {
 		seeking = 0;
@@ -1197,8 +1209,8 @@ do_seek(void)
 	} else {
 		offset = video_functions->seek(0, SEEK_CUR);
 		PRINTF("RESEEK: From %lld + %d\n", offset,
-		       seek_bps * (seek_seconds-seconds));
-		offset = video_functions->seek(seek_bps * (seek_seconds-seconds), SEEK_CUR);
+		       seek_Bps * (seek_seconds-seconds));
+		offset = video_functions->seek(seek_Bps * (seek_seconds-seconds), SEEK_CUR);
 		demux_flush(handle);
 		demux_seek(handle);
 		seek_attempts--;
@@ -1374,6 +1386,9 @@ video_read_start(void *arg)
 
 		if (video_reopen) {
 			if (video_functions->open() == 0) {
+			    	/* Jump to the start of the new file */
+			    	jump_target = 0;
+			    	jumping = 1;
 				video_reopen = 0;
                 tsmode = TS_MODE_UNKNOWN;
 			} else {

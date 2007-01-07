@@ -263,6 +263,7 @@ extern void playlist_play(mvp_widget_t*);
 extern void playlist_next();
 extern void playlist_randomize(void);
 extern void timed_osd(int timeout); 
+extern int video_get_byterate(void);
 
 extern int file_open(void);
 extern int file_read(char*, int);
