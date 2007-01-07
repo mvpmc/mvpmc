@@ -365,14 +365,14 @@ mythtv_close_just_file(void)
 		mythtv_close_file_state = 1;
 		cmyth_file_set_closed_callback(mythtv_file,mythtv_close_complete);
 		CHANGE_GLOBAL_REF(mythtv_file, NULL);
-		mythtv_prevent_request_block--;
-		pthread_mutex_unlock(&request_block_mutex);
 		pthread_mutex_lock(&close_file_mutex);
 		while(mythtv_close_file_state)
 		{
 		    pthread_cond_wait(&close_file_cond,&close_file_mutex);
 		}
 		pthread_mutex_unlock(&close_file_mutex);
+		mythtv_prevent_request_block--;
+		pthread_mutex_unlock(&request_block_mutex);
 	}
 
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) }\n",
