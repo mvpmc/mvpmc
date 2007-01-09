@@ -258,7 +258,8 @@ extern void mvpw_unattach(mvp_widget_t *widget, int direction);
 extern void mvpw_set_user_data(mvp_widget_t *widget,void *user_data);
 
 /**
- * Retrieve pointer previously registered using mvpw_set_user_data
+ * Retrieve pointer previously registered using mvpw_set_user_data, defaulting
+ * to NULL if nothing has been set.
  * \param widget widget handle
  * \return a pointer to the user_data
  */

@@ -35,7 +35,7 @@
  *    the library API to be very simple.
  *
  *    Testing has shown that this demuxer can feed the MediaMVP hardware
- *    decoders with a 12mbps VBR mpeg2 stream, when using 4MB of buffer
+ *    decoders with a 12Mbps VBR mpeg2 stream, when using 4MB of buffer
  *    space.
  *
  * Future work:
@@ -801,24 +801,24 @@ parse_video_stream(unsigned char *pRingBuf, unsigned int tail,unsigned int head,
 				PRINTF("GOP: %.2d:%.2d:%.2d %d [%d] PTS 0x%.8x %d\n",
 				       hour, minute, second, frame, i, pLD->pts, handle->bytes);
 				if (handle->seeking == 0) {
-					int newbps = 0;
+					int newBps = 0;
 
 					/* BPS from pts if possible */
 					if (handle->attr.gop.pts &&
 					    pLD->pts > handle->attr.gop.pts) {
 						/* Calculate BPS from PTS difference. The PTS/1000 expression avoids integer overflow */
-						newbps = ((handle->bytes - handle->attr.gop.offset)*(PTS_HZ/1000)/(pLD->pts-handle->attr.gop.pts))*1000;
+						newBps = ((handle->bytes - handle->attr.gop.offset)*(PTS_HZ/1000)/(pLD->pts-handle->attr.gop.pts))*1000;
 					} else { /* Fall back on GOP timestamp */
 						delta = (hour - handle->attr.gop.hour) * 3600 +
 							(minute - handle->attr.gop.minute) * 60 +
 							(second - handle->attr.gop.second);
 						if (delta > 0)
-							newbps = (handle->bytes - handle->attr.gop.offset)/delta;
+							newBps = (handle->bytes - handle->attr.gop.offset)/delta;
 					}
-					if (newbps != 0) {
-						handle->attr.bps = newbps;
-						PRINTF("BPS: %d\n",
-						       handle->attr.bps);
+					if (newBps != 0) {
+						handle->attr.Bps = newBps;
+						PRINTF("Bps: %d\n",
+						       handle->attr.Bps);
 						handle->attr.gop.offset = handle->bytes;
 						handle->attr.gop.hour = hour;
 						handle->attr.gop.minute = minute;
@@ -829,7 +829,7 @@ parse_video_stream(unsigned char *pRingBuf, unsigned int tail,unsigned int head,
 					}
 					syncFound = 1;
 				} else {
-					handle->attr.bps = 0;
+					handle->attr.Bps = 0;
 					handle->attr.gop.offset = handle->bytes;
 					handle->attr.gop.hour = hour;
 					handle->attr.gop.minute = minute;

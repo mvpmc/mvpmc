@@ -120,7 +120,7 @@ typedef struct {
 	stream_attr_t audio;
 	stream_attr_t video;
 	spu_attr_t spu[32];
-	int bps;
+	int Bps;
 	gop_t gop;
 	int gop_valid;
 	int ac3_audio;
