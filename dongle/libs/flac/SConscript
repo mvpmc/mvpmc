@@ -55,4 +55,11 @@ if not os.path.exists(file):
 	dl = GetSourceFile(url, '#' + downloads, e)
 	env.Depends(build, dl)
 
+env.SideEffect(['../../install/' + target + '/include/FLAC/stream_decoder.h',
+                '../../install/' + target + '/include/FLAC/callback.h',
+                '../../install/' + target + '/include/FLAC/format.h',
+                '../../install/' + target + '/include/FLAC/export.h',
+                '../../install/' + target + '/include/FLAC/ordinals.h'],
+               build)
+
 Return('build')
