@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2004,2005,2006, Jon Gettler
+ *  Copyright (C) 2004,2005,2006,2007, Jon Gettler
  *  http://www.mvpmc.org/
  *
  *  wav file player by Stephen Rice
@@ -44,6 +44,7 @@
 
 extern int errno;
 extern char *vlc_server;
+extern char cwd[];
 
 #include <mvp_widget.h>
 #include <mvp_av.h>
@@ -60,7 +61,7 @@ extern char *vlc_server;
 #include "tremor/ivorbisfile.h"
 
 static int http_play(int afd);
-long bytesRead;
+unsigned long bytesRead;
 #define  STREAM_PACKET_SIZE  1448     
 int is_streaming(char *url);
 
@@ -121,6 +122,7 @@ typedef enum {
 	AUDIO_FILE_HTTP_INIT_OGG,
 	AUDIO_FILE_HTTP_OGG,
 	VIDEO_FILE_HTTP_MPG,
+	AUDIO_FILE_FLAC,
 } audio_file_t;
 
 int http_playing = 0;
@@ -132,13 +134,8 @@ static audio_file_t audio_type;
 #define BUFFSIZE 12000
 
 void audio_play(mvp_widget_t *widget);
-static int wav_play(int, int, unsigned short, unsigned short, unsigned short);
+static int wav_play(int);
 
-static unsigned long quantised_next_input_sample = 0;
-static unsigned long last_sample_in_buffer = 0;
-static unsigned long next_output_sample = 0;
-static unsigned long next_input_sample = 0;
-static unsigned wav_file_to_input_frequency_ratio = 1;
 static int chunk_size = 0;
 
 static int align;
@@ -147,6 +144,7 @@ static unsigned short bps;
 static int pcm_decoded = 0;
 
 static int ac3_freespace(void);
+static int ac3_flush(void);
 
 #define min(X, Y)  ((X) < (Y) ? (X) : (Y))
 
@@ -255,7 +253,7 @@ ogg_play(int afd)
 					      &current_section);
 //                printf("ret %d %d\n",ret,current_section);
 				bytesRead+=ret;
-			} while (ret == OV_HOLE );            
+			} while (ret == OV_HOLE );
         } else {
 			ret = ov_read(&vf, pcmout, sizeof(pcmout),
 				      &current_section);
@@ -264,12 +262,12 @@ ogg_play(int afd)
 		len = 0;
 	}
 
-    if (OggStreamState==OGG_STATE_NEWPAGE) {
-        OggStreamState=OGG_STATE_PLAYNEWPAGE;
-        return 0;
-    }
+	if (OggStreamState==OGG_STATE_NEWPAGE) {
+		OggStreamState=OGG_STATE_PLAYNEWPAGE;
+		return 0;
+	}
 
-    if (ret == 0) {
+	if (ret == 0) {
 		fprintf(stderr, "EOF during ogg read...\n");
 		goto next;
 	} else if (ret < 0 ) {
@@ -289,13 +287,12 @@ ogg_play(int afd)
 	}
 
 	do_read = 1;
-    
+
     /*
      * We shouldn't have any problem filling up the hardware audio buffer,
      * so keep processing the file until we're forced to block.
-     */ 
-    
-    return 0;
+     */
+	return 0;
 
  full:
 
@@ -304,8 +301,8 @@ ogg_play(int afd)
 	return 0;
 
  next:
-        http_playing = 0;
-        OggStreamState = OGG_STATE_EOS;
+	http_playing = 0;
+	OggStreamState = OGG_STATE_EOS;
 	return -1;
 }
 
@@ -429,16 +426,18 @@ mp3_play(int afd)
 	return 0;
 }
 
+static int flac_play(int afd);
+
 static int
 audio_player(int reset, int afd)
 {
 	int ret = -1;
 
-    if (OggStreamState==OGG_STATE_PLAYNEWPAGE) {
-        if ( ogg_setup() ) {
-            return -1;
-        }
-    }
+	if (OggStreamState==OGG_STATE_PLAYNEWPAGE) {
+		if ( ogg_setup() ) {
+		return -1;
+		}
+	}
 
 	switch (audio_type) {
 	case AUDIO_FILE_AC3:
@@ -455,24 +454,32 @@ audio_player(int reset, int afd)
 		}
 		break;
 	case AUDIO_FILE_WAV:
-		ret = wav_play(fd, afd, align, channels, bps);
+		ret = wav_play(afd);
+		if (ret==1) {
+			while (audio_stop == 0 && ac3_size > ac3_freespace()) {
+				ac3_flush();
+				usleep(10000);
+			};
+		}
 		break;
-    case AUDIO_FILE_MVP_MP3:
+	case AUDIO_FILE_MVP_MP3:
 	case AUDIO_FILE_MP3:
 		ret = mp3_play(afd);
 		break;
-    case AUDIO_FILE_HTTP_MP3:
+	case AUDIO_FILE_HTTP_MP3:
 		ret = http_play(afd);
 		break;
 	case AUDIO_FILE_OGG:
 	case AUDIO_FILE_HTTP_OGG:
 		ret = ogg_play(afd);
 		break;
+	case AUDIO_FILE_FLAC:
+		ret = flac_play(afd);
+		break;
 	case VIDEO_FILE_HTTP_MPG:
 	default:
 		break;
 	}
-
 	return ret;
 }
 
@@ -508,7 +515,11 @@ get_audio_type(char *path)
 	if ((strlen(path) >= strlen(suffix)) &&
 	    (strcmp(path+strlen(path)-strlen(suffix), suffix) == 0))
 		return AUDIO_FILE_WAV;
-
+	
+	suffix = ".flac";
+	if ((strlen(path) >= strlen(suffix)) &&
+	    (strcmp(path+strlen(path)-strlen(suffix), suffix) == 0))
+		return AUDIO_FILE_FLAC;
 	return AUDIO_FILE_UNKNOWN;
 }
 
@@ -756,28 +767,28 @@ audio_clear(void)
 
 	if (oggfile != NULL) {
 		ov_clear(&vf);
-            if (OggStreamState != OGG_STATE_UNKNOWN) {
-                fclose(oggfile);
-            }
+		if (OggStreamState != OGG_STATE_UNKNOWN) {
+			fclose(oggfile);
+		}
 		oggfile = NULL;
 	}
-    if ( using_helper > 0 || using_vlc == 1 ) {
-        http_playing = 0;
-        FILE *outlog;
-        outlog = fopen("/usr/share/mvpmc/connect.log","a");
-        if ( using_helper == 1 ) {
-            mplayer_helper_connect(outlog,NULL,1);
-        }
-	vlc_connect(outlog,NULL,1,VLC_DESTROY,NULL, 0);
-        using_vlc = 0;
-        usleep(3000);
-        if ( using_helper == 1 ) {
-            mplayer_helper_connect(outlog,NULL,2);
-        }
-        using_helper=0;
-        fclose(outlog);
-        mvpw_hide(fb_progress);
-    }
+	if ( using_helper > 0 || using_vlc == 1 ) {
+		http_playing = 0;
+		FILE *outlog;
+		outlog = fopen("/usr/share/mvpmc/connect.log","a");
+		if ( using_helper == 1 ) {
+			mplayer_helper_connect(outlog,NULL,1);
+		}
+		vlc_connect(outlog,NULL,1,VLC_DESTROY,NULL, 0);
+		using_vlc = 0;
+		usleep(3000);
+		if ( using_helper == 1 ) {
+			mplayer_helper_connect(outlog,NULL,2);
+		}
+		using_helper=0;
+		fclose(outlog);
+		mvpw_hide(fb_progress);
+	}
 }
 
 void
@@ -911,8 +922,7 @@ ac3_flush(void)
 }
 
 static int
-wav_play(int fd, int afd, unsigned short align, unsigned short channels,
-	 unsigned short bps)
+wav_play(int afd)
 {
 	unsigned char *wav_buffer;
 	unsigned char pcm_buffer[BUFFSIZE][4];
@@ -921,6 +931,20 @@ wav_play(int fd, int afd, unsigned short align, unsigned short channels,
 	int iloop;
 	int sample_value = 0;
 	int empty = 0;
+	static unsigned long quantised_next_input_sample = 0;
+	static unsigned long last_sample_in_buffer = 0;
+	static unsigned long next_output_sample = 0;
+	static unsigned long next_input_sample = 0;
+	static unsigned wav_file_to_input_frequency_ratio = 1;
+
+	if (afd==-1){
+		empty_ac3();
+		quantised_next_input_sample = 0;
+		last_sample_in_buffer = 0;
+		next_output_sample = 0;
+		next_input_sample = 0;
+		return -1;
+	}
 
 	if (ac3_flush() == 0)
 		empty = 1;
@@ -931,10 +955,16 @@ wav_play(int fd, int afd, unsigned short align, unsigned short channels,
 	}
 
 	wav_buffer = alloca(align * BUFFSIZE);
-	n = read(fd, wav_buffer, min((align * BUFFSIZE), chunk_size));
+	errno = 0;
+	do {
+		n = read(fd, wav_buffer, min((align * BUFFSIZE), chunk_size));
+	} while ( n < 0 && (errno==EAGAIN || errno == EINTR));
 
-	if ((n == 0) && empty)
+	if (n < 0) {
+		return -1;
+	} else if ((n == 0) && empty){
 		return 1;
+	}
 
 	/*
 	 * while we have data in the buffer
@@ -1100,20 +1130,23 @@ sighandler(int sig)
 
 static int
 audio_init(void)
-{   
-    static int old_audio_type = AUDIO_FILE_UNKNOWN;
+{
+	static int old_audio_type = AUDIO_FILE_UNKNOWN;
 
-    if (gui_state != MVPMC_STATE_EMULATE) {
-        if ( is_streaming(current) < 0    ) {
-            if ((fd=open(current, O_RDONLY|O_LARGEFILE|O_NDELAY)) < 0) {
-                goto fail;
-            }
-        }
-        audio_type=get_audio_type(current);
-    } else {
-        audio_type=AUDIO_FILE_MVP_MP3;
-        fd = open("/tmp/FIFO", O_RDONLY);
-    }
+	if (gui_state != MVPMC_STATE_EMULATE) {
+		if ( is_streaming(current) < 0    ) {
+			if ((fd=open(current, O_RDONLY|O_LARGEFILE|O_NDELAY)) < 0) {
+				goto fail;
+			}
+		}
+		audio_type=get_audio_type(current);
+		if (audio_type==AUDIO_FILE_UNKNOWN && strstr(cwd,"/uPnP/")!=NULL) {
+			audio_type = AUDIO_FILE_MP3;
+		}
+	} else {
+		audio_type=AUDIO_FILE_MVP_MP3;
+		fd = open("/tmp/FIFO", O_RDONLY);
+	}
 	switch (audio_type) {
 	case AUDIO_FILE_MVP_MP3:
 	case AUDIO_FILE_HTTP_MP3:
@@ -1147,6 +1180,10 @@ audio_init(void)
 		if (wav_setup() < 0)
 			goto fail;
 		break;
+	case AUDIO_FILE_FLAC:
+		av_set_audio_output(AV_AUDIO_PCM);
+		av_set_pcm_param(44100, 0, 2, 0,16);
+		break;
 	case AUDIO_FILE_UNKNOWN:
 	case AUDIO_FILE_HTTP_INIT_OGG:
 	case VIDEO_FILE_HTTP_MPG:
@@ -1156,21 +1193,17 @@ audio_init(void)
 
 	av_play();
 
-    if (old_audio_type != audio_type ) {
-        while ( av_empty()==0 ) {
-            // empty audio buffer 
-            usleep(10000);
-        }
-        old_audio_type = audio_type;
-    }
+	if (old_audio_type != audio_type ) {
+		while ( av_empty()==0 ) {
+		// empty audio buffer 
+		usleep(10000);
+		}
+		old_audio_type = audio_type;
+	}
 
 	switch (audio_type) {
 	case AUDIO_FILE_WAV:
-		empty_ac3();
-		quantised_next_input_sample = 0;
-		last_sample_in_buffer = 0;
-		next_output_sample = 0;
-		next_input_sample = 0;
+		wav_play(-1);
 		break;
 	case AUDIO_FILE_AC3:
 		if (audio_output_mode == AUD_OUTPUT_STEREO) {
@@ -1189,12 +1222,16 @@ audio_init(void)
 	case AUDIO_FILE_OGG:
 		ogg_play(-1);
 		break;
-    case AUDIO_FILE_MP3:
-    case AUDIO_FILE_MVP_MP3:
+	case AUDIO_FILE_MP3:
+	case AUDIO_FILE_MVP_MP3:
 		mp3_play(-1);
 		break;
 	case AUDIO_FILE_HTTP_MP3:
 		http_play(-1);
+		break;
+	case AUDIO_FILE_FLAC:
+		if (flac_play(-1) < 0)
+			goto fail;
 		break;
 	case AUDIO_FILE_HTTP_INIT_OGG:
 	case VIDEO_FILE_HTTP_MPG:
@@ -1235,7 +1272,6 @@ audio_start(void *arg)
 	while (1) {
 		audio_playing = 0;
 		audio_stop = 0;
-
 		pthread_cond_wait(&audio_cond, &mutex);
 
 	repeat:
@@ -1244,20 +1280,20 @@ audio_start(void *arg)
 		if (audio_init() != 0)
 			goto fail;
 		
-        afd = av_get_audio_fd();
+        	afd = av_get_audio_fd();
 
 		audio_playing = 1;
 		audio_stop = 0;
-        OggStreamState = OGG_STATE_UNKNOWN;
+		OggStreamState = OGG_STATE_UNKNOWN;
 
-        mvpw_show(fb_progress);
+		mvpw_show(fb_progress);
 
 		while (( (done=audio_player(0, afd)) == 0)  &&
 		       current && !audio_stop)
-			; 
+			;
 		if ( audio_type == AUDIO_FILE_HTTP_INIT_OGG ) {
 			audio_type = AUDIO_FILE_HTTP_OGG;
-            mvpw_set_timer(playlist_widget, NULL, 100);
+			mvpw_set_timer(playlist_widget, NULL, 100);
 			http_playing = 1;
 			goto repeat;
 		} else if ( audio_type == VIDEO_FILE_HTTP_MPG ) {
@@ -1265,20 +1301,19 @@ audio_start(void *arg)
 			av_reset();
 			mvpw_set_timer(playlist_widget, NULL, 0);
 			mvpw_hide(fb_progress);
-            if (mvpw_visible(playlist_widget)) {
-			    mvpw_hide(playlist_widget);
-            }
+			if (mvpw_visible(playlist_widget)) {
+				mvpw_hide(playlist_widget);
+			}
 			mvpw_hide(file_browser);
-            video_thumbnail(0);
+			video_thumbnail(0);
 			video_set_root();
-
 			mvpw_focus(root);
-            screensaver_disable();
-			mvpw_set_timer(root, video_play, 50);            
+			screensaver_disable();
+			mvpw_set_timer(root, video_play, 50);
 			continue;
 		} else if ( audio_type == AUDIO_FILE_HTTP_OGG ) {
 			http_playing = 0;
-	        OggStreamState = OGG_STATE_UNKNOWN;
+			OggStreamState = OGG_STATE_UNKNOWN;
 			audio_type = AUDIO_FILE_UNKNOWN;
 		} else  {
 			audio_type = AUDIO_FILE_UNKNOWN;
@@ -1300,11 +1335,10 @@ audio_start(void *arg)
 
 		close(fd);
 		audio_clear();
-        if (done < 0 ) {
-            mvpw_hide(fb_progress);
-        }
+		if (done < 0 ) {
+			mvpw_hide(fb_progress);
+		}
 	}
-
 	return NULL;
 }
 
@@ -1316,24 +1350,24 @@ typedef enum {
 	CONTENT_PODCAST,
 	CONTENT_UNKNOWN,
 	CONTENT_REDIRECT,
-    CONTENT_200,
-    CONTENT_UNSUPPORTED,
-    CONTENT_ERROR,
-    CONTENT_TRYHOST,
-    CONTENT_NEXTURL,
-    CONTENT_GET_SHOUTCAST,
-    CONTENT_AAC,
-    CONTENT_DIVX,
+	CONTENT_200,
+	CONTENT_UNSUPPORTED,
+	CONTENT_ERROR,
+	CONTENT_TRYHOST,
+	CONTENT_NEXTURL,
+	CONTENT_GET_SHOUTCAST,
+	CONTENT_AAC,
+	CONTENT_DIVX,
 } content_type_t;
 
 typedef enum {
-    PLAYLIST_SHOUT,
-    PLAYLIST_M3U,
-    PLAYLIST_PODCAST,
-    PLAYLIST_ASX,
-    PLAYLIST_ASX_REFERENCE,
-    PLAYLIST_NONE,
-    PLAYLIST_RA,
+	PLAYLIST_SHOUT,
+	PLAYLIST_M3U,
+	PLAYLIST_PODCAST,
+	PLAYLIST_ASX,
+	PLAYLIST_ASX_REFERENCE,
+	PLAYLIST_NONE,
+	PLAYLIST_RA,
 } playlist_type_t;
 
 typedef enum {
@@ -1367,10 +1401,11 @@ int http_read_stream(unsigned int socket,int metaInt,int offset);
 int http_main(void);
 void strencode( char* to, size_t tosize, const char* from );
 
-void http_osd_update(mvp_widget_t *widget);
+void content_osd_update(mvp_widget_t *widget);
 void http_buffer(int message_length,int offset);
 int http_metadata(char *metaString,int metaWork,int metaData);
 int create_shoutcast_playlist(int limit);
+void strdecode( char* to, char* from );
 
 #define  MAX_URL_LEN 275
 #define  MAX_PLAYLIST 5
@@ -1387,9 +1422,9 @@ int create_shoutcast_playlist(int limit);
 
 int bufferFull;
 char bitRate[10];
-long contentLength;
+unsigned long contentLength;
 
-void http_osd_update(mvp_widget_t *widget)
+void content_osd_update(mvp_widget_t *widget)
 {
 	av_stc_t stc;
 	char buf[256];
@@ -1401,78 +1436,67 @@ void http_osd_update(mvp_widget_t *widget)
 		 stc.hour, stc.minute, stc.second,bitRate);
 	mvpw_set_text_str(fb_time, buf);
 
-    if (contentLength == 0) {
-        snprintf(buf, sizeof(buf), "Bytes: %ld", bytesRead);
-        mvpw_set_text_str(fb_size, buf);
-        percent = (bufferFull* 100) /  OUT_BUF_SIZE;
-    	snprintf(buf, sizeof(buf), "Buf:");
-    } else {
-        snprintf(buf, sizeof(buf), "Bytes: %ld", contentLength);
-        mvpw_set_text_str(fb_size, buf);
-        percent = (bytesRead * 100) /  contentLength;
-    	snprintf(buf, sizeof(buf), "%d%%", percent);
-    }
-    mvpw_set_text_str(fb_offset_widget, buf);
-    mvpw_set_graph_current(fb_offset_bar, percent);
-    mvpw_expose(fb_offset_bar);
+	if (contentLength == 0) {
+		snprintf(buf, sizeof(buf), "Bytes: %lu", bytesRead);
+		mvpw_set_text_str(fb_size, buf);
+		percent = (bufferFull* 100) /  OUT_BUF_SIZE;
+		snprintf(buf, sizeof(buf), "Buf:");
+	} else {
+		snprintf(buf, sizeof(buf), "Bytes: %lu", contentLength);
+		mvpw_set_text_str(fb_size, buf);
+		percent = bytesRead /  (contentLength/100);
+		snprintf(buf, sizeof(buf), "%d%%", percent);
+	}
+	mvpw_set_text_str(fb_offset_widget, buf);
+	mvpw_set_graph_current(fb_offset_bar, percent);
+	mvpw_expose(fb_offset_bar);
 
 }
 
 static int http_play(int afd)
 {
-    int rc = 0;
-    char *ptr;
-    if (afd==-1) {
-        if (current  && is_streaming(current)>=0) {
-            /*
-            char *enc;
-	        static char encoded_name[MAX_URL_LEN];
-            ptr = current;
-            enc = encoded_name;
-            while (*ptr!=0 && *ptr!=';') {
-                *enc = *ptr;
-                ptr++;
-                enc++;
-            }
-            if (*ptr==':') {
-                *enc = *ptr;
-                ptr++;
-                enc++;
-            }
-		    strencode( enc, MAX_URL_LEN , ptr );
-            printf("%s\n",encoded_name);
-            free(current);
-            current = strdup(encoded_name);
-            */
-            if (strlen(current) < MAX_URL_LEN ) {
-                rc = 0;
-                mvpw_set_timer(playlist_widget, http_osd_update, 500);
-            } else {
-                rc = -1;
-            }
-        } else {
-            rc = -1;
-        }
-    } else {
-        if (current && is_streaming(current)>=0 ) {
-            ptr = strpbrk (current,"\r\n");
-            if (ptr!=NULL) {
-                *ptr=0;
-            }
-            mvpw_set_text_str(fb_name, current);
-            outbuf = ring_buf_create(OUT_BUF_SIZE);
-            recvbuf = (void*)calloc(1, RECV_BUF_SIZE);
-            http_main();
-            free(outbuf->buf);
-            free(outbuf);
-            free(recvbuf);
-            mvpw_set_timer(playlist_widget, NULL, 0);
-            rc = 1;
-        } else {
-            rc = -1;
-        }
-    }
-    return rc;
+	int rc = 0;
+	char *ptr;
+	if (afd==-1) {
+		if (current  && is_streaming(current)>=0) {
+			if (strstr(cwd,"/uPnP/")!=NULL) {
+				char *newcurrent;
+				newcurrent = strdup(current);
+				strdecode(newcurrent,current);
+				free(current);
+				current = strdup(newcurrent);
+				strdecode(current,newcurrent);
+				free(newcurrent);
+			}
+			if (strlen(current) < MAX_URL_LEN ) {
+				rc = 0;
+				mvpw_set_timer(playlist_widget, content_osd_update, 500);
+			} else {
+				rc = -1;
+			}
+		} else {
+			rc = -1;
+		}
+	} else {
+		if (current && is_streaming(current)>=0 ) {
+			ptr = strpbrk (current,"\r\n");
+			if (ptr!=NULL) {
+				*ptr=0;
+			}
+			mvpw_set_text_str(fb_name, current);
+			outbuf = ring_buf_create(OUT_BUF_SIZE);
+			recvbuf = (void*)calloc(1, RECV_BUF_SIZE);
+			http_main();
+			free(outbuf->buf);
+			free(outbuf);
+			free(recvbuf);
+			mvpw_set_timer(playlist_widget, NULL, 0);
+			rc = 1;
+		} else {
+			rc = -1;
+		}
+	}
+	return rc;
 }
 
 #define SHOUTCAST_DOWNLOAD "http://www.shoutcast.com/sbin/newxml.phtml?"
@@ -1517,7 +1541,7 @@ int http_main(void)
     static char * ContentPlaylist[] = {
         "audio/scpls","audio/x-scpls",
         "audio/x-pn-realaudio",
-        "audio/mpegurl","audio/mpeg-url","audio/x-mpegurl",                                      
+        "audio/mpegurl","audio/mpeg-url","audio/x-mpegurl",
         "audio/x-mpeg-url","audio/m3u","audio/x-m3u", NULL
     };
 
@@ -1651,7 +1675,6 @@ int http_main(void)
         remoteHost = gethostbyname(host_name);
 //        printf("%s\n",remoteHost->h_name);
         if (remoteHost!=NULL) {
-                        
             if (live365Login == 0 ) { 
                 if (NumberOfEntries==1 && strcmp(remoteHost->h_name,scname)) {
                     snprintf(url[1],MAX_URL_LEN,"http://%s:%s%s",remoteHost->h_name,scport,scpage);
@@ -1676,11 +1699,10 @@ int http_main(void)
 
 
             httpsock = socket(AF_INET, SOCK_STREAM, 0);
-    
+
             server_addr.sin_family = AF_INET;    
             server_addr.sin_port = htons(atoi(scport));           
             memcpy ((char *) &server_addr.sin_addr, (char *) remoteHost->h_addr, remoteHost->h_length);
-            
             struct timeval stream_tv;
 
             stream_tv.tv_sec = 10;
@@ -1713,17 +1735,13 @@ int http_main(void)
                     audio_stop = 1;
                 }
             } else {
-                            
                 // Send a GET to the Web server
-                
                 mvpw_set_text_str(fb_name, "Sending GET request");
-    
                 if (send(httpsock, get_buf, strlen(get_buf), 0) != strlen(get_buf) ){
                     fprintf(outlog,"send() failed \n");
                     retcode = -2;
                     break;
                 }
-    
                 stateGet = HTTP_INIT;
                 statusGet = 0;
                 playlistType = PLAYLIST_NONE;
@@ -1731,7 +1749,7 @@ int http_main(void)
                 metaInt = 0;
                 bitRate[0]=0;
                 retcode = -2;
-    
+
                 instream = fdopen(httpsock,"rb");
                 setbuf(instream,NULL);
                 rcs = fgets(line_data,LINE_SIZE-1,instream);
@@ -1744,7 +1762,6 @@ int http_main(void)
                         *ptr =0;
                     }
                     fprintf(outlog,"%s\n",line_data);
-        
                     if (line_data[0]==0) {
                         ContentType = CONTENT_UNKNOWN;
                         retcode = -2;
@@ -1806,9 +1823,9 @@ int http_main(void)
                 if (ptr!=NULL) {
                     *ptr =0;
                 }
-              
+
                 fprintf(outlog,"%s\n",line_data);
-                
+
                 if ( line_data[0]==0x0a || line_data[0]==0x0d || line_data[0]==0) {
                     if (ContentType == CONTENT_UNSUPPORTED || ContentType==CONTENT_MP3 || ContentType==CONTENT_OGG || ContentType==CONTENT_MPG || stateGet==HTTP_RETRY 
                         || ContentType==CONTENT_GET_SHOUTCAST || ContentType==CONTENT_AAC) {
@@ -1839,7 +1856,7 @@ int http_main(void)
                     // parse response
 
                     if (strncasecmp(line_data,"Content-Length:",15)==0) {
-                        sscanf(&line_data[15],"%ld",&contentLength);
+                        sscanf(&line_data[15],"%lu",&contentLength);
                     } else if (strncasecmp(line_data,"Content-Type",12)==0) {
                         if ( strstr(line_data,"audio/") != NULL ) {                            
                             i = 0;
@@ -2241,7 +2258,7 @@ int http_main(void)
             retcode = -1;
         }
     }
-    
+
     if (retcode == -2 || retcode == 2) {                       
         close(httpsock);
     }
@@ -2328,13 +2345,13 @@ int http_metadata(char *metaString,int metaWork,int metaData)
     int retcode;
     char buffer[MAX_META_LEN];
     char *ptr;
-    
+
     if (metaData > MAX_META_LEN-1 ) {
         metaData = MAX_META_LEN-1;
     }
     memcpy(buffer,recvbuf+metaWork,metaData);
     buffer[metaData]=0;
-    
+ 
     if (strncmp(buffer,"StreamTitle=",12)==0) {
         char * fc;
         fc = strstr (buffer,"';StreamUrl='");
@@ -2817,16 +2834,264 @@ int mplayer_helper_connect(FILE *outlog,char *url,int stopme)
 char *stristr(char *str, char *substr)
 {
 	long lensub,remains;
-    char *ptr;
+	char *ptr;
 	lensub = strlen(substr);
 	remains = strlen(str);
-    ptr = str;
+	ptr = str;
 	while (remains >= lensub) {
 		if(strncasecmp(ptr, substr, lensub)==0){
-            return(ptr);
-        }
-        remains--;
-        ptr++;
+			return(ptr);
+		}
+		remains--;
+		ptr++;
 	}
 	return(NULL);
 }
+
+#ifndef MVPMC_HOST
+
+#include "FLAC/stream_decoder.h"
+
+typedef enum {
+	LAYER_STREAM = 0, /* FLAC__stream_decoder_init_[ogg_]stream() without seeking */
+	LAYER_SEEKABLE_STREAM, /* FLAC__stream_decoder_init_[ogg_]stream() with seeking */
+	LAYER_FILE, /* FLAC__stream_decoder_init_[ogg_]FILE() */
+	LAYER_FILENAME /* FLAC__stream_decoder_init_[ogg_]file() */
+} Layer;
+
+typedef struct {
+	unsigned bits_per_sample; /* bits per sample */
+	unsigned sample_rate; /* samples per second (in a single channel) */
+	unsigned channels; /* number of audio channels */
+	int byte_format; /* Byte ordering in sample */
+} ao_sample_format;
+
+typedef struct {
+	Layer layer;
+	FILE *file;
+	FLAC__bool ignore_errors;
+	FLAC__bool error_occurred;
+	int yield_samples;
+	ao_sample_format sam_fmt; /* input sample's true format */
+	int afd;
+} StreamDecoderClientData;
+
+
+#define FLAC_WRITE_YIELD_FREQ 5
+
+/*
+static FLAC__StreamDecoderWriteStatus stream_decoder_write_callback_(const FLAC__StreamDecoder *decoder, const FLAC__Frame *frame, const FLAC__int32 * const buffer[], void *client_data)
+static void stream_decoder_error_callback_(const FLAC__StreamDecoder *decoder, FLAC__StreamDecoderErrorStatus status, void *client_data);
+*/
+
+static FLAC__StreamDecoderWriteStatus stream_decoder_write_callback_(const FLAC__StreamDecoder *decoder, 		const FLAC__Frame *frame, const FLAC__int32 * const buffer[], void *client_data)
+{
+	StreamDecoderClientData *dcd = (StreamDecoderClientData*)client_data;
+
+	(void)decoder, (void)buffer;
+	if ( audio_stop != 0 ) {
+		return FLAC__STREAM_DECODER_WRITE_STATUS_ABORT;
+	}
+
+	if (0 == dcd) {
+		printf("ERROR: client_data in write callback is NULL\n");
+		return FLAC__STREAM_DECODER_WRITE_STATUS_ABORT;
+	}
+
+	if (dcd->error_occurred)
+		return FLAC__STREAM_DECODER_WRITE_STATUS_ABORT;
+
+	if (
+	   (frame->header.number_type == FLAC__FRAME_NUMBER_TYPE_FRAME_NUMBER && frame->header.number.frame_number == 0) ||
+	   (frame->header.number_type == FLAC__FRAME_NUMBER_TYPE_SAMPLE_NUMBER && frame->header.number.sample_number == 0)
+	   ) {
+		printf("Found FLAC content...");
+		fflush(stdout);
+	}
+
+	if (dcd->afd == -1) {
+		return FLAC__STREAM_DECODER_WRITE_STATUS_CONTINUE;        
+	}
+
+	FLAC__uint32 samples = frame->header.blocksize;
+	FLAC__uint32 decoded_size = frame->header.blocksize * frame->header.channels * (dcd->sam_fmt.bits_per_sample / 8 );
+	static FLAC__uint8 aobuf[FLAC__MAX_BLOCK_SIZE * FLAC__MAX_CHANNELS * sizeof(FLAC__uint8)]; /*oink!*/
+	FLAC__uint8   *u8aobuf = (FLAC__uint8  *) aobuf;
+	FLAC__uint16 *u16aobuf = (FLAC__uint16 *) aobuf;
+	int sample, channel, i=0;
+
+	if (dcd->sam_fmt.bits_per_sample == 8) {
+		for (sample = i = 0; sample < samples; sample++) {
+			for (channel = 0; channel < frame->header.channels; channel++,i++) {
+				u8aobuf[i] = buffer[channel][sample];
+			}
+		}
+	} else if (dcd->sam_fmt.bits_per_sample == 16) {
+		for (sample = i = 0; sample < samples; sample++) {
+			for (channel = 0; channel < frame->header.channels; channel++,i++) {
+				u16aobuf[i] = (FLAC__uint16)(buffer[channel][sample]);
+			}
+		}
+	}
+
+	int pos = 0,len=0;
+	while (decoded_size > 0 && audio_stop == 0) {
+		if ((len = write(dcd->afd, aobuf + pos, decoded_size)) == -1) {
+			fprintf(stderr,"Error during audio write\n");
+			return FLAC__STREAM_DECODER_WRITE_STATUS_ABORT;
+		}
+		if (len == 0) {
+			usleep(100000);
+		} else {
+			decoded_size-=len;
+			pos+=len;
+		}
+	};
+	if (dcd->yield_samples < 0) {
+		FLAC__uint64 whereami=0;
+		FLAC__stream_decoder_get_decode_position(decoder,&whereami);
+		bytesRead = whereami;
+		usleep(10000);
+		dcd->yield_samples = dcd->sam_fmt.sample_rate/FLAC_WRITE_YIELD_FREQ;
+	} else {
+		dcd->yield_samples -= samples;
+	}
+	return FLAC__STREAM_DECODER_WRITE_STATUS_CONTINUE;
+}
+
+static void stream_decoder_error_callback_(const FLAC__StreamDecoder *decoder, FLAC__StreamDecoderErrorStatus 		status, void *client_data)
+{
+	StreamDecoderClientData *dcd = (StreamDecoderClientData*)client_data;
+
+	(void)decoder;
+
+	if (0 == dcd) {
+		printf("ERROR: client_data in error callback is NULL\n");
+		return;
+	}
+
+	if (!dcd->ignore_errors) {
+		printf("ERROR: got error callback: err = %u(%s)\n",(unsigned)status,FLAC__StreamDecoderErrorStatusString[status]);
+		dcd->error_occurred = true;
+	}
+}
+
+int flac_play(int afd)
+{
+	int rc;
+	FLAC__StreamDecoderState state;
+	static FLAC__StreamDecoder *decoder = NULL;
+	static StreamDecoderClientData decoder_client_data;
+
+	if (afd == -1) {
+		struct stat64 sb;
+		if (fstat64(fd, &sb) < 0)
+			return -1;
+
+		bytesRead = 0;
+		contentLength = sb.st_size;
+
+		mvpw_set_timer(fb_progress, content_osd_update, 500);
+
+		decoder = FLAC__stream_decoder_new();
+		decoder_client_data.layer = LAYER_FILE;
+		decoder_client_data.afd = afd;
+		decoder_client_data.ignore_errors = false;
+		decoder_client_data.error_occurred = false;
+		decoder_client_data.file = fdopen(fd,"rb");
+
+//		rc = FLAC__stream_decoder_init_file(decoder,current,stream_decoder_write_callback_,0,
+		rc = FLAC__stream_decoder_init_FILE(decoder,decoder_client_data.file,stream_decoder_write_callback_,0,
+						stream_decoder_error_callback_,&decoder_client_data);
+
+		if ( rc != FLAC__STREAM_DECODER_INIT_STATUS_OK) {
+			printf("Could not init libFLAC %d\n",rc);
+			FLAC__stream_decoder_delete(decoder);
+			return -1;
+		}
+
+		printf ("libFLAC init %s\n",current);
+
+		state = FLAC__stream_decoder_get_state(decoder);
+		printf("Returned state = %u (%s)... OK\n", state, FLAC__StreamDecoderStateString[state]);
+
+		printf("FLAC__stream_decoder_process_until_end_of_metadata()\n");
+		if (!FLAC__stream_decoder_process_until_end_of_metadata(decoder)) {
+			FLAC__stream_decoder_delete(decoder);
+			return -1;
+		}
+
+		state = FLAC__stream_decoder_get_state(decoder);
+		printf("Returned state = %u (%s)... OK\n", state, FLAC__StreamDecoderStateString[state]);
+		printf("Skip single frame  FLAC__stream_decoder_skip_single_frame()...");
+		if (!FLAC__stream_decoder_skip_single_frame(decoder)) {
+			state = FLAC__stream_decoder_get_state(decoder);
+			printf("Returned state = %u (%s)... OK\n", state, FLAC__StreamDecoderStateString[state]);
+			FLAC__stream_decoder_delete(decoder);
+			return -1;
+		}
+		printf("OK\nFLAC__stream_decoder_get_channels()... ");
+		decoder_client_data.sam_fmt.channels = FLAC__stream_decoder_get_channels(decoder);
+		printf ("%d\n",decoder_client_data.sam_fmt.channels);
+
+		printf("FLAC__stream_decoder_get_bits_per_sample()... ");
+		decoder_client_data.sam_fmt.bits_per_sample = FLAC__stream_decoder_get_bits_per_sample(decoder);
+		printf ("%d\n",decoder_client_data.sam_fmt.bits_per_sample);
+
+		printf("FLAC__stream_decoder_get_sample_rate()... ");
+		decoder_client_data.sam_fmt.sample_rate = FLAC__stream_decoder_get_sample_rate(decoder);
+		printf ("%d\n",decoder_client_data.sam_fmt.sample_rate);
+
+		decoder_client_data.yield_samples = decoder_client_data.sam_fmt.sample_rate/FLAC_WRITE_YIELD_FREQ;
+
+		if (decoder_client_data.sam_fmt.sample_rate != 44100  || decoder_client_data.sam_fmt.channels != 2 || decoder_client_data.sam_fmt.bits_per_sample != 16 ) {
+			if ( av_set_pcm_param(decoder_client_data.sam_fmt.sample_rate,0, decoder_client_data.sam_fmt.channels,0,decoder_client_data.sam_fmt.bits_per_sample) < 0) {
+				FLAC__stream_decoder_delete(decoder);
+				return -1;
+			}
+		}
+		printf("FLAC__stream_decoder_get_blocksize()... ");
+		{
+			unsigned blocksize = FLAC__stream_decoder_get_blocksize(decoder);
+			/* value could be anything since we're at the last block, so accept any reasonable answer */
+			printf("returned %u... %s\n", blocksize, blocksize>0? "OK" : "FAILED");
+			if (blocksize == 0) {
+				FLAC__stream_decoder_delete(decoder);
+				return -1;
+			}
+		}
+		rc = 0;
+	} else {
+		decoder_client_data.afd = afd;
+//		might need FLAC__stream_decoder_flush(decoder);
+		printf("Reset using FLAC__stream_decoder_seek_absolute()\n ");
+		FLAC__stream_decoder_seek_absolute(decoder, 0);
+		state = FLAC__stream_decoder_get_state(decoder);
+		printf("Returned state = %u (%s)... OK\n", state, FLAC__StreamDecoderStateString[state]);
+		printf("FLAC__stream_decoder_process_until_end_of_stream()... ");
+		if (!FLAC__stream_decoder_process_until_end_of_stream(decoder)) {
+			if (audio_stop == 0 ) {
+				printf("stream error\n");
+			} else {
+				printf("remote stop\n");
+			}
+		} else {
+			while ( av_empty()==0 ) {
+				// empty audio buffer 
+				usleep(10000);
+			}
+			printf("stream complete\n");
+		}
+		if (!FLAC__stream_decoder_finish(decoder)) {
+		}
+		FLAC__stream_decoder_delete(decoder);
+		rc = -1;
+	}
+	return rc;
+}
+#else
+int flac_play(int afd)
+{
+	return -1;
+}
+#endif

@@ -22,6 +22,8 @@ id3 = env.SConscript('libid3/SConscript')
 tremor = env.SConscript('Tremor/SConscript')
 ncurses = env.SConscript('ncurses/SConscript')
 mysql = env.SConscript('mysql/SConscript')
+if target == 'mvp':
+	flac = env.SConscript('flac/SConscript')
 
 env.Depends(png, zlib)
 env.Depends(mw, png)

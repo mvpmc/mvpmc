@@ -107,6 +107,24 @@ if [ "`basename $PWD`" = "mysql-5.0.21" ] ; then
     exit $?
 fi
 
+if [ "`basename $PWD`" = "flac-1.1.3" ] ; then
+    if [ $TARGET = "host" ] ; then
+        echo "This should not happen"
+        exit $?
+    else
+        ./configure $CONFIG_OPTS
+    fi
+    cp ../../config.h config.h
+    cd src/libFLAC
+    make
+    cp .libs/libFLAC.a $INSTALL/lib
+
+    mkdir $INSTALL/include/FLAC
+    cd ../../include/FLAC
+    cp * $INSTALL/include/FLAC
+    exit $?
+fi
+
 if [ $AUTOCONF -eq 1 ] ; then
     echo "Running autoconf..."
     autoconf
