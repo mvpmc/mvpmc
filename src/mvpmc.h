@@ -538,4 +538,6 @@ extern void av_wss_init();
 extern void av_wss_visible(int isVisible);
 extern void av_wss_redraw();
 
+extern int wireless;
+
 #endif /* MVPMC_H */

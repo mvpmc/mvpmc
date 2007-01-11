@@ -67,6 +67,7 @@ static int verbose = 0;
 static struct option opts[] = {
 	{ "help", no_argument, 0, 'h' },
 	{ "probe", no_argument, 0, 'p' },
+	{ "signal", no_argument, 0, 'S' },
 	{ "ssid", required_argument, 0, 's' },
 	{ "verbose", no_argument, 0, 'v' },
 	{ "wep", required_argument, 0, 'w' },
@@ -80,6 +81,7 @@ print_help(char *prog)
 	printf("\t-h      \tprint this help\n");
 	printf("\t-p      \tprobe for wireless networks\n");
 	printf("\t-s ssid \tSSID to use\n");
+	printf("\t-S      \tdisplay signal strength\n");
 	printf("\t-v      \tverbose\n");
 	printf("\t-w key  \tWEP key\n");
 }
@@ -565,18 +567,50 @@ init(void)
 	return 0;
 }
 
+static void
+show_signal(void)
+{
+	char buf[256];
+	int fd;
+
+	if ((fd=open("/proc/tiwlan", O_RDONLY)) >= 0) {
+		int strength;
+		char *msg;
+		read(fd, buf, sizeof(buf));
+		strength = strtoul(buf, NULL, 0);
+		/*
+		 * The following ranges are a SWAG.
+		 */
+		if (strength < 50) {
+			msg = "excellent";
+		} else if (strength < 75) {
+			msg = "good";
+		} else if (strength < 90) {
+			msg = "fair";
+		} else {
+			msg = "weak";
+		}
+		snprintf(buf, sizeof(buf), "%d - %s", strength, msg);
+		close(fd);
+	} else {
+		strcpy(buf, "No Signal");
+	}
+
+	printf("Signal Strength: %s\n", buf);
+}
+
 int
 main(int argc, char **argv)
 {
 	int c, n, i;
 	int opt_index;
-	int do_probe = 0;
+	int do_probe = 0, do_signal = 0;
 	char *ssid = NULL, *key = NULL;
 	int found = 0;
 	int with_wep = -1;
 
 	while ((c=getopt_long(argc, argv,
-			      "hps:w:v", opts, &opt_index)) != -1) {
+			      "hps:Sw:v", opts, &opt_index)) != -1) {
 		switch (c) {
 		case 'h':
 			print_help(argv[0]);
@@ -587,6 +621,9 @@ main(int argc, char **argv)
 			break;
 		case 's':
 			ssid = strdup(optarg);
+			break;
+		case 'S':
+			do_signal = 1;
 			break;
 		case 'w':
 			if (strcasecmp(optarg, "off") == 0) {
@@ -606,6 +643,11 @@ main(int argc, char **argv)
 			exit(1);
 			break;
 		}
+	}
+
+	if (do_signal) {
+		show_signal();
+		exit(0);
 	}
 
 	if (read_vpd() != 0) {

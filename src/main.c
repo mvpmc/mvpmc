@@ -57,6 +57,11 @@
 #include <getopt.h>
 #include <ctype.h>
 #include <sys/stat.h>
+#include <netdb.h>
+#include <sys/ioctl.h>
+#include <net/if.h>
+#include <net/if_arp.h>
+#include <netinet/in.h>
 
 #include <mvp_widget.h>
 #include <mvp_av.h>
@@ -121,6 +126,7 @@ int filebrowser_disable = 0;
 int mplayer_disable = 1;
 int rfb_mode = 3;
 int flicker = 0;
+int wireless = 0;
 
 /*
  * Let's use the "exit" option for "no startup
@@ -414,6 +420,33 @@ spawn_child(void)
 		}
 	}
 }
+
+#ifndef MVPMC_HOST
+static void
+check_wireless(void)
+{
+	struct ifreq ifr;
+	int fd;
+
+	strncpy(ifr.ifr_name, "eth1", IFNAMSIZ);
+
+	if ((fd=socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+		printf("wireless device not found\n");
+		return;
+	}
+
+	if (ioctl(fd, SIOCGIFFLAGS, &ifr) < 0) {
+		printf("wireless device not found\n");
+		return;
+	}
+
+	close(fd);
+
+	wireless = 1;
+
+	printf("wireless device found\n");
+}
+#endif /* MVPMC_HOST */
 
 /*
  * main()
@@ -879,6 +912,7 @@ main(int argc, char **argv)
 		load_config_file(config_file, 0);
 
 #ifndef MVPMC_HOST
+	check_wireless();
 	spawn_child();
 #endif
 

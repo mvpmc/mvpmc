@@ -933,6 +933,8 @@ static mvp_widget_t *settings_vlc_ab;
 static mvp_widget_t *settings_playback;
 static mvp_widget_t *settings_help;
 static mvp_widget_t *settings_startup;
+static mvp_widget_t *settings_wireless;
+static mvp_widget_t *settings_wireless_signal;
 static mvp_widget_t *screensaver_dialog;
 static mvp_widget_t *about;
 mvp_widget_t *mclient;
@@ -1101,6 +1103,7 @@ typedef enum {
 	SETTINGS_MAIN_SAVE,
 	SETTINGS_MAIN_VIEWPORT,
 	SETTINGS_MAIN_STARTUP,
+	SETTINGS_MAIN_WIRELESS,
 } settings_main_t;
 
 typedef enum {
@@ -1162,6 +1165,10 @@ enum {
 	SETTINGS_OSD_BRIGHTNESS = 1,
 	SETTINGS_OSD_COLOR,
 };
+
+typedef enum {
+	SETTINGS_WIRELESS_SIGNAL = 1,
+} settings_wireless_t;
 
 
 enum {
@@ -1594,6 +1601,19 @@ settings_mythtv_rg_key_callback(mvp_widget_t *widget, char key)
 }
 
 static void
+settings_wireless_signal_key_callback(mvp_widget_t *widget, char key)
+{
+	switch (key) {
+	case MVPW_KEY_EXIT:
+		mvpw_set_timer(settings_wireless_signal, NULL, 0);
+		mvpw_hide(widget);
+		mvpw_show(settings_wireless);
+		mvpw_focus(settings_wireless);
+		break;
+	}
+}
+
+static void
 settings_vlc_key_callback(mvp_widget_t *widget, char key)
 {
 	switch (key) {
@@ -1730,6 +1750,18 @@ settings_startup_key_callback(mvp_widget_t *widget, char key)
 		startup_selection = (SETTINGS_STARTUP_ENDOFLIST - 2);
 	if (startup_selection > (SETTINGS_STARTUP_ENDOFLIST - 2))
 		startup_selection = 0;
+}
+
+static void
+settings_wireless_key_callback(mvp_widget_t *widget, char key)
+{
+	switch (key) {
+	case MVPW_KEY_EXIT:
+		mvpw_hide(widget);
+		mvpw_show(settings);
+		mvpw_focus(settings);
+		break;
+	}
 }
 
 static void
@@ -3658,6 +3690,10 @@ settings_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mvpw_show(settings_startup);
 		mvpw_focus(settings_startup);
 		break;
+	case SETTINGS_MAIN_WIRELESS:
+		mvpw_show(settings_wireless);
+		mvpw_focus(settings_wireless);
+		break;
 	}
 }
 
@@ -3801,6 +3837,52 @@ startup_select_callback(mvp_widget_t *widget, char *item, void *key)
 	if (config->startup_selection != startup_selection) {
 		config->startup_selection = startup_selection;
 		config->bitmask |= CONFIG_STARTUP_SELECT;
+	}
+}
+
+static void
+wireless_signal_callback(mvp_widget_t *widget)
+{
+	char buf[64];
+	int fd;
+
+	if ((fd=open("/proc/tiwlan", O_RDONLY)) >= 0) {
+		int strength;
+		char *msg;
+		read(fd, buf, sizeof(buf));
+		strength = strtoul(buf, NULL, 0);
+		/*
+		 * The following ranges are a SWAG.
+		 */
+		if (strength < 50) {
+			msg = "excellent";
+		} else if (strength < 75) {
+			msg = "good";
+		} else if (strength < 90) {
+			msg = "fair";
+		} else {
+			msg = "weak";
+		}
+		snprintf(buf, sizeof(buf), "%d - %s", strength, msg);
+		close(fd);
+	} else {
+		strcpy(buf, "No Signal");
+	}
+
+	mvpw_set_dialog_text(widget, buf);
+	mvpw_show(widget);
+	mvpw_focus(widget);
+}
+
+static void
+wireless_select_callback(mvp_widget_t *widget, char *item, void *key)
+{
+	switch ((settings_wireless_t)key) {
+	case SETTINGS_WIRELESS_SIGNAL:
+		wireless_signal_callback(settings_wireless_signal);
+		mvpw_set_timer(settings_wireless_signal,
+			       wireless_signal_callback, 1000);
+		break;
 	}
 }
 
@@ -4300,6 +4382,10 @@ settings_init(void)
 			   (void*)SETTINGS_MAIN_THEMES, &settings_item_attr);
 	mvpw_add_menu_item(settings, "Startup Specific Application",
 			   (void*)SETTINGS_MAIN_STARTUP, &settings_item_attr);
+	if (wireless)
+		mvpw_add_menu_item(settings, "Wireless",
+				   (void*)SETTINGS_MAIN_WIRELESS,
+				   &settings_item_attr);
 	if (config_file)
 		mvpw_add_menu_item(settings, "Viewport",
 				   (void*)SETTINGS_MAIN_VIEWPORT,
@@ -4632,6 +4718,26 @@ settings_init(void)
 	}
 
 
+	/*
+	 * wireless settings menu
+	 */
+	settings_wireless = mvpw_create_menu(NULL, x, y, w, h,
+					     settings_attr.bg,
+					     settings_attr.border,
+					     settings_attr.border_size);
+	settings_attr.checkboxes = 0;
+	mvpw_set_menu_attr(settings_wireless, &settings_attr);
+	mvpw_set_menu_title(settings_wireless, "Wireless Settings");
+	mvpw_set_key(settings_wireless, settings_wireless_key_callback);
+
+	settings_item_attr.hilite = NULL;
+	settings_item_attr.select = wireless_select_callback;
+
+	mvpw_add_menu_item(settings_wireless,
+			   "Signal Strength",
+			   (void*)SETTINGS_WIRELESS_SIGNAL,
+			   &settings_item_attr);
+
 
 
 
@@ -4672,6 +4778,22 @@ settings_init(void)
 	mvpw_set_key(screensaver_dialog, settings_screensaver_key_callback);
 	mvpw_set_dialog_title(screensaver_dialog, "Screensaver Timeout");
 	mvpw_set_dialog_text(screensaver_dialog, "");
+
+	/*
+	 * wireless signal
+	 */
+	h = 2 * FONT_HEIGHT(settings_dialog_attr);
+	settings_wireless_signal = mvpw_create_dialog(NULL, x, y, w, h,
+						settings_dialog_attr.bg,
+						settings_dialog_attr.border,
+						settings_dialog_attr.border_size);
+	mvpw_set_dialog_attr(settings_wireless_signal,
+			     &settings_dialog_attr);
+	mvpw_set_key(settings_wireless_signal,
+		     settings_wireless_signal_key_callback);
+	mvpw_set_dialog_title(settings_wireless_signal,
+			      "Wireless Signal Strength");
+	mvpw_set_dialog_text(settings_wireless_signal, "");
 
 	/*
 	 * mythtv widgets
