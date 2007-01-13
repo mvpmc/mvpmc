@@ -85,7 +85,7 @@ if [ "`basename $PWD`" = "djmount-0.71" ] ; then
     unset INSTALL
     unset CFLAGS
     export PATH=$CROSSBIN:$PATH
-    ./configure --host=powerpc-405-linux-uclibc --with-fuse-prefix=/home/mvp/mvpmc/mvpmc/dongle/apps/fuse/mvp/fuse-2.5.3/ --disable-debug --with-gnu-ld
+    ./configure --host=powerpc-405-linux-uclibc --with-fuse-prefix=$PWD/../../../fuse/mvp/fuse-2.5.3/ --disable-debug --with-gnu-ld
     make
     strip djmount/djmount
     cp djmount/djmount $DJINSTALL
