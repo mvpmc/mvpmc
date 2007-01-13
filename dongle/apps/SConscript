@@ -7,8 +7,10 @@ Import('env')
 busybox = env.SConscript(['busybox/SConscript'])
 ntp = env.SConscript(['ntpclient/SConscript'])
 dropbear = env.SConscript(['dropbear/SConscript'])
-fusermount = env.SConscript(['fuse/SConscript'])
+fuse = env.SConscript([ 'fuse/SConscript'])
+djmount = env.SConscript('djmount/SConscript')
 
 apps = env.Depends(ntp, busybox)
+apps = env.Depends(djmount,fuse)
 
 Return('apps')
