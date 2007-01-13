@@ -36,6 +36,7 @@ if target == 'mvp':
 	cross = crossroot + '/bin/' + prefix
 	env.Replace(CROSS = cross)
 	env.Replace(CC = cross + 'gcc')
+	env.Replace(CROSSPATH = crossroot + '/' + powerpc + '/bin')
 	cppflags = ''
 elif target == 'host':
 	cppflags = '-DMVPMC_HOST'
