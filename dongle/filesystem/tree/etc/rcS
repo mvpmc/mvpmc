@@ -118,6 +118,9 @@ fi
 #
 mkdir /tmp/themes
 
+#create the "UPnP" folder remove to disable auto djmount
+mkdir /uPnP
+
 #
 # Download the users config and theme files, if they exist.
 #

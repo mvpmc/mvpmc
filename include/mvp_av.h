@@ -140,7 +140,8 @@ typedef enum {
 typedef enum {
 	AV_AUDIO_MPEG = 0,	/**< MPEG Audio */
 	AV_AUDIO_PCM,		/**< PCM Audio */
-	AV_AUDIO_AC3		/**< Digital AC3 Audio */
+	AV_AUDIO_AC3,		/**< Digital AC3 Audio */
+	AV_AUDIO_CLOSE		/* Close Audio Device*/
 } av_audio_output_t;
 
 /**

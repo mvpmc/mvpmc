@@ -104,8 +104,8 @@ static struct option opts[] = {
 	{ "use-mplayer", no_argument, 0, 0 },
 	{ "emulate", required_argument, 0, 0},
 	{ "rfb-mode", required_argument, 0, 0},
-    { "rtwin", required_argument, 0, 0},
-    { "fs-rtwin", required_argument, 0, 0},
+	{ "rtwin", required_argument, 0, 0},
+	{ "fs-rtwin", required_argument, 0, 0},
 	{ "flicker", no_argument, 0, 0},
 	{ "mythtv-db", required_argument, 0, 'y'},
 	{ "mythtv-username", required_argument, 0, 'u'},
@@ -122,6 +122,9 @@ int mplayer_disable = 1;
 int rfb_mode = 3;
 int flicker = 0;
 
+int mount_djmount(char *);
+int unmount_djmount(void);
+extern char cwd[];
 /*
  * Let's use the "exit" option for "no startup
  * option selected" as no one would choose this.
@@ -139,7 +142,7 @@ char *mvp_server = NULL;
 char vnc_server[256];
 int vnc_port = 0;
 int rtwin = -1;
-int fs_rtwin = 0;
+int fs_rtwin = 4096;
 
 int fontid;
 extern demux_handle_t *handle;
@@ -365,20 +368,23 @@ spawn_child(void)
 
 			key = web_config->control;
 			if ( key!=0 || select(fd+1, &fds, NULL, NULL, &to) > 0) {
-                if (key == 0 ) {
-       				read(fd, &key, sizeof(key));
-	      			read(fd, &key, sizeof(key));
+				if (key == 0 ) {
+					read(fd, &key, sizeof(key));
+					read(fd, &key, sizeof(key));
 				} 
 
 				if ((key & 0xff) == 0x3d) {
 					power = !power;
-                    web_config->control = 0;
+					web_config->control = 0;
 					if (power == 0) {
 						kill(-child, SIGINT);
 						usleep(5000);
 						kill(-child, SIGKILL);
 						av_set_led(0);
 						printf("Power OFF\n");
+						if (strstr(cwd,"/uPnP")!=NULL ){ 
+							unmount_djmount();
+						}
 					} else {
 						printf("Power ON\n");
 						av_set_led(1);
@@ -532,7 +538,7 @@ main(int argc, char **argv)
 	config->av_video_output = AV_OUTPUT_COMPOSITE;
 	config->av_tv_aspect = AV_TV_ASPECT_4x3;
 	config->av_mode = AV_MODE_PAL;
-    vnc_server[0] = 0;
+	vnc_server[0] = 0;
         
 	/*
 	 * Parse the command line options.  These settings must override
@@ -840,12 +846,12 @@ main(int argc, char **argv)
 		}
 	}
 	if (web_port==-1) {
-        if ( settings_disable == 1) {
-            web_port = 0;
-        } else {
-            web_port = 80;
-        }
-    }
+		if ( settings_disable == 1) {
+			web_port = 0;
+		} else {
+			web_port = 80;
+		}
+	}
 
 #ifndef MVPMC_HOST
 	theme_parse(MASTER_THEME);
@@ -882,8 +888,8 @@ main(int argc, char **argv)
 	spawn_child();
 #endif
 
-    // init here for globals 
-    memset(web_config, 0, sizeof(web_config_t));
+	// init here for globals 
+	memset(web_config, 0, sizeof(web_config_t));
 	if (web_port) {
 		load_web_config(font);
 	}
@@ -927,8 +933,12 @@ main(int argc, char **argv)
 	if (font)
 		fontid = mvpw_load_font(font);
 
+	if (strstr(cwd,"/uPnP")!=NULL ){
+		unmount_djmount();
+	}
 	if ((demux_mode=av_init()) == AV_DEMUX_ERROR) {
 		fprintf(stderr, "failed to initialize av hardware!\n");
+		unmount_djmount();
 		exit(1);
 	}
 
@@ -937,9 +947,9 @@ main(int argc, char **argv)
 	 */
 	set_config();
 
-    if (web_port) {
-        reset_web_config();
-    }
+	if (web_port) {
+		reset_web_config();
+	}
 
 #ifndef MVPMC_HOST
 	if(config->firsttime)
@@ -1102,8 +1112,8 @@ main(int argc, char **argv)
 		exit(1);
 	}
 	if (web_port) {
-        web_server = 1;
-	    pthread_create(&web_server_thread, &thread_attr_small,www_mvpmc_start, NULL);
+		web_server = 1;
+		pthread_create(&web_server_thread, &thread_attr_small,www_mvpmc_start, NULL);
 	}
 
 	atexit(atexit_handler);
@@ -1137,6 +1147,9 @@ switch_hw_state(mvpmc_state_t new)
 	case MVPMC_STATE_FILEBROWSER:
 	case MVPMC_STATE_HTTP:
 		fb_exit();
+		if (strstr(cwd,"/uPnP")!=NULL ){
+			unmount_djmount();
+		}
 		break;
 	case MVPMC_STATE_MYTHTV:
 		mythtv_exit();
@@ -1147,8 +1160,8 @@ switch_hw_state(mvpmc_state_t new)
 	case MVPMC_STATE_MCLIENT:
 		mclient_exit();
 		break;
-    case MVPMC_STATE_EMULATE:
-        break;
+	case MVPMC_STATE_EMULATE:
+		break;
 	}
 
 	hw_state = new;
@@ -1160,18 +1173,21 @@ switch_gui_state(mvpmc_state_t new)
 	if (new == gui_state)
 		return;
  
-    if (gui_state==MVPMC_STATE_FILEBROWSER) {
+	if (gui_state==MVPMC_STATE_FILEBROWSER) {
+		if (strstr(cwd,"/uPnP")!=NULL ){
+			unmount_djmount();
+		}
 		set_route(web_config->rtwin);
-    } else if (new==MVPMC_STATE_FILEBROWSER) {
+	} else if (new==MVPMC_STATE_FILEBROWSER) {
 		set_route(web_config->fs_rtwin);
-    }
- 
-    if (new==MVPMC_STATE_REPLAYTV && web_port==80) {
-        web_server = 0;
-    } else if (gui_state==MVPMC_STATE_REPLAYTV && web_port==80 ) {
-        web_server = 1;
-        pthread_create(&web_server_thread, &thread_attr_small,www_mvpmc_start, NULL);
-    }
+	}
+
+	if (new==MVPMC_STATE_REPLAYTV && web_port==80) {
+		web_server = 0;
+	} else if (gui_state==MVPMC_STATE_REPLAYTV && web_port==80 ) {
+		web_server = 1;
+		pthread_create(&web_server_thread, &thread_attr_small,www_mvpmc_start, NULL);
+	}
 
 	printf("%s(): changing from %d to %d\n", __FUNCTION__, gui_state, new);
 
@@ -1197,8 +1213,8 @@ atexit_handler(void)
 		break;
 	case MVPMC_STATE_MCLIENT:
 		break;
-    case MVPMC_STATE_EMULATE:
-        break;
+	case MVPMC_STATE_EMULATE:
+		break;
 
 	}
 
@@ -1207,6 +1223,9 @@ atexit_handler(void)
 		break;
 	case MVPMC_STATE_HTTP:
 	case MVPMC_STATE_FILEBROWSER:
+		if (strstr(cwd,"/uPnP")!=NULL ){
+			unmount_djmount();
+		}
 		break;
 	case MVPMC_STATE_MYTHTV:
 		break;
@@ -1215,8 +1234,8 @@ atexit_handler(void)
 		break;
 	case MVPMC_STATE_MCLIENT:
 		break;
-    case MVPMC_STATE_EMULATE:
-        break;
+	case MVPMC_STATE_EMULATE:
+		break;
 
 	}
 
