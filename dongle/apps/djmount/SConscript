@@ -43,8 +43,8 @@ build = env.Command(instbindir + '/djmount', 0,
                     '/djmount-0.71 -i ' + file + ' ' +
                     '-c ' + cross + ' ' +
                     '-I ' + instbindir + ' ' +
-                     '-b' +  crosspath )
-#                    '-p patches/error.patch')
+                     '-b' +  crosspath + ' ' +
+                    '-p djmount.patch' )
 
 #env.Depends(build,libfuse)
 
