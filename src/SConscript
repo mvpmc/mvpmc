@@ -43,7 +43,7 @@ if target == 'mvp':
                              CPPPATH = [ env['INCDIR'], env['INSTINCDIR'],
                                          '.', '../include' ],
                              LIBPATH = [ libdir ],
-                             LINKFLAGS = [ '-static' ])
+                             LINKFLAGS = [ '' ])
 	ticonfig = mvp.Program('ticonfig', [ 'ticonfig.c' ],
                                CPPPATH = [ env['INCDIR'], env['INSTINCDIR'],
                                          '.', '../include' ],
