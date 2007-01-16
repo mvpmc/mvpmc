@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# build fusermount and library files 
+# build djmount
 #
 
 import os
@@ -12,8 +12,14 @@ cc = env['CC']
 cross = env['CROSS']
 downloads = env['DOWNLOADS']
 target = env['TARG']
+crosspath= env['CROSSPATH']
+instbindir = env['INSTBINDIR']
 
-file = downloads + '/fuse-2.5.3.tar.gz'
+file = downloads + '/djmount-0.71.tar.gz'
+
+libfuse = '../fuse/' + target + 'fuse-2.5.3/lib/libfuse.a'
+
+
 
 e = Environment()
 e.Tool('WGet', toolpath=['../../../scons'])
@@ -29,23 +35,21 @@ def GetSourceFile(url, output_dir, env):
   node = env.SourceCode( munged, env.WGet() )
   return node
 
-
-url = 'http://www.mvpmc.org/dl/fuse-2.5.3.tar.gz'
+url = 'http://www.mvpmc.org/dl/djmount-0.71.tar.gz'
 pwd = os.getcwd()
 
-build = env.Command(['../../install/' + target + '/sbin/fusermount',
-                     target + '/fuse-2.5.3/lib/libfuse.a'], 0,
-                    'scons/build_fuse.sh -d ' + pwd + '/' + target +
-                    '/fuse-2.5.3 -i ' + file + ' ' +
+build = env.Command(instbindir + '/djmount', 0,
+                    'scons/build_app.sh -d ' + pwd + '/' + target +
+                    '/djmount-0.71 -i ' + file + ' ' +
                     '-c ' + cross + ' ' +
-                    '-I ' + pwd + '/../../install/' + target + ' -k N' )
+                    '-I ' + instbindir + ' ' +
+                     '-b' +  crosspath + ' ' +
+                    '-p djmount.patch' )
+
+#env.Depends(build,libfuse)
 
 if not os.path.exists(file):
 	dl = GetSourceFile(url, '#' + downloads, e)
 	env.Depends(build, dl)
-
-#djmount = env.SConscript(['../djmount/SConscript'])
-
-#build = env.Depends(djmount,fuse)
 
 Return('build')

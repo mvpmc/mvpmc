@@ -903,6 +903,7 @@ av_set_audio_output(av_audio_output_t type)
 		int mix[5] = { 0, 2, 7, 1, 0 };
 
 		close(fd_audio);
+		fd_audio=-1;
 
 		switch (type) {
 		case AV_AUDIO_MPEG:
@@ -967,6 +968,9 @@ av_set_audio_output(av_audio_output_t type)
 			if (ioctl(fd_audio, AV_SET_AUD_PLAY, 0) < 0)
 			  return -1;
 
+			break;
+		case AV_AUDIO_CLOSE:
+			printf("closed audio device\n");
 			break;
 		default:
 			return -1;
@@ -1045,13 +1049,19 @@ av_set_pcm_param(unsigned long rate, int type, int channels,
 		return -1;
 	}
 
-	if (ioctl(fd_audio, AV_SET_AUD_FORMAT, &mix) < 0)
+	if (ioctl(fd_audio, AV_SET_AUD_FORMAT, &mix) < 0) {
+		fprintf(stderr,"Can not set audio format %d %d %d %d%d\n",
+			mix[0],mix[1],mix[2],mix[3],mix[4]);
 		return -1;
+	}
 
 	av_sync();
 
-	if (ioctl(fd_audio, AV_SET_AUD_PLAY, 0) < 0)
+	if (ioctl(fd_audio, AV_SET_AUD_PLAY, 0) < 0){
+		fprintf(stderr,
+			"Can not set audio play");
 		return -1;
+	}
 
 	return 0;
 }

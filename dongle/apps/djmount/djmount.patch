@@ -1,0 +1,75 @@
+diff -Naur file_buffer.c
+--- orig/file_buffer.c 2006-08-27 16:12:20.000000000 -0400
++++ ../djmount/file_buffer.c 2007-01-14 16:57:24.000000000 -0500
+@@ -185,6 +185,9 @@
+ 				Log_Printf (LOG_DEBUG, 
+ 					    "GetHttp truncate to size %" 
+ 					    PRIdMAX, (intmax_t) size);
++				if (size==0) {
++					return -EOVERFLOW;
++				}
+ 			}
+ 		}
+ 
+@@ -199,7 +202,7 @@
+ 		int rc = UpnpOpenHttpGetEx (file->url, &handle,
+ 					    &contentType, &contentLength,
+ 					    &httpStatus,
+-					    offset, offset + size,
++					    offset, file->file_size,
+ 					    HTTP_DEFAULT_TIMEOUT
+ 					    );
+ 		if (rc != UPNP_E_SUCCESS) 
+@@ -211,6 +214,14 @@
+ 		 * perform a loop because I am not sure that HTTP GET guaranty
+ 		 * to return the exact number of bytes requested.
+ 		 */
++		if (contentLength<size) {
++			Log_Printf (LOG_DEBUG, 
++				"UpnpOpenHttpGetEx %d %d", contentLength,size);
++			size = contentLength;
++		}
++		if (file->file_size == FILE_BUFFER_MAX_CONTENT_LENGTH ) {
++			file->file_size = contentLength;
++		}
+ 		do {
+ 			unsigned int read_size = size - n;
+ 			if (n > 0) {
+@@ -237,6 +248,10 @@
+ 
+ 		rc = UpnpCloseHttpGet (handle);
+ 
++		if (contentLength<=size) {
++			n = file->file_size-offset;
++		}
++
+ 	HTTP_CHECK:
+ 		if (rc != UPNP_E_SUCCESS) {
+ 			Log_Printf (LOG_ERROR, 
+diff -aur orig/media_file.c djmount/media_file.c
+--- orig/media_file.c 2006-08-27 16:12:20.000000000 -0400
++++ ../djmount/media_file.c 2007-01-14 16:57:24.000000000 -0500
+@@ -282,6 +282,9 @@
+ {
+ 	const char* const str = ixmlElement_getAttribute (file->res, "size");
+ 	off_t res;
++	if (strstr(file->uri,"audio")!=NULL ){
++		res = 0x7fffffff;
++	}
+ 	STRING_TO_INT (str, res, -1);
+ 	return res;
+ }
+
+--- orig/fuse_main.c	2006-08-27 16:12:20.000000000 -0400
++++ ../djmount/fuse_main.c	2007-01-14 18:33:54.000000000 -0500
+@@ -311,8 +311,8 @@
+ 	 * b) or if the buffer does not guaranty to return exactly the
+ 	 *    number of bytes requested in a read (except on EOF or error)
+ 	 */
+-	fi->direct_io = ( FileBuffer_GetSize (file) < 0 ||
+-			  ! FileBuffer_HasExactRead (file) );
++	/* with mvpmc poor performance without this flag */
++	fi->direct_io = 1;
+ #endif
+ 
+ 	return rc;

@@ -35,9 +35,13 @@
 #include <mvp_av.h>
 #include <mvp_demux.h>
 
+extern int errno;
+
 #include "mvpmc.h"
 #include "display.h"
+#include "web_config.h"
 
+extern mvpw_text_attr_t display_attr;
 extern mvpw_menu_attr_t fb_attr;
 static mvpw_menu_item_attr_t item_attr = {
 	.selectable = true,
@@ -62,6 +66,10 @@ static int dir_count = 0;
 
 int loaded_offset = 0;
 int loaded_status = 0;
+
+int mount_djmount(char *);
+int unmount_djmount(void);
+int set_route(int rtwin);
 
 int
 is_video(char *item)
@@ -165,7 +173,15 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 	struct stat64 sb;
 
 	sprintf(path, "%s/%s", cwd, item);
-	stat64(path, &sb);
+	if (stat64(path, &sb)!=0) {
+		printf("Could not stat %s error %d\n",item,errno);
+		if (strcmp(item,"../")==0 ) {
+			// probably lost network put you back in root
+			strcpy(cwd,"/");
+			strcpy(path,"/");
+			stat64(path, &sb);
+		}
+	}
 
 	if (current_pl && !is_playlist(item)) {
 		free(current_pl);
@@ -212,11 +228,15 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 			if (path[0] == '\0')
 				sprintf(path, "/");
 		} else {
-			sprintf(path, "%s/%s", cwd, item);
 			if ((ptr=strrchr(path, '/')) != NULL)
 				*ptr = '\0';
 		}
-
+		if (strstr(path,"/uPnP")!=NULL && strstr(cwd,"/uPnP")==NULL ){
+			mount_djmount(path);
+				
+		} else if (strstr(path,"/uPnP")==NULL && strstr(cwd,"/uPnP")!=NULL ) { 
+			unmount_djmount();
+		}
 		strncpy(cwd, path, sizeof(cwd));
 
 		while ((cwd[0] == '/') && (cwd[1] == '/'))
@@ -446,12 +466,12 @@ add_files(mvp_widget_t *fbw)
 	file_count = 0;
 	do_glob(fbw, wc);
 	do_glob(fbw, WC);
-    if (vlc_server!=NULL) {
-        char *vlc[] = { "*.divx", "*.DIVX", "*.flv", "*.FLV", "*.avi", "*.AVI", "*.wmv",
+	if (vlc_server!=NULL) {
+		char *vlc[] = { "*.divx", "*.DIVX", "*.flv", "*.FLV", "*.avi", "*.AVI", "*.wmv",
 			"*.WMV", "*.wma", "*.WMA", "*.mp4", "*.MP4",
 			"*.rm", "*.RM", "*.ogm", "*.OGM", NULL };
-	    do_glob(fbw, vlc);
-    }
+		do_glob(fbw, vlc);
+	}
 }
 
 int
@@ -464,6 +484,9 @@ fb_update(mvp_widget_t *fb)
 	mvpw_set_menu_title(fb, cwd);
 
 	busy_start();
+	if (strstr(cwd,"/uPnP")!=NULL ){
+		mount_djmount(cwd);
+	}
 	add_dirs(fb);
 	add_files(fb);
 	busy_end();
@@ -659,4 +682,44 @@ fb_next_image(int offset)
 	av_wss_update_aspect(WSS_ASPECT_UNKNOWN);
 
 	return 0;
+}
+
+
+int mount_djmount(char *mycwd)
+{
+	int rc=-1;
+	if (strstr(mycwd,"/uPnP")!=NULL ) {
+		set_route(1448*4);
+		printf("Mounting %s\n",mycwd);
+		av_set_audio_output(AV_AUDIO_CLOSE);
+		if (fork()==0) {
+			if (display_attr.utf8 == 1 ) {
+				rc = execlp("/bin/djmount","djmount","-o", "iocharset=utf8","/uPnP",(char*)0);
+			} else {
+				rc = execlp("/bin/djmount","djmount","/uPnP",(char *)0);
+			}
+		}
+		busy_start();
+		usleep(2500000);
+		busy_end();
+		mvpw_expose(file_browser);
+		av_set_audio_output(AV_AUDIO_MPEG);
+	}
+	return rc;
+}
+int unmount_djmount(void)
+{
+	int rc = -1;
+	printf("Unmounting %s\n",cwd);
+	if (web_config->fs_rtwin !=-1) {
+		set_route(web_config->fs_rtwin);
+	} else if (web_config->rtwin !=-1) {
+		set_route(web_config->rtwin);
+	} else {
+		set_route(0);
+	}
+	if (fork()==0) {
+		rc = execlp("/sbin/fusermount","fusermount","-u","/uPnP",(char *)0);
+	}
+	return rc;
 }

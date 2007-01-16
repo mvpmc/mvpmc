@@ -13,6 +13,7 @@ help() {
     echo "	-i file    input file to build"
     echo "	-I dir     install directory"
     echo "	-p file    patch file (applied in order)"
+    echo "      -b path    path to cross binaries"
     exit 0
 }
 
@@ -20,7 +21,7 @@ PATCHES=
 INPUT=
 DIR=
 
-while getopts "c:d:hi:I:p:" i
+while getopts "c:d:hi:I:p:b:" i
   do case "$i" in
       c) CROSS=$OPTARG;;
       d) DIR=$OPTARG;;
@@ -28,6 +29,7 @@ while getopts "c:d:hi:I:p:" i
       i) INPUT=$OPTARG;;
       I) INSTALL=$OPTARG;;
       p) PATCHES="$PATCHES $OPTARG";;
+      b) CROSSBIN=$OPTARG;;
       *) echo error ; exit 1 ;;
   esac
 done
@@ -37,6 +39,7 @@ echo "INPUT: $INPUT"
 echo "DIR: $DIR"
 echo "CROSS: $CROSS"
 echo "INSTALL: $INSTALL"
+echo "CROSSBIN: $CROSSBIN"
 
 if [ "$DIR" = "" ] ; then
     echo "Application directory not specified!"
@@ -84,6 +87,19 @@ if [ "`basename $PWD`" = "mtd" ] ; then
     cp flashcp $INSTALL/bin
     exit $?
 fi
+
+if [ "`basename $PWD`" = "djmount-0.71" ] ; then
+    export DJINSTALL=$INSTALL
+    unset INSTALL
+    unset CFLAGS
+    export PATH=$CROSSBIN:$PATH
+    ./configure --host=powerpc-405-linux-uclibc --with-fuse-prefix=$PWD/../../../fuse/mvp/fuse-2.5.3/ --disable-debug --with-gnu-ld
+    make
+    strip djmount/djmount
+    cp djmount/djmount $DJINSTALL
+    exit $?
+fi
+
 
 if [ -f configure ] ; then
     ./configure --prefix=$INSTALL --host=powerpc
