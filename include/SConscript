@@ -14,7 +14,7 @@ toplevel = mvp['TOPLEVEL']
 incdir = toplevel + '/dongle/install/' + target + '/include'
 
 headers = [ 'cmyth.h', 'mvp_av.h', 'mvp_demux.h', 'mvp_osd.h', 'mvp_widget.h',
-            'refcnt.h', 'rfbproto.h', 'vncviewer.h' ]
+            'refcnt.h', 'rfbproto.h', 'vncviewer.h', 'tiwlan.h' ]
 
 inst = env.Install(incdir, headers)
 
