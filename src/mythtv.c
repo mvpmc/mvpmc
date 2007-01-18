@@ -1757,6 +1757,8 @@ control_start(void *arg)
 				len = cmyth_file_request_block(mythtv_file,
 							       size);
 			}
+			else
+				len = 1; /*At least don't cause errors below*/
 			mythtv_doing_request_block = 0;
 			pthread_mutex_unlock(&request_block_mutex);
 
