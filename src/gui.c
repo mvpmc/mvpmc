@@ -53,6 +53,10 @@
 #include <vncviewer.h>
 #include <nano-X.h>
 
+#ifndef MPVMC_HOST
+#include "tiwlan.h"
+#endif
+
 static int prefetch_delay;
 
 int MYTHTV_RECORD_START=0;
@@ -3844,13 +3848,14 @@ static void
 wireless_signal_callback(mvp_widget_t *widget)
 {
 	char buf[64];
-	int fd;
+	int strength = -1;
 
-	if ((fd=open("/proc/tiwlan", O_RDONLY)) >= 0) {
-		int strength;
+#ifndef MVPMC_HOST
+	strength = tiwlan_signal();
+#endif /* !MVPMC_HOST */
+
+	if (strength > 0) {
 		char *msg;
-		read(fd, buf, sizeof(buf));
-		strength = strtoul(buf, NULL, 0);
 		/*
 		 * The following ranges are a SWAG.
 		 */
@@ -3864,7 +3869,6 @@ wireless_signal_callback(mvp_widget_t *widget)
 			msg = "weak";
 		}
 		snprintf(buf, sizeof(buf), "%d - %s", strength, msg);
-		close(fd);
 	} else {
 		strcpy(buf, "No Signal");
 	}

@@ -22,11 +22,13 @@ if target == 'host':
 	libx11dir = ['/usr/X11R6/lib']
 	libFLAC = []
 	libx11 = ['X11', 'pthread', 'rt', 'Xau', 'dl', 'Xdmcp']
+	libs = []
 	linkflags = '-static'
 else:
 	libx11dir = []
 	libFLAC = ['libFLAC']
 	libx11 = []
+	libs = [ 'tiwlan' ]
 	linkflags = ''
 
 if target == 'mvp':
@@ -67,7 +69,7 @@ mvpmc = mvp.Program('mvpmc',
                             'osd', 'av', 'demux', 'cmyth', 'vnc', 'mysqlclient',
                             'png12', 'z', 'jpeg', 'm', 'gcc', 'pthread',
                             'a52', 'm', 'vorbisidec', 'id3',
-                            'ts_demux', 'dvbpsi'] + libFLAC + libx11,
+                            'ts_demux', 'dvbpsi'] + libFLAC + libx11 + libs,
                     LIBPATH = [ libdir, mysql_libdir ] + libx11dir,
                     LINKFLAGS = linkflags)
 
