@@ -114,6 +114,19 @@ typedef struct cmyth_proglist *cmyth_proglist_t;
 struct cmyth_file;
 typedef struct cmyth_file *cmyth_file_t;
 
+struct cmyth_commbreak {
+        long start_mark;
+        long start_offset;
+        long end_mark;
+        long end_offset;
+};
+typedef struct cmyth_commbreak *cmyth_commbreak_t;
+
+struct cmyth_commbreaklist {
+        cmyth_commbreak_t *commbreak_list;
+        long commbreak_count;
+};
+typedef struct cmyth_commbreaklist *cmyth_commbreaklist_t;
 
 /* Sergio: Added to support the tvguide functionality */
 
@@ -966,6 +979,10 @@ extern cmyth_freespace_t cmyth_freespace_create(void);
 extern long long cmyth_get_bookmark(cmyth_conn_t conn, cmyth_proginfo_t prog);
 extern int cmyth_set_bookmark(cmyth_conn_t conn, cmyth_proginfo_t prog,
 	long long bookmark);
+extern cmyth_commbreaklist_t cmyth_commbreaklist_create(void);
+extern cmyth_commbreak_t cmyth_commbreak_create(void);
+extern cmyth_commbreaklist_t cmyth_get_commbreaklist(cmyth_database_t db, cmyth_conn_t conn, cmyth_proginfo_t prog);
+extern int cmyth_rcv_commbreaklist(cmyth_conn_t conn, int *err, cmyth_commbreaklist_t breaklist, int count);
 
 /*
  * mysql info
@@ -1009,7 +1026,7 @@ extern int cmyth_mysql_get_guide(cmyth_database_t db, cmyth_program_t **prog, ti
 
 extern int cmyth_schedule_recording(cmyth_conn_t conn, char * msg);
 extern char * cmyth_mysql_escape_chars(cmyth_database_t db, char * string);
-
+extern int cmyth_mysql_get_commbreak_list(cmyth_database_t db, int chanid, char * start_ts_dt, cmyth_commbreaklist_t breaklist);
 
 
 #define PROGRAM_ADJUST  3600

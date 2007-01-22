@@ -43,6 +43,8 @@ extern pthread_mutex_t mutex;
 #define CMYTH_BYTE_LEN (sizeof("-256") - 1)
 #define CMYTH_TIMESTAMP_LEN (sizeof("YYYY-MM-DDTHH:MM:SS") - 1)
 #define CMYTH_DATESTAMP_LEN (sizeof("YYYY-MM-DD") - 1)
+#define CMYTH_COMMBREAK_START 4
+#define CMYTH_COMMBREAK_END 5
 
 /**
  * Atomically incremente a reference count variable.

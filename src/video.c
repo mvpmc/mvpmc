@@ -503,6 +503,34 @@ osd_callback(mvp_widget_t *widget)
 	mvpw_set_text_str(bps_widget, buf);
 }
 
+void
+seek_to(long long seek_offset)
+{
+	long long offset;
+
+	if (video_functions->seek == NULL) {
+		fprintf(stderr, "cannot seek on this video!\n");
+		return;
+	}
+
+	pthread_kill(video_write_thread, SIGURG);
+	pthread_kill(audio_write_thread, SIGURG);
+
+	if (mvpw_visible(ffwd_widget)) {
+		mvpw_hide(ffwd_widget);
+		av_ffwd();
+	}
+
+	offset = video_functions->seek(seek_offset, SEEK_SET);
+
+	jump_target = seek_offset;
+	jumping = 1;
+
+	PRINTF("-> %lld\n", offset);
+
+	pthread_cond_broadcast(&video_cond);
+}
+
 static void
 seek_by(int seconds)
 {
