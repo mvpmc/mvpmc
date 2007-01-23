@@ -6262,11 +6262,11 @@ about_init(void)
 	char text[512], host[64];
 	char buf[] = 
 		"http://www.mvpmc.org/\n\n"
-		"Audio: mp3, ogg, wav, ac3\n"
+		"Audio: mp3, ogg, wav, ac3, flac\n"
 		"Video: mpeg1, mpeg2\n"
 		"Images: bmp, gif, png, jpeg\n"
 		"Servers: MythTV, ReplayTV, NFS, CIFS, SlimServer,\n"
-		"VLC, VNC, HTTP, Hauppauge\n";
+		"VLC, VNC, HTTP, Hauppauge, UPnP\n";
 	struct utsname myname;
 
 	splash_update("Creating about dialog");
