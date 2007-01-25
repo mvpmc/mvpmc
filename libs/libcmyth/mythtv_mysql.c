@@ -571,3 +571,70 @@ fill_program_recording_status(cmyth_conn_t conn, char * msg)
 	return err;
 }
 
+int
+cmyth_mysql_get_commbreak_list(cmyth_database_t db, int chanid, char * start_ts_dt, cmyth_commbreaklist_t breaklist) 
+{
+	MYSQL_RES *res = NULL;
+	MYSQL_ROW row;
+	const char *query_str = "SELECT m.type AS type, m.mark AS mark, s.offset AS offset FROM recordedmarkup m INNER JOIN recordedseek AS s ON (m.chanid = s.chanid AND m.starttime = s.starttime AND (FLOOR(m.mark / 15) + 1) = s.mark) WHERE m.chanid = ? AND m.starttime = ? AND m.type IN (?, ?) ORDER BY mark;";
+	int rows = 0;
+	cmyth_mysql_query_t * query;
+	query = cmyth_mysql_query_create(db,query_str);
+	cmyth_commbreak_t commbreak = NULL;
+
+	if (cmyth_mysql_query_param_int(query, chanid) < 0
+		|| cmyth_mysql_query_param_str(query, start_ts_dt) < 0
+		|| cmyth_mysql_query_param_int(query, CMYTH_COMMBREAK_START) < 0
+		|| cmyth_mysql_query_param_int(query, CMYTH_COMMBREAK_END) < 0
+		) {
+		cmyth_dbg(CMYTH_DBG_ERROR,"%s, binding of query parameters failed! Maybe we're out of memory?\n", __FUNCTION__);
+		cmyth_release(query);
+		return -1;
+	}
+
+	res = cmyth_mysql_query_result(query);
+	cmyth_release(query);
+	if (res == NULL) {
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s, finalisation/execution of query failed!\n", __FUNCTION__);
+		return -1;
+	}
+
+	breaklist->commbreak_count = mysql_num_rows(res) / 2;
+
+	breaklist->commbreak_list = malloc(breaklist->commbreak_count *
+						sizeof(cmyth_commbreak_t));
+	if (!breaklist->commbreak_list) {
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: malloc() failed for list\n",
+			__FUNCTION__);
+		return -1;
+	}
+	memset(breaklist->commbreak_list, 0, breaklist->commbreak_count * sizeof(cmyth_commbreak_t));
+
+	int i = 0;
+	while ((row = mysql_fetch_row(res))) {
+		if ((i % 2) == 0) {
+			if (safe_atoi(row[0]) != CMYTH_COMMBREAK_START) {
+				return -1;
+			}
+
+			commbreak = cmyth_commbreak_create();
+			commbreak->start_mark = safe_atoll(row[1]);
+			commbreak->start_offset = safe_atoll(row[2]);
+			i++;
+		} else {
+			if (safe_atoi(row[0]) != CMYTH_COMMBREAK_END) {
+				return -1;
+			}
+
+			commbreak->end_mark = safe_atoll(row[1]);
+			commbreak->end_offset = safe_atoll(row[2]);
+			breaklist->commbreak_list[rows] = commbreak;
+			i = 0;
+			rows++;
+		}
+	}
+
+	mysql_free_result(res);
+	cmyth_dbg(CMYTH_DBG_ERROR, "%s: rows= %d\n", __FUNCTION__, rows);
+	return rows;
+}

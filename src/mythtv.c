@@ -81,6 +81,7 @@ volatile cmyth_conn_t control;		/* master backend */
 static volatile cmyth_conn_t event;		/* master backend */
 volatile cmyth_proginfo_t current_prog;	/* program currently being played */
 static volatile cmyth_proginfo_t hilite_prog;	/* program currently hilighted */
+static volatile cmyth_commbreaklist_t current_breaklist;
 static volatile cmyth_proglist_t episode_plist;
 static volatile cmyth_proglist_t pending_plist;
 
@@ -131,6 +132,7 @@ int mythtv_tcp_control = 4096;
 int mythtv_tcp_program = 0;
 int mythtv_sort = 0;
 int mythtv_sort_dirty = 1;
+static int mythtv_video_key(char);
 
 show_sort_t show_sort = SHOW_TITLE;
 
@@ -141,7 +143,7 @@ static video_callback_t mythtv_functions = {
 	.seek      = mythtv_seek,
 	.size      = mythtv_size,
 	.notify    = NULL,
-	.key       = NULL,
+	.key       = mythtv_video_key,
 	.halt_stream = NULL,
 };
 
@@ -156,6 +158,56 @@ mythtv_color_t mythtv_colors = {
 
 int chan_Total_rows=0;
 
+extern void seek_to(long long offset);
+
+static int
+in_commbreak(void)
+{
+	int i;
+	long current_pos = video_functions->seek(0, SEEK_CUR);
+
+	if (current_breaklist->commbreak_count < 1)
+		return -1;
+
+	for (i = 0; i < current_breaklist->commbreak_count; i++) {
+		if (current_pos > current_breaklist->commbreak_list[i]->start_offset && current_pos < current_breaklist->commbreak_list[i]->end_offset) {
+			fprintf(stderr, "Current pos: %li is in breaklist %d\n", current_pos, i);
+			return i;
+		}
+	}
+
+	return -1;
+}
+
+static int
+mythtv_video_key(char key)
+{
+	int rc = 0;
+	int breakidx;
+	
+	switch (key) {
+		case MVPW_KEY_SKIP:
+			if ((breakidx = in_commbreak()) >= 0) {
+				fprintf(stderr, "Jumping to %li\n", current_breaklist->commbreak_list[breakidx]->end_offset);
+				seek_to(current_breaklist->commbreak_list[breakidx]->end_offset);
+				rc = 1;
+			} else {
+				fprintf(stderr, "Not in commbreak.  Reverting to standard skip.\n");
+			}
+			break;
+		case MVPW_KEY_REPLAY:
+			if ((breakidx = in_commbreak()) >= 0) {
+				fprintf(stderr, "Jumping to %li\n", current_breaklist->commbreak_list[breakidx]->start_offset);
+				seek_to(current_breaklist->commbreak_list[breakidx]->start_offset);
+				rc = 1;
+			} else {
+				fprintf(stderr, "Not in commbreak.  Reverting to standard replay.\n");
+			}
+			break;
+	}
+
+	return rc;
+}
 
 static void
 add_recgroup(char *recgroup)
@@ -283,6 +335,7 @@ mythtv_close(void)
 	CHANGE_GLOBAL_REF(mythtv_recorder, NULL);
 	CHANGE_GLOBAL_REF(current_prog, NULL);
 	CHANGE_GLOBAL_REF(hilite_prog, NULL);
+	CHANGE_GLOBAL_REF(current_breaklist, NULL);
 	CHANGE_GLOBAL_REF(episode_plist, NULL);
 	CHANGE_GLOBAL_REF(pending_plist, NULL);
 	CHANGE_GLOBAL_REF(control, NULL);
@@ -389,6 +442,12 @@ mythtv_close_file(void)
 		fprintf(stderr, "%s(): releasing current prog\n",
 			__FUNCTION__);
 		CHANGE_GLOBAL_REF(current_prog, NULL);
+	}
+
+	if (current_breaklist) {
+		fprintf(stderr, "%s(): releasing current commbreak list\n",
+			__FUNCTION__);
+		CHANGE_GLOBAL_REF(current_breaklist, NULL);
 	}
 
 	close_mythtv = 0;
@@ -528,6 +587,7 @@ show_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
 	cmyth_proginfo_t loc_prog = cmyth_hold(current_prog);
 	cmyth_proginfo_t hi_prog = cmyth_hold(hilite_prog);
+	cmyth_commbreaklist_t loc_breaklist = NULL;
 
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
 		    __FUNCTION__, __FILE__, __LINE__);
@@ -565,6 +625,11 @@ show_select_callback(mvp_widget_t *widget, char *item, void *key)
 			pthread_mutex_unlock(&myth_mutex);
 		}
 
+		cmyth_conn_t ctrl=cmyth_hold(control);
+		loc_breaklist = cmyth_get_commbreaklist(mythtv_database, ctrl, hi_prog);
+		cmyth_release(ctrl);
+		CHANGE_GLOBAL_REF(current_breaklist, loc_breaklist);
+
 		while (video_reading)
 			;
 
@@ -578,6 +643,7 @@ show_select_callback(mvp_widget_t *widget, char *item, void *key)
 	}
 	cmyth_release(hi_prog);
 	cmyth_release(loc_prog);
+	cmyth_release(loc_breaklist);
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) }\n",
 		    __FUNCTION__, __FILE__, __LINE__);
 }
