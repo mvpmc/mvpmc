@@ -458,7 +458,7 @@ check_wireless(void)
  * main()
  */
 int
-main(int argc, char **argv)
+mvpmc_main(int argc, char **argv)
 {
 	int c, i;
 	char *font = NULL;
@@ -1276,3 +1276,21 @@ atexit_handler(void)
 	printf("%s(): exiting...\n", __FUNCTION__);
 }
 
+int
+main(int argc, char **argv)
+{
+	extern int ticonfig_main(int argc, char **argv);
+	extern int vpdread_main(int argc, char **argv);
+
+	if (strcmp(argv[0], "mvpmc") == 0) {
+		return mvpmc_main(argc, argv);
+	} else if (strcmp(argv[0], "ticonfig") == 0) {
+		return ticonfig_main(argc, argv);
+	} else if (strcmp(argv[0], "vpdread") == 0) {
+		return vpdread_main(argc, argv);
+	}
+
+	fprintf(stderr, "Unknown app: %s\n", argv[0]);
+
+	return -1;
+}

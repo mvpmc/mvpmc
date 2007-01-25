@@ -40,28 +40,14 @@ if target == 'mvp':
                              LIBPATH = [ libdir ],
                              LINKFLAGS = [ '' ])
 
-	vpdread = mvp.Program('vpdread',
-                             ['vpdread.c'],
-                             CPPPATH = [ env['INCDIR'], env['INSTINCDIR'],
-                                         '.', '../include' ],
-                             LIBPATH = [ libdir ],
-                             LINKFLAGS = [ '' ])
-	ticonfig = mvp.Program('ticonfig', [ 'ticonfig.c' ],
-                               CPPPATH = [ env['INCDIR'], env['INSTINCDIR'],
-                                         '.', '../include' ],
-			       LIBS = [ 'tiwlan' ],
-                               LIBPATH = [ libdir ],
-                               LINKFLAGS = linkflags)
-
-			
-
 mvpmc = mvp.Program('mvpmc',
                     ['audio.c', 'colorlist.c', 'config.c', 'display.c',
 		     'emulate.c', 'fb.c', 'gui.c', 'main.c',
 		     'mclient.c', 'mclient_mvpmc.c', 'mclient_cli.c',
 		     'mythtv.c', 'mythtv_livetv.c', 'tvguide.c',
 		     'playlist.c', 'replaytv.c', 'theme.c', 'video.c',
-		     'version.c', 'vlc_control.c', 'web_config.c', 'wss.c' ],
+		     'version.c', 'vlc_control.c', 'web_config.c', 'wss.c',
+		     'ticonfig.c', 'vpdread.c' ],
                     CPPPATH = [ env['INCDIR'], env['INSTINCDIR'],
                                 '.', '../include' ],
                     LIBS = ['widget', 'nano-X', 'mwengine', 'mwdrivers',
@@ -74,7 +60,7 @@ mvpmc = mvp.Program('mvpmc',
                     LINKFLAGS = linkflags)
 
 if target == 'mvp':
-	inst = env.Install(bindir, [ mvpmc, splash, ticonfig, vpdread ])
+	inst = env.Install(bindir, [ mvpmc, splash ])
 else:
 	inst = env.Install(bindir, mvpmc)
 

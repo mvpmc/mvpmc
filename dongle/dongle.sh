@@ -13,7 +13,8 @@ echo STRIP $STRIP
 DIRS="bin sbin usr/bin usr/sbin lib dev proc var usr/share usr/share/mvpmc usr/share/udhcpc etc tmp oldroot"
 WRAPPER_DIRS="bin sbin etc usr/bin usr/sbin dev tmp lib proc mnt"
 
-BIN="busybox flashcp mvpmc ntpclient scp ticonfig vpdread djmount"
+BIN="busybox flashcp mvpmc ntpclient scp djmount"
+MVPMC_BIN="ticonfig vpdread"
 WRAPPER_BIN="busybox splash"
 
 SBIN="dropbearmulti dropbear dropbearkey fusermount"
@@ -74,6 +75,9 @@ done
 for i in $WRAPPER_BIN ; do
     cp -d install/mvp/bin/$i filesystem/install_wrapper/bin
     $STRIP filesystem/install_wrapper/bin/$i
+done
+for i in $MVPMC_BIN ; do
+    ln -sf mvpmc filesystem/install/bin/$i
 done
 
 for i in $SBIN ; do

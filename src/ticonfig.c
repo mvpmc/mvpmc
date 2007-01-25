@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2006, Jon Gettler
+ *  Copyright (C) 2006-2007, Jon Gettler
  *  http://www.mvpmc.org/
  *
  * This program is free software; you can redistribute it and/or modify
@@ -22,42 +22,8 @@
 #include <unistd.h>
 #include <string.h>
 #include <getopt.h>
-#include <netdb.h>
-#include <sys/ioctl.h>
-#include <net/if.h>
-#include <net/if_arp.h>
-#include <netinet/in.h>
-#include <errno.h>
-#include <fcntl.h>
 
 #include "tiwlan.h"
-
-#define DEVNAME		"eth1"
-
-typedef struct {
-	unsigned char device[16];
-	unsigned long arg2;
-	unsigned long arg3;
-	unsigned long arg4;
-	void *ptr;
-} ti_dev_t;
-
-typedef struct {
-	unsigned int len;
-	char name[128];
-} ti_name_t;
-
-typedef struct {
-	unsigned int unknown[3];
-	unsigned int len;
-	char name[36];
-	unsigned int unknown2[27];
-} ti_ssid_t;
-
-typedef struct {
-	unsigned int count;
-	ti_ssid_t ssid[32];
-} ti_ssid_list_t;
 
 static char default_wep[128];
 static int verbose = 0;
@@ -115,7 +81,7 @@ show_signal(void)
 }
 
 int
-main(int argc, char **argv)
+ticonfig_main(int argc, char **argv)
 {
 	int c, n, i;
 	int opt_index;

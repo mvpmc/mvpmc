@@ -38,7 +38,7 @@ void print_help(char *prog)
 	printf("\t-t   TFTP=dongle.bin server ip\n");
 }           
 
-int main(int argc, char **argv)
+int vpdread_main(int argc, char **argv)
 {
 	int fd, i = 0, found = 0;
 	char ip[4];

@@ -34,6 +34,21 @@
 
 #define DEVNAME		"eth1"
 
+typedef struct wmvpcfg {
+	long wctid;		/* Magic Word: WMVP */
+	int nictype;		/* 0:Wired   1:Wireless */
+	char essid[33];
+	char pad0[3];
+	unsigned char wep;	/* 0:Disable   1:Enable */
+	char pad1[3];
+	unsigned char weplen;	/* 0:64bit   1:128bit */
+	char pad2[3];
+	unsigned char mode;	/* 0:Ad-hoc   1:Infrastructure */
+	unsigned char key[27];	/* WEP Key, Plain Text */
+} wmvpcfg_t;
+
+static wmvpcfg_t wmvpcfg;
+
 typedef struct {
 	unsigned char device[16];
 	unsigned long arg2;
@@ -73,8 +88,9 @@ read_vpd(void)
 {
 	int fd, i = 0;
 	short *mtd;
-	char *vpd, *network, *wep;
+	char *vpd;
 	char path[64];
+	wmvpcfg_t *cfg;
 
 	if ((fd=open("/proc/mtd", O_RDONLY)) > 0) {
 		FILE *f = fdopen(fd, "r");
@@ -116,22 +132,21 @@ read_vpd(void)
 
 	close(fd);
 
-	network = vpd+0x2008;
-	wep = vpd+0x2035;
+	cfg = (wmvpcfg_t*)(vpd+0x2000);
 
-	if (network[0] != '\0') {
+	if (cfg->essid[0] != '\0') {
 		if (verbose)
-			printf("Default wireless network: '%s'\n", network);
-		strcpy(default_ssid, network);
+			printf("Default wireless network: '%s'\n", cfg->essid);
+		strcpy(default_ssid, cfg->essid);
 	} else {
 		if (verbose)
 			printf("No default wireless network found in flash\n");
 	}
 
-	if (wep[0] != '\0') {
+	if (cfg->key[0] != '\0') {
 		if (verbose)
 			printf("WEP key found!\n");
-		strcpy(default_wep, wep);
+		strcpy(default_wep, cfg->key);
 	} else {
 		if (verbose)
 			printf("WEP key not found!\n");
@@ -146,6 +161,8 @@ read_vpd(void)
 		if (verbose)
 			printf("No default server found in flash\n");
 	}
+
+	memcpy(&wmvpcfg, cfg, sizeof(wmvpcfg));
 
 	free(mtd);
 
