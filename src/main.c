@@ -62,6 +62,7 @@
 #include <net/if.h>
 #include <net/if_arp.h>
 #include <netinet/in.h>
+#include <libgen.h>
 
 #include <mvp_widget.h>
 #include <mvp_av.h>
@@ -1281,16 +1282,19 @@ main(int argc, char **argv)
 {
 	extern int ticonfig_main(int argc, char **argv);
 	extern int vpdread_main(int argc, char **argv);
+	char *prog;
 
-	if (strcmp(argv[0], "mvpmc") == 0) {
+	prog = basename(argv[0]);
+
+	if (strcmp(prog, "mvpmc") == 0) {
 		return mvpmc_main(argc, argv);
-	} else if (strcmp(argv[0], "ticonfig") == 0) {
+	} else if (strcmp(prog, "ticonfig") == 0) {
 		return ticonfig_main(argc, argv);
-	} else if (strcmp(argv[0], "vpdread") == 0) {
+	} else if (strcmp(prog, "vpdread") == 0) {
 		return vpdread_main(argc, argv);
 	}
 
-	fprintf(stderr, "Unknown app: %s\n", argv[0]);
+	fprintf(stderr, "Unknown app: %s\n", prog);
 
 	return -1;
 }
