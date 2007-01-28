@@ -24,12 +24,14 @@ if target == 'host':
 	libx11 = ['X11', 'pthread', 'rt', 'Xau', 'dl', 'Xdmcp']
 	libs = []
 	linkflags = '-static'
+	mvpapps = []
 else:
 	libx11dir = []
 	libFLAC = ['libFLAC']
 	libx11 = []
 	libs = [ 'tiwlan' ]
 	linkflags = ''
+	mvpapps = ['ticonfig.c', 'vpdread.c']
 
 if target == 'mvp':
 	splash = mvp.Program('splash',
@@ -46,8 +48,8 @@ mvpmc = mvp.Program('mvpmc',
 		     'mclient.c', 'mclient_mvpmc.c', 'mclient_cli.c',
 		     'mythtv.c', 'mythtv_livetv.c', 'tvguide.c',
 		     'playlist.c', 'replaytv.c', 'theme.c', 'video.c',
-		     'version.c', 'vlc_control.c', 'web_config.c', 'wss.c',
-		     'ticonfig.c', 'vpdread.c' ],
+		     'version.c', 'vlc_control.c', 'web_config.c', 'wss.c' ] +
+		    mvpapps,
                     CPPPATH = [ env['INCDIR'], env['INSTINCDIR'],
                                 '.', '../include' ],
                     LIBS = ['widget', 'nano-X', 'mwengine', 'mwdrivers',
