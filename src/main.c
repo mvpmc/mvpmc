@@ -1288,10 +1288,12 @@ main(int argc, char **argv)
 
 	if (strcmp(prog, "mvpmc") == 0) {
 		return mvpmc_main(argc, argv);
+#ifndef MVPMC_HOST
 	} else if (strcmp(prog, "ticonfig") == 0) {
 		return ticonfig_main(argc, argv);
 	} else if (strcmp(prog, "vpdread") == 0) {
 		return vpdread_main(argc, argv);
+#endif /* !MVPMC_HOST */
 	}
 
 	fprintf(stderr, "Unknown app: %s\n", prog);
