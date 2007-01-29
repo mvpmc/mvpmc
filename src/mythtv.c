@@ -3056,7 +3056,7 @@ mythtv_schedule_recording(mvp_widget_t *widget, char *item , void *key, int type
 		else {
 			item_attr.fg = mythtv_colors.pending_will_record;
 			snprintf(buf, sizeof(buf),"%d (%s): %s - %s",sqlprog[which].channum,sqlprog[which].callsign,sqlprog[which].title,sqlprog[which].subtitle);
-			mvpw_add_menu_item(widget, buf, (void *)which, &item_attr);
+/*			mvpw_add_menu_item(widget, buf, (void *)which, &item_attr); */
 			mvpw_menu_set_item_attr(widget, (void*)which, &item_attr); 
 		}
 	}
