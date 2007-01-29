@@ -2839,7 +2839,7 @@ mythtv_schedule_recording(mvp_widget_t *widget, char *item , void *key, int type
 	char buf[256];
 	char query[700];
 	char query1[700];
-	char query2[500];
+	char query2[570];
 	char msg[45];
 	char guierrormsg[45];
 	int sqlcount=0;
@@ -2983,7 +2983,7 @@ mythtv_schedule_recording(mvp_widget_t *widget, char *item , void *key, int type
 					(int)sqlprog[which].endtime,
 					(int)sqlprog[which].endtime);
 				sprintf(query1, " ,'Default','0','%s','0','0','0','0', '%s', '%s','%s','6','15',", sqlprog[which].category,startoffset,endoffset,sqlrecgroups[rgroup].recgroups);
-				sprintf(query2,",'%s','%s','1',DAYOFWEEK(FROM_UNIXTIME(%d)),FROM_UNIXTIME(%d),TO_DAYS(%d), \
+				sprintf(query2,",'%s','%s','1',DAYOFWEEK(FROM_UNIXTIME(%d)),FROM_UNIXTIME(%d),TO_DAYS(FROM_UNIXTIME(%d)), \
 					'0','0','1.00','0','0','0', \
 					'0')", \
 					sqlprog[which].seriesid,sqlprog[which].programid,(int)sqlprog[which].starttime,(int)sqlprog[which].starttime,(int)sqlprog[which].starttime);

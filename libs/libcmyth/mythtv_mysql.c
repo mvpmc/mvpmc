@@ -295,7 +295,7 @@ cmyth_mysql_insert_into_record(cmyth_database_t db, char * query, char * query1,
 	char *N_subtitle;
 	char *N_description;
 	char *N_callsign;
-	char N_query[2500];
+	char N_query[2570];
 
 	if(cmyth_db_check_connection(db) != 0)
 	{
