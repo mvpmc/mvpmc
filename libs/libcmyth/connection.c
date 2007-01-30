@@ -991,6 +991,9 @@ cmyth_conn_get_freespace(cmyth_conn_t control,
 				goto out;
 			}
 			*used = atoi(reply);
+
+			*used *= 1024;
+			*total *= 1024;
 		}
 
     out:
