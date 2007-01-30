@@ -1181,9 +1181,11 @@ mythtv_update(mvp_widget_t *widget)
 	mvpw_set_text_str(episodes_widget, buf);
 
 	if (cmyth_conn_get_freespace(control, &total, &used) == 0) {
+		/* FIXME: This will be incorrect as of Myth v0.21 
+			need to call new QUERY_FREE_SPACE_SUMMARY */
 		snprintf(buf, sizeof(buf),
 			 "Diskspace: %5.2f GB (%5.2f%%) free",
-			 (total-used)/1024.0,
+			 (total-used)/1024.0/1024.0,
 			 100.0-((float)used/total)*100.0);
 		mvpw_set_text_str(freespace_widget, buf);
 	}
@@ -2839,7 +2841,7 @@ mythtv_schedule_recording(mvp_widget_t *widget, char *item , void *key, int type
 	char buf[256];
 	char query[700];
 	char query1[700];
-	char query2[500];
+	char query2[570];
 	char msg[45];
 	char guierrormsg[45];
 	int sqlcount=0;
@@ -2961,6 +2963,33 @@ mythtv_schedule_recording(mvp_widget_t *widget, char *item , void *key, int type
 					'0')", \
 					sqlprog[which].seriesid,sqlprog[which].programid,(int)sqlprog[which].starttime);
 				break;
+			case 31:
+				sprintf(query, "REPLACE INTO record ( \
+					recordid,type,chanid,starttime,startdate,endtime, \
+					enddate,search,\
+					title,\
+					subtitle, \
+					description, \
+					profile,recpriority,category,maxnewest,inactive,maxepisodes, \
+					autoexpire,startoffset,endoffset,recgroup,dupmethod,dupin, \
+					station,\
+					seriesid,programid,autocommflag,findday,findtime,findid, \
+					autotranscode,transcoder,tsdefault,autouserjob1,autouserjob2,autouserjob3, \
+					autouserjob4) values \
+					('%s','%d','%d',FROM_UNIXTIME(%d), \
+					 FROM_UNIXTIME(%d), FROM_UNIXTIME(%d), \
+					 FROM_UNIXTIME(%d),'',", recordid,
+					type, sqlprog[which].chanid,
+					(int)sqlprog[which].starttime,
+					(int)sqlprog[which].starttime,
+					(int)sqlprog[which].endtime,
+					(int)sqlprog[which].endtime);
+				sprintf(query1, " ,'Default','0','%s','0','0','0','0', '%s', '%s','%s','6','15',", sqlprog[which].category,startoffset,endoffset,sqlrecgroups[rgroup].recgroups);
+				sprintf(query2,",'%s','%s','1',DAYOFWEEK(FROM_UNIXTIME(%d)),FROM_UNIXTIME(%d),TO_DAYS(FROM_UNIXTIME(%d)), \
+					'0','0','1.00','0','0','0', \
+					'0')", \
+					sqlprog[which].seriesid,sqlprog[which].programid,(int)sqlprog[which].starttime,(int)sqlprog[which].starttime,(int)sqlprog[which].starttime);
+				break;
 			default:
 				sprintf(guierrormsg, "No MythTV SQL support\nMythTV version: %d\n", cmyth_conn_get_protocol_version(control));
 				gui_error(guierrormsg);
@@ -3029,7 +3058,7 @@ mythtv_schedule_recording(mvp_widget_t *widget, char *item , void *key, int type
 		else {
 			item_attr.fg = mythtv_colors.pending_will_record;
 			snprintf(buf, sizeof(buf),"%d (%s): %s - %s",sqlprog[which].channum,sqlprog[which].callsign,sqlprog[which].title,sqlprog[which].subtitle);
-			mvpw_add_menu_item(widget, buf, (void *)which, &item_attr);
+/*			mvpw_add_menu_item(widget, buf, (void *)which, &item_attr); */
 			mvpw_menu_set_item_attr(widget, (void*)which, &item_attr); 
 		}
 	}
