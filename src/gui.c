@@ -3847,33 +3847,20 @@ startup_select_callback(mvp_widget_t *widget, char *item, void *key)
 static void
 wireless_signal_callback(mvp_widget_t *widget)
 {
+#ifndef MVPMC_HOST
 	char buf[64];
 	int strength = -1;
+	char *msg = NULL;
 
-#ifndef MVPMC_HOST
-	strength = tiwlan_signal();
-#endif /* !MVPMC_HOST */
-
-	if (strength > 0) {
-		char *msg;
-		/*
-		 * The following ranges are a SWAG.
-		 */
-		if (strength < 50) {
-			msg = "excellent";
-		} else if (strength < 75) {
-			msg = "good";
-		} else if (strength < 90) {
-			msg = "fair";
-		} else {
-			msg = "weak";
-		}
+	if (tiwlan_get_signal(&strength, &msg) == 0) {
 		snprintf(buf, sizeof(buf), "%d - %s", strength, msg);
 	} else {
 		strcpy(buf, "No Signal");
 	}
 
 	mvpw_set_dialog_text(widget, buf);
+#endif /* !MVPMC_HOST */
+
 	mvpw_show(widget);
 	mvpw_focus(widget);
 }

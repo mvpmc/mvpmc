@@ -30,5 +30,7 @@ extern int tiwlan_enable(char *ssid, int with_wep);
 extern int tiwlan_disable(void);
 extern int tiwlan_add_wep(tiwlan_ssid_t *ssid, char *wep);
 extern int tiwlan_signal(void);
+extern int tiwlan_is_enabled(void);
+extern int tiwlan_get_signal(int *strength, char **msg);
 
 #endif /* TIWLAN_H */

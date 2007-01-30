@@ -54,24 +54,10 @@ static void
 show_signal(void)
 {
 	char buf[256];
-	int strength;
+	int strength = -1;
+	char *msg = NULL;
 
-	strength = tiwlan_signal();
-
-	if (strength >= 0) {
-		char *msg;
-		/*
-		 * The following ranges are a SWAG.
-		 */
-		if (strength < 50) {
-			msg = "excellent";
-		} else if (strength < 75) {
-			msg = "good";
-		} else if (strength < 90) {
-			msg = "fair";
-		} else {
-			msg = "weak";
-		}
+	if (tiwlan_get_signal(&strength, &msg) == 0) {
 		snprintf(buf, sizeof(buf), "%d - %s", strength, msg);
 	} else {
 		strcpy(buf, "No Signal");
@@ -149,10 +135,23 @@ ticonfig_main(int argc, char **argv)
 			fprintf(stderr, "SSID probe failed!\n");
 			exit(1);
 		}
+		if (n == 0) {
+			fprintf(stderr, "no SSIDs found!\n");
+			exit(1);
+		}
 		for (i=0; i<n; i++) {
 			printf("Found SSID: '%s'\n", ssid_list[i].name);
 		}
 		exit(0);
+	}
+
+	/*
+	 * If the wireless device is disabled in flash, force the user to
+	 * specify the SSID in order to enable the wireless device.
+	 */
+	if ((ssid == NULL) && !tiwlan_is_enabled()) {
+		fprintf(stderr, "wireless device is not enabled!\n");
+		exit(1);
 	}
 
 	if (tiwlan_enable(ssid, with_wep) < 0) {

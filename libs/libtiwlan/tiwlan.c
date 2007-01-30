@@ -647,3 +647,40 @@ tiwlan_signal(void)
 
 	return strength;
 }
+
+int
+tiwlan_is_enabled(void)
+{
+	if (read_vpd() < 0) {
+		return 0;
+	}
+
+	return wmvpcfg.nictype;
+}
+
+int
+tiwlan_get_signal(int *strength, char **msg)
+{
+	*strength = tiwlan_signal();
+
+	if (*strength >= 0) {
+		/*
+		 * The following ranges are a SWAG.
+		 */
+		if (*strength == 0) {
+			*msg = "no signal";
+		} else if (*strength < 50) {
+			*msg = "excellent";
+		} else if (*strength < 75) {
+			*msg = "good";
+		} else if (*strength < 90) {
+			*msg = "fair";
+		} else {
+			*msg = "weak";
+		}
+	} else {
+		return -1;
+	}
+
+	return 0;
+}
