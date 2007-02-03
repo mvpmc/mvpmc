@@ -18,6 +18,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <ctype.h>
+#include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
@@ -29,7 +30,11 @@
 
 unsigned char *buffer;
 long bufsize;
+
 int fd;
+int usefd=0;
+extern int errno;
+
 unsigned int orient;
 int fatal_error;
 
@@ -53,7 +58,9 @@ fill_input_buffer(j_decompress_ptr cinfo)
 {
 	ssize_t ret;
 	cinfo->src->next_input_byte = buffer;
-	ret = read(fd, buffer, bufsize);
+	do {
+		ret = read(fd, buffer, bufsize);
+	} while ( ret < 0 && ( errno == EINTR || errno == EAGAIN )  );
 	if( ret <= 0 ) {
 		buffer[0] = 0xFF;
 		buffer[1] = JPEG_EOI;
@@ -63,14 +70,18 @@ fill_input_buffer(j_decompress_ptr cinfo)
 	return TRUE;
 }
 
-static void
+static void 
 skip_input_data(j_decompress_ptr cinfo, long num_bytes)
 {
 	if (num_bytes <= 0) return;
 	if (num_bytes >= cinfo->src->bytes_in_buffer) {
 		cinfo->src->next_input_byte = buffer;
 		cinfo->src->bytes_in_buffer = 0;
-		lseek(fd, num_bytes-cinfo->src->bytes_in_buffer, SEEK_CUR);
+		if (usefd==0) {
+			lseek(fd, num_bytes-cinfo->src->bytes_in_buffer, SEEK_CUR);
+		} else {
+			//need to find a sample file
+		}
 	} else {
 		cinfo->src->next_input_byte += num_bytes;
 		cinfo->src->bytes_in_buffer -= num_bytes;
@@ -163,6 +174,13 @@ err:
 	return TRUE;
 }
 
+void
+mvpw_load_image_fd(int remotefd)
+{
+	fd = remotefd;
+	usefd = 1;
+}
+
 int
 mvpw_load_image_jpeg(mvp_widget_t *widget, char *file)
 {
@@ -186,20 +204,23 @@ mvpw_load_image_jpeg(mvp_widget_t *widget, char *file)
 	ret = 0;
 	fatal_error = 0;
 
-	fd = open(file, O_RDONLY);
-	if (fd < 0 || fstat(fd, &s) < 0) {
-		EPRINTF("%s: cannot open image: %s\n", __FUNCTION__, file);
-		ret = -1;
-		goto err1;
+	if (usefd==0) {
+		fd = open(file, O_RDONLY);
+		if (fd < 0 || fstat(fd, &s) < 0) {
+			EPRINTF("%s: cannot open image: %s\n", __FUNCTION__, file);
+			ret = -1;
+			goto err1;
+		}
+	
+		read(fd, prefix, 2);
+		if ((prefix[0] != 0xff) && (prefix[1] != 0xd8)) {
+			EPRINTF("%s: not a JPEG file: %s\n", __FUNCTION__, file);
+			ret = -1;
+			goto err1;
+		}
+		lseek(fd, 0, SEEK_SET);
 	}
 
-	read(fd, prefix, 2);
-	if ((prefix[0] != 0xff) && (prefix[1] != 0xd8)) {
-		EPRINTF("%s: not a JPEG file: %s\n", __FUNCTION__, file);
-		ret = -1;
-		goto err1;
-	}
-	lseek(fd, 0, SEEK_SET);
 
 	bufsize = 65536;
 	buffer = malloc(bufsize);
@@ -297,6 +318,7 @@ mvpw_load_image_jpeg(mvp_widget_t *widget, char *file)
 
 	if (jpeg_has_multiple_scans(&cinfo) ) {
  		EPRINTF("%s: progressive JPEG, skipping: %s\n", __FUNCTION__, file);
+		ret = -1;
 		goto err3;
  	}
 
@@ -418,6 +440,7 @@ err2:
 	free(buffer);
 err1:
 	close(fd);
+	usefd = 0;
 	return ret;
 }
 

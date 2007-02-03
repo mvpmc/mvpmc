@@ -24,6 +24,7 @@
 #include <glob.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <string.h>
 #include <time.h>
@@ -34,8 +35,6 @@
 #include <mvp_widget.h>
 #include <mvp_av.h>
 #include <mvp_demux.h>
-
-extern int errno;
 
 #include "mvpmc.h"
 #include "display.h"

@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2004, 2005, 2006, Jon Gettler
+ *  Copyright (C) 2004, 2005, 2006, 2007 Jon Gettler
  *  http://www.mvpmc.org/
  *
  * This program is free software; you can redistribute it and/or modify
@@ -47,6 +47,7 @@
 #include "colorlist.h"
 
 #include "mclient.h"
+#include "http_stream.h"
 #include "display.h"
 #include "bmp.h"
 
@@ -1394,6 +1395,11 @@ replaytv_back_to_mvp_main_menu(void) {
 static void
 iw_key_callback(mvp_widget_t *widget, char key)
 {
+	if (http_playing==HTTP_IMAGE_FILE_JPEG) {
+		audio_stop = 1;
+		return;
+	}
+
 	int new_delay;
 	new_delay = 0;
 	switch (key) {
@@ -3050,16 +3056,15 @@ vnc_key_callback(mvp_widget_t *widget, char key)
 {
     printf("key=%i\n",key);
 	if( key==MVPW_KEY_EXIT || key==MVPW_KEY_POWER) {
-       		GrUnregisterInput(rfbsock);
-	        close(rfbsock);
+		GrUnregisterInput(rfbsock);
+		close(rfbsock);
 		mvpw_destroy(widget);
-        	
 		mvpw_show(main_menu);
-        	mvpw_show(mvpmc_logo);
-        	mvpw_focus(main_menu);
+		mvpw_show(mvpmc_logo);
+		mvpw_focus(main_menu);
 		screensaver_enable();
 	} else {
-printf("keymap %i = %ld\n", key, kmap[key & 0x7f]);
+		printf("keymap %i = %ld\n", key, kmap[key & 0x7f]);
 //		SendKeyEvent(kmap[key & 0x7f], -1);
 		SendKeyEvent(kmap[(int)key], -1);
 		SendIncrementalFramebufferUpdateRequest();
