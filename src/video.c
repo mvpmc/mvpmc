@@ -41,6 +41,7 @@
 #include "mythtv.h"
 #include "replaytv.h"
 #include "config.h"
+#include "http_stream.h"
 
 #if 0
 #define PRINTF(x...) printf(x)
@@ -72,7 +73,6 @@ pthread_cond_t video_cond = PTHREAD_COND_INITIALIZER;
 static sem_t   write_threads_idle_sem;
 
 int fd = -1;
-extern int http_playing;
 
 static av_stc_t seek_stc;
 static int seek_seconds;
@@ -171,9 +171,9 @@ video_thumbnail(int on)
 		enable = 1;
 	} else {
 		av_wss_redraw();
-        if (gui_state != MVPMC_STATE_EMULATE) {
-		    av_move(0, 0, 0);
-        }
+		if (gui_state != MVPMC_STATE_EMULATE) {
+			av_move(0, 0, 0);
+		}
 		if (enable)
 			screensaver_disable();
 		enable = 0;
@@ -236,9 +236,9 @@ video_subtitle_check(mvp_widget_t *widget)
 	else
 		mvpw_set_timer(root, video_subtitle_check, 1000);
 
-    if (gui_state == MVPMC_STATE_EMULATE ) {
-        return;
-    }
+	if (gui_state == MVPMC_STATE_EMULATE ) {
+		return;
+	}
 	if (! (mvpw_visible(file_browser) ||
 	       mvpw_visible(playlist_widget) ||
 	       mvpw_visible(mythtv_browser) ||
@@ -1255,9 +1255,8 @@ do_seek(void)
 static long long
 file_size(void)
 {
-	if ( http_playing == 0 ) {
+	if ( http_playing == HTTP_FILE_CLOSED ) {
 		struct stat64 sb;
-    
 		fstat64(fd, &sb);
 		return sb.st_size;    
 	} else {
@@ -1299,7 +1298,7 @@ file_open(void)
 	audio_selected = 0;
 	audio_checks = 0;
 
-	if ( http_playing == 0 ) {
+	if ( http_playing == HTTP_FILE_CLOSED ) {
 		if (video_reopen == 1)
 			audio_clear();
 		
@@ -1309,12 +1308,12 @@ file_open(void)
 	pthread_kill(video_write_thread, SIGURG);
 	pthread_kill(audio_write_thread, SIGURG);
 
-	if ( http_playing == 0 ) {
-        if (gui_state != MVPMC_STATE_EMULATE) {
-            fd=open(current, O_RDONLY|O_LARGEFILE);
-        } else {
-            fd = open("/tmp/FIFO", O_RDONLY);
-        }
+	if ( http_playing == HTTP_FILE_CLOSED ) {
+		if (gui_state != MVPMC_STATE_EMULATE) {
+			fd=open(current, O_RDONLY|O_LARGEFILE);
+		} else {
+			fd = open("/tmp/FIFO", O_RDONLY);
+		}
 		if (fd < 0) {
 			printf("Open failed errno %d file %s\n",
 			       errno, current);
@@ -1336,15 +1335,14 @@ file_open(void)
 		ts_demux_reset(tshandle);
 		demux_attr_reset(handle);
 		demux_seek(handle);
-        if (gui_state == MVPMC_STATE_EMULATE || http_playing==1) {
-            video_thumbnail(0);
-        } else {
-    		if (si.rows == 480)
-    			av_move(475, si.rows-60, 4);
-    		else
-    			av_move(475, si.rows-113, 4);
-        }
-	
+		if (gui_state == MVPMC_STATE_EMULATE || http_playing == HTTP_VIDEO_FILE_MPG) {
+			video_thumbnail(0);
+		} else {
+			if (si.rows == 480)
+				av_move(475, si.rows-60, 4);
+			else
+				av_move(475, si.rows-113, 4);
+		}
 		av_play();
 	}
 

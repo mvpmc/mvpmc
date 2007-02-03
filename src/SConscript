@@ -44,7 +44,7 @@ if target == 'mvp':
 
 mvpmc = mvp.Program('mvpmc',
                     ['audio.c', 'colorlist.c', 'config.c', 'display.c',
-		     'emulate.c', 'fb.c', 'gui.c', 'main.c',
+		     'emulate.c', 'fb.c', 'gui.c', 'http_stream.c', 'main.c',
 		     'mclient.c', 'mclient_mvpmc.c', 'mclient_cli.c',
 		     'mythtv.c', 'mythtv_livetv.c', 'tvguide.c',
 		     'playlist.c', 'replaytv.c', 'theme.c', 'video.c',
