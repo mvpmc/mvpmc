@@ -150,11 +150,14 @@ cli_server_connect (void)
     struct sockaddr_in my_addr;
 
     int socket_handle = socket (AF_INET, SOCK_STREAM, 0);
+    char eth[16];
+
+    snprintf(eth, sizeof(eth), "eth%d", wireless);
 
     /*
      * Get the MAC address for the first ethernet port.
      */
-    strcpy (ifr.ifr_name, "eth0");
+    strcpy (ifr.ifr_name, eth);
     ioctl (socket_handle, SIOCGIFHWADDR, &ifr);
     mac_address_ptr = (unsigned char *) ifr.ifr_hwaddr.sa_data;
 

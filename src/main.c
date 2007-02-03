@@ -447,11 +447,17 @@ check_wireless(void)
 		return;
 	}
 
+	printf("wireless device found\n");
+
 	close(fd);
 
-	wireless = 1;
-
-	printf("wireless device found\n");
+	if ((ifr.ifr_flags & (IFF_RUNNING|IFF_UP)) == (IFF_RUNNING|IFF_UP)) {
+		wireless = 1;
+		printf("using eth1 (wireless)\n");
+	} else {
+		wireless = 0;
+		printf("using eth0 (wired)\n");
+	}
 }
 #endif /* MVPMC_HOST */
 

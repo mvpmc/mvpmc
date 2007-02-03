@@ -598,13 +598,16 @@ mclient_server_connect (void)
 {
     int s;
     struct sockaddr_in my_addr;
+    char eth[16];
+
+    snprintf(eth, sizeof(eth), "eth%d", wireless);
 
     s = socket (AF_INET, SOCK_DGRAM, 0);
 
     /*
      * Get the MAC address for the first ethernet port.
      */
-    strcpy (ifr.ifr_name, "eth0");
+    strcpy (ifr.ifr_name, eth);
     ioctl (s, SIOCGIFHWADDR, &ifr);
     mac_address_ptr = (unsigned char *) ifr.ifr_hwaddr.sa_data;
 
