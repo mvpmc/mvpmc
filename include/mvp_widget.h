@@ -736,6 +736,14 @@ extern int mvpw_load_image_jpeg(mvp_widget_t *widget, char *file);
 extern int mvpw_show_image_jpeg(mvp_widget_t *widget);
 
 /**
+ * Load a jpeg image from a file descriptor.
+ * \param widget widget handle
+ * \retval 0 success
+ * \retval -1 error
+ */
+extern void mvpw_load_image_fd(int remotefd);
+
+/**
  * graph widget attributes
  */
 typedef struct {

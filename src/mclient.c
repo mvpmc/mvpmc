@@ -125,11 +125,9 @@ struct in_addr *server_addr_mclient = NULL;
 
 char slimp3_display[DISPLAY_SIZE + 1];
 
-
-
 struct timeval uptime;          /* time we started */
 
-
+int ffwd_state;
 
 ring_buf *
 ring_buf_create (int size)
@@ -338,9 +336,9 @@ curses2ir (int key)
     case MVPW_KEY_SKIP:
         ir = 0x7689a05f;
         break;                  /* fwd */
-    case MVPW_KEY_FFWD:
-        ir = 0x7689a05f;
-        break;                  /* fwd */
+///    case MVPW_KEY_FFWD:
+///        ir = 0x7689a05f;
+///        break;                  /* fwd */
     case MVPW_KEY_OK:
         ir = 0x768910ef;
         break;                  /* play */
@@ -367,7 +365,12 @@ curses2ir (int key)
         ir = 0x768940bf;
         break;                  /* power */
     case MVPW_KEY_GREEN:
-        ir = 0x7689d827;
+	/*
+	 * Comment out the following line to reserve option to use Green
+	 * button to dump screen capture to file. Command line option:
+	 * "-C <file_name>"
+	 */
+////####        ir = 0x7689d827;
         break;                  /* cycle through shuffle modes */
     case MVPW_KEY_BLUE:
         ir = 0x7689807f;
@@ -391,6 +394,21 @@ curses2ir (int key)
             mvpw_show (mute_widget);
         else
             mvpw_hide (mute_widget);
+        break;
+
+    case MVPW_KEY_FFWD:
+        if (ffwd_state == 1)
+	{
+		printf("TEST:turn on FF.\n");
+		/* Send CLI to FF */
+		ffwd_state = 0;
+	}
+	else
+	{
+		printf("TEST:turn off FF.\n");
+		/* Send CLI to stop FF */
+		ffwd_state = 1;
+	}
         break;
 
         /*

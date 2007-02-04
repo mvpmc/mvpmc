@@ -20,6 +20,13 @@
 #ifndef MCLIENT_H
 #define MCLIENT_H
 
+#define MCLIENT_VERSION_MAJOR	2
+#define MCLIENT_VERSION_MINOR	0
+
+#define SLIMSERVER_VERSION_MAJOR	6
+#define SLIMSERVER_VERSION_MINOR_1	3
+#define SLIMSERVER_VERSION_MINOR_2	1
+
 #define MCLIENT_DISABLE		0
 #define MCLIENT			1
 #define MCLIENT_OTHER		2        /* Maybe someday UPNP? */
@@ -50,15 +57,20 @@
 #define MAX_PARAMS 16
 #define MAX_REPLY_LENGTH 256
 
+#define FALSE 0
+#define TRUE 1
+
 /*
  * Define states of the cli process.
  */
 enum
 {
     UPDATE_PLAYLIST_MINMINUS1 = 0,
+    UPDATE_PLAYLIST_NOWPLAYING,
     UPDATE_PLAYLIST_INDEX,
     UPDATE_PLAYLIST_NUM_TRACKS,
     UPDATE_PLAYLIST_ARTIST,
+    UPDATE_PLAYLIST_ALBUM,
     UPDATE_PLAYLIST_TITLE,
     UPDATE_PLAYLIST_MAXPLUS1,
     UPDATE_RADIO_MINMINUS1,
@@ -98,6 +110,38 @@ enum
     STREAMING,
 };
 
+/*
+ * Define last button press direction.
+ */
+enum
+{
+    DIR_CLEARED = 0,
+    UP,
+    DOWN,
+    LEFT,
+    RIGHT,
+    SERVICED,
+};
+
+/*
+ * Define slimserver menu states.
+ */
+enum
+{
+    UNKNOWN = 0,
+    SLIMP3_HOME,
+    NOW_PLAYING,
+    BROWSE,
+    SEARCH,
+    RANDOM_MIX,
+    FAVORITES,
+    PLAYLISTS,
+    INTERNET_RADIO,
+    SETTINGS,
+    PLUGINS,
+
+    PLAYLIST,
+};
 
 typedef struct
 {
@@ -169,11 +213,20 @@ typedef struct
     int state;                  // State we are in - what are we asking for over the CLI.
     int tracks;                 // Tracks on disk.
     int index_playing;          // Track we are playing.
+    int index_userfocus;        // Track user focus (i.e. what user may select next).
     int index_info;             // Track we are gather information on.
     int index_line;             // Line we are printing title on.
     char artist[50];
+    char album[50];
     char titles[50];
     char title_history[10][50];
+    int slimserver_menu_state;
+    int short_update_timer;	// Tracks cli update interval which should occur every few seconds.
+    int short_update_timer_expired; // Marks cli updates which should occur every few seconds.
+    int percent;		// Tracks song progress from 0 to 100%.
+    int elapsed_time;
+    int total_time;
+    int volume;
 } cli_data_type;
 
 /*
@@ -209,6 +262,7 @@ extern void cli_parse_player (mclient_cmd *);
 extern void cli_parse_button (mclient_cmd *);
 extern void cli_parse_response (int, mclient_cmd *);
 extern void cli_parse_parameters (mclient_cmd *, char **);
+extern void cli_get_cover_art (void);
 
 
 /*
@@ -242,10 +296,16 @@ extern char slimp3_display[];
 extern cli_data_type cli_data;
 
 /*
+ * Tracks timeout of userfocus selection.
+ */
+extern int cli_userfocus_timeout;
+
+/*
  * Tracks timeout of small mclient widget.
  */
 extern int cli_small_widget_timeout;
 extern int cli_small_widget_state;
+extern int cli_small_widget_force_hide;
 extern int cli_fullscreen_widget_state;
 
 /*
@@ -259,13 +319,25 @@ extern int cli_identical_state_interval_timer;
 extern int reset_mclient_hardware_buffer;
 
 /*
- * Tracks current state to display on OSD.
+ * Tracks current & old state to display on OSD.
  */
 extern int mclient_display_state;
+extern int mclient_display_state_old;
 
 /*
  * Tracks the switch from "Up Next" to "Now Playing".
  */
 extern int now_playing_timeout;
+
+/*
+ * Tracks FF state.
+ */
+extern int ffwd_state;
+
+/*
+ *
+ */
+extern char encoded_player_id[32];
+extern char decoded_player_id[32];
 
 #endif /* MCLIENT_H */

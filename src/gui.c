@@ -127,6 +127,48 @@ mvpw_menu_attr_t mclient_fullscreen_attr = {
 	.margin = 4,
 };
 
+mvpw_text_attr_t mclient_sub_softsqueeze_attr = {
+	.wrap = true,
+	.pack = false,
+	.justify = MVPW_TEXT_LEFT,
+	.margin = 4,
+	.font = FONT_LARGE,
+	.fg = MVPW_LIGHTGREY,
+	.border = MVPW_MIDNIGHTBLUE,
+	.border_size = 2,
+	.utf8 = true,
+};
+
+mvpw_text_attr_t mclient_sub_image_attr = {
+	.wrap = true,
+	.pack = false,
+	.justify = MVPW_TEXT_LEFT,
+	.margin = 4,
+	.font = FONT_LARGE,
+	.fg = MVPW_LIGHTGREY,
+	.border = MVPW_MIDNIGHTBLUE,
+	.border_size = 0,
+	.utf8 = true,
+};
+
+mvpw_graph_attr_t mclient_sub_progressbar_attr = {
+	.min = 0,
+	.max = 100,
+	.fg = mvpw_color_alpha(MVPW_GREEN, 0x80),
+   	.bg = MVPW_LIGHTGREY,
+   	.border = MVPW_MIDNIGHTBLUE,
+   	.border_size = 0,
+};
+
+mvpw_graph_attr_t mclient_sub_volumebar_attr = {
+	.min = 0,
+	.max = 100,
+	.fg = mvpw_color_alpha(MVPW_GREEN, 0x80),
+   	.bg = MVPW_LIGHTGREY,
+   	.border = MVPW_MIDNIGHTBLUE,
+   	.border_size = 0,
+};
+
 static mvpw_menu_attr_t settings_attr = {
 	.font = FONT_STANDARD,
 	.fg = MVPW_BLACK,
@@ -539,14 +581,14 @@ static mvpw_dialog_attr_t about_attr = {
 
 static mvpw_dialog_attr_t mclient_attr = {
 	.font = FONT_LARGE,
-	.fg = MVPW_WHITE,
-	.bg = MVPW_DARKGREY,
-	.title_fg = MVPW_WHITE,
-	.title_bg = MVPW_DARKGREY,
+	.fg = MVPW_DARKGREY,
+	.bg = MVPW_BLACK,
+	.title_fg = MVPW_DARKGREY,
+	.title_bg = MVPW_MIDNIGHTBLUE,
 	.modal = false,
-	.border = MVPW_BLUE,
-	.border_size = 0,
-	.margin = 4,
+	.border = MVPW_MIDNIGHTBLUE,
+	.border_size = 2,
+	.margin = 3,
 	.justify_title = MVPW_TEXT_CENTER,
 	.justify_body = MVPW_TEXT_LEFT,
 };
@@ -757,6 +799,9 @@ theme_attr_t theme_attr[] = {
 	{ .name = "mclient_fullscreen",
 	  .type = WIDGET_MENU,
 	  .attr.menu = &mclient_fullscreen_attr },
+	{ .name = "mclient_sub_softsqueeze",
+	  .type = WIDGET_TEXT,
+	  .attr.text = &mclient_sub_softsqueeze_attr },
 	{ .name = "busy_graph",
 	  .type = WIDGET_GRAPH,
 	  .attr.graph = &busy_graph_attr },
@@ -944,7 +989,10 @@ static mvp_widget_t *screensaver_dialog;
 static mvp_widget_t *about;
 mvp_widget_t *mclient;
 mvp_widget_t *mclient_fullscreen;
-mvp_widget_t *fullscreen_progress;
+mvp_widget_t *mclient_sub_softsqueeze;
+mvp_widget_t *mclient_sub_image;
+mvp_widget_t *mclient_sub_progressbar;
+mvp_widget_t *mclient_sub_volumebar;
 static mvp_widget_t *setup_image;
 static mvp_widget_t *fb_image;
 static mvp_widget_t *mythtv_image;
@@ -3035,6 +3083,10 @@ mclient_key_callback(mvp_widget_t *widget, char key)
 		 * the mclient.
 		 */
 		mvpw_hide(mclient_fullscreen); 
+		mvpw_hide(mclient_sub_softsqueeze); 
+		mvpw_hide(mclient_sub_image); 
+		mvpw_hide(mclient_sub_progressbar);
+		mvpw_hide(mclient_sub_volumebar);
 	        mvpw_hide(widget);
 		/*
 		 * Give up the mclient GUI.
@@ -6032,8 +6084,17 @@ main_select_callback(mvp_widget_t *widget, char *item, void *key)
 	case MM_MCLIENT:
 		mvpw_show(mclient);
 		mvpw_show(mclient_fullscreen);
+		mvpw_show(mclient_sub_softsqueeze);
+		mvpw_show(mclient_sub_image);
+		mvpw_show(mclient_sub_progressbar);
+		mvpw_show(mclient_sub_volumebar);
 		mvpw_raise(mclient_fullscreen);
-		mvpw_raise(mclient);
+		mvpw_raise(mclient_sub_softsqueeze);
+		mvpw_raise(mclient_sub_image);
+		mvpw_raise(mclient_sub_progressbar);
+		mvpw_raise(mclient_sub_volumebar);
+///		mvpw_raise(mclient); /// Just don't raise this over other windows.
+///		mvpw_lower(mclient); /// Really shouldn't need this as other widows have risen above this one.
 		mvpw_focus(mclient);
 
         switch_gui_state(MVPMC_STATE_MCLIENT);
@@ -6482,13 +6543,6 @@ mclient_init(void)
 	x = (si.cols - w) / 2;
 	y = (si.rows - h) / 2;
 
-	/*
-	 * Print default thread, if properly working, the
-	 * error message will be over written by the mclient
-	 * thread.
-	 */
-	snprintf(text, sizeof(text),
-			 "Music Client\nError:\nUninitialized");
 
 	mclient = mvpw_create_dialog(NULL, x, y, w, h,
 				   mclient_attr.bg,
@@ -6496,7 +6550,17 @@ mclient_init(void)
 
 	mvpw_set_dialog_attr(mclient, &mclient_attr);
 
+	snprintf(text, sizeof(text),
+			 "MClient %d.%d", MCLIENT_VERSION_MAJOR, MCLIENT_VERSION_MINOR);
 	mvpw_set_dialog_title(mclient, "MClient");
+
+	/*
+	 * Print default thread, if properly working, the
+	 * error message will be over written by the mclient
+	 * thread.
+	 */
+	snprintf(text, sizeof(text),
+			 "Music Client\nError:\nUninitialized");
 	mvpw_set_dialog_text(mclient, text);
 
 	mvpw_set_key(mclient, mclient_key_callback);
@@ -6557,6 +6621,115 @@ mclient_fullscreen_init(void)
 		mvpw_add_menu_item(mclient_fullscreen, "...",
 				   (void*)i, &mclient_fullscreen_menu_item_attr);
 	}
+	return 0;
+}
+
+static int
+mclient_sub_softsqueeze_init(void)
+{
+	int h, w, x, y;
+
+	splash_update("Creating mclient_sub_softsqueeze dialog");
+
+	h = FONT_HEIGHT(mclient_sub_softsqueeze_attr);
+	w = 400;
+
+	x = si.cols * .38; // About 86% across screen
+	y = si.rows * .22; // About 24% down screen
+
+	mclient_sub_softsqueeze = mvpw_create_text(NULL, 
+			x, y, w, (h * 2),
+			mclient_sub_softsqueeze_attr.bg,
+		 	mclient_sub_softsqueeze_attr.border, 
+			mclient_sub_softsqueeze_attr.border_size);
+
+	mvpw_set_text_attr(mclient_sub_softsqueeze, &mclient_sub_softsqueeze_attr);
+
+	/*
+	 * Later we will write mclient_fullscreen's own call back.  For now
+	 * we will use it for displaying only.
+	 */
+	mvpw_set_key(mclient_fullscreen, mclient_key_callback);
+
+	popup_item_attr.select = popup_select_callback;
+
+	/*
+	 * Define the full screen lines here.
+	 */
+	mvpw_set_text_str(mclient_sub_softsqueeze, "Softsqueeze\nWindow");
+
+	return 0;
+}
+
+static int
+mclient_sub_image_init(void)
+{
+	int h, w, x, y;
+
+	splash_update("Creating mclient_sub_image dialog");
+
+	h = 200;
+	w = ((200*4)/3);
+
+	x = si.cols * .61; // About 61% across screen
+	y = si.rows * .54; // About 54% down screen
+
+	mclient_sub_image = mvpw_create_text(NULL, 
+			x, y, w, h,
+			mclient_sub_image_attr.bg,
+		 	mclient_sub_image_attr.border, 
+			mclient_sub_image_attr.border_size);
+
+	return 0;
+}
+
+static int
+mclient_sub_progressbar_init(void)
+{
+	int h, w, x, y;
+
+	h = 5;
+	w = 300;
+
+	x = si.cols * .45; // About 45% across screen
+	y = si.rows * .35; // About 35% down screen
+
+	splash_update("Creating mclient_sub_progressbar dialog");
+
+        mclient_sub_progressbar = mvpw_create_graph(NULL, 
+			x, y, w, h,
+			mclient_sub_progressbar_attr.bg,
+		 	mclient_sub_progressbar_attr.border, 
+			mclient_sub_progressbar_attr.border_size);
+
+        mvpw_set_graph_attr(mclient_sub_progressbar, &mclient_sub_progressbar_attr);
+        mvpw_show(mclient_sub_progressbar);
+
+	return 0;
+}
+
+static int
+mclient_sub_volumebar_init(void)
+{
+	int h, w, x, y;
+
+	h = 5;
+	w = 300;
+
+	x = si.cols * .45; // About 45% across screen
+	y = si.rows * .23; // About 23% down screen
+
+	splash_update("Creating mclient_sub_volumebar dialog");
+
+        mclient_sub_volumebar = mvpw_create_graph(NULL, 
+			x, y, w, h,
+			mclient_sub_volumebar_attr.bg,
+		 	mclient_sub_volumebar_attr.border, 
+			mclient_sub_volumebar_attr.border_size);
+
+        mvpw_set_graph_attr(mclient_sub_volumebar, &mclient_sub_volumebar_attr);
+        mvpw_show(mclient_sub_volumebar);
+
 	return 0;
 }
 
@@ -7054,7 +7227,8 @@ screensaver_event(mvp_widget_t *widget, int activate)
 			 */
 			if(gui_state == MVPMC_STATE_MCLIENT || gui_state == MVPMC_STATE_HTTP )
 			{
-				mvpw_raise(mclient);
+///				mvpw_raise(mclient); /// This window has focus, but we don't want to see it.
+				mvpw_lower(mclient);
 				if(gui_state == MVPMC_STATE_MCLIENT ) {
 					mvpw_show(mclient);
 					mvpw_focus(mclient);
@@ -7112,6 +7286,12 @@ screensaver_init(void)
 
 	screensaver_enable();
 
+/// ### START
+///	screensaver_mclient = mvpmw_create_container(NULL, 0, 0,
+///						     si.cols, si.rows,
+///						     MVPW_BLACK, 0, 0);
+///	widget = mvpw_create_0
+/// ### END
 	return 0;
 }
 
@@ -7414,6 +7594,11 @@ gui_init(char *server, char *replaytv)
 	screensaver_init();
 	mclient_init();
 	mclient_fullscreen_init();
+	mclient_sub_softsqueeze_init();
+	mclient_sub_image_init();
+	mclient_sub_progressbar_init();
+	mclient_sub_volumebar_init();
+
 	thruput_init();
 
 	mvpw_destroy(splash);
