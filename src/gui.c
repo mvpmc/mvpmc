@@ -2537,8 +2537,9 @@ MYTHTV_POPUP_SCHED_REC_SHOW_DAILY	9	/* Record one showing of this title every da
 MYTHTV_POPUP_SCHED_REC_SHOW_WEEK	10	/* Record one showing every week */
 #endif
 	case MYTHTV_POPUP_SCHED_NORECORD:	/* Do not record Delete from Record Table */
+		mythtv_schedule_recording_delete(mythtv_prog_finder_3, item , key, 1);
 		printf("NORECORD: %s\n", item);
-		/* FIXME: mvpw_hide(mythtv_popup); */
+		mvpw_hide(mythtv_popup);
 		/* Actually do something */
 		break;
 	case MYTHTV_POPUP_SCHED_REC_THIS_SHOW:	/* Record only this showing */

@@ -208,6 +208,7 @@ extern int mythtv_prog_finder_char_menu_right(int direction, mvp_widget_t*, mvp_
 extern int mythtv_prog_finder_title_menu_right(mvp_widget_t*, mvp_widget_t*, mvp_widget_t*);
 
 extern void mythtv_schedule_recording(mvp_widget_t*, char *item , void *key, int type);
+extern void mythtv_schedule_recording_delete(mvp_widget_t*, char *item , void *key, int type);
 
 extern void mythtv_show_widgets(void);
 extern void mythtv_program(mvp_widget_t *widget);

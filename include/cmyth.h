@@ -1015,6 +1015,7 @@ typedef struct cmyth_recgrougs {
 }cmyth_recgroups_t;
 
 extern int cmyth_mysql_get_recgroups(cmyth_database_t, cmyth_recgroups_t **);
+extern int cmyth_mysql_delete_scheduled_recording(cmyth_database_t db, char * query);
 extern int cmyth_mysql_insert_into_record(cmyth_database_t db, char * query, char * query1, char * query2, char *title, char * subtitle, char * description, char * callsign);
 
 extern char* cmyth_get_recordid_mysql(cmyth_database_t, int, char *, char *, char *, char *, char *);
