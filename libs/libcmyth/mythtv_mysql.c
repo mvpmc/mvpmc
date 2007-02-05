@@ -287,6 +287,34 @@ cmyth_get_recordid_mysql(cmyth_database_t db, int chanid, char *title, char *sub
 	}
 }
 
+int 
+cmyth_mysql_delete_scheduled_recording(cmyth_database_t db, char * query)
+{
+	int rows=0;
+	if(cmyth_db_check_connection(db) != 0)
+	{
+               cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_db_check_connection failed\n",
+                           __FUNCTION__);
+               fprintf(stderr,"%s: cmyth_db_check_connection failed\n", __FUNCTION__);
+	       return -1;
+	}
+	cmyth_dbg(CMYTH_DBG_ERROR, "mysql query :%s\n",query);
+
+        if(mysql_real_query(db->mysql,query,(unsigned int) strlen(query))) {
+                cmyth_dbg(CMYTH_DBG_ERROR, "%s: mysql_query() Failed: %s\n", 
+                           __FUNCTION__, mysql_error(db->mysql));
+		return -1;
+	}
+	rows=mysql_affected_rows(db->mysql);
+
+	if (rows <=0) {
+        	cmyth_dbg(CMYTH_DBG_ERROR, "%s: mysql_query() Failed: %s\n", 
+                	__FUNCTION__, mysql_error(db->mysql));
+	}
+
+	return rows;
+}
+
 int
 cmyth_mysql_insert_into_record(cmyth_database_t db, char * query, char * query1, char * query2, char *title, char * subtitle, char * description, char * callsign)
 {

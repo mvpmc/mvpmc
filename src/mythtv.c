@@ -2867,6 +2867,65 @@ hilite_schedule_recording_callback(mvp_widget_t *widget, char *item , void *key,
 }
 
 void 
+mythtv_schedule_recording_delete(mvp_widget_t *widget, char *item , void *key, int type)
+{
+	char query[100];
+	char buf[256];
+	char *recordid = NULL;
+	char msg[45];
+	int err=0;
+
+	int which = (int) mvpw_menu_get_hilite(widget);
+
+	cmyth_conn_t ctrl = cmyth_hold(control);
+
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s begin\n", __FUNCTION__);
+
+	recordid=cmyth_get_recordid_mysql(mythtv_database,sqlprog[which].chanid,
+		cmyth_mysql_escape_chars(mythtv_database,sqlprog[which].title),
+		cmyth_mysql_escape_chars(mythtv_database,sqlprog[which].subtitle),
+		cmyth_mysql_escape_chars(mythtv_database,sqlprog[which].description),
+		sqlprog[which].seriesid,
+		sqlprog[which].programid
+	);
+
+	sprintf(query, "delete from record where recordid = '%s'", recordid);
+	cmyth_mysql_delete_scheduled_recording(mythtv_database, query);
+
+	sprintf(query, "delete from oldfind where recordid = '%s'", recordid);
+	cmyth_mysql_delete_scheduled_recording(mythtv_database, query);
+
+	sprintf(msg,"RESCHEDULE_RECORDINGS %s",recordid);
+
+	if ((err=cmyth_schedule_recording(ctrl,msg))<0){
+		cmyth_dbg(CMYTH_DBG_ERROR,
+		"%s: cmyth_sschedule_recording() failed (%d)\n", 
+		__FUNCTION__,err);
+		fprintf (stderr, "Error scheduling recording : %d\n",err);
+		goto err;
+	}
+ 
+	item_attr.fg = mythtv_attr.fg;
+	item_attr.bg = mythtv_attr.bg;
+	item_attr.fg = mythtv_colors.pending_other;
+
+	sqlprog[which].recording = 99;
+
+	mvpw_menu_set_item_attr(widget, (void*)which, &item_attr); 
+
+/*	out: */
+	cmyth_release(ctrl);
+	return;
+
+	err:
+		sprintf(buf, "ERROR-Scheduled Recording NOT Canceled\n");
+		mvpw_set_text_str(program_info_widget, buf);
+		mvpw_show(program_info_widget);
+		cmyth_release(ctrl);
+		return;
+}
+
+void 
 mythtv_schedule_recording(mvp_widget_t *widget, char *item , void *key, int type)
 {
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s begin\n", __FUNCTION__);
