@@ -6703,8 +6703,6 @@ mclient_sub_progressbar_init(void)
 			mclient_sub_progressbar_attr.border_size);
 
         mvpw_set_graph_attr(mclient_sub_progressbar, &mclient_sub_progressbar_attr);
-        mvpw_show(mclient_sub_progressbar);
-
 	return 0;
 }
 
@@ -6728,8 +6726,6 @@ mclient_sub_volumebar_init(void)
 			mclient_sub_volumebar_attr.border_size);
 
         mvpw_set_graph_attr(mclient_sub_volumebar, &mclient_sub_volumebar_attr);
-        mvpw_show(mclient_sub_volumebar);
-
 	return 0;
 }
 
