@@ -84,10 +84,16 @@ pthread_mutex_t mclient_mutex = PTHREAD_MUTEX_INITIALIZER;
 int local_paused;
 
 /*
+ * Tracks timeout of userfocus selection.
+ */
+int cli_userfocus_timeout;
+
+/*
  * Tracks timeout of small mclient widget.
  */
 int cli_small_widget_timeout;
 int cli_small_widget_state = SHOW;
+int cli_small_widget_force_hide = FALSE;
 int cli_fullscreen_widget_state = UNINITIALIZED;
 
 void mclient_audio_play (mvp_widget_t * widget);
@@ -547,6 +553,14 @@ mclient_idle_callback (mvp_widget_t * widget)
          */
         doubletime = 10;
         mvpw_set_dialog_text (mclient, newstring);
+	/*
+	 * Send text to sub fullscreen OSD as well.
+	 */
+	// For some reason the text widget can not handle
+	// the ">>" character so we will just over write it
+	// with a end of string null character...
+	newstring[79] = '\0';
+	mvpw_set_text_str (mclient_sub_softsqueeze, newstring);
     }
 
     /*
@@ -754,6 +768,20 @@ mclient_loop_thread (void *arg)
                 struct timeval mclient_tv;
                 int n = 0;
 
+		/*
+		 * Check if short (about 1 second) display update
+		 * (for widgets like the progressbar) is needed.
+		 */
+		if (cli_data.short_update_timer < time (NULL))
+		{
+		    cli_data.short_update_timer = time (NULL) + 1;
+		    cli_data.short_update_timer_expired = TRUE;
+		    mvpw_set_graph_current(mclient_sub_progressbar, cli_data.percent);
+		    mvpw_expose(mclient_sub_progressbar);
+		    mvpw_set_graph_current(mclient_sub_volumebar, cli_data.volume);
+		    mvpw_expose(mclient_sub_volumebar);
+		}
+
                 if ((cli_small_widget_timeout < time (NULL)) &&
                     (cli_small_widget_state == SHOW))
                 {
@@ -761,6 +789,10 @@ mclient_loop_thread (void *arg)
                      * Hide small widget.
                      */
                     mvpw_raise (mclient_fullscreen);
+                    mvpw_raise (mclient_sub_softsqueeze);
+                    mvpw_raise (mclient_sub_image);
+                    mvpw_raise (mclient_sub_progressbar);
+                    mvpw_raise (mclient_sub_volumebar);
                     cli_small_widget_state = HIDE;
                     printf ("mclient_mvpmc:Small widget HIDE.\n");
                 }
@@ -768,12 +800,16 @@ mclient_loop_thread (void *arg)
                 if ((cli_small_widget_timeout > time (NULL)) &&
                     (cli_small_widget_state == HIDE))
                 {
+
+		if(cli_small_widget_force_hide == FALSE)
+		{
                     /*
                      * Show small widget.
                      */
-                    mvpw_raise (mclient);
+		     /// mvpw_raise (mclient); /// We don't what to show this widget now.
                     cli_small_widget_state = SHOW;
                     printf ("mclient_mvpmc:Small widget SHOW.\n");
+		    }
                 }
 
                 /*
@@ -788,9 +824,28 @@ mclient_loop_thread (void *arg)
                 }
 
                 /*
-                 * Empty the set we are keeping an eye on and add all the ones we are interested in.
-                 * (i.e. We are interested in MP3 & Control data from the music server, and additional
-                 * data from the Command Line Interface (CLI) for the full screen display.)
+                 * Switch from userfocus to nowplaying on full screen mclient dispaly.
+                 */
+                if ((cli_userfocus_timeout < time (NULL)) && (cli_userfocus_timeout != 0))
+                {
+                    cli_userfocus_timeout = 0;
+                    /*
+                     * Need to trigger a pull of track info from server when switching from
+                     * user to player focus.
+                     * Set to fist state (always MINMUNIS1 plus 1).
+                     */
+                    cli_data.state = UPDATE_PLAYLIST_MINMINUS1 + 1;
+                    cli_update_playlist (socket_handle_cli);
+
+                    printf ("mclient_mvpmc:User focus hilite off.\n");
+                }
+
+                /*
+                 * Empty the set we are keeping an eye on and add all the ones we are 
+		 * interested in.
+                 * (i.e. We are interested in MP3 & Control data from the music server, 
+		 * and additional data from the Command Line Interface (CLI) for the full 
+		 * screen display.)
                  */
                 FD_ZERO (&read_fds);
                 FD_SET (socket_handle_cli, &read_fds);
@@ -831,8 +886,6 @@ mclient_loop_thread (void *arg)
                     read_packet (socket_handle_data);
                 }
 
-
-
                 /*
                  * This is the highest level hack for receiving CLI radio / streaming info.
                  * Once slimserver 6.5 is in wide use, get rid of this stuff.
@@ -852,8 +905,6 @@ mclient_loop_thread (void *arg)
                     }
                 }
 
-
-
                 /*
                  * Check if the "select" event could have been caused because new cli data
                  * has been sent. 
@@ -866,9 +917,23 @@ mclient_loop_thread (void *arg)
                     cli_read_data (socket_handle_cli);
                 }
 
+		/*
+		 * Any messages to be sent out to slimserver?
+		 */
+		if (cli_data.short_update_timer_expired == TRUE)
+		{
+                    char cmd[MAX_CMD_SIZE];
+		    cli_data.short_update_timer_expired = FALSE;
+		    sprintf (cmd, "%s time ?\n",decoded_player_id);
+                    cli_send_packet (socket_handle_cli, cmd);
+
+		    sprintf (cmd, "%s mixer volume ?\n",decoded_player_id);
+                    cli_send_packet (socket_handle_cli, cmd);
+		}
+
                 /*
-                 * If this is the first time through, send a command to the CLI that will trigger
-                 * a CLI / fullscreen update.
+                 * If this is the first time through, send a command to the CLI that 
+		 * will trigger a CLI / fullscreen update.
                  */
                 if (cli_fullscreen_widget_state == UNINITIALIZED)
                 {
@@ -882,6 +947,15 @@ mclient_loop_thread (void *arg)
                     sprintf (cmd, "playlist 1\n");
                     cli_send_packet (socket_handle_cli, cmd);
                     cli_fullscreen_widget_state = INITIALIZED;
+
+		    /*
+		     * Grab new duration for current track.
+                     */
+                    {
+                        char cmd[MAX_CMD_SIZE];
+                        sprintf (cmd, "%s duration ?\n",decoded_player_id);
+                        cli_send_packet (socket_handle_cli, cmd);
+                    }
                 }
 
                 /*

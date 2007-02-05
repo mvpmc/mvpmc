@@ -226,6 +226,10 @@ extern mvp_widget_t *vnc_widget;
 extern mvp_widget_t *volume_dialog;
 
 extern mvp_widget_t *mclient_fullscreen;
+extern mvp_widget_t *mclient_sub_softsqueeze;
+extern mvp_widget_t *mclient_sub_image;
+extern mvp_widget_t *mclient_sub_progressbar;
+extern mvp_widget_t *mclient_sub_volumebar;
 
 extern void volume_key_callback(mvp_widget_t *widget, char key);
 

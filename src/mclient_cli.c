@@ -47,6 +47,7 @@
 #include <sys/ioctl.h>
 
 #include "mclient.h"
+#include "http_stream.h" 
 
 // debug on
 //#define debug(...) printf(__VA_ARGS__)
@@ -104,14 +105,47 @@ int cli_identical_state_interval_timer = 0;
 int reset_mclient_hardware_buffer;
 
 /*
- * Tracks current state to display on OSD.
+ * Tracks current & old state to display on OSD.
  */
 int mclient_display_state;
+int mclient_display_state_old;
+
+/*
+ * Tracks last remote control button direction.
+ */
+int mclient_button_direction;
 
 /*
  * Tracks "Next Up" to "Now Playing" transition.
  */
 int now_playing_timeout;
+
+/*
+ * These widget attributes are used for different mclient full screen
+ * text hi-lighting.
+ */
+static mvpw_menu_item_attr_t mclient_fullscreen_menu_item_attr_nowplaying = {
+  .selectable = false,
+  .fg = MVPW_MIDNIGHTBLUE,
+  .bg = MVPW_BLACK,
+  .checkbox_fg = MVPW_GREEN,
+};
+
+static mvpw_menu_item_attr_t mclient_fullscreen_menu_item_attr_normal = {
+  .selectable = false,
+  .fg = MVPW_LIGHTGREY,
+  .bg = MVPW_BLACK,
+  .checkbox_fg = MVPW_GREEN,
+};
+
+static mvpw_menu_item_attr_t mclient_fullscreen_menu_item_attr_userfocus = {
+  .selectable = false,
+  .fg = MVPW_GREEN,
+  .bg = MVPW_BLACK,
+  .checkbox_fg = MVPW_GREEN,
+};
+
+int old_fullscreen_userfocus_item = 2;
 
 /*
  * Converts the mac address into a format recognised as 
@@ -120,11 +154,11 @@ int now_playing_timeout;
 void
 mac_to_encoded_player_id (char *s)
 {
-    sprintf (s, "%02x%%3A%02x%%3A%02x%%3A%02x%%3A%02x%%3A%02x",
-             mac_address_ptr[0],
-             mac_address_ptr[1],
-             mac_address_ptr[2],
-             mac_address_ptr[3], mac_address_ptr[4], mac_address_ptr[5]);
+  sprintf (s, "%02x%%3A%02x%%3A%02x%%3A%02x%%3A%02x%%3A%02x",
+	   mac_address_ptr[0],
+	   mac_address_ptr[1],
+	   mac_address_ptr[2],
+	   mac_address_ptr[3], mac_address_ptr[4], mac_address_ptr[5]);
 }
 
 /*
@@ -134,11 +168,11 @@ mac_to_encoded_player_id (char *s)
 void
 mac_to_decoded_player_id (char *s)
 {
-    sprintf (s, "%02x:%02x:%02x:%02x:%02x:%02x",
-             mac_address_ptr[0],
-             mac_address_ptr[1],
-             mac_address_ptr[2],
-             mac_address_ptr[3], mac_address_ptr[4], mac_address_ptr[5]);
+  sprintf (s, "%02x:%02x:%02x:%02x:%02x:%02x",
+	   mac_address_ptr[0],
+	   mac_address_ptr[1],
+	   mac_address_ptr[2],
+	   mac_address_ptr[3], mac_address_ptr[4], mac_address_ptr[5]);
 }
 
 /*
@@ -150,11 +184,14 @@ cli_server_connect (void)
     struct sockaddr_in my_addr;
 
     int socket_handle = socket (AF_INET, SOCK_STREAM, 0);
+    char eth[16];
+
+    snprintf(eth, sizeof(eth), "eth%d", wireless);
 
     /*
      * Get the MAC address for the first ethernet port.
      */
-    strcpy (ifr.ifr_name, "eth0");
+    strcpy (ifr.ifr_name, eth);
     ioctl (socket_handle, SIOCGIFHWADDR, &ifr);
     mac_address_ptr = (unsigned char *) ifr.ifr_hwaddr.sa_data;
 
@@ -199,12 +236,12 @@ cli_server_connect (void)
 void
 cli_reset_cmd (mclient_cmd * response)
 {
-    int i;
-    response->cmd[0] = '\0';
-    response->player_id[0] = '\0';
-    for (i = 0; i < MAX_PARAMS; i++)
+  int i;
+  response->cmd[0] = '\0';
+  response->player_id[0] = '\0';
+  for (i = 0; i < MAX_PARAMS; i++)
     {
-        response->param[i][0] = '\0';
+      response->param[i][0] = '\0';
     }
 }
 
@@ -215,46 +252,46 @@ cli_reset_cmd (mclient_cmd * response)
 void
 cli_decode_string (char *param)
 {
-    int i;
-    unsigned int the_char;
-    int pos = 0;
-    char buf[MAX_REPLY_LENGTH];
-    char hex_string[3];
+  int i;
+  unsigned int the_char;
+  int pos = 0;
+  char buf[MAX_REPLY_LENGTH];
+  char hex_string[3];
 
-    if (param != NULL)
+  if (param != NULL)
     {
-        if (strlen (param) > MAX_REPLY_LENGTH)
+      if (strlen (param) > MAX_REPLY_LENGTH)
         {
-            debug ("mclient_cli:Parameter too long. Cannot cope. Ignoring command %s\n",
-                   param);
+	  debug ("mclient_cli:Parameter too long. Cannot cope. Ignoring command %s\n",
+		 param);
         }
-        else
+      else
         {
-            for (i = 0; i < strlen (param); i++)
+	  for (i = 0; i < strlen (param); i++)
             {
-                if (param[i] != '%')
+	      if (param[i] != '%')
                 {
-                    buf[pos++] = param[i];
+		  buf[pos++] = param[i];
                 }
-                else if ((i + 2) >= strlen (param))
+	      else if ((i + 2) >= strlen (param))
                 {
-                    debug ("mclient_cli:Unexpected percent sign in param %s pos %d",
-                           param, i);
+		  debug ("mclient_cli:Unexpected percent sign in param %s pos %d",
+			 param, i);
                 }
-                else
+	      else
                 {
-                    strncpy (hex_string, &param[i + 1], 2);
-                    hex_string[2] = '\0';
-                    debug_fine ("mclient_cli:decoding hex %s\n", hex_string);
-                    sscanf (hex_string, "%x", &the_char);
-                    debug_fine ("mclient_cli:value %i", the_char);
-                    buf[pos++] = the_char;
-                    // skip two more chars
-                    i += 2;
+		  strncpy (hex_string, &param[i + 1], 2);
+		  hex_string[2] = '\0';
+		  debug_fine ("mclient_cli:decoding hex %s\n", hex_string);
+		  sscanf (hex_string, "%x", &the_char);
+		  debug_fine ("mclient_cli:value %i", the_char);
+		  buf[pos++] = the_char;
+		  // skip two more chars
+		  i += 2;
                 }
             }
-            buf[pos] = '\0';
-            strcpy (param, buf);
+	  buf[pos] = '\0';
+	  strcpy (param, buf);
         }
     }
 }
@@ -266,29 +303,29 @@ cli_decode_string (char *param)
 void
 cli_parse_parameters (mclient_cmd * response, char **token_buffer)
 {
-    char *param;
-    int i;
-    int length;
+  char *param;
+  int i;
+  int length;
 
-    for (i = 0; i < MAX_PARAMS; i++)
+  for (i = 0; i < MAX_PARAMS; i++)
     {
-        param = strtok_r (NULL, " ", token_buffer);
-        cli_decode_string (param);
-        if (param == NULL)
+      param = strtok_r (NULL, " ", token_buffer);
+      cli_decode_string (param);
+      if (param == NULL)
         {
-            break;
+	  break;
         }
-        else
+      else
         {
-            strncpy (response->param[i], param, MAX_PARAM_SIZE);
+	  strncpy (response->param[i], param, MAX_PARAM_SIZE);
 
-            length = strlen (response->param[i]);
-            if ((length > 0) && (response->param[i][length - 1] == '\n'))
+	  length = strlen (response->param[i]);
+	  if ((length > 0) && (response->param[i][length - 1] == '\n'))
             {
-                response->param[i][length - 1] = '\0';
+	      response->param[i][length - 1] = '\0';
             }
 
-            debug ("mclient_cli:param %d: |%s|\n", i, response->param[i]);
+	  debug ("mclient_cli:param %d: |%s|\n", i, response->param[i]);
         }
     }
 }
@@ -299,147 +336,280 @@ cli_parse_parameters (mclient_cmd * response, char **token_buffer)
 void
 cli_decode_response (int socket_handle, char *buf, mclient_cmd * response)
 {
-    char *cmd = NULL;
-    char *player_id;
-    char token_buffer_overall[strlen (buf)];
+  char *cmd = NULL;
+  char *player_id;
+  char token_buffer_overall[strlen (buf)];
 
-    char token_buffer[strlen (recvbuf_back)];
+  char token_buffer[strlen (recvbuf_back)];
 
-    char *param;
-    int i;
+  char *param;
+  int i;
 
-    cli_reset_cmd (response);
+  cli_reset_cmd (response);
 
-    i = 0;
-    param = strtok_r (buf, "\n", (char **) &token_buffer_overall);
-    while (param != NULL)
+  i = 0;
+  param = strtok_r (buf, "\n", (char **) &token_buffer_overall);
+  while (param != NULL)
     {
-        i++;
-        debug ("mclient:line %d:|%s|\n", i, param);
+      i++;
+      debug ("mclient:line %d:|%s|\n", i, param);
 
-        /*
-         * Extract player ID from returned message.
-         */
-        player_id = strtok_r (param, " ", (char **) &token_buffer);
-        cli_decode_string (player_id);
-        strncpy (response->player_id, player_id, MAX_ID_SIZE);
-        debug ("mplayer_cli:Player ID found in response: |%s|\n", player_id);
+      /*
+       * Extract player ID from returned message.
+       */
+      player_id = strtok_r (param, " ", (char **) &token_buffer);
+      cli_decode_string (player_id);
+      strncpy (response->player_id, player_id, MAX_ID_SIZE);
+      debug ("mplayer_cli:Player ID found in response: |%s|\n", player_id);
 
-        /*
-         * Extract CMD from returned message.
-         */
-        cmd = strtok_r (NULL, " ", (char **) &token_buffer);
-        strncpy (response->cmd, cmd, MAX_CMD_SIZE);
-        debug ("mplayer_cli:CMD found in response: |%s|\n", cmd);
+      /*
+       * Extract CMD from returned message.
+       */
+      cmd = strtok_r (NULL, " ", (char **) &token_buffer);
+      strncpy (response->cmd, cmd, MAX_CMD_SIZE);
+      debug ("mplayer_cli:CMD found in response: |%s|\n", cmd);
 
-        /*
-         * Extract all parameters from returned message.
-         * Returns 0 for 1 response, 1 for 2 or more responses.
-         */
-        cli_parse_parameters (response, (char **) &token_buffer);
+      /*
+       * Extract all parameters from returned message.
+       * Returns 0 for 1 response, 1 for 2 or more responses.
+       */
+      cli_parse_parameters (response, (char **) &token_buffer);
 
-        /*
-         * Process if player ID matches.
-         */
-        if (strncmp (decoded_player_id, player_id, strlen (player_id)) == 0)
+      /*
+       * Process if player ID matches.
+       */
+      if (strncmp (decoded_player_id, player_id, strlen (player_id)) == 0)
         {
-            cli_parse_response (socket_handle, response);
+	  cli_parse_response (socket_handle, response);
         }
 
-        param = strtok_r (NULL, "\n", (char **) &token_buffer_overall);
+      param = strtok_r (NULL, "\n", (char **) &token_buffer_overall);
     }
 }
 
 void
 cli_parse_response (int socket_handle_cli, mclient_cmd * response)
 {
-    if (response->cmd != NULL)
+  if (response->cmd != NULL)
     {
-        if (strncmp ("player", response->cmd, strlen ("player")) == 0)
+      if (strncmp ("player", response->cmd, strlen ("player")) == 0)
         {
-            cli_parse_player (response);
+	  cli_parse_player (response);
         }
-        else if (strncmp ("playlist", response->cmd, strlen ("playlist")) == 0)
+      else if (strncmp ("playlist", response->cmd, strlen ("playlist")) == 0)
         {
-            debug ("mclient_cli:Found playlist in response.\n");
-            cli_parse_playlist (response);
-            cli_update_playlist (socket_handle_cli);
-        }
-        else if (strncmp ("stop", response->cmd, strlen ("stop")) == 0)
-        {
-            debug ("mclient:cli_parse_response: Found stop.\n");
-            mclient_display_state = STOP;
-            reset_mclient_hardware_buffer = 1;
-        }
-        else if (strncmp ("status", response->cmd, strlen ("status")) == 0)
-        {
-            debug ("mclient:cli_parse_response: Found status.\n");
-        }
-        else if (strncmp ("newsong", response->cmd, strlen ("newsong")) == 0)
-        {
-            debug ("mclient:cli_parse_response: Found newsong.\n");
-            /*
-             * Found "newsong" message, the server is announcing it is
-             * going to a new song - update the play list.
-             * Set to fist state (always MINMUNIS1 plus 1).
-             */
-            cli_data.state = UPDATE_PLAYLIST_MINMINUS1 + 1;
-            cli_update_playlist (socket_handle_cli);
+	  debug ("mclient_cli:Found playlist in response.\n");
+	  cli_parse_playlist (response);
+	  cli_update_playlist (socket_handle_cli);
 
-            /*
-             * Set up for about 5 second "Next Up" to "Now Playing" transition.
-             */
-            now_playing_timeout = time (NULL) + 5;
+	  /*
+	   * Only do this when index == playlist number so on mult
+	   * album play list we will only load the artwork for the
+	   * current track.
+	   */
+	  if(cli_data.index_info == cli_data.index_playing)
+	    {
+	      /*
+	       * Do not load new cover art if user has focus.
+	       * It slows down the user response time.
+	       */
+	      if(cli_userfocus_timeout < time (NULL))
+	        {
+		  debug ("mclient_cli:Getting new cover art\n");
+		  /*
+		   * Grab new cover art for current tarck.
+		   */
+		  cli_get_cover_art();
+	        }
+	    }
         }
-        else if (strncmp ("open", response->cmd, strlen ("open")) == 0)
+      else if (strncmp ("stop", response->cmd, strlen ("stop")) == 0)
         {
-            debug ("mclient:cli_parse_response: Found open.\n");
+	  debug ("mclient:cli_parse_response: Found stop.\n");
+	  mclient_display_state = STOP;
+	  reset_mclient_hardware_buffer = 1;
         }
-        else if (strncmp ("button", response->cmd, strlen ("button")) == 0)
+      else if (strncmp ("status", response->cmd, strlen ("status")) == 0)
         {
-            debug ("mclient:cli_parse_response: Found button.\n");
-            /*
-             * Found "button" message, someone is pressing remote control
-             * buttons - let's try and grab the button action.
-             */
-            cli_parse_button (response);
-            /*
-             * Also, let's update the play list, but maybe we will take this
-             * out later.
-             * Set to fist state (always MINMUNIS1 plus 1).
-             */
-            cli_data.state = UPDATE_PLAYLIST_MINMINUS1 + 1;
-            cli_update_playlist (socket_handle_cli);
+	  debug ("mclient:cli_parse_response: Found status.\n");
         }
-        else if (strncmp ("listen", response->cmd, strlen ("listen")) == 0)
+      else if (strncmp ("newsong", response->cmd, strlen ("newsong")) == 0)
         {
-            debug ("mclient:cli_parse_response: Found listen.\n");
-            /*
-             * Found "listen" message, mclient is initializing the
-             * server - let's try and grab the play list.
-             * Set to fist state (always MINMUNIS1 plus 1).
-             */
-            cli_data.state = UPDATE_PLAYLIST_MINMINUS1 + 1;
-            cli_update_playlist (socket_handle_cli);
+	  debug ("mclient:cli_parse_response: Found newsong.\n");
+	  /*
+	   * Found "newsong" message, the server is announcing it is
+	   * going to a new song - update the play list.
+	   * Set to fist state (always MINMUNIS1 plus 1).
+	   */
+	  cli_data.state = UPDATE_PLAYLIST_MINMINUS1 + 1;
+	  cli_update_playlist (socket_handle_cli);
+
+	  /*
+	   * Set up for about 5 second "Next Up" to "Now Playing" transition.
+	   */
+	  now_playing_timeout = time (NULL) + 5;
+
+	  /*
+	   * Grab new cover art for current track.
+	   */
+	  cli_get_cover_art();
+
+          /*
+           * Grab new duration for current track.
+           */
+          {
+	    char cmd[MAX_CMD_SIZE];
+	    sprintf (cmd, "%s duration ?\n",decoded_player_id);
+	    cli_send_packet (socket_handle_cli, cmd);
+          }
         }
-        else if (strncmp ("play", response->cmd, strlen ("play")) == 0)
+      else if (strncmp ("open", response->cmd, strlen ("open")) == 0)
         {
-            debug ("mclient:cli_parse_response: Found play.\n");
-            mclient_display_state = PLAY;
-            reset_mclient_hardware_buffer = 1;
+	  debug ("mclient:cli_parse_response: Found open.\n");
         }
-        else if (strncmp ("display", response->cmd, strlen ("display")) == 0)
+      else if (strncmp ("button", response->cmd, strlen ("button")) == 0)
         {
-            debug ("mclient:cli_parse_response: Found display.\n");
-            cli_parse_display (response);
-            cli_identical_state_interval_timer = time (NULL) + 10;
+	  debug ("mclient:cli_parse_response: Found button.\n");
+	  /*
+	   * Found "button" message, someone is pressing remote control
+	   * buttons - let's try and grab the button action.
+	   */
+	  cli_parse_button (response);
+	  /*
+	   * Update the play list when needed.  For instance, while display is
+	   * of what is playing, update when user moves user focus up or down.
+	   */
+	  if(
+	     (mclient_button_direction == UP) ||
+	     (mclient_button_direction == DOWN)
+	     )
+	    {
+	      cli_data.state = UPDATE_PLAYLIST_MINMINUS1 + 1;
+	      cli_update_playlist (socket_handle_cli);
+              mclient_button_direction = DIR_CLEARED;
+	    }
         }
-        else
+      else if (strncmp ("listen", response->cmd, strlen ("listen")) == 0)
         {
-            debug ("mclient:cli_parse_response: Command |%s| not handled yet.\n",
-                   response->cmd);
+	  debug ("mclient:cli_parse_response: Found listen.\n");
+	  /*
+	   * Found "listen" message, mclient is initializing the
+	   * server - let's try and grab the play list.
+	   * Set to fist state (always MINMUNIS1 plus 1).
+	   */
+	  cli_data.state = UPDATE_PLAYLIST_MINMINUS1 + 1;
+	  cli_update_playlist (socket_handle_cli);
+        }
+      else if (strncmp ("play", response->cmd, strlen ("play")) == 0)
+        {
+	  debug ("mclient:cli_parse_response: Found play.\n");
+	  mclient_display_state = PLAY;
+	  reset_mclient_hardware_buffer = 1;
+        }
+      else if (strncmp ("display", response->cmd, strlen ("display")) == 0)
+        {
+	  debug ("mclient:cli_parse_response: Found display.\n");
+	  cli_parse_display (response);
+	  cli_identical_state_interval_timer = time (NULL) + 10;
+
+	  /*
+	   * Change to next state.
+	   *
+	   * As this is part of the "playlist" state machine we need to increment
+	   * the state.  Only increment the state if we are in the middle of aquiring
+	   * new data for the full screen MClient OSD.
+	   */
+	  if ((cli_data.state > UPDATE_PLAYLIST_MINMINUS1) & (cli_data.state <
+							      UPDATE_PLAYLIST_MAXPLUS1))
+            {
+	      cli_data.state++;
+	      cli_update_playlist (socket_handle_cli);
+            }
+        }
+      else if (strncmp ("time", response->cmd, strlen ("time")) == 0)
+        {
+	  debug ("mclient:cli_parse_response: Found time.\n");
+
+	  /*
+	   * Record current position in song as elapsed time and percentage.
+	   */
+   	  cli_data.elapsed_time = atoi(response->param[0]);
+	  if ((cli_data.total_time > 0) && (cli_data.total_time >= cli_data.elapsed_time))
+	    {
+	      cli_data.percent = (cli_data.elapsed_time * 100) / cli_data.total_time;
+	    }
+	  else
+	    {
+	      cli_data.percent = 0;
+	    }
+        }
+      else if (strncmp ("duration", response->cmd, strlen ("duration")) == 0)
+        {
+	  debug ("mclient:cli_parse_response: Found duration.\n");
+
+	  /*
+	   * Record current position in song as elapsed time and percentage.
+	   */
+   	  cli_data.total_time = atoi(response->param[0]);
+        }
+      else if (strncmp ("mixer", response->cmd, strlen ("mixer")) == 0)
+        {
+	  debug ("mclient:cli_parse_response: Found mixer.\n");
+
+      	  if (strncmp ("volume", response->param[0], strlen ("volume")) == 0)
+	    {
+	      /*
+	       * Record current volume setting should be in percentage (i.e. 0-100).
+	       * Only accept absolute values.  Do not use delta values that start
+	       * with a "+" or "-".
+	       */
+	      if ('+' == response->param[1][0])
+		{
+		  cli_data.volume += atoi(&response->param[1][1]);
+		}
+	      else if ('-' == response->param[1][0])
+		{
+		  cli_data.volume -= atoi(&response->param[1][1]);
+		}
+	      else
+		{
+		  cli_data.volume = atoi(response->param[1]);
+		}
+	    }
+        }
+      else
+        {
+	  debug ("mclient:cli_parse_response: Command |%s| not handled yet.\n",
+		 response->cmd);
         }
     }
+}
+
+/*
+ * From Martin.
+ * Get album art from slimserver and display it on MClient's OSD.
+ */
+void cli_get_cover_art()
+{
+  char url_string[40];
+  int retcode;
+
+  sprintf(url_string,"http://%s:9000/music/current/cover.jpg\n",
+	  mclient_server);
+  current = strdup (url_string);
+  retcode = http_main ();
+  printf ("mclient:cli_get_cover_art: PULLING NEW ART WORK.\n"); ///#### Turn this into a debug statement later.
+  if (retcode == HTTP_IMAGE_FILE_JPEG)
+    {
+	  mvpw_load_image_fd (fd);
+	  if (mvpw_load_image_jpeg (mclient_sub_image, NULL) == 0)
+	    {
+	      mvpw_show_image_jpeg (mclient_sub_image);
+	      av_wss_update_aspect (WSS_ASPECT_UNKNOWN);
+	    }
+	  close (fd);
+    }
+  free(current);
 }
 
 /*
@@ -453,6 +623,7 @@ cli_parse_playlist (mclient_cmd * response)
     /*
      * If param 0 is "tracks" this is response to "playlist tracks ?"
      * If param 0 is "artist" this is response to "playlist artist n ?"
+     * If param 0 is "album" this is response to "playlist album n ?"
      * If param 0 is "title"  this is response to "playlist title n ?"
      */
     if (strncmp ("tracks", response->param[0], strlen ("tracks")) == 0)
@@ -512,7 +683,7 @@ cli_parse_playlist (mclient_cmd * response)
         else
         {
             /*
-             * Check if this is the first time through paly list code.
+             * Check if this is the first time through play list code.
              */
             if (cli_fullscreen_widget_state != PLAY_LISTS)
             {
@@ -542,30 +713,23 @@ cli_parse_playlist (mclient_cmd * response)
     else if (strncmp ("artist", response->param[0], strlen ("artist")) == 0)
     {
         debug ("mclient_cli:Found artist in response.\n");
-        /*
-         * Place artist in appropriate positions on full OSD.
-         */
+	/*
+	 * Store artist for later use.
+	 */
         sprintf (cli_data.artist, "%s", response->param[2]);
-        switch (mclient_display_state)
-        {
-        case STOP:
-            sprintf (string, "Author: %s   Stopped on %d of %d", cli_data.artist,
-                     (cli_data.index_playing + 1), cli_data.tracks);
-            break;
-        case PLAY:
-            sprintf (string, "Author: %s   Playing track %d of %d", cli_data.artist,
-                     (cli_data.index_playing + 1), cli_data.tracks);
-            break;
-        case PAUSE:
-            sprintf (string, "Author: %s   Paused on %d of %d", cli_data.artist,
-                     (cli_data.index_playing + 1), cli_data.tracks);
-            break;
-        case STREAMING:
-            sprintf (string, "Author: %s   Streaming %d of %d", cli_data.artist,
-                     (cli_data.index_playing + 1), cli_data.tracks);
-            break;
-        }
-        mvpw_menu_change_item (mclient_fullscreen, (void *) (1), string);
+
+        /*
+         * Change to next state
+         */
+        cli_data.state++;
+    }
+    else if (strncmp ("album", response->param[0], strlen ("album")) == 0)
+    {
+        debug ("mclient_cli:Found album in response.\n");
+	/*
+	 * Store album for later use.
+	 */
+        sprintf (cli_data.album, "%s", response->param[2]);
 
         /*
          * Change to next state
@@ -600,11 +764,19 @@ cli_parse_playlist (mclient_cmd * response)
         else
         {
             /*
+             * Before testing if this title is to be hilited, set color attributes
+             * of this line to normal.
+             */
+            mvpw_menu_set_item_attr (mclient_fullscreen,
+                                     (void *) (cli_data.index_line + 2),
+                                     &mclient_fullscreen_menu_item_attr_normal);
+            /*
              * Place titles in appropriate positions on full OSD.
+             * Is this title the "now playing" title?
              */
             if (cli_data.index_info == cli_data.index_playing)
             {
-
+                int err;
                 if (now_playing_timeout > time (NULL))
                 {
                     sprintf (string, "%d) %s <- Up Next", (cli_data.index_info + 1),
@@ -615,16 +787,38 @@ cli_parse_playlist (mclient_cmd * response)
                     sprintf (string, "%d) %s <- Now Playing", (cli_data.index_info + 1),
                              response->param[2]);
                 }
-                mvpw_menu_change_item (mclient_fullscreen,
-                                       (void *) (cli_data.index_line + 2), string);
-/// ### doesn't work?    mvpw_menu_hilite_item (mclient_fullscreen, (void *) (cli_data.index_info + 2));
+
+                err =
+                    mvpw_menu_set_item_attr (mclient_fullscreen,
+                                             (void *) (cli_data.index_line + 2),
+                                             &mclient_fullscreen_menu_item_attr_nowplaying);
             }
-            else
+
+            /*
+             * Is this title the "user focus" title?
+             * Also, don't display after we have user focus has timed out.
+             */
+            if ((cli_data.index_info == cli_data.index_userfocus) &&
+                (cli_userfocus_timeout > time (NULL)))
             {
-                sprintf (string, "%d) %s", (cli_data.index_info + 1), response->param[2]);
-                mvpw_menu_change_item (mclient_fullscreen,
-                                       (void *) (cli_data.index_line + 2), string);
+                int err;
+
+                /*
+                 * Don't do user focus hilit'ing if this 
+                 * is already what the slimserver is playing.
+                 */
+                if (cli_data.index_info != cli_data.index_playing)
+                {
+                    err =
+                        mvpw_menu_set_item_attr (mclient_fullscreen,
+                                                 (void *) (cli_data.index_line + 2),
+                                                 &mclient_fullscreen_menu_item_attr_userfocus);
+                }
+
             }
+            sprintf (string, "%d) %s", (cli_data.index_info + 1), response->param[2]);
+            mvpw_menu_change_item (mclient_fullscreen,
+                                   (void *) (cli_data.index_line + 2), string);
 
             /*
              * If we still have room & haven't listed all titles, get another title.
@@ -672,70 +866,156 @@ cli_parse_display (mclient_cmd * response)
 {
     char string[200];
     int i;
+    int userfocus_xofn;
+    char *char_ptr;
 
     /*
-     * After slimserver 6.5 is widly availble, we should use the autonomous
-     * listen command to find out what is streaming.  Not this code that handles
-     * the return from the display command.
-     *
-     * We want what is streaming / playing, or the 2nd line of the display.
-     * But we only want it if the fist line starts with "Now playing".
+     * For the full screen feature of MClient, we need to know what
+     * menu the server is currently in.  Pick off the text found
+     * in the first line as a char string and turn that into a value.
+     * 
+     * There is a request into slimserver development to provide a CLI
+     * command to inform the client which menu the server is currently
+     * in.  However, the CLI slimserver author is a bit busy - updated
+     * 20070204.
      */
-    if (strncmp ("Now playing", response->param[0], strlen ("Now playing")) == 0)
+    if ((char_ptr = strstr (response->param[0], "SLIMP3 Home")) != NULL)
     {
-        sprintf (string, "%s <- Now Playing", response->param[1]);
-        mvpw_menu_change_item (mclient_fullscreen, (void *) (2), string);
+        printf ("mclient:cli_parse_display:Found SLIMP3 Home\n"); ///###
+        cli_data.slimserver_menu_state = SLIMP3_HOME;
+    }
+    else if ((char_ptr = strstr (response->param[0], "Now playing")) != NULL)
+    {
+        printf ("mclient:cli_parse_display:Found Now playing\n"); ///###
+        cli_data.slimserver_menu_state = NOW_PLAYING;
+    }
+    else if ((char_ptr = strstr (response->param[0], "Playlist")) != NULL)
+    {
+        printf ("mclient:cli_parse_display:Found Playlist\n"); ///###
+        cli_data.slimserver_menu_state = PLAYLIST;
+    }
+   /*
+    * Special case: If the response (first line of 2 line widget) matches the
+    * album name - then assume we are browsing and treat it just like the 
+    * now playing mode above.
+    */
+    else if ((char_ptr = strstr (response->param[0], cli_data.album)) != NULL) 
+    {
+        printf ("mclient:cli_parse_display:Found the album name!!!\n"); ///###
+        cli_data.slimserver_menu_state = NOW_PLAYING;
+    }
+   /*
+    * If we don't find a match, set state to unknown so as not to repeat
+    * the same action the next time we pass through this code.
+    */
+    else
+    {
+	cli_data.slimserver_menu_state = UNKNOWN;
+    }
+
+    switch (cli_data.slimserver_menu_state)
+    {
+    case NOW_PLAYING:
+    case PLAYLIST:
+        /*
+         * We are in the album-playlist / title list menu of slimserver.  We can
+         * handle this using the MClient full screen.  So, turn off the small widget
+         * display.
+         */
+        cli_small_widget_timeout = 0;
+        cli_small_widget_force_hide = TRUE;
 
         /*
-         * Save this information in the palying history and display
-         * history.
+         * For the full screen feature of MClient, we need to know what
+         * the server is focused on.  Pick off the value x where x is found
+         * in the first line as a char string "(x of n)".
          */
-        debug ("mclient_cli:Length of response->param[1]:%d\n",
-               strlen (response->param[1]));
-
-        if (strncmp (response->param[1], cli_data.title_history[0], 49) != 0)
+        if ((char_ptr = strstr (response->param[0], "(")) != NULL)
         {
-            debug
-                ("mclient_cli:Top of history does NOT match current title cur:%s his:%s.\n",
-                 response->param[1], cli_data.title_history[0]);
-
-            for (i = (CLI_MAX_TRACKS - 1); i >= 0; i--)
+            debug ("mclient:cli_parse_display:response->param[0]:%s char_ptr:%s\n", response->param[0], char_ptr); 
+            *char_ptr++;
+            sscanf (char_ptr, "%d", &userfocus_xofn);
+            debug ("mclient:cli_parse_display:userfocus_xofn:%d\n", userfocus_xofn); 
+            cli_data.index_userfocus = userfocus_xofn - 1;
+            if (cli_data.index_userfocus != old_fullscreen_userfocus_item)
             {
-                strncpy (cli_data.title_history[i + 1], cli_data.title_history[i], 49);
-                mvpw_menu_change_item (mclient_fullscreen, (void *) (i + 3),
-                                       cli_data.title_history[i + 1]);
-                debug ("mclient_cli:Moving history:%d.\n", i);
+                old_fullscreen_userfocus_item = cli_data.index_userfocus;
+                cli_userfocus_timeout = time (NULL) + 3;
             }
+        }
 
-            if (strlen (response->param[1]) >= 49)
+        /*
+         * After slimserver 6.5 is widly availble, we should use the autonomous
+         * listen command to find out what is streaming.  Not this code that handles
+         * the return from the display command.
+         *
+         * We want what is streaming / playing, or the 2nd line of the display.
+         * But we only want it if the fist line starts with "Now playing".
+         */
+        if (strncmp ("Now playing", response->param[0], strlen ("Now playing")) == 0)
+        {
+            sprintf (string, "%s <- Now Playing", response->param[1]);
+            mvpw_menu_change_item (mclient_fullscreen, (void *) (2), string);
+
+            /*
+             * Save this information in the palying history and display
+             * history.
+             */
+            debug ("mclient_cli:Length of response->param[1]:%d\n",
+                   strlen (response->param[1]));
+
+            if (strncmp (response->param[1], cli_data.title_history[0], 49) != 0)
             {
-                strncpy (cli_data.title_history[0], response->param[1], 49);
-                cli_data.title_history[0][49] = '\0';
+                debug
+                    ("mclient_cli:Top of history does NOT match current title cur:%s his:%s.\n",
+                     response->param[1], cli_data.title_history[0]);
+
+                for (i = (CLI_MAX_TRACKS - 1); i >= 0; i--)
+                {
+                    strncpy (cli_data.title_history[i + 1], cli_data.title_history[i],
+                             49);
+                    mvpw_menu_change_item (mclient_fullscreen, (void *) (i + 3),
+                                           cli_data.title_history[i + 1]);
+                    debug ("mclient_cli:Moving history:%d.\n", i);
+                }
+
+                if (strlen (response->param[1]) >= 49)
+                {
+                    strncpy (cli_data.title_history[0], response->param[1], 49);
+                    cli_data.title_history[0][49] = '\0';
+                }
+                else
+                {
+                    strcpy (cli_data.title_history[0], response->param[1]);
+                }
             }
             else
             {
                 strcpy (cli_data.title_history[0], response->param[1]);
+                {
+                    debug
+                        ("mclient_cli:Top of history MATCHES current title cur:%s his:%s.\n",
+                         response->param[1], cli_data.title_history[0]);
+
+///                for (i = CLI_MAX_TRACKS; i > 0; i--)
+///                {
+///                    mvpw_menu_change_item (mclient_fullscreen, (void *) (i + 3),
+///                                           cli_data.title_history[i + 1]);
+///                    debug ("mclient_cli:Printing history:%d.\n", i);
+                }
             }
         }
         else
         {
             debug
-                ("mclient_cli:Top of history MATCHES current title cur:%s his:%s.\n",
-                 response->param[1], cli_data.title_history[0]);
-
-            for (i = CLI_MAX_TRACKS; i > 0; i--)
-            {
-                mvpw_menu_change_item (mclient_fullscreen, (void *) (i + 3),
-                                       cli_data.title_history[i + 1]);
-                debug ("mclient_cli:Printing history:%d.\n", i);
-            }
+                ("mclient_cli:TEST:Inside of display parse, but didn't match Now playing, STATE:%d\n",
+                 cli_data.state);
         }
-    }
-    else
-    {
-        debug
-            ("mclient_cli:TEST:Inside of display parse, but didn't match Now playing, STATE:%d\n",
-             cli_data.state);
+        break;
+
+    default:
+        cli_small_widget_force_hide = FALSE;
+        break;
     }
 }
 
@@ -767,6 +1047,26 @@ cli_parse_button (mclient_cmd * response)
     if (strcmp (response->param[0], "pause") == 0)
     {
         mclient_display_state = PAUSE;
+    }
+
+    if (strcmp (response->param[0], "up") == 0)
+    {
+        mclient_button_direction = UP;
+    }
+
+    if (strcmp (response->param[0], "down") == 0)
+    {
+        mclient_button_direction = DOWN;
+    }
+
+    if (strcmp (response->param[0], "right") == 0)
+    {
+        mclient_button_direction = RIGHT;
+    }
+
+    if (strcmp (response->param[0], "left") == 0)
+    {
+        mclient_button_direction = LEFT;
     }
 }
 
@@ -836,6 +1136,12 @@ cli_update_playlist (int socket_handle_cli)
             cli_pick_starting_index ();
             break;
 
+        case UPDATE_PLAYLIST_ALBUM:
+            sprintf (cmd, "%s playlist album ?\n", encoded_player_id);
+            cli_send_packet (socket_handle_cli, cmd);
+            cli_pick_starting_index ();
+            break;
+
         case UPDATE_PLAYLIST_TITLE:
             sprintf (cmd, "%s playlist title %d ?\n", encoded_player_id,
                      cli_data.index_info);
@@ -844,6 +1150,12 @@ cli_update_playlist (int socket_handle_cli)
 
         case UPDATE_PLAYLIST_INDEX:
             sprintf (cmd, "%s playlist index ?\n", encoded_player_id);
+            cli_send_packet (socket_handle_cli, cmd);
+            cli_pick_starting_index ();
+            break;
+
+        case UPDATE_PLAYLIST_NOWPLAYING:
+            sprintf (cmd, "%s display ? ?\n", encoded_player_id);
             cli_send_packet (socket_handle_cli, cmd);
             cli_pick_starting_index ();
             break;
@@ -871,6 +1183,20 @@ void
 cli_pick_starting_index (void)
 {
     /*
+     * Holds either playing or userfocus title for picking
+     * center of list.
+     */
+    int cli_data_index;
+
+    if (cli_userfocus_timeout == 0)
+    {
+        cli_data_index = cli_data.index_playing;
+    }
+    else
+    {
+        cli_data_index = cli_data.index_userfocus;
+    }
+    /*
      * Info tracks num of title and line tracks num of next line 
      * to print to on screen.
      */
@@ -879,7 +1205,7 @@ cli_pick_starting_index (void)
     /*
      * If we are half way down the screen.
      */
-    if (cli_data.index_playing > (CLI_MAX_TRACKS / 2))
+    if (cli_data_index > (CLI_MAX_TRACKS / 2))
     {
         /*
          * And there are more titles than can fit on a screen,
@@ -887,7 +1213,7 @@ cli_pick_starting_index (void)
          */
         if (cli_data.tracks >= (CLI_MAX_TRACKS - 1))
         {
-            cli_data.index_info = (cli_data.index_playing - (CLI_MAX_TRACKS / 2));
+            cli_data.index_info = (cli_data_index - (CLI_MAX_TRACKS / 2));
             /*
              * But not more then a screen full from the end of the list of
              * titles.
@@ -945,6 +1271,39 @@ cli_read_data (int socket_handle)
             reset_mclient_hardware_buffer = 0;
         }
     }
+
+   /*
+    * Do we need to update the Artist / Current Action text?
+    */
+    if (mclient_display_state != mclient_display_state_old)
+    {
+    	char string[200];
+       /*
+        * Place artist in appropriate positions on full OSD.
+        */
+        switch (mclient_display_state)
+        {
+        case STOP:
+            sprintf (string, "Artist: %s   Stopped on %d of %d", cli_data.artist,
+                     (cli_data.index_playing + 1), cli_data.tracks);
+            break;
+        case PLAY:
+            sprintf (string, "Artist: %s   Playing track %d of %d", cli_data.artist,
+                     (cli_data.index_playing + 1), cli_data.tracks);
+            break;
+        case PAUSE:
+            sprintf (string, "Artist: %s   Paused on %d of %d", cli_data.artist,
+                     (cli_data.index_playing + 1), cli_data.tracks);
+            break;
+        case STREAMING:
+            sprintf (string, "Artist: %s   Streaming %d of %d", cli_data.artist,
+                     (cli_data.index_playing + 1), cli_data.tracks);
+            break;
+        }
+        mvpw_menu_change_item (mclient_fullscreen, (void *) (1), string);
+	mclient_display_state_old = mclient_display_state;
+    }
+
 }
 
 

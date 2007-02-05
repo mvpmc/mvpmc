@@ -33,7 +33,7 @@ long long cmyth_get_bookmark(cmyth_conn_t conn, cmyth_proginfo_t prog)
 	long long ret;
 	int count;
 	char start_ts_dt[CMYTH_TIMESTAMP_LEN + 1];
-	cmyth_datetime_to_string(start_ts_dt, prog->proginfo_start_ts);
+	cmyth_datetime_to_string(start_ts_dt, prog->proginfo_rec_start_ts);
 	buf = alloca(len);
 	if (!buf) {
 		return -ENOMEM;
@@ -81,7 +81,7 @@ int cmyth_set_bookmark(cmyth_conn_t conn, cmyth_proginfo_t prog, long long bookm
 	int ret;
 	int count;
 	char start_ts_dt[CMYTH_TIMESTAMP_LEN + 1];
-	cmyth_datetime_to_string(start_ts_dt, prog->proginfo_start_ts);
+	cmyth_datetime_to_string(start_ts_dt, prog->proginfo_rec_start_ts);
 	buf = alloca(len);
 	if (!buf) {
 		return -ENOMEM;

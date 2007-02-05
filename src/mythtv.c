@@ -184,6 +184,11 @@ mythtv_video_key(char key)
 {
 	int rc = 0;
 	int breakidx;
+	long long mark,bk;
+	long bookmark,chanid;
+	int offset=0;
+	int dbmark=0;
+	cmyth_conn_t ctrl=cmyth_hold(control);
 	
 	switch (key) {
 		case MVPW_KEY_SKIP:
@@ -204,8 +209,39 @@ mythtv_video_key(char key)
 				fprintf(stderr, "Not in commbreak.  Reverting to standard replay.\n");
 			}
 			break;
+		case MVPW_KEY_BLUE:
+			if ((mark=cmyth_get_bookmark(ctrl,current_prog)) >0) {
+				mark=(mark/15)+1;
+				chanid=cmyth_proginfo_chan_id(current_prog);
+				if ((offset = cmyth_get_bookmark_offset(mythtv_database,chanid,mark)) <0) {
+					fprintf(stderr,"No offset found in recordedseek chanid=%ld mark=%qd\n",chanid,mark);
+				}
+				else {
+					fprintf(stderr,"Jumping to bookmark %qd : offset %d\n",mark,offset);
+					seek_to(offset);
+					rc=1;
+				}
+			}
+			else {
+				fprintf (stderr,"No bookmark found\n");
+			}
+			break;
+		case MVPW_KEY_YELLOW:
+			bookmark = video_functions->seek(0, SEEK_CUR);
+			bk= bookmark;
+			if ((dbmark=cmyth_get_bookmark_mark(mythtv_database,current_prog,bk)) < 0) {
+				fprintf(stderr, "Bookmark not set\n");
+			}
+			else {
+				dbmark = (dbmark-1)*15;
+				fprintf (stderr,"keyframe mark = %d\n",dbmark);
+				cmyth_set_bookmark(ctrl, current_prog, dbmark );
+				cmyth_dbg(CMYTH_DBG_DEBUG, "bookmark saved, value: %qd \n",bookmark);
+				rc=1;
+			}
+			break;
 	}
-
+	cmyth_release(ctrl);
 	return rc;
 }
 
