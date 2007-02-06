@@ -12,11 +12,10 @@ fuse = env.SConscript([ 'fuse/SConscript'])
 djmount = env.SConscript('djmount/SConscript')
 nbtscan = env.SConscript('nbtscan/SConscript')
 
-apps = env.Depends(ntp, busybox)
-apps = env.Depends(busybox, dropbear)
-apps = env.Depends(busybox, mtd)
-apps = env.Depends(djmount,fuse)
-apps = env.Depends(busybox, nbtscan)
+env.Depends(ntp, busybox)
+env.Depends(busybox, dropbear)
+env.Depends(busybox, mtd)
+env.Depends(djmount,fuse)
+env.Depends(busybox, nbtscan)
 
-Return('apps')
-
+Return('busybox ntp djmount nbtscan fuse dropbear mtd')

@@ -30,4 +30,4 @@ env.Depends(mw, png)
 env.Depends(mw, jpg)
 env.Depends(mysql, ncurses)
 
-Return('mw')
+Return('mw zlib png jpg a52 expat dvb id3 tremor ncurses mysql')
