@@ -81,9 +81,11 @@ if [ -f configure ] ; then
     ./configure --disable-zlib --prefix=$INSTALL --host=powerpc
     make clean
     make PROGRAMS="dropbear dropbearkey scp" MULTI=1
+    mkdir -p $INSTALL/sbin
     cp dropbearmulti $INSTALL/sbin/dropbearmulti
     ln -sf ./dropbearmulti $INSTALL/sbin/dropbear
     ln -sf ./dropbearmulti $INSTALL/sbin/dropbearkey
+    mkdir -p $INSTALL/bin
     ln -sf ../sbin/dropbearmulti $INSTALL/bin/scp
 else
     make oldconfig
