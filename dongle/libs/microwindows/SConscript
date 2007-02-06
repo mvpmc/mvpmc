@@ -55,7 +55,8 @@ build = env.Command('../../install/' + target + '/lib/libnano-X.a', 0,
                     Carg + host + ' ' +
                     '-p patches/microwindows-0.91_abs.patch ' +
                     '-p patches/microwindows-0.91.patch ' +
-                    patches)
+                    patches +
+		    ' -p patches/microwindows-0.91_no_demos.patch ')
 
 incdir = pwd + '/../../install/' + target + '/include'
 cp = env.Command(incdir + '/nano-X.h', 0,
