@@ -29,6 +29,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <mvp_refmem.h>
 #include <cmyth.h>
 #include <cmyth_local.h>
 
@@ -40,8 +41,8 @@
  * Description
  *
  * Clean up and free a position map structure.  This should only be done
- * by the cmyth_release() code.  Everyone else should call
- * cmyth_release() because position map structures are reference
+ * by the ref_release() code.  Everyone else should call
+ * ref_release() because position map structures are reference
  * counted.
  *
  * Return Value:
@@ -59,7 +60,7 @@ cmyth_posmap_destroy(cmyth_posmap_t pm)
 	}
 	if (pm->posmap_list) {
 		for (i = 0; i < pm->posmap_count; ++i) {
-			cmyth_release(pm->posmap_list[i]);
+			ref_release(pm->posmap_list[i]);
 		}
 		free(pm->posmap_list);
 	}
@@ -83,13 +84,13 @@ cmyth_posmap_destroy(cmyth_posmap_t pm)
 cmyth_posmap_t
 cmyth_posmap_create(void)
 {
-	cmyth_posmap_t ret = cmyth_allocate(sizeof(*ret));
+	cmyth_posmap_t ret = ref_alloc(sizeof(*ret));
 
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s\n", __FUNCTION__);
 	if (!ret) {
 		return NULL;
 	}
-	cmyth_set_destroy(ret, (destroy_t)cmyth_posmap_destroy);
+	ref_set_destroy(ret, (ref_destroy_t)cmyth_posmap_destroy);
 
 	ret->posmap_count = 0;
 	ret->posmap_list = NULL;

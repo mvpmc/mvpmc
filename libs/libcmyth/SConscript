@@ -10,10 +10,11 @@ target = env['TARG']
 libdir = env['INSTLIBDIR']
 toplevel = env['TOPLEVEL']
 
-src = [ 'alloc.c','bookmark.c', 'connection.c', 'debug.c', 'event.c',
-        'file.c', 'freespace.c', 'keyframe.c', 'mythtv_mysql.c', 'posmap.c', 'proginfo.c',
-        'proglist.c', 'rec_num.c', 'recorder.c', 'ringbuf.c', 'socket.c',
-        'timestamp.c', 'livetv.c', 'tvguide.c', 'mysql_query.c', 'commbreak.c' ]
+src = [ 'bookmark.c', 'connection.c', 'debug.c', 'event.c',
+        'file.c', 'freespace.c', 'keyframe.c', 'mythtv_mysql.c',
+        'posmap.c', 'proginfo.c', 'proglist.c', 'rec_num.c',
+        'recorder.c', 'ringbuf.c', 'socket.c', 'timestamp.c',
+        'livetv.c', 'tvguide.c', 'mysql_query.c', 'commbreak.c' ]
 
 static = env.StaticLibrary('cmyth', src, CPPPATH = [ env['INCDIR'],  toplevel + '/dongle/install/mvp/lib/mysql', '.', toplevel + '/dongle/install/mvp/include' ])
 shared = env.SharedLibrary('cmyth', src, CPPPATH = [ env['INCDIR'],  toplevel + '/dongle/install/mvp/lib/mysql', '.', toplevel + '/dongle/install/mvp/include' ])

@@ -1,0 +1,20 @@
+#!/usr/bin/python
+#
+# librefmem
+#
+
+Import ('env')
+
+dir = env['BUILD_DIR']
+target = env['TARG']
+libdir = env['INSTLIBDIR']
+toplevel = env['TOPLEVEL']
+
+src = [ 'alloc.c', 'debug.c' ]
+
+static = env.StaticLibrary('refmem', src, CPPPATH = [ env['INCDIR'], '.', toplevel + '/dongle/install/mvp/include' ])
+shared = env.SharedLibrary('refmem', src, CPPPATH = [ env['INCDIR'],  '.', toplevel + '/dongle/install/mvp/include' ])
+
+inst = env.Install(libdir, [ static, shared ])
+
+Return('inst')

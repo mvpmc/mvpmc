@@ -26,6 +26,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdio.h>
+#include <mvp_refmem.h>
 #include <cmyth.h>
 #include <cmyth_local.h>
 
@@ -47,7 +48,7 @@
 cmyth_keyframe_t
 cmyth_keyframe_create(void)
 {
-	cmyth_keyframe_t ret = cmyth_allocate(sizeof(*ret));
+	cmyth_keyframe_t ret = ref_alloc(sizeof(*ret));
 
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s {\n", __FUNCTION__);
 	if (!ret) {

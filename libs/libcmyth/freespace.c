@@ -25,6 +25,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <errno.h>
+#include <mvp_refmem.h>
 #include <cmyth.h>
 #include <cmyth_local.h>
 
@@ -46,7 +47,7 @@
 cmyth_freespace_t
 cmyth_freespace_create(void)
 {
-	cmyth_freespace_t ret = cmyth_allocate(sizeof(*ret));
+	cmyth_freespace_t ret = ref_alloc(sizeof(*ret));
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s\n", __FUNCTION__);
  	if (!ret) {
 	       return NULL;

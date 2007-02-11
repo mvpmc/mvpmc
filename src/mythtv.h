@@ -20,6 +20,7 @@
 #ifndef MYTHTV_H
 #define MYTHTV_H
 
+#include <mvp_refmem.h>
 #include <cmyth.h>
 
 
@@ -260,10 +261,10 @@ extern void mythtv_fullscreen(void);
  */
 #define CHANGE_GLOBAL_REF(global_ref, new_ref) \
 {                                              \
-  void *tmp_ref = cmyth_hold((global_ref));    \
-  cmyth_release((global_ref));                 \
-  (global_ref) = cmyth_hold((new_ref));        \
-  cmyth_release((tmp_ref));                    \
+  void *tmp_ref = ref_hold((global_ref));    \
+  ref_release((global_ref));                 \
+  (global_ref) = ref_hold((new_ref));        \
+  ref_release((tmp_ref));                    \
 }
 
 #endif /* MYTHTV_H */

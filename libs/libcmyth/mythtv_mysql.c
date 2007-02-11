@@ -25,6 +25,7 @@
 #include <string.h>
 #include <sys/time.h>
 #include <mysql/mysql.h>
+#include <mvp_refmem.h>
 #include <cmyth.h>
 #include <cmyth_local.h>
 #include <mvp_string.h>
@@ -50,14 +51,14 @@ cmyth_database_close(cmyth_database_t db)
 cmyth_database_t
 cmyth_database_init(char *host, char *db_name, char *user, char *pass)
 {
-	cmyth_database_t rtrn = cmyth_allocate(sizeof(*rtrn));
+	cmyth_database_t rtrn = ref_alloc(sizeof(*rtrn));
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s\n", __FUNCTION__);
 
 	if (rtrn != NULL) {
-	    rtrn->db_host = cmyth_strdup(host);
-	    rtrn->db_user = cmyth_strdup(user);
-	    rtrn->db_pass = cmyth_strdup(pass);
-	    rtrn->db_name = cmyth_strdup(db_name);
+	    rtrn->db_host = ref_strdup(host);
+	    rtrn->db_user = ref_strdup(user);
+	    rtrn->db_pass = ref_strdup(pass);
+	    rtrn->db_name = ref_strdup(db_name);
 	}
 
 	return rtrn;
@@ -68,8 +69,8 @@ cmyth_database_set_host(cmyth_database_t db, char *host)
 {
 	PRINTF("** SSDEBUG: setting the db host to %s\n", host);
 	cmyth_database_close(db);
-	cmyth_release(db->db_host);
-	db->db_host = cmyth_strdup(host);
+	ref_release(db->db_host);
+	db->db_host = ref_strdup(host);
 	if(! db->db_host)
 	    return 0;
 	else
@@ -81,8 +82,8 @@ cmyth_database_set_user(cmyth_database_t db, char *user)
 {
 	PRINTF("** SSDEBUG: setting the db user to %s\n", user);
 	cmyth_database_close(db);
-	cmyth_release(db->db_user);
-	db->db_user = cmyth_strdup(user);
+	ref_release(db->db_user);
+	db->db_user = ref_strdup(user);
 	if(! db->db_user)
 	    return 0;
 	else
@@ -94,8 +95,8 @@ cmyth_database_set_pass(cmyth_database_t db, char *pass)
 {
 	PRINTF("** SSDEBUG: setting the db pass to %s\n", pass);
 	cmyth_database_close(db);
-	cmyth_release(db->db_user);
-	db->db_pass = cmyth_strdup(pass);
+	ref_release(db->db_user);
+	db->db_pass = ref_strdup(pass);
 	if(! db->db_pass)
 	    return 0;
 	else
@@ -107,8 +108,8 @@ cmyth_database_set_name(cmyth_database_t db, char *name)
 {
 	PRINTF("** SSDEBUG: setting the db name to %s\n", name);
 	cmyth_database_close(db);
-	cmyth_release(db->db_name);
-	db->db_name = cmyth_strdup(name);
+	ref_release(db->db_name);
+	db->db_name = ref_strdup(name);
 	if(! db->db_name)
 	    return 0;
 	else
@@ -206,7 +207,7 @@ cmyth_mysql_escape_chars(cmyth_database_t db, char * string)
 	}
 
 	len = strlen(string);
-	N_string=cmyth_allocate(len*2+1);
+	N_string=ref_alloc(len*2+1);
 	mysql_real_escape_string(db->mysql,N_string,string,len); 
 
 	return (N_string);
@@ -333,19 +334,19 @@ cmyth_mysql_insert_into_record(cmyth_database_t db, char * query, char * query1,
 	       return -1;
 	}
 
-	N_title = cmyth_allocate(strlen(title)*2+1);
+	N_title = ref_alloc(strlen(title)*2+1);
 	mysql_real_escape_string(db->mysql,N_title,title,strlen(title)); 
-	N_subtitle = cmyth_allocate(strlen(subtitle)*2+1);
+	N_subtitle = ref_alloc(strlen(subtitle)*2+1);
 	mysql_real_escape_string(db->mysql,N_subtitle,subtitle,strlen(subtitle)); 
-	N_description = cmyth_allocate(strlen(description)*2+1);
+	N_description = ref_alloc(strlen(description)*2+1);
 	mysql_real_escape_string(db->mysql,N_description,description,strlen(description)); 
-	N_callsign = cmyth_allocate(strlen(callsign)*2+1);
+	N_callsign = ref_alloc(strlen(callsign)*2+1);
 	mysql_real_escape_string(db->mysql,N_callsign,callsign,strlen(callsign)); 
 
 	snprintf(N_query,2500,"%s '%s','%s','%s' %s '%s' %s",query,N_title,N_subtitle,N_description,query1,N_callsign,query2); 
-	cmyth_release(N_title);
-	cmyth_release(N_subtitle);
-	cmyth_release(N_callsign);
+	ref_release(N_title);
+	ref_release(N_subtitle);
+	ref_release(N_callsign);
 	cmyth_dbg(CMYTH_DBG_ERROR, "mysql query :%s\n",N_query);
 
         if(mysql_real_query(db->mysql,N_query,(unsigned int) strlen(N_query))) {
@@ -381,11 +382,11 @@ cmyth_mysql_get_guide(cmyth_database_t db, cmyth_program_t **prog, time_t startt
 	    || cmyth_mysql_query_param_unixtime(query,starttime) < 0)
 	{
 	    cmyth_dbg(CMYTH_DBG_ERROR,"%s, binding of query parameters failed! Maybe we're out of memory?\n", __FUNCTION__);
-	    cmyth_release(query);
+	    ref_release(query);
 	    return -1;
  	}
 	res = cmyth_mysql_query_result(query);
-	cmyth_release(query);
+	ref_release(query);
 	if(res == NULL)
 	{
 	    cmyth_dbg(CMYTH_DBG_ERROR,"%s, finalisation/execution of query failed!\n", __FUNCTION__);
@@ -532,12 +533,12 @@ cmyth_mysql_get_prog_finder_time(cmyth_database_t db, cmyth_program_t **prog,  t
 	       return -1;
 	}
 
-	N_title = cmyth_allocate(strlen(program_name)*2+1);
+	N_title = ref_alloc(strlen(program_name)*2+1);
 	mysql_real_escape_string(db->mysql,N_title,program_name,strlen(program_name)); 
 
         //sprintf(query, "SELECT chanid,starttime,endtime,title,description,subtitle,programid,seriesid,category FROM program WHERE starttime >= '%s' and title ='%s' ORDER BY `starttime` ASC ", starttime, N_title);
         snprintf(query, 630, "SELECT program.chanid,UNIX_TIMESTAMP(program.starttime),UNIX_TIMESTAMP(program.endtime),program.title,program.description,program.subtitle,program.programid,program.seriesid,program.category, channel.channum, channel.callsign, channel.name, channel.sourceid FROM program LEFT JOIN channel on program.chanid=channel.chanid WHERE starttime >= FROM_UNIXTIME(%d) and title ='%s' ORDER BY `starttime` ASC ", (int)starttime, N_title);
-	cmyth_release(N_title);
+	ref_release(N_title);
 	fprintf(stderr, "%s\n", query);
         cmyth_dbg(CMYTH_DBG_ERROR, "%s: query= %s\n", __FUNCTION__, query);
         if(mysql_query(db->mysql,query)) {
@@ -615,11 +616,11 @@ cmyth_get_bookmark_mark(cmyth_database_t db, cmyth_proginfo_t prog, long long bk
 		|| cmyth_mysql_query_param_long(query, bk) < 0
 		) {
 		cmyth_dbg(CMYTH_DBG_ERROR,"%s, binding of query parameters failed! Maybe we're out of memory?\n", __FUNCTION__);
-		cmyth_release(query);
+		ref_release(query);
 		return -1;
 	}
 	res = cmyth_mysql_query_result(query);
-	cmyth_release(query);
+	ref_release(query);
 	if (res == NULL) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s, finalisation/execution of query failed!\n", __FUNCTION__);
 		return -1;
@@ -646,11 +647,11 @@ cmyth_get_bookmark_offset(cmyth_database_t db, long chanid, long long mark)
 		|| cmyth_mysql_query_param_long(query, mark) < 0
 		) {
 		cmyth_dbg(CMYTH_DBG_ERROR,"%s, binding of query parameters failed! Maybe we're out of memory?\n", __FUNCTION__);
-		cmyth_release(query);
+		ref_release(query);
 		return -1;
 	}
 	res = cmyth_mysql_query_result(query);
-	cmyth_release(query);
+	ref_release(query);
 	if (res == NULL) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s, finalisation/execution of query failed!\n", __FUNCTION__);
 		return -1;
@@ -680,11 +681,11 @@ cmyth_mysql_get_commbreak_list(cmyth_database_t db, int chanid, char * start_ts_
 		|| cmyth_mysql_query_param_int(query, CMYTH_COMMBREAK_END) < 0
 		) {
 		cmyth_dbg(CMYTH_DBG_ERROR,"%s, binding of query parameters failed! Maybe we're out of memory?\n", __FUNCTION__);
-		cmyth_release(query);
+		ref_release(query);
 		return -1;
 	}
 	res = cmyth_mysql_query_result(query);
-	cmyth_release(query);
+	ref_release(query);
 	if (res == NULL) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s, finalisation/execution of query failed!\n", __FUNCTION__);
 		return -1;

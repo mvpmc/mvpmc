@@ -32,6 +32,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
+#include <mvp_refmem.h>
 #include <cmyth.h>
 #include <cmyth_local.h>
 
@@ -44,8 +45,8 @@
  *
  * Destroy the program info structure pointed to by 'p' and release
  * its storage.  This should only be called by
- * cmyth_release(). All others should use
- * cmyth_release() to release references to a program info
+ * ref_release(). All others should use
+ * ref_release() to release references to a program info
  * structure.
  *
  * Return Value:
@@ -61,91 +62,91 @@ cmyth_proginfo_destroy(cmyth_proginfo_t p)
 		return;
 	}
 	if (p->proginfo_title) {
-		cmyth_release(p->proginfo_title);
+		ref_release(p->proginfo_title);
 	}
 	if (p->proginfo_subtitle) {
-		cmyth_release(p->proginfo_subtitle);
+		ref_release(p->proginfo_subtitle);
 	}
 	if (p->proginfo_description) {
-		cmyth_release(p->proginfo_description);
+		ref_release(p->proginfo_description);
 	}
 	if (p->proginfo_category) {
-		cmyth_release(p->proginfo_category);
+		ref_release(p->proginfo_category);
 	}
 	if (p->proginfo_chanstr) {
-		cmyth_release(p->proginfo_chanstr);
+		ref_release(p->proginfo_chanstr);
 	}
 	if (p->proginfo_chansign) {
-		cmyth_release(p->proginfo_chansign);
+		ref_release(p->proginfo_chansign);
 	}
 	if (p->proginfo_channame) {
-		cmyth_release(p->proginfo_channame);
+		ref_release(p->proginfo_channame);
 	}
 	if (p->proginfo_chanicon) {
-		cmyth_release(p->proginfo_chanicon);
+		ref_release(p->proginfo_chanicon);
 	}
 	if (p->proginfo_url) {
-		cmyth_release(p->proginfo_url);
+		ref_release(p->proginfo_url);
 	}
 	if (p->proginfo_unknown_0) {
-		cmyth_release(p->proginfo_unknown_0);
+		ref_release(p->proginfo_unknown_0);
 	}
 	if (p->proginfo_hostname) {
-		cmyth_release(p->proginfo_hostname);
+		ref_release(p->proginfo_hostname);
 	}
 	if (p->proginfo_rec_priority) {
-		cmyth_release(p->proginfo_rec_priority);
+		ref_release(p->proginfo_rec_priority);
 	}
 	if (p->proginfo_rec_profile) {
-		cmyth_release(p->proginfo_rec_profile);
+		ref_release(p->proginfo_rec_profile);
 	}
 	if (p->proginfo_recgroup) {
-		cmyth_release(p->proginfo_recgroup);
+		ref_release(p->proginfo_recgroup);
 	}
 	if (p->proginfo_chancommfree) {
-		cmyth_release(p->proginfo_chancommfree);
+		ref_release(p->proginfo_chancommfree);
 	}
 	if (p->proginfo_chan_output_filters) {
-		cmyth_release(p->proginfo_chan_output_filters);
+		ref_release(p->proginfo_chan_output_filters);
 	}
 	if (p->proginfo_seriesid) {
-		cmyth_release(p->proginfo_seriesid);
+		ref_release(p->proginfo_seriesid);
 	}
 	if (p->proginfo_programid) {
-		cmyth_release(p->proginfo_programid);
+		ref_release(p->proginfo_programid);
 	}
 	if (p->proginfo_stars) {
-		cmyth_release(p->proginfo_stars);
+		ref_release(p->proginfo_stars);
 	}
 	if (p->proginfo_pathname) {
-		cmyth_release(p->proginfo_pathname);
+		ref_release(p->proginfo_pathname);
 	}
 	if (p->proginfo_host) {
-		cmyth_release(p->proginfo_host);
+		ref_release(p->proginfo_host);
 	}
 	if (p->proginfo_playgroup) {
-		cmyth_release(p->proginfo_playgroup);
+		ref_release(p->proginfo_playgroup);
 	}
 	if (p->proginfo_lastmodified) {
-		cmyth_release(p->proginfo_lastmodified);
+		ref_release(p->proginfo_lastmodified);
 	}
 	if (p->proginfo_start_ts) {
-		cmyth_release(p->proginfo_start_ts);
+		ref_release(p->proginfo_start_ts);
 	}
 	if (p->proginfo_end_ts) {
-		cmyth_release(p->proginfo_end_ts);
+		ref_release(p->proginfo_end_ts);
 	}
 	if (p->proginfo_rec_start_ts) {
-		cmyth_release(p->proginfo_rec_start_ts);
+		ref_release(p->proginfo_rec_start_ts);
 	}
 	if (p->proginfo_rec_end_ts) {
-		cmyth_release(p->proginfo_rec_end_ts);
+		ref_release(p->proginfo_rec_end_ts);
 	}
 	if (p->proginfo_originalairdate) {
-		cmyth_release(p->proginfo_originalairdate);
+		ref_release(p->proginfo_originalairdate);
 	}
 	if (p->proginfo_storagegroup) {
-		cmyth_release(p->proginfo_storagegroup);
+		ref_release(p->proginfo_storagegroup);
 	}
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s }\n", __FUNCTION__);
 }
@@ -170,14 +171,14 @@ cmyth_proginfo_destroy(cmyth_proginfo_t p)
 cmyth_proginfo_t
 cmyth_proginfo_create(void)
 {
-	cmyth_proginfo_t ret = cmyth_allocate(sizeof(*ret));
+	cmyth_proginfo_t ret = ref_alloc(sizeof(*ret));
 
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s {\n", __FUNCTION__);
 	if (!ret) {
 		cmyth_dbg(CMYTH_DBG_DEBUG, "%s }!\n", __FUNCTION__);
 		return NULL;
 	}
-	cmyth_set_destroy(ret, (destroy_t)cmyth_proginfo_destroy);
+	ref_set_destroy(ret, (ref_destroy_t)cmyth_proginfo_destroy);
 
 	ret->proginfo_start_ts = cmyth_timestamp_create();
 	if (!ret->proginfo_start_ts) {
@@ -256,7 +257,7 @@ cmyth_proginfo_create(void)
 	return ret;
 
     err:
-	cmyth_release(ret);
+	ref_release(ret);
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s } !++\n", __FUNCTION__);
        	return NULL;
 }
@@ -287,38 +288,38 @@ cmyth_proginfo_dup(cmyth_proginfo_t p)
 		cmyth_dbg(CMYTH_DBG_DEBUG, "%s }!\n", __FUNCTION__);
 		return NULL;
 	}
-	cmyth_set_destroy(ret, (destroy_t)cmyth_proginfo_destroy);
+	ref_set_destroy(ret, (ref_destroy_t)cmyth_proginfo_destroy);
 
-	ret->proginfo_start_ts = cmyth_hold(p->proginfo_start_ts);
-	ret->proginfo_end_ts = cmyth_hold(p->proginfo_end_ts);
-	ret->proginfo_rec_start_ts = cmyth_hold(p->proginfo_rec_start_ts);
-	ret->proginfo_rec_end_ts = cmyth_hold(p->proginfo_rec_end_ts);
-	ret->proginfo_lastmodified = cmyth_hold(p->proginfo_lastmodified);
+	ret->proginfo_start_ts = ref_hold(p->proginfo_start_ts);
+	ret->proginfo_end_ts = ref_hold(p->proginfo_end_ts);
+	ret->proginfo_rec_start_ts = ref_hold(p->proginfo_rec_start_ts);
+	ret->proginfo_rec_end_ts = ref_hold(p->proginfo_rec_end_ts);
+	ret->proginfo_lastmodified = ref_hold(p->proginfo_lastmodified);
 	ret->proginfo_originalairdate =
-		cmyth_hold(p->proginfo_originalairdate);
-	ret->proginfo_title = cmyth_hold(p->proginfo_title);
-	ret->proginfo_subtitle = cmyth_hold(p->proginfo_subtitle);
-	ret->proginfo_description = cmyth_hold(p->proginfo_description);
-	ret->proginfo_category = cmyth_hold(p->proginfo_category);
+		ref_hold(p->proginfo_originalairdate);
+	ret->proginfo_title = ref_hold(p->proginfo_title);
+	ret->proginfo_subtitle = ref_hold(p->proginfo_subtitle);
+	ret->proginfo_description = ref_hold(p->proginfo_description);
+	ret->proginfo_category = ref_hold(p->proginfo_category);
 	ret->proginfo_chanId = p->proginfo_chanId;
-	ret->proginfo_chanstr = cmyth_hold(p->proginfo_chanstr);
-	ret->proginfo_chansign = cmyth_hold(p->proginfo_chansign);
-	ret->proginfo_channame = cmyth_hold(p->proginfo_channame);
-	ret->proginfo_chanicon = cmyth_hold(p->proginfo_chanicon);
-	ret->proginfo_url = cmyth_hold(p->proginfo_url);
-	ret->proginfo_pathname = cmyth_hold(p->proginfo_pathname);
-	ret->proginfo_host = cmyth_hold(p->proginfo_host);
+	ret->proginfo_chanstr = ref_hold(p->proginfo_chanstr);
+	ret->proginfo_chansign = ref_hold(p->proginfo_chansign);
+	ret->proginfo_channame = ref_hold(p->proginfo_channame);
+	ret->proginfo_chanicon = ref_hold(p->proginfo_chanicon);
+	ret->proginfo_url = ref_hold(p->proginfo_url);
+	ret->proginfo_pathname = ref_hold(p->proginfo_pathname);
+	ret->proginfo_host = ref_hold(p->proginfo_host);
 	ret->proginfo_port = p->proginfo_port;
 	ret->proginfo_Length = p->proginfo_Length;
 	ret->proginfo_conflicting = p->proginfo_conflicting;
-	ret->proginfo_unknown_0 = cmyth_hold(p->proginfo_unknown_0);
+	ret->proginfo_unknown_0 = ref_hold(p->proginfo_unknown_0);
 	ret->proginfo_recording = p->proginfo_recording;
 	ret->proginfo_override = p->proginfo_override;
-	ret->proginfo_hostname = cmyth_hold(p->proginfo_hostname);
+	ret->proginfo_hostname = ref_hold(p->proginfo_hostname);
 	ret->proginfo_source_id = p->proginfo_source_id;
 	ret->proginfo_card_id = p->proginfo_card_id;
 	ret->proginfo_input_id = p->proginfo_input_id;
-	ret->proginfo_rec_priority = cmyth_hold(p->proginfo_rec_priority);
+	ret->proginfo_rec_priority = ref_hold(p->proginfo_rec_priority);
 	ret->proginfo_rec_status = p->proginfo_rec_status;
 	ret->proginfo_record_id = p->proginfo_record_id;
 	ret->proginfo_rec_type = p->proginfo_rec_type;
@@ -326,19 +327,19 @@ cmyth_proginfo_dup(cmyth_proginfo_t p)
 	ret->proginfo_unknown_1 = p->proginfo_unknown_1;
 	ret->proginfo_repeat = p->proginfo_repeat;
 	ret->proginfo_program_flags = p->proginfo_program_flags;
-	ret->proginfo_rec_profile = cmyth_hold(p->proginfo_rec_profile);
-	ret->proginfo_recgroup = cmyth_hold(p->proginfo_recgroup);
-	ret->proginfo_chancommfree = cmyth_hold(p->proginfo_chancommfree);
+	ret->proginfo_rec_profile = ref_hold(p->proginfo_rec_profile);
+	ret->proginfo_recgroup = ref_hold(p->proginfo_recgroup);
+	ret->proginfo_chancommfree = ref_hold(p->proginfo_chancommfree);
 	ret->proginfo_chan_output_filters =
-		cmyth_hold(p->proginfo_chan_output_filters);
-	ret->proginfo_seriesid = cmyth_hold(p->proginfo_seriesid);
-	ret->proginfo_programid = cmyth_hold(p->proginfo_programid);
-	ret->proginfo_stars = cmyth_hold(p->proginfo_stars);
+		ref_hold(p->proginfo_chan_output_filters);
+	ret->proginfo_seriesid = ref_hold(p->proginfo_seriesid);
+	ret->proginfo_programid = ref_hold(p->proginfo_programid);
+	ret->proginfo_stars = ref_hold(p->proginfo_stars);
 	ret->proginfo_version = p->proginfo_version;
         ret->proginfo_hasairdate = p->proginfo_hasairdate;
-	ret->proginfo_playgroup = cmyth_hold(p->proginfo_playgroup);
-	ret->proginfo_storagegroup = cmyth_hold(p->proginfo_storagegroup);
-	ret->proginfo_recpriority_2 = cmyth_hold(p->proginfo_recpriority_2);
+	ret->proginfo_playgroup = ref_hold(p->proginfo_playgroup);
+	ret->proginfo_storagegroup = ref_hold(p->proginfo_storagegroup);
+	ret->proginfo_recpriority_2 = ref_hold(p->proginfo_recpriority_2);
 	ret->proginfo_parentid = p->proginfo_parentid;
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s }\n", __FUNCTION__);
 	return ret;
@@ -694,7 +695,7 @@ cmyth_proginfo_title(cmyth_proginfo_t prog)
 			  __FUNCTION__);
 		return NULL;
 	}
-	return cmyth_hold(prog->proginfo_title);
+	return ref_hold(prog->proginfo_title);
 }
 
 /*
@@ -725,7 +726,7 @@ cmyth_proginfo_subtitle(cmyth_proginfo_t prog)
 			  __FUNCTION__);
 		return NULL;
 	}
-	return cmyth_hold(prog->proginfo_subtitle);
+	return ref_hold(prog->proginfo_subtitle);
 }
 
 /*
@@ -756,7 +757,7 @@ cmyth_proginfo_description(cmyth_proginfo_t prog)
 			  __FUNCTION__);
 		return NULL;
 	}
-	return cmyth_hold(prog->proginfo_description);
+	return ref_hold(prog->proginfo_description);
 }
 
 /*
@@ -787,7 +788,7 @@ cmyth_proginfo_category(cmyth_proginfo_t prog)
 			  __FUNCTION__);
 		return NULL;
 	}
-	return cmyth_hold(prog->proginfo_category);
+	return ref_hold(prog->proginfo_category);
 }
 
 char *
@@ -798,7 +799,7 @@ cmyth_proginfo_seriesid(cmyth_proginfo_t prog)
 			  __FUNCTION__);
 		return NULL;
 	}
-	return cmyth_hold(prog->proginfo_seriesid);
+	return ref_hold(prog->proginfo_seriesid);
 }
 
 char *
@@ -809,7 +810,7 @@ cmyth_proginfo_programid(cmyth_proginfo_t prog)
 			  __FUNCTION__);
 		return NULL;
 	}
-	return cmyth_hold(prog->proginfo_programid);
+	return ref_hold(prog->proginfo_programid);
 }
 
 char *
@@ -820,7 +821,7 @@ cmyth_proginfo_stars(cmyth_proginfo_t prog)
 			  __FUNCTION__);
 		return NULL;
 	}
-	return cmyth_hold(prog->proginfo_stars);
+	return ref_hold(prog->proginfo_stars);
 }
 
 char *
@@ -831,7 +832,7 @@ cmyth_proginfo_playgroup(cmyth_proginfo_t prog)
 			  __FUNCTION__);
 		return NULL;
 	}
-	return cmyth_hold(prog->proginfo_playgroup);
+	return ref_hold(prog->proginfo_playgroup);
 }
 
 cmyth_timestamp_t
@@ -842,7 +843,7 @@ cmyth_proginfo_originalairdate(cmyth_proginfo_t prog)
 			  __FUNCTION__);
 		return NULL;
 	}
-	return cmyth_hold(prog->proginfo_originalairdate);
+	return ref_hold(prog->proginfo_originalairdate);
 }
 
 /*
@@ -873,7 +874,7 @@ cmyth_proginfo_chanstr(cmyth_proginfo_t prog)
 			  __FUNCTION__);
 		return NULL;
 	}
-	return cmyth_hold(prog->proginfo_chanstr);
+	return ref_hold(prog->proginfo_chanstr);
 }
 
 /*
@@ -905,7 +906,7 @@ cmyth_proginfo_chansign(cmyth_proginfo_t prog)
 			  __FUNCTION__);
 		return NULL;
 	}
-	return cmyth_hold(prog->proginfo_chansign);
+	return ref_hold(prog->proginfo_chansign);
 }
 
 /*
@@ -937,7 +938,7 @@ cmyth_proginfo_channame(cmyth_proginfo_t prog)
 			  __FUNCTION__);
 		return NULL;
 	}
-	return cmyth_hold(prog->proginfo_channame);
+	return ref_hold(prog->proginfo_channame);
 }
 
 /*
@@ -967,7 +968,7 @@ cmyth_proginfo_pathname(cmyth_proginfo_t prog)
 	if (!prog) {
 		return NULL;
 	}
-	return cmyth_hold(prog->proginfo_pathname);
+	return ref_hold(prog->proginfo_pathname);
 }
 
 /*
@@ -1038,7 +1039,7 @@ cmyth_proginfo_length_sec(cmyth_proginfo_t prog)
  * This indicates a programmes start time.
  *
  * The returned timestamp is returned held.  It should be released
- * when no longer needed using cmyth_release().
+ * when no longer needed using ref_release().
  *
  * Return Value:
  *
@@ -1052,7 +1053,7 @@ cmyth_proginfo_start(cmyth_proginfo_t prog)
 	if (!prog) {
 		return NULL;
 	}
-	return cmyth_hold(prog->proginfo_start_ts);
+	return ref_hold(prog->proginfo_start_ts);
 }
 
 
@@ -1068,7 +1069,7 @@ cmyth_proginfo_start(cmyth_proginfo_t prog)
  * This tells when a recording started.
  *
  * The returned timestamp is returned held.  It should be released
- * when no longer needed using cmyth_release().
+ * when no longer needed using ref_release().
  *
  * Return Value:
  *
@@ -1082,7 +1083,7 @@ cmyth_proginfo_end(cmyth_proginfo_t prog)
 	if (!prog) {
 		return NULL;
 	}
-	return cmyth_hold(prog->proginfo_end_ts);
+	return ref_hold(prog->proginfo_end_ts);
 }
 
 /*
@@ -1097,7 +1098,7 @@ cmyth_proginfo_end(cmyth_proginfo_t prog)
  * This tells when a recording started.
  *
  * The returned timestamp is returned held.  It should be released
- * when no longer needed using cmyth_release().
+ * when no longer needed using ref_release().
  *
  * Return Value:
  *
@@ -1111,7 +1112,7 @@ cmyth_proginfo_rec_start(cmyth_proginfo_t prog)
 	if (!prog) {
 		return NULL;
 	}
-	return cmyth_hold(prog->proginfo_rec_start_ts);
+	return ref_hold(prog->proginfo_rec_start_ts);
 }
 
 
@@ -1127,7 +1128,7 @@ cmyth_proginfo_rec_start(cmyth_proginfo_t prog)
  * This tells when a recording started.
  *
  * The returned timestamp is returned held.  It should be released
- * when no longer needed using cmyth_release().
+ * when no longer needed using ref_release().
  *
  * Return Value:
  *
@@ -1141,7 +1142,7 @@ cmyth_proginfo_rec_end(cmyth_proginfo_t prog)
 	if (!prog) {
 		return NULL;
 	}
-	return cmyth_hold(prog->proginfo_rec_end_ts);
+	return ref_hold(prog->proginfo_rec_end_ts);
 }
 
 /*
@@ -1464,7 +1465,7 @@ cmyth_proginfo_get_detail(cmyth_conn_t control, cmyth_proginfo_t p)
 		return NULL;
 	}
 	if (cmyth_proginfo_fill(control, ret) < 0) {
-		cmyth_release(ret);
+		ref_release(ret);
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_proginfo_fill() failed\n",
 			  __FUNCTION__);
@@ -1544,7 +1545,7 @@ cmyth_proginfo_host(cmyth_proginfo_t prog)
 		return NULL;
 	}
 
-	return cmyth_hold(prog->proginfo_host);
+	return ref_hold(prog->proginfo_host);
 }
 
 long
@@ -1567,5 +1568,5 @@ cmyth_proginfo_recgroup(cmyth_proginfo_t prog)
 			  __FUNCTION__);
 		return NULL;
 	}
-	return cmyth_hold(prog->proginfo_recgroup);
+	return ref_hold(prog->proginfo_recgroup);
 }

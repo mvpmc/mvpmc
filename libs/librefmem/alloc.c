@@ -19,7 +19,7 @@
 
 /*
  * alloc.c -   Memory management functions.  The structures returned from
- *             libcmyth APIs are actually pointers to reference counted
+ *             librefmem APIs are actually pointers to reference counted
  *             blocks of memory.  The functions provided here handle allocating
  *             these blocks (strictly internally to the library), placing
  *             holds on these blocks (publicly) and releasing holds (publicly).
@@ -42,8 +42,9 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
-#include <cmyth.h>
-#include <cmyth_local.h>
+#include <mvp_refmem.h>
+#include <mvp_atomic.h>
+#include <refmem_local.h>
 
 #include <string.h>
 #include <stdio.h>
@@ -82,9 +83,9 @@ typedef struct refcounter {
 	const char *func;
 	int line;
 #endif /* DEBUG */
-	cmyth_atomic_t refcount;
+	mvp_atomic_t refcount;
 	size_t length;
-	destroy_t destroy;
+	ref_destroy_t destroy;
 } refcounter_t;
 
 #ifdef DEBUG
@@ -93,22 +94,22 @@ typedef struct {
 } guard_t;
 #endif /* DEBUG */
 
-#define CMYTH_REFCNT(p) ((refcounter_t *)(((unsigned char *)(p)) - sizeof(refcounter_t)))
-#define CMYTH_DATA(r) (((unsigned char *)(r)) + sizeof(refcounter_t))
+#define REF_REFCNT(p) ((refcounter_t *)(((unsigned char *)(p)) - sizeof(refcounter_t)))
+#define REF_DATA(r) (((unsigned char *)(r)) + sizeof(refcounter_t))
 
 #if defined(DEBUG)
-#define CMYTH_ALLOC_BINS	101
-static refcounter_t *ref_list[CMYTH_ALLOC_BINS];
+#define REF_ALLOC_BINS	101
+static refcounter_t *ref_list[REF_ALLOC_BINS];
 #endif /* DEBUG */
 
 #if defined(DEBUG)
 static inline void
-cmyth_ref_remove(refcounter_t *ref)
+ref_remove(refcounter_t *ref)
 {
 	int bin;
 	refcounter_t *r, *p;
 
-	bin = ((unsigned long)ref >> 2) % CMYTH_ALLOC_BINS;
+	bin = ((unsigned long)ref >> 2) % REF_ALLOC_BINS;
 
 	r = ref_list[bin];
 	p = NULL;
@@ -128,11 +129,11 @@ cmyth_ref_remove(refcounter_t *ref)
 }
 
 static inline void
-cmyth_ref_add(refcounter_t *ref)
+ref_add(refcounter_t *ref)
 {
 	int bin;
 
-	bin = ((unsigned long)ref >> 2) % CMYTH_ALLOC_BINS;
+	bin = ((unsigned long)ref >> 2) % REF_ALLOC_BINS;
 
 	ref->next = ref_list[bin];
 	ref_list[bin] = ref;
@@ -146,13 +147,13 @@ static struct alloc_type {
 } alloc_list[128];
 
 void
-cmyth_alloc_show(void)
+ref_alloc_show(void)
 {
 	int i, j;
 	int types = 0, bytes = 0, count = 0;
 	refcounter_t *r;
 
-	for (i=0; i<CMYTH_ALLOC_BINS; i++) {
+	for (i=0; i<REF_ALLOC_BINS; i++) {
 		r = ref_list[i];
 
 		while (r) {
@@ -177,9 +178,9 @@ cmyth_alloc_show(void)
 		}
 	}
 
-	printf("cmyth allocation count: %d\n", count);
-	printf("cmyth allocation bytes: %d\n", bytes);
-	printf("cmyth unique allocation types: %d\n", types);
+	printf("refmem allocation count: %d\n", count);
+	printf("refmem allocation bytes: %d\n", bytes);
+	printf("refmem unique allocation types: %d\n", types);
 	for (i=0; i<types; i++) {
 		printf("ALLOC: %s %s():%d  count %d\n",
 		       alloc_list[i].file, alloc_list[i].func,
@@ -188,31 +189,30 @@ cmyth_alloc_show(void)
 }
 #else
 void
-cmyth_alloc_show(void)
+ref_alloc_show(void)
 {
 }
 #endif /* DEBUG */
 
 /*
- * cmyth_allocate(size_t len)
+ * ref_alloc(size_t len)
  * 
- * Scope: PRIVATE (mapped to __cmyth_allocate)
+ * Scope: PRIVATE (mapped to __ref_alloc)
  *
  * Description
  *
- * Allocate a reference counted block of data for use as a libcmyth structure
- * or string.
+ * Allocate a reference counted block of data.
  *
  * Return Value:
  *
  * Success: A non-NULL pointer to  a block of memory at least 'len' bytes long
  *          and safely aligned.  The block is reference counted and can be
- *          released using cmyth_release().
+ *          released using ref_release().
  *
  * Failure: A NULL pointer.
  */
 void *
-cmyth_allocate_data(size_t len, const char *file, const char *func, int line)
+__ref_alloc(size_t len, const char *file, const char *func, int line)
 {
 #ifdef DEBUG
 	void *block = malloc(sizeof(refcounter_t) + len + sizeof(guard_t));
@@ -220,14 +220,14 @@ cmyth_allocate_data(size_t len, const char *file, const char *func, int line)
 #else
 	void *block = malloc(sizeof(refcounter_t) + len);
 #endif /* DEBUG */
-	void *ret = CMYTH_DATA(block);
+	void *ret = REF_DATA(block);
 	refcounter_t *ref = (refcounter_t *)block;
 
-	cmyth_dbg(CMYTH_DBG_DEBUG, "%s(%d, ret = %p, ref = %p) {\n",
-		  __FUNCTION__, len, ret, ref);
+	refmem_dbg(REF_DBG_DEBUG, "%s(%d, ret = %p, ref = %p) {\n",
+		   __FUNCTION__, len, ret, ref);
 	if (block) {
 		memset(block, 0, sizeof(refcounter_t) + len);
-		cmyth_atomic_set(&ref->refcount, 1);
+		mvp_atomic_set(&ref->refcount, 1);
 #ifdef DEBUG
 		ref->magic = ALLOC_MAGIC;
 		ref->file = file;
@@ -236,23 +236,23 @@ cmyth_allocate_data(size_t len, const char *file, const char *func, int line)
 		guard = (guard_t*)((unsigned long)block +
 				   sizeof(refcounter_t) + len);
 		guard->magic = GUARD_MAGIC;
-		cmyth_ref_add(ref);
+		ref_add(ref);
 #endif /* DEBUG */
 		ref->destroy = NULL;
 		ref->length = len;
-		cmyth_dbg(CMYTH_DBG_DEBUG, "%s(%d, ret = %p, ref = %p) }\n",
-			  __FUNCTION__, len, ret, ref);
+		refmem_dbg(REF_DBG_DEBUG, "%s(%d, ret = %p, ref = %p) }\n",
+			   __FUNCTION__, len, ret, ref);
 		return ret;
 	}
-	cmyth_dbg(CMYTH_DBG_DEBUG, "%s(%d, ret = %p, ref = %p) !}\n",
-		  __FUNCTION__, len, ret, ref);
+	refmem_dbg(REF_DBG_DEBUG, "%s(%d, ret = %p, ref = %p) !}\n",
+		   __FUNCTION__, len, ret, ref);
 	return NULL;
 }
 
 /*
- * cmyth_reallocate(void *p, size_t len)
+ * ref_realloc(void *p, size_t len)
  * 
- * Scope: PRIVATE (mapped to __cmyth_reallocate)
+ * Scope: PRIVATE (mapped to __ref_realloc)
  *
  * Description
  *
@@ -262,70 +262,70 @@ cmyth_allocate_data(size_t len, const char *file, const char *func, int line)
  *
  * Success: A non-NULL pointer to  a block of memory at least 'len' bytes long
  *          and safely aligned.  The block is reference counted and can be
- *          released using cmyth_release().
+ *          released using ref_release().
  *
  * Failure: A NULL pointer.
  */
 void *
-cmyth_reallocate(void *p, size_t len)
+ref_realloc(void *p, size_t len)
 {
-	refcounter_t *ref = CMYTH_REFCNT(p);
-	void *ret = cmyth_allocate(len);
+	refcounter_t *ref = REF_REFCNT(p);
+	void *ret = ref_alloc(len);
 
-	cmyth_dbg(CMYTH_DBG_DEBUG, "%s(%d, ret = %p, ref = %p) {\n",
-		  __FUNCTION__, len, ret, ref);
+	refmem_dbg(REF_DBG_DEBUG, "%s(%d, ret = %p, ref = %p) {\n",
+		   __FUNCTION__, len, ret, ref);
 #ifdef DEBUG
 	assert(ref->magic == ALLOC_MAGIC);
 #endif /* DEBUG */
 	if (p && ret) {
 		memcpy(ret, p, ref->length);
-		cmyth_set_destroy(ret, ref->destroy);
+		ref_set_destroy(ret, ref->destroy);
 	}
 	if (p) {
-		cmyth_release(p);
+		ref_release(p);
 	}
-	cmyth_dbg(CMYTH_DBG_DEBUG, "%s(%d, ret = %p, ref = %p) }\n",
-		  __FUNCTION__, len, ret, ref);
+	refmem_dbg(REF_DBG_DEBUG, "%s(%d, ret = %p, ref = %p) }\n",
+		   __FUNCTION__, len, ret, ref);
 	return ret;
 }
 
 /*
- * cmyth_set_destroy(void *block, destroy_t func)
+ * ref_set_destroy(void *block, ref_destroy_t func)
  * 
- * Scope: PRIVATE (mapped to __cmyth_set_destroy)
+ * Scope: PRIVATE (mapped to __ref_set_destroy)
  *
  * Description
  *
  * Set the destroy function for a block of data.  The first argument
- * is a pointer to the data block (as returned by cmyth_allocate()).  The
+ * is a pointer to the data block (as returned by ref_alloc()).  The
  * second argument is a pointer to the destroy function which, when
  * called, will be passed one argument, the pointer to the block (as
- * returned by cmyth_allocate()).  The destroy function is
+ * returned by ref_alloc()).  The destroy function is
  * respsonsible for any cleanup needed prior to finally releasing the
  * memory holding the memory block.
  *
  * Return Value: NONE
  */
 void
-cmyth_set_destroy(void *data, destroy_t func)
+ref_set_destroy(void *data, ref_destroy_t func)
 {
-	void *block = CMYTH_REFCNT(data);
+	void *block = REF_REFCNT(data);
 	refcounter_t *ref = block;
 
-	cmyth_dbg(CMYTH_DBG_DEBUG, "%s(%p, func = %p, ref = %p) {\n",
-		  __FUNCTION__, data, func, ref);
+	refmem_dbg(REF_DBG_DEBUG, "%s(%p, func = %p, ref = %p) {\n",
+		   __FUNCTION__, data, func, ref);
 #ifdef DEBUG
 	assert(ref->magic == ALLOC_MAGIC);
 #endif /* DEBUG */
 	if (data) {
 		ref->destroy = func;
 	}
-	cmyth_dbg(CMYTH_DBG_DEBUG, "%s(%p, func = %p, ref = %p) }\n",
-		  __FUNCTION__, data, func, ref);
+	refmem_dbg(REF_DBG_DEBUG, "%s(%p, func = %p, ref = %p) }\n",
+		   __FUNCTION__, data, func, ref);
 }
 
 /*
- * cmyth_strdup(char *str)
+ * ref_strdup(char *str)
  * 
  * Scope: PUBLIC
  *
@@ -337,35 +337,35 @@ cmyth_set_destroy(void *data, destroy_t func)
  * Return Value: 
  *
  * Success: A non-NULL pointer to  a reference counted string which can be
- *          released using cmyth_release().
+ *          released using ref_release().
  *
  * Failure: A NULL pointer.
  */
 char *
-cmyth_strdup(char *str)
+ref_strdup(char *str)
 {
 	size_t len;
 	char *ret = NULL;
 
-	cmyth_dbg(CMYTH_DBG_DEBUG, "%s(%p) {\n",
-		  __FUNCTION__, str);
+	refmem_dbg(REF_DBG_DEBUG, "%s(%p) {\n",
+		   __FUNCTION__, str);
 	if (str) {
 		len = strlen(str) + 1;
-		ret = cmyth_allocate(len);
+		ret = ref_alloc(len);
 		if (ret) {
 			strncpy(ret, str, len);
 			ret[len - 1] = '\0';
 		}
-		cmyth_dbg(CMYTH_DBG_DEBUG,
-			  "%s str = %p[%s], len = %d, ret =%p\n",
-			  __FUNCTION__, str, str, len, ret);
+		refmem_dbg(REF_DBG_DEBUG,
+			   "%s str = %p[%s], len = %d, ret =%p\n",
+			   __FUNCTION__, str, str, len, ret);
 	}
-	cmyth_dbg(CMYTH_DBG_DEBUG, "%s() }\n", __FUNCTION__);
+	refmem_dbg(REF_DBG_DEBUG, "%s() }\n", __FUNCTION__);
 	return ret;
 }
 
 /*
- * cmyth_hold(void *p)
+ * ref_hold(void *p)
  * 
  * Scope: PUBLIC
  *
@@ -373,29 +373,28 @@ cmyth_strdup(char *str)
  *
  * This is how holders of references to reference counted blocks take
  * additional references.  The argument is a pointer to a structure or
- * string returned from a libcmyth API function (or from
- * cmyth_allocate).  The structure's reference count will be
- * incremented  and a  pointer to that space returned.
+ * string returned from ref_alloc.  The structure's reference count
+ * will be incremented and a pointer to that space returned.
  *
  * There is really  no error condition possible, but if a NULL pointer
  * is passed in, a NULL is returned.
  *
  * NOTE: since this function operates outside of the space that is directly
  *       accessed by  the pointer, if a pointer that was NOT allocated by
- *       cmyth_allocate() is provided, negative consequences are likely.
+ *       ref_alloc() is provided, negative consequences are likely.
  *
  * Return Value: A  pointer to the held space
  */
 void *
-cmyth_hold(void *p)
+ref_hold(void *p)
 {
-	void *block = CMYTH_REFCNT(p);
+	void *block = REF_REFCNT(p);
 	refcounter_t *ref = block;
 #ifdef DEBUG
 	guard_t *guard;
 #endif /* DEBUG */
 
-	cmyth_dbg(CMYTH_DBG_DEBUG, "%s(%p) {\n", __FUNCTION__, p);
+	refmem_dbg(REF_DBG_DEBUG, "%s(%p) {\n", __FUNCTION__, p);
 	if (p) {
 #ifdef DEBUG
 		assert(ref->magic == ALLOC_MAGIC);
@@ -403,14 +402,14 @@ cmyth_hold(void *p)
 				   sizeof(refcounter_t) + ref->length);
 		assert(guard->magic == GUARD_MAGIC);
 #endif /* DEBUG */
-		cmyth_atomic_inc(&ref->refcount);
+		mvp_atomic_inc(&ref->refcount);
 	}
-	cmyth_dbg(CMYTH_DBG_DEBUG, "%s(%p) }\n", __FUNCTION__, p);
+	refmem_dbg(REF_DBG_DEBUG, "%s(%p) }\n", __FUNCTION__, p);
         return p;
 }
 
 /*
- * cmyth_release(void *p)
+ * ref_release(void *p)
  * 
  * Scope: PUBLIC
  *
@@ -418,7 +417,7 @@ cmyth_hold(void *p)
  *
  * This is how holders of references to reference counted blocks release
  * those references.  The argument is a pointer to a structure or string
- * returned from a libcmyth API function (or from cmyth_allocate).  The
+ * returned from a librefmem API function (or from ref_alloc).  The
  * structure's reference count will be decremented and, when it reaches zero
  * the structure's destroy function (if any) will be called and then the
  * memory block will be released.
@@ -426,27 +425,27 @@ cmyth_hold(void *p)
  * Return Value: NONE
  */
 void
-cmyth_release(void *p)
+ref_release(void *p)
 {
-	void *block = CMYTH_REFCNT(p);
+	void *block = REF_REFCNT(p);
 	refcounter_t *ref = block;
 #ifdef DEBUG
 	guard_t *guard;
 #endif /* DEBUG */
 
-	cmyth_dbg(CMYTH_DBG_DEBUG, "%s(%p) {\n", __FUNCTION__, p);
+	refmem_dbg(REF_DBG_DEBUG, "%s(%p) {\n", __FUNCTION__, p);
 	if (p) {
-		cmyth_dbg(CMYTH_DBG_DEBUG,
-			  "%s:%d %s(%p,ref = %p,refcount = %p,length = %d)\n",
-			  __FILE__, __LINE__, __FUNCTION__,
-			  p, ref, ref->refcount, ref->length);
+		refmem_dbg(REF_DBG_DEBUG,
+			   "%s:%d %s(%p,ref = %p,refcount = %p,length = %d)\n",
+			   __FILE__, __LINE__, __FUNCTION__,
+			   p, ref, ref->refcount, ref->length);
 #ifdef DEBUG
 		assert(ref->magic == ALLOC_MAGIC);
 		guard = (guard_t*)((unsigned long)block +
 				   sizeof(refcounter_t) + ref->length);
 		assert(guard->magic == GUARD_MAGIC);
 #endif /* DEBUG */
-		if (cmyth_atomic_dec_and_test(&ref->refcount)) {
+		if (mvp_atomic_dec_and_test(&ref->refcount)) {
 			/*
 			 * Last reference, destroy the structure (if
 			 * there is a destroy function) and free the
@@ -455,13 +454,13 @@ cmyth_release(void *p)
 			if (ref->destroy) {
 				ref->destroy(p);
 			}
-			cmyth_dbg(CMYTH_DBG_DEBUG,
-				  "%s:%d %s() -- free it\n",
-				  __FILE__, __LINE__, __FUNCTION__);
+			refmem_dbg(REF_DBG_DEBUG,
+				   "%s:%d %s() -- free it\n",
+				   __FILE__, __LINE__, __FUNCTION__);
 #ifdef DEBUG
 			ref->magic = 0;
 			guard->magic = 0;
-			cmyth_ref_remove(ref);
+			refmem_ref_remove(ref);
 			ref->next = NULL;
 #endif /* DEBUG */
 			free(block);
@@ -470,22 +469,5 @@ cmyth_release(void *p)
 			fprintf(stderr, "*** %s(): %p refcount %d ***\n",
 				__FUNCTION__, p, ref->refcount);
 	}
-	cmyth_dbg(CMYTH_DBG_DEBUG, "%s(%p) }\n", __FUNCTION__, p);
-}
-
-/*
- * cmyth_str_create(int len)
- * 
- * Scope: PUBLIC
- *
- * Description
- *
- * Allocate space for a string of 'len' bytes.
- *
- * Return Value: A pointer to the space
- */
-char *
-cmyth_str_create(int len)
-{
-	return cmyth_allocate(len);
+	refmem_dbg(REF_DBG_DEBUG, "%s(%p) }\n", __FUNCTION__, p);
 }

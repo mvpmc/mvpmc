@@ -54,10 +54,11 @@ mvpmc = mvp.Program('mvpmc',
                                 '.', '../include' ],
                     LIBS = ['widget', 'nano-X', 'mwengine', 'mwdrivers',
                             'mwfonts', 'replaytv', 'expat',
-                            'osd', 'av', 'demux', 'cmyth', 'vnc', 'mysqlclient',
-                            'png12', 'z', 'jpeg', 'm', 'gcc', 'pthread',
-                            'a52', 'm', 'vorbisidec', 'id3',
-                            'ts_demux', 'dvbpsi'] + libFLAC + libx11 + libs,
+                            'osd', 'av', 'demux', 'cmyth', 'refmem', 'vnc',
+                            'mysqlclient', 'png12', 'z', 'jpeg', 'm',
+                            'gcc', 'pthread', 'a52', 'm', 'vorbisidec',
+                            'id3', 'ts_demux', 'dvbpsi'
+                           ] + libFLAC + libx11 + libs,
                     LIBPATH = [ libdir, mysql_libdir ] + libx11dir,
                     LINKFLAGS = linkflags)
 

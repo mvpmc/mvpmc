@@ -36,6 +36,7 @@
 #include <mvp_widget.h>
 #include <mvp_av.h>
 #include <ts_demux.h>
+#include <mvp_refmem.h>
 
 #include "mvpmc.h"
 #include "mythtv.h"
@@ -274,12 +275,13 @@ auto_tune_add(char *chanstr, char *title, time_t start_time, time_t end_time)
 	auto_tune_t rtrn = NULL;
 
 	if(!auto_tune_list) { /* Create the data structure */
-		auto_tune_list = cmyth_allocate(sizeof(*auto_tune_list));
+		auto_tune_list = ref_alloc(sizeof(*auto_tune_list));
 		if(auto_tune_list) {
 			auto_tune_list->at_list =
-										cmyth_allocate(sizeof(struct auto_tune_s)*AT_BLK_CT);
+				ref_alloc(sizeof(struct auto_tune_s)*
+					     AT_BLK_CT);
 			if(!auto_tune_list->at_list) {
-				cmyth_release(auto_tune_list);
+				ref_release(auto_tune_list);
 				auto_tune_list = NULL;
 			}
 			auto_tune_list->at_count = 0;
@@ -290,10 +292,10 @@ auto_tune_add(char *chanstr, char *title, time_t start_time, time_t end_time)
 		 auto_tune_list->at_count == auto_tune_list->at_avail) {
 		ct = auto_tune_list->at_avail * AT_BLK_CT;
 		auto_tune_list->at_list =
-									cmyth_reallocate(auto_tune_list->at_list,
-																	 sizeof(struct auto_tune_s)*ct);
+			ref_realloc(auto_tune_list->at_list,
+				    sizeof(struct auto_tune_s)*ct);
 		if(!auto_tune_list->at_list) {
-			cmyth_release(auto_tune_list);
+			ref_release(auto_tune_list);
 			auto_tune_list = NULL;
 		}
 		auto_tune_list->at_avail = ct;
@@ -348,8 +350,8 @@ auto_tune_remove(char *chanstr, time_t start_time, time_t end_time)
 		}
 
 		if(auto_tune_list->at_count == 0) {
-			cmyth_release(auto_tune_list->at_list);
-			cmyth_release(auto_tune_list);
+			ref_release(auto_tune_list->at_list);
+			ref_release(auto_tune_list);
 			auto_tune_list = NULL;
 		}
 	}
@@ -362,9 +364,9 @@ auto_tune_list_clear(void)
 {
 	if(auto_tune_list) {
 		if(auto_tune_list->at_list) {
-			cmyth_release(auto_tune_list->at_list);
+			ref_release(auto_tune_list->at_list);
 		}
-		cmyth_release(auto_tune_list);
+		ref_release(auto_tune_list);
 		auto_tune_list = NULL;
 	}
 }

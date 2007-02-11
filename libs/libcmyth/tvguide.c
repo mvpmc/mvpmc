@@ -25,6 +25,7 @@
 #include <string.h>
 #include <sys/time.h>
 #include <mysql/mysql.h>
+#include <mvp_refmem.h>
 #include <cmyth.h>
 #include <cmyth_local.h>
 #include <mvp_widget.h>
@@ -77,16 +78,16 @@ myth_tvguide_add_hilite(time_t start_time, int chan_num,
 	PRINTF("** SSDEBUG: adding hilite on start time: %ld, chan %d\n",
 				 start_time, chan_num);
 	if(hilites == NULL) {
-		hilites = cmyth_allocate(sizeof(*hilites));
+		hilites = ref_alloc(sizeof(*hilites));
 		if(hilites) {
-			hilites->list = cmyth_allocate(sizeof(*(hilites->list))*ALLOC_FRAC);
+			hilites->list = ref_alloc(sizeof(*(hilites->list))*ALLOC_FRAC);
 			if(hilites->list) {
 				rtrn = 1;
 				av = hilites->avail = ALLOC_FRAC;
 				sz = hilites->count = 0;
 			}
 			else {
-				cmyth_release(hilites);
+				ref_release(hilites);
 				hilites = NULL;
 			}
 		}
@@ -97,13 +98,13 @@ myth_tvguide_add_hilite(time_t start_time, int chan_num,
 		if(sz == av) {
 			av += ALLOC_FRAC;
 			hilites->list =
-								cmyth_reallocate(hilites->list, sizeof(*(hilites->list))*av);
+								ref_realloc(hilites->list, sizeof(*(hilites->list))*av);
 			if(hilites->list) {
 				rtrn = 1;
 				hilites->avail = av;
 			}
 			else {
-				cmyth_release(hilites);
+				ref_release(hilites);
 				hilites = NULL;
 			}
 		}
@@ -149,8 +150,8 @@ myth_tvguide_remove_hilite(time_t start_time, int chan_num)
 			rtrn = 1;
 		}
 		if(hilites->count == 0) {
-			cmyth_release(hilites->list);
-			cmyth_release(hilites);
+			ref_release(hilites->list);
+			ref_release(hilites);
 			hilites = NULL;
 		}
 	}
@@ -163,8 +164,8 @@ myth_tvguide_clear_hilites(void)
 {
 	if(hilites) {
 		if(hilites->list)
-			cmyth_release(hilites->list);
-		cmyth_release(hilites);
+			ref_release(hilites->list);
+		ref_release(hilites);
 	}
 	hilites = NULL;
 }
@@ -320,12 +321,12 @@ myth_is_chan_index(cmyth_chanlist_t chanlist, cmyth_proginfo_t prog,
 									 int index)
 {
 	int rtrn = 0;
-	cmyth_proginfo_t lprog = cmyth_hold(prog);
+	cmyth_proginfo_t lprog = ref_hold(prog);
 
 	if(chanlist->chanlist_list[index].chanid == lprog->proginfo_chanId)
 		rtrn = 1;
 
-	cmyth_release(prog);
+	ref_release(prog);
 
 	return rtrn;
 }
@@ -394,7 +395,7 @@ get_tvguide_page(MYSQL *mysql, cmyth_chanlist_t chanlist,
 	long ch=0;
 
 	if(!cache)
-		cache = cmyth_allocate(sizeof(*cache)*4);
+		cache = ref_alloc(sizeof(*cache)*4);
 
 
 	PRINTF("** SSDEBUG: index is: %d\n", index);
@@ -668,9 +669,9 @@ myth_load_guide(void * widget, cmyth_database_t db,
 	 * changed to use the standard methodology.
 	 */
 	if(!proglist) {
-		proglist = (cmyth_tvguide_progs_t) cmyth_allocate(sizeof(*proglist));
+		proglist = (cmyth_tvguide_progs_t) ref_alloc(sizeof(*proglist));
 		proglist->progs =
-			cmyth_allocate(sizeof(*(proglist->progs)) * 3 * 4);
+			ref_alloc(sizeof(*(proglist->progs)) * 3 * 4);
 		proglist->count = 0;
 		proglist->alloc = 0;
 	}
@@ -895,10 +896,10 @@ myth_release_chanlist(cmyth_chanlist_t cl)
 
 	if(cl) {
 		for(i=0; i<cl->chanlist_count; i++) {
-			cmyth_release(cl->chanlist_list[i].callsign);
-			cmyth_release(cl->chanlist_list[i].name);
+			ref_release(cl->chanlist_list[i].callsign);
+			ref_release(cl->chanlist_list[i].name);
 		}
-		cmyth_release(cl);
+		ref_release(cl);
 	}
 	return NULL;
 }
@@ -907,8 +908,8 @@ cmyth_tvguide_progs_t
 myth_release_proglist(cmyth_tvguide_progs_t proglist)
 {
 	if(proglist) {
-		cmyth_release(proglist->progs);
-		cmyth_release(proglist);
+		ref_release(proglist->progs);
+		ref_release(proglist);
 	}
 	return NULL;
 }
@@ -919,7 +920,7 @@ myth_tvguide_get_free_cardids(cmyth_conn_t control)
 {
 	long rtrn = 0;
 	int i;
-	cmyth_conn_t ctrl = cmyth_hold(control);
+	cmyth_conn_t ctrl = ref_hold(control);
 	cmyth_recorder_t rec;
 	static int last_tuner = MAX_TUNER;
 
@@ -937,9 +938,9 @@ myth_tvguide_get_free_cardids(cmyth_conn_t control)
 			PRINTF("** SSDEBUG recorder %d is free\n", i);
 			*/
 		}
-		cmyth_release(rec);
+		ref_release(rec);
 	}
-	cmyth_release(ctrl);
+	ref_release(ctrl);
 
 
 	return rtrn;
@@ -1009,9 +1010,9 @@ myth_tvguide_load_channels(cmyth_database_t db, int sort_desc)
 	/* Create a return structure that has room for all the records
 	 * retrieved knowing that some may be the same on multiple recorders
 	 */
-	rtrn = cmyth_allocate(sizeof(*rtrn));
+	rtrn = ref_alloc(sizeof(*rtrn));
 	rtrn->chanlist_list = (cmyth_channel_t)
-			cmyth_allocate(sizeof(*(rtrn->chanlist_list))*res->row_count/ALLOC_FRAC);
+			ref_alloc(sizeof(*(rtrn->chanlist_list))*res->row_count/ALLOC_FRAC);
 	if(!rtrn->chanlist_list) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: chanlist allocation failed\n", 
 							__FUNCTION__);
@@ -1026,7 +1027,7 @@ myth_tvguide_load_channels(cmyth_database_t db, int sort_desc)
 			PRINTF("** SSDEBUG: allocating more space with count = %d and alloc =%d\n",	rtrn->chanlist_count, rtrn->chanlist_alloc);
 
 			rtrn->chanlist_list = (cmyth_channel_t)
-				cmyth_reallocate(rtrn->chanlist_list, sizeof(struct cmyth_channel)
+				ref_realloc(rtrn->chanlist_list, sizeof(struct cmyth_channel)
 										*(rtrn->chanlist_count + res->row_count/ALLOC_FRAC));
 			if(!rtrn->chanlist_list) {
 				cmyth_dbg(CMYTH_DBG_ERROR, "%s: chanlist allocation failed\n", 
@@ -1051,8 +1052,8 @@ myth_tvguide_load_channels(cmyth_database_t db, int sort_desc)
 			rtrn->chanlist_list[rtrn->chanlist_count].channum = atoi(row[1]);
 			strncpy(rtrn->chanlist_list[rtrn->chanlist_count].chanstr, row[1], 10);
 			rtrn->chanlist_list[rtrn->chanlist_count].cardids = 1 << (atoi(row[3])-1);
-			rtrn->chanlist_list[rtrn->chanlist_count].callsign = cmyth_strdup(row[4]);
-			rtrn->chanlist_list[rtrn->chanlist_count].name = cmyth_strdup(row[5]);
+			rtrn->chanlist_list[rtrn->chanlist_count].callsign = ref_strdup(row[4]);
+			rtrn->chanlist_list[rtrn->chanlist_count].name = ref_strdup(row[5]);
 			rtrn->chanlist_count += 1;
 		}
 		PRINTF("** SSDEBUG: cardid for channel %d is %ld with count %d\n",

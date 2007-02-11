@@ -30,6 +30,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
+#include <mvp_refmem.h>
 #include <cmyth.h>
 #include <cmyth_local.h>
 #include <string.h>
@@ -60,8 +61,8 @@ static int cmyth_livetv_chain_add(cmyth_recorder_t rec, char * url,
  * Description
  *
  * Clean up and free a livetv chain structure.  This should only be done
- * by the cmyth_release() code.  Everyone else should call
- * cmyth_release() because ring buffer structures are reference
+ * by the ref_release() code.  Everyone else should call
+ * ref_release() because ring buffer structures are reference
  * counted.
  *
  * Return Value:
@@ -79,25 +80,25 @@ cmyth_livetv_chain_destroy(cmyth_livetv_chain_t ltc)
 	}
 
 	if (ltc->chainid) {
-		cmyth_release(ltc->chainid);
+		ref_release(ltc->chainid);
 	}
 	if (ltc->chain_urls) {
 		for(i=0;i<ltc->chain_ct; i++)
 			if (ltc->chain_urls[i])
-				cmyth_release(ltc->chain_urls[i]);
-		cmyth_release(ltc->chain_urls);
+				ref_release(ltc->chain_urls[i]);
+		ref_release(ltc->chain_urls);
 	}
 	if (ltc->chain_files) {
 		for(i=0;i<ltc->chain_ct; i++)
 			if (ltc->chain_files[i])
-				cmyth_release(ltc->chain_files[i]);
-		cmyth_release(ltc->chain_files);
+				ref_release(ltc->chain_files[i]);
+		ref_release(ltc->chain_files);
 	}
 	if (ltc->progs) {
 		for(i=0;i<ltc->chain_ct; i++)
 			if (ltc->progs[i])
-				cmyth_release(ltc->progs[i]);
-		cmyth_release(ltc->progs);
+				ref_release(ltc->progs[i]);
+		ref_release(ltc->progs);
 	}
 }
 
@@ -119,21 +120,21 @@ cmyth_livetv_chain_destroy(cmyth_livetv_chain_t ltc)
 cmyth_livetv_chain_t
 cmyth_livetv_chain_create(char * chainid)
 {
-	cmyth_livetv_chain_t ret = cmyth_allocate(sizeof(*ret));
+	cmyth_livetv_chain_t ret = ref_alloc(sizeof(*ret));
 
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s\n", __FUNCTION__);
 	if (!ret) {
 		return NULL;
 	}
 
-	ret->chainid = cmyth_strdup(chainid);
+	ret->chainid = ref_strdup(chainid);
 	ret->chain_ct = 0;
 	ret->chain_switch_on_create = 0;
 	ret->chain_current = -1;
 	ret->chain_urls = NULL;
 	ret->chain_files = NULL;
 	ret->progs = NULL;
-	cmyth_set_destroy(ret, (destroy_t)cmyth_livetv_chain_destroy);
+	ref_set_destroy(ret, (ref_destroy_t)cmyth_livetv_chain_destroy);
 	return ret;
 }
 
@@ -223,8 +224,8 @@ cmyth_livetv_chain_add_file(cmyth_recorder_t rec, char * url, cmyth_file_t ft)
 				/* Release the existing handle after holding the new */
 				/* this allows them to be the same. */
 				tmp = rec->rec_livetv_chain->chain_files[cur];
-				rec->rec_livetv_chain->chain_files[cur] = cmyth_hold(ft);
-				cmyth_release(tmp);
+				rec->rec_livetv_chain->chain_files[cur] = ref_hold(ft);
+				ref_release(tmp);
 			}
 		}
 		else {
@@ -276,8 +277,8 @@ cmyth_livetv_chain_add_prog(cmyth_recorder_t rec, char * url,
 				/* Release the existing handle after holding the new */
 				/* this allows them to be the same. */
 				tmp = rec->rec_livetv_chain->progs[cur];
-				rec->rec_livetv_chain->progs[cur] = cmyth_hold(prog);
-				cmyth_release(tmp);
+				rec->rec_livetv_chain->progs[cur] = ref_hold(prog);
+				ref_release(tmp);
 			}
 		}
 		else {
@@ -325,34 +326,34 @@ cmyth_livetv_chain_add_url(cmyth_recorder_t rec, char * url)
 			rec->rec_livetv_chain->chain_ct = 1;
 			rec->rec_livetv_chain->chain_current = 0;
 			/* Nothing in the chain yet, allocate the space */
-			tmp = (char**)cmyth_allocate(sizeof(char *));
-			fp = (cmyth_file_t *)cmyth_allocate(sizeof(cmyth_file_t));
-			pi = (cmyth_proginfo_t *)cmyth_allocate(sizeof(cmyth_proginfo_t));
+			tmp = (char**)ref_alloc(sizeof(char *));
+			fp = (cmyth_file_t *)ref_alloc(sizeof(cmyth_file_t));
+			pi = (cmyth_proginfo_t *)ref_alloc(sizeof(cmyth_proginfo_t));
 		}
 		else {
 			rec->rec_livetv_chain->chain_ct++;
-			tmp = (char**)cmyth_reallocate(rec->rec_livetv_chain->chain_urls,
+			tmp = (char**)ref_realloc(rec->rec_livetv_chain->chain_urls,
 								sizeof(char *)*rec->rec_livetv_chain->chain_ct);
 			fp = (cmyth_file_t *)
-					cmyth_reallocate(rec->rec_livetv_chain->chain_files,
+					ref_realloc(rec->rec_livetv_chain->chain_files,
 								sizeof(cmyth_file_t)*rec->rec_livetv_chain->chain_ct);
 			pi = (cmyth_proginfo_t *)
-					cmyth_reallocate(rec->rec_livetv_chain->progs,
+					ref_realloc(rec->rec_livetv_chain->progs,
 								sizeof(cmyth_proginfo_t)*rec->rec_livetv_chain->chain_ct);
 		}
 		if(tmp != NULL && fp != NULL) {
-			rec->rec_livetv_chain->chain_urls = cmyth_hold(tmp);
-			rec->rec_livetv_chain->chain_files = cmyth_hold(fp);
-			rec->rec_livetv_chain->progs = cmyth_hold(pi);
-			cmyth_release(tmp);
-			cmyth_release(fp);
-			cmyth_release(pi);
+			rec->rec_livetv_chain->chain_urls = ref_hold(tmp);
+			rec->rec_livetv_chain->chain_files = ref_hold(fp);
+			rec->rec_livetv_chain->progs = ref_hold(pi);
+			ref_release(tmp);
+			ref_release(fp);
+			ref_release(pi);
 			rec->rec_livetv_chain->chain_urls[rec->rec_livetv_chain->chain_ct-1]
-							= cmyth_strdup(url);
+							= ref_strdup(url);
 			rec->rec_livetv_chain->chain_files[rec->rec_livetv_chain->chain_ct-1]
-							= cmyth_hold(NULL);
+							= ref_hold(NULL);
 			rec->rec_livetv_chain->progs[rec->rec_livetv_chain->chain_ct-1]
-							= cmyth_hold(NULL);
+							= ref_hold(NULL);
 		}
 		else {
 			ret = -1;
@@ -462,7 +463,7 @@ cmyth_livetv_chain_update(cmyth_recorder_t rec, char * chainid,
 					ret = -1;
 					goto out;
 				}
-				cmyth_release(ft);
+				ref_release(ft);
 				if(rec->rec_livetv_chain->chain_switch_on_create) {
 					cmyth_livetv_chain_switch(rec, LAST);
 					rec->rec_livetv_chain->chain_switch_on_create = 0;
@@ -483,7 +484,7 @@ cmyth_livetv_chain_update(cmyth_recorder_t rec, char * chainid,
 		ret = -1;
 	}
 
-	cmyth_release(loc_prog);
+	ref_release(loc_prog);
 	out:
 	pthread_mutex_unlock(&mutex);
 
@@ -544,7 +545,7 @@ cmyth_livetv_chain_setup(cmyth_recorder_t rec, int tcp_rcvbuf,
 			  __FUNCTION__);
 		goto out;
 	}
-	cmyth_release(rec);
+	ref_release(rec);
 
 	if(new_rec->rec_livetv_chain == NULL) {
 		cmyth_dbg(CMYTH_DBG_DEBUG, "%s: error no livetv_chain\n",
@@ -570,12 +571,12 @@ cmyth_livetv_chain_setup(cmyth_recorder_t rec, int tcp_rcvbuf,
 			goto out;
 		}
 		new_rec->rec_livetv_chain->prog_update_callback = prog_update_callback;
-		cmyth_release(ft);
+		ref_release(ft);
 		cmyth_livetv_chain_switch(new_rec, 0);
 	}
 
 
-	cmyth_release(loc_prog);
+	ref_release(loc_prog);
     out:
 	pthread_mutex_unlock(&mutex);
 
@@ -688,11 +689,11 @@ cmyth_livetv_chain_switch(cmyth_recorder_t rec, int dir)
 	if((dir < 0 && rec->rec_livetv_chain->chain_current + dir >= 0)
 		|| (rec->rec_livetv_chain->chain_current <
 			  rec->rec_livetv_chain->chain_ct - dir )) {
-		cmyth_release(rec->rec_livetv_file);
+		ref_release(rec->rec_livetv_file);
 		ret = rec->rec_livetv_chain->chain_current += dir;
 		PRINTF("**SSDEBUG:(cmyth_livetv_chain_switch): %s:%d\n",
 		"dooingSwitcheroo",ret);
-		rec->rec_livetv_file = cmyth_hold(rec->rec_livetv_chain->chain_files[ret]);
+		rec->rec_livetv_file = ref_hold(rec->rec_livetv_chain->chain_files[ret]);
 		rec->rec_livetv_chain
 					->prog_update_callback(rec->rec_livetv_chain->progs[ret]);
 		ret = 1;

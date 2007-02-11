@@ -27,6 +27,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
+#include <mvp_refmem.h>
 #include <cmyth.h>
 #include <cmyth_local.h>
 
@@ -54,7 +55,7 @@ cmyth_rec_num_destroy(cmyth_rec_num_t rn)
 		return;
 	}
 	if (rn->recnum_host) {
-		cmyth_release(rn->recnum_host);
+		ref_release(rn->recnum_host);
 	}
 }
 
@@ -76,13 +77,13 @@ cmyth_rec_num_destroy(cmyth_rec_num_t rn)
 cmyth_rec_num_t
 cmyth_rec_num_create(void)
 {
-	cmyth_rec_num_t ret = cmyth_allocate(sizeof(*ret));
+	cmyth_rec_num_t ret = ref_alloc(sizeof(*ret));
 
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s\n", __FUNCTION__);
 	if (!ret) {
 		return NULL;
 	}
-	cmyth_set_destroy(ret, (destroy_t)cmyth_rec_num_destroy);
+	ref_set_destroy(ret, (ref_destroy_t)cmyth_rec_num_destroy);
 
 	ret->recnum_host = NULL;
 	ret->recnum_port = 0;
@@ -117,7 +118,7 @@ cmyth_rec_num_t
 cmyth_rec_num_hold(cmyth_rec_num_t p)
 {
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s\n", __FUNCTION__);
-	return cmyth_hold(p);
+	return ref_hold(p);
 }
 
 /*
@@ -142,7 +143,7 @@ void
 cmyth_rec_num_release(cmyth_rec_num_t p)
 {
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s\n", __FUNCTION__);
-	cmyth_release(p);
+	ref_release(p);
 }
 
 /*
@@ -173,9 +174,9 @@ cmyth_rec_num_get(char *host,
 	if ((ret = cmyth_rec_num_create()) == NULL) {
 		return NULL;
 	}
-	ret->recnum_host = cmyth_strdup(host);
+	ret->recnum_host = ref_strdup(host);
 	if (!ret->recnum_host) {
-		cmyth_release(ret);
+		ref_release(ret);
 		return NULL;
 	}
 	ret->recnum_port = port;

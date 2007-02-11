@@ -20,6 +20,7 @@
 #include <sys/types.h>
 #include <string.h>
 #include <stdio.h>
+#include <mvp_refmem.h>
 #include <cmyth.h>
 #include <cmyth_local.h>
 
@@ -50,13 +51,13 @@ query_destroy(void *p)
     cmyth_mysql_query_t * query = (cmyth_mysql_query_t *)p;
     if(query->buf != NULL)
     {
-	cmyth_release(query->buf);
+	ref_release(query->buf);
 	query->buf = NULL;
 	query->buf_size = 0;
     }
     if(query->db != NULL)
     {
-	cmyth_release(query->db);
+	ref_release(query->db);
 	query->db = NULL;
     }
 }
@@ -72,19 +73,19 @@ cmyth_mysql_query_t *
 cmyth_mysql_query_create(cmyth_database_t db, const char * query_string)
 {
     cmyth_mysql_query_t * out;
-    out = cmyth_allocate(sizeof(*out));
+    out = ref_alloc(sizeof(*out));
     if(out != NULL)
     {
-	cmyth_set_destroy(out,query_destroy);
+	ref_set_destroy(out,query_destroy);
 	out->source = out->source_pos = query_string;
 	out->source_len = strlen(out->source);
 	out->buf_size = out->source_len *2;
 	out->buf_used = 0;
-	out->db = cmyth_hold(db);
-	out->buf = cmyth_allocate(out->buf_size);
+	out->db = ref_hold(db);
+	out->buf = ref_alloc(out->buf_size);
 	if(out->buf == NULL)
 	{
-	    cmyth_release(out);
+	    ref_release(out);
 	    out = NULL;
 	}
 	else
@@ -115,7 +116,7 @@ query_buffer_check_len(cmyth_mysql_query_t *query, int len)
 	    query->buf_size += query->source_len;
 	else
 	    query->buf_size += len;
-	query->buf = cmyth_reallocate(query->buf,query->buf_size);
+	query->buf = ref_realloc(query->buf,query->buf_size);
 	if(query->buf == NULL)
 	{
 	    cmyth_mysql_query_reset(query);
@@ -300,7 +301,7 @@ cmyth_mysql_query_param_str(cmyth_mysql_query_t * query, const char *param)
  * Get the completed query string
  * \return If all fields haven't been filled, or there is some other failure
  * 	this will return NULL, otherwise a string is returned. The returned
- * 	string must be released by the caller using cmyth_release().
+ * 	string must be released by the caller using ref_release().
  */
 char *
 cmyth_mysql_query_string(cmyth_mysql_query_t * query)
@@ -315,7 +316,7 @@ cmyth_mysql_query_string(cmyth_mysql_query_t * query)
      * be called multiple times
      */
     query->source_pos = query->source + query->source_len;
-    return cmyth_hold(query->buf);
+    return ref_hold(query->buf);
 }
 
 
@@ -332,7 +333,7 @@ cmyth_mysql_query_result(cmyth_mysql_query_t * query)
     if(query_str == NULL)
 	return NULL;
     ret = mysql_query(mysql,query_str);
-    cmyth_release(query_str);
+    ref_release(query_str);
     if(ret != 0)
     {
 	 cmyth_dbg(CMYTH_DBG_ERROR, "%s: mysql_query(%s) Failed: %s\n",

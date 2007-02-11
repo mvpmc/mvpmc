@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <mvp_refmem.h>
 #include <cmyth.h>
 #include <cmyth_local.h>
 
@@ -35,7 +36,7 @@ cmyth_commbreaklist_destroy(cmyth_commbreaklist_t cbl)
 	}
 	for (i = 0; i < cbl->commbreak_count; ++i) {
 		if (cbl->commbreak_list[i]) {
-			cmyth_release(cbl->commbreak_list[i]);
+			ref_release(cbl->commbreak_list[i]);
 		}
 		cbl->commbreak_list[i] = NULL;
 	}
@@ -50,11 +51,11 @@ cmyth_commbreaklist_create(void)
 	cmyth_commbreaklist_t ret;
 
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s\n", __FUNCTION__);
-	ret = cmyth_allocate(sizeof(*ret));
+	ret = ref_alloc(sizeof(*ret));
 	if (!ret) {
 		return(NULL);
 	}
-	cmyth_set_destroy(ret, (destroy_t)cmyth_commbreaklist_destroy);
+	ref_set_destroy(ret, (ref_destroy_t)cmyth_commbreaklist_destroy);
 
 	ret->commbreak_list = NULL;
 	ret->commbreak_count = 0;
@@ -75,14 +76,14 @@ cmyth_commbreak_destroy(cmyth_commbreak_t b)
 cmyth_commbreak_t
 cmyth_commbreak_create(void)
 {
-	cmyth_commbreak_t ret = cmyth_allocate(sizeof(*ret));
+	cmyth_commbreak_t ret = ref_alloc(sizeof(*ret));
 
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s {\n", __FUNCTION__);
 	if (!ret) {
 		cmyth_dbg(CMYTH_DBG_DEBUG, "%s }!\n", __FUNCTION__);
 		return NULL;
 	}
-	cmyth_set_destroy(ret, (destroy_t)cmyth_commbreak_destroy);
+	ref_set_destroy(ret, (ref_destroy_t)cmyth_commbreak_destroy);
 
 	ret->start_mark = 0;
 	ret->start_offset = 0;

@@ -33,6 +33,7 @@
 #include <errno.h>
 #include <string.h>
 #include <sys/time.h>
+#include <mvp_refmem.h>
 #include <cmyth.h>
 #include <cmyth_local.h>
 
@@ -52,8 +53,8 @@
  * Description
  *
  * Clean up and free a recorder structure.  This should only be done
- * by the cmyth_release() code.  Everyone else should call
- * cmyth_release() because recorder structures are reference
+ * by the ref_release() code.  Everyone else should call
+ * ref_release() because recorder structures are reference
  * counted.
  *
  * Return Value:
@@ -69,19 +70,19 @@ cmyth_recorder_destroy(cmyth_recorder_t rec)
 	}
 
 	if (rec->rec_server) {
-		cmyth_release(rec->rec_server);
+		ref_release(rec->rec_server);
 	}
 	if (rec->rec_ring) {
-		cmyth_release(rec->rec_ring);
+		ref_release(rec->rec_ring);
 	}
 	if (rec->rec_conn) {
-		cmyth_release(rec->rec_conn);
+		ref_release(rec->rec_conn);
 	}
 	if (rec->rec_livetv_chain) {
-		cmyth_release(rec->rec_livetv_chain);
+		ref_release(rec->rec_livetv_chain);
 	}
 	if (rec->rec_livetv_file) {
-		cmyth_release(rec->rec_livetv_file);
+		ref_release(rec->rec_livetv_file);
 	}
 
 }
@@ -104,13 +105,13 @@ cmyth_recorder_destroy(cmyth_recorder_t rec)
 cmyth_recorder_t
 cmyth_recorder_create(void)
 {
-	cmyth_recorder_t ret = cmyth_allocate(sizeof(*ret));
+	cmyth_recorder_t ret = ref_alloc(sizeof(*ret));
 
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s\n", __FUNCTION__);
 	if (!ret) {
 		return NULL;
 	}
-	cmyth_set_destroy(ret, (destroy_t)cmyth_recorder_destroy);
+	ref_set_destroy(ret, (ref_destroy_t)cmyth_recorder_destroy);
 
 	ret->rec_server = NULL;
 	ret->rec_port = 0;
@@ -149,13 +150,13 @@ cmyth_recorder_dup(cmyth_recorder_t old)
 
 	ret->rec_have_stream = old->rec_have_stream;
 	ret->rec_id = old->rec_id;
-	ret->rec_server = cmyth_hold(old->rec_server);
+	ret->rec_server = ref_hold(old->rec_server);
 	ret->rec_port = old->rec_port;
-	ret->rec_ring = cmyth_hold(old->rec_ring);
-	ret->rec_conn = cmyth_hold(old->rec_conn);
+	ret->rec_ring = ref_hold(old->rec_ring);
+	ret->rec_conn = ref_hold(old->rec_conn);
 	ret->rec_framerate = old->rec_framerate;
-	ret->rec_livetv_chain = cmyth_hold(old->rec_livetv_chain);
-	ret->rec_livetv_file = cmyth_hold(old->rec_livetv_file);
+	ret->rec_livetv_chain = ref_hold(old->rec_livetv_chain);
+	ret->rec_livetv_file = ref_hold(old->rec_livetv_file);
 
 	return ret;
 }
@@ -973,7 +974,7 @@ cmyth_recorder_get_program_info(cmyth_recorder_t rec)
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_send_message() failed (%d)\n",
 			  __FUNCTION__, err);
-		cmyth_release(proginfo);
+		ref_release(proginfo);
 		proginfo = NULL;
 		goto out;
 	}
@@ -988,7 +989,7 @@ cmyth_recorder_get_program_info(cmyth_recorder_t rec)
 	if (ct != count) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_rcv_proginfo() < count\n", __FUNCTION__);
-		cmyth_release(proginfo);
+		ref_release(proginfo);
 		proginfo = NULL;
 		goto out;
 	}
@@ -1158,16 +1159,16 @@ cmyth_recorder_get_next_program_info(cmyth_recorder_t rec,
 		goto out;
 	}
 
-	next_prog->proginfo_title = cmyth_strdup(title);
-	next_prog->proginfo_subtitle = cmyth_strdup(subtitle);
-	next_prog->proginfo_description = cmyth_strdup(desc);
-	next_prog->proginfo_channame = cmyth_strdup(channelname);
-	next_prog->proginfo_chansign = cmyth_strdup(callsign);
+	next_prog->proginfo_title = ref_strdup(title);
+	next_prog->proginfo_subtitle = ref_strdup(subtitle);
+	next_prog->proginfo_description = ref_strdup(desc);
+	next_prog->proginfo_channame = ref_strdup(channelname);
+	next_prog->proginfo_chansign = ref_strdup(callsign);
 	
 	next_prog->proginfo_chanId = atoi(chanid);
 
-	cmyth_hold(next_prog->proginfo_start_ts);
-	cmyth_hold(next_prog->proginfo_end_ts);
+	ref_hold(next_prog->proginfo_start_ts);
+	ref_hold(next_prog->proginfo_end_ts);
 
 	ret = 0;
  
@@ -1230,7 +1231,7 @@ cmyth_recorder_get_next_proginfo(cmyth_recorder_t rec,
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_recorder_get_next_program_info()\n",
 			  __FUNCTION__);
-		cmyth_release(ret);
+		ref_release(ret);
 		return NULL;
 	}
 	return ret;
@@ -1567,7 +1568,7 @@ cmyth_recorder_get_filename(cmyth_recorder_t rec)
 	else
 		snprintf(buf, sizeof(buf), "ringbuf%d.nuv", rec->rec_id);
 
-	ret = cmyth_strdup(buf);
+	ret = ref_strdup(buf);
 
 	return ret;
 }

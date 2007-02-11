@@ -30,6 +30,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
+#include <mvp_refmem.h>
 #include <cmyth.h>
 #include <cmyth_local.h>
 #include <string.h>
@@ -42,8 +43,8 @@
  * Description
  *
  * Clean up and free a ring buffer structure.  This should only be done
- * by the cmyth_release() code.  Everyone else should call
- * cmyth_release() because ring buffer structures are reference
+ * by the ref_release() code.  Everyone else should call
+ * ref_release() because ring buffer structures are reference
  * counted.
  *
  * Return Value:
@@ -59,10 +60,10 @@ cmyth_ringbuf_destroy(cmyth_ringbuf_t rb)
 	}
 
 	if (rb->ringbuf_url) {
-		cmyth_release(rb->ringbuf_url);
+		ref_release(rb->ringbuf_url);
 	}
 	if (rb->ringbuf_hostname) {
-		cmyth_release(rb->ringbuf_hostname);
+		ref_release(rb->ringbuf_hostname);
 	}
 }
 
@@ -84,7 +85,7 @@ cmyth_ringbuf_destroy(cmyth_ringbuf_t rb)
 cmyth_ringbuf_t
 cmyth_ringbuf_create(void)
 {
-	cmyth_ringbuf_t ret = cmyth_allocate(sizeof(*ret));
+	cmyth_ringbuf_t ret = ref_alloc(sizeof(*ret));
 
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s\n", __FUNCTION__);
 	if (!ret) {
@@ -99,7 +100,7 @@ cmyth_ringbuf_create(void)
 	ret->file_id = 0;
 	ret->ringbuf_hostname = NULL;
 	ret->ringbuf_port = 0;
-	cmyth_set_destroy(ret, (destroy_t)cmyth_ringbuf_destroy);
+	ref_set_destroy(ret, (ref_destroy_t)cmyth_ringbuf_destroy);
 	return ret;
 }
 
@@ -224,18 +225,18 @@ cmyth_ringbuf_setup(cmyth_recorder_t rec)
 			  __FUNCTION__);
 		goto out;
 	}
-	cmyth_release(rec);
+	ref_release(rec);
         new_rec->rec_ring = cmyth_ringbuf_create();
         
 	tmp = *(port - 1);
 	*(port - 1) = '\0';
-	new_rec->rec_ring->ringbuf_hostname = cmyth_strdup(host);
+	new_rec->rec_ring->ringbuf_hostname = ref_strdup(host);
 	*(port - 1) = tmp;
 	tmp = *(path);
 	*(path) = '\0';
 	new_rec->rec_ring->ringbuf_port = atoi(port);
 	*(path) = tmp;
-	new_rec->rec_ring->ringbuf_url = cmyth_strdup(url);
+	new_rec->rec_ring->ringbuf_url = ref_strdup(url);
 	new_rec->rec_ring->ringbuf_size = size;
 	new_rec->rec_ring->ringbuf_fill = fill;
 
@@ -248,7 +249,7 @@ cmyth_ringbuf_setup(cmyth_recorder_t rec)
 char *
 cmyth_ringbuf_pathname(cmyth_recorder_t rec)
 {
-        return cmyth_hold(rec->rec_ring->ringbuf_url);
+        return ref_hold(rec->rec_ring->ringbuf_url);
 }
 
 /*

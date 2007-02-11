@@ -28,6 +28,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <errno.h>
+#include <mvp_refmem.h>
 #include <cmyth.h>
 #include <cmyth_local.h>
 
@@ -1167,7 +1168,7 @@ cmyth_rcv_timestamp(cmyth_conn_t conn, int *err, cmyth_timestamp_t *ts,
                 return consumed;
 
 	if (*ts)
-		cmyth_release(*ts);
+		ref_release(*ts);
 
 	*ts = cmyth_timestamp_from_string(tbuf);
 	if (*ts == NULL) {
@@ -1238,7 +1239,7 @@ cmyth_rcv_datetime(cmyth_conn_t conn, int *err, cmyth_timestamp_t *ts,
 		return consumed;
 	}
 	if (*ts)
-		cmyth_release(*ts);
+		ref_release(*ts);
 	*ts = cmyth_timestamp_from_unixtime((time_t)atoi(tbuf));
 	if (*ts == NULL) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
@@ -1298,8 +1299,8 @@ cmyth_proginfo_parse_url(cmyth_proginfo_t p)
 		char tmp = *(port - 1);
 		*(port - 1) = '\0';
 		if (p->proginfo_host)
-			cmyth_release(p->proginfo_host);
-		p->proginfo_host = cmyth_strdup(host);
+			ref_release(p->proginfo_host);
+		p->proginfo_host = ref_strdup(host);
 		*(port - 1) = tmp;
 		tmp = *(path);
 		*(path) = '\0';
@@ -1307,13 +1308,13 @@ cmyth_proginfo_parse_url(cmyth_proginfo_t p)
 		*(path) = tmp;
 	} else {
 		if (p->proginfo_host)
-			cmyth_release(p->proginfo_host);
-		p->proginfo_host = cmyth_strdup(p->proginfo_hostname);
+			ref_release(p->proginfo_host);
+		p->proginfo_host = ref_strdup(p->proginfo_hostname);
 		p->proginfo_port = 6543;
 	}
 	if (p->proginfo_pathname)
-		cmyth_release(p->proginfo_pathname);
-	p->proginfo_pathname = cmyth_strdup(path);
+		ref_release(p->proginfo_pathname);
+	p->proginfo_pathname = ref_strdup(path);
 }
 
 /*
@@ -1379,8 +1380,8 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 		goto fail;
 	}
 	if (buf->proginfo_title)
-		cmyth_release(buf->proginfo_title);
-	buf->proginfo_title = cmyth_strdup(tmp_str);
+		ref_release(buf->proginfo_title);
+	buf->proginfo_title = ref_strdup(tmp_str);
 
 	/*
 	 * Get proginfo_subtitle (string)
@@ -1394,8 +1395,8 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 		goto fail;
 	}
 	if (buf->proginfo_subtitle)
-		cmyth_release(buf->proginfo_subtitle);
-	buf->proginfo_subtitle = cmyth_strdup(tmp_str);
+		ref_release(buf->proginfo_subtitle);
+	buf->proginfo_subtitle = ref_strdup(tmp_str);
 
 	/*
 	 * Get proginfo_description (string)
@@ -1409,8 +1410,8 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 		goto fail;
 	}
 	if (buf->proginfo_description)
-		cmyth_release(buf->proginfo_description);
-	buf->proginfo_description = cmyth_strdup(tmp_str);
+		ref_release(buf->proginfo_description);
+	buf->proginfo_description = ref_strdup(tmp_str);
 
 	/*
 	 * Get proginfo_category (string)
@@ -1424,8 +1425,8 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 		goto fail;
 	}
 	if (buf->proginfo_category)
-		cmyth_release(buf->proginfo_category);
-	buf->proginfo_category = cmyth_strdup(tmp_str);
+		ref_release(buf->proginfo_category);
+	buf->proginfo_category = ref_strdup(tmp_str);
 
 	/*
 	 * Get proginfo_chanId (long)
@@ -1452,8 +1453,8 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 		goto fail;
 	}
 	if (buf->proginfo_chanstr)
-		cmyth_release(buf->proginfo_chanstr);
-	buf->proginfo_chanstr = cmyth_strdup(tmp_str);
+		ref_release(buf->proginfo_chanstr);
+	buf->proginfo_chanstr = ref_strdup(tmp_str);
 
 	/*
 	 * Get proginfo_chansign (string)
@@ -1467,8 +1468,8 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 		goto fail;
 	}
 	if (buf->proginfo_chansign)
-		cmyth_release(buf->proginfo_chansign);
-	buf->proginfo_chansign = cmyth_strdup(tmp_str);
+		ref_release(buf->proginfo_chansign);
+	buf->proginfo_chansign = ref_strdup(tmp_str);
 
 	/*
 	 * Get proginfo_channame (string) Version 1 or proginfo_chanicon
@@ -1485,11 +1486,11 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 	/* FIXME: doesn't seem to match the dump? */
 	cmyth_dbg(CMYTH_DBG_INFO, "%s: GOT TO ICON/NAME\n", __FUNCTION__);
 	if (buf->proginfo_chanicon)
-		cmyth_release(buf->proginfo_chanicon);
+		ref_release(buf->proginfo_chanicon);
 	if (buf->proginfo_channame)
-		cmyth_release(buf->proginfo_channame);
+		ref_release(buf->proginfo_channame);
 	if (buf->proginfo_version >= 8) {
-		buf->proginfo_chanicon = cmyth_strdup(tmp_str);
+		buf->proginfo_chanicon = ref_strdup(tmp_str);
 		/*
 		 * Simulate a channel name (Number and Callsign) for
 		 * compatibility.
@@ -1497,10 +1498,10 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 		sprintf(tmp_str,
 			"%s %s", buf->proginfo_chanstr,
 			buf->proginfo_chansign);
-		buf->proginfo_channame = cmyth_strdup(tmp_str);
+		buf->proginfo_channame = ref_strdup(tmp_str);
 	} else { /* Assume version 1 */
-		buf->proginfo_channame = cmyth_strdup(tmp_str);
-		buf->proginfo_chanicon = cmyth_strdup("");
+		buf->proginfo_channame = ref_strdup(tmp_str);
+		buf->proginfo_chanicon = ref_strdup("");
 	}
 
 	/*
@@ -1515,8 +1516,8 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 		goto fail;
 	}
 	if (buf->proginfo_url)
-		cmyth_release(buf->proginfo_url);
-	buf->proginfo_url = cmyth_strdup(tmp_str);
+		ref_release(buf->proginfo_url);
+	buf->proginfo_url = ref_strdup(tmp_str);
 
 	/*
 	 * Get proginfo_Length (long_long)
@@ -1584,8 +1585,8 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 			goto fail;
 		}
 		if (buf->proginfo_unknown_0)
-			cmyth_release(buf->proginfo_unknown_0);
-		buf->proginfo_unknown_0 = cmyth_strdup(tmp_str);
+			ref_release(buf->proginfo_unknown_0);
+		buf->proginfo_unknown_0 = ref_strdup(tmp_str);
 	} else { /* Assume version 1 */
 		consumed = cmyth_rcv_ulong(conn, err,
 					   &buf->proginfo_conflicting, count);
@@ -1631,8 +1632,8 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 		goto fail;
 	}
 	if (buf->proginfo_hostname)
-		cmyth_release(buf->proginfo_hostname);
-	buf->proginfo_hostname = cmyth_strdup(tmp_str);
+		ref_release(buf->proginfo_hostname);
+	buf->proginfo_hostname = ref_strdup(tmp_str);
 
 	/*
 	 * Get proginfo_source_id (long)
@@ -1679,8 +1680,8 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 		goto fail;
 	}
 	if (buf->proginfo_rec_priority)
-		cmyth_release(buf->proginfo_rec_priority);
-	buf->proginfo_rec_priority = cmyth_strdup(tmp_str);
+		ref_release(buf->proginfo_rec_priority);
+	buf->proginfo_rec_priority = ref_strdup(tmp_str);
 
 	/*
 	 * Get proginfo_rec_status (ulong)
@@ -1819,8 +1820,8 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 			goto fail;
 		}
 		if (buf->proginfo_recgroup)
-			cmyth_release(buf->proginfo_recgroup);
-		buf->proginfo_recgroup = cmyth_strdup(tmp_str);
+			ref_release(buf->proginfo_recgroup);
+		buf->proginfo_recgroup = ref_strdup(tmp_str);
 	}
 
 	if (buf->proginfo_version >= 8) {
@@ -1837,8 +1838,8 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 			goto fail;
 		}
 		if (buf->proginfo_chancommfree)
-			cmyth_release(buf->proginfo_chancommfree);
-		buf->proginfo_chancommfree = cmyth_strdup(tmp_str);
+			ref_release(buf->proginfo_chancommfree);
+		buf->proginfo_chancommfree = ref_strdup(tmp_str);
 	}
 
 	if (buf->proginfo_version >= 8) {
@@ -1855,8 +1856,8 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 			goto fail;
 		}
 		if (buf->proginfo_chan_output_filters)
-			cmyth_release(buf->proginfo_chan_output_filters);
-		buf->proginfo_chan_output_filters = cmyth_strdup(tmp_str);
+			ref_release(buf->proginfo_chan_output_filters);
+		buf->proginfo_chan_output_filters = ref_strdup(tmp_str);
 	}
 
 	if (buf->proginfo_version >= 8) {
@@ -1873,8 +1874,8 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 			goto fail;
 		}
 		if (buf->proginfo_seriesid)
-			cmyth_release(buf->proginfo_seriesid);
-		buf->proginfo_seriesid = cmyth_strdup(tmp_str);
+			ref_release(buf->proginfo_seriesid);
+		buf->proginfo_seriesid = ref_strdup(tmp_str);
 	}
 
 	if (buf->proginfo_version >= 8) {
@@ -1890,8 +1891,8 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 			goto fail;
 		}
 		if (buf->proginfo_programid)
-			cmyth_release(buf->proginfo_programid);
-		buf->proginfo_programid = cmyth_strdup(tmp_str);
+			ref_release(buf->proginfo_programid);
+		buf->proginfo_programid = ref_strdup(tmp_str);
 	}
 
 	if (buf->proginfo_version >= 12) {
@@ -1933,9 +1934,9 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 			goto fail;
 		}
 		if (buf->proginfo_stars)
-			cmyth_release(buf->proginfo_stars);
+			ref_release(buf->proginfo_stars);
 		snprintf(stars, sizeof(stars), "%3.1f", atof(tmp_str) * 4.0);
-		buf->proginfo_stars = cmyth_strdup(stars);
+		buf->proginfo_stars = ref_strdup(stars);
 	}
 
 	if (buf->proginfo_version >= 12) {
@@ -1986,8 +1987,8 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 			goto fail;
 		}
 		if (buf->proginfo_playgroup)
-			cmyth_release(buf->proginfo_playgroup);
-		buf->proginfo_playgroup = cmyth_strdup(tmp_str);
+			ref_release(buf->proginfo_playgroup);
+		buf->proginfo_playgroup = ref_strdup(tmp_str);
 	}
 	if (buf->proginfo_version >= 25) {
 		/*
@@ -2003,8 +2004,8 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 			goto fail;
 		}
 		if (buf->proginfo_recpriority_2)
-			cmyth_release(buf->proginfo_recpriority_2);
-		buf->proginfo_recpriority_2 = cmyth_strdup(tmp_str);
+			ref_release(buf->proginfo_recpriority_2);
+		buf->proginfo_recpriority_2 = ref_strdup(tmp_str);
 	}
 	if (buf->proginfo_version >= 31) {
 		/*
@@ -2032,8 +2033,8 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 			goto fail;
 		}
 		if (buf->proginfo_storagegroup)
-			cmyth_release(buf->proginfo_storagegroup);
-		buf->proginfo_storagegroup = cmyth_strdup(tmp_str);
+			ref_release(buf->proginfo_storagegroup);
+		buf->proginfo_storagegroup = ref_strdup(tmp_str);
 	}
 	
  
@@ -2115,8 +2116,8 @@ cmyth_rcv_chaninfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 		goto fail;
 	}
 	if (buf->proginfo_title)
-		cmyth_release(buf->proginfo_title);
-	buf->proginfo_title = cmyth_strdup(tmp_str);
+		ref_release(buf->proginfo_title);
+	buf->proginfo_title = ref_strdup(tmp_str);
 
 	/*
 	 * Get proginfo_subtitle (string)
@@ -2130,8 +2131,8 @@ cmyth_rcv_chaninfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 		goto fail;
 	}
 	if (buf->proginfo_subtitle)
-		cmyth_release(buf->proginfo_subtitle);
-	buf->proginfo_subtitle = cmyth_strdup(tmp_str);
+		ref_release(buf->proginfo_subtitle);
+	buf->proginfo_subtitle = ref_strdup(tmp_str);
 
 	/*
 	 * Get proginfo_description (string)
@@ -2145,8 +2146,8 @@ cmyth_rcv_chaninfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 		goto fail;
 	}
 	if (buf->proginfo_description)
-		cmyth_release(buf->proginfo_description);
-	buf->proginfo_description = cmyth_strdup(tmp_str);
+		ref_release(buf->proginfo_description);
+	buf->proginfo_description = ref_strdup(tmp_str);
 
 	/*
 	 * Get proginfo_category (string)
@@ -2160,8 +2161,8 @@ cmyth_rcv_chaninfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 		goto fail;
 	}
 	if (buf->proginfo_category)
-		cmyth_release(buf->proginfo_category);
-	buf->proginfo_category = cmyth_strdup(tmp_str);
+		ref_release(buf->proginfo_category);
+	buf->proginfo_category = ref_strdup(tmp_str);
 
 	/*
 	 * Get proginfo_start_ts (timestamp)
@@ -2199,8 +2200,8 @@ cmyth_rcv_chaninfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 		goto fail;
 	}
 	if (buf->proginfo_chansign)
-		cmyth_release(buf->proginfo_chansign);
-	buf->proginfo_chansign = cmyth_strdup(tmp_str);
+		ref_release(buf->proginfo_chansign);
+	buf->proginfo_chansign = ref_strdup(tmp_str);
 
 	/*
 	 * Get proginfo_url (string) (this is the channel icon path)
@@ -2229,8 +2230,8 @@ cmyth_rcv_chaninfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 		goto fail;
 	}
 	if (buf->proginfo_channame)
-		cmyth_release(buf->proginfo_channame);
-	buf->proginfo_channame = cmyth_strdup(tmp_str);
+		ref_release(buf->proginfo_channame);
+	buf->proginfo_channame = ref_strdup(tmp_str);
 
 	/*
 	 * Get proginfo_chanId (long)
@@ -2255,8 +2256,8 @@ cmyth_rcv_chaninfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 		goto fail;
 	}
 	if (buf->proginfo_seriesid)
-		cmyth_release(buf->proginfo_seriesid);
-	buf->proginfo_seriesid = cmyth_strdup(tmp_str);
+		ref_release(buf->proginfo_seriesid);
+	buf->proginfo_seriesid = ref_strdup(tmp_str);
 
 	// get programid
 	consumed = cmyth_rcv_string(conn, err,
@@ -2268,8 +2269,8 @@ cmyth_rcv_chaninfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 		goto fail;
 	}
 	if (buf->proginfo_programid)
-		cmyth_release(buf->proginfo_programid);
-	buf->proginfo_programid = cmyth_strdup(tmp_str);
+		ref_release(buf->proginfo_programid);
+	buf->proginfo_programid = ref_strdup(tmp_str);
 
 	// get chanOutputFilters
 	consumed = cmyth_rcv_string(conn, err,
@@ -2402,7 +2403,7 @@ cmyth_rcv_proglist(cmyth_conn_t conn, int *err, cmyth_proglist_t buf,
 		consumed += r;
 		count -= r;
 		if (*err) {
-			cmyth_release(pi);
+			ref_release(pi);
 			cmyth_dbg(CMYTH_DBG_ERROR,
 				  "%s: cmyth_rcv_long() failed (%d)\n",
 				  __FUNCTION__, *err);

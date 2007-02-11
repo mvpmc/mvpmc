@@ -29,6 +29,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
+#include <mvp_refmem.h>
 #include <cmyth.h>
 #include <cmyth_local.h>
 
@@ -40,8 +41,8 @@
  * Description
  *
  * Destroy and free a timestamp structure.  This should only be called
- * by cmyth_release().  All others should use
- * cmyth_release() to release references to time stamps.
+ * by ref_release().  All others should use
+ * ref_release() to release references to time stamps.
  *
  * Return Value:
  *
@@ -58,7 +59,7 @@ cmyth_proglist_destroy(cmyth_proglist_t pl)
 	}
 	for (i  = 0; i < pl->proglist_count; ++i) {
 		if (pl->proglist_list[i]) {
-			cmyth_release(pl->proglist_list[i]);
+			ref_release(pl->proglist_list[i]);
 		}
 		pl->proglist_list[i] = NULL;
 	}
@@ -88,11 +89,11 @@ cmyth_proglist_create(void)
 	cmyth_proglist_t ret;
 
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s\n", __FUNCTION__);
-	ret = cmyth_allocate(sizeof(*ret));
+	ret = ref_alloc(sizeof(*ret));
 	if (!ret) {
 		return(NULL);
 	}
-	cmyth_set_destroy(ret, (destroy_t)cmyth_proglist_destroy);
+	ref_set_destroy(ret, (ref_destroy_t)cmyth_proglist_destroy);
 
 	ret->proglist_list = NULL;
 	ret->proglist_count = 0;
@@ -109,7 +110,7 @@ cmyth_proglist_create(void)
  * Retrieve the program information structure found at index 'index'
  * in the list in 'pl'.  Return the program information structure
  * held.  Before forgetting the reference to this program info structure
- * the caller must call cmyth_release().
+ * the caller must call ref_release().
  *
  * Return Value:
  *
@@ -135,7 +136,7 @@ cmyth_proglist_get_item(cmyth_proglist_t pl, int index)
 			  __FUNCTION__, index);
 		return NULL;
 	}
-	cmyth_hold(pl->proglist_list[index]);
+	ref_hold(pl->proglist_list[index]);
 	return pl->proglist_list[index];
 }
 
@@ -166,7 +167,7 @@ cmyth_proglist_delete_item(cmyth_proglist_t pl, cmyth_proginfo_t prog)
 				pl->proglist_list+i+1,
 				(pl->proglist_count-i-1)*sizeof(cmyth_proginfo_t));
 			pl->proglist_count--;
-			cmyth_release(old);
+			ref_release(old);
 			ret = 0;
 			goto out;
 		}
@@ -329,7 +330,7 @@ cmyth_proglist_get_all_recorded(cmyth_conn_t control)
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_proglist_get_list() failed\n",
 			  __FUNCTION__);
-		cmyth_release(proglist);
+		ref_release(proglist);
 		return NULL;
 	}
 	return proglist;
@@ -372,7 +373,7 @@ cmyth_proglist_get_all_pending(cmyth_conn_t control)
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_proglist_get_list() failed\n",
 			  __FUNCTION__);
-		cmyth_release(proglist);
+		ref_release(proglist);
 		return NULL;
 	}
 	return proglist;
@@ -415,7 +416,7 @@ cmyth_proglist_get_all_scheduled(cmyth_conn_t control)
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_proglist_get_list() failed\n",
 			  __FUNCTION__);
-		cmyth_release(proglist);
+		ref_release(proglist);
 		return NULL;
 	}
 	return proglist;
@@ -458,7 +459,7 @@ cmyth_proglist_get_conflicting(cmyth_conn_t control)
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_proglist_get_list() failed\n",
 			  __FUNCTION__);
-		cmyth_release(proglist);
+		ref_release(proglist);
 		return NULL;
 	}
 	return proglist;

@@ -30,6 +30,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
+#include <mvp_refmem.h>
 #include <cmyth.h>
 #include <cmyth_local.h>
 #include <time.h>
@@ -53,7 +54,7 @@
 cmyth_timestamp_t
 cmyth_timestamp_create(void)
 {
-	cmyth_timestamp_t ret = cmyth_allocate(sizeof(*ret));
+	cmyth_timestamp_t ret = ref_alloc(sizeof(*ret));
 
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s\n", __FUNCTION__);
 	if (!ret) {
@@ -190,7 +191,7 @@ cmyth_timestamp_from_string(char *str)
 	return ret;
 
     err:
-	cmyth_release(ret);
+	ref_release(ret);
 	return NULL;
 }
 

@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <mvp_refmem.h>
 #include <cmyth.h>
 #include <cmyth_local.h>
 
@@ -31,8 +32,8 @@
  * Description
  *
  * Tear down and release storage associated with a file connection.
- * This should only be called by cmyth_release().  All others
- * should call cmyth_release() to release a file connection.
+ * This should only be called by ref_release().  All others
+ * should call ref_release() to release a file connection.
  *
  * Return Value:
  *
@@ -83,14 +84,14 @@ cmyth_file_destroy(cmyth_file_t file)
 			goto fail;
 		}
 	    fail:
-		cmyth_release(file->file_control);
+		ref_release(file->file_control);
 		pthread_mutex_unlock(&mutex);
 	}
 	if (file->closed_callback) {
 	    (file->closed_callback)(file);
 	}
 	if (file->file_data) {
-		cmyth_release(file->file_data);
+		ref_release(file->file_data);
 	}
 
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s }\n", __FUNCTION__);
@@ -134,16 +135,16 @@ void cmyth_file_set_closed_callback(cmyth_file_t file, void (*callback)(cmyth_fi
 cmyth_file_t
 cmyth_file_create(cmyth_conn_t control)
 {
-	cmyth_file_t ret = cmyth_allocate(sizeof(*ret));
+	cmyth_file_t ret = ref_alloc(sizeof(*ret));
 
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s {\n", __FUNCTION__);
  	if (!ret) {
 		cmyth_dbg(CMYTH_DBG_DEBUG, "%s }\n", __FUNCTION__);
  		return NULL;
 	}
-	cmyth_set_destroy(ret, (destroy_t)cmyth_file_destroy);
+	ref_set_destroy(ret, (ref_destroy_t)cmyth_file_destroy);
 
-	ret->file_control = cmyth_hold(control);
+	ret->file_control = ref_hold(control);
 	ret->file_data = NULL;
 	ret->file_id = -1;
 	ret->file_start = 0;
@@ -180,7 +181,7 @@ cmyth_file_data(cmyth_file_t file)
 	if (!file->file_data) {
 		return NULL;
 	}
-	return cmyth_hold(file->file_data);
+	return ref_hold(file->file_data);
 }
 
 /*
@@ -209,7 +210,7 @@ cmyth_file_control(cmyth_file_t file)
 	if (!file->file_control) {
 		return NULL;
 	}
-	return cmyth_hold(file->file_control);
+	return ref_hold(file->file_control);
 }
 
 /*

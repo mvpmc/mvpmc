@@ -34,6 +34,7 @@
 #include <mvp_widget.h>
 #include <mvp_av.h>
 #include <mvp_demux.h>
+#include <mvp_refmem.h>
 #include <cmyth.h>
 
 #include "mvpmc.h"
@@ -154,9 +155,9 @@ mythtv_livetv_chain_update(char * buf)
 static void
 prog_update_callback(cmyth_proginfo_t prog)
 {
-	cmyth_proginfo_t loc_prog = cmyth_hold(prog);
+	cmyth_proginfo_t loc_prog = ref_hold(prog);
 	CHANGE_GLOBAL_REF(current_prog, loc_prog);
-	cmyth_release(loc_prog);
+	ref_release(loc_prog);
 }
 
 static void
@@ -173,7 +174,7 @@ mythtv_new_livetv_start(cmyth_recorder_t rec)
 	char *rb_file;
 	char *msg = NULL;
 	cmyth_proginfo_t loc_prog = NULL;
-	cmyth_conn_t ctrl = cmyth_hold(control);
+	cmyth_conn_t ctrl = ref_hold(control);
 	char *path;
 
 
@@ -261,7 +262,7 @@ mythtv_new_livetv_start(cmyth_recorder_t rec)
 		current = strdup(rb_file);
 		free(path);
 	}
-	cmyth_release(rb_file);
+	ref_release(rb_file);
 
 	// get the information about the current programme
 	// we assume last used structure is cleared already...
@@ -269,7 +270,7 @@ mythtv_new_livetv_start(cmyth_recorder_t rec)
 	loc_prog = cmyth_recorder_get_cur_proginfo(rec);
 	PRINTF("** SSDEBUG: the loc_prog is: %p\n", loc_prog);
 	CHANGE_GLOBAL_REF(current_prog, loc_prog);
-	cmyth_release(loc_prog);
+	ref_release(loc_prog);
 
 	/*
 	mvpw_show(mythtv_browser);
@@ -298,10 +299,10 @@ mythtv_new_livetv_start(cmyth_recorder_t rec)
 
 	CHANGE_GLOBAL_REF(mythtv_recorder, rec);
 #if 0
-	cmyth_release(ctrl);
-	cmyth_release(rec);
+	ref_release(ctrl);
+	ref_release(rec);
 #endif
-	cmyth_release(rec);
+	ref_release(rec);
 	running_mythtv = 1;
 	pthread_mutex_unlock(&myth_mutex);
 
@@ -320,8 +321,8 @@ mythtv_new_livetv_start(cmyth_recorder_t rec)
 	if (msg)
 		gui_error(msg);
 
-	cmyth_release(ctrl);
-	cmyth_release(rec);
+	ref_release(ctrl);
+	ref_release(rec);
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1}\n",
 		    __FUNCTION__, __FILE__, __LINE__);
 	return -1;
@@ -335,7 +336,7 @@ mythtv_livetv_start(int *tuner)
 	char *msg = NULL, buf[128], t[16];
 	int c, i, id = 0;
 	cmyth_proginfo_t loc_prog = NULL;
-	cmyth_conn_t ctrl = cmyth_hold(control);
+	cmyth_conn_t ctrl = ref_hold(control);
 	cmyth_recorder_t rec = NULL;
 	char *path;
 
@@ -395,7 +396,7 @@ mythtv_livetv_start(int *tuner)
 				continue;
 			}
 			if(cmyth_recorder_is_recording(rec) == 1) {
-				cmyth_release(rec);
+				ref_release(rec);
 				rec = NULL;
 				continue;
 			}
@@ -476,14 +477,14 @@ mythtv_livetv_start(int *tuner)
 		current = strdup(rb_file);
 		free(path);
 	}
-	cmyth_release(rb_file);
+	ref_release(rb_file);
 
 	// get the information about the current programme
 	// we assume last used structure is cleared already...
 	//
 	loc_prog = cmyth_recorder_get_cur_proginfo(rec);
 	CHANGE_GLOBAL_REF(current_prog, loc_prog);
-	cmyth_release(loc_prog);
+	ref_release(loc_prog);
 
 	// This appears to be redundant and takes a bunch of time slowing down
 	// the launch of live TV.
@@ -506,10 +507,10 @@ mythtv_livetv_start(int *tuner)
 
 	CHANGE_GLOBAL_REF(mythtv_recorder, rec);
 #if 0
-	cmyth_release(ctrl);
-	cmyth_release(rec);
+	ref_release(ctrl);
+	ref_release(rec);
 #endif
-	cmyth_release(rec);
+	ref_release(rec);
 	running_mythtv = 1;
 	pthread_mutex_unlock(&myth_mutex);
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) 0}\n",
@@ -523,8 +524,8 @@ mythtv_livetv_start(int *tuner)
 	if (msg)
 		gui_error(msg);
 
-	cmyth_release(ctrl);
-	cmyth_release(rec);
+	ref_release(ctrl);
+	ref_release(rec);
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1}\n",
 		    __FUNCTION__, __FILE__, __LINE__);
 	return -1;
@@ -596,8 +597,8 @@ int __change_channel(direction)
 {
 	int ret = 0;
 	cmyth_proginfo_t loc_prog = NULL;
-	cmyth_conn_t ctrl = cmyth_hold(control);
-	cmyth_recorder_t rec = cmyth_hold(mythtv_recorder);
+	cmyth_conn_t ctrl = ref_hold(control);
+	cmyth_recorder_t rec = ref_hold(mythtv_recorder);
 
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
 		    __FUNCTION__, __FILE__, __LINE__);
@@ -642,7 +643,7 @@ int __change_channel(direction)
 
 	loc_prog = cmyth_recorder_get_cur_proginfo(rec);
 	CHANGE_GLOBAL_REF(current_prog, loc_prog);
-	cmyth_release(loc_prog);
+	ref_release(loc_prog);
 
 	// we need to reset the ringbuffer reader to the start of the file
 	// since the backend always resets the pointer.
@@ -681,8 +682,8 @@ int __change_channel(direction)
 	}
 
  out:
-	cmyth_release(ctrl);
-	cmyth_release(rec);
+	ref_release(ctrl);
+	ref_release(rec);
 	changing_channel = 0;
 	busy_end();
 	pthread_mutex_unlock(&myth_mutex);
@@ -713,8 +714,8 @@ mythtv_channel_set(char * channame)
 {
 	int ret = 0;
 	cmyth_proginfo_t loc_prog = NULL;
-	cmyth_conn_t ctrl = cmyth_hold(control);
-	cmyth_recorder_t rec = cmyth_hold(mythtv_recorder);
+	cmyth_conn_t ctrl = ref_hold(control);
+	cmyth_recorder_t rec = ref_hold(mythtv_recorder);
 
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
 		    __FUNCTION__, __FILE__, __LINE__);
@@ -759,7 +760,7 @@ mythtv_channel_set(char * channame)
 
 	loc_prog = cmyth_recorder_get_cur_proginfo(rec);
 	CHANGE_GLOBAL_REF(current_prog, loc_prog);
-	cmyth_release(loc_prog);
+	ref_release(loc_prog);
 
 	// we need to reset the ringbuffer reader to the start of the file
 	// since the backend always resets the pointer.
@@ -775,8 +776,8 @@ mythtv_channel_set(char * channame)
 	cmyth_livetv_chain_switch_last(rec);
 
  out:
-	cmyth_release(ctrl);
-	cmyth_release(rec);
+	ref_release(ctrl);
+	ref_release(rec);
 	changing_channel = 0;
 	busy_end();
 	pthread_mutex_unlock(&myth_mutex);
@@ -790,7 +791,7 @@ static long long
 livetv_size(void)
 {
 	long long seek_pos;
-	cmyth_recorder_t rec = cmyth_hold(mythtv_recorder);
+	cmyth_recorder_t rec = ref_hold(mythtv_recorder);
 
 	/*
 	 * XXX: How do we get the program size for live tv?
@@ -801,7 +802,7 @@ livetv_size(void)
 	PRINTF("%s(): pos %lld\n", __FUNCTION__, seek_pos);
 	pthread_mutex_unlock(&myth_mutex);
 
-	cmyth_release(rec);
+	ref_release(rec);
 	return (seek_pos+(1024*1024*500));
 }
 
@@ -833,8 +834,8 @@ livetv_select_callback(mvp_widget_t *widget, char *item, void *key)
 	int tuner_change = 1, tuner[MAX_TUNER];
 	struct livetv_proginfo *pi;
 	cmyth_proginfo_t loc_prog = NULL;
-	cmyth_conn_t ctrl = cmyth_hold(control);
-	cmyth_recorder_t rec = cmyth_hold(mythtv_recorder);
+	cmyth_conn_t ctrl = ref_hold(control);
+	cmyth_recorder_t rec = ref_hold(mythtv_recorder);
 
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
 		    __FUNCTION__, __FILE__, __LINE__);
@@ -857,12 +858,12 @@ livetv_select_callback(mvp_widget_t *widget, char *item, void *key)
 			pi = &livetv_list[prog].pi[i];
 			if (id == pi->rec_id) {
 				tuner_change = 0;
-				channame = cmyth_hold(pi->chan);
+				channame = ref_hold(pi->chan);
 				break;
 			}
 		}
 	} else {
-		channame = cmyth_hold(livetv_list[prog].pi[0].chan);
+		channame = ref_hold(livetv_list[prog].pi[0].chan);
 		for (i=0; i<livetv_list[prog].count; i++) {
 			tuner[i] = livetv_list[prog].pi[i].rec_id;
 			printf("enable livetv tuner %d chan '%s'\n",
@@ -874,8 +875,8 @@ livetv_select_callback(mvp_widget_t *widget, char *item, void *key)
 	if (tuner_change && (id != -1)) {
 		for (i=0; i<livetv_list[prog].count; i++)
 			tuner[i] = livetv_list[prog].pi[i].rec_id;
-		cmyth_release(channame);
-		channame = cmyth_hold(livetv_list[prog].pi[0].chan);
+		ref_release(channame);
+		channame = ref_hold(livetv_list[prog].pi[0].chan);
 		fprintf(stderr, "switch from tuner %d to %d\n", id, tuner[0]);
 		mythtv_livetv_stop();
 	}
@@ -888,9 +889,9 @@ livetv_select_callback(mvp_widget_t *widget, char *item, void *key)
 		if (mythtv_livetv_start(tuner) != 0) {
 			goto out;
 		}
-		cmyth_release(rec);
-		cmyth_release(ctrl);
-		rec = cmyth_hold(mythtv_recorder);
+		ref_release(rec);
+		ref_release(ctrl);
+		rec = ref_hold(mythtv_recorder);
 	}
 
 	if (item)
@@ -913,7 +914,7 @@ livetv_select_callback(mvp_widget_t *widget, char *item, void *key)
 
 	loc_prog = cmyth_recorder_get_cur_proginfo(rec);
 	CHANGE_GLOBAL_REF(current_prog, loc_prog);
-	cmyth_release(loc_prog);
+	ref_release(loc_prog);
 
 	demux_reset(handle);
 	demux_attr_reset(handle);
@@ -941,9 +942,9 @@ livetv_select_callback(mvp_widget_t *widget, char *item, void *key)
 
  out:
 	busy_end();
-	cmyth_release(ctrl);
-	cmyth_release(rec);
-	cmyth_release(channame);
+	ref_release(ctrl);
+	ref_release(rec);
+	ref_release(channame);
 	changing_channel = 0;
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) }\n",
 		    __FUNCTION__, __FILE__, __LINE__);
@@ -987,8 +988,8 @@ static int
 get_livetv_programs_rec(int id, struct livetv_prog **list, int *n, int *p)
 {
 	cmyth_proginfo_t next_prog = NULL, cur = NULL;
-	cmyth_conn_t ctrl = cmyth_hold(control);
-	cmyth_recorder_t rec = cmyth_hold(mythtv_recorder);
+	cmyth_conn_t ctrl = ref_hold(control);
+	cmyth_recorder_t rec = ref_hold(mythtv_recorder);
 	cmyth_timestamp_t ts;
 	char *title = NULL, *subtitle = NULL, *channame = NULL;
 	char *start_channame = NULL, *chansign = NULL;
@@ -1008,13 +1009,13 @@ get_livetv_programs_rec(int id, struct livetv_prog **list, int *n, int *p)
 		id, cur_id);
 
 	if (cur_id != id) {
-		cmyth_release(rec);
+		ref_release(rec);
 		rec = NULL;
 		if ((rec = cmyth_conn_get_recorder_from_num(ctrl,
 							    id)) == NULL) {
 			fprintf(stderr,
 				"failed to connect to tuner %d!\n", id);
-			cmyth_release(ctrl);
+			ref_release(ctrl);
 			cmyth_dbg(CMYTH_DBG_DEBUG,
 				    "%s [%s:%d]: (trace) -1}\n",
 				    __FUNCTION__, __FILE__, __LINE__);
@@ -1050,8 +1051,8 @@ get_livetv_programs_rec(int id, struct livetv_prog **list, int *n, int *p)
 	}
 	if (cur == NULL) {
 		fprintf(stderr, "get program info failed!\n");
-		cmyth_release(rec);
-		cmyth_release(ctrl);
+		ref_release(rec);
+		ref_release(ctrl);
 		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1}\n",
 			  __FUNCTION__, __FILE__, __LINE__);
 		return -1;
@@ -1075,10 +1076,10 @@ get_livetv_programs_rec(int id, struct livetv_prog **list, int *n, int *p)
 		ts = cmyth_proginfo_start(next_prog);
 		if (ts != NULL ) {
 			cmyth_timestamp_to_string(start, ts);
-			cmyth_release(ts);
+			ref_release(ts);
 			ts = cmyth_proginfo_end(next_prog);
 			cmyth_timestamp_to_string(end, ts);
-			cmyth_release(ts);
+			ref_release(ts);
 			ptr = strchr(start, 'T');
 			*ptr = '\0';
 			memmove(start, ptr+1, strlen(ptr+1)+1);
@@ -1087,8 +1088,8 @@ get_livetv_programs_rec(int id, struct livetv_prog **list, int *n, int *p)
 			memmove(end, ptr+1, strlen(ptr+1)+1);
 		}
 
-		cmyth_release(cur);
-		cur = cmyth_hold(next_prog);
+		ref_release(cur);
+		cur = ref_hold(next_prog);
 		shows++;
 
 		/*
@@ -1106,8 +1107,8 @@ get_livetv_programs_rec(int id, struct livetv_prog **list, int *n, int *p)
 					if ((*list)[i].count == MAX_TUNER)
 						goto next;
 					pi=&((*list)[i].pi[(*list)[i].count++]);
-					pi->chan = cmyth_hold(channame);
-					pi->channame = cmyth_hold(chansign);
+					pi->chan = ref_hold(channame);
+					pi->channame = ref_hold(chansign);
 					pi->rec_id = id;
 					pi->busy = busy;
 					goto next;
@@ -1115,22 +1116,22 @@ get_livetv_programs_rec(int id, struct livetv_prog **list, int *n, int *p)
 			}
 		}
 
-		(*list)[*p].title = cmyth_hold(title);
-		(*list)[*p].subtitle = cmyth_hold(subtitle);
-		(*list)[*p].description = cmyth_hold(description);
+		(*list)[*p].title = ref_hold(title);
+		(*list)[*p].subtitle = ref_hold(subtitle);
+		(*list)[*p].description = ref_hold(description);
 		if (start)
-			(*list)[*p].start = cmyth_strdup(start);
+			(*list)[*p].start = ref_strdup(start);
 		else
 			(*list)[*p].start = NULL;
 		if (end)
-			(*list)[*p].end = cmyth_strdup(end);
+			(*list)[*p].end = ref_strdup(end);
 		else
 			(*list)[*p].end = NULL;
 		(*list)[*p].count = 1;
 		(*list)[*p].pi[0].rec_id = id;
 		(*list)[*p].pi[0].busy = busy;
-		(*list)[*p].pi[0].chan = cmyth_hold(channame);
-		(*list)[*p].pi[0].channame = cmyth_hold(chansign);
+		(*list)[*p].pi[0].chan = ref_hold(channame);
+		(*list)[*p].pi[0].channame = ref_hold(chansign);
 		(*p)++;
 		unique++;
 
@@ -1139,17 +1140,17 @@ get_livetv_programs_rec(int id, struct livetv_prog **list, int *n, int *p)
 			*n = *n*2;
 			*list = realloc(*list, sizeof(**list)*(*n));
 		}
-		cmyth_release(title);
-		cmyth_release(subtitle);
-		cmyth_release(description);
-		cmyth_release(channame);
-		cmyth_release(chansign);
-		cmyth_release(next_prog);
+		ref_release(title);
+		ref_release(subtitle);
+		ref_release(description);
+		ref_release(channame);
+		ref_release(chansign);
+		ref_release(next_prog);
 	} while (strcmp(start_channame, channame) != 0);
 
-	cmyth_release(cur);
-	cmyth_release(rec);
-	cmyth_release(start_channame);
+	ref_release(cur);
+	ref_release(rec);
+	ref_release(start_channame);
 	fprintf(stderr, "Found %d shows on recorder %d (%d unique)\n",
 		shows, id, unique);
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) }\n",
@@ -1165,20 +1166,20 @@ get_livetv_programs(void)
 	char buf[256];
 	int i, j, c, n, p, found;
 	time_t t;
-	cmyth_conn_t ctrl = cmyth_hold(control);
+	cmyth_conn_t ctrl = ref_hold(control);
 
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
 		    __FUNCTION__, __FILE__, __LINE__);
 	if (livetv_list) {
 		for (i=0; i<livetv_count; i++) {
-			cmyth_release(livetv_list[i].title);
-			cmyth_release(livetv_list[i].subtitle);
-			cmyth_release(livetv_list[i].description);
-			cmyth_release(livetv_list[i].start);
-			cmyth_release(livetv_list[i].end);
+			ref_release(livetv_list[i].title);
+			ref_release(livetv_list[i].subtitle);
+			ref_release(livetv_list[i].description);
+			ref_release(livetv_list[i].start);
+			ref_release(livetv_list[i].end);
 			for (j=0; j<livetv_list[i].count; j++) {
-				cmyth_release(livetv_list[i].pi[j].chan);
-				cmyth_release(livetv_list[i].pi[j].channame);
+				ref_release(livetv_list[i].pi[j].chan);
+				ref_release(livetv_list[i].pi[j].channame);
 			}
 		}
 		free(livetv_list);
@@ -1201,7 +1202,7 @@ get_livetv_programs(void)
 			gui_error("LiveTV with this version of MythTV is not supported");
 		}
 		*/
-		cmyth_release(ctrl);
+		ref_release(ctrl);
 		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -2}\n",
 			    __FUNCTION__, __FILE__, __LINE__);
 		return -1;
@@ -1224,7 +1225,7 @@ get_livetv_programs(void)
 		p, found, ctime(&t));
 
 	if (p == 0) {
-		cmyth_release(ctrl);
+		ref_release(ctrl);
 		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1}\n",
 			    __FUNCTION__, __FILE__, __LINE__);
 		return -1;
@@ -1246,7 +1247,7 @@ get_livetv_programs(void)
 		mvpw_add_menu_item(mythtv_browser, buf, (void*)j, &item_attr);
 	}
 
-	cmyth_release(ctrl);
+	ref_release(ctrl);
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) 0}\n",
 		    __FUNCTION__, __FILE__, __LINE__);
 	return 0;
@@ -1281,12 +1282,12 @@ mythtv_new_livetv(void)
 	switch_hw_state(MVPMC_STATE_MYTHTV);
 
 	pthread_mutex_lock(&myth_mutex);
-	ctrl = cmyth_hold(control);
+	ctrl = ref_hold(control);
 
 	if ((c=cmyth_conn_get_free_recorder_count(ctrl)) < 0) {
 		gui_error("No tuners available for Live TV.");
 		fprintf(stderr, "unable to get free recorder\n");
-		cmyth_release(ctrl);
+		ref_release(ctrl);
 		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -2}\n",
 			    __FUNCTION__, __FILE__, __LINE__);
 		return -1;
@@ -1300,14 +1301,14 @@ mythtv_new_livetv(void)
 			if (cmyth_recorder_is_recording(rec) == 0)
 				break;
 			else
-				cmyth_release(rec);
+				ref_release(rec);
 		}
 	}
 
 	if(i == MAX_TUNER) {
 		gui_error("No tuners available for Live TV.");
 		fprintf(stderr, "unable to get free recorder\n");
-		cmyth_release(ctrl);
+		ref_release(ctrl);
 		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -2}\n",
 			    __FUNCTION__, __FILE__, __LINE__);
 		return -1;
@@ -1396,11 +1397,11 @@ void
 mythtv_livetv_select(int which)
 {
 	cmyth_proginfo_t loc_prog = NULL;
-	cmyth_conn_t ctrl = cmyth_hold(control);
-	cmyth_recorder_t rec = cmyth_hold(mythtv_recorder);
+	cmyth_conn_t ctrl = ref_hold(control);
+	cmyth_recorder_t rec = ref_hold(mythtv_recorder);
 	int rec_id = livetv_list[current_livetv].pi[which].rec_id;
 	int tuner[2] = { rec_id, 0 };
-	char *channame = cmyth_hold(livetv_list[current_livetv].pi[which].chan);
+	char *channame = ref_hold(livetv_list[current_livetv].pi[which].chan);
 	
 
 	switch_hw_state(MVPMC_STATE_MYTHTV);
@@ -1430,7 +1431,7 @@ mythtv_livetv_select(int which)
 
 		loc_prog = cmyth_recorder_get_cur_proginfo(rec);
 		CHANGE_GLOBAL_REF(current_prog, loc_prog);
-		cmyth_release(loc_prog);
+		ref_release(loc_prog);
 
 		demux_reset(handle);
 		demux_attr_reset(handle);
@@ -1448,10 +1449,10 @@ mythtv_livetv_select(int which)
 		pthread_mutex_unlock(&myth_mutex);
 		busy_end();
 		changing_channel = 0;
-		cmyth_release(rec);
-		cmyth_release(ctrl);
+		ref_release(rec);
+		ref_release(ctrl);
 	}
 
-	cmyth_release(channame);
+	ref_release(channame);
 }
 

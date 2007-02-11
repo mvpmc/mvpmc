@@ -14,6 +14,7 @@ SConscript('libreplaytv/SConscript', build_dir='libreplaytv/'+dir, duplicate=0)
 SConscript('libts_demux/SConscript', build_dir='libts_demux/'+dir, duplicate=0)
 SConscript('libvnc/SConscript', build_dir='libvnc/'+dir, duplicate=0)
 SConscript('libwidget/SConscript', build_dir='libwidget/'+dir, duplicate=0)
+SConscript('librefmem/SConscript', build_dir='librefmem/'+dir, duplicate=0)
 
 if target == 'mvp':
 	SConscript('libtiwlan/SConscript', build_dir='libtiwlan/'+dir, duplicate=0)
