@@ -933,7 +933,7 @@ cli_parse_display (mclient_cmd * response)
         if ((char_ptr = strstr (response->param[0], "(")) != NULL)
         {
             debug ("mclient:cli_parse_display:response->param[0]:%s char_ptr:%s\n", response->param[0], char_ptr); 
-            *char_ptr++;
+            char_ptr++;
             sscanf (char_ptr, "%d", &userfocus_xofn);
             debug ("mclient:cli_parse_display:userfocus_xofn:%d\n", userfocus_xofn); 
             cli_data.index_userfocus = userfocus_xofn - 1;
