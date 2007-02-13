@@ -1,15 +1,8 @@
 #!/bin/sh
 
-KERNVER=`/bin/uname -r`
-
-if [ "$KERNVER" = "2.4.17_mvl21-vdongle" ] ; then
-    RSIZE=4096
-else
-    RSIZE=2048
-fi
-
 if [ "$1" = "-udp" ] ; then
     PROTO=udp
+    RSIZE=2048
     shift
 else
     PROTO=tcp

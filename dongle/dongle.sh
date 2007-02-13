@@ -105,8 +105,6 @@ cp -d install/mvp/linuxrc filesystem/install
 
 cp -d install/mvp/linuxrc filesystem/install_wrapper
 
-#filesystem/kernel_copy.sh kernel/linux-2.4.17/mvpdist/kernel filesystem/kernel_files
-
 find filesystem/install -name .svn | xargs rm -rf
 find filesystem/install -name .gitmo | xargs rm -rf
 
