@@ -24,7 +24,7 @@ USRBIN=""
 USRSBIN=""
 
 LIB="libav.so libcmyth.so libdemux.so libosd.so libts_demux.so libvnc.so libwidget.so libtiwlan.so libvorbisidec.so.1.0.2 libvorbisidec.so.1"
-TLIB="libc.so.0 libm.so.0 libcrypt.so.0 libgcc_s_nof.so.1 libpthread.so.0 libutil.so.0"
+TLIB="libc.so.0 libm.so.0 libcrypt.so.0 libgcc_s_nof.so.1 libpthread.so.0 librefmem.so libutil.so.0"
 LDLIB="ld-uClibc-0.9.28.so ld-uClibc.so.0"
 
 WRAPPERLIB="libav.so libosd.so"
