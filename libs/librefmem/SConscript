@@ -12,8 +12,8 @@ toplevel = env['TOPLEVEL']
 
 src = [ 'alloc.c', 'debug.c' ]
 
-static = env.StaticLibrary('refmem', src, CPPPATH = [ env['INCDIR'], '.', toplevel + '/dongle/install/mvp/include' ])
-shared = env.SharedLibrary('refmem', src, CPPPATH = [ env['INCDIR'],  '.', toplevel + '/dongle/install/mvp/include' ])
+static = env.StaticLibrary('refmem', src, CPPPATH = [ env['INCDIR'], '.', toplevel + '/dongle/install/' + target + '/include' ])
+shared = env.SharedLibrary('refmem', src, CPPPATH = [ env['INCDIR'],  '.', toplevel + '/dongle/install/' + target + '/include' ])
 
 inst = env.Install(libdir, [ static, shared ])
 
