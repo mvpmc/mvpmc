@@ -43,15 +43,10 @@ elif target == 'host':
 	crossroot='';
 elif target == 'kernel':
 	print "kernel build"
-	if kernver != '2.4.17':
-		powerpc = 'powerpc-405-linux-uclibc'
-		gcc = 'gcc-3.4.5-uClibc-0.9.28'
-		crossroot = toolchains + '/' + powerpc + '/' + gcc + '/'
-		env.Replace(CROSSPATH = crossroot + '/' + powerpc + '/bin')
-	else:
-		powerpc = 'powerpc-405-linux-gnu'
-		gcc = 'gcc-2.95.3-glibc-2.2.5'
-		crossroot = crosstool + '/' + powerpc + '/' + gcc + '/'
+	powerpc = 'powerpc-405-linux-uclibc'
+	gcc = 'gcc-3.4.5-uClibc-0.9.28'
+	crossroot = toolchains + '/' + powerpc + '/' + gcc + '/'
+	env.Replace(CROSSPATH = crossroot + '/' + powerpc + '/bin')
 	prefix = powerpc + '-'
 	cross = crossroot + '/bin/' + prefix
 	cc = cross + 'gcc'
@@ -91,12 +86,8 @@ if target == 'kernel':
 	# do the kernel build
 	#
 	cc = env['CC']
-	if kernver != '2.4.17':
-		kern = env.SConscript('dongle/kernel/linux-2.4.31/SConscript')
-		gccbuild = 'tools/toolchains/uclibc/SConscript'
-	else:
-		kern = env.SConscript('dongle/kernel/linux-2.4.17/SConscript')
-		gccbuild = 'tools/toolchains/glibc/SConscript'
+	kern = env.SConscript('dongle/kernel/linux-2.4.31/SConscript')
+	gccbuild = 'tools/toolchains/uclibc/SConscript'
 	if os.path.exists(cc) == 0:
 		print "build kernel cross-compiler"
 		gcc = env.SConscript(gccbuild)
