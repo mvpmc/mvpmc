@@ -71,28 +71,35 @@ fi
 TZ=CST+6CDT,M4.1.0/2,M10.5.0/2; export TZ
 
 #
-# configure the default ethernet interface (eth0 is wired, eth1 wireless)
+# If the wireless device is enabled by default in flash, we should look
+# for a dhcp server on eth1 first.
 #
+ticonfig -e
+ETH1_ENABLED=$?
+LEASE=0
 ticonfig
-if [ $? -eq 0 ] ; then
-    #
-    # Iterate over the two devices waiting for one of them to get an address
-    #
-    LEASE=0
-    while [ $LEASE -eq 0 ] ; do
-	udhcpc -i eth1 -n
-	RET=$?
-	if [ $RET -ne 0 ] ; then
-	    udhcpc -i eth0 -n
-	    RET=$?
-	fi
-	if [ $RET -eq 0 ] ; then
-	    LEASE=1
-	fi
-    done
-else
-    udhcpc
+if [ $ETH1_ENABLED -ne 0 ] ; then
+    udhcpc -i eth0 -n
+    if [ $? -eq 0 ] ; then
+	LEASE=1
+    fi
 fi
+
+#
+# Iterate over the two devices waiting for one of them to get an address.
+#
+while [ $LEASE -eq 0 ] ; do
+    udhcpc -i eth1 -n
+    RET=$?
+    if [ $RET -ne 0 ] ; then
+	udhcpc -i eth0 -n
+	RET=$?
+    fi
+    if [ $RET -eq 0 ] ; then
+	LEASE=1
+    fi
+done
+
 . /etc/udhcpc.config
 
 #

@@ -29,6 +29,7 @@ static char default_wep[128];
 static int verbose = 0;
 
 static struct option opts[] = {
+	{ "enabled", no_argument, 0, 'e' },
 	{ "help", no_argument, 0, 'h' },
 	{ "probe", no_argument, 0, 'p' },
 	{ "signal", no_argument, 0, 'S' },
@@ -42,6 +43,7 @@ static void
 print_help(char *prog)
 {
 	printf("Usage: %s <options>\n", prog);
+	printf("\t-e      \tcheck whether eth1 is enabled in flash\n");
 	printf("\t-h      \tprint this help\n");
 	printf("\t-p      \tprobe for wireless networks\n");
 	printf("\t-s ssid \tSSID to use\n");
@@ -71,14 +73,17 @@ ticonfig_main(int argc, char **argv)
 {
 	int c, n, i;
 	int opt_index;
-	int do_probe = 0, do_signal = 0;
+	int do_probe = 0, do_signal = 0, enable_check = 0;
 	char *ssid = NULL, *key = NULL;
 	int with_wep = -1;
 	tiwlan_ssid_t *ssid_list;
 
 	while ((c=getopt_long(argc, argv,
-			      "hps:Sw:v", opts, &opt_index)) != -1) {
+			      "ehps:Sw:v", opts, &opt_index)) != -1) {
 		switch (c) {
+		case 'e':
+			enable_check = 1;
+			break;
 		case 'h':
 			print_help(argv[0]);
 			exit(0);
@@ -109,6 +114,14 @@ ticonfig_main(int argc, char **argv)
 			print_help(argv[0]);
 			exit(1);
 			break;
+		}
+	}
+
+	if (enable_check) {
+		if (tiwlan_is_enabled()) {
+			exit(0);
+		} else {
+			exit(1);
 		}
 	}
 
@@ -143,15 +156,6 @@ ticonfig_main(int argc, char **argv)
 			printf("Found SSID: '%s'\n", ssid_list[i].name);
 		}
 		exit(0);
-	}
-
-	/*
-	 * If the wireless device is disabled in flash, force the user to
-	 * specify the SSID in order to enable the wireless device.
-	 */
-	if ((ssid == NULL) && !tiwlan_is_enabled()) {
-		fprintf(stderr, "wireless device is not enabled!\n");
-		exit(1);
 	}
 
 	if (tiwlan_enable(ssid, with_wep) < 0) {
