@@ -100,7 +100,7 @@ static void file_details(FILE *stream, char* dir, char* name );
 static void send_error(FILE *stream, int status, char* title, char* extra_header, char* text );
 static void send_headers(FILE *stream, int status, char* title, char* extra_header, char* mime_type, off_t length, time_t mod );
 static char* get_mime_type( char* name );
-void strdecode( char* to, char* from );
+static void strdecode( char* to, char* from );
 static void post_post_garbage_hack( FILE *stream,int conn_fd );
 static void set_ndelay( int fd );
 static void clear_ndelay( int fd );
@@ -458,7 +458,20 @@ get_mime_type( char* name )
 	return "text/plain; charset=iso-8859-1";
 }
 
-void strdecode( char* to, char* from )
+static void strdecode( char* to, char* from )
+{
+	for ( ; *from != '\0'; ++to, ++from ) {
+		if ( from[0] == '%' && isxdigit( from[1] ) && isxdigit( from[2] ) ) {
+			*to = hexit( from[1] ) * 16 + hexit( from[2] );
+			from += 2;
+		} else {
+			*to = *from;
+		}
+	}
+	*to = '\0';
+}
+
+void urldecode( char* to, char* from )
 {
 	for ( ; *from != '\0'; ++to, ++from ) {
 		if ( from[0] == '%' && isxdigit( from[1] ) && isxdigit( from[2] ) ) {
