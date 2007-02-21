@@ -1,6 +1,6 @@
 #EXTM3U
-#EXTINF:-1,Radio Paradise 192k
-http://www.radioparadise.com/musiclinks/rp_192.m3u
+#EXTINF:-1,Radio Paradise
+http://www.radioparadise.com/musiclinks/rp_128a.m3u
 #EXTINF:-1,KSCR LA
 http://kscr.org/kscr128.m3u
 #EXTINF:-1,Groove Salad (SomaFM)
@@ -9,10 +9,10 @@ http://somafm.com/groovesalad.pls
 http://streams.swcast.net/launch.cgi/radioxy/hi-band.pls
 #EXTINF:-1,Live 105 Windows Media (requires vlc)
 mms://bdcast-infinity-kits-fm.wm.llnwd.net/bdcast_infinity_kits-fm?MSWMExt=.asf
-#EXTINF:-1,BBC 6 Chart Show Real Audio (requires vlc & mpslave)
+#EXTINF:-1,BBC 6 Chart Show Real Audio (requires vlc and mpslave)
 rtsp://rmv8.bbc.net.uk/6music/6m_chart.ra
 #EXTINF:-1,4U Metal aacPlus
-http://www.4urocknmetal.com/4UHIFI.m3u (requires vlc & mpslave)
+http://www.4urocknmetal.com/4UHIFI.m3u (requires vlc and mpslave)
 #EXTINF:-1,woxy.com the future of rock and roll
 http://woxy.lala.com/stream/mpg64.pls
 #EXTINF:-1,WCPE The Classical Station
