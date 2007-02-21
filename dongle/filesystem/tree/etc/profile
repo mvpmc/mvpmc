@@ -1,6 +1,6 @@
 
 # default timezone
-TZ=CST+6CDT,M4.1.0/2,M10.5.0/2
+TZ=CST+6CDT,M3.2.0/2,M11.1.0/2
 export TZ
 
 # if shell.config exist then source it.

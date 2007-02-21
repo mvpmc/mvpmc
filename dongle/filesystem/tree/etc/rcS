@@ -68,7 +68,7 @@ fi
 #
 # default timezone to US Central
 #
-TZ=CST+6CDT,M4.1.0/2,M10.5.0/2; export TZ
+TZ=CST+6CDT,M3.2.0/2,M11.1.0/2; export TZ
 
 #
 # If the wireless device is enabled by default in flash, we should look
