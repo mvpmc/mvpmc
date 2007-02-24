@@ -1321,7 +1321,7 @@ audio_start(void *arg)
 	return NULL;
 }
 
-void strdecode( char* to, char* from );
+void urldecode( char* to, char* from );
 
 static int http_play(int afd)
 {
@@ -1332,10 +1332,10 @@ static int http_play(int afd)
 			if (strstr(cwd,"/uPnP")!=NULL) {
 				char *newcurrent;
 				newcurrent = strdup(current);
-				strdecode(newcurrent,current);
+				urldecode(newcurrent,current);
 				free(current);
 				current = strdup(newcurrent);
-				strdecode(current,newcurrent);
+				urldecode(current,newcurrent);
 				free(newcurrent);
 			}
 			if (strlen(current) < MAX_URL_LEN ) {

@@ -626,6 +626,39 @@ disable_osd(void)
 }
 
 void
+set_bookmark_status(mvp_widget_t *widget)
+{
+	char buf[32];
+	display_on=!display_on;
+	snprintf(buf, sizeof(buf),"New Bookmark Set");
+	mvpw_set_text_str(mythtv_osd_description, buf);
+	mvpw_expose(mythtv_osd_description);
+}
+
+void
+goto_bookmark_status(mvp_widget_t *widget)
+{
+	char buf[32];
+	display_on=!display_on;
+	snprintf(buf, sizeof(buf),"Jumping to bookmark");
+	mvpw_set_text_str(mythtv_osd_description, buf);
+	mvpw_expose(mythtv_osd_description);
+}
+
+void
+display_bookmark_status_osd(int function)
+{
+	set_osd_callback(OSD_PROGRESS, video_progress);
+	set_osd_callback(OSD_TIMECODE, video_timecode);
+	if (function) { // set bookmark
+		set_osd_callback(OSD_PROGRAM, set_bookmark_status);
+	}
+	else { //seek to bookmark
+		set_osd_callback(OSD_PROGRAM, goto_bookmark_status);
+	}
+}
+
+void
 enable_osd(void)
 {
 	set_osd_callback(OSD_PROGRESS, video_progress);

@@ -218,6 +218,7 @@ mythtv_video_key(char key)
 					fprintf(stderr,"No offset found in recordedseek chanid=%ld mark=%qd\n",chanid,mark);
 				}
 				else {
+					display_bookmark_status_osd(0);
 					fprintf(stderr,"Jumping to bookmark %qd : offset %d\n",mark,offset);
 					seek_to(offset);
 					rc=1;
@@ -238,6 +239,7 @@ mythtv_video_key(char key)
 				fprintf (stderr,"keyframe mark = %d\n",dbmark);
 				cmyth_set_bookmark(ctrl, current_prog, dbmark );
 				cmyth_dbg(CMYTH_DBG_DEBUG, "bookmark saved, value: %qd \n",bookmark);
+				display_bookmark_status_osd(1);
 				rc=1;
 			}
 			break;

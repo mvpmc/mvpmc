@@ -274,6 +274,7 @@ extern int file_read(char*, int);
 extern volatile long long jump_target;
 extern int display_on;
 extern int display_on_alt;
+extern void display_bookmark_status_osd(int);
 extern void enable_osd(void);
 extern void disable_osd(void);
 extern void back_to_guide_menu();
