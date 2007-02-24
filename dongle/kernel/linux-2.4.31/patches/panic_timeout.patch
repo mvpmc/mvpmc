@@ -1,0 +1,11 @@
+--- linux-2.4.31/arch/ppc/kernel/setup.c	2004-04-14 08:05:27.000000000 -0500
++++ linux-2.4.31-new/arch/ppc/kernel/setup.c	2007-02-20 22:55:43.000000000 -0600
+@@ -588,7 +588,7 @@
+ 			= cur_cpu_spec[0]->dcache_bsize;
+ 
+ 	/* reboot on panic */
+-	panic_timeout = 180;
++	panic_timeout = 1;
+ 
+ 	init_mm.start_code = PAGE_OFFSET;
+ 	init_mm.end_code = (unsigned long) _etext;

@@ -37,6 +37,7 @@ done
 patch -p1 -d linux-2.4.31 < patches/misc-embedded.patch
 patch -p1 -d linux-2.4.31 < patches/rd_size.patch
 patch -p1 -d linux-2.4.31 < patches/stack_size.patch
+patch -p1 -d linux-2.4.31 < patches/panic_timeout.patch
 
 cd linux-2.4.31
 patch -p1 < ../patches/cifs_24.patch
