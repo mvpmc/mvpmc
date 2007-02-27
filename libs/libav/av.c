@@ -576,6 +576,9 @@ av_pause(void)
 		if (ioctl(fd_video, AV_SET_VID_PAUSE, 0) < 0)
 			return -1;
 		state.pause = true;
+		if (state.ffwd) {
+			state.ffwd = false;
+		}
 		ret = 1;
 	}
 
@@ -665,7 +668,14 @@ av_ffwd(void)
 	if (state.ffwd == false) {
 		if (ioctl(fd_video, AV_SET_VID_PLAY, 0) != 0)
 			return -1;
+		if (state.mute == false) {
+			if (ioctl(fd_audio, AV_SET_AUD_MUTE, 1) < 0)
+				return -1;
+		}
 		av_sync();
+	} else {
+		if (ioctl(fd_audio, AV_SET_AUD_MUTE, 1) < 0)
+			return -1;
 	}
 
 	return ffwd;
