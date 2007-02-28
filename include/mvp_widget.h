@@ -1061,7 +1061,7 @@ mvpw_get_rgba(unsigned long c, unsigned char *r, unsigned char *g,
 #define mvpw_color_alpha(c,a)	((a << 24) | (c & 0x00ffffff))
 
 #ifdef MVPMC_HOST
-#define MVPW_KEY_UP	2
+#define _UP	2
 #define MVPW_KEY_DOWN	3
 #define MVPW_KEY_LEFT	0
 #define MVPW_KEY_RIGHT	1
@@ -1153,6 +1153,14 @@ mvpw_get_rgba(unsigned long c, unsigned char *r, unsigned char *g,
 #define	MVPW_KEY_PREV_CHAN	18
 
 #define	MVPW_KEY_RADIO		29
+
+/*
+ * There is code that need to know when no key is pressed.
+ * So, we are arbitrarily selecting a number outside the 
+ * normal range of possible codes.
+ */
+#define	MVPW_KEY_NONE		100
+
 #endif /* MVPMC_HOST */
 
 #endif /* MVP_WIDGET_H */

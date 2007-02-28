@@ -135,6 +135,10 @@ unsigned int volume_server[] = {
 
 static int debug = 0;
 
+/*
+ * Passes CLI commands from outside socket_handle_cli space.
+ */
+char pending_cli_string[MAX_CMD_SIZE];
 
 void
 receive_mpeg_data (int s, receive_mpeg_header * data, int bytes_read)
@@ -553,14 +557,14 @@ mclient_idle_callback (mvp_widget_t * widget)
          */
         doubletime = 10;
         mvpw_set_dialog_text (mclient, newstring);
-	/*
-	 * Send text to sub fullscreen OSD as well.
-	 */
-	// For some reason the text widget can not handle
-	// the ">>" character so we will just over write it
-	// with a end of string null character...
-	newstring[79] = '\0';
-	mvpw_set_text_str (mclient_sub_softsqueeze, newstring);
+        /*
+         * Send text to sub fullscreen OSD as well.
+         */
+        // For some reason the text widget can not handle
+        // the ">>" character so we will just over write it
+        // with a end of string null character...
+        newstring[79] = '\0';
+        mvpw_set_text_str (mclient_sub_softsqueeze, newstring);
     }
 
     /*
@@ -754,10 +758,16 @@ mclient_loop_thread (void *arg)
             av_play ();
 
             /*
-             * Initialize the play mode to "not start playing"
+             * Initialize...
+	     * ...the play mode to "not start playing"
              * and "clear the buffer".
              */
             outbuf->playmode = 3;
+	    /*
+	     * ...the get album art hold off timer & flag.
+             */
+	    cli_data.get_cover_art_holdoff_timer = time (NULL);
+	    cli_data.get_cover_art_later = FALSE;
 
             /*
              * Stay in loop processing server's audio data
@@ -768,19 +778,19 @@ mclient_loop_thread (void *arg)
                 struct timeval mclient_tv;
                 int n = 0;
 
-		/*
-		 * Check if short (about 1 second) display update
-		 * (for widgets like the progressbar) is needed.
-		 */
-		if (cli_data.short_update_timer < time (NULL))
-		{
-		    cli_data.short_update_timer = time (NULL) + 1;
-		    cli_data.short_update_timer_expired = TRUE;
-		    mvpw_set_graph_current(mclient_sub_progressbar, cli_data.percent);
-		    mvpw_expose(mclient_sub_progressbar);
-		    mvpw_set_graph_current(mclient_sub_volumebar, cli_data.volume);
-		    mvpw_expose(mclient_sub_volumebar);
-		}
+                /*
+                 * Check if short (about 1 second) display update
+                 * (for widgets like the progressbar) is needed.
+                 */
+                if (cli_data.short_update_timer < time (NULL))
+                {
+                    cli_data.short_update_timer = time (NULL) + 1;
+                    cli_data.short_update_timer_expired = TRUE;
+                    mvpw_set_graph_current (mclient_sub_progressbar, cli_data.percent);
+                    mvpw_expose (mclient_sub_progressbar);
+                    mvpw_set_graph_current (mclient_sub_volumebar, cli_data.volume);
+                    mvpw_expose (mclient_sub_volumebar);
+                }
 
                 if ((cli_small_widget_timeout < time (NULL)) &&
                     (cli_small_widget_state == SHOW))
@@ -801,15 +811,15 @@ mclient_loop_thread (void *arg)
                     (cli_small_widget_state == HIDE))
                 {
 
-		if(cli_small_widget_force_hide == FALSE)
-		{
-                    /*
-                     * Show small widget.
-                     */
-		     /// mvpw_raise (mclient); /// We don't what to show this widget now.
-                    cli_small_widget_state = SHOW;
-                    printf ("mclient_mvpmc:Small widget SHOW.\n");
-		    }
+                    if (cli_small_widget_force_hide == FALSE)
+                    {
+                        /*
+                         * Show small widget.
+                         */
+                        /// mvpw_raise (mclient); /// We don't what to show this widget now.
+                        cli_small_widget_state = SHOW;
+                        printf ("mclient_mvpmc:Small widget SHOW.\n");
+                    }
                 }
 
                 /*
@@ -842,10 +852,10 @@ mclient_loop_thread (void *arg)
 
                 /*
                  * Empty the set we are keeping an eye on and add all the ones we are 
-		 * interested in.
+                 * interested in.
                  * (i.e. We are interested in MP3 & Control data from the music server, 
-		 * and additional data from the Command Line Interface (CLI) for the full 
-		 * screen display.)
+                 * and additional data from the Command Line Interface (CLI) for the full 
+                 * screen display.)
                  */
                 FD_ZERO (&read_fds);
                 FD_SET (socket_handle_cli, &read_fds);
@@ -917,23 +927,163 @@ mclient_loop_thread (void *arg)
                     cli_read_data (socket_handle_cli);
                 }
 
-		/*
-		 * Any messages to be sent out to slimserver?
-		 */
-		if (cli_data.short_update_timer_expired == TRUE)
-		{
+                /*
+                 * Need to check for a shift key event.
+                 * 
+                 * Has shift time expired?
+                 */
+                if (remote_buttons.shift_time <= time (NULL))
+                {
+                    remote_buttons.shift = FALSE;
+                }
+                if (remote_buttons.last_pressed == MVPW_KEY_RECORD)
+                {
+                    remote_buttons.last_pressed = MVPW_KEY_NONE;
+                    remote_buttons.shift = TRUE;
+                    // Renew shift timer.
+                    remote_buttons.shift_time = time (NULL) + 2;
+                }
+                else
+                {
+                    switch (remote_buttons.last_pressed)
+                    {
+                    case MVPW_KEY_SKIP:
+                        remote_buttons.last_pressed = MVPW_KEY_NONE;
+                        if (remote_buttons.shift == TRUE)
+                        {
+                            // Renew shift timer.
+                            remote_buttons.shift_time = time (NULL) + 2;
+                        }
+                        break;
+                    case MVPW_KEY_REPLAY:
+                        remote_buttons.last_pressed = MVPW_KEY_NONE;
+                        if (remote_buttons.shift == TRUE)
+                        {
+                            // Renew shift timer.
+                            remote_buttons.shift_time = time (NULL) + 2;
+                        }
+                    }
+                }
+
+                /*
+                 * If time expired, need to check on buttons monitored for
+                 * a "held down" event.
+                 */
+                if (remote_buttons.elapsed_time <= time (NULL))
+                {
+                    remote_buttons.elapsed_time = time (NULL) + 1;
+                    if (remote_buttons.number_of_scans > 1)
+                    {
+                        /*
+                         * Passed threshold, assume button held down.
+                         */
+                        if (remote_buttons.state != RELEASED_BUTTON)
+                        {
+                            /*
+                             * Same pressed button as last time.
+                             */
+                            switch (remote_buttons.last_pressed)
+                            {
+                            case MVPW_KEY_FFWD:
+                                remote_buttons.number_of_pushes++;
+                                sprintf (pending_cli_string, "%s rate %d\n",
+                                         decoded_player_id,
+                                         remote_buttons.number_of_pushes);
+                                break;
+                            case MVPW_KEY_REWIND:
+                                remote_buttons.number_of_pushes--;
+                                sprintf (pending_cli_string, "%s rate %d\n",
+                                         decoded_player_id,
+                                         remote_buttons.number_of_pushes);
+                                break;
+                            }
+                            remote_buttons.state = PUSHING_BUTTON;
+                            remote_buttons.number_of_scans = 0; /// Snyc
+                            remote_buttons.elapsed_time = time (NULL) + 1;
+                        }
+                        else
+                        {
+                            /*
+                             * Newly pressed button since last time.
+                             */
+                            switch (remote_buttons.last_pressed)
+                            {
+                            case MVPW_KEY_FFWD:
+                                remote_buttons.number_of_pushes = 2;
+                                sprintf (pending_cli_string, "%s rate %d\n",
+                                         decoded_player_id,
+                                         remote_buttons.number_of_pushes);
+                                break;
+                            case MVPW_KEY_REWIND:
+                                remote_buttons.number_of_pushes = -2;
+                                sprintf (pending_cli_string, "%s rate %d\n",
+                                         decoded_player_id,
+                                         remote_buttons.number_of_pushes);
+                                break;
+                            }
+                            remote_buttons.state = PUSHING_BUTTON;
+                            remote_buttons.number_of_scans = 0; /// Snyc
+                            remote_buttons.elapsed_time = time (NULL) + 1;
+
+                        }
+                    }
+                    else
+                    {
+                        /*
+                         * Assumed button not held down.
+                         */
+                        switch (remote_buttons.last_pressed)
+                        {
+                        case MVPW_KEY_FFWD:
+                            break;
+                        case MVPW_KEY_REWIND:
+                            break;
+                        }
+                        remote_buttons.state = RELEASED_BUTTON;
+                        remote_buttons.number_of_scans = 0; /// Snyc
+                        remote_buttons.elapsed_time = time (NULL) + 1;
+                    }
+                }
+
+                /*
+                 * Any timed CLI messages to be sent out to slimserver?
+                 */
+                if (cli_data.short_update_timer_expired == TRUE)
+                {
                     char cmd[MAX_CMD_SIZE];
-		    cli_data.short_update_timer_expired = FALSE;
-		    sprintf (cmd, "%s time ?\n",decoded_player_id);
+                    cli_data.short_update_timer_expired = FALSE;
+                    sprintf (cmd, "%s time ?\n", decoded_player_id);
                     cli_send_packet (socket_handle_cli, cmd);
 
-		    sprintf (cmd, "%s mixer volume ?\n",decoded_player_id);
+                    sprintf (cmd, "%s mixer volume ?\n", decoded_player_id);
                     cli_send_packet (socket_handle_cli, cmd);
+                }
+
+                /*
+                 * Any pending CLI messages to be sent out to slimserver?
+                 */
+                if (pending_cli_string[0] != '\0')
+                {
+                    cli_send_packet (socket_handle_cli, pending_cli_string);
+                    pending_cli_string[0] = '\0';
+                }
+
+		/*
+		 * Do we need to get the cover art?
+		 */
+		if (cli_data.get_cover_art_later == TRUE)
+		{
+			if (cli_data.get_cover_art_holdoff_timer < time (NULL))
+			{
+		        	cli_data.get_cover_art_holdoff_timer = time (NULL) + 5;
+				cli_data.get_cover_art_later = FALSE;
+				cli_get_cover_art ();
+			}
 		}
 
                 /*
                  * If this is the first time through, send a command to the CLI that 
-		 * will trigger a CLI / fullscreen update.
+                 * will trigger a CLI / fullscreen update.
                  */
                 if (cli_fullscreen_widget_state == UNINITIALIZED)
                 {
@@ -948,12 +1098,12 @@ mclient_loop_thread (void *arg)
                     cli_send_packet (socket_handle_cli, cmd);
                     cli_fullscreen_widget_state = INITIALIZED;
 
-		    /*
-		     * Grab new duration for current track.
+                    /*
+                     * Grab new duration for current track.
                      */
                     {
                         char cmd[MAX_CMD_SIZE];
-                        sprintf (cmd, "%s duration ?\n",decoded_player_id);
+                        sprintf (cmd, "%s duration ?\n", decoded_player_id);
                         cli_send_packet (socket_handle_cli, cmd);
                     }
                 }

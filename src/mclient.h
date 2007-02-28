@@ -47,6 +47,8 @@
 #define RECV_BUF_SIZE_CLI 32768
 #define CLI_MAX_TRACKS 8
 
+#define MAX_BUTTON_SCANS 10
+
 
 /*
  * Command Line Interface Defines.
@@ -130,17 +132,27 @@ enum
 {
     UNKNOWN = 0,
     SLIMP3_HOME,
+    PLAYLIST,
+
     NOW_PLAYING,
-    BROWSE,
-    SEARCH,
+    BROWSE_MUSIC,
+    SEARCH_MUSIC,
     RANDOM_MIX,
-    FAVORITES,
-    PLAYLISTS,
+    BROWSE_PLAYLISTS,
     INTERNET_RADIO,
     SETTINGS,
     PLUGINS,
+};
 
-    PLAYLIST,
+/*
+ * Define states of remote control button pushing.
+ */
+enum
+{
+    NO_RECENT_BUTTONS_PUSHED = 0,  // After about 1.5 seconds after last release.
+    PUSHING_BUTTON,  // Seen button code on this scan.
+    RELEASING_BUTTON,  // Counting scans w/o button code.
+    RELEASED_BUTTON,  // Reached num of scans w/o button code.
 };
 
 typedef struct
@@ -227,7 +239,23 @@ typedef struct
     int elapsed_time;
     int total_time;
     int volume;
+    int get_cover_art_holdoff_timer;
+    int get_cover_art_later;
 } cli_data_type;
+
+/*
+ *
+ */
+typedef struct
+{
+    int last_pressed;
+    int elapsed_time;
+    int state;
+    int number_of_scans;
+    int number_of_pushes;
+    int shift;
+    int shift_time;
+} remote_buttons_type;
 
 /*
  * Functions:
@@ -339,5 +367,15 @@ extern int ffwd_state;
  */
 extern char encoded_player_id[32];
 extern char decoded_player_id[32];
+
+/*
+ * Passes CLI commands from outside socket_handle_cli space.
+ */
+extern char pending_cli_string[MAX_CMD_SIZE];
+
+/*
+ * Track remote control button activity.
+ */
+extern remote_buttons_type remote_buttons;
 
 #endif /* MCLIENT_H */
