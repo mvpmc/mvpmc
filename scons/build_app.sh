@@ -88,6 +88,13 @@ if [ "`basename $PWD`" = "mtd" ] ; then
     exit $?
 fi
 
+if [ "`basename $PWD`" = "nbtscan-1.5.1a" ] ; then
+    ./configure --host=powerpc
+    make
+    cp nbtscan $INSTALL
+    exit $?
+fi
+
 if [ "`basename $PWD`" = "djmount-0.71" ] ; then
     export DJINSTALL=$INSTALL
     unset INSTALL

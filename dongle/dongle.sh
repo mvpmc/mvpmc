@@ -13,7 +13,7 @@ echo STRIP $STRIP
 DIRS="bin sbin usr/bin usr/sbin lib dev proc var usr/share usr/share/mvpmc usr/share/udhcpc etc tmp oldroot"
 WRAPPER_DIRS="bin sbin etc usr/bin usr/sbin dev tmp lib proc mnt"
 
-BIN="busybox flashcp mvpmc ntpclient scp djmount"
+BIN="busybox flashcp mvpmc ntpclient scp djmount nbtscan"
 MVPMC_BIN="ticonfig vpdread"
 WRAPPER_BIN="busybox splash"
 
@@ -24,7 +24,7 @@ USRBIN=""
 USRSBIN=""
 
 LIB="libav.so libcmyth.so libdemux.so librefmem.so libosd.so libts_demux.so libvnc.so libwidget.so libtiwlan.so libvorbisidec.so.1.0.2 libvorbisidec.so.1"
-TLIB="libc.so.0 libm.so.0 libcrypt.so.0 libgcc_s_nof.so.1 libpthread.so.0 libutil.so.0"
+TLIB="libc.so.0 libm.so.0 libcrypt.so.0 libgcc_s_nof.so.1 libpthread.so.0 libutil.so.0 libresolv.so.0"
 LDLIB="ld-uClibc-0.9.28.so ld-uClibc.so.0"
 
 WRAPPERLIB="libav.so libosd.so"
