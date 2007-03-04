@@ -759,15 +759,15 @@ mclient_loop_thread (void *arg)
 
             /*
              * Initialize...
-	     * ...the play mode to "not start playing"
+             * ...the play mode to "not start playing"
              * and "clear the buffer".
              */
             outbuf->playmode = 3;
-	    /*
-	     * ...the get album art hold off timer & flag.
+            /*
+             * ...the get album art hold off timer & flag.
              */
-	    cli_data.get_cover_art_holdoff_timer = time (NULL);
-	    cli_data.get_cover_art_later = FALSE;
+            cli_data.get_cover_art_holdoff_timer = time (NULL);
+            cli_data.get_cover_art_later = FALSE;
 
             /*
              * Stay in loop processing server's audio data
@@ -1068,18 +1068,18 @@ mclient_loop_thread (void *arg)
                     pending_cli_string[0] = '\0';
                 }
 
-		/*
-		 * Do we need to get the cover art?
-		 */
-		if (cli_data.get_cover_art_later == TRUE)
-		{
-			if (cli_data.get_cover_art_holdoff_timer < time (NULL))
-			{
-		        	cli_data.get_cover_art_holdoff_timer = time (NULL) + 5;
-				cli_data.get_cover_art_later = FALSE;
-				cli_get_cover_art ();
-			}
-		}
+                /*
+                 * Do we need to get the cover art?
+                 */
+                if (cli_data.get_cover_art_later == TRUE)
+                {
+                    if (cli_data.get_cover_art_holdoff_timer < time (NULL))
+                    {
+                        cli_data.get_cover_art_holdoff_timer = time (NULL) + 5;
+                        cli_data.get_cover_art_later = FALSE;
+                        cli_get_cover_art ();
+                    }
+                }
 
                 /*
                  * If this is the first time through, send a command to the CLI that 

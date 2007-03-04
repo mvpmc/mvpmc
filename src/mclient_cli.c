@@ -363,24 +363,41 @@ cli_decode_response (int socket_handle, char *buf, mclient_cmd * response)
         debug ("mplayer_cli:Player ID found in response: |%s|\n", player_id);
 
         /*
-         * Extract CMD from returned message.
-         */
-        cmd = strtok_r (NULL, " ", (char **) &token_buffer);
-        strncpy (response->cmd, cmd, MAX_CMD_SIZE);
-        debug ("mplayer_cli:CMD found in response: |%s|\n", cmd);
-
-        /*
-         * Extract all parameters from returned message.
-         * Returns 0 for 1 response, 1 for 2 or more responses.
-         */
-        cli_parse_parameters (response, (char **) &token_buffer);
-
-        /*
          * Process if player ID matches.
          */
         if (strncmp (decoded_player_id, player_id, strlen (player_id)) == 0)
         {
+            /*
+             * Extract CMD from returned message.
+             */
+            cmd = strtok_r (NULL, " ", (char **) &token_buffer);
+            strncpy (response->cmd, cmd, MAX_CMD_SIZE);
+            debug ("mplayer_cli:CMD found in response: |%s|\n", cmd);
+
+            /*
+             * Extract all parameters from returned message.
+             * Returns 0 for 1 response, 1 for 2 or more responses.
+             */
+            cli_parse_parameters (response, (char **) &token_buffer);
+
             cli_parse_response (socket_handle, response);
+        }
+        else
+        {
+            /*
+             * Check if the CLI was announcing a "rescan" and not a message of the
+             * form <player_ID><cmd><param>.
+             */
+            if (strncmp (player_id, "rescan", strlen ("rescan")) == 0)
+            {
+                /*
+                 * Trigger state machine to
+                 * get new screen data in case the rescan has 
+                 * eliminated what is playing.
+                 */
+                sprintf (pending_cli_string, "%s playlist tracks ?\n", encoded_player_id); ///###
+                printf ("TEST:RESCAN detected.\n"); ///###
+            }
         }
 
         param = strtok_r (NULL, "\n", (char **) &token_buffer_overall);
@@ -419,10 +436,8 @@ cli_parse_response (int socket_handle_cli, mclient_cmd * response)
                     /*
                      * Grab new cover art for current tarck.
                      */
-                    printf ("TEST:AAA:cli_data.index_info:%d cli_data.index_playing:%d\n",
-                            cli_data.index_info, cli_data.index_playing);
-///                    cli_get_cover_art ();
-                       cli_data.get_cover_art_later = TRUE;
+                    printf ("TEST:Try to get album cover because playlist found.\n"); ///###
+                    cli_data.get_cover_art_later = TRUE;
                 }
             }
         }
@@ -455,12 +470,8 @@ cli_parse_response (int socket_handle_cli, mclient_cmd * response)
             /*
              * Grab new cover art for current track.
              */
-            printf ("TEST:BBB\n");
-///            cli_get_cover_art ();
+            printf ("TEST:Try to get album cover because newsong found.\n"); ///###
             cli_data.get_cover_art_later = TRUE;
-///        cli_data.get_cover_art_holdoff_timer = time (NULL) + 5;
-///        cli_data.get_cover_art_later = FALSE;
-
 
             /*
              * Grab new duration for current track.
@@ -615,7 +626,7 @@ cli_get_cover_art ()
     sprintf (url_string, "http://%s:9000/music/current/cover.jpg\n", mclient_server);
     current = strdup (url_string);
     retcode = http_main ();
-    printf ("mclient:cli_get_cover_art: PULLING NEW ART WORK. retcode:%d\n", retcode); ///#### Turn this into a debug statement later.
+    printf ("mclient:cli_get_cover_art: PULLING NEW ART WORK. retcode:%d\n", retcode); ///###
     if (retcode == HTTP_IMAGE_FILE_JPEG)
     {
         mvpw_load_image_fd (fd);
@@ -628,8 +639,8 @@ cli_get_cover_art ()
     }
     else if (retcode == HTTP_FILE_UNKNOWN)
     {
-        printf ("mclient:cli_get_cover_art: ART WORK NOT FOUND, NEED TO FIND A DEFAULT IMAGE.\n"); ///####
-	close (fd);
+        printf ("mclient:cli_get_cover_art: ART WORK NOT FOUND, NEED TO FIND A DEFAULT IMAGE.\n"); ///###
+        close (fd);
     }
     free (current);
 }
@@ -1054,12 +1065,6 @@ cli_parse_display (mclient_cmd * response)
                     debug
                         ("mclient_cli:Top of history MATCHES current title cur:%s his:%s.\n",
                          response->param[1], cli_data.title_history[0]);
-
-///                for (i = CLI_MAX_TRACKS; i > 0; i--)
-///                {
-///                    mvpw_menu_change_item (mclient_fullscreen, (void *) (i + 3),
-///                                           cli_data.title_history[i + 1]);
-///                    debug ("mclient_cli:Printing history:%d.\n", i);
                 }
             }
         }

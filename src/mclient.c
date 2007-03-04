@@ -336,15 +336,15 @@ curses2ir (int key)
         ir = 0x768920df;
         break;                  /* pause */
     case MVPW_KEY_SKIP:
-	remote_buttons.last_pressed = MVPW_KEY_SKIP;
-	if(remote_buttons.shift == TRUE)
-	{
-	        ir = 0x7689d827; /// This cmd is for cycling through different shuffle modes, not skip.
-	}
-	else
-	{
-	        ir = 0x7689a05f; /// This cmd is for skipping forward.
-	}
+        remote_buttons.last_pressed = MVPW_KEY_SKIP;
+        if (remote_buttons.shift == TRUE)
+        {
+            ir = 0x7689d827;    /// This cmd is for cycling through different shuffle modes, not skip.
+        }
+        else
+        {
+            ir = 0x7689a05f;    /// This cmd is for skipping forward.
+        }
         break;                  /* fwd */
 ///    case MVPW_KEY_FFWD:
 ///        ir = 0x7689a05f;
@@ -359,15 +359,15 @@ curses2ir (int key)
         ir = 0x76897887;
         break;                  /* jump to now playing menu */
     case MVPW_KEY_REPLAY:
-	remote_buttons.last_pressed = MVPW_KEY_SKIP;
-	if(remote_buttons.shift == TRUE)
-	{
-	        ir = 0x768938c7; /// This cmd is for different repeat modes, not replay.
-	}
-	else
-	{
-        	ir = 0x7689c03f; /// This cmd is for REPLAY.
-	}
+        remote_buttons.last_pressed = MVPW_KEY_SKIP;
+        if (remote_buttons.shift == TRUE)
+        {
+            ir = 0x768938c7;    /// This cmd is for different repeat modes, not replay.
+        }
+        else
+        {
+            ir = 0x7689c03f;    /// This cmd is for REPLAY.
+        }
         break;                  /* rew */
     case MVPW_KEY_GO:
         ir = 0x7689609f;
@@ -383,11 +383,11 @@ curses2ir (int key)
         ir = 0x768940bf;
         break;                  /* power */
     case MVPW_KEY_GREEN:
-	/*
-	 * The Green button is reserved by mvpmc to capture the screen.
-	 * The command line option to specify a jpg screen dump file:
-	 * "-C <file_name>"
-	 */
+        /*
+         * The Green button is reserved by mvpmc to capture the screen.
+         * The command line option to specify a jpg screen dump file:
+         * "-C <file_name>"
+         */
         break;
     case MVPW_KEY_BLUE:
         ir = 0x7689807f;
@@ -413,103 +413,99 @@ curses2ir (int key)
             mvpw_hide (mute_widget);
         break;
 
-	/*
-	 * Special case for FF key: 
-	 * 
-	 * If not already in FF mode: If FF is pressed, pass 2x command to CLI.  If
-	 * FF is held, pass 3x command to CLI after 1 to 2 seconds and 4x command to
-	 * CLI after another 1 second.
-	 * If in FF mode: If PLAY is pressed, pass 1x command to CLI.
-	 */
+        /*
+         * Special case for FF key: 
+         * 
+         * If not already in FF mode: If FF is pressed, pass 2x command to CLI.  If
+         * FF is held, pass 3x command to CLI after 1 to 2 seconds and 4x command to
+         * CLI after another 1 second.
+         * If in FF mode: If PLAY is pressed, pass 1x command to CLI.
+         */
     case MVPW_KEY_FFWD:
-	remote_buttons.last_pressed = MVPW_KEY_FFWD;
-	remote_buttons.number_of_scans++;
-	break;
-
-	/*
-	 * Special case for REWIND key: 
-	 * 
-	 * If not already in REWIND mode: If REWIND is pressed, pass -2x command to CLI.  If
-	 * REWIND is held, pass -3x command to CLI after 1 to 2 seconds and -4x command to
-	 * CLI after another 1 second.
-	 * If in REWIND mode: If PLAY is pressed, pass 1x command to CLI.
-	 */
-    case MVPW_KEY_REWIND:
-	remote_buttons.last_pressed = MVPW_KEY_REWIND;
-	remote_buttons.number_of_scans++;
+        remote_buttons.last_pressed = MVPW_KEY_FFWD;
+        remote_buttons.number_of_scans++;
         break;
 
-	/*
-	 * Special case for OK key: 
-	 * 
-	 * If in FF or FR mode revert back to 1x speed.  Otherwise,
-	 * treat like ordinary PLAY cmd.
-	 */
+        /*
+         * Special case for REWIND key: 
+         * 
+         * If not already in REWIND mode: If REWIND is pressed, pass -2x command to CLI.  If
+         * REWIND is held, pass -3x command to CLI after 1 to 2 seconds and -4x command to
+         * CLI after another 1 second.
+         * If in REWIND mode: If PLAY is pressed, pass 1x command to CLI.
+         */
+    case MVPW_KEY_REWIND:
+        remote_buttons.last_pressed = MVPW_KEY_REWIND;
+        remote_buttons.number_of_scans++;
+        break;
+
+        /*
+         * Special case for OK key: 
+         * 
+         * If in FF or FR mode revert back to 1x speed.  Otherwise,
+         * treat like ordinary PLAY cmd.
+         */
     case MVPW_KEY_OK:
-	if (
-		(remote_buttons.last_pressed == MVPW_KEY_FFWD) ||
-		(remote_buttons.last_pressed == MVPW_KEY_REWIND)
-	   )
-	{
-		remote_buttons.last_pressed = MVPW_KEY_OK;
-               /*
-                * Send CLI to set FF or FR to 1x.
-                */
-               	sprintf (pending_cli_string, "%s rate 1\n",decoded_player_id);
-	}
-	else
-	{
-		/*
-		 * Send real PLAY command to slimserver.
-		 */
-        	ir = 0x768910ef;
-	}
-        break;                  /* play */
-
-	/*
-	 * Special case for PLAY key: 
-	 * 
-	 * If in FF or FR mode revert back to 1x speed.  Otherwise,
-	 * treat like ordinary PLAY cmd.
-	 */
-    case MVPW_KEY_PLAY:
-	if (
-		(remote_buttons.last_pressed == MVPW_KEY_FFWD) ||
-		(remote_buttons.last_pressed == MVPW_KEY_REWIND)
-	   )
-	{
-		remote_buttons.last_pressed = MVPW_KEY_OK;
-
-               /*
-                * Send CLI to set FF or FR to 1x.
-                */
-               	sprintf (pending_cli_string, "%s rate 1\n",decoded_player_id);
-	}
-	else
-	{
-		/*
-		 * Send real PLAY command to slimserver.
-		 */
-        	ir = 0x768910ef;
-	}
+        if ((remote_buttons.last_pressed == MVPW_KEY_FFWD) ||
+            (remote_buttons.last_pressed == MVPW_KEY_REWIND))
+        {
+            remote_buttons.last_pressed = MVPW_KEY_OK;
+            /*
+             * Send CLI to set FF or FR to 1x.
+             */
+            sprintf (pending_cli_string, "%s rate 1\n", decoded_player_id);
+        }
+        else
+        {
+            /*
+             * Send real PLAY command to slimserver.
+             */
+            ir = 0x768910ef;
+        }
         break;                  /* play */
 
         /*
-	 * Old way to toggle debug printfs. 
-	 *
-	 * Now using record button as shift key
-	 * for more options:
-	 *
+         * Special case for PLAY key: 
+         * 
+         * If in FF or FR mode revert back to 1x speed.  Otherwise,
+         * treat like ordinary PLAY cmd.
+         */
+    case MVPW_KEY_PLAY:
+        if ((remote_buttons.last_pressed == MVPW_KEY_FFWD) ||
+            (remote_buttons.last_pressed == MVPW_KEY_REWIND))
+        {
+            remote_buttons.last_pressed = MVPW_KEY_OK;
+
+            /*
+             * Send CLI to set FF or FR to 1x.
+             */
+            sprintf (pending_cli_string, "%s rate 1\n", decoded_player_id);
+        }
+        else
+        {
+            /*
+             * Send real PLAY command to slimserver.
+             */
+            ir = 0x768910ef;
+        }
+        break;                  /* play */
+
+        /*
+         * Old way to toggle debug printfs. 
+         *
+         * Now using record button as shift key
+         * for more options:
+         *
          * Uncomment if want to toggle mclient debug printfs (lots of them!).
          */
         ///    case MVPW_KEY_RECORD: debug = !debug; break; /* toggle debug mode */
 
         /*
-	 * Now using record button as shift key for more options:
-	 */
-        case MVPW_KEY_RECORD:
-		remote_buttons.last_pressed = MVPW_KEY_RECORD;
-		break;
+         * Now using record button as shift key for more options:
+         */
+    case MVPW_KEY_RECORD:
+        remote_buttons.last_pressed = MVPW_KEY_RECORD;
+        break;
 
         /*
          * Keys that may not make sense for mvpmc.
@@ -713,7 +709,7 @@ mclient_server_connect (void)
     struct sockaddr_in my_addr;
     char eth[16];
 
-    snprintf(eth, sizeof(eth), "eth%d", wireless);
+    snprintf (eth, sizeof (eth), "eth%d", wireless);
 
     s = socket (AF_INET, SOCK_DGRAM, 0);
 
