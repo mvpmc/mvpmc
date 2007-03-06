@@ -6669,11 +6669,14 @@ mclient_sub_image_init(void)
 
 	splash_update("Creating mclient_sub_image dialog");
 
+	/*
+	 * Place image in lower right corner of screen.
+	 */
 	h = 200;
 	w = ((200*4)/3);
 
-	x = si.cols * .61; // About 61% across screen
-	y = si.rows * .54; // About 54% down screen
+	x = si.cols - (w + viewport_edges[EDGE_RIGHT]);
+	y = si.rows - (h + viewport_edges[EDGE_BOTTOM]);
 
 	mclient_sub_image = mvpw_create_text(NULL, 
 			x, y, w, h,
