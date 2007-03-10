@@ -266,6 +266,7 @@ mvpw_load_image_jpeg(mvp_widget_t *widget, char *file)
 	cinfo.dct_method = JDCT_ISLOW;
 	cinfo.do_fancy_upsampling = FALSE;
 	cinfo.two_pass_quantize = FALSE;
+	cinfo.do_block_smoothing = FALSE;
 
 	xasp = 1;
 	yasp = 1;
@@ -317,9 +318,30 @@ mvpw_load_image_jpeg(mvp_widget_t *widget, char *file)
 		cinfo.scale_num++;
 
 	if (jpeg_has_multiple_scans(&cinfo) ) {
- 		EPRINTF("%s: progressive JPEG, skipping: %s\n", __FUNCTION__, file);
-		ret = -1;
-		goto err3;
+		int ci, maxh, maxv, hsize, vsize, csize;
+		int maxmem = 1244160;
+		csize = maxmem+1;
+		cinfo.scale_num++;
+		while( csize > maxmem && cinfo.scale_num > 1 ) {
+			cinfo.scale_num--;
+			maxh = 1;
+			maxv = 1;
+			for( ci=0 ; ci<cinfo.num_components ; ci++ ) {
+				maxh = maxh<cinfo.comp_info[ci].h_samp_factor ? cinfo.comp_info[ci].h_samp_factor : maxh;
+				maxv = maxv<cinfo.comp_info[ci].v_samp_factor ? cinfo.comp_info[ci].v_samp_factor : maxv;
+			};
+			csize = 0;
+			for( ci=0 ; ci<cinfo.num_components ; ci++ ) {
+				hsize = maxh/cinfo.comp_info[ci].h_samp_factor*cinfo.scale_num;
+				vsize = maxv/cinfo.comp_info[ci].v_samp_factor*cinfo.scale_num;
+				hsize = hsize<cinfo.scale_denom ? hsize : cinfo.scale_denom;
+				vsize = vsize<cinfo.scale_denom ? vsize : cinfo.scale_denom;
+				csize += 2*cinfo.image_height*cinfo.image_width*hsize*vsize
+				  *cinfo.comp_info[ci].h_samp_factor*cinfo.comp_info[ci].v_samp_factor
+				  /maxh/maxv/cinfo.scale_denom/cinfo.scale_denom;
+			}
+		}
+ 		EPRINTF("%s: progressive JPEG, needs %i bytes for coefficient buffers: %s\n", __FUNCTION__, csize, file);
  	}
 
 	jpeg_calc_output_dimensions(&cinfo);

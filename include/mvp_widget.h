@@ -1154,13 +1154,14 @@ mvpw_get_rgba(unsigned long c, unsigned char *r, unsigned char *g,
 
 #define	MVPW_KEY_RADIO		29
 
+#endif /* MVPMC_HOST */
+
 /*
  * There is code that need to know when no key is pressed.
  * So, we are arbitrarily selecting a number outside the 
  * normal range of possible codes.
  */
-#define	MVPW_KEY_NONE		100
+#define	MVPW_KEY_NONE		128
 
-#endif /* MVPMC_HOST */
 
 #endif /* MVP_WIDGET_H */

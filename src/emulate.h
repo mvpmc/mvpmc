@@ -83,15 +83,26 @@
 (dest) += 4;
 
 #define INT64_TO_BUF(src,dest) \
-(dest)[0] = (((src) >> 56) & 0xff); \
-(dest)[1] = (((src) >> 48) & 0xff); \
-(dest)[2] = (((src) >> 40) & 0xff); \
-(dest)[3] = (((src) >> 32) & 0xff); \
-(dest)[4] = (((src) >> 24) & 0xff); \
-(dest)[5] = (((src) >> 16) & 0xff); \
-(dest)[6] = (((src) >> 8) & 0xff); \
-(dest)[7] = ((src) & 0xff); \
+(dest)[4] = (((src) >> 56) & 0xff); \
+(dest)[5] = (((src) >> 48) & 0xff); \
+(dest)[6] = (((src) >> 40) & 0xff); \
+(dest)[7] = (((src) >> 32) & 0xff); \
+(dest)[0] = (((src) >> 24) & 0xff); \
+(dest)[1] = (((src) >> 16) & 0xff); \
+(dest)[2] = (((src) >> 8) & 0xff); \
+(dest)[3]= ((src) & 0xff); \
 (dest) += 8;
+
+#define INT64_TO_PROGBUF(src,dest) \
+(dest)[4] = (((src) >> 40) & 0xff); \
+(dest)[5] = (((src) >> 32) & 0xff); \
+(dest)[0] = (((src) >> 24) & 0xff); \
+(dest)[1] = (((src) >> 16) & 0xff); \
+(dest)[2] = (((src) >> 8) & 0xff); \
+(dest)[3]= ((src) & 0xff); \
+(dest) += 8;
+
+
 
 #define BUF_TO_INT16(dest,src) \
 (dest) = (((unsigned char)(src)[0] << 8) | (unsigned char)(src)[1]); \
@@ -104,7 +115,6 @@
 #define BUF_TO_INT64(dest,src) \
 (dest) = ( ((unsigned char)(src)[0] << 56) | ((unsigned char)(src)[1] << 48) |((unsigned char)(src)[2] << 40) | ((unsigned char)(src)[3] << 32) | ((unsigned char)(src)[4] << 24) | ((unsigned char)(src)[5] << 16) |((unsigned char)(src)[6] << 8) | (unsigned char)(src)[7]); \
 (src) += 8;
-
 
 #include <sys/types.h>
 
@@ -119,31 +129,99 @@
 #define TYPE_VIDEO     0x01
 #define TYPE_AUDIO     0x02
 
-
 typedef struct {
-	int     	sock;
-	int     	rfbsock;
+	int             sock;
+	int             rfbsock;
 	int             directsock;
 	char            *uri;
-	int64_t         length;
+	int64_t		length;
 	int64_t		current_position;
-	u_int8_t    	last_command;
-	u_int8_t    	last_key;
-	int32_t         blocklen;
+	u_int8_t        last_command;
+	u_int8_t        last_key;
+	ulong		blocklen;
 	int             outfd;
-	u_int8_t    	mediatype;
+	u_int8_t        mediatype;
 	int             socks[2];
-	char    	*inbuf;
+	char            *inbuf;
 	int             inbuflen;
-	long            inbufpos;
+	int64_t         inbufpos;
 	char            fileid[2];
-	long            out_position;
+	int64_t         out_position;
 	long            request_read;
-	long        	queued;
-	int         	direction;
+	int64_t		queued;
+	int             direction;
 	int             bps;
 	int             avg_bps;
-	int         	volume;
+	int             volume;
 } stream_t;
 
 extern stream_t mystream;
+
+/*
+struct VDMesg {
+
+	uchar type;
+	uchar error;
+
+	union msgargs {
+		struct {
+			char mtype; //media type: mpeg1/2 mp3, others
+
+
+			char vfmt; //PAL/NTSC
+			char vmpeg2; //0: MPEG1 Video or 1: MPEG2 Video
+			ushort hres;
+			ushort vres;
+			ulong brate; //bitrate * 400 = Real Bitrate
+			ulong sizelo;
+			long sizehi;
+
+			ulong dropoff; //last drop off offset
+			long dropoffhi;
+
+			int fd;
+			ushort nmlen; //file name len: filenm[VDARGSZ];
+		} msgopen;
+
+		struct {
+			int fd;
+			long count;
+			ulong offset;
+			long offhigh;
+		} msgread;
+
+		struct {
+			int fd;
+			char redo;
+			char ffwd;
+			uint count;
+			ulong offset;
+			long offhigh;
+		} msgfast;
+
+		struct {
+			int fd;
+			ulong offset;
+			long offhigh;
+			int  whence;
+		} msgseek;
+
+		struct {
+			int fd;
+		} msgclose;
+
+		struct {
+			int number;
+			int whence;
+			ulong entlen; //entry[VDARGSZ];
+		} msglist;
+
+		struct {
+			int code;
+			char mac[6];
+		} msgtest;
+
+	} args;
+};
+*/
+
