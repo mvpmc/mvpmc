@@ -121,7 +121,7 @@ is_audio(char *item)
 static int
 is_playlist(char *item)
 {
-	char *wc[] = { ".m3u", NULL };
+	char *wc[] = { ".m3u",".pls", NULL };
 	int i = 0;
 
 	while (wc[i] != NULL) {
@@ -320,7 +320,7 @@ select_callback(mvp_widget_t *widget, char *item, void *key)
 			mvpw_focus(iw);
 			loaded_offset = 0;
 			loaded_status = 0;
-			fb_next_image(0);
+			fb_next_image(1);
 		} else if (is_playlist(item)) {
 			if (current_pl)
 				free(current_pl);
@@ -450,7 +450,7 @@ static void
 add_files(mvp_widget_t *fbw)
 {
 	char *wc[] = { "*.mpg", "*.mpeg", "*.mp3", "*.nuv", "*.vob", "*.gif",
-			"*.bmp", "*.m3u", "*.jpg", "*.jpeg", "*.png", "*.wav",
+			"*.bmp", "*.m3u", "*.pls", "*.jpg", "*.jpeg", "*.png", "*.wav",
 			"*.ac3", "*.ogg", "*.ts", "*.flac", NULL };
 	char *WC[] = { "*.MPG", "*.MPEG", "*.MP3", "*.NUV", "*.VOB", "*.GIF",
 			"*.BMP", "*.M3U", "*.JPG", "*.JPEG", "*.PNG", "*.WAV",

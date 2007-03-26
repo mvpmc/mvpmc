@@ -6024,7 +6024,7 @@ main_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
 	int k = (int)key;
 	mvpw_surface_attr_t surface;
-	
+
 	switch (k) {
 	case MM_EXIT:
 #ifndef MVPMC_HOST
@@ -6098,27 +6098,27 @@ main_select_callback(mvp_widget_t *widget, char *item, void *key)
 ///		mvpw_lower(mclient); /// Really shouldn't need this as other widows have risen above this one.
 		mvpw_focus(mclient);
 
-        switch_gui_state(MVPMC_STATE_MCLIENT);
+		switch_gui_state(MVPMC_STATE_MCLIENT);
 		pthread_cond_broadcast(&mclient_cond);
-        mvpw_set_timer(mclient, mclient_idle_callback, 100);
+		mvpw_set_timer(mclient, mclient_idle_callback, 100);
 		break;
-    case MM_VNC:
-        printf("Connecting to %s %i\n", vnc_server, vnc_port);
+	case MM_VNC:
+		printf("Connecting to %s %i\n", vnc_server, vnc_port);
 
-        if (!ConnectToRFBServer(vnc_server, vnc_port) ||
-            !InitialiseRFBConnection(rfbsock)) {
-            char buf[256];
-            snprintf(buf, sizeof(buf),
-                 "Unable to connect to VNC at %s:%i",
-                 vnc_server, vnc_port);
-            gui_error(buf);
-            return;
-        }
-        myFormatSetup();
+		if (!ConnectToRFBServer(vnc_server, vnc_port) ||
+		    !InitialiseRFBConnection(rfbsock)) {
+			char buf[256];
+			snprintf(buf, sizeof(buf),
+				 "Unable to connect to VNC at %s:%i",
+				 vnc_server, vnc_port);
+			gui_error(buf);
+			return;
+		}
+		myFormatSetup();
 
-        if (!SetFormatAndEncodings()) return;
+		if (!SetFormatAndEncodings()) return;
 
-        printf("Connection Successful\n");
+		printf("Connection Successful\n");
 
 #ifdef MVPMC_HOST
 		vnc_widget = mvpw_create_surface(NULL, 0, 0, si.cols, si.rows, 0, 0, 0, True);
@@ -6128,43 +6128,43 @@ main_select_callback(mvp_widget_t *widget, char *item, void *key)
 #endif
 		screensaver_disable();
 		mvpw_set_key(vnc_widget, vnc_key_callback);
-        
-        mvpw_get_surface_attr(vnc_widget, &surface);
+
+		mvpw_get_surface_attr(vnc_widget, &surface);
 		surface.fd = rfbsock;
 		mvpw_set_surface_attr(vnc_widget, &surface);
-		mvpw_set_fdinput(vnc_widget, vnc_fdinput_callback);	
+		mvpw_set_fdinput(vnc_widget, vnc_fdinput_callback);     
 		GrRegisterInput(rfbsock); /* register the RFB socket */
 		mvpw_set_timer(vnc_widget, vnc_timer_callback, 100); 
 
 		mvpw_hide(mvpmc_logo);
 		mvpw_hide(main_menu);
 		mvpw_show(vnc_widget);
-		mvpw_focus(vnc_widget);	
+		mvpw_focus(vnc_widget); 
 
 		canvas = surface.wid;
 		break;
 	case MM_EMULATE:
-        myFormatSetup();
+		myFormatSetup();
 		screensaver_disable();
 		switch_gui_state(MVPMC_STATE_EMULATE);
-        if (mvp_server_init() == -1 ) {
-            return;
-        }
-        printf("Connection Successful\n");
+		if (mvp_server_init() == -1 ) {
+			return;
+		}
+		printf("Connection Successful\n");
 
 #ifdef MVPMC_HOST
 		vnc_widget = mvpw_create_surface(NULL, 0, 0, si.cols, si.rows, MVPW_TRANSPARENT, 0, 0, True);
 #else
 		vnc_widget = mvpw_create_surface(NULL, 30, 30, si.cols - 60, si.rows - 60, MVPW_TRANSPARENT, 0, 0, False);
 #endif
-        mvpw_get_surface_attr(vnc_widget, &surface);
+		mvpw_get_surface_attr(vnc_widget, &surface);
 		surface.fd = rfbsock;
-        surface.foreground = MVPW_TRANSPARENT;
+		surface.foreground = MVPW_TRANSPARENT;
 		GrRegisterInput(rfbsock); /* register the RFB socket */
 		mvpw_set_surface_attr(vnc_widget, &surface);
-        mvp_server_register();
+		mvp_server_register();
 		mvpw_hide(mvpmc_logo);
-        mvpw_hide(emulate_image);
+		mvpw_hide(emulate_image);
 		mvpw_hide(main_menu);
 		mvpw_show(vnc_widget);
 		mvpw_focus(vnc_widget);
@@ -6172,6 +6172,7 @@ main_select_callback(mvp_widget_t *widget, char *item, void *key)
 		break;
 	}
 }
+
 
 static void
 main_hilite_callback(mvp_widget_t *widget, char *item, void *key, bool hilite)
@@ -7834,23 +7835,27 @@ void myFormatSetup(void)
 
 void mvp_server_stop(void);
 void mvp_server_remote_key(char key);
+void mvp_server_reset_state(void);
 
 void mvp_key_callback(mvp_widget_t *widget, char key)
 {
-    static int wasGo = 0;
-	if(key==MVPW_KEY_POWER || (wasGo==1 && key==MVPW_KEY_EXIT)) {
-        wasGo = 0;
-        mvp_server_stop();
+	static int wasGo = 0;
+	if (key==MVPW_KEY_POWER || (wasGo==1 && key==MVPW_KEY_EXIT)) {
+		wasGo = 0;
+		mvp_server_stop();
 		mvpw_destroy(widget);
 		mvpw_show(main_menu);
-        mvpw_show(emulate_image);
-        mvpw_show(mvpmc_logo);
-        mvpw_focus(main_menu);
+		mvpw_show(emulate_image);
+		mvpw_show(mvpmc_logo);
+		mvpw_focus(main_menu);
 		screensaver_enable();
-	} else if(wasGo==0 && key==MVPW_KEY_GO) {
-        wasGo = 1;
-    } else {
-        wasGo = 0;
-        mvp_server_remote_key(key);
-    }
+	} else if (wasGo==0 && key==MVPW_KEY_GO) {
+		wasGo = 1;
+	} else if (wasGo==1 && key==MVPW_KEY_OK) {
+		wasGo = 0;
+		mvp_server_reset_state();
+	} else {
+		wasGo = 0;
+		mvp_server_remote_key(key);
+	}
 }

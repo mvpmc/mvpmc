@@ -13583,3 +13583,1446 @@ diff -Nur jpeg-6b.orig/transupp.h jpeg-6b/transupp.h
  
  #endif /* TRANSFORMS_SUPPORTED */
  
+diff -Nur jpeg-6b.orig/jdcoefct.c jpeg-6b/jdcoefct.c
+--- jpeg-6b.orig/jdcoefct.c	2007-03-10 13:22:28.000000000 +0100
++++ jpeg-6b/jdcoefct.c	2007-03-10 13:28:17.000000000 +0100
+@@ -155,6 +155,8 @@
+   JDIMENSION start_col, output_col;
+   jpeg_component_info *compptr;
+   inverse_DCT_method_ptr inverse_DCT;
++  JCOEFPTR buffer;
++  int block_size;
+ 
+   /* Loop to process as much as one whole iMCU row */
+   for (yoffset = coef->MCU_vert_offset; yoffset < coef->MCU_rows_per_iMCU_row;
+@@ -175,11 +177,15 @@
+        * incremented past them!).  Note the inner loop relies on having
+        * allocated the MCU_buffer[] blocks sequentially.
+        */
++      buffer = (JCOEFPTR) coef->MCU_buffer[0];
+       blkn = 0;			/* index of current DCT block within MCU */
+       for (ci = 0; ci < cinfo->comps_in_scan; ci++) {
+ 	compptr = cinfo->cur_comp_info[ci];
++	block_size = (compptr->DCT_h_scaled_size<DCTSIZE ? compptr->DCT_h_scaled_size : DCTSIZE)*
++	             (compptr->DCT_v_scaled_size<DCTSIZE ? compptr->DCT_v_scaled_size : DCTSIZE);
+ 	/* Don't bother to IDCT an uninteresting component. */
+ 	if (! compptr->component_needed) {
++	  buffer += compptr->MCU_blocks*block_size;
+ 	  blkn += compptr->MCU_blocks;
+ 	  continue;
+ 	}
+@@ -194,12 +200,14 @@
+ 	      yoffset+yindex < compptr->last_row_height) {
+ 	    output_col = start_col;
+ 	    for (xindex = 0; xindex < useful_width; xindex++) {
+-	      (*inverse_DCT) (cinfo, compptr,
+-			      (JCOEFPTR) coef->MCU_buffer[blkn+xindex],
++	      (*inverse_DCT) (cinfo, compptr, buffer,
+ 			      output_ptr, output_col);
++	      buffer += block_size;
+ 	      output_col += compptr->DCT_h_scaled_size;
+ 	    }
++	    buffer -= xindex*block_size;
+ 	  }
++	  buffer += compptr->MCU_width*block_size;
+ 	  blkn += compptr->MCU_width;
+ 	  output_ptr += compptr->DCT_v_scaled_size;
+ 	}
+@@ -250,6 +258,7 @@
+   JBLOCKARRAY buffer[MAX_COMPS_IN_SCAN];
+   JBLOCKROW buffer_ptr;
+   jpeg_component_info *compptr;
++  int block_size;
+ 
+   /* Align the virtual buffers for the components used in this scan. */
+   for (ci = 0; ci < cinfo->comps_in_scan; ci++) {
+@@ -273,11 +282,14 @@
+       blkn = 0;			/* index of current DCT block within MCU */
+       for (ci = 0; ci < cinfo->comps_in_scan; ci++) {
+ 	compptr = cinfo->cur_comp_info[ci];
++	block_size = (compptr->DCT_h_scaled_size<DCTSIZE ? compptr->DCT_h_scaled_size : DCTSIZE)*
++	             (compptr->DCT_v_scaled_size<DCTSIZE ? compptr->DCT_v_scaled_size : DCTSIZE);
+ 	start_col = MCU_col_num * compptr->MCU_width;
+ 	for (yindex = 0; yindex < compptr->MCU_height; yindex++) {
+-	  buffer_ptr = buffer[ci][yindex+yoffset] + start_col;
++	  buffer_ptr = (JBLOCKROW)((JCOEFPTR)buffer[ci][yindex+yoffset] + start_col*block_size);
+ 	  for (xindex = 0; xindex < compptr->MCU_width; xindex++) {
+-	    coef->MCU_buffer[blkn++] = buffer_ptr++;
++	    coef->MCU_buffer[blkn++] = buffer_ptr;
++	    buffer_ptr = (JBLOCKROW)((JCOEFPTR)buffer_ptr + block_size);
+ 	  }
+ 	}
+       }
+@@ -324,6 +336,7 @@
+   JDIMENSION output_col;
+   jpeg_component_info *compptr;
+   inverse_DCT_method_ptr inverse_DCT;
++  int block_size;
+ 
+   /* Force some input to be done if we are getting ahead of the input. */
+   while (cinfo->input_scan_number < cinfo->output_scan_number ||
+@@ -336,6 +349,8 @@
+   /* OK, output from the virtual arrays. */
+   for (ci = 0, compptr = cinfo->comp_info; ci < cinfo->num_components;
+        ci++, compptr++) {
++    block_size = (compptr->DCT_h_scaled_size<DCTSIZE ? compptr->DCT_h_scaled_size : DCTSIZE)*
++                 (compptr->DCT_v_scaled_size<DCTSIZE ? compptr->DCT_v_scaled_size : DCTSIZE);
+     /* Don't bother to IDCT an uninteresting component. */
+     if (! compptr->component_needed)
+       continue;
+@@ -361,7 +376,7 @@
+       for (block_num = 0; block_num < compptr->width_in_blocks; block_num++) {
+ 	(*inverse_DCT) (cinfo, compptr, (JCOEFPTR) buffer_ptr,
+ 			output_ptr, output_col);
+-	buffer_ptr++;
++	buffer_ptr = (JBLOCKROW)((JCOEFPTR)buffer_ptr + block_size);
+ 	output_col += compptr->DCT_h_scaled_size;
+       }
+       output_ptr += compptr->DCT_v_scaled_size;
+@@ -676,6 +691,7 @@
+ jinit_d_coef_controller (j_decompress_ptr cinfo, boolean need_full_buffer)
+ {
+   my_coef_ptr coef;
++  int block_size;
+ 
+   coef = (my_coef_ptr)
+     (*cinfo->mem->alloc_small) ((j_common_ptr) cinfo, JPOOL_IMAGE,
+@@ -698,6 +714,8 @@
+ 
+     for (ci = 0, compptr = cinfo->comp_info; ci < cinfo->num_components;
+ 	 ci++, compptr++) {
++      block_size = (compptr->DCT_h_scaled_size<DCTSIZE ? compptr->DCT_h_scaled_size : DCTSIZE)*
++                   (compptr->DCT_v_scaled_size<DCTSIZE ? compptr->DCT_v_scaled_size : DCTSIZE);
+       access_rows = compptr->v_samp_factor;
+ #ifdef BLOCK_SMOOTHING_SUPPORTED
+       /* If block smoothing could be used, need a bigger window */
+@@ -706,8 +724,9 @@
+ #endif
+       coef->whole_image[ci] = (*cinfo->mem->request_virt_barray)
+ 	((j_common_ptr) cinfo, JPOOL_IMAGE, TRUE,
+-	 (JDIMENSION) jround_up((long) compptr->width_in_blocks,
+-				(long) compptr->h_samp_factor),
++	 (JDIMENSION) jdiv_round_up(block_size*
++		      jround_up((long) compptr->width_in_blocks,
++				(long) compptr->h_samp_factor), 64),
+ 	 (JDIMENSION) jround_up((long) compptr->height_in_blocks,
+ 				(long) compptr->v_samp_factor),
+ 	 (JDIMENSION) access_rows);
+diff -Nur jpeg-6b.orig/jdhuff.c jpeg-6b/jdhuff.c
+--- jpeg-6b.orig/jdhuff.c	2007-03-10 13:22:28.000000000 +0100
++++ jpeg-6b/jdhuff.c	2007-03-04 21:39:21.000000000 +0100
+@@ -527,6 +527,8 @@
+   int blkn;
+   BITREAD_STATE_VARS;
+   savable_state state;
++  int zig, block_width, block_height;
++  JBLOCKROW block;
+ 
+   /* Process restart marker if needed; may have to suspend */
+   if (cinfo->restart_interval) {
+@@ -546,8 +548,8 @@
+ 
+     /* Outer loop handles each block in the MCU */
+ 
++    block = MCU_data[0];
+     for (blkn = 0; blkn < cinfo->blocks_in_MCU; blkn++) {
+-      JBLOCKROW block = MCU_data[blkn];
+       d_derived_tbl * htbl;
+       register int s, k, r;
+       int coef_limit, ci;
+@@ -573,6 +575,10 @@
+ 	state.last_dc_val[ci] = s;
+ 	/* Output the DC coefficient */
+ 	(*block)[0] = (JCOEF) s;
++	block_height = cinfo->cur_comp_info[ci]->DCT_v_scaled_size;
++	block_width = cinfo->cur_comp_info[ci]->DCT_h_scaled_size;
++	block_height = block_height<DCTSIZE ? block_height : DCTSIZE;
++	block_width = block_width<DCTSIZE ? block_width : DCTSIZE;
+ 
+ 	/* Section F.2.2.2: decode the AC coefficients */
+ 	/* Since zeroes are skipped, output area must be cleared beforehand */
+@@ -591,7 +597,12 @@
+ 	     * Note: the extra entries in jpeg_natural_order[] will save us
+ 	     * if k >= DCTSIZE2, which could happen if the data is corrupted.
+ 	     */
+-	    (*block)[jpeg_natural_order[k]] = (JCOEF) s;
++	    zig = jpeg_natural_order[k] % DCTSIZE;
++	    if( zig<block_width ) {
++	      zig += (jpeg_natural_order[k] / DCTSIZE) * block_width;
++              if( zig<block_width*block_height )
++	        (*block)[zig] = (JCOEF) s;
++	    }
+ 	  } else {
+ 	    if (r != 15)
+ 	      goto EndOfBlock;
+@@ -625,6 +636,7 @@
+ 	}
+ 
+       EndOfBlock: ;
++      block = (JBLOCKROW)((JCOEFPTR)block + block_width*block_height);
+     }
+ 
+     /* Completed MCU, so update state */
+diff -Nur jpeg-6b.orig/jdphuff.c jpeg-6b/jdphuff.c
+--- jpeg-6b.orig/jdphuff.c	1997-10-21 01:42:33.000000000 +0100
++++ jpeg-6b/jdphuff.c	2007-03-10 13:32:41.000000000 +0100
+@@ -364,6 +364,11 @@
+   JBLOCKROW block;
+   BITREAD_STATE_VARS;
+   d_derived_tbl * tbl;
++  int zig, block_width, block_height;
++  block_height = cinfo->cur_comp_info[0]->DCT_v_scaled_size;
++  block_width = cinfo->cur_comp_info[0]->DCT_h_scaled_size;
++  block_height = block_height<DCTSIZE ? block_height : DCTSIZE;
++  block_width = block_width<DCTSIZE ? block_width : DCTSIZE;
+ 
+   /* Process restart marker if needed; may have to suspend */
+   if (cinfo->restart_interval) {
+@@ -401,7 +406,12 @@
+ 	  r = GET_BITS(s);
+ 	  s = HUFF_EXTEND(r, s);
+ 	  /* Scale and output coefficient in natural (dezigzagged) order */
+-	  (*block)[jpeg_natural_order[k]] = (JCOEF) (s << Al);
++	  zig = jpeg_natural_order[k] % DCTSIZE;
++	  if( zig<block_width ) {
++	    zig += (jpeg_natural_order[k] / DCTSIZE) * block_width;
++            if( zig<block_width*block_height )
++	      (*block)[zig] = (JCOEF) (s << Al);
++          }
+ 	} else {
+ 	  if (r == 15) {	/* ZRL */
+ 	    k += 15;		/* skip 15 zeroes in band */
+@@ -502,6 +512,11 @@
+   d_derived_tbl * tbl;
+   int num_newnz;
+   int newnz_pos[DCTSIZE2];
++  int zig, block_height, block_width;
++  block_height = cinfo->cur_comp_info[0]->DCT_v_scaled_size;
++  block_width = cinfo->cur_comp_info[0]->DCT_h_scaled_size;
++  block_height = block_height<DCTSIZE ? block_height : DCTSIZE;
++  block_width = block_width<DCTSIZE ? block_width : DCTSIZE;
+ 
+   /* Process restart marker if needed; may have to suspend */
+   if (cinfo->restart_interval) {
+@@ -563,7 +578,11 @@
+ 	 * if the absolute value of the coefficient must be increased.
+ 	 */
+ 	do {
+-	  thiscoef = *block + jpeg_natural_order[k];
++zig = jpeg_natural_order[k] % DCTSIZE;
++if( zig<block_width ) {
++  zig += (jpeg_natural_order[k] / DCTSIZE) * block_width;
++  if( zig<block_width*block_height ) {
++	  thiscoef = *block + zig;
+ 	  if (*thiscoef != 0) {
+ 	    CHECK_BIT_BUFFER(br_state, 1, goto undoit);
+ 	    if (GET_BITS(1)) {
+@@ -578,14 +597,22 @@
+ 	    if (--r < 0)
+ 	      break;		/* reached target zero coefficient */
+ 	  }
++  }
++}
+ 	  k++;
+ 	} while (k <= Se);
+ 	if (s) {
+-	  int pos = jpeg_natural_order[k];
++zig = jpeg_natural_order[k] % DCTSIZE;
++if( zig<block_width ) {
++  zig += (jpeg_natural_order[k] / DCTSIZE) * block_width;
++  if( zig<block_width*block_height ) {
++	  int pos = zig;
+ 	  /* Output newly nonzero coefficient */
+ 	  (*block)[pos] = (JCOEF) s;
+ 	  /* Remember its position in case we have to suspend */
+ 	  newnz_pos[num_newnz++] = pos;
++  }
++}
+ 	}
+       }
+     }
+@@ -597,7 +624,11 @@
+        * if the absolute value of the coefficient must be increased.
+        */
+       for (; k <= Se; k++) {
+-	thiscoef = *block + jpeg_natural_order[k];
++zig = jpeg_natural_order[k] % DCTSIZE;
++if( zig<block_width ) {
++  zig += (jpeg_natural_order[k] / DCTSIZE) * block_width;
++  if( zig<block_width*block_height ) {
++	thiscoef = *block + zig;
+ 	if (*thiscoef != 0) {
+ 	  CHECK_BIT_BUFFER(br_state, 1, goto undoit);
+ 	  if (GET_BITS(1)) {
+@@ -609,6 +640,8 @@
+ 	    }
+ 	  }
+ 	}
++  }
++}
+       }
+       /* Count one block completed in EOB run */
+       EOBRUN--;
+diff -Nur jpeg-6b.orig/jidctred.c jpeg-6b/jidctred.c
+--- jpeg-6b.orig/jidctred.c	2007-03-10 13:22:28.000000000 +0100
++++ jpeg-6b/jidctred.c	2007-03-10 13:20:59.000000000 +0100
+@@ -49,7 +49,7 @@
+ #if DCTSIZE != 8
+   Sorry, this code only copes with 8x8 DCTs. /* deliberate syntax err */
+ #endif
+-
++#define rDCTSIZE DCTSIZE
+ 
+ /* Scaling is the same as in jidctint.c. */
+ 
+@@ -128,6 +128,8 @@
+  * cK represents sqrt(2) * cos(K*pi/14).
+  */
+ 
++#undef rDCTSIZE
++#define rDCTSIZE 7
+ GLOBAL(void)
+ jpeg_idct_7x7 (j_decompress_ptr cinfo, jpeg_component_info * compptr,
+ 	       JCOEFPTR coef_block,
+@@ -152,12 +154,12 @@
+   for (ctr = 0; ctr < 7; ctr++, inptr++, quantptr++, wsptr++) {
+     /* Even part */
+ 
+-    tmp13 = DEQUANTIZE(inptr[DCTSIZE*0], quantptr[DCTSIZE*0]);
++    tmp13 = DEQUANTIZE(inptr[rDCTSIZE*0], quantptr[DCTSIZE*0]);
+     tmp13 <<= CONST_BITS;
+ 
+-    z1 = DEQUANTIZE(inptr[DCTSIZE*2], quantptr[DCTSIZE*2]);
+-    z2 = DEQUANTIZE(inptr[DCTSIZE*4], quantptr[DCTSIZE*4]);
+-    z3 = DEQUANTIZE(inptr[DCTSIZE*6], quantptr[DCTSIZE*6]);
++    z1 = DEQUANTIZE(inptr[rDCTSIZE*2], quantptr[DCTSIZE*2]);
++    z2 = DEQUANTIZE(inptr[rDCTSIZE*4], quantptr[DCTSIZE*4]);
++    z3 = DEQUANTIZE(inptr[rDCTSIZE*6], quantptr[DCTSIZE*6]);
+ 
+     tmp10 = MULTIPLY(z2 - z3, FIX(0.881747734));     /* c4 */
+     tmp12 = MULTIPLY(z1 - z2, FIX(0.314692123));     /* c6 */
+@@ -171,9 +173,9 @@
+ 
+     /* Odd part */
+ 
+-    z1 = DEQUANTIZE(inptr[DCTSIZE*1], quantptr[DCTSIZE*1]);
+-    z2 = DEQUANTIZE(inptr[DCTSIZE*3], quantptr[DCTSIZE*3]);
+-    z3 = DEQUANTIZE(inptr[DCTSIZE*5], quantptr[DCTSIZE*5]);
++    z1 = DEQUANTIZE(inptr[rDCTSIZE*1], quantptr[DCTSIZE*1]);
++    z2 = DEQUANTIZE(inptr[rDCTSIZE*3], quantptr[DCTSIZE*3]);
++    z3 = DEQUANTIZE(inptr[rDCTSIZE*5], quantptr[DCTSIZE*5]);
+ 
+     tmp1 = MULTIPLY(z1 + z2, FIX(0.935414347));      /* (c3+c1-c5)/2 */
+     tmp2 = MULTIPLY(z1 - z2, FIX(0.170262339));      /* (c3+c5-c1)/2 */
+@@ -274,6 +276,8 @@
+  * cK represents sqrt(2) * cos(K*pi/12).
+  */
+ 
++#undef rDCTSIZE
++#define rDCTSIZE 6
+ GLOBAL(void)
+ jpeg_idct_6x6 (j_decompress_ptr cinfo, jpeg_component_info * compptr,
+ 	       JCOEFPTR coef_block,
+@@ -298,22 +302,22 @@
+   for (ctr = 0; ctr < 6; ctr++, inptr++, quantptr++, wsptr++) {
+     /* Even part */
+ 
+-    tmp0 = DEQUANTIZE(inptr[DCTSIZE*0], quantptr[DCTSIZE*0]);
++    tmp0 = DEQUANTIZE(inptr[rDCTSIZE*0], quantptr[DCTSIZE*0]);
+     tmp0 <<= CONST_BITS;
+-    tmp2 = DEQUANTIZE(inptr[DCTSIZE*4], quantptr[DCTSIZE*4]);
++    tmp2 = DEQUANTIZE(inptr[rDCTSIZE*4], quantptr[DCTSIZE*4]);
+     tmp10 = MULTIPLY(tmp2, FIX(0.707106781));   /* c4 */
+     tmp1 = tmp0 + tmp10;
+     tmp11 = DESCALE(tmp0 - tmp10 - tmp10, CONST_BITS-PASS1_BITS);
+-    tmp10 = DEQUANTIZE(inptr[DCTSIZE*2], quantptr[DCTSIZE*2]);
++    tmp10 = DEQUANTIZE(inptr[rDCTSIZE*2], quantptr[DCTSIZE*2]);
+     tmp0 = MULTIPLY(tmp10, FIX(1.224744871));   /* c2 */
+     tmp10 = tmp1 + tmp0;
+     tmp12 = tmp1 - tmp0;
+ 
+     /* Odd part */
+ 
+-    z1 = DEQUANTIZE(inptr[DCTSIZE*1], quantptr[DCTSIZE*1]);
+-    z2 = DEQUANTIZE(inptr[DCTSIZE*3], quantptr[DCTSIZE*3]);
+-    z3 = DEQUANTIZE(inptr[DCTSIZE*5], quantptr[DCTSIZE*5]);
++    z1 = DEQUANTIZE(inptr[rDCTSIZE*1], quantptr[DCTSIZE*1]);
++    z2 = DEQUANTIZE(inptr[rDCTSIZE*3], quantptr[DCTSIZE*3]);
++    z3 = DEQUANTIZE(inptr[rDCTSIZE*5], quantptr[DCTSIZE*5]);
+     tmp1 = MULTIPLY(z1 + z3, FIX(0.366025404)); /* c5 */
+     tmp0 = tmp1 + ((z1 + z2) << CONST_BITS);
+     tmp2 = tmp1 + ((z3 - z2) << CONST_BITS);
+@@ -395,6 +399,8 @@
+  * cK represents sqrt(2) * cos(K*pi/10).
+  */
+ 
++#undef rDCTSIZE
++#define rDCTSIZE 5
+ GLOBAL(void)
+ jpeg_idct_5x5 (j_decompress_ptr cinfo, jpeg_component_info * compptr,
+ 	       JCOEFPTR coef_block,
+@@ -419,10 +425,10 @@
+   for (ctr = 0; ctr < 5; ctr++, inptr++, quantptr++, wsptr++) {
+     /* Even part */
+ 
+-    tmp12 = DEQUANTIZE(inptr[DCTSIZE*0], quantptr[DCTSIZE*0]);
++    tmp12 = DEQUANTIZE(inptr[rDCTSIZE*0], quantptr[DCTSIZE*0]);
+     tmp12 <<= CONST_BITS;
+-    tmp0 = DEQUANTIZE(inptr[DCTSIZE*2], quantptr[DCTSIZE*2]);
+-    tmp1 = DEQUANTIZE(inptr[DCTSIZE*4], quantptr[DCTSIZE*4]);
++    tmp0 = DEQUANTIZE(inptr[rDCTSIZE*2], quantptr[DCTSIZE*2]);
++    tmp1 = DEQUANTIZE(inptr[rDCTSIZE*4], quantptr[DCTSIZE*4]);
+     z1 = MULTIPLY(tmp0 + tmp1, FIX(0.790569415)); /* (c2+c4)/2 */
+     z2 = MULTIPLY(tmp0 - tmp1, FIX(0.353553391)); /* (c2-c4)/2 */
+     z3 = tmp12 + z2;
+@@ -432,8 +438,8 @@
+ 
+     /* Odd part */
+ 
+-    z2 = DEQUANTIZE(inptr[DCTSIZE*1], quantptr[DCTSIZE*1]);
+-    z3 = DEQUANTIZE(inptr[DCTSIZE*3], quantptr[DCTSIZE*3]);
++    z2 = DEQUANTIZE(inptr[rDCTSIZE*1], quantptr[DCTSIZE*1]);
++    z3 = DEQUANTIZE(inptr[rDCTSIZE*3], quantptr[DCTSIZE*3]);
+ 
+     z1 = MULTIPLY(z2 + z3, FIX(0.831253876));     /* c3 */
+     tmp0 = z1 + MULTIPLY(z2, FIX(0.513743148));   /* c1-c3 */
+@@ -507,6 +513,8 @@
+  * cK represents sqrt(2) * cos(K*pi/16) [refers to 8-point IDCT].
+  */
+ 
++#undef rDCTSIZE
++#define rDCTSIZE 4
+ GLOBAL(void)
+ jpeg_idct_4x4 (j_decompress_ptr cinfo, jpeg_component_info * compptr,
+ 	       JCOEFPTR coef_block,
+@@ -531,8 +539,8 @@
+   for (ctr = 0; ctr < 4; ctr++, inptr++, quantptr++, wsptr++) {
+     /* Even part */
+ 
+-    tmp0 = DEQUANTIZE(inptr[DCTSIZE*0], quantptr[DCTSIZE*0]);
+-    tmp2 = DEQUANTIZE(inptr[DCTSIZE*2], quantptr[DCTSIZE*2]);
++    tmp0 = DEQUANTIZE(inptr[rDCTSIZE*0], quantptr[DCTSIZE*0]);
++    tmp2 = DEQUANTIZE(inptr[rDCTSIZE*2], quantptr[DCTSIZE*2]);
+     
+     tmp10 = (tmp0 + tmp2) << PASS1_BITS;
+     tmp12 = (tmp0 - tmp2) << PASS1_BITS;
+@@ -540,8 +548,8 @@
+     /* Odd part */
+     /* Same rotation as in the even part of the 8x8 LL&M IDCT */
+ 
+-    z2 = DEQUANTIZE(inptr[DCTSIZE*1], quantptr[DCTSIZE*1]);
+-    z3 = DEQUANTIZE(inptr[DCTSIZE*3], quantptr[DCTSIZE*3]);
++    z2 = DEQUANTIZE(inptr[rDCTSIZE*1], quantptr[DCTSIZE*1]);
++    z3 = DEQUANTIZE(inptr[rDCTSIZE*3], quantptr[DCTSIZE*3]);
+ 
+     z1 = MULTIPLY(z2 + z3, FIX_0_541196100);             /* c6 */
+     tmp0 = DESCALE(z1 + MULTIPLY(z3, - FIX_1_847759065), /* -(c2+c6) */
+@@ -609,6 +617,8 @@
+  * cK represents sqrt(2) * cos(K*pi/6).
+  */
+ 
++#undef rDCTSIZE
++#define rDCTSIZE 3
+ GLOBAL(void)
+ jpeg_idct_3x3 (j_decompress_ptr cinfo, jpeg_component_info * compptr,
+ 	       JCOEFPTR coef_block,
+@@ -632,16 +642,16 @@
+   for (ctr = 0; ctr < 3; ctr++, inptr++, quantptr++, wsptr++) {
+     /* Even part */
+ 
+-    tmp0 = DEQUANTIZE(inptr[DCTSIZE*0], quantptr[DCTSIZE*0]);
++    tmp0 = DEQUANTIZE(inptr[rDCTSIZE*0], quantptr[DCTSIZE*0]);
+     tmp0 <<= CONST_BITS;
+-    tmp2 = DEQUANTIZE(inptr[DCTSIZE*2], quantptr[DCTSIZE*2]);
++    tmp2 = DEQUANTIZE(inptr[rDCTSIZE*2], quantptr[DCTSIZE*2]);
+     tmp12 = MULTIPLY(tmp2, FIX(0.707106781)); /* c2 */
+     tmp10 = tmp0 + tmp12;
+     tmp2 = tmp0 - tmp12 - tmp12;
+ 
+     /* Odd part */
+ 
+-    tmp12 = DEQUANTIZE(inptr[DCTSIZE*1], quantptr[DCTSIZE*1]);
++    tmp12 = DEQUANTIZE(inptr[rDCTSIZE*1], quantptr[DCTSIZE*1]);
+     tmp0 = MULTIPLY(tmp12, FIX(1.224744871)); /* c1 */
+ 
+     /* Final output stage */
+@@ -695,6 +705,8 @@
+  * Multiplication-less algorithm.
+  */
+ 
++#undef rDCTSIZE
++#define rDCTSIZE 2
+ GLOBAL(void)
+ jpeg_idct_2x2 (j_decompress_ptr cinfo, jpeg_component_info * compptr,
+ 	       JCOEFPTR coef_block,
+@@ -711,15 +723,15 @@
+   quantptr = (ISLOW_MULT_TYPE *) compptr->dct_table;
+ 
+   /* Column 0 */
+-  tmp4 = DEQUANTIZE(coef_block[DCTSIZE*0], quantptr[DCTSIZE*0]);
+-  tmp5 = DEQUANTIZE(coef_block[DCTSIZE*1], quantptr[DCTSIZE*1]);
++  tmp4 = DEQUANTIZE(coef_block[rDCTSIZE*0], quantptr[DCTSIZE*0]);
++  tmp5 = DEQUANTIZE(coef_block[rDCTSIZE*1], quantptr[DCTSIZE*1]);
+ 
+   tmp0 = tmp4 + tmp5;
+   tmp2 = tmp4 - tmp5;
+ 
+   /* Column 1 */
+-  tmp4 = DEQUANTIZE(coef_block[DCTSIZE*0+1], quantptr[DCTSIZE*0+1]);
+-  tmp5 = DEQUANTIZE(coef_block[DCTSIZE*1+1], quantptr[DCTSIZE*1+1]);
++  tmp4 = DEQUANTIZE(coef_block[rDCTSIZE*0+1], quantptr[DCTSIZE*0+1]);
++  tmp5 = DEQUANTIZE(coef_block[rDCTSIZE*1+1], quantptr[DCTSIZE*1+1]);
+ 
+   tmp1 = tmp4 + tmp5;
+   tmp3 = tmp4 - tmp5;
+@@ -748,6 +760,8 @@
+  * average pixel value, which is one-eighth of the DC coefficient.
+  */
+ 
++#undef rDCTSIZE
++#define rDCTSIZE 1
+ GLOBAL(void)
+ jpeg_idct_1x1 (j_decompress_ptr cinfo, jpeg_component_info * compptr,
+ 	       JCOEFPTR coef_block,
+@@ -775,6 +789,8 @@
+  * cK represents sqrt(2) * cos(K*pi/18).
+  */
+ 
++#undef rDCTSIZE
++#define rDCTSIZE 8
+ GLOBAL(void)
+ jpeg_idct_9x9 (j_decompress_ptr cinfo, jpeg_component_info * compptr,
+ 	       JCOEFPTR coef_block,
+@@ -799,12 +815,12 @@
+   for (ctr = 0; ctr < 8; ctr++, inptr++, quantptr++, wsptr++) {
+     /* Even part */
+ 
+-    tmp0 = DEQUANTIZE(inptr[DCTSIZE*0], quantptr[DCTSIZE*0]);
++    tmp0 = DEQUANTIZE(inptr[rDCTSIZE*0], quantptr[DCTSIZE*0]);
+     tmp0 <<= CONST_BITS;
+ 
+-    z1 = DEQUANTIZE(inptr[DCTSIZE*2], quantptr[DCTSIZE*2]);
+-    z2 = DEQUANTIZE(inptr[DCTSIZE*4], quantptr[DCTSIZE*4]);
+-    z3 = DEQUANTIZE(inptr[DCTSIZE*6], quantptr[DCTSIZE*6]);
++    z1 = DEQUANTIZE(inptr[rDCTSIZE*2], quantptr[DCTSIZE*2]);
++    z2 = DEQUANTIZE(inptr[rDCTSIZE*4], quantptr[DCTSIZE*4]);
++    z3 = DEQUANTIZE(inptr[rDCTSIZE*6], quantptr[DCTSIZE*6]);
+ 
+     tmp3 = MULTIPLY(z3, FIX(0.707106781));      /* c6 */
+     tmp1 = tmp0 + tmp3;
+@@ -824,10 +840,10 @@
+ 
+     /* Odd part */
+ 
+-    z1 = DEQUANTIZE(inptr[DCTSIZE*1], quantptr[DCTSIZE*1]);
+-    z2 = DEQUANTIZE(inptr[DCTSIZE*3], quantptr[DCTSIZE*3]);
+-    z3 = DEQUANTIZE(inptr[DCTSIZE*5], quantptr[DCTSIZE*5]);
+-    z4 = DEQUANTIZE(inptr[DCTSIZE*7], quantptr[DCTSIZE*7]);
++    z1 = DEQUANTIZE(inptr[rDCTSIZE*1], quantptr[DCTSIZE*1]);
++    z2 = DEQUANTIZE(inptr[rDCTSIZE*3], quantptr[DCTSIZE*3]);
++    z3 = DEQUANTIZE(inptr[rDCTSIZE*5], quantptr[DCTSIZE*5]);
++    z4 = DEQUANTIZE(inptr[rDCTSIZE*7], quantptr[DCTSIZE*7]);
+ 
+     z2 = MULTIPLY(z2, - FIX(1.224744871));           /* -c3 */
+ 
+@@ -969,9 +985,9 @@
+   for (ctr = 0; ctr < 8; ctr++, inptr++, quantptr++, wsptr++) {
+     /* Even part */
+ 
+-    tmp0 = DEQUANTIZE(inptr[DCTSIZE*0], quantptr[DCTSIZE*0]);
++    tmp0 = DEQUANTIZE(inptr[rDCTSIZE*0], quantptr[DCTSIZE*0]);
+     tmp0 <<= CONST_BITS;
+-    tmp1 = DEQUANTIZE(inptr[DCTSIZE*4], quantptr[DCTSIZE*4]);
++    tmp1 = DEQUANTIZE(inptr[rDCTSIZE*4], quantptr[DCTSIZE*4]);
+     z1 = MULTIPLY(tmp1, FIX(1.144122806));      /* c4 */
+     z2 = MULTIPLY(tmp1, FIX(0.437016024));      /* c8 */
+     tmp10 = tmp0 + z1;
+@@ -980,8 +996,8 @@
+     tmp22 = DESCALE(tmp0 - ((z1 - z2) << 1),    /* c0 = (c4-c8)*2 */
+ 		    CONST_BITS-PASS1_BITS);
+ 
+-    z2 = DEQUANTIZE(inptr[DCTSIZE*2], quantptr[DCTSIZE*2]);
+-    z3 = DEQUANTIZE(inptr[DCTSIZE*6], quantptr[DCTSIZE*6]);
++    z2 = DEQUANTIZE(inptr[rDCTSIZE*2], quantptr[DCTSIZE*2]);
++    z3 = DEQUANTIZE(inptr[rDCTSIZE*6], quantptr[DCTSIZE*6]);
+ 
+     z1 = MULTIPLY(z2 + z3, FIX(0.831253876));   /* c6 */
+     tmp0 = z1 + MULTIPLY(z2, FIX(0.513743148)); /* c2-c6 */
+@@ -994,10 +1010,10 @@
+ 
+     /* Odd part */
+ 
+-    z1 = DEQUANTIZE(inptr[DCTSIZE*1], quantptr[DCTSIZE*1]);
+-    z2 = DEQUANTIZE(inptr[DCTSIZE*3], quantptr[DCTSIZE*3]);
+-    z3 = DEQUANTIZE(inptr[DCTSIZE*5], quantptr[DCTSIZE*5]);
+-    z4 = DEQUANTIZE(inptr[DCTSIZE*7], quantptr[DCTSIZE*7]);
++    z1 = DEQUANTIZE(inptr[rDCTSIZE*1], quantptr[DCTSIZE*1]);
++    z2 = DEQUANTIZE(inptr[rDCTSIZE*3], quantptr[DCTSIZE*3]);
++    z3 = DEQUANTIZE(inptr[rDCTSIZE*5], quantptr[DCTSIZE*5]);
++    z4 = DEQUANTIZE(inptr[rDCTSIZE*7], quantptr[DCTSIZE*7]);
+ 
+     tmp0 = z2 + z4;
+     tmp1 = z2 - z4;
+@@ -1161,12 +1177,12 @@
+   for (ctr = 0; ctr < 8; ctr++, inptr++, quantptr++, wsptr++) {
+     /* Even part */
+ 
+-    tmp10 = DEQUANTIZE(inptr[DCTSIZE*0], quantptr[DCTSIZE*0]);
++    tmp10 = DEQUANTIZE(inptr[rDCTSIZE*0], quantptr[DCTSIZE*0]);
+     tmp10 <<= CONST_BITS;
+ 
+-    z1 = DEQUANTIZE(inptr[DCTSIZE*2], quantptr[DCTSIZE*2]);
+-    z2 = DEQUANTIZE(inptr[DCTSIZE*4], quantptr[DCTSIZE*4]);
+-    z3 = DEQUANTIZE(inptr[DCTSIZE*6], quantptr[DCTSIZE*6]);
++    z1 = DEQUANTIZE(inptr[rDCTSIZE*2], quantptr[DCTSIZE*2]);
++    z2 = DEQUANTIZE(inptr[rDCTSIZE*4], quantptr[DCTSIZE*4]);
++    z3 = DEQUANTIZE(inptr[rDCTSIZE*6], quantptr[DCTSIZE*6]);
+ 
+     tmp20 = MULTIPLY(z2 - z3, FIX(2.546640132));     /* c2+c4 */
+     tmp23 = MULTIPLY(z2 - z1, FIX(0.430815045));     /* c2-c6 */
+@@ -1186,10 +1202,10 @@
+ 
+     /* Odd part */
+ 
+-    z1 = DEQUANTIZE(inptr[DCTSIZE*1], quantptr[DCTSIZE*1]);
+-    z2 = DEQUANTIZE(inptr[DCTSIZE*3], quantptr[DCTSIZE*3]);
+-    z3 = DEQUANTIZE(inptr[DCTSIZE*5], quantptr[DCTSIZE*5]);
+-    z4 = DEQUANTIZE(inptr[DCTSIZE*7], quantptr[DCTSIZE*7]);
++    z1 = DEQUANTIZE(inptr[rDCTSIZE*1], quantptr[DCTSIZE*1]);
++    z2 = DEQUANTIZE(inptr[rDCTSIZE*3], quantptr[DCTSIZE*3]);
++    z3 = DEQUANTIZE(inptr[rDCTSIZE*5], quantptr[DCTSIZE*5]);
++    z4 = DEQUANTIZE(inptr[rDCTSIZE*7], quantptr[DCTSIZE*7]);
+ 
+     tmp11 = z1 + z2;
+     tmp14 = MULTIPLY(tmp11 + z3 + z4, FIX(0.398430003)); /* c9 */
+@@ -1353,19 +1369,19 @@
+   for (ctr = 0; ctr < 8; ctr++, inptr++, quantptr++, wsptr++) {
+     /* Even part */
+ 
+-    tmp0 = DEQUANTIZE(inptr[DCTSIZE*0], quantptr[DCTSIZE*0]);
++    tmp0 = DEQUANTIZE(inptr[rDCTSIZE*0], quantptr[DCTSIZE*0]);
+     tmp0 <<= CONST_BITS;
+ 
+-    z1 = DEQUANTIZE(inptr[DCTSIZE*4], quantptr[DCTSIZE*4]);
++    z1 = DEQUANTIZE(inptr[rDCTSIZE*4], quantptr[DCTSIZE*4]);
+     tmp1 = MULTIPLY(z1, FIX(1.224744871)); /* c4 */
+ 
+     tmp10 = tmp0 + tmp1;
+     tmp11 = tmp0 - tmp1;
+ 
+-    z1 = DEQUANTIZE(inptr[DCTSIZE*2], quantptr[DCTSIZE*2]);
++    z1 = DEQUANTIZE(inptr[rDCTSIZE*2], quantptr[DCTSIZE*2]);
+     tmp1 = MULTIPLY(z1, FIX(1.366025404)); /* c2 */
+     z1 <<= CONST_BITS;
+-    z2 = DEQUANTIZE(inptr[DCTSIZE*6], quantptr[DCTSIZE*6]);
++    z2 = DEQUANTIZE(inptr[rDCTSIZE*6], quantptr[DCTSIZE*6]);
+     z2 <<= CONST_BITS;
+ 
+     tmp12 = z1 - z2;
+@@ -1385,10 +1401,10 @@
+ 
+     /* Odd part */
+ 
+-    z1 = DEQUANTIZE(inptr[DCTSIZE*1], quantptr[DCTSIZE*1]);
+-    z2 = DEQUANTIZE(inptr[DCTSIZE*3], quantptr[DCTSIZE*3]);
+-    z3 = DEQUANTIZE(inptr[DCTSIZE*5], quantptr[DCTSIZE*5]);
+-    z4 = DEQUANTIZE(inptr[DCTSIZE*7], quantptr[DCTSIZE*7]);
++    z1 = DEQUANTIZE(inptr[rDCTSIZE*1], quantptr[DCTSIZE*1]);
++    z2 = DEQUANTIZE(inptr[rDCTSIZE*3], quantptr[DCTSIZE*3]);
++    z3 = DEQUANTIZE(inptr[rDCTSIZE*5], quantptr[DCTSIZE*5]);
++    z4 = DEQUANTIZE(inptr[rDCTSIZE*7], quantptr[DCTSIZE*7]);
+ 
+     tmp0 = MULTIPLY(z2, FIX(1.306562965));                  /* c3 */
+     tmp1 = MULTIPLY(z2, - FIX_0_541196100);                 /* -c9 */
+@@ -1566,12 +1582,12 @@
+   for (ctr = 0; ctr < 8; ctr++, inptr++, quantptr++, wsptr++) {
+     /* Even part */
+ 
+-    z1 = DEQUANTIZE(inptr[DCTSIZE*0], quantptr[DCTSIZE*0]);
++    z1 = DEQUANTIZE(inptr[rDCTSIZE*0], quantptr[DCTSIZE*0]);
+     z1 <<= CONST_BITS;
+ 
+-    z2 = DEQUANTIZE(inptr[DCTSIZE*2], quantptr[DCTSIZE*2]);
+-    z3 = DEQUANTIZE(inptr[DCTSIZE*4], quantptr[DCTSIZE*4]);
+-    z4 = DEQUANTIZE(inptr[DCTSIZE*6], quantptr[DCTSIZE*6]);
++    z2 = DEQUANTIZE(inptr[rDCTSIZE*2], quantptr[DCTSIZE*2]);
++    z3 = DEQUANTIZE(inptr[rDCTSIZE*4], quantptr[DCTSIZE*4]);
++    z4 = DEQUANTIZE(inptr[rDCTSIZE*6], quantptr[DCTSIZE*6]);
+ 
+     tmp10 = z3 + z4;
+     tmp11 = z3 - z4;
+@@ -1598,10 +1614,10 @@
+ 
+     /* Odd part */
+ 
+-    z1 = DEQUANTIZE(inptr[DCTSIZE*1], quantptr[DCTSIZE*1]);
+-    z2 = DEQUANTIZE(inptr[DCTSIZE*3], quantptr[DCTSIZE*3]);
+-    z3 = DEQUANTIZE(inptr[DCTSIZE*5], quantptr[DCTSIZE*5]);
+-    z4 = DEQUANTIZE(inptr[DCTSIZE*7], quantptr[DCTSIZE*7]);
++    z1 = DEQUANTIZE(inptr[rDCTSIZE*1], quantptr[DCTSIZE*1]);
++    z2 = DEQUANTIZE(inptr[rDCTSIZE*3], quantptr[DCTSIZE*3]);
++    z3 = DEQUANTIZE(inptr[rDCTSIZE*5], quantptr[DCTSIZE*5]);
++    z4 = DEQUANTIZE(inptr[rDCTSIZE*7], quantptr[DCTSIZE*7]);
+ 
+     tmp11 = MULTIPLY(z1 + z2, FIX(1.322312651));     /* c3 */
+     tmp12 = MULTIPLY(z1 + z3, FIX(1.163874945));     /* c5 */
+@@ -1791,9 +1807,9 @@
+   for (ctr = 0; ctr < 8; ctr++, inptr++, quantptr++, wsptr++) {
+     /* Even part */
+ 
+-    z1 = DEQUANTIZE(inptr[DCTSIZE*0], quantptr[DCTSIZE*0]);
++    z1 = DEQUANTIZE(inptr[rDCTSIZE*0], quantptr[DCTSIZE*0]);
+     z1 <<= CONST_BITS;
+-    z4 = DEQUANTIZE(inptr[DCTSIZE*4], quantptr[DCTSIZE*4]);
++    z4 = DEQUANTIZE(inptr[rDCTSIZE*4], quantptr[DCTSIZE*4]);
+     z2 = MULTIPLY(z4, FIX(1.274162392));         /* c4 */
+     z3 = MULTIPLY(z4, FIX(0.314692123));         /* c12 */
+     z4 = MULTIPLY(z4, FIX(0.881747734));         /* c8 */
+@@ -1805,8 +1821,8 @@
+     tmp23 = DESCALE(z1 - ((z2 + z3 - z4) << 1),  /* c0 = (c4+c12-c8)*2 */
+ 		    CONST_BITS-PASS1_BITS);
+ 
+-    z1 = DEQUANTIZE(inptr[DCTSIZE*2], quantptr[DCTSIZE*2]);
+-    z2 = DEQUANTIZE(inptr[DCTSIZE*6], quantptr[DCTSIZE*6]);
++    z1 = DEQUANTIZE(inptr[rDCTSIZE*2], quantptr[DCTSIZE*2]);
++    z2 = DEQUANTIZE(inptr[rDCTSIZE*6], quantptr[DCTSIZE*6]);
+ 
+     z3 = MULTIPLY(z1 + z2, FIX(1.105676686));    /* c6 */
+ 
+@@ -1824,10 +1840,10 @@
+ 
+     /* Odd part */
+ 
+-    z1 = DEQUANTIZE(inptr[DCTSIZE*1], quantptr[DCTSIZE*1]);
+-    z2 = DEQUANTIZE(inptr[DCTSIZE*3], quantptr[DCTSIZE*3]);
+-    z3 = DEQUANTIZE(inptr[DCTSIZE*5], quantptr[DCTSIZE*5]);
+-    z4 = DEQUANTIZE(inptr[DCTSIZE*7], quantptr[DCTSIZE*7]);
++    z1 = DEQUANTIZE(inptr[rDCTSIZE*1], quantptr[DCTSIZE*1]);
++    z2 = DEQUANTIZE(inptr[rDCTSIZE*3], quantptr[DCTSIZE*3]);
++    z3 = DEQUANTIZE(inptr[rDCTSIZE*5], quantptr[DCTSIZE*5]);
++    z4 = DEQUANTIZE(inptr[rDCTSIZE*7], quantptr[DCTSIZE*7]);
+     tmp13 = z4 << CONST_BITS;
+ 
+     tmp14 = z1 + z3;
+@@ -2014,12 +2030,12 @@
+   for (ctr = 0; ctr < 8; ctr++, inptr++, quantptr++, wsptr++) {
+     /* Even part */
+ 
+-    z1 = DEQUANTIZE(inptr[DCTSIZE*0], quantptr[DCTSIZE*0]);
++    z1 = DEQUANTIZE(inptr[rDCTSIZE*0], quantptr[DCTSIZE*0]);
+     z1 <<= CONST_BITS;
+ 
+-    z2 = DEQUANTIZE(inptr[DCTSIZE*2], quantptr[DCTSIZE*2]);
+-    z3 = DEQUANTIZE(inptr[DCTSIZE*4], quantptr[DCTSIZE*4]);
+-    z4 = DEQUANTIZE(inptr[DCTSIZE*6], quantptr[DCTSIZE*6]);
++    z2 = DEQUANTIZE(inptr[rDCTSIZE*2], quantptr[DCTSIZE*2]);
++    z3 = DEQUANTIZE(inptr[rDCTSIZE*4], quantptr[DCTSIZE*4]);
++    z4 = DEQUANTIZE(inptr[rDCTSIZE*6], quantptr[DCTSIZE*6]);
+ 
+     tmp10 = MULTIPLY(z4, FIX(0.437016024)); /* c12 */
+     tmp11 = MULTIPLY(z4, FIX(1.144122806)); /* c6 */
+@@ -2054,11 +2070,11 @@
+ 
+     /* Odd part */
+ 
+-    z1 = DEQUANTIZE(inptr[DCTSIZE*1], quantptr[DCTSIZE*1]);
+-    z2 = DEQUANTIZE(inptr[DCTSIZE*3], quantptr[DCTSIZE*3]);
+-    z4 = DEQUANTIZE(inptr[DCTSIZE*5], quantptr[DCTSIZE*5]);
++    z1 = DEQUANTIZE(inptr[rDCTSIZE*1], quantptr[DCTSIZE*1]);
++    z2 = DEQUANTIZE(inptr[rDCTSIZE*3], quantptr[DCTSIZE*3]);
++    z4 = DEQUANTIZE(inptr[rDCTSIZE*5], quantptr[DCTSIZE*5]);
+     z3 = MULTIPLY(z4, FIX(1.224744871));                    /* c5 */
+-    z4 = DEQUANTIZE(inptr[DCTSIZE*7], quantptr[DCTSIZE*7]);
++    z4 = DEQUANTIZE(inptr[rDCTSIZE*7], quantptr[DCTSIZE*7]);
+ 
+     tmp13 = z2 - z4;
+     tmp15 = MULTIPLY(z1 + tmp13, FIX(0.831253876));         /* c9 */
+@@ -2253,10 +2269,10 @@
+   for (ctr = 0; ctr < 8; ctr++, inptr++, quantptr++, wsptr++) {
+     /* Even part */
+ 
+-    tmp0 = DEQUANTIZE(inptr[DCTSIZE*0], quantptr[DCTSIZE*0]);
++    tmp0 = DEQUANTIZE(inptr[rDCTSIZE*0], quantptr[DCTSIZE*0]);
+     tmp0 <<= CONST_BITS;
+ 
+-    z1 = DEQUANTIZE(inptr[DCTSIZE*4], quantptr[DCTSIZE*4]);
++    z1 = DEQUANTIZE(inptr[rDCTSIZE*4], quantptr[DCTSIZE*4]);
+     tmp1 = MULTIPLY(z1, FIX(1.306562965));      /* c4[16] = c2[8] */
+     tmp2 = MULTIPLY(z1, FIX_0_541196100);       /* c12[16] = c6[8] */
+ 
+@@ -2265,8 +2281,8 @@
+     tmp12 = tmp0 + tmp2;
+     tmp13 = tmp0 - tmp2;
+ 
+-    z1 = DEQUANTIZE(inptr[DCTSIZE*2], quantptr[DCTSIZE*2]);
+-    z2 = DEQUANTIZE(inptr[DCTSIZE*6], quantptr[DCTSIZE*6]);
++    z1 = DEQUANTIZE(inptr[rDCTSIZE*2], quantptr[DCTSIZE*2]);
++    z2 = DEQUANTIZE(inptr[rDCTSIZE*6], quantptr[DCTSIZE*6]);
+     z3 = z1 - z2;
+     z4 = MULTIPLY(z3, FIX(0.275899379));        /* c14[16] = c7[8] */
+     z3 = MULTIPLY(z3, FIX(1.387039845));        /* c2[16] = c1[8] */
+@@ -2287,10 +2303,10 @@
+ 
+     /* Odd part */
+ 
+-    z1 = DEQUANTIZE(inptr[DCTSIZE*1], quantptr[DCTSIZE*1]);
+-    z2 = DEQUANTIZE(inptr[DCTSIZE*3], quantptr[DCTSIZE*3]);
+-    z3 = DEQUANTIZE(inptr[DCTSIZE*5], quantptr[DCTSIZE*5]);
+-    z4 = DEQUANTIZE(inptr[DCTSIZE*7], quantptr[DCTSIZE*7]);
++    z1 = DEQUANTIZE(inptr[rDCTSIZE*1], quantptr[DCTSIZE*1]);
++    z2 = DEQUANTIZE(inptr[rDCTSIZE*3], quantptr[DCTSIZE*3]);
++    z3 = DEQUANTIZE(inptr[rDCTSIZE*5], quantptr[DCTSIZE*5]);
++    z4 = DEQUANTIZE(inptr[rDCTSIZE*7], quantptr[DCTSIZE*7]);
+ 
+     tmp11 = z1 + z3;
+ 
+@@ -2510,7 +2526,7 @@
+   inptr = coef_block;
+   quantptr = (ISLOW_MULT_TYPE *) compptr->dct_table;
+   wsptr = workspace;
+-  for (ctr = DCTSIZE; ctr > 0; ctr--) {
++  for (ctr = 8; ctr > 0; ctr--) {
+     /* Due to quantization, we will usually find that many of the input
+      * coefficients are zero, especially the AC terms.  We can exploit this
+      * by short-circuiting the IDCT calculation for any column in which all
+@@ -2520,21 +2536,21 @@
+      * column DCT calculations can be simplified this way.
+      */
+     
+-    if (inptr[DCTSIZE*1] == 0 && inptr[DCTSIZE*2] == 0 &&
+-	inptr[DCTSIZE*3] == 0 && inptr[DCTSIZE*4] == 0 &&
+-	inptr[DCTSIZE*5] == 0 && inptr[DCTSIZE*6] == 0 &&
+-	inptr[DCTSIZE*7] == 0) {
++    if (inptr[rDCTSIZE*1] == 0 && inptr[rDCTSIZE*2] == 0 &&
++	inptr[rDCTSIZE*3] == 0 && inptr[rDCTSIZE*4] == 0 &&
++	inptr[rDCTSIZE*5] == 0 && inptr[rDCTSIZE*6] == 0 &&
++	inptr[rDCTSIZE*7] == 0) {
+       /* AC terms all zero */
+-      int dcval = DEQUANTIZE(inptr[DCTSIZE*0], quantptr[DCTSIZE*0]) << PASS1_BITS;
++      int dcval = DEQUANTIZE(inptr[rDCTSIZE*0], quantptr[DCTSIZE*0]) << PASS1_BITS;
+       
+-      wsptr[DCTSIZE*0] = dcval;
+-      wsptr[DCTSIZE*1] = dcval;
+-      wsptr[DCTSIZE*2] = dcval;
+-      wsptr[DCTSIZE*3] = dcval;
+-      wsptr[DCTSIZE*4] = dcval;
+-      wsptr[DCTSIZE*5] = dcval;
+-      wsptr[DCTSIZE*6] = dcval;
+-      wsptr[DCTSIZE*7] = dcval;
++      wsptr[8*0] = dcval;
++      wsptr[8*1] = dcval;
++      wsptr[8*2] = dcval;
++      wsptr[8*3] = dcval;
++      wsptr[8*4] = dcval;
++      wsptr[8*5] = dcval;
++      wsptr[8*6] = dcval;
++      wsptr[8*7] = dcval;
+       
+       inptr++;			/* advance pointers to next column */
+       quantptr++;
+@@ -2545,15 +2561,15 @@
+     /* Even part: reverse the even part of the forward DCT. */
+     /* The rotator is sqrt(2)*c(-6). */
+     
+-    z2 = DEQUANTIZE(inptr[DCTSIZE*2], quantptr[DCTSIZE*2]);
+-    z3 = DEQUANTIZE(inptr[DCTSIZE*6], quantptr[DCTSIZE*6]);
++    z2 = DEQUANTIZE(inptr[rDCTSIZE*2], quantptr[DCTSIZE*2]);
++    z3 = DEQUANTIZE(inptr[rDCTSIZE*6], quantptr[DCTSIZE*6]);
+     
+     z1 = MULTIPLY(z2 + z3, FIX_0_541196100);
+     tmp2 = z1 + MULTIPLY(z3, - FIX_1_847759065);
+     tmp3 = z1 + MULTIPLY(z2, FIX_0_765366865);
+     
+-    z2 = DEQUANTIZE(inptr[DCTSIZE*0], quantptr[DCTSIZE*0]);
+-    z3 = DEQUANTIZE(inptr[DCTSIZE*4], quantptr[DCTSIZE*4]);
++    z2 = DEQUANTIZE(inptr[rDCTSIZE*0], quantptr[DCTSIZE*0]);
++    z3 = DEQUANTIZE(inptr[rDCTSIZE*4], quantptr[DCTSIZE*4]);
+ 
+     tmp0 = (z2 + z3) << CONST_BITS;
+     tmp1 = (z2 - z3) << CONST_BITS;
+@@ -2567,10 +2583,10 @@
+      * transpose is its inverse.  i0..i3 are y7,y5,y3,y1 respectively.
+      */
+     
+-    tmp0 = DEQUANTIZE(inptr[DCTSIZE*7], quantptr[DCTSIZE*7]);
+-    tmp1 = DEQUANTIZE(inptr[DCTSIZE*5], quantptr[DCTSIZE*5]);
+-    tmp2 = DEQUANTIZE(inptr[DCTSIZE*3], quantptr[DCTSIZE*3]);
+-    tmp3 = DEQUANTIZE(inptr[DCTSIZE*1], quantptr[DCTSIZE*1]);
++    tmp0 = DEQUANTIZE(inptr[rDCTSIZE*7], quantptr[DCTSIZE*7]);
++    tmp1 = DEQUANTIZE(inptr[rDCTSIZE*5], quantptr[DCTSIZE*5]);
++    tmp2 = DEQUANTIZE(inptr[rDCTSIZE*3], quantptr[DCTSIZE*3]);
++    tmp3 = DEQUANTIZE(inptr[rDCTSIZE*1], quantptr[DCTSIZE*1]);
+     
+     z1 = tmp0 + tmp3;
+     z2 = tmp1 + tmp2;
+@@ -2597,14 +2613,14 @@
+     
+     /* Final output stage: inputs are tmp10..tmp13, tmp0..tmp3 */
+     
+-    wsptr[DCTSIZE*0] = (int) DESCALE(tmp10 + tmp3, CONST_BITS-PASS1_BITS);
+-    wsptr[DCTSIZE*7] = (int) DESCALE(tmp10 - tmp3, CONST_BITS-PASS1_BITS);
+-    wsptr[DCTSIZE*1] = (int) DESCALE(tmp11 + tmp2, CONST_BITS-PASS1_BITS);
+-    wsptr[DCTSIZE*6] = (int) DESCALE(tmp11 - tmp2, CONST_BITS-PASS1_BITS);
+-    wsptr[DCTSIZE*2] = (int) DESCALE(tmp12 + tmp1, CONST_BITS-PASS1_BITS);
+-    wsptr[DCTSIZE*5] = (int) DESCALE(tmp12 - tmp1, CONST_BITS-PASS1_BITS);
+-    wsptr[DCTSIZE*3] = (int) DESCALE(tmp13 + tmp0, CONST_BITS-PASS1_BITS);
+-    wsptr[DCTSIZE*4] = (int) DESCALE(tmp13 - tmp0, CONST_BITS-PASS1_BITS);
++    wsptr[8*0] = (int) DESCALE(tmp10 + tmp3, CONST_BITS-PASS1_BITS);
++    wsptr[8*7] = (int) DESCALE(tmp10 - tmp3, CONST_BITS-PASS1_BITS);
++    wsptr[8*1] = (int) DESCALE(tmp11 + tmp2, CONST_BITS-PASS1_BITS);
++    wsptr[8*6] = (int) DESCALE(tmp11 - tmp2, CONST_BITS-PASS1_BITS);
++    wsptr[8*2] = (int) DESCALE(tmp12 + tmp1, CONST_BITS-PASS1_BITS);
++    wsptr[8*5] = (int) DESCALE(tmp12 - tmp1, CONST_BITS-PASS1_BITS);
++    wsptr[8*3] = (int) DESCALE(tmp13 + tmp0, CONST_BITS-PASS1_BITS);
++    wsptr[8*4] = (int) DESCALE(tmp13 - tmp0, CONST_BITS-PASS1_BITS);
+     
+     inptr++;			/* advance pointers to next column */
+     quantptr++;
+@@ -2780,12 +2796,12 @@
+   for (ctr = 0; ctr < 8; ctr++, inptr++, quantptr++, wsptr++) {
+     /* Even part */
+ 
+-    tmp23 = DEQUANTIZE(inptr[DCTSIZE*0], quantptr[DCTSIZE*0]);
++    tmp23 = DEQUANTIZE(inptr[rDCTSIZE*0], quantptr[DCTSIZE*0]);
+     tmp23 <<= CONST_BITS;
+ 
+-    z1 = DEQUANTIZE(inptr[DCTSIZE*2], quantptr[DCTSIZE*2]);
+-    z2 = DEQUANTIZE(inptr[DCTSIZE*4], quantptr[DCTSIZE*4]);
+-    z3 = DEQUANTIZE(inptr[DCTSIZE*6], quantptr[DCTSIZE*6]);
++    z1 = DEQUANTIZE(inptr[rDCTSIZE*2], quantptr[DCTSIZE*2]);
++    z2 = DEQUANTIZE(inptr[rDCTSIZE*4], quantptr[DCTSIZE*4]);
++    z3 = DEQUANTIZE(inptr[rDCTSIZE*6], quantptr[DCTSIZE*6]);
+ 
+     tmp20 = MULTIPLY(z2 - z3, FIX(0.881747734));       /* c4 */
+     tmp22 = MULTIPLY(z1 - z2, FIX(0.314692123));       /* c6 */
+@@ -2799,9 +2815,9 @@
+     
+     /* Odd part */
+ 
+-    z1 = DEQUANTIZE(inptr[DCTSIZE*1], quantptr[DCTSIZE*1]);
+-    z2 = DEQUANTIZE(inptr[DCTSIZE*3], quantptr[DCTSIZE*3]);
+-    z3 = DEQUANTIZE(inptr[DCTSIZE*5], quantptr[DCTSIZE*5]);
++    z1 = DEQUANTIZE(inptr[rDCTSIZE*1], quantptr[DCTSIZE*1]);
++    z2 = DEQUANTIZE(inptr[rDCTSIZE*3], quantptr[DCTSIZE*3]);
++    z3 = DEQUANTIZE(inptr[rDCTSIZE*5], quantptr[DCTSIZE*5]);
+ 
+     tmp11 = MULTIPLY(z1 + z2, FIX(0.935414347));       /* (c3+c1-c5)/2 */
+     tmp12 = MULTIPLY(z1 - z2, FIX(0.170262339));       /* (c3+c5-c1)/2 */
+@@ -2973,22 +2989,22 @@
+   for (ctr = 0; ctr < 8; ctr++, inptr++, quantptr++, wsptr++) {
+     /* Even part */
+ 
+-    tmp10 = DEQUANTIZE(inptr[DCTSIZE*0], quantptr[DCTSIZE*0]);
++    tmp10 = DEQUANTIZE(inptr[rDCTSIZE*0], quantptr[DCTSIZE*0]);
+     tmp10 <<= CONST_BITS;
+-    tmp12 = DEQUANTIZE(inptr[DCTSIZE*4], quantptr[DCTSIZE*4]);
++    tmp12 = DEQUANTIZE(inptr[rDCTSIZE*4], quantptr[DCTSIZE*4]);
+     tmp20 = MULTIPLY(tmp12, FIX(0.707106781));   /* c4 */
+     tmp11 = tmp10 + tmp20;
+     tmp21 = DESCALE(tmp10 - tmp20 - tmp20, CONST_BITS-PASS1_BITS);
+-    tmp20 = DEQUANTIZE(inptr[DCTSIZE*2], quantptr[DCTSIZE*2]);
++    tmp20 = DEQUANTIZE(inptr[rDCTSIZE*2], quantptr[DCTSIZE*2]);
+     tmp10 = MULTIPLY(tmp20, FIX(1.224744871));   /* c2 */
+     tmp20 = tmp11 + tmp10;
+     tmp22 = tmp11 - tmp10;
+ 
+     /* Odd part */
+ 
+-    z1 = DEQUANTIZE(inptr[DCTSIZE*1], quantptr[DCTSIZE*1]);
+-    z2 = DEQUANTIZE(inptr[DCTSIZE*3], quantptr[DCTSIZE*3]);
+-    z3 = DEQUANTIZE(inptr[DCTSIZE*5], quantptr[DCTSIZE*5]);
++    z1 = DEQUANTIZE(inptr[rDCTSIZE*1], quantptr[DCTSIZE*1]);
++    z2 = DEQUANTIZE(inptr[rDCTSIZE*3], quantptr[DCTSIZE*3]);
++    z3 = DEQUANTIZE(inptr[rDCTSIZE*5], quantptr[DCTSIZE*5]);
+     tmp11 = MULTIPLY(z1 + z3, FIX(0.366025404)); /* c5 */
+     tmp10 = tmp11 + ((z1 + z2) << CONST_BITS);
+     tmp12 = tmp11 + ((z3 - z2) << CONST_BITS);
+@@ -3147,10 +3163,10 @@
+   for (ctr = 0; ctr < 8; ctr++, inptr++, quantptr++, wsptr++) {
+     /* Even part */
+ 
+-    tmp12 = DEQUANTIZE(inptr[DCTSIZE*0], quantptr[DCTSIZE*0]);
++    tmp12 = DEQUANTIZE(inptr[rDCTSIZE*0], quantptr[DCTSIZE*0]);
+     tmp12 <<= CONST_BITS;
+-    tmp0 = DEQUANTIZE(inptr[DCTSIZE*2], quantptr[DCTSIZE*2]);
+-    tmp1 = DEQUANTIZE(inptr[DCTSIZE*4], quantptr[DCTSIZE*4]);
++    tmp0 = DEQUANTIZE(inptr[rDCTSIZE*2], quantptr[DCTSIZE*2]);
++    tmp1 = DEQUANTIZE(inptr[rDCTSIZE*4], quantptr[DCTSIZE*4]);
+     z1 = MULTIPLY(tmp0 + tmp1, FIX(0.790569415)); /* (c2+c4)/2 */
+     z2 = MULTIPLY(tmp0 - tmp1, FIX(0.353553391)); /* (c2-c4)/2 */
+     z3 = tmp12 + z2;
+@@ -3160,8 +3176,8 @@
+ 
+     /* Odd part */
+ 
+-    z2 = DEQUANTIZE(inptr[DCTSIZE*1], quantptr[DCTSIZE*1]);
+-    z3 = DEQUANTIZE(inptr[DCTSIZE*3], quantptr[DCTSIZE*3]);
++    z2 = DEQUANTIZE(inptr[rDCTSIZE*1], quantptr[DCTSIZE*1]);
++    z3 = DEQUANTIZE(inptr[rDCTSIZE*3], quantptr[DCTSIZE*3]);
+     
+     z1 = MULTIPLY(z2 + z3, FIX(0.831253876));     /* c3 */
+     tmp0 = z1 + MULTIPLY(z2, FIX(0.513743148));   /* c1-c3 */
+@@ -3305,8 +3321,8 @@
+   for (ctr = 0; ctr < 8; ctr++, inptr++, quantptr++, wsptr++) {
+     /* Even part */
+ 
+-    tmp0 = DEQUANTIZE(inptr[DCTSIZE*0], quantptr[DCTSIZE*0]);
+-    tmp2 = DEQUANTIZE(inptr[DCTSIZE*2], quantptr[DCTSIZE*2]);
++    tmp0 = DEQUANTIZE(inptr[rDCTSIZE*0], quantptr[DCTSIZE*0]);
++    tmp2 = DEQUANTIZE(inptr[rDCTSIZE*2], quantptr[DCTSIZE*2]);
+ 
+     tmp10 = (tmp0 + tmp2) << PASS1_BITS;
+     tmp12 = (tmp0 - tmp2) << PASS1_BITS;
+@@ -3314,8 +3330,8 @@
+     /* Odd part */
+     /* Same rotation as in the even part of the 8x8 LL&M IDCT */
+ 
+-    z2 = DEQUANTIZE(inptr[DCTSIZE*1], quantptr[DCTSIZE*1]);
+-    z3 = DEQUANTIZE(inptr[DCTSIZE*3], quantptr[DCTSIZE*3]);
++    z2 = DEQUANTIZE(inptr[rDCTSIZE*1], quantptr[DCTSIZE*1]);
++    z3 = DEQUANTIZE(inptr[rDCTSIZE*3], quantptr[DCTSIZE*3]);
+ 
+     z1 = MULTIPLY(z2 + z3, FIX_0_541196100);             /* c6 */
+     tmp0 = DESCALE(z1 + MULTIPLY(z3, - FIX_1_847759065), /* -(c2+c6) */
+@@ -3416,7 +3432,7 @@
+ 					  CONST_BITS+PASS1_BITS+3)
+ 			    & RANGE_MASK];
+       
+-      wsptr += DCTSIZE;		/* advance pointer to next row */
++      wsptr += 8;		/* advance pointer to next row */
+     }
+ }
+ 
+@@ -3428,6 +3444,8 @@
+  * 3-point IDCT in pass 1 (columns), 6-point in pass 2 (rows).
+  */
+     
++#undef rDCTSIZE
++#define rDCTSIZE 6
+ GLOBAL(void)
+ jpeg_idct_6x3 (j_decompress_ptr cinfo, jpeg_component_info * compptr,
+ 	       JCOEFPTR coef_block,
+@@ -3453,16 +3471,16 @@
+   for (ctr = 0; ctr < 6; ctr++, inptr++, quantptr++, wsptr++) {
+     /* Even part */
+     
+-    tmp0 = DEQUANTIZE(inptr[DCTSIZE*0], quantptr[DCTSIZE*0]);
++    tmp0 = DEQUANTIZE(inptr[rDCTSIZE*0], quantptr[DCTSIZE*0]);
+     tmp0 <<= CONST_BITS;
+-    tmp2 = DEQUANTIZE(inptr[DCTSIZE*2], quantptr[DCTSIZE*2]);
++    tmp2 = DEQUANTIZE(inptr[rDCTSIZE*2], quantptr[DCTSIZE*2]);
+     tmp12 = MULTIPLY(tmp2, FIX(0.707106781)); /* c2 */
+     tmp10 = tmp0 + tmp12;
+     tmp2 = tmp0 - tmp12 - tmp12;
+     
+     /* Odd part */
+     
+-    tmp12 = DEQUANTIZE(inptr[DCTSIZE*1], quantptr[DCTSIZE*1]);
++    tmp12 = DEQUANTIZE(inptr[rDCTSIZE*1], quantptr[DCTSIZE*1]);
+     tmp0 = MULTIPLY(tmp12, FIX(1.224744871)); /* c1 */
+ 
+     /* Final output stage */
+@@ -3538,6 +3556,8 @@
+  * 2-point IDCT in pass 1 (columns), 4-point in pass 2 (rows).
+  */
+ 
++#undef rDCTSIZE
++#define rDCTSIZE 4
+ GLOBAL(void)
+ jpeg_idct_4x2 (j_decompress_ptr cinfo, jpeg_component_info * compptr,
+ 	       JCOEFPTR coef_block,
+@@ -3562,11 +3582,11 @@
+   for (ctr = 0; ctr < 4; ctr++, inptr++, quantptr++, wsptr++) {
+     /* Even part */
+ 
+-    tmp10 = DEQUANTIZE(inptr[DCTSIZE*0], quantptr[DCTSIZE*0]);
++    tmp10 = DEQUANTIZE(inptr[rDCTSIZE*0], quantptr[DCTSIZE*0]);
+ 
+     /* Odd part */
+ 
+-    tmp0 = DEQUANTIZE(inptr[DCTSIZE*1], quantptr[DCTSIZE*1]);
++    tmp0 = DEQUANTIZE(inptr[rDCTSIZE*1], quantptr[DCTSIZE*1]);
+ 
+     /* Final output stage */
+ 
+@@ -3627,6 +3647,8 @@
+  * 1-point IDCT in pass 1 (columns), 2-point in pass 2 (rows).
+  */
+ 
++#undef rDCTSIZE
++#define rDCTSIZE 2
+ GLOBAL(void)
+ jpeg_idct_2x1 (j_decompress_ptr cinfo, jpeg_component_info * compptr,
+ 	       JCOEFPTR coef_block,
+@@ -3667,6 +3689,8 @@
+  * 16-point IDCT in pass 1 (columns), 8-point in pass 2 (rows).
+  */
+ 
++#undef rDCTSIZE
++#define rDCTSIZE 8
+ GLOBAL(void)
+ jpeg_idct_8x16 (j_decompress_ptr cinfo, jpeg_component_info * compptr,
+ 		JCOEFPTR coef_block,
+@@ -3693,10 +3717,10 @@
+   for (ctr = 0; ctr < 8; ctr++, inptr++, quantptr++, wsptr++) {
+     /* Even part */
+       
+-    tmp0 = DEQUANTIZE(inptr[DCTSIZE*0], quantptr[DCTSIZE*0]);
++    tmp0 = DEQUANTIZE(inptr[rDCTSIZE*0], quantptr[DCTSIZE*0]);
+     tmp0 <<= CONST_BITS;
+       
+-    z1 = DEQUANTIZE(inptr[DCTSIZE*4], quantptr[DCTSIZE*4]);
++    z1 = DEQUANTIZE(inptr[rDCTSIZE*4], quantptr[DCTSIZE*4]);
+     tmp1 = MULTIPLY(z1, FIX(1.306562965));      /* c4[16] = c2[8] */
+     tmp2 = MULTIPLY(z1, FIX_0_541196100);       /* c12[16] = c6[8] */
+ 
+@@ -3705,8 +3729,8 @@
+     tmp12 = tmp0 + tmp2;
+     tmp13 = tmp0 - tmp2;
+ 
+-    z1 = DEQUANTIZE(inptr[DCTSIZE*2], quantptr[DCTSIZE*2]);
+-    z2 = DEQUANTIZE(inptr[DCTSIZE*6], quantptr[DCTSIZE*6]);
++    z1 = DEQUANTIZE(inptr[rDCTSIZE*2], quantptr[DCTSIZE*2]);
++    z2 = DEQUANTIZE(inptr[rDCTSIZE*6], quantptr[DCTSIZE*6]);
+     z3 = z1 - z2;
+     z4 = MULTIPLY(z3, FIX(0.275899379));        /* c14[16] = c7[8] */
+     z3 = MULTIPLY(z3, FIX(1.387039845));        /* c2[16] = c1[8] */
+@@ -3727,10 +3751,10 @@
+ 
+     /* Odd part */
+ 
+-    z1 = DEQUANTIZE(inptr[DCTSIZE*1], quantptr[DCTSIZE*1]);
+-    z2 = DEQUANTIZE(inptr[DCTSIZE*3], quantptr[DCTSIZE*3]);
+-    z3 = DEQUANTIZE(inptr[DCTSIZE*5], quantptr[DCTSIZE*5]);
+-    z4 = DEQUANTIZE(inptr[DCTSIZE*7], quantptr[DCTSIZE*7]);
++    z1 = DEQUANTIZE(inptr[rDCTSIZE*1], quantptr[DCTSIZE*1]);
++    z2 = DEQUANTIZE(inptr[rDCTSIZE*3], quantptr[DCTSIZE*3]);
++    z3 = DEQUANTIZE(inptr[rDCTSIZE*5], quantptr[DCTSIZE*5]);
++    z4 = DEQUANTIZE(inptr[rDCTSIZE*7], quantptr[DCTSIZE*7]);
+ 
+     tmp11 = z1 + z3;
+ 
+@@ -3869,7 +3893,7 @@
+ 					  CONST_BITS+PASS1_BITS+3)
+ 			    & RANGE_MASK];
+     
+-    wsptr += DCTSIZE;		/* advance pointer to next row */
++    wsptr += 8;		/* advance pointer to next row */
+   }
+     }
+     
+@@ -3881,6 +3905,8 @@
+  * 14-point IDCT in pass 1 (columns), 7-point in pass 2 (rows).
+  */
+ 
++#undef rDCTSIZE
++#define rDCTSIZE 7
+ GLOBAL(void)
+ jpeg_idct_7x14 (j_decompress_ptr cinfo, jpeg_component_info * compptr,
+ 		JCOEFPTR coef_block,
+@@ -3907,9 +3933,9 @@
+   for (ctr = 0; ctr < 7; ctr++, inptr++, quantptr++, wsptr++) {
+     /* Even part */
+     
+-    z1 = DEQUANTIZE(inptr[DCTSIZE*0], quantptr[DCTSIZE*0]);
++    z1 = DEQUANTIZE(inptr[rDCTSIZE*0], quantptr[DCTSIZE*0]);
+     z1 <<= CONST_BITS;
+-    z4 = DEQUANTIZE(inptr[DCTSIZE*4], quantptr[DCTSIZE*4]);
++    z4 = DEQUANTIZE(inptr[rDCTSIZE*4], quantptr[DCTSIZE*4]);
+     z2 = MULTIPLY(z4, FIX(1.274162392));         /* c4 */
+     z3 = MULTIPLY(z4, FIX(0.314692123));         /* c12 */
+     z4 = MULTIPLY(z4, FIX(0.881747734));         /* c8 */
+@@ -3921,8 +3947,8 @@
+     tmp23 = DESCALE(z1 - ((z2 + z3 - z4) << 1),  /* c0 = (c4+c12-c8)*2 */
+ 		    CONST_BITS-PASS1_BITS);
+ 
+-    z1 = DEQUANTIZE(inptr[DCTSIZE*2], quantptr[DCTSIZE*2]);
+-    z2 = DEQUANTIZE(inptr[DCTSIZE*6], quantptr[DCTSIZE*6]);
++    z1 = DEQUANTIZE(inptr[rDCTSIZE*2], quantptr[DCTSIZE*2]);
++    z2 = DEQUANTIZE(inptr[rDCTSIZE*6], quantptr[DCTSIZE*6]);
+ 
+     z3 = MULTIPLY(z1 + z2, FIX(1.105676686));    /* c6 */
+ 
+@@ -3940,10 +3966,10 @@
+     
+     /* Odd part */
+ 
+-    z1 = DEQUANTIZE(inptr[DCTSIZE*1], quantptr[DCTSIZE*1]);
+-    z2 = DEQUANTIZE(inptr[DCTSIZE*3], quantptr[DCTSIZE*3]);
+-    z3 = DEQUANTIZE(inptr[DCTSIZE*5], quantptr[DCTSIZE*5]);
+-    z4 = DEQUANTIZE(inptr[DCTSIZE*7], quantptr[DCTSIZE*7]);
++    z1 = DEQUANTIZE(inptr[rDCTSIZE*1], quantptr[DCTSIZE*1]);
++    z2 = DEQUANTIZE(inptr[rDCTSIZE*3], quantptr[DCTSIZE*3]);
++    z3 = DEQUANTIZE(inptr[rDCTSIZE*5], quantptr[DCTSIZE*5]);
++    z4 = DEQUANTIZE(inptr[rDCTSIZE*7], quantptr[DCTSIZE*7]);
+     tmp13 = z4 << CONST_BITS;
+ 
+     tmp14 = z1 + z3;
+@@ -4011,9 +4037,9 @@
+ 
+     /* Odd part */
+ 
+-    z1 = DEQUANTIZE(inptr[DCTSIZE*1], quantptr[DCTSIZE*1]);
+-    z2 = DEQUANTIZE(inptr[DCTSIZE*3], quantptr[DCTSIZE*3]);
+-    z3 = DEQUANTIZE(inptr[DCTSIZE*5], quantptr[DCTSIZE*5]);
++    z1 = DEQUANTIZE(inptr[rDCTSIZE*1], quantptr[DCTSIZE*1]);
++    z2 = DEQUANTIZE(inptr[rDCTSIZE*3], quantptr[DCTSIZE*3]);
++    z3 = DEQUANTIZE(inptr[rDCTSIZE*5], quantptr[DCTSIZE*5]);
+ 
+     tmp11 = MULTIPLY(z1 + z2, FIX(0.935414347));       /* (c3+c1-c5)/2 */
+     tmp12 = MULTIPLY(z1 - z2, FIX(0.170262339));       /* (c3+c5-c1)/2 */
+@@ -4061,6 +4087,8 @@
+  * 12-point IDCT in pass 1 (columns), 6-point in pass 2 (rows).
+  */
+ 
++#undef rDCTSIZE
++#define rDCTSIZE 6
+ GLOBAL(void)
+ jpeg_idct_6x12 (j_decompress_ptr cinfo, jpeg_component_info * compptr,
+ 		JCOEFPTR coef_block,
+@@ -4088,19 +4116,19 @@
+   for (ctr = 0; ctr < 6; ctr++, inptr++, quantptr++, wsptr++) {
+     /* Even part */
+ 
+-    tmp0 = DEQUANTIZE(inptr[DCTSIZE*0], quantptr[DCTSIZE*0]);
++    tmp0 = DEQUANTIZE(inptr[rDCTSIZE*0], quantptr[DCTSIZE*0]);
+     tmp0 <<= CONST_BITS;
+ 
+-    z1 = DEQUANTIZE(inptr[DCTSIZE*4], quantptr[DCTSIZE*4]);
++    z1 = DEQUANTIZE(inptr[rDCTSIZE*4], quantptr[DCTSIZE*4]);
+     tmp1 = MULTIPLY(z1, FIX(1.224744871)); /* c4 */
+ 
+     tmp10 = tmp0 + tmp1;
+     tmp11 = tmp0 - tmp1;
+ 
+-    z1 = DEQUANTIZE(inptr[DCTSIZE*2], quantptr[DCTSIZE*2]);
++    z1 = DEQUANTIZE(inptr[rDCTSIZE*2], quantptr[DCTSIZE*2]);
+     tmp1 = MULTIPLY(z1, FIX(1.366025404)); /* c2 */
+     z1 <<= CONST_BITS;
+-    z2 = DEQUANTIZE(inptr[DCTSIZE*6], quantptr[DCTSIZE*6]);
++    z2 = DEQUANTIZE(inptr[rDCTSIZE*6], quantptr[DCTSIZE*6]);
+     z2 <<= CONST_BITS;
+ 
+     tmp12 = z1 - z2;
+@@ -4120,10 +4148,10 @@
+ 
+     /* Odd part */
+ 
+-    z1 = DEQUANTIZE(inptr[DCTSIZE*1], quantptr[DCTSIZE*1]);
+-    z2 = DEQUANTIZE(inptr[DCTSIZE*3], quantptr[DCTSIZE*3]);
+-    z3 = DEQUANTIZE(inptr[DCTSIZE*5], quantptr[DCTSIZE*5]);
+-    z4 = DEQUANTIZE(inptr[DCTSIZE*7], quantptr[DCTSIZE*7]);
++    z1 = DEQUANTIZE(inptr[rDCTSIZE*1], quantptr[DCTSIZE*1]);
++    z2 = DEQUANTIZE(inptr[rDCTSIZE*3], quantptr[DCTSIZE*3]);
++    z3 = DEQUANTIZE(inptr[rDCTSIZE*5], quantptr[DCTSIZE*5]);
++    z4 = DEQUANTIZE(inptr[rDCTSIZE*7], quantptr[DCTSIZE*7]);
+ 
+     tmp0 = MULTIPLY(z2, FIX(1.306562965));                  /* c3 */
+     tmp1 = MULTIPLY(z2, - FIX_0_541196100);                 /* -c9 */
+@@ -4226,6 +4254,8 @@
+  * 10-point IDCT in pass 1 (columns), 5-point in pass 2 (rows).
+  */
+ 
++#undef rDCTSIZE
++#define rDCTSIZE 5
+ GLOBAL(void)
+ jpeg_idct_5x10 (j_decompress_ptr cinfo, jpeg_component_info * compptr,
+ 		JCOEFPTR coef_block,
+@@ -4253,9 +4283,9 @@
+   for (ctr = 0; ctr < 5; ctr++, inptr++, quantptr++, wsptr++) {
+     /* Even part */
+ 
+-    tmp0 = DEQUANTIZE(inptr[DCTSIZE*0], quantptr[DCTSIZE*0]);
++    tmp0 = DEQUANTIZE(inptr[rDCTSIZE*0], quantptr[DCTSIZE*0]);
+     tmp0 <<= CONST_BITS;
+-    tmp1 = DEQUANTIZE(inptr[DCTSIZE*4], quantptr[DCTSIZE*4]);
++    tmp1 = DEQUANTIZE(inptr[rDCTSIZE*4], quantptr[DCTSIZE*4]);
+     z1 = MULTIPLY(tmp1, FIX(1.144122806));      /* c4 */
+     z2 = MULTIPLY(tmp1, FIX(0.437016024));      /* c8 */
+     tmp10 = tmp0 + z1;
+@@ -4264,8 +4294,8 @@
+     tmp22 = DESCALE(tmp0 - ((z1 - z2) << 1),    /* c0 = (c4-c8)*2 */
+ 		    CONST_BITS-PASS1_BITS);
+ 
+-    z2 = DEQUANTIZE(inptr[DCTSIZE*2], quantptr[DCTSIZE*2]);
+-    z3 = DEQUANTIZE(inptr[DCTSIZE*6], quantptr[DCTSIZE*6]);
++    z2 = DEQUANTIZE(inptr[rDCTSIZE*2], quantptr[DCTSIZE*2]);
++    z3 = DEQUANTIZE(inptr[rDCTSIZE*6], quantptr[DCTSIZE*6]);
+ 
+     z1 = MULTIPLY(z2 + z3, FIX(0.831253876));   /* c6 */
+     tmp0 = z1 + MULTIPLY(z2, FIX(0.513743148)); /* c2-c6 */
+@@ -4278,10 +4308,10 @@
+ 
+     /* Odd part */
+ 
+-    z1 = DEQUANTIZE(inptr[DCTSIZE*1], quantptr[DCTSIZE*1]);
+-    z2 = DEQUANTIZE(inptr[DCTSIZE*3], quantptr[DCTSIZE*3]);
+-    z3 = DEQUANTIZE(inptr[DCTSIZE*5], quantptr[DCTSIZE*5]);
+-    z4 = DEQUANTIZE(inptr[DCTSIZE*7], quantptr[DCTSIZE*7]);
++    z1 = DEQUANTIZE(inptr[rDCTSIZE*1], quantptr[DCTSIZE*1]);
++    z2 = DEQUANTIZE(inptr[rDCTSIZE*3], quantptr[DCTSIZE*3]);
++    z3 = DEQUANTIZE(inptr[rDCTSIZE*5], quantptr[DCTSIZE*5]);
++    z4 = DEQUANTIZE(inptr[rDCTSIZE*7], quantptr[DCTSIZE*7]);
+ 
+     tmp0 = z2 + z4;
+     tmp1 = z2 - z4;
+@@ -4376,6 +4406,8 @@
+  * 8-point IDCT in pass 1 (columns), 4-point in pass 2 (rows).
+  */
+ 
++#undef rDCTSIZE
++#define rDCTSIZE 4
+ GLOBAL(void)
+ jpeg_idct_4x8 (j_decompress_ptr cinfo, jpeg_component_info * compptr,
+ 	       JCOEFPTR coef_block,
+@@ -4410,12 +4442,12 @@
+      * column DCT calculations can be simplified this way.
+      */
+ 
+-    if (inptr[DCTSIZE*1] == 0 && inptr[DCTSIZE*2] == 0 &&
+-	inptr[DCTSIZE*3] == 0 && inptr[DCTSIZE*4] == 0 &&
+-	inptr[DCTSIZE*5] == 0 && inptr[DCTSIZE*6] == 0 &&
+-	inptr[DCTSIZE*7] == 0) {
++    if (inptr[rDCTSIZE*1] == 0 && inptr[rDCTSIZE*2] == 0 &&
++	inptr[rDCTSIZE*3] == 0 && inptr[rDCTSIZE*4] == 0 &&
++	inptr[rDCTSIZE*5] == 0 && inptr[rDCTSIZE*6] == 0 &&
++	inptr[rDCTSIZE*7] == 0) {
+       /* AC terms all zero */
+-      int dcval = DEQUANTIZE(inptr[DCTSIZE*0], quantptr[DCTSIZE*0]) << PASS1_BITS;
++      int dcval = DEQUANTIZE(inptr[rDCTSIZE*0], quantptr[DCTSIZE*0]) << PASS1_BITS;
+ 
+       wsptr[4*0] = dcval;
+       wsptr[4*1] = dcval;
+@@ -4435,15 +4467,15 @@
+     /* Even part: reverse the even part of the forward DCT. */
+     /* The rotator is sqrt(2)*c(-6). */
+ 
+-    z2 = DEQUANTIZE(inptr[DCTSIZE*2], quantptr[DCTSIZE*2]);
+-    z3 = DEQUANTIZE(inptr[DCTSIZE*6], quantptr[DCTSIZE*6]);
++    z2 = DEQUANTIZE(inptr[rDCTSIZE*2], quantptr[DCTSIZE*2]);
++    z3 = DEQUANTIZE(inptr[rDCTSIZE*6], quantptr[DCTSIZE*6]);
+ 
+     z1 = MULTIPLY(z2 + z3, FIX_0_541196100);
+     tmp2 = z1 + MULTIPLY(z3, - FIX_1_847759065);
+     tmp3 = z1 + MULTIPLY(z2, FIX_0_765366865);
+ 
+-    z2 = DEQUANTIZE(inptr[DCTSIZE*0], quantptr[DCTSIZE*0]);
+-    z3 = DEQUANTIZE(inptr[DCTSIZE*4], quantptr[DCTSIZE*4]);
++    z2 = DEQUANTIZE(inptr[rDCTSIZE*0], quantptr[DCTSIZE*0]);
++    z3 = DEQUANTIZE(inptr[rDCTSIZE*4], quantptr[DCTSIZE*4]);
+ 
+     tmp0 = (z2 + z3) << CONST_BITS;
+     tmp1 = (z2 - z3) << CONST_BITS;
+@@ -4457,10 +4489,10 @@
+      * transpose is its inverse.  i0..i3 are y7,y5,y3,y1 respectively.
+      */
+ 
+-    tmp0 = DEQUANTIZE(inptr[DCTSIZE*7], quantptr[DCTSIZE*7]);
+-    tmp1 = DEQUANTIZE(inptr[DCTSIZE*5], quantptr[DCTSIZE*5]);
+-    tmp2 = DEQUANTIZE(inptr[DCTSIZE*3], quantptr[DCTSIZE*3]);
+-    tmp3 = DEQUANTIZE(inptr[DCTSIZE*1], quantptr[DCTSIZE*1]);
++    tmp0 = DEQUANTIZE(inptr[rDCTSIZE*7], quantptr[DCTSIZE*7]);
++    tmp1 = DEQUANTIZE(inptr[rDCTSIZE*5], quantptr[DCTSIZE*5]);
++    tmp2 = DEQUANTIZE(inptr[rDCTSIZE*3], quantptr[DCTSIZE*3]);
++    tmp3 = DEQUANTIZE(inptr[rDCTSIZE*1], quantptr[DCTSIZE*1]);
+ 
+     z1 = tmp0 + tmp3;
+     z2 = tmp1 + tmp2;
+@@ -4553,6 +4585,8 @@
+  * 6-point IDCT in pass 1 (columns), 3-point in pass 2 (rows).
+  */
+ 
++#undef rDCTSIZE
++#define rDCTSIZE 3
+ GLOBAL(void)
+ jpeg_idct_3x6 (j_decompress_ptr cinfo, jpeg_component_info * compptr,
+ 	       JCOEFPTR coef_block,
+@@ -4578,22 +4612,22 @@
+   for (ctr = 0; ctr < 3; ctr++, inptr++, quantptr++, wsptr++) {
+     /* Even part */
+ 
+-    tmp0 = DEQUANTIZE(inptr[DCTSIZE*0], quantptr[DCTSIZE*0]);
++    tmp0 = DEQUANTIZE(inptr[rDCTSIZE*0], quantptr[DCTSIZE*0]);
+     tmp0 <<= CONST_BITS;
+-    tmp2 = DEQUANTIZE(inptr[DCTSIZE*4], quantptr[DCTSIZE*4]);
++    tmp2 = DEQUANTIZE(inptr[rDCTSIZE*4], quantptr[DCTSIZE*4]);
+     tmp10 = MULTIPLY(tmp2, FIX(0.707106781));   /* c4 */
+     tmp1 = tmp0 + tmp10;
+     tmp11 = DESCALE(tmp0 - tmp10 - tmp10, CONST_BITS-PASS1_BITS);
+-    tmp10 = DEQUANTIZE(inptr[DCTSIZE*2], quantptr[DCTSIZE*2]);
++    tmp10 = DEQUANTIZE(inptr[rDCTSIZE*2], quantptr[DCTSIZE*2]);
+     tmp0 = MULTIPLY(tmp10, FIX(1.224744871));   /* c2 */
+     tmp10 = tmp1 + tmp0;
+     tmp12 = tmp1 - tmp0;
+ 
+     /* Odd part */
+ 
+-    z1 = DEQUANTIZE(inptr[DCTSIZE*1], quantptr[DCTSIZE*1]);
+-    z2 = DEQUANTIZE(inptr[DCTSIZE*3], quantptr[DCTSIZE*3]);
+-    z3 = DEQUANTIZE(inptr[DCTSIZE*5], quantptr[DCTSIZE*5]);
++    z1 = DEQUANTIZE(inptr[rDCTSIZE*1], quantptr[DCTSIZE*1]);
++    z2 = DEQUANTIZE(inptr[rDCTSIZE*3], quantptr[DCTSIZE*3]);
++    z3 = DEQUANTIZE(inptr[rDCTSIZE*5], quantptr[DCTSIZE*5]);
+     tmp1 = MULTIPLY(z1 + z3, FIX(0.366025404)); /* c5 */
+     tmp0 = tmp1 + ((z1 + z2) << CONST_BITS);
+     tmp2 = tmp1 + ((z3 - z2) << CONST_BITS);
+@@ -4654,6 +4688,8 @@
+  * 4-point IDCT in pass 1 (columns), 2-point in pass 2 (rows).
+  */
+ 
++#undef rDCTSIZE
++#define rDCTSIZE 2
+ GLOBAL(void)
+ jpeg_idct_2x4 (j_decompress_ptr cinfo, jpeg_component_info * compptr,
+ 	       JCOEFPTR coef_block,
+@@ -4680,8 +4716,8 @@
+   for (ctr = 0; ctr < 2; ctr++, inptr++, quantptr++, wsptr++) {
+     /* Even part */
+ 
+-    tmp0 = DEQUANTIZE(inptr[DCTSIZE*0], quantptr[DCTSIZE*0]);
+-    tmp2 = DEQUANTIZE(inptr[DCTSIZE*2], quantptr[DCTSIZE*2]);
++    tmp0 = DEQUANTIZE(inptr[rDCTSIZE*0], quantptr[DCTSIZE*0]);
++    tmp2 = DEQUANTIZE(inptr[rDCTSIZE*2], quantptr[DCTSIZE*2]);
+ 
+     tmp10 = (tmp0 + tmp2) << CONST_BITS;
+     tmp12 = (tmp0 - tmp2) << CONST_BITS;
+@@ -4689,8 +4725,8 @@
+     /* Odd part */
+     /* Same rotation as in the even part of the 8x8 LL&M IDCT */
+ 
+-    z2 = DEQUANTIZE(inptr[DCTSIZE*1], quantptr[DCTSIZE*1]);
+-    z3 = DEQUANTIZE(inptr[DCTSIZE*3], quantptr[DCTSIZE*3]);
++    z2 = DEQUANTIZE(inptr[rDCTSIZE*1], quantptr[DCTSIZE*1]);
++    z3 = DEQUANTIZE(inptr[rDCTSIZE*3], quantptr[DCTSIZE*3]);
+ 
+     z1 = MULTIPLY(z2 + z3, FIX_0_541196100);     /* c6 */
+     tmp0 = z1 + MULTIPLY(z3, - FIX_1_847759065); /* -(c2+c6) */
+@@ -4737,6 +4773,8 @@
+  * 2-point IDCT in pass 1 (columns), 1-point in pass 2 (rows).
+  */
+ 
++#undef rDCTSIZE
++#define rDCTSIZE 1
+ GLOBAL(void)
+ jpeg_idct_1x2 (j_decompress_ptr cinfo, jpeg_component_info * compptr,
+ 	       JCOEFPTR coef_block,
+@@ -4753,11 +4791,11 @@
+ 
+   /* Even part */
+     
+-  tmp10 = DEQUANTIZE(coef_block[DCTSIZE*0], quantptr[DCTSIZE*0]);
++  tmp10 = DEQUANTIZE(coef_block[rDCTSIZE*0], quantptr[DCTSIZE*0]);
+ 
+   /* Odd part */
+ 
+-  tmp0 = DEQUANTIZE(coef_block[DCTSIZE*1], quantptr[DCTSIZE*1]);
++  tmp0 = DEQUANTIZE(coef_block[rDCTSIZE*1], quantptr[DCTSIZE*1]);
+ 
+   /* Final output stage */
+ 
+@@ -4767,4 +4805,5 @@
+ 					  & RANGE_MASK];
+ }
+ 
++#undef rDCTSIZE
+ #endif /* IDCT_SCALING_SUPPORTED */
