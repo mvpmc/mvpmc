@@ -278,8 +278,10 @@ mvpw_show(mvp_widget_t *widget)
 		    widget->data.dialog.modal) {
 			top = mvpw_get_focus();
 			GrMapWindow(widget->wid);
-			mvpw_focus(widget);
 			raise_widget(widget, top);
+			if (!mvpw_visible((mvp_widget_t*)screensaver_widget))
+				GrRaiseWindow(widget->wid);
+			mvpw_focus(widget);
 		} else {
 			GrMapWindow(widget->wid);
 			if(widget->show) (*widget->show)(widget, 1);
