@@ -5687,10 +5687,9 @@ myth_menu_select_callback(mvp_widget_t *widget, char *item, void *key)
 	case 2:
 		busy_start();
 		mythtv_state = MYTHTV_STATE_LIVETV;
-		if (mythtv_livetv_menu() == 0) {
+		if (mythtv_livetv_menu_start() == 0) {
 			running_mythtv = 1;
 			mvpw_hide(mythtv_menu);
-
 			mythtv_main_menu = 0;
 		} else {
 			mythtv_state = MYTHTV_STATE_MAIN;
@@ -5710,18 +5709,6 @@ myth_menu_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mvpw_clear_menu(mythtv_prog_finder_2);
 		mvpw_clear_menu(mythtv_prog_finder_3);
 		run_mythtv_prog_finder_char_menu();
-		break;
-	case 5: /* New Live TV! */
-		busy_start();
-		mythtv_state = MYTHTV_STATE_LIVETV;
-		if (mythtv_new_livetv() == 0) {
-			running_mythtv = 1;
-			mvpw_hide(mythtv_menu);
-			mythtv_main_menu = 0;
-		} else {
-			mythtv_state = MYTHTV_STATE_MAIN;
-		}
-		busy_end();
 		break;
 	}
 }
@@ -5772,8 +5759,6 @@ myth_browser_init(void)
 			   (void*)3, &myth_menu_item_attr);
 	mvpw_add_menu_item(mythtv_menu, "Program Finder (Scheduling)",
 			   (void*)4, &myth_menu_item_attr);
-	mvpw_add_menu_item(mythtv_menu, "New Live TV!",
-					(void*)5, &myth_menu_item_attr);
 
 
 	mvpw_set_key(mythtv_menu, mythtv_menu_callback);

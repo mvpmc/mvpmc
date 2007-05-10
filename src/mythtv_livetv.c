@@ -1319,7 +1319,7 @@ mythtv_new_livetv(void)
 	return mythtv_new_livetv_start(rec);
 }
 
-int
+static int
 mythtv_livetv_menu(void)
 {
 	int failed = 0;
@@ -1456,3 +1456,27 @@ mythtv_livetv_select(int which)
 	ref_release(channame);
 }
 
+int
+mythtv_livetv_menu_start(void)
+{
+	int ver, rc;
+	cmyth_conn_t ctrl;
+
+	if (mythtv_verify() < 0) {
+		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1}\n",
+			    __FUNCTION__, __FILE__, __LINE__);
+		return -1;
+	}
+
+	ctrl = ref_hold(control);
+	ver = cmyth_conn_get_protocol_version(ctrl);
+	ref_release(ctrl);
+
+	if (ver >= 26) {
+		rc = mythtv_new_livetv();
+	} else {
+		rc = mythtv_livetv_menu();
+	}
+
+	return rc;
+}

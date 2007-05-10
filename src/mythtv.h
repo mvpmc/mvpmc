@@ -197,7 +197,7 @@ extern void myth_tvguide_clear_hilites(void);
 
 extern int mythtv_back(mvp_widget_t*);
 extern int mythtv_update(mvp_widget_t*);
-extern int mythtv_livetv_menu(void);
+extern int mythtv_livetv_menu_start(void);
 extern int mythtv_program_runtime(void);
 extern void mythtv_set_popup_menu(mythtv_state_t state);
 
