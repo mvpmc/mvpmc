@@ -1118,10 +1118,21 @@ mclient_loop_thread (void *arg)
             }
 
             /*
-             * Done, we got "turned off", so close the connection.
+             * The hardware state has changed and is no longer reserved for mclient 
+             * (i.e. we got "turned off") so start shutting down.
+             */
+            audio_clear ();
+            sleep(1); /// ### Adding delays, need to test if necessary for stability.
+
+            av_stop ();
+            sleep(1); /// ### Adding delays, need to test if necessary for stability.
+
+            /*
+             * Close the connection.
              */
             close (socket_handle_data);
             close (socket_handle_cli);
+            sleep(1); /// ### Adding delays, need to test if necessary for stability.
 
             /*
              * Free up the alloc'd memory.
@@ -1131,6 +1142,11 @@ mclient_loop_thread (void *arg)
             free (recvbuf);
             free (recvbuf_back);
 
+            /*
+             * TEST: See if we need a hold off state to sync
+             * activity between threads.
+             */
+            hw_state = MVPMC_STATE_NONE;
         }
         else
         {
@@ -1226,6 +1242,27 @@ music_client (void)
 void
 mclient_exit (void)
 {
-    audio_clear ();
-    av_stop ();
+    uint limit_counter = 500;
+
+    if(hw_state == MVPMC_STATE_MCLIENT_SHUTDOWN)
+    {
+	printf(">>>TEST:mclient_exit: The mclient thread has NOT FINISHED YET!\n");
+
+        while ((hw_state == MVPMC_STATE_MCLIENT_SHUTDOWN) && (limit_counter > 0))
+        {
+            limit_counter--;
+            printf(".");
+            sleep(1);
+        }
+	printf("\n");
+    }
+
+    if(hw_state == MVPMC_STATE_MCLIENT_SHUTDOWN)
+    {
+	printf(">>>TEST:mclient_exit: The mclient thread has FINISHED.\n");
+    }
+    else
+    {
+	printf(">>>TEST:mclient_exit: WARNING:The mclient thread did NOT FINISHED!\n");
+    }
 }

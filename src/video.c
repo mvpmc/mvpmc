@@ -668,13 +668,17 @@ enable_osd(void)
 	set_osd_callback(OSD_DEMUX, video_demux);
 	switch (hw_state) {
 	case MVPMC_STATE_MYTHTV:
+	case MVPMC_STATE_MYTHTV_SHUTDOWN:
 		set_osd_callback(OSD_PROGRAM, mythtv_program);
 		break;
 	case MVPMC_STATE_REPLAYTV:
+	case MVPMC_STATE_REPLAYTV_SHUTDOWN:
 		set_osd_callback(OSD_PROGRAM, replaytv_osd_proginfo_update);
 		break;
 	case MVPMC_STATE_HTTP:
+	case MVPMC_STATE_HTTP_SHUTDOWN:
 	case MVPMC_STATE_FILEBROWSER:
+	case MVPMC_STATE_FILEBROWSER_SHUTDOWN:
 		set_osd_callback(OSD_PROGRAM, fb_program);
 		break;
 	default:
@@ -708,12 +712,14 @@ back_to_guide_menu()
 		switch (gui_state) {
         case MVPMC_STATE_NONE:
         case MVPMC_STATE_EMULATE:
+        case MVPMC_STATE_EMULATE_SHUTDOWN:
 
 			/*
 			 * XXX: redisplay the main menu?
 			 */
 			break;
 		case MVPMC_STATE_MYTHTV:
+		case MVPMC_STATE_MYTHTV_SHUTDOWN:
 			printf("%s(): %d\n", __FUNCTION__, __LINE__);
 			if (mythtv_livetv == 1) {
 				if (mythtv_state == MYTHTV_STATE_LIVETV) {
@@ -753,11 +759,14 @@ back_to_guide_menu()
 			}
 			break;
 		case MVPMC_STATE_REPLAYTV:
+		case MVPMC_STATE_REPLAYTV_SHUTDOWN:
 			video_playing = 0;
 			replaytv_back_from_video();
 			break;
 		case MVPMC_STATE_FILEBROWSER:
+		case MVPMC_STATE_FILEBROWSER_SHUTDOWN:
 		case MVPMC_STATE_HTTP:
+		case MVPMC_STATE_HTTP_SHUTDOWN:
 			if (playlist) {
 				mvpw_show(fb_progress);
 				mvpw_show(playlist_widget);
@@ -769,6 +778,7 @@ back_to_guide_menu()
 			}
 			break;
 		case MVPMC_STATE_MCLIENT:
+		case MVPMC_STATE_MCLIENT_SHUTDOWN:
 			/*
 			 * No code is necessary here because:
 			 * - The key is already trapped / processed in gui.c/mclient_key_callback.

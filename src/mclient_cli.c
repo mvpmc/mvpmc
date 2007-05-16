@@ -1421,6 +1421,35 @@ cli_send_packet (int socket_handle, char *b)
     if (bytes < 0)
     {
         debug ("mclient_cli:error %i\n", errno);
+
+	/*
+	 * Display Warning box on OSD.
+	 */
+	if (cli_data.cli_comm_err_mask == FALSE)
+  	{
+           char buf[200];
+
+           snprintf(buf, sizeof(buf), "%s%s%s%s%s",
+		"Connecting to Slimserver CLI IP:", 
+		mclient_server ? mclient_server : "127.0.0.1",
+		" port 9090 failed! ",
+		"Check settings on Slimserver's Home->Server Settings->Security ",
+		"web page.");
+           gui_error(buf);
+
+/// ### Can not print out back-to-back warnings.  Alsoways skips first warning.
+/// ###           snprintf(buf, sizeof(buf), "%s%s%s",
+/// ###		"...ok, we should be able to play music", 
+/// ###		"but features like the play list and album cover art ",
+/// ###		"will not be available.");
+/// ###           gui_error(buf);
+
+           /*
+	    * Set flag to ignore this problem.
+	    */
+           cli_data.cli_comm_err_mask = TRUE;
+	}
+
     }
 ///    pthread_mutex_unlock (&mclient_cli_mutex);
 }
@@ -1433,6 +1462,8 @@ cli_init (void)
      * Create the buffer to store data from the server.
      */
     recvbuf_back = (void *) calloc (1, RECV_BUF_SIZE_CLI);
+
+    cli_data.cli_comm_err_mask = FALSE;
 }
 
 void

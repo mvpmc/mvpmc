@@ -28,16 +28,24 @@
 
 /**
  * Portion of the mvpmc application which owns either the gui or
- * the audio/video playback hardware.
+ * the audio/video playback hardware. 
+ * Note: shutdown state used when previous application requires 
+ * delays when turning off.
  */
 typedef enum {
 	MVPMC_STATE_NONE = 1,		/**< no state */
 	MVPMC_STATE_MYTHTV,		/**< mythtv */
+	MVPMC_STATE_MYTHTV_SHUTDOWN,	/**< mythtv shutdown */
 	MVPMC_STATE_FILEBROWSER,	/**< filebrowser */
+	MVPMC_STATE_FILEBROWSER_SHUTDOWN,	/**< filebrowser shutdown */
 	MVPMC_STATE_REPLAYTV,		/**< replaytv */
+	MVPMC_STATE_REPLAYTV_SHUTDOWN,	/**< replaytv shutdown */
 	MVPMC_STATE_MCLIENT,		/**< slimserver mclient */
+	MVPMC_STATE_MCLIENT_SHUTDOWN,	/**< slimserver mclient shutdown */
 	MVPMC_STATE_HTTP,		/**< http */
+	MVPMC_STATE_HTTP_SHUTDOWN,	/**< http shutdown */
 	MVPMC_STATE_EMULATE,		/**< hauppauge emulation */
+	MVPMC_STATE_EMULATE_SHUTDOWN,	/**< hauppauge emulation shutdown */
 } mvpmc_state_t;
 
 /**

@@ -241,6 +241,7 @@ typedef struct
     int volume;
     int get_cover_art_holdoff_timer;
     int get_cover_art_later;
+    bool cli_comm_err_mask;	// True if we want to mute the cli_comm_err flag.
 } cli_data_type;
 
 /*
