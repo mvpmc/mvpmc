@@ -614,4 +614,11 @@ extern int mvpstb_audio_end(void);
  */
 extern int mvpstb_video_end(void);
 
+/**
+ * Get the flicker mode
+ * \retval 0 no flicker
+ * \retval 1-3 flicker modes
+ */
+int av_get_flicker(void);
+
 #endif /* MVP_AV_H */

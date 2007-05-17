@@ -67,6 +67,7 @@ struct osd_func_s {
 	int (*get_display_control)(osd_surface_t*, int);
 	int (*get_display_options)(osd_surface_t*);
 	int (*set_display_options)(osd_surface_t*, unsigned char);
+	int (*memcpy)(osd_surface_t*,int, int, unsigned char *,int, int);
 };
 
 /**

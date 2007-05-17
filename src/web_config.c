@@ -154,12 +154,13 @@ www_mvpmc_start(void *arg) {
 	setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR,
 		   (const void *)&optval , sizeof(int));
 
-
+#if 0
 	/* we only want eth0 */
 	struct ifreq interface;
 	strncpy(interface.ifr_ifrn.ifrn_name, "eth0", IFNAMSIZ);
 	setsockopt(listenfd, SOL_SOCKET, SO_BINDTODEVICE,
 		   (char *)&interface, sizeof(interface)); 
+#endif
 
 	/* bind port to socket */
 	bzero((char *) &serveraddr, sizeof(serveraddr));
@@ -632,6 +633,8 @@ void playlist_change(playlist_t *next);
 void fb_key_callback(mvp_widget_t *widget, char key);
 
 extern playlist_t *playlist_head;
+extern char em_wol_mac[];
+extern int wireless;
 
 int mvp_config_radio(char *line)
 {
@@ -1101,7 +1104,7 @@ int mvp_load_data(FILE *stream,char *line)
 							fprintf(stream,"Built: %s<BR />", compile_time);
 							fprintf(stream,"System Time %s<BR />",asctime(ptm));
 							fprintf(stream, "%s/%s<BR />", cwd, current_hilite);
-							if (audio_playing) {
+							if (audio_playing &&  gui_state == MVPMC_STATE_FILEBROWSER) {
 								fprintf (stream,"Playing Audio<BR />");
 								fprintf(stream,"%s<BR />", playlist->name);
 							}
@@ -1292,7 +1295,9 @@ void load_web_config(char *font)
 		snprintf(live_environ,75,"%s&password=%s",web_config->live365_userid,web_config->live365_password);
 		setenv("LIVE365DATA",live_environ,1);
 		setenv("TZ",web_config->tz,1);
-
+		if (em_wol_mac[0]==0) {
+			strcpy(em_wol_mac,web_config->wol_mac);
+		}
 	} else {
 		snprintf(web_config->tz,30,"%s",getenv("TZ"));
 		snprintf(web_config->cwd,64,"%s",cwd);
@@ -1471,10 +1476,12 @@ int wol_getmac(char *ip)
 	char command[128];
 	FILE * in;
 	char *p,*p1;
-	snprintf(command,128,"/usr/bin/arping -c 1 %s",ip);
+	snprintf(command,128,"/usr/bin/arping -c 1 -I eth%d %s",wireless,ip);
 	in = popen(command, "r");
+	printf("%s\n",command);
 	if (in==NULL)printf("%d\n",errno);
 	while (fgets(command,128,in)!=NULL) {
+		printf("%s",command);
 		if (strncmp(command,"Unicast reply",13)==0) {
 			p = strchr(command,'[');
 			if (p!=NULL) {
@@ -1483,7 +1490,9 @@ int wol_getmac(char *ip)
 				if (p1!=NULL) {
 					*p1 = 0;
 					snprintf(web_config->wol_mac,18,"%s",p);
-					printf("Emulation server mac address is %s\n",p);
+					strcpy(em_wol_mac,web_config->wol_mac);
+					printf("Emulation server mac address is %s\n",em_wol_mac);
+					break;
 				}
 			}
 		}
@@ -1495,9 +1504,14 @@ int wol_getmac(char *ip)
 int wol_wake(void)
 {
 	int rc = -1;
-	if (web_config->wol_mac[0]!=0) {
+	char buffer[5];
+	
+	snprintf(buffer,sizeof(buffer),"eth%d",wireless);
+
+	if (em_wol_mac[0]!=0) {
+		printf("Sending WOL packet to %s via %s\n",em_wol_mac,buffer);
 		if (fork()==0) {
-			rc = execlp("/usr/bin/ether-wake","ether-wake",web_config->wol_mac,(char *)0);
+			rc = execlp("/usr/bin/ether-wake","ether-wake","-i",buffer,em_wol_mac,(char *)0);
 		}
 	}
 	return rc;

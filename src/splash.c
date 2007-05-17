@@ -33,11 +33,20 @@ main(int argc, char **argv)
 {
 	osd_surface_t *surface;
 	osd_indexed_image_t image;
-	int x, y;
+	int x, y, width, height;
 
 	av_init();
 
-	if ((surface=osd_create_surface(720, 480, 0x0, OSD_FB)) == NULL) {
+	if (av_get_mode() == AV_MODE_PAL) {
+		width = 720;
+		height = 576;
+		av_set_mode(AV_MODE_PAL);
+	} else {
+		width = 720;
+		height = 480;
+	}
+
+	if ((surface=osd_create_surface(width, height, 0x0, OSD_FB)) == NULL) {
 		exit(1);
 	}
 
@@ -49,8 +58,8 @@ main(int argc, char **argv)
 	image.blue = linux_logo_blue;
 	image.image = linux_logo;
 
-	x = (720 - image.width) / 2;
-	y = (480 - image.height) / 2;
+	x = (width - image.width) / 2;
+	y = (height - image.height) / 2;
 
 	if (osd_draw_indexed_image(surface, &image, x, y) < 0) {
 		exit(1);

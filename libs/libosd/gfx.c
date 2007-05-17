@@ -401,6 +401,15 @@ gfx_set_display_options(osd_surface_t *surface, unsigned char option)
 	return ioctl(surface->fd, GFX_FB_SET_DISPLAY, &surface->data.gfx.display);
 }
 
+static int 
+gfx_memcpy(osd_surface_t *surface,int base, int destOffset, unsigned char *Data,
+		int sourceOffset, int frameWidth)
+{
+	memcpy(surface->data.gfx.base[base]+destOffset, (Data + sourceOffset), frameWidth);
+	return 0;
+}
+
+
 osd_func_t fp_gfx = {
 	.destroy = gfx_destroy_surface,
 	.display = gfx_display_surface,
@@ -427,6 +436,7 @@ osd_func_t fp_gfx = {
 	.get_display_control = gfx_get_display_control,
 	.set_display_options = gfx_set_display_options,
 	.get_display_options = gfx_get_display_options,
+	.memcpy = gfx_memcpy,
 };
 
 osd_surface_t*
@@ -495,7 +505,7 @@ gfx_create(int w, int h, unsigned long color)
 	if (gfx_get_display_options(surface) < 0)
 		goto err;
 
-	PRINTF("surface 0x%.8x created of size %d x %d   [%d]\n",
+	PRINTF("surface 0x%p created of size %d x %d   [%lu]\n",
 	       surface, w, h, surface->data.gfx.map.map[0].size);
 
 	i = 0;

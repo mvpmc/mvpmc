@@ -25,12 +25,15 @@
 #define state			__av_state
 #define vid_mode		__av_vid_mode
 #define tv_aspect		__av_tv_aspect
+#define flicker			__av_flicker
 
 extern int fd_video;
 extern int fd_audio;
 extern av_state_t state;
 extern av_mode_t vid_mode;
 extern av_tv_aspect_t tv_aspect;
+
+short flicker;
 
 #define init_mtd		__av_init_mtd
 #define set_output_method	__av_set_output_method
