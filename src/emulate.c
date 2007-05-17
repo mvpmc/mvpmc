@@ -80,7 +80,7 @@ static int newSession = 0;
 
 volatile int stopLoop = false;
 volatile static int timerTick=0;
-#if 1
+#if 0
 #define PRINTF(x...) printf(x)
 	#define MPRINTF(x...)
 	#define LPRINTF(x...) log_emulation();printf(x)	
