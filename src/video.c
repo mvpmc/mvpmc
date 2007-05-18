@@ -106,6 +106,7 @@ static stream_type_t audio_output = STREAM_MPEG;
 
 static unsigned char ac3buf[1024*32];
 static volatile int ac3len = 0, ac3more = 0;
+void sync_ac3_audio(void);
 
 static volatile int video_reopen = 0;
 volatile int video_playing = 0;
@@ -1456,11 +1457,11 @@ video_read_start(void *arg)
 
 		if (video_reopen) {
 			if (video_functions->open() == 0) {
-			    	/* Jump to the start of the new file */
-			    	jump_target = 0;
-			    	jumping = 1;
+				/* Jump to the start of the new file */
+				jump_target = 0;
+				jumping = 1;
 				video_reopen = 0;
-                tsmode = TS_MODE_UNKNOWN;
+				tsmode = TS_MODE_UNKNOWN;
 			} else {
 				fprintf(stderr, "video open failed!\n");
 				video_playing = 0;
@@ -1508,36 +1509,34 @@ video_read_start(void *arg)
 			}
 			else {
 				tsbuf = tsbuf_static;
-                do {
-			tslen = video_functions->read(tsbuf,
+				do {
+					tslen = video_functions->read(tsbuf,
 						      sizeof(tsbuf_static));
-                } while ( tslen==-1 && errno==EAGAIN);
+				} while ( tslen==-1 && errno==EAGAIN);
 			}
 			thruput_count += tslen;
 			inbuf = inbuf_static;
 
 			if (tsmode == TS_MODE_UNKNOWN) {
-			    if (tslen > 0) {
-                    tsmode = ts_demux_is_ts(tshandle, tsbuf, tslen);
-			        printf("auto detection transport stream returned %d\n", tsmode);
-			        if (tsmode == TS_MODE_NO)
-			        len = tslen;
-			    }
+				if (tslen > 0) {
+					tsmode = ts_demux_is_ts(tshandle, tsbuf, tslen);
+					printf("auto detection transport stream returned %d\n", tsmode);
+					if (tsmode == TS_MODE_NO)
+					len = tslen;
+			    	}
 			} else if (tsmode == TS_MODE_NO) {
-			    len = tslen;
+				len = tslen;
 			} else {
-			  len = ts_demux_transform(tshandle, tsbuf, tslen, inbuf, sizeof(inbuf_static));			
-			  int resyncs = ts_demux_resync_count(tshandle);
-			  if (resyncs > 50) {
-			    printf("resync count = %d, switch back to unknown mode\n", resyncs);
-			    tsmode = TS_MODE_UNKNOWN;
-			    ts_demux_reset(tshandle);
-			  }
+				len = ts_demux_transform(tshandle, tsbuf, tslen, inbuf, sizeof(inbuf_static));
+				int resyncs = ts_demux_resync_count(tshandle);
+				if (resyncs > 50) {
+					printf("resync count = %d, switch back to unknown mode\n", resyncs);
+					tsmode = TS_MODE_UNKNOWN;
+					ts_demux_reset(tshandle);
+				}
 			}
-
 			n = 0;
-
-            if (len == 0 && playlist ) {
+			if (len == 0 && playlist ) {
 				video_reopen = 2;
 				playlist_next();
 			}
@@ -1572,9 +1571,9 @@ video_read_start(void *arg)
 		continue;
 #else
 		if (tsmode == TS_MODE_YES)
-		  ret = DEMUX_PUT(handle, inbuf+n, len-n);
+			ret = DEMUX_PUT(handle, inbuf+n, len-n);
 		else
-		  ret = DEMUX_PUT(handle, tsbuf+n, len-n);
+			ret = DEMUX_PUT(handle, tsbuf+n, len-n);
 #endif
 
 		if ((ret <= 0) && (!seeking)) {
@@ -1604,6 +1603,18 @@ video_read_start(void *arg)
 			audio_type = attr->audio.type;
 			switch (audio_type) {
 			case AUDIO_MODE_AC3:
+				if (audio_output_mode == AUD_OUTPUT_PASSTHRU ) {
+					if (av_set_audio_output(AV_AUDIO_AC3) < 0) {
+						/* revert to downmixing */
+						audio_output_mode = AUD_OUTPUT_STEREO;
+					    // fall through to PCM
+					} else {
+                                    // don't set audio_type
+						audio_output = AV_AUDIO_AC3;
+						printf("switch to AC3 Passthru\n");
+						break;
+					}
+				}
 			case AUDIO_MODE_PCM:
 				audio_output = AV_AUDIO_PCM;
 				printf("switch to PCM audio output device\n");
@@ -1615,6 +1626,10 @@ video_read_start(void *arg)
 				break;
 			}
 			av_set_audio_output(audio_output);
+		} else {
+			if (audio_type==AUDIO_MODE_AC3){
+				sync_ac3_audio();
+			}
 		}
 
 	} //while
@@ -1821,6 +1836,13 @@ audio_write_start(void *arg)
 			pthread_cond_wait(&video_cond, &mutex);
 			break;
 		case AUDIO_MODE_AC3:
+			if (audio_output_mode == AUD_OUTPUT_PASSTHRU ) {
+				if ((len=DEMUX_WRITE_AUDIO(handle, fd_audio)) > 0)
+					pthread_cond_broadcast(&video_cond);
+				else
+					pthread_cond_wait(&video_cond, &mutex);
+				break;
+			}
 			if (ac3more == -1)
 				ac3more = a52_decode_data(NULL, NULL,
 							  pcm_decoded);
@@ -1934,4 +1956,44 @@ end_thruput_test(void)
 	thruput_count = 0;
 
 	mvpw_set_text_str(thruput_widget, buf);
+}
+
+#include <sys/ioctl.h>
+
+#define AC3PASS  0xf800
+#define AC3FIXED 0x5400
+#define AC3OK    0x400
+
+void sync_ac3_audio(void)
+{
+	pts_sync_data_t async, vsync;
+	long long syncDiff;
+	int threshold=0;
+
+	if (audio_output_mode == AUD_OUTPUT_PASSTHRU ) {
+		threshold = AC3PASS;
+	} else {
+		threshold = AC3FIXED;
+	}
+	av_get_audio_sync(&async);
+	av_get_video_sync(&vsync);
+	syncDiff = async.stc-vsync.stc;
+	/*
+	printf("PRE SYNC:  a 0x%llx 0x%llx  v 0x%llx 0x%llx 0x%llx\n",
+		async.stc, async.pts, vsync.stc, vsync.pts, syncDiff)
+	*/
+	if ( abs(syncDiff) > AC3OK ) {
+		if ( syncDiff < threshold ) {
+			av_delay_video(threshold-syncDiff);
+		} else if ( syncDiff > threshold + 0x1000 ) {
+			if (ioctl(fd_audio, _IOW('a',3,int), 0) < 0) {
+			} else {
+//				usleep(syncDiff-(threshold+0x1000));
+			}
+			if (ioctl(fd_audio, _IOW('a',4,int), 0) < 0) {
+			} else {
+			}
+		}
+	}
+	
 }

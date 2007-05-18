@@ -235,6 +235,13 @@ extern int osd_blit(osd_surface_t *dstsfc, int dstx, int dsty,
  */
 extern unsigned int osd_read_pixel(osd_surface_t *surface, int x, int y);
 
+
+/**
+ * Fast copy directly from memory to surface.
+ */
+extern int osd_memcpy(osd_surface_t *surface,int base, int destOffset, unsigned char *Data,
+		int sourceOffset, int frameWidth);
+
 extern int osd_get_display_control(osd_surface_t *surface, int type);
 extern int osd_set_display_control(osd_surface_t *surface, int type, int value);
 extern int osd_set_display_options(osd_surface_t *surface, unsigned char option);

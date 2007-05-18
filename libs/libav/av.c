@@ -1154,3 +1154,18 @@ av_empty(void)
 
 	return a && v;
 }
+
+/*
+ * av_get_flicker() - get the flicker mode
+ *
+ * Arguments:
+ *	none
+ *
+ * Returns:
+ *	0-3
+ */
+int
+av_get_flicker(void)
+{
+	return flicker;
+}

@@ -6010,6 +6010,10 @@ main_select_callback(mvp_widget_t *widget, char *item, void *key)
 	int k = (int)key;
 	mvpw_surface_attr_t surface;
 
+	if (gui_state==MVPMC_STATE_EMULATE) {
+		return;
+	}
+
 	switch (k) {
 	case MM_EXIT:
 #ifndef MVPMC_HOST
@@ -6132,7 +6136,9 @@ main_select_callback(mvp_widget_t *widget, char *item, void *key)
 		myFormatSetup();
 		screensaver_disable();
 		switch_gui_state(MVPMC_STATE_EMULATE);
+
 		if (mvp_server_init() == -1 ) {
+			switch_gui_state(MVPMC_STATE_NONE);
 			return;
 		}
 		printf("Connection Successful\n");
@@ -7607,7 +7613,7 @@ gui_init(char *server, char *replaytv)
 
 	mvpw_keystroke_callback(key_callback);
 
-       /*
+	/*
         * If there was a "--startup <feature>" option present on the command
         * line, setting the callback here will start the feature selected.
         *
@@ -7617,6 +7623,8 @@ gui_init(char *server, char *replaytv)
 	* Do not allow MVPMC to startup (boot into) an application that 
 	* has not been configured.
 	*/
+	mvpw_set_idle(NULL);
+
 	switch(startup_this_feature)
 	{
 	case MM_MYTHTV:
@@ -7739,7 +7747,7 @@ gui_init(char *server, char *replaytv)
 		}
 		break;
 	case MM_VNC:
-		if (strnlen(vnc_server, 254))
+		if (vnc_server[0])
 		{
 			mvpw_hide(fb_image);
 			mvpw_hide(mythtv_image);
@@ -7774,11 +7782,11 @@ gui_init(char *server, char *replaytv)
 
 			snprintf(display_message, sizeof(display_message),
 				  "File:%s\n", "Emulate");
-
-	                main_select_callback(NULL, NULL, (void *)startup_this_feature);
+	                
+			main_select_callback(NULL, NULL, (void *)startup_this_feature);
 		}
 		break;
-        }
+	}       
 	return 0;
 }
 void myFormatSetup(void)
@@ -7817,30 +7825,13 @@ void myFormatSetup(void)
 			}
 		}
 }
-
-void mvp_server_stop(void);
-void mvp_server_remote_key(char key);
-void mvp_server_reset_state(void);
-
-void mvp_key_callback(mvp_widget_t *widget, char key)
+void mvp_emulation_end(void)
 {
-	static int wasGo = 0;
-	if (key==MVPW_KEY_POWER || (wasGo==1 && key==MVPW_KEY_EXIT)) {
-		wasGo = 0;
-		mvp_server_stop();
-		mvpw_destroy(widget);
-		mvpw_show(main_menu);
-		mvpw_show(emulate_image);
-		mvpw_show(mvpmc_logo);
-		mvpw_focus(main_menu);
-		screensaver_enable();
-	} else if (wasGo==0 && key==MVPW_KEY_GO) {
-		wasGo = 1;
-	} else if (wasGo==1 && key==MVPW_KEY_OK) {
-		wasGo = 0;
-		mvp_server_reset_state();
-	} else {
-		wasGo = 0;
-		mvp_server_remote_key(key);
-	}
+	mvpw_show(main_menu);
+	mvpw_show(emulate_image);
+	mvpw_show(mvpmc_logo);
+	mvpw_focus(main_menu);
+	screensaver_enable();
 }
+
+

@@ -47,7 +47,8 @@ static mvpw_menu_item_attr_t item_attr = {
 
 typedef enum {
 	PLAYLIST_FILE_UNKNOWN,
-	PLAYLIST_FILE_FILELIST
+	PLAYLIST_FILE_FILELIST,
+	PLAYLIST_FILE_PLS
 } playlist_file_t;
 
 static char *playlist_current = NULL;
@@ -60,6 +61,8 @@ int playlist_repeat = 0;
 
 void playlist_change(playlist_t *next);
 int is_streaming(char *url);
+
+static int build_playlist_from_pls_file(const char *filename);
 
 static void select_callback(mvp_widget_t *widget, char *item, void *key)
 {
@@ -77,7 +80,7 @@ static void select_callback(mvp_widget_t *widget, char *item, void *key)
       if (playlist==NULL) {
           // playlist has finished
           playlist = pl;
-      } 
+      }
       mvpw_show(fb_progress);
       playlist_change(pl);
       break;
@@ -109,7 +112,10 @@ static int get_playlist_type(char *path)
 	if ((strlen(path) >= strlen(suffix)) &&
 	    (strcmp(path+strlen(path)-strlen(suffix), suffix) == 0))
 		return PLAYLIST_FILE_FILELIST;
-
+	suffix = ".pls";
+	if ((strlen(path) >= strlen(suffix)) &&
+	    (strcmp(path+strlen(path)-strlen(suffix), suffix) == 0))
+		return PLAYLIST_FILE_PLS;
 	return PLAYLIST_FILE_UNKNOWN;
 }
 
@@ -329,15 +335,21 @@ playlist_idle(mvp_widget_t *widget)
 	current = NULL;
 	switch ((playlist_type=get_playlist_type(playlist_current))) {
 	case PLAYLIST_FILE_FILELIST:
-	  if((rc=build_playlist_from_file(playlist_current))<0){
-		free(playlist_current);
-		playlist_current=NULL;
-	  }
-	  break;
+		if((rc=build_playlist_from_file(playlist_current))<0){
+			free(playlist_current);
+			playlist_current=NULL;
+		}
+		break;
+	case PLAYLIST_FILE_PLS:
+		if((rc=build_playlist_from_pls_file(playlist_current))<0){
+			free(playlist_current);
+			playlist_current=NULL;
+		}
+		break;
 	case PLAYLIST_FILE_UNKNOWN:
-	  return;
-	  break;
-	}	
+		return;
+		break;
+	}
 	if(playlist){
 		if (is_streaming(playlist->filename)>=0) {
 			if (rc==1 ) {
@@ -358,7 +370,7 @@ playlist_idle(mvp_widget_t *widget)
 		  mvpw_set_timer(playlist_widget, NULL, 0);
 	  } else {
 
-		  if (is_streaming(pl_item->filename) < 0 ) {
+		  if (is_streaming(pl_item->filename) < 0  && strstr(pl_item->filename,"uPnP")==NULL) {
 			  ID3 *info;
 
 			  info = create_ID3(NULL);
@@ -426,7 +438,7 @@ void playlist_change(playlist_t *next)
    * MP3 file.
    */
   {
-    if (is_streaming (playlist->filename) < 0 ) {
+    if (is_streaming (playlist->filename) < 0 && strstr(playlist->filename,"uPnP")==NULL) {
         int rc = 0;
     
         ID3 *info= create_ID3(NULL);
@@ -654,4 +666,149 @@ playlist_randomize(void)
 
  out:
 	pthread_mutex_unlock(&mutex);
+}
+
+static int build_playlist_from_pls_file(const char *filename)
+{
+	int fd;
+	char *fdbuf;
+	char tmpbuf[FILENAME_MAX+1];
+	char pls_filename[FILENAME_MAX];
+	char pls_title[FILENAME_MAX];
+	int fdwpos=0;
+	int fdrpos=0;
+	int sz;
+	int ch;
+	int done=0;
+	playlist_t *pl_item;
+	playlist_t *pl_dest=NULL;
+	int count=0;
+	char *cwd;
+	int seconds = -1;
+	char *ptr;
+	char buf[128];
+	struct timeval start, end, delta;
+
+	pthread_once(&init_control,playlist_init);
+	pthread_mutex_lock(&mutex);
+
+	mvpw_clear_menu(playlist_widget);
+
+	fprintf(stderr,"building playlist from file %s\n",filename);
+	gettimeofday(&start, NULL);
+	if ((fd=open(filename, O_RDONLY)) < 0) {
+		fprintf(stderr,"unable to open playlist file %s\n",filename);
+		pthread_mutex_unlock(&mutex);
+		return(-1);
+	}
+	fdbuf = (char*)malloc(FD_BUFSZ);
+	if (fdbuf==NULL) {
+		fprintf(stderr,"unable to malloc %d bytes\n",FD_BUFSZ);
+		close(fd);
+		pthread_mutex_unlock(&mutex);
+		return(-1);
+	}
+	cwd = strdup(filename);
+	for (sz=strlen(filename)-1; sz>=0; --sz) {
+		if ((cwd[sz]=='/') || (cwd[sz]=='\\')) {
+			cwd[sz]='\0';
+			break;
+		}
+	}
+	pls_title[0] = 0;
+	seconds = 0;
+	pls_filename[0] = 0;
+	sz=0;
+	while (!done) {
+		ch = read_chr(fd, fdbuf, FD_BUFSZ, &fdwpos, &fdrpos);
+		if (ch<0) {
+			done=1;
+		}
+		if (ch<0 || ch=='\n'|| ch=='\r') {
+			ch = '\0';
+		}
+		tmpbuf[sz] = ch;
+		if (ch=='\0') {
+			if (sz==0) {
+				continue;
+			}
+			sz = 0;
+			if (!*pls_filename && !strncasecmp(tmpbuf, "File", 4)) {
+				char *p = strchr(tmpbuf, '=');
+				if (p++){
+					snprintf(pls_filename,FILENAME_MAX,"%s", p);
+				}
+				pls_title[0] = 0;
+				seconds = 0;
+				continue;
+			}
+			if (*pls_filename && !*pls_title && !strncasecmp(tmpbuf, "Title", 5)) {
+				char *p = strchr(tmpbuf, '=');
+				if (p++)
+					snprintf(pls_title,FILENAME_MAX,"%s", p);
+				continue;
+			}
+			if (*pls_title && !seconds && !strncasecmp(tmpbuf, "Length", 6)) {
+				char *p = strchr(tmpbuf, '=');
+				if (p++)
+					seconds = atoi(p);
+				pl_item = (playlist_t*)malloc(sizeof(playlist_t));
+				if (pl_item) {
+					if ((pls_filename[0]=='/') || (pls_filename[0]=='\\')) {
+						pl_item->filename = strdup(pls_filename);
+					} else {
+						if ( is_streaming(pls_filename) >= 0 ) {
+							pl_item->filename = strdup(pls_filename);
+						} else {
+							pl_item->filename = (char*)malloc(strlen(cwd)+strlen(pls_filename)+2);
+							sprintf(pl_item->filename,"%s/%s",cwd,pls_filename);
+						}
+					}
+					if (seconds)
+						pl_item->seconds = seconds;
+					else
+						pl_item->seconds = -1;
+					if (pls_title)
+						pl_item->name = ptr = strdup(pls_title);
+					else
+						pl_item->name = NULL;
+					pl_item->key = (void*)count;
+					pl_item->next = NULL;
+					pl_item->prev = NULL;
+					item_attr.select = select_callback;
+					if (ptr[strlen(ptr)-1] == '\r')
+						ptr[strlen(ptr)-1] = '\0';
+					mvpw_add_menu_item(playlist_widget, ptr,
+							   pl_item->key, &item_attr);
+					pl_item->label = strdup(ptr);
+					if (pl_dest==NULL) {
+						playlist = pl_item;
+					} else {
+						pl_dest->next = pl_item;
+						pl_item->prev = pl_dest;
+					}
+					pl_dest = pl_item;
+					count++;
+				}
+				pls_title[0] = 0;
+				seconds = 0;
+				pls_filename[0] = 0;
+			}
+//			fprintf(stderr,"playlist line %d: %s %s\n",count,cwd,tmpbuf);
+		} else {
+			sz++;
+		}
+	}
+	snprintf(buf, sizeof(buf), "%s - %d files", filename, count);
+	mvpw_set_menu_title(playlist_widget, buf);
+	playlist_head = playlist;
+	free(fdbuf);
+	close(fd);
+//	fprintf(stderr,"playlist parsing done, %d items\n",count);
+	gettimeofday(&end, NULL);
+	timersub(&end, &start, &delta);
+	fprintf(stderr, "playlist parsing took %ld.%.2ld seconds\n",
+		delta.tv_sec, delta.tv_usec / 10000);
+	pthread_mutex_unlock(&mutex);
+	return(count);
 }

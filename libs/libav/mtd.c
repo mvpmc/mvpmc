@@ -43,6 +43,7 @@ init_mtd(void)
 	char path[64];
 	av_mode_t video = AV_MODE_NTSC;
 	av_video_aspect_t ratio = AV_TV_ASPECT_4x3;
+	short combo;
 
 	if ((fd=open("/proc/mtd", O_RDONLY)) > 0) {
 		FILE *f = fdopen(fd, "r");
@@ -83,7 +84,9 @@ init_mtd(void)
 	close(fd);
 
 	video = mtd[2119];
-	ratio = mtd[2125];
+	combo = mtd[2124];
+	flicker = combo & 0xff;
+	ratio = mtd[2125] & 0xff;
 
 	free(mtd);
 

@@ -112,7 +112,11 @@ static struct option opts[] = {
 	{ "rfb-mode", required_argument, 0, 0},
 	{ "rtwin", required_argument, 0, 0},
 	{ "fs-rtwin", required_argument, 0, 0},
-	{ "flicker", no_argument, 0, 0},
+	{ "em-rtwin", required_argument, 0, 0},
+	{ "em-wolwt", required_argument, 0, 0},
+	{ "em-conwt", required_argument, 0, 0},
+	{ "em-safety", required_argument, 0, 0},
+	{ "flicker", required_argument, 0, 0},
 	{ "mythtv-db", required_argument, 0, 'y'},
 	{ "mythtv-username", required_argument, 0, 'u'},
 	{ "mythtv-password", required_argument, 0, 'p'},
@@ -125,8 +129,13 @@ int settings_disable = 0;
 int reboot_disable = 0;
 int filebrowser_disable = 0;
 int mplayer_disable = 1;
+int em_connect_wait = 0;
+int em_wol_wait = 0;
+char em_wol_mac[20];
+int em_safety=-1;
+int em_rtwin = -1;
 int rfb_mode = 3;
-int flicker = 0;
+int flicker = -1;
 int wireless = 0;
 
 int mount_djmount(char *);
@@ -292,8 +301,12 @@ print_help(char *prog)
 	printf("\t--use-mplayer \tenable mplayer\n");
 	printf("\n");
 	printf("\t--emulate server \tIP address or ?\n");
+	printf("\t--em-wolwt seconds \tWait # seconds for Emulation WOL\n");
+	printf("\t--em-conwt seconds \tWait # seconds for Emulation connect\n");
+	printf("\t--em-safety level \tEmulation protection level\n");
+	printf("\t--em-rtwin size \tbuffer size of Emulation rt_window\n");
 	printf("\t--rfb-mode mode\t(0, 1, 2)\n");
-	printf("\t--flicker \tflicker mode on\n");
+	printf("\t--flicker value\tflicker value 0-3\n");
 	printf("\t--rtwin size \tbuffer size of global rt_window\n");
 	printf("\t--fs-rtwin size \tbuffer size of filesystem rt_window\n");
 }
@@ -461,6 +474,8 @@ check_wireless(void)
 }
 #endif /* MVPMC_HOST */
 
+void start_me_up(void);
+
 /*
  * main()
  */
@@ -579,7 +594,7 @@ mvpmc_main(int argc, char **argv)
 	config->av_tv_aspect = AV_TV_ASPECT_4x3;
 	config->av_mode = AV_MODE_PAL;
 	vnc_server[0] = 0;
-        
+	em_wol_mac[0] = 0;
 	/*
 	 * Parse the command line options.  These settings must override
 	 * the settings from all other sources.
@@ -619,19 +634,20 @@ mvpmc_main(int argc, char **argv)
 			if (strcmp(opts[opt_index].name, "web-port") == 0) {
 				web_port = atoi(optarg_tmp);
 				if ( web_port == 23 || web_port== 443 || web_port == 8005 ) {
-       			    fprintf(stderr, "The port (%d) is not supported!\n",web_port);
-				    web_port = 0;
+					fprintf(stderr, "The port (%d) is not supported!\n",web_port);
+					web_port = 0;
 				}
 			}
 			if (strcmp(opts[opt_index].name, "rtwin") == 0) {
 				rtwin = atoi(optarg_tmp);
-    			set_route(rtwin);
-
+				set_route(rtwin);
 			}
 			if (strcmp(opts[opt_index].name, "fs-rtwin") == 0) {
 				fs_rtwin = atoi(optarg_tmp);
 			}
-
+			if (strcmp(opts[opt_index].name, "em-rtwin") == 0) {
+				em_rtwin = atoi(optarg_tmp);
+			}
 			if (strcmp(opts[opt_index].name, "version") == 0) {
 				printf("MediaMVP Media Center\n");
 				printf("http://www.mvpmc.org/\n");
@@ -667,11 +683,20 @@ mvpmc_main(int argc, char **argv)
 			if (strcmp(opts[opt_index].name, "emulate") == 0) {
 				mvp_server = strdup(optarg);
 			}
+			if (strcmp(opts[opt_index].name, "em-conwt") == 0) {
+				em_connect_wait = atoi(optarg);
+			}
+			if (strcmp(opts[opt_index].name, "em-wolwt") == 0) {
+				em_wol_wait = atoi(optarg);
+			}
+			if (strcmp(opts[opt_index].name, "em-safety") == 0) {
+				em_safety = atoi(optarg);
+			}
 			if (strcmp(opts[opt_index].name, "rfb") == 0) {
 				rfb_mode = atoi(optarg);
 			}
 			if (strcmp(opts[opt_index].name, "flicker") == 0) {
-				flicker = 1;
+				flicker = atoi(optarg);
 			}
 			if (strcmp (opts[opt_index].name, "startup") == 0) {
 			/*
@@ -679,29 +704,29 @@ mvpmc_main(int argc, char **argv)
 			 */
 				if (strcmp (optarg_tmp, "replaytv") == 0) {
 					startup_this_feature = MM_REPLAYTV;
-			      	}
-			    	else if (strcmp (optarg_tmp, "mythtv") == 0) {
+				}
+				else if (strcmp (optarg_tmp, "mythtv") == 0) {
 					startup_this_feature = MM_MYTHTV;
-			      	}
-			    	else if (strcmp (optarg_tmp, "mclient") == 0) {
+				}
+				else if (strcmp (optarg_tmp, "mclient") == 0) {
 					startup_this_feature = MM_MCLIENT;
-			      	}
-			    	else if (strcmp (optarg_tmp, "vnc") == 0) {
+				}
+				else if (strcmp (optarg_tmp, "vnc") == 0) {
 					startup_this_feature = MM_VNC;
-			      	}
-			    	else if (strcmp (optarg_tmp, "emulate") == 0) {
+				}
+				else if (strcmp (optarg_tmp, "emulate") == 0) {
 					startup_this_feature = MM_EMULATE;
-			      	}
-			    	else if (strcmp (optarg_tmp, "settings") == 0) {
+				}
+				else if (strcmp (optarg_tmp, "settings") == 0) {
                         #ifndef MVPMC_HOST
 	                    if (config->firsttime == 1)
                         #endif
 				        startup_this_feature = MM_SETTINGS;
-			      	}
-			    	else if (strcmp (optarg_tmp, "about") == 0) {
+				}
+				else if (strcmp (optarg_tmp, "about") == 0) {
 					startup_this_feature = MM_ABOUT;
 				}
-			    	else if (strcmp (optarg_tmp, "filesystem") == 0) {
+				else if (strcmp (optarg_tmp, "filesystem") == 0) {
 					startup_this_feature = MM_FILESYSTEM;
 					/*
 					 * Decode the "filesystem" option parameter.
@@ -930,6 +955,8 @@ mvpmc_main(int argc, char **argv)
 #endif
 
 	// init here for globals 
+
+	strcpy(em_wol_mac,web_config->wol_mac);
 	memset(web_config, 0, sizeof(web_config_t));
 	if (web_port) {
 		load_web_config(font);
@@ -991,7 +1018,6 @@ mvpmc_main(int argc, char **argv)
 	if (web_port) {
 		reset_web_config();
 	}
-
 #ifndef MVPMC_HOST
 	if(config->firsttime)
 	{
@@ -1143,15 +1169,6 @@ mvpmc_main(int argc, char **argv)
 	}
 #endif
 
-	if (gui_init(mythtv_server, replaytv_server) < 0) {
-		fprintf(stderr, "failed to initialize gui!\n");
-		exit(1);
-	}
-
-	if (music_client() < 0) {
-		fprintf(stderr, "failed to start up music client!\n");
-		exit(1);
-	}
 	if (web_port) {
 		web_server = 1;
 		pthread_create(&web_server_thread, &thread_attr_small,www_mvpmc_start, NULL);
@@ -1159,10 +1176,19 @@ mvpmc_main(int argc, char **argv)
 
 	atexit(atexit_handler);
 
-	mvpw_set_idle(NULL);
-	mvpw_event_loop();
+	if (gui_init(mythtv_server, replaytv_server) < 0) {
+		fprintf(stderr, "failed to initialize gui!\n");
+		exit(1);
+	}
+	if (music_client() < 0) {
+		fprintf(stderr, "failed to start up music client!\n");
+		exit(1);
+	}
 
+	mvpw_event_loop();
+	
 	return 0;
+
 }
 
 void

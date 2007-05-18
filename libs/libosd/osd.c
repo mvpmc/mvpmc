@@ -688,3 +688,14 @@ osd_set_display_options(osd_surface_t *surface, unsigned char option)
 	else
 		return -1;
 }
+
+int
+osd_memcpy(osd_surface_t *surface,int base, int destOffset, unsigned char *Data,
+		int sourceOffset, int frameWidth)
+{
+	if (surface->fp->memcpy)
+		return surface->fp->memcpy(surface,base,destOffset, Data, sourceOffset,frameWidth);
+	else
+		return -1;
+}
+
