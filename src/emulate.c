@@ -2756,7 +2756,7 @@ void RectangleUpdateYUV2(int x0, int y0, int w, int h,  unsigned char *buf1, uns
 		return;
 	}
 	PRINTF("%s YUV2 update %d %d %d %d\n",logstr,x0,y0,w,h);
-	char alpha[SURFACE_X];
+	unsigned char alpha[SURFACE_X];
 	memset(alpha,255,SURFACE_X);
 	screenSaver = currentTime;
 
@@ -3065,7 +3065,7 @@ int auto_select_audio(void)
 	demux_attr_t *attr;
 	int mpeg_id = 0;
 	int another_id = 0;
-	int id=0,type;
+	int id=0,type = -1;
 	int i;
 	
 	attr = demux_get_attr(handle);

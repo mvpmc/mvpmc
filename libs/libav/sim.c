@@ -349,3 +349,9 @@ av_empty(void)
 {
 	return 1;
 }
+
+int
+av_get_flicker(void)
+{
+	return 0;
+}
