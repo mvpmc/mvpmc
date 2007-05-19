@@ -1076,8 +1076,14 @@ mvpw_get_rgba(unsigned long c, unsigned char *r, unsigned char *g,
 #define MVPW_KEY_SEVEN	'7'
 #define MVPW_KEY_EIGHT	'8'
 #define MVPW_KEY_NINE	'9'
-#define MVPW_KEY_POWER	'P'
+#define MVPW_KEY_POWER	'X'
 #define MVPW_KEY_GO	'G'
+#define MVPW_KEY_ASTERISK '*'
+/* This is clearly a 'hash' symbol, not a 'pound' symbol, but someone else has
+ * already established this crazy American distortion of English elsewhere in
+ * the code, so I'll begrudgingly stick with it. - Grumpy Englishman
+ */
+#define MVPW_KEY_POUND '#' 
 #define MVPW_KEY_EXIT	27
 #define MVPW_KEY_MENU	'M'
 #define MVPW_KEY_CHAN_UP	8
@@ -1091,8 +1097,9 @@ mvpw_get_rgba(unsigned long c, unsigned char *r, unsigned char *g,
 #define MVPW_KEY_MUTE	'Q'
 #define MVPW_KEY_BLANK	' '
 #define MVPW_KEY_FULL	'L'
-#define MVPW_KEY_PLAY	'#'
-#define MVPW_KEY_RECORD	'*'
+#define MVPW_KEY_PLAY	'P'
+#define MVPW_KEY_RECORD	'R'
+#define MVPW_KEY_VIDEOS	'V'
 #define MVPW_KEY_PAUSE	','
 #define MVPW_KEY_STOP	'.'
 #define MVPW_KEY_REWIND	'{'
