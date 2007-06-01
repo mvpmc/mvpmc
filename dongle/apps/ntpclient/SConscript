@@ -4,45 +4,25 @@
 #
 
 import os
+import mvpmc
 
 Import('env')
 
-home = os.environ['HOME']
-cc = env['CC']
-cross = env['CROSS']
-downloads = env['DOWNLOADS']
-target = env['TARG']
-
-file = downloads + '/ntpclient_2003_194.tar.gz'
+build_target = env['TARG']
+topdir = env['TOPDIR']
+bindir = '%s/dongle/install/%s/bin/' % (topdir,build_target)
+prefix = '%s/dongle/install/%s' % (topdir,build_target)
 
 e = Environment()
-e.Tool('WGet', toolpath=['../../../scons'])
 
-def GetSourceFile(url, output_dir, env):
-  '''
-  Create a node for a file retrieved via wget.
-  This node can be used as a dependency in other rules.
-  '''
-  # Nab everything after the last slash as the filename
-  basefilename = str(url)[str( url).rfind(os.sep) + 1:]
-  munged = output_dir + os.sep + basefilename + os.sep + url
-  node = env.SourceCode( munged, env.WGet() )
-  return node
+url = [ 'http://www.mvpmc.org/dl/ntpclient_2003_194.tar.gz',
+        'http://doolittle.icarus.com/ntpclient/ntpclient_2003_194.tar.gz' ]
 
-#url = 'http://doolittle.icarus.com/ntpclient/ntpclient_2003_194.tar.gz'
-url = 'http://www.mvpmc.org/dl/ntpclient_2003_194.tar.gz'
-pwd = os.getcwd()
+target = [ bindir + 'ntpclient' ]
+cmd = [ 'make install' ]
+patches = [ 'patches/make.patch',
+            'patches/error.patch' ]
 
-build = env.Command('../../install/' + target + '/bin/ntpclient', 0,
-                    'scons/build_app.sh -d ' + pwd + '/' + target +
-                    '/ntpclient -i ' + file + ' ' +
-                    '-c ' + cross + ' ' +
-                    '-I ' + pwd + '/../../install/' + target + ' '
-                    '-p patches/make.patch ' +
-                    '-p patches/error.patch')
-
-if not os.path.exists(file):
-	dl = GetSourceFile(url, '#' + downloads, e)
-	env.Depends(build, dl)
+build = mvpmc.OSSBuild(target, url, env, e, cmd, patches)
 
 Return('build')

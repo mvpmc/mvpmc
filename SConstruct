@@ -7,12 +7,19 @@
 import os
 import sys
 
+pwd = os.getcwd()
+os.environ['TOPLEVEL'] = pwd
+sys.path.append('%s/scons' % pwd)
+
+import mvpmc
+
 env = Environment (ENV = os.environ)
 
 target = ARGUMENTS.get('TARGET', Platform())
 kernver = ARGUMENTS.get('KERNVER', Platform())
 
 env.Replace(CCFLAGS = '-O3 -g -Wall -Werror')
+env.Replace(TOPDIR = os.getcwd())
 
 home = os.environ['HOME']
 
@@ -60,8 +67,8 @@ else:
 #
 # build binaries in the obj/TARGET directory
 #
-pwd = os.getcwd()
 env.Replace(INCDIR = pwd + '/include')
+env.Replace(INSTDIR = pwd + '/dongle/install/' + target)
 env.Replace(INSTINCDIR = pwd + '/dongle/install/' + target + '/include')
 env.Replace(INSTLIBDIR = pwd + '/dongle/install/' + target + '/lib')
 env.Replace(INSTBINDIR = pwd + '/dongle/install/' + target + '/bin')

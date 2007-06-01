@@ -4,48 +4,25 @@
 #
 
 import os
+import mvpmc
 
 Import('env')
 
-home = os.environ['HOME']
-cc = env['CC']
-cross = env['CROSS']
-downloads = env['DOWNLOADS']
-target = env['TARG']
-
-file = downloads + '/busybox-1.1.3.tar.bz2'
+build_target = env['TARG']
+topdir = env['TOPDIR']
+bindir = '%s/dongle/install/%s/bin/' % (topdir,build_target)
 
 e = Environment()
-e.Tool('WGet', toolpath=['../../../scons'])
 
-def GetSourceFile(url, output_dir, env):
-  '''
-  Create a node for a file retrieved via wget.
-  This node can be used as a dependency in other rules.
-  '''
-  # Nab everything after the last slash as the filename
-  basefilename = str(url)[str( url).rfind(os.sep) + 1:]
-  munged = output_dir + os.sep + basefilename + os.sep + url
-  node = env.SourceCode( munged, env.WGet() )
-  return node
+url = [ 'http://www.mvpmc.org/dl/busybox-1.1.3.tar.bz2',
+	'http://busybox.net/downloads/busybox-1.1.3.tar.bz2' ]
 
-#url = 'http://busybox.net/downloads/busybox-1.1.3.tar.bz2'
-url = 'http://www.mvpmc.org/dl/busybox-1.1.3.tar.bz2'
-pwd = os.getcwd()
+target = [ bindir + 'busybox' ]
+cmd = [ 'make oldconfig',
+	'make install' ]
+patches = [ 'patches/busybox_config.patch',
+	    'patches/busybox-1.1.3.patch' ]
 
-build = env.Command('../../install/' + target + '/bin/busybox', 0,
-                    'scons/build_app.sh -d ' + pwd + '/' + target +
-                    '/busybox-1.1.3 -i ' + file + ' ' +
-                    '-c ' + cross + ' ' +
-                    '-I ' + pwd + '/../../install/' + target + ' ' +
-                    '-p patches/busybox_config.patch ' +
-                    '-p patches/busybox-1.1.3.patch')
-
-env.Depends(build, [ 'patches/busybox_config.patch',
-                     'patches/busybox-1.1.3.patch' ])
-
-if not os.path.exists(file):
-	dl = GetSourceFile(url, '#' + downloads, e)
-	env.Depends(build, dl)
+build = mvpmc.OSSBuild(target, url, env, e, cmd, patches)
 
 Return('build')
