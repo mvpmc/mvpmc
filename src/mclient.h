@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005-2006, Rick Stuart
+ *  Copyright (C) 2005-2007, Rick Stuart
  *  http://www.mvpmc.org/
  *
  * This program is free software; you can redistribute it and/or modify
@@ -106,7 +106,8 @@ enum
  */
 enum
 {
-    STOP = 0,
+    MODE_UNINITIALIZED = 0,
+    STOP,
     PLAY,
     PAUSE,
     STREAMING,
