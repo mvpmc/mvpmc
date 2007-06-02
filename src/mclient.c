@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005-2006, Paul Warren <pdw@ex-parrot.com>
+ *  Copyright (C) 2005-2007, Paul Warren <pdw@ex-parrot.com>
  *  http://www.mvpmc.org/
  *
  * This program is free software; you can redistribute it and/or modify

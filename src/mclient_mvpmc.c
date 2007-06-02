@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2006, Rick Stuart
+ *  Copyright (C) 2006-2007, Rick Stuart
  *  http://www.mvpmc.org/
  *
  * This program is free software; you can redistribute it and/or modify
@@ -717,14 +717,8 @@ mclient_loop_thread (void *arg)
          */
         if (gui_state == MVPMC_STATE_MCLIENT)
         {
-
             /*
              * Let's try initializing mclient here.
-             */
-            if (debug)
-                printf ("mclient:Initializing mclient\n");
-
-            /*
              * Grab the audio hardware.
              */
             switch_hw_state (MVPMC_STATE_MCLIENT);
@@ -734,7 +728,7 @@ mclient_loop_thread (void *arg)
             mclient_local_init ();
 
             if (debug)
-                printf ("mclient:Initializing mclient_cli\n");
+                printf ("mclient:Initializing mclient cli\n");
             cli_init ();
 
             /*
@@ -749,6 +743,15 @@ mclient_loop_thread (void *arg)
             send_discovery (socket_handle_data);
             cli_send_discovery (socket_handle_cli);
 
+	    /*
+	     * Check Slimserver's version number for compatability.
+	     */
+             {
+                 char cmd[MAX_CMD_SIZE];
+                 sprintf (cmd, "%s version ?\n", decoded_player_id);
+                 cli_send_packet (socket_handle_cli, cmd);
+             }
+
             /*
              * Set up the hardware to pass mp3 data.
              * (Should only do once?...)
@@ -762,6 +765,7 @@ mclient_loop_thread (void *arg)
              * ...the play mode to "not start playing"
              * and "clear the buffer".
              */
+
             outbuf->playmode = 3;
             /*
              * ...the get album art hold off timer & flag.
@@ -1056,6 +1060,9 @@ mclient_loop_thread (void *arg)
                     cli_send_packet (socket_handle_cli, cmd);
 
                     sprintf (cmd, "%s mixer volume ?\n", decoded_player_id);
+                    cli_send_packet (socket_handle_cli, cmd);
+
+                    sprintf (cmd, "%s mode ?\n", decoded_player_id);
                     cli_send_packet (socket_handle_cli, cmd);
                 }
 
