@@ -1,51 +1,28 @@
 #!/usr/bin/python
 #
 # build nbtscan
+# Author site http://www.inetcat.net/software/nbtscan.html
 #
 
 import os
+import mvpmc
 
 Import('env')
 
-home = os.environ['HOME']
-cc = env['CC']
-cross = env['CROSS']
-downloads = env['DOWNLOADS']
-target = env['TARG']
-crosspath= env['CROSSPATH']
-instbindir = env['INSTBINDIR']
-
-# Author site http://www.inetcat.net/software/nbtscan.html
-# http://www.inetcat.net/software/nbtscan-1.5.1.tar.gz
-# http://ftp.debian.org/debian/pool/main/n/nbtscan/nbtscan_1.5.1.orig.tar.gz
-
-file = downloads + '/nbtscan-1.5.1.tar.gz'
+build_target = env['TARG']
+topdir = env['TOPDIR']
+bindir = '%s/dongle/install/%s/bin/' % (topdir,build_target)
 
 e = Environment()
-e.Tool('WGet', toolpath=['../../../scons'])
 
-def GetSourceFile(url, output_dir, env):
-  '''
-  Create a node for a file retrieved via wget.
-  This node can be used as a dependency in other rules.
-  '''
-  # Nab everything after the last slash as the filename
-  basefilename = str(url)[str( url).rfind(os.sep) + 1:]
-  munged = output_dir + os.sep + basefilename + os.sep + url
-  node = env.SourceCode( munged, env.WGet() )
-  return node
+url = [ 'http://www.mvpmc.org/dl/nbtscan-1.5.1.tar.gz',
+        'http://www.inetcat.net/software/nbtscan-1.5.1.tar.gz' ]
 
-url = 'http://www.mvpmc.org/dl/nbtscan-1.5.1.tar.gz'
-pwd = os.getcwd()
+target = [ bindir + 'nbtscan' ]
+cmd = [ './configure --host=powerpc',
+        'make',
+        'cp nbtscan %s' % bindir ]
 
-build = env.Command(instbindir + '/nbtscan', 0,
-                    'scons/build_app.sh -d ' + pwd + '/' + target +
-                    '/nbtscan-1.5.1a -i ' + file + ' ' +
-                    '-c ' + cross + ' ' +
-                    '-I ' + instbindir + ' ' )
-
-if not os.path.exists(file):
-	dl = GetSourceFile(url, '#' + downloads, e)
-	env.Depends(build, dl)
+build = mvpmc.OSSBuild(target, url, env, e, cmd)
 
 Return('build')

@@ -2,10 +2,8 @@
 '''
 
 import os
-import sys
-import tarfile
 
-def OSSBuild(targets, urls, env, e, cmd=None, patches=None):
+def OSSBuild(targets, urls, env, e, cmd=[], patches=[]):
     topdir = env['TOPDIR']
     cross = env['CROSS']
     downloads = env['DOWNLOADS']

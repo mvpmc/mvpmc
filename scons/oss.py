@@ -1,11 +1,12 @@
 #
 # oss.py
 #
-# Open Source Software builder
+# SCons Open Source Software builder
 #
 
 import os
 import tarfile
+import popen2
 
 import SCons.Action
 import SCons.Builder
@@ -16,9 +17,18 @@ def debug(level, str):
     if (oss_debug >= level):
         print 'OSS: ' + str
 
-def url_get(proto, url, dldir):
-    # XXX: need to implement this
-    return False
+def url_get(proto, url, path):
+    # SCons munges the url by turning 'http://...' into 'http:/...'
+    i = url.find('/') + 1
+    url = url[i:]
+    url = '%s://%s' % (proto,url)
+    debug(1, 'wget %s' % url)
+    cmd = popen2.Popen4('wget -O %s %s' % (path,url))
+    rc = cmd.wait()
+    if rc == 0 :
+        return True
+    else:
+        return False
 
 def get_sources(node, env, path):
     '''Scanner for dependencies'''
@@ -62,9 +72,9 @@ def ossEmitter(target, source, env):
         path = '%s/%s' % (dldir,file)
         if not os.path.exists(path):
             if proto == 'http':
-                url_get(proto, s, dldir)
+                url_get(proto, s, path)
             elif proto == 'ftp':
-                url_get(proto, s, dldir)
+                url_get(proto, s, path)
             else:
                 raise 'Unknown URL protocol'
         slist = [ path ]
@@ -101,10 +111,11 @@ def build_action(source, target, env):
         os.system('cd %s && patch -p1 < ../../%s' % (dir,i))
 
     cc = cross + 'gcc'
-    command = 'CROSS_PREFIX=%s CC=%s INSTALL_PREFIX=%s sh -c "cd %s' % (cross,cc,prefix,dir)
+    command = 'CROSS=%s CROSS_PREFIX=%s CC=%s INSTALL_PREFIX=%s sh -c "cd %s' % (cross,cross,cc,prefix,dir)
     for i in cmd:
         command += ' && %s' % i
     command += '"'
+    debug(2, command)
     build = os.system(command)
     return None
 

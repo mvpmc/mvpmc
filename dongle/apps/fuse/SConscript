@@ -4,48 +4,26 @@
 #
 
 import os
+import mvpmc
 
 Import('env')
 
-home = os.environ['HOME']
-cc = env['CC']
-cross = env['CROSS']
-downloads = env['DOWNLOADS']
-target = env['TARG']
-
-file = downloads + '/fuse-2.5.3.tar.gz'
+build_target = env['TARG']
+topdir = env['TOPDIR']
+sbindir = '%s/dongle/install/%s/sbin/' % (topdir,build_target)
+prefix = '%s/dongle/install/%s' % (topdir,build_target)
 
 e = Environment()
-e.Tool('WGet', toolpath=['../../../scons'])
 
-def GetSourceFile(url, output_dir, env):
-  '''
-  Create a node for a file retrieved via wget.
-  This node can be used as a dependency in other rules.
-  '''
-  # Nab everything after the last slash as the filename
-  basefilename = str(url)[str( url).rfind(os.sep) + 1:]
-  munged = output_dir + os.sep + basefilename + os.sep + url
-  node = env.SourceCode( munged, env.WGet() )
-  return node
+url = [ 'http://www.mvpmc.org/dl/fuse-2.5.3.tar.gz' ]
 
+target = [ sbindir + 'fusermount' ]
+cmd = [ './configure --host=powerpc-linux -with-gnu-ld --disable-debug  --enable-lib --enable-util --enable-example=no --disable-kernel-module --disable-shared',
+        'make',
+        'cp util/fusermount %s/sbin/fusermount' % prefix,
+        'cp lib/.libs/libfuse.a lib' ]
+patches = []
 
-url = 'http://www.mvpmc.org/dl/fuse-2.5.3.tar.gz'
-pwd = os.getcwd()
-
-build = env.Command(['../../install/' + target + '/sbin/fusermount',
-                     target + '/fuse-2.5.3/lib/libfuse.a'], 0,
-                    'scons/build_fuse.sh -d ' + pwd + '/' + target +
-                    '/fuse-2.5.3 -i ' + file + ' ' +
-                    '-c ' + cross + ' ' +
-                    '-I ' + pwd + '/../../install/' + target + ' -k N' )
-
-if not os.path.exists(file):
-	dl = GetSourceFile(url, '#' + downloads, e)
-	env.Depends(build, dl)
-
-#djmount = env.SConscript(['../djmount/SConscript'])
-
-#build = env.Depends(djmount,fuse)
+build = mvpmc.OSSBuild(target, url, env, e, cmd, patches)
 
 Return('build')

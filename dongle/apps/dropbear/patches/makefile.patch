@@ -1,6 +1,16 @@
---- dropbear-0.48.1/Makefile.in	2006-03-11 23:52:51.000000000 -0500
-+++ dropbear-0.48.1-modified/Makefile.in	2006-11-26 17:18:08.000000000 -0500
-@@ -135,14 +135,18 @@
+--- dropbear-0.48.1/Makefile.in	2006-03-11 22:52:51.000000000 -0600
++++ dropbear-0.48.1-new/Makefile.in	2007-06-02 22:10:59.000000000 -0500
+@@ -9,6 +9,9 @@
+ # dbclient functionality, and includes the progress-bar functionality in scp.
+ # Hopefully that seems intuitive.
+ 
++PROGRAMS=dropbear dropbearkey scp
++MULTI=1
++
+ ifndef PROGRAMS
+ 	PROGRAMS=dropbear dbclient dropbearkey dropbearconvert
+ endif
+@@ -135,14 +138,18 @@
  
  # dropbear should go in sbin, so it needs a seperate rule
  inst_dropbear: dropbear
