@@ -6544,8 +6544,8 @@ mclient_init(void)
 	mvpw_set_dialog_attr(mclient, &mclient_attr);
 
 	snprintf(text, sizeof(text),
-			 "MClient %d.%d", MCLIENT_VERSION_MAJOR, MCLIENT_VERSION_MINOR);
-	mvpw_set_dialog_title(mclient, "MClient");
+			 "MClient %d.%d - Screen Saver", MCLIENT_VERSION_MAJOR, MCLIENT_VERSION_MINOR);
+	mvpw_set_dialog_title(mclient, text);
 
 	/*
 	 * Print default thread, if properly working, the
@@ -6560,7 +6560,8 @@ mclient_init(void)
 
         reset_mclient_hardware_buffer = 0;
 
-	mclient_display_state = STOP;
+	mclient_display_state = MODE_UNINITIALIZED;
+	mclient_display_state_old = MODE_UNINITIALIZED;
 
 	return 0;
 }
@@ -6570,6 +6571,7 @@ mclient_fullscreen_init(void)
 {
 	int h, w, i;
 	int h2;
+	char text[256];
 
 	splash_update("Creating mclient_fullscreen dialog");
 
@@ -6588,7 +6590,9 @@ mclient_fullscreen_init(void)
 
 	mvpw_set_menu_attr(mclient_fullscreen, &mclient_fullscreen_attr);
 
-	mvpw_set_menu_title(mclient_fullscreen, "MClient");
+	snprintf(text, sizeof(text),
+			 "MClient %d.%d", MCLIENT_VERSION_MAJOR, MCLIENT_VERSION_MINOR);
+	mvpw_set_menu_title(mclient_fullscreen, text);
 
 	/*
 	 * Later we will write mclient_fullscreen's own call back.  For now

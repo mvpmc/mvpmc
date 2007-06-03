@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2006, Joe Carter
+ *  Copyright (C) 2006-2007, Joe Carter
  *  http://www.mvpmc.org/
  *
  * This program is free software; you can redistribute it and/or modify
@@ -605,6 +605,62 @@ cli_parse_response (int socket_handle_cli, mclient_cmd * response)
                 }
             }
         }
+        else if (strncmp ("mode", response->cmd, strlen ("mode")) == 0)
+        {
+            debug ("mclient:cli_parse_response: Found mode.\n");
+
+            if (strncmp ("play", response->param[0], strlen ("play")) == 0)
+            {
+                debug ("mclient:cli_parse_response: Found play.\n");
+                mclient_display_state = PLAY;
+/// ###                reset_mclient_hardware_buffer = 1;
+	    }
+	    else if (strncmp ("stop", response->param[0], strlen ("stop")) == 0)
+            {
+                debug ("mclient:cli_parse_response: Found stop.\n");
+                mclient_display_state = STOP;
+/// ###                reset_mclient_hardware_buffer = 1;
+	    }
+	    else if (strncmp ("pause", response->param[0], strlen ("pause")) == 0)
+            {
+                debug ("mclient:cli_parse_response: Found pause.\n");
+                mclient_display_state = PAUSE;
+	    }
+        }
+	else if (strncmp ("version", response->cmd, strlen ("version")) == 0)
+	{
+	    debug ("mclient:cli_parse_response: Found version.\n");
+            {
+               int slim_major,slim_minor,slim_dot,slim_composit_ver,required_composit_ver;
+               char slim_version_buffer[strlen (response->param[0])];
+
+               // Parse the version number.  Expect 3 fields separated by "."s.
+               slim_major = atoi (strtok_r (response->param[0], ".", (char **) &slim_version_buffer));
+               slim_minor = atoi (strtok_r (NULL, ".", (char **) &slim_version_buffer));
+               slim_dot = atoi (strtok_r (NULL, ".", (char **) &slim_version_buffer));
+               printf("mclient:cli_parse_response: Found slimserver version:%d.%d.%d, need:%d.%d.%d\n",slim_major,slim_minor,slim_dot,SLIMSERVER_VERSION_MAJOR,SLIMSERVER_VERSION_MINOR_1,SLIMSERVER_VERSION_MINOR_2);
+               slim_composit_ver = (slim_major * 10000) + (slim_minor * 100) + slim_dot;
+               required_composit_ver = (SLIMSERVER_VERSION_MAJOR * 10000) + (SLIMSERVER_VERSION_MINOR_1 * 100) + SLIMSERVER_VERSION_MINOR_2;
+               if (slim_composit_ver < required_composit_ver)
+               {
+                  /*
+                   * Warning, the version of slimserver is less than that required.
+                   * Display Warning box on OSD.
+                   */
+                   {
+                       char buf[200];
+
+                       snprintf(buf, sizeof(buf), "%s%d%s%d%s%d%s%s%s",
+                            "The version of slimserver (",
+                            slim_major,".",slim_minor,".",slim_dot,
+                            ") we connected to at IP:", 
+                            mclient_server ? mclient_server : "127.0.0.1",
+                            " is less than this version of MClient requires.");
+                       gui_error(buf);
+                   }
+               }
+            }
+	}
         else
         {
             debug ("mclient:cli_parse_response: Command |%s| not handled yet.\n",
@@ -733,9 +789,9 @@ cli_parse_playlist (mclient_cmd * response)
              * Turn off attempts to recover radio data on a periodic bases.
              */
             cli_identical_state_interval_timer = 0;
-            sprintf (string, "Author: %s   Playing track %d of %d", cli_data.artist,
-                     (cli_data.index_playing + 1), cli_data.tracks);
-            mvpw_menu_change_item (mclient_fullscreen, (void *) (1), string);
+/// ####            sprintf (string, "Author: %s   Playing track %d of %d", cli_data.artist,
+/// ####                     (cli_data.index_playing + 1), cli_data.tracks);
+/// ####            mvpw_menu_change_item (mclient_fullscreen, (void *) (1), string);
 
             /*
              * Change to next state
@@ -1191,6 +1247,11 @@ cli_update_playlist (int socket_handle_cli)
             sprintf (cmd, "%s playlist tracks ?\n", encoded_player_id);
             cli_send_packet (socket_handle_cli, cmd);
             cli_pick_starting_index ();
+	    /*
+	     * The play list is being updated.  Let's also update the banner
+	     * at the top of the full screen OSD window.
+	     */
+	    mclient_display_state_old = MODE_UNINITIALIZED;
             break;
 
         case UPDATE_PLAYLIST_ARTIST:
