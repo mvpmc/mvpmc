@@ -1498,13 +1498,6 @@ cli_send_packet (int socket_handle, char *b)
 		"web page.");
            gui_error(buf);
 
-/// ### Can not print out back-to-back warnings.  Alsoways skips first warning.
-/// ###           snprintf(buf, sizeof(buf), "%s%s%s",
-/// ###		"...ok, we should be able to play music", 
-/// ###		"but features like the play list and album cover art ",
-/// ###		"will not be available.");
-/// ###           gui_error(buf);
-
            /*
 	    * Set flag to ignore this problem.
 	    */
