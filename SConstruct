@@ -48,6 +48,7 @@ if target == 'mvp':
 elif target == 'host':
 	cppflags = '-DMVPMC_HOST'
 	crossroot='';
+	env.Replace(CROSS = '')
 elif target == 'kernel':
 	print "kernel build"
 	powerpc = 'powerpc-405-linux-uclibc'
