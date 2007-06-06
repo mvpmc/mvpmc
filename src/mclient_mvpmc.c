@@ -1251,25 +1251,22 @@ mclient_exit (void)
 {
     uint limit_counter = 500;
 
-    if(hw_state == MVPMC_STATE_MCLIENT_SHUTDOWN)
-    {
-	printf(">>>TEST:mclient_exit: The mclient thread has NOT FINISHED YET!\n");
+    hw_state = MVPMC_STATE_MCLIENT_SHUTDOWN;
 
-        while ((hw_state == MVPMC_STATE_MCLIENT_SHUTDOWN) && (limit_counter > 0))
-        {
-            limit_counter--;
-            printf(".");
-            sleep(1);
-        }
-	printf("\n");
+    while ((hw_state == MVPMC_STATE_MCLIENT_SHUTDOWN) && (limit_counter > 0))
+    {
+        limit_counter--;
+        printf(".");
+        sleep(1);
     }
+    printf("\n");
 
     if(hw_state == MVPMC_STATE_MCLIENT_SHUTDOWN)
     {
-	printf(">>>TEST:mclient_exit: The mclient thread has FINISHED.\n");
+	printf(">>>TEST:mclient_exit: WARNING:The mclient thread did NOT FINISHED!\n");
     }
     else
     {
-	printf(">>>TEST:mclient_exit: WARNING:The mclient thread did NOT FINISHED!\n");
+	printf(">>>TEST:mclient_exit: The mclient thread has FINISHED.\n");
     }
 }
