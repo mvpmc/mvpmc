@@ -1302,6 +1302,7 @@ audio_start(void *arg)
 		if (!audio_stop && playlist) {
 			if (is_streaming(current) != 0 ) {
 				close(fd);
+				fd = -1;
 			}
 			playlist_next();
 			if (playlist) {
@@ -1313,6 +1314,7 @@ audio_start(void *arg)
 		printf("Done with audio file\n");
 
 		close(fd);
+		fd = -1;
 		audio_clear();
 		if (done < 0 ) {
 			mvpw_hide(fb_progress);

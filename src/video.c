@@ -1348,6 +1348,7 @@ file_open(void)
 			audio_clear();
 		
 		close(fd);
+		fd = -1;
 	}
 
 	pthread_kill(video_write_thread, SIGURG);
