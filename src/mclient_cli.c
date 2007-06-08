@@ -692,11 +692,13 @@ cli_get_cover_art ()
             av_wss_update_aspect (WSS_ASPECT_UNKNOWN);
         }
         close (fd);
+	fd = -1;
     }
     else if (retcode == HTTP_FILE_UNKNOWN)
     {
         printf ("mclient:cli_get_cover_art: ART WORK NOT FOUND, NEED TO FIND A DEFAULT IMAGE.\n"); ///###
         close (fd);
+	fd = -1;
     }
     free (current);
 }
