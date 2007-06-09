@@ -312,6 +312,7 @@ extern void video_switch_stream(mvp_widget_t*, int);
 extern void add_audio_streams(mvp_widget_t*, mvpw_menu_item_attr_t*);
 extern void add_video_streams(mvp_widget_t*, mvpw_menu_item_attr_t*);
 
+extern void *av_sync_start(void*);
 extern void *video_events_start(void*);
 extern void *video_read_start(void*);
 extern void *video_write_start(void*);

@@ -1381,6 +1381,7 @@ file_open(void)
 		ts_demux_reset(tshandle);
 		demux_attr_reset(handle);
 		demux_seek(handle);
+		vid_event_discontinuity_possible();
 		if (gui_state == MVPMC_STATE_EMULATE || http_playing == HTTP_VIDEO_FILE_MPG) {
 			video_thumbnail(0);
 		} else {
@@ -1437,6 +1438,7 @@ video_read_start(void *arg)
 			demux_reset(handle);
 			ts_demux_reset(tshandle);
 			demux_seek(handle);
+			vid_event_discontinuity_possible();
 			if ( !(sent_idle_notify) ) {
 				if ( video_functions->notify != NULL ) {
 					video_functions->notify(MVP_READ_THREAD_IDLE);
@@ -1457,6 +1459,7 @@ video_read_start(void *arg)
 #endif
 
 		if (video_reopen) {
+		        vid_event_clear();
 			if (video_functions->open() == 0) {
 				/* Jump to the start of the new file */
 				jump_target = 0;
@@ -1479,6 +1482,7 @@ video_read_start(void *arg)
 			demux_seek(handle);
 			av_get_state(&state);
 			av_reset();
+			vid_event_discontinuity_possible();
 			if (seeking)
 				reset = 0;
 			if (state.mute)
@@ -1666,7 +1670,7 @@ video_events_start(void *arg)
 static void video_change_aspect(int new_aspect, int new_afd)
 {
     printf("Changing to aspect %d, afd %d\n", new_aspect, new_afd);
-    if (new_aspect != 0) {
+    if (new_aspect != 0 && new_aspect != -1) {
 	av_wss_aspect_t wss;
 	if (new_aspect == 3) {
 	    printf("Source video aspect ratio: 16:9\n");
@@ -1679,7 +1683,7 @@ static void video_change_aspect(int new_aspect, int new_afd)
 	}
 	av_wss_update_aspect(wss);
     } else {
-	printf("Video aspect reported as ZERO - not changing setting\n");
+	printf("Video aspect reported as 0 or -1 - not changing setting\n");
 	fflush(stdout);
     }
 }

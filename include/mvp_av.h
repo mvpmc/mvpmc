@@ -328,6 +328,8 @@ extern int av_delay_video(int usec);
 
 extern int vid_event_add(unsigned int pts, eventq_type_t type, void * info);
 extern int vid_event_wait_next(eventq_type_t * type, void **info);
+extern void vid_event_discontinuity_possible();
+extern void vid_event_clear();
 
 /**
  * Return the current video mode.
