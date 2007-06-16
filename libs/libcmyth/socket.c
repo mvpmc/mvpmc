@@ -1943,7 +1943,7 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 		/*
 		 * Get original_air_date (string)
 		 */
-		if (buf->proginfo_version >= 14) {
+		if ((buf->proginfo_version >= 14) & (buf->proginfo_version <=32)) {
 			consumed =
 				cmyth_rcv_datetime(conn, err,
 						   &(buf->proginfo_originalairdate),
