@@ -37,6 +37,7 @@
 #include <mvp_demux.h>
 #include <mvp_string.h>
 #include <mvp_refmem.h>
+#include <mvp_atomic.h>
 #include <cmyth.h>
 
 #include "mvpmc.h"
@@ -73,7 +74,7 @@ static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t seek_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t myth_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t event_cond = PTHREAD_COND_INITIALIZER;
-static pthread_mutex_t request_block_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t request_block_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t close_file_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t close_file_cond = PTHREAD_COND_INITIALIZER;
 
@@ -119,7 +120,7 @@ volatile int playing_via_mythtv = 0;
 volatile int close_mythtv = 0;
 volatile int changing_channel = 0;
 static volatile int video_reading = 0;
-static volatile int mythtv_prevent_request_block = 0; /* if > 0 stops a new request_block request being made */
+mvp_atomic_t mythtv_prevent_request_block = 0; /* if > 0 stops a new request_block request being made */
 static volatile int mythtv_doing_request_block = 0; /* Flag to indicate that a request_block is currently in progress, and data will need to be read before we can send another command */
 static volatile int mythtv_close_file_state = 0; /* Indicates whether a close is in-progress */
 
@@ -452,7 +453,7 @@ mythtv_close_just_file(void)
 		 * will wait until we've read most of the data before returning
 		 * and we can't read if mythtv_file is NULL
 		 */
-		mythtv_prevent_request_block++;
+		mvp_atomic_inc(&mythtv_prevent_request_block);
 		pthread_mutex_lock(&request_block_mutex);
 		mythtv_close_file_state = 1;
 		cmyth_file_set_closed_callback(mythtv_file,mythtv_close_complete);
@@ -463,7 +464,7 @@ mythtv_close_just_file(void)
 		    pthread_cond_wait(&close_file_cond,&close_file_mutex);
 		}
 		pthread_mutex_unlock(&close_file_mutex);
-		mythtv_prevent_request_block--;
+		mvp_atomic_dec(&mythtv_prevent_request_block);
 		pthread_mutex_unlock(&request_block_mutex);
 	}
 
@@ -2317,10 +2318,10 @@ mythtv_open(void)
 			    __FUNCTION__, __FILE__, __LINE__);
 		return -1;
 	}
-	mythtv_prevent_request_block++;
+	mvp_atomic_inc(&mythtv_prevent_request_block);
 	pthread_mutex_lock(&request_block_mutex);
 	CHANGE_GLOBAL_REF(mythtv_file, f);
-	mythtv_prevent_request_block--;
+	mvp_atomic_dec(&mythtv_prevent_request_block);
 	pthread_mutex_unlock(&request_block_mutex);
 	ref_release(f);
 	ref_release(c);
@@ -2361,7 +2362,7 @@ mythtv_seek(long long offset, int whence)
 	/*Stop any fresh request_block operations starting before we do the
 	 *seek, and flush out buffers
 	 */
-	mythtv_prevent_request_block++;
+	mvp_atomic_inc(&mythtv_prevent_request_block);
 	pthread_mutex_lock(&seek_mutex);
 	pthread_mutex_lock(&myth_mutex);
 
@@ -2434,7 +2435,7 @@ mythtv_seek(long long offset, int whence)
 	else
 		seek_pos = cmyth_file_seek(f, offset, whence);
 
-	mythtv_prevent_request_block--;
+	mvp_atomic_dec(&mythtv_prevent_request_block);
 	pthread_mutex_unlock(&request_block_mutex);
 
 	PRINTF("%s(): pos %lld\n", __FUNCTION__, seek_pos);
