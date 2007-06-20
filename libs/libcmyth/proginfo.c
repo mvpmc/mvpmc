@@ -456,6 +456,10 @@ delete_command(cmyth_conn_t control, cmyth_proginfo_t prog, char *cmd)
 	    cmyth_datetime_to_string(lastmodified, prog->proginfo_lastmodified);
 	}
 
+	if(control->conn_version > 32) {
+	    cmyth_timestamp_to_isostring(originalairdate,
+				 prog->proginfo_originalairdate);
+	}
 	
 	if(control->conn_version < 12)
 	{
@@ -1247,6 +1251,11 @@ fill_command(cmyth_conn_t control, cmyth_proginfo_t prog, char *cmd)
 				     prog->proginfo_originalairdate);
 	    cmyth_datetime_to_string(lastmodified, prog->proginfo_lastmodified);
 	}
+	if(control->conn_version > 32)
+	{
+	    cmyth_timestamp_to_isostring(originalairdate,
+	                         prog->proginfo_originalairdate);
+        }				 
 
 	if (control->conn_version < 12)
 	{

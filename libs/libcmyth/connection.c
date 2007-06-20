@@ -930,7 +930,9 @@ cmyth_conn_get_freespace(cmyth_conn_t control,
 
 	pthread_mutex_lock(&mutex);
 
-	if (control->conn_version >= 17)
+	if (control->conn_version >= 32)
+		{ snprintf(msg, sizeof(msg), "QUERY_FREE_SPACE_SUMMARY"); }
+	else if (control->conn_version >= 17)	
 		{ snprintf(msg, sizeof(msg), "QUERY_FREE_SPACE"); }
 	else
 		{ snprintf(msg, sizeof(msg), "QUERY_FREESPACE"); }

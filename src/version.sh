@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # Create the mvpmc build version information, unless we can prove that nothing
 # has changed since the last build.
