@@ -163,9 +163,9 @@ int cmyth_rcv_commbreaklist(cmyth_conn_t conn, int *err,
 			}
 
 			if (j == 0) {
-				consumed = cmyth_rcv_long(conn, err, &commbreak->start_offset, count);
+				consumed = cmyth_rcv_long_long(conn, err, &commbreak->start_offset, count);
 			} else {
-				consumed = cmyth_rcv_long(conn, err, &commbreak->end_offset, count);
+				consumed = cmyth_rcv_long_long(conn, err, &commbreak->end_offset, count);
 			}	
 			count -= consumed;
 			total += consumed;

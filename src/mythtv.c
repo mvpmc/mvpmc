@@ -166,14 +166,14 @@ static int
 in_commbreak(void)
 {
 	int i;
-	long current_pos = video_functions->seek(0, SEEK_CUR);
+	long long current_pos = video_functions->seek(0, SEEK_CUR);
 
 	if (current_breaklist->commbreak_count < 1)
 		return -1;
 
 	for (i = 0; i < current_breaklist->commbreak_count; i++) {
 		if (current_pos > current_breaklist->commbreak_list[i]->start_offset && current_pos < current_breaklist->commbreak_list[i]->end_offset) {
-			fprintf(stderr, "Current pos: %li is in breaklist %d\n", current_pos, i);
+			fprintf(stderr, "Current pos: %lli is in breaklist %d\n", current_pos, i);
 			return i;
 		}
 	}
@@ -187,15 +187,16 @@ mythtv_video_key(char key)
 	int rc = 0;
 	int breakidx;
 	long long mark,bk;
-	long bookmark,chanid;
-	int offset=0;
-	int dbmark=0;
+	long long bookmark;
+	long chanid;
+	long long offset=0;
+	long long dbmark=0;
 	cmyth_conn_t ctrl=ref_hold(control);
 	
 	switch (key) {
 		case MVPW_KEY_SKIP:
 			if ((breakidx = in_commbreak()) >= 0) {
-				fprintf(stderr, "Jumping to %li\n", current_breaklist->commbreak_list[breakidx]->end_offset);
+				fprintf(stderr, "Jumping to %lli\n", current_breaklist->commbreak_list[breakidx]->end_offset);
 				seek_to(current_breaklist->commbreak_list[breakidx]->end_offset);
 				rc = 1;
 			} else {
@@ -204,7 +205,7 @@ mythtv_video_key(char key)
 			break;
 		case MVPW_KEY_REPLAY:
 			if ((breakidx = in_commbreak()) >= 0) {
-				fprintf(stderr, "Jumping to %li\n", current_breaklist->commbreak_list[breakidx]->start_offset);
+				fprintf(stderr, "Jumping to %lli\n", current_breaklist->commbreak_list[breakidx]->start_offset);
 				seek_to(current_breaklist->commbreak_list[breakidx]->start_offset);
 				rc = 1;
 			} else {
@@ -220,7 +221,7 @@ mythtv_video_key(char key)
 				}
 				else {
 					display_bookmark_status_osd(0);
-					fprintf(stderr,"Jumping to bookmark %qd : offset %d\n",mark,offset);
+					fprintf(stderr,"Jumping to bookmark %qd : offset %qd\n",mark,offset);
 					seek_to(offset);
 					rc=1;
 				}
@@ -237,7 +238,7 @@ mythtv_video_key(char key)
 			}
 			else {
 				dbmark = (dbmark-1)*15;
-				fprintf (stderr,"keyframe mark = %d\n",dbmark);
+				fprintf (stderr,"keyframe mark = %lld\n",dbmark);
 				cmyth_set_bookmark(ctrl, current_prog, dbmark );
 				cmyth_dbg(CMYTH_DBG_DEBUG, "bookmark saved, value: %qd \n",bookmark);
 				display_bookmark_status_osd(1);

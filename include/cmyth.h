@@ -116,9 +116,9 @@ typedef struct cmyth_file *cmyth_file_t;
 
 struct cmyth_commbreak {
         long start_mark;
-        long start_offset;
+        long long start_offset;
         long end_mark;
-        long end_offset;
+        long long end_offset;
 };
 typedef struct cmyth_commbreak *cmyth_commbreak_t;
 
