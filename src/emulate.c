@@ -60,6 +60,8 @@
 #include <mvp_widget.h>
 #include <mvp_av.h>
 #include <mvp_demux.h>
+
+#include <ts_demux.h>
 #include <mvp_osd.h>
 //#include <osd.h>
 
@@ -80,6 +82,9 @@ static int newSession = 0;
 
 volatile int stopLoop = false;
 volatile static int timerTick=0;
+
+#define GBSAFETY 0
+
 #if 0
 #define PRINTF(x...) printf(x)
 	#define MPRINTF(x...)
@@ -121,6 +126,7 @@ Bool media_send_stop(stream_t *stream);
 Bool media_send_eight(stream_t *stream);
 void media_queue_data(stream_t *stream);
 
+int is_streaming(char *url);
 
 int64_t media_seek(int64_t value);
 int needPing = 0;
@@ -171,6 +177,7 @@ int wol_wake(void);
 int is_live = 0;
 static volatile int server_osd_visible = 0;
 extern demux_handle_t *handle;
+extern ts_demux_handle_t *tshandle;
 void demux_set_iframe(demux_handle_t *handle,int type);
 
 #define  programName "mvpmc"
@@ -209,8 +216,6 @@ extern int em_wol_wait;
 extern char em_wol_mac[];
 extern int em_safety;
 extern int em_rtwin;
-
-#define GBSAFETY 3
 
 void PauseDisplayState(void);
 
@@ -263,6 +268,7 @@ static volatile int mvp_state = EMU_RUNNING;
 extern volatile long long jump_target;
 
 static int is_stopping = EMU_RUNNING;
+
 int displayOSDFile(char *filename);
 
 #define MVP_NAMED_PIPE "/tmp/FIFO"
@@ -857,6 +863,7 @@ void mvp_server_cleanup(void)
 #define HAUP_KEY_GUIDE   0x1f
 #define HAUP_KEY_STOP    0x1b
 #define HAUP_KEY_PAUSE   0x1c
+#define HAUP_KEY_REWIND  0x0e
 #define HAUP_KEY_REPLAY  0x2a
 #define HAUP_KEY_SKIP    0x2b
 
@@ -870,7 +877,7 @@ void mvp_server_remote_key(char key)
 		0x2d, 0x2e, 0x2f, HAUP_KEY_GUIDE, 0x2c, 0x30, HAUP_KEY_SKIP, 0x20,
 		0x12, 0x13, 0x00, 0x00, HAUP_KEY_REPLAY, 0x0d, 0x00, 0x00,
 		0x00, 0x27, 0x00, 0x00, 0x00, 0x00, 0x25, 0x00,
-		HAUP_KEY_PAUSE, 0x00, 0x0e, 0x00, HAUP_KEY_FORWARD, HAUP_KEY_PLAY, HAUP_KEY_STOP, 0x1a,
+		HAUP_KEY_PAUSE, 0x00, HAUP_KEY_REWIND, 0x00, HAUP_KEY_FORWARD, HAUP_KEY_PLAY, HAUP_KEY_STOP, 0x1a,
 		0x26, 0x00, 0x00, 0x23, 0x29, 0x14
 	};
 
@@ -923,6 +930,11 @@ void mvp_server_remote_key(char key)
 			return;
 		}
 	}
+	/*
+	if (key==MVPW_KEY_EXIT && mystream.mediatype==TYPE_VIDEO && mvp_state==EMU_RUNNING && is_stopping == EMU_RUNNING && osd_visible != 0) {
+		key = MVPW_KEY_STOP;
+	}
+	*/
 	mystream.last_key = key;
 	if ( mystream.mediatype==TYPE_AUDIO || mystream.mediatype==TYPE_VIDEO ) {
 		key1 = hauppageKey[(int)key];
@@ -1004,7 +1016,9 @@ void mvp_server_remote_key(char key)
 			SendKeyEvent(key1, 0);
 			break;
 		case MVPW_KEY_FFWD:
-			if (mvp_state==EMU_RUNNING && gb_scale.mode == 0) {
+			if ( mystream.mediatype==TYPE_AUDIO ) {
+				SendKeyEvent(key1, 0);
+			} else if (mvp_state==EMU_RUNNING && gb_scale.mode == 0) {
 				if (mystream.length > 0ll ) {
 					mvp_state = EMU_STEP_PENDING;
 					mystream.direction = 1;
@@ -1021,7 +1035,9 @@ void mvp_server_remote_key(char key)
 			}
 			break;
 		case MVPW_KEY_REWIND:
-			if (mvp_state==EMU_RUNNING && gb_scale.mode == 0) {
+			if ( mystream.mediatype==TYPE_AUDIO ) {
+				SendKeyEvent(key1, 0);
+			} else if (mvp_state==EMU_RUNNING && gb_scale.mode == 0) {
 				if (mystream.length > 0ll ) {
 					mvp_state = EMU_STEP_PENDING;
 					mystream.direction = 0;
@@ -1036,14 +1052,18 @@ void mvp_server_remote_key(char key)
 			}
 			break;
 		case MVPW_KEY_REPLAY:
-			if (mystream.length > 0ll && mvp_state==EMU_RUNNING && gb_scale.mode == 0 ) { 
+			if ( mystream.mediatype==TYPE_AUDIO ) {
+				SendKeyEvent(key1, 0);
+			} else if (mystream.length > 0ll && mvp_state==EMU_RUNNING && gb_scale.mode == 0 ) { 
 				mvp_state = EMU_REPLAY_PENDING;
 				SendKeyEvent(key1, 0);
 //				SendIncrementalFramebufferUpdateRequest();
 			}
 			break;
 		case MVPW_KEY_SKIP:
-			if (mystream.length > 0ll && mvp_state==EMU_RUNNING && gb_scale.mode == 0) { 
+			if ( mystream.mediatype==TYPE_AUDIO ) {
+				SendKeyEvent(key1, 0);
+			} else if (mystream.length > 0ll && mvp_state==EMU_RUNNING && gb_scale.mode == 0) { 
 				mvp_state = EMU_SKIP_PENDING;
 				SendKeyEvent(key1, 0);
 //				SendIncrementalFramebufferUpdateRequest();
@@ -1071,12 +1091,13 @@ void mvp_server_remote_key(char key)
 		case MVPW_KEY_YELLOW:
 		case MVPW_KEY_BLUE:
 		case MVPW_KEY_GO:
+		case MVPW_KEY_GUIDE:
 		case MVPW_KEY_FULL:
 		case MVPW_KEY_RIGHT:
 		case MVPW_KEY_LEFT:
 		case MVPW_KEY_UP:
 		case MVPW_KEY_DOWN:
-		case MVPW_KEY_EXIT:
+		case MVPW_KEY_EXIT:		
 			SendKeyEvent(key1, 0);
 //			SendIncrementalFramebufferUpdateRequest();
 			break;
@@ -1278,11 +1299,13 @@ int rfb_init(char *hostname, int port)
 			if (em_safety==-1){
 				em_safety = GBSAFETY;
 			}
+			newSession = 1;
 		} else {
 			useHauppageExtentions = 2;
 			if (em_safety==-1){
 				em_safety = 0;
 			}
+			newSession = 1;
 		}
 	} else {
 		useHauppageExtentions = rfb_mode;
@@ -1305,7 +1328,6 @@ int rfb_init(char *hostname, int port)
 	stream_tv.tv_sec = 10;
 	stream_tv.tv_usec = 0;
 	setsockopt(rfbsock, SOL_SOCKET, SO_SNDTIMEO, &stream_tv, optionsize);
-	newSession = 1;
 	return rfbsock;
 }
 
@@ -1423,7 +1445,7 @@ Bool HandleRDCMessage(int sock)
 			int   length = buf[8];
 			char *filename;
 
-			if ( mystream.mediatype==0 ) {
+			if ( mystream.mediatype==0 && server_osd_visible == 0) {
 				osd_blit(surface3,0,0,surface,0,0,SURFACE_X,surface_y);
 			}
 
@@ -1469,6 +1491,14 @@ Bool HandleRDCMessage(int sock)
 								} else {
 									is_stopping=EMU_STOP_PENDING;
 									mvp_state=EMU_LIVE;
+									if (mystream.mediatype==TYPE_AUDIO ) {
+										av_reset();
+									}
+									/*
+									while ( av_empty() == 0 ) {
+										usleep(10000);
+									}
+									*/
 //									jumping = 1;
 //									jump_target = -1;
 	//								av_stop();
@@ -1552,6 +1582,7 @@ Bool HandleRDCMessage(int sock)
 			PRINTF("RDC_STOP\n");
 			if (paused) {
 				av_pause();
+				paused = 0;
 			}
 			if (mystream.mediatype == 0) {
 				PRINTF("Ignore this RDC_STOP\n");
@@ -1563,7 +1594,7 @@ Bool HandleRDCMessage(int sock)
 			} else if (is_stopping == EMU_STOPPED ) {
 				PRINTF("Ignore this because STOP PENDING \n");
 				is_stopping = EMU_STOPPED_AGAIN;
-			} else if (is_stopping != EMU_RUNNING || mystream.mediatype == TYPE_AUDIO ) {
+			} else if (is_stopping != EMU_RUNNING || mystream.mediatype == TYPE_AUDIO || mystream.last_key == MVPW_KEY_EXIT ) {
 				usleep(200000);
 				client_stop();
 				if (useHauppageExtentions == 2) {
@@ -1766,7 +1797,7 @@ Bool HandleRDCMessage(int sock)
 				return False;
 			}
 			free(settings);
-			set_timer_value(1000);
+			set_timer_value(5000);
 			return True;
 			break;
 		}
@@ -1782,11 +1813,14 @@ Bool HandleRDCMessage(int sock)
 				free(scale);
 				return False;
 			}
-			gb_scale.mode = scale[1];
-			if (gb_scale.mode) {
+			if (scale[1]) {
 				if ( osd_visible == 0 ) {
-					osd_visible = -2;
+					if ( mystream.mediatype==TYPE_VIDEO && gb_scale.mode == 0  && scale[1] == 2 ) {
+						SendIncrementalFramebufferUpdateRequest();
+					}
+					osd_visible = 2;
 				}
+				gb_scale.mode = scale[1];
 				if (gb_scale.mode==2 ) {
 					factor = 0;
 				} else {
@@ -1915,8 +1949,9 @@ Bool media_send_request(stream_t *stream, char *uri)
 	char *buf;
 	u_int16_t len = strlen(uri)+1;
 	char *ptr;
-
-
+	if (mystream.mediatype==TYPE_AUDIO ) {
+		av_reset();
+	}
 	PRINTF("Requesting");
 	PRINTF(" %s\n",uri);
 	buf = CALLOC(40 + len, sizeof(char));
@@ -1943,8 +1978,6 @@ Bool media_send_request(stream_t *stream, char *uri)
 
 	return True;
 }
-
-static volatile int osdf= 0;
 
 Bool media_send_read(stream_t *stream)
 {
@@ -2054,6 +2087,8 @@ Bool media_send_stop(stream_t *stream)
 	return True;
 }
 
+extern int fd_audio;
+
 Bool media_read_message(stream_t *stream)
 {
 	char   buf[40];
@@ -2106,6 +2141,10 @@ Bool media_read_message(stream_t *stream)
 				switch ( buf[4] ) {
 				case 0x01:	     /* MPEG */
 					if (mvp_state==EMU_RUNNING) {
+                                                if (is_streaming(current) >= 100 ) {
+							stream->length = 0xffffffff;
+							PRINTF("Reset size\n");
+						}
 						keepPlaying = false;
 						mystream.queued = 0;
 						emulation_audio_selected = 0;
@@ -2125,27 +2164,43 @@ Bool media_read_message(stream_t *stream)
                                                 }
 						av_reset_stc();
 					} else {
-						av_stop();
+//						av_stop();
+						/*
+						av_set_audio_type(AV_AUDIO_MPEG);
+						av_set_audio_output(AV_AUDIO_MPEG);
+						*/
+
 						jumping = 1;
 						jump_target = 0;
+						demux_flush(handle);
 						mystream.request_read = mystream.queued - mystream.out_position;
 						close(output_pipe);
 						mystream.queued = 0;
 //						PRINTF("jumping\n");
+//						av_stop();
 						output_pipe = open(MVP_NAMED_PIPE, O_WRONLY);
+						
 						av_reset_stc(); 
+						av_reset();
+						audio_clear();
+						demux_reset(handle);
+						ts_demux_reset(tshandle);
+						demux_attr_reset(handle);
+//						emulation_audio_selected = 0;
 						mvp_state=EMU_RUNNING;
 					}
 					break;
 				case 0x02: /* MP3 */
 					if (mvp_state==EMU_RUNNING) {
+						audio_clear();
 						emulation_audio_selected = 1;
+						av_stop();
 						av_reset();
 						audio_play(NULL);
 						output_pipe = open(MVP_NAMED_PIPE, O_WRONLY);
 					} else {
 						av_reset();
-						sleep(1);
+//						sleep(1);
 						mvp_state=EMU_RUNNING;
 					}
 					break;
@@ -2240,7 +2295,7 @@ Bool media_read_message(stream_t *stream)
 				}
 				media_queue_data(&mystream);
 			} else {
-				PRINTF("EOF %lld %lld\n",stream->current_position,stream->length);
+				PRINTF("EOF %llu %llu\n",stream->current_position,stream->length);
 				/*
 				if ( stream->length == 0) {
 					RDCSendProgress(stream);
@@ -2283,10 +2338,10 @@ Bool media_read_message(stream_t *stream)
 				}
 				RDCSendProgress(stream);
 				if ( mvp_state == EMU_RUNNING || mvp_state == EMU_STEP ) {
-					if (stream->current_position <= stream->length || mystream.mediatype==TYPE_AUDIO) {
+//					if (stream->current_position <= stream->length || mystream.mediatype==TYPE_AUDIO) {
 						client_stop();
 						mvp_state = EMU_STOP_PENDING;
-					}
+//					}
 				}
 			}
 			break;
@@ -2361,6 +2416,11 @@ Bool media_read_message(stream_t *stream)
 				RDCSendRequestAck(RDC_STOP,0);
 				screenSaver = 0;
 			}
+
+			if (osd_visible != -1 && mystream.mediatype==TYPE_AUDIO ) {
+				osd_blit(surface,0,0,surface2,0,0,SURFACE_X,surface_y);
+
+			}
 			osd_visible = -2;
 //        RDCSendStop();
 			if (mystream.mediatype==TYPE_VIDEO ) {
@@ -2376,9 +2436,12 @@ Bool media_read_message(stream_t *stream)
 
 				}
 			} else if (mystream.mediatype==TYPE_AUDIO ) {
-				audio_stop = 1;
 				audio_clear();
+				while ( av_empty() == 0 ) {
+					usleep(100000);
+				}
 				av_stop();
+				audio_stop = 1;
 			}
 			if (server_osd_visible!=0 && mystream.last_key!=MVPW_KEY_STOP && useHauppageExtentions != 2) {
 				PRINTF( "Is this play all\n");
@@ -2404,8 +2467,22 @@ Bool media_read_message(stream_t *stream)
 			if (is_stopping == EMU_STOPPED_AGAIN ) {
 				PRINTF("Stopping with stopped again\n");
 			}
-			is_stopping = EMU_RUNNING;
 			SendIncrementalFramebufferUpdateRequest();
+			if ( server_osd_visible == 0 ) {
+				is_stopping = EMU_RUNNING;
+			} else {
+				int myTicks=0;
+				PRINTF( "%s Part 4\n",logstr);
+				while ( server_osd_visible != 0 && myTicks < 50) {
+					usleep(10000);
+					myTicks++;
+				}
+				PRINTF( "%s Part 4 %d %d\n",logstr,myTicks,server_osd_visible);
+				if ( server_osd_visible == 0 ) {
+					RestoreSurface(1);
+				}
+				is_stopping = EMU_RUNNING;
+			}
 			break;
 		}
 	case MEDIA_8:
@@ -2429,7 +2506,6 @@ void media_queue_data(stream_t *stream)
 {
 	int      n;
 	int retry;
-	
 
 	for (retry=0;retry<2;retry++) {
 		if (mvp_state==EMU_LIVE ) {
@@ -2512,6 +2588,9 @@ void SetDisplayState(int state)
 			osd_visible = 0;
 		} else if (osd_visible==-1) {
 			osd_fill_rect(surface,0,0,SURFACE_X,surface_y,MVPW_TRANSPARENT);
+		} else if (osd_visible==0 && is_stopping != EMU_RUNNING) {
+			PRINTF("Restore surface\n");
+			is_stopping = EMU_RUNNING;
 		}
 		server_osd_visible = state;
 		break;
@@ -2529,7 +2608,7 @@ void SetDisplayState(int state)
 	case 255:
 	default:
 		set_timer_value(1000);
-		osd_fill_rect(surface,0,0,SURFACE_X,surface_y,root_color);
+//		osd_fill_rect(surface,0,0,SURFACE_X,surface_y,root_color);
 		osd_blit(surface2,0,0,surface_blank,0,0,SURFACE_X,surface_y);
 //		osd_fill_rect(surface2,0,0,SURFACE_X,surface_y,root_color);
 		server_osd_visible = 1;
@@ -2623,10 +2702,10 @@ int mvp_file_read(char *buf, int len)
 	    }
 	}
 	*/
-	if (!emulation_audio_selected) {
+
+      	if (!emulation_audio_selected && !jumping) {
 		auto_select_audio();
-	}
-	do {
+	}  do {
 		data = read(fd, buf+tslen, len-tslen);
 		if (data <= 0) {
 			if (data == -1 && (errno==EAGAIN)) {
@@ -2704,6 +2783,7 @@ long long mvp_seek(long long how_much, int whence)
 	mystream.out_position = 0;
 //	av_reset_stc(); 
 	fd = open(MVP_NAMED_PIPE, O_RDONLY);
+
 //    demux_state(handle,1);
 //    av_reset();
 //    mvpw_show(ffwd_widget);
@@ -2753,6 +2833,7 @@ void RectangleUpdateYUV2(int x0, int y0, int w, int h,  unsigned char *buf1, uns
 {
 	if ( mystream.mediatype==TYPE_VIDEO && is_stopping == EMU_RUNNING  ) {
 		printf("YUV2 update ignored %d %d %d %d\n",x0,y0,w,h);
+		ignoreMe = 1;
 		return;
 	}
 	PRINTF("%s YUV2 update %d %d %d %d\n",logstr,x0,y0,w,h);
@@ -2796,7 +2877,8 @@ void RectangleUpdateAYVU(int x0, int y0, int w, int h,  unsigned char *buf)
 			osd_draw_pixel_ayuv(surface2,x,y,255-a1,y1,u,v);
 			osd_draw_pixel_ayuv(surface2,x+1,y,255-a2,y2,u,v);
 		}
-	}}
+	}
+}
 
 void RectangleUpdateARGB(int x0, int y0, int w, int h,  unsigned char *buf)
 {
@@ -2821,21 +2903,28 @@ void RectangleUpdateARGB(int x0, int y0, int w, int h,  unsigned char *buf)
 }
 void UpdateFinished(void)
 {
-	if (mvp_state==2) {
+	if (ignoreMe) {
+		ignoreMe = 0;
 		return;
 	}
-	PRINTF("Update Finished %d %d\n",osd_visible,mvp_state);
+	PRINTF("Update Finished %d %d %d\n",osd_visible,mvp_state,mystream.mediatype);
+	if (mvp_state==EMU_STOP_PENDING) {
+		if ( mystream.mediatype==TYPE_AUDIO ) {
+			osd_visible = -2;
+		} else if ( mystream.mediatype==TYPE_VIDEO && is_stopping != EMU_RUNNING) {
+			osd_blit(surface3,0,0,surface2,0,0,SURFACE_X,surface_y);
+		}
+		return;
+	}
 	if ( osd_visible >= 0 || mystream.mediatype!=TYPE_VIDEO ) {
-		if (is_stopping == EMU_RUNNING ) {
+		if (is_stopping == EMU_RUNNING  ) {
 			osd_blit(surface,0,0,surface2,0,0,SURFACE_X,surface_y);
+			if ( mystream.mediatype==TYPE_VIDEO ) {
+				set_timer_value(1000);
+			}
 		} else {
 			osd_blit(surface3,0,0,surface2,0,0,SURFACE_X,surface_y);
 		}
-		
-		if ( mystream.mediatype==TYPE_VIDEO ) {
-			set_timer_value(1000);
-		}
-		
 	} else {
 		if (osd_visible!=-1) {
 			osd_blit(surface3,0,0,surface2,0,0,SURFACE_X,surface_y);
@@ -2904,7 +2993,7 @@ void RectangleUpdateHauppaugeAYVU(int x0, int y0, int w, int h,  unsigned char *
 
 void mvp_fdinput_callback(mvp_widget_t *widget, int fd)
 {
-   	static int err = 0;
+   	static int err_count = 0;
 	int len;
 	pthread_mutex_lock(&gbmut);
 	if (!HandleRFBServerMessage()) {
@@ -2913,17 +3002,18 @@ void mvp_fdinput_callback(mvp_widget_t *widget, int fd)
 		do {
 			len = read(rfbsock,buf,32000);
 			printf("Skipped %d bytes\n",len);
-			err++;
-		} while (len == 32000 && err <= 5 );
-
-		if (err==5) {
+			err_count++;
+		} while (len == 32000 && err_count <= 5 );
+		if (err_count==5) {
 			mvp_key_callback(widget, MVPW_KEY_POWER);
 		}
+
 	} else {
-		err = 0;
+		err_count = 0;
 	}
 	pthread_mutex_unlock(&gbmut);
-	if (err) {
+	if (err_count) {
+		sentPing = false;
                 usleep(1000);
         }
 }
@@ -3067,7 +3157,9 @@ int auto_select_audio(void)
 	int another_id = 0;
 	int id=0,type = -1;
 	int i;
-	
+	if (jumping==1) {
+		return -1;
+	}
 	attr = demux_get_attr(handle);
 	for (i=0; i<attr->audio.existing && mpeg_id != 0xc0; i++) {
 		id = attr->audio.ids[i].id;
@@ -3080,7 +3172,7 @@ int auto_select_audio(void)
 			break;
 		case STREAM_AC3:
 		case STREAM_PCM:
-			if ( another_id==0 || id == 0xc0 ) {
+			if ( another_id==0 || id == 0x80 ) {
 				another_id = id;
 			}
 			break;
@@ -3094,7 +3186,7 @@ int auto_select_audio(void)
 	if (id!=0) {
 		if (audio_switch_stream(NULL, id) == 0) {
 			printf("selected audio stream %x %x\n",id,type);
-			emulation_audio_selected = 1;
+			emulation_audio_selected = id;
 		}
 	}
 	return id;
@@ -3139,6 +3231,16 @@ void mvp_key_callback(mvp_widget_t *widget, char key)
 		wasGo = 0;
 	} else if (wasGo==1 && key==MVPW_KEY_FFWD) {
 		av_ffwd();
+		wasGo = 0;
+	} else if (wasGo==1 && key==MVPW_KEY_MUTE && emulation_audio_selected ) {		
+		if (emulation_audio_selected == 0xc0) {
+			audio_switch_stream(NULL, 0x80);
+			emulation_audio_selected = 0x80;
+		} else {
+			audio_switch_stream(NULL, 0xc0);
+			emulation_audio_selected = 0xc0;
+		}
+
 		wasGo = 0;
 	} else {
 		wasGo = 0;

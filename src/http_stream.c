@@ -570,6 +570,8 @@ http_content_t http_main(void)
 							ContentType = CONTENT_OGG;
 						} else if ( strstr(line_data,"video/mpeg") != NULL ) {
 							ContentType = CONTENT_MPG;
+						} else if ( strstr(line_data,"video/mp2t") != NULL ) {
+							ContentType = CONTENT_MPG;
 						} else if ( strstr(line_data,"image/jpeg") != NULL ) {
 							ContentType = CONTENT_JPEG;
 						} else if ( strstr(line_data,"video/divx") != NULL  || strstr(line_data,"video/divx") != NULL ) {
