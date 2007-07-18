@@ -318,6 +318,10 @@ ts_demux_pmt_callback(void *private, dvbpsi_pmt_t * pmt)
 			if (desc->i_tag == 0x0a) {
 				audio_type = *(desc->p_data + 3);
 			}
+			/* Look for an ISO/IEC 13818-1 AC3 Descriptor and record the audio type */
+			if (desc->i_tag == 0x6a && audio_type == -1) {
+				audio_type = 0x6a;
+			}
 
 			desc = desc->p_next;
 		}
@@ -360,7 +364,7 @@ ts_demux_pmt_callback(void *private, dvbpsi_pmt_t * pmt)
 			}
 			audio_count++;
 		} else if (es->i_type == 6) {
-			if (desc->i_tag != 0x6a && desc->i_tag != 0x6a) {
+			if (audio_type != 0x6a) {
 				// ts_demux_allocate_next_ipack(tshandle, es->i_pid, 0);
 				// es_added = 1;
 				PRINTF("    Subtitle decoding disabled\n");
