@@ -819,11 +819,13 @@ mvpw_menu_set_item_attr(mvp_widget_t *widget, void *key,
 			 * The following code will update the fore ground and 
 			 * back ground color of the menu item.
 			 */
-			mvpw_get_text_attr(widget->data.menu.items[i].widget, &attr);
-			attr.bg = item_attr->bg;
-			attr.fg = item_attr->fg;
-			mvpw_set_bg(widget->data.menu.items[i].widget, attr.bg);
-			mvpw_set_text_attr(widget->data.menu.items[i].widget, &attr);
+			if (widget->data.menu.items[i].widget) {
+				mvpw_get_text_attr(widget->data.menu.items[i].widget, &attr);
+				attr.bg = item_attr->bg;
+				attr.fg = item_attr->fg;
+				mvpw_set_bg(widget->data.menu.items[i].widget, attr.bg);
+				mvpw_set_text_attr(widget->data.menu.items[i].widget, &attr);
+			}
 
 			return 0;
 		}

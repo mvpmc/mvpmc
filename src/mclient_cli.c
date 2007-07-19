@@ -692,11 +692,13 @@ cli_get_cover_art ()
             av_wss_update_aspect (WSS_ASPECT_UNKNOWN);
         }
         close (fd);
+	fd = -1;
     }
     else if (retcode == HTTP_FILE_UNKNOWN)
     {
         printf ("mclient:cli_get_cover_art: ART WORK NOT FOUND, NEED TO FIND A DEFAULT IMAGE.\n"); ///###
         close (fd);
+	fd = -1;
     }
     free (current);
 }
@@ -1482,6 +1484,28 @@ cli_send_packet (int socket_handle, char *b)
     if (bytes < 0)
     {
         debug ("mclient_cli:error %i\n", errno);
+
+	/*
+	 * Display Warning box on OSD.
+	 */
+	if (cli_data.cli_comm_err_mask == FALSE)
+  	{
+           char buf[200];
+
+           snprintf(buf, sizeof(buf), "%s%s%s%s%s",
+		"Connecting to Slimserver CLI IP:", 
+		mclient_server ? mclient_server : "127.0.0.1",
+		" port 9090 failed! ",
+		"Check settings on Slimserver's Home->Server Settings->Security ",
+		"web page.");
+           gui_error(buf);
+
+           /*
+	    * Set flag to ignore this problem.
+	    */
+           cli_data.cli_comm_err_mask = TRUE;
+	}
+
     }
 ///    pthread_mutex_unlock (&mclient_cli_mutex);
 }
@@ -1494,6 +1518,8 @@ cli_init (void)
      * Create the buffer to store data from the server.
      */
     recvbuf_back = (void *) calloc (1, RECV_BUF_SIZE_CLI);
+
+    cli_data.cli_comm_err_mask = FALSE;
 }
 
 void

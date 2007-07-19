@@ -275,8 +275,24 @@ av_set_video_aspect(av_video_aspect_t vid_ar, int afd)
 		    break;
 		case 0x9:
 		    /*4:3 pillarboxed in a 16:9 raster */
-		    zoom_type = 1;
-		    new_wss = WSS_ASPECT_FULL_4x3;
+		    /* According to the spec we should crop this even
+		     * for a 16x9 display, however the only way to do this
+		     * is to switch the display type, which we currently
+		     * can't do without restarting the whole of mvpmc
+		     */
+		    if(IS_4x3(tv_aspect))
+		    {
+			zoom_type = 1;
+			new_wss = WSS_ASPECT_FULL_4x3;
+		    }
+		    else
+		    {
+			/* There isn't actually a way to signal that this is
+			 * 4x3 in a 16:9 raster using WSS, so just lie
+			 * and tell the telly it's 16x9, full
+			 */
+			new_wss = WSS_ASPECT_FULL_16x9;
+		    }
 		    break;
 		case 0xA:
 		    /*16:9 full frame image, in 16:9 frame, no protected area
@@ -313,14 +329,20 @@ av_set_video_aspect(av_video_aspect_t vid_ar, int afd)
 		    break;
 		case 0xD:
 		    /* 4:3 pillarboxed image 14:9 protected in 16:9 raster*/
-		    /*Force CCO mode:*/
-		    zoom_type = 1;
 		    if(IS_16x9(tv_aspect))
 		    {
+			/* If we could do a CCO whilst in 16x9 mode we'd
+			 * go for this one:
 			new_wss = WSS_ASPECT_FULL_4x3_PROTECT_14x9;
+			 * but since we can't, then we'll just have to leave
+			 * as-is:
+			 */
+			new_wss = WSS_ASPECT_FULL_16x9;
 		    }
 		    else
 		    {
+			/*Force CCO mode:*/
+			zoom_type = 1;
 			new_wss = WSS_ASPECT_FULL_4x3;
 		    }
 		    break;

@@ -41,9 +41,7 @@ if target == 'mvp':
 	prefix = powerpc + '-'
 	crossroot = toolchains + '/' + powerpc + '/' + gcc + '/'
 	cross = crossroot + '/bin/' + prefix
-	env.Replace(CROSS = cross)
-	env.Replace(CC = cross + 'gcc')
-	env.Replace(CROSSPATH = crossroot + '/' + powerpc + '/bin')
+	cc = cross + 'gcc'
 	cppflags = ''
 elif target == 'host':
 	cppflags = '-DMVPMC_HOST'
@@ -54,16 +52,22 @@ elif target == 'kernel':
 	powerpc = 'powerpc-405-linux-uclibc'
 	gcc = 'gcc-3.4.5-uClibc-0.9.28'
 	crossroot = toolchains + '/' + powerpc + '/' + gcc + '/'
-	env.Replace(CROSSPATH = crossroot + '/' + powerpc + '/bin')
 	prefix = powerpc + '-'
 	cross = crossroot + '/bin/' + prefix
 	cc = cross + 'gcc'
-	env.Replace(CROSS = cross)
-	env.Replace(CC = cross + 'gcc')
 	cppflags = ''
 else:
 	print "Unknown target %s"%target
 	sys.exit(1)
+
+#
+# Rebuilding the cross-compiler should be done in ~/toolchains
+#
+if (target != 'host') and (os.path.exists(cc) == 0):
+	toolchains =  home + '/toolchains/'
+	crossroot = toolchains + '/' + powerpc + '/' + gcc + '/'
+	cross = crossroot + '/bin/' + prefix
+	cc = cross + 'gcc'
 
 #
 # build binaries in the obj/TARGET directory
@@ -79,6 +83,10 @@ env.Replace(TARG = target)
 env.Replace(DOWNLOADS = home + '/downloads')
 env.Replace(TOPLEVEL = pwd)
 env.Replace(CPPFLAGS = cppflags)
+if target != 'host':
+	env.Replace(CROSS = cross)
+	env.Replace(CC = cross + 'gcc')
+	env.Replace(CROSSPATH = crossroot + '/' + powerpc + '/bin')
 
 Export('env','crossroot')
 

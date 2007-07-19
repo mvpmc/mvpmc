@@ -55,6 +55,8 @@ extern int tvguide_cur_chan_index;
 extern int tvguide_scroll_ofs_x;
 extern int tvguide_scroll_ofs_y;
 extern long tvguide_free_cardids;
+extern mvp_atomic_t mythtv_prevent_request_block;
+extern pthread_mutex_t request_block_mutex;
 
 static mvpw_menu_item_attr_t item_attr = {
 	.selectable = 1,
@@ -546,7 +548,9 @@ mythtv_livetv_stop(void)
 
 	fprintf(stderr, "Stopping Live TV\n");
 
+	mvp_atomic_inc(&mythtv_prevent_request_block);
 	busy_start();
+	pthread_mutex_lock(&request_block_mutex);
 
 	pthread_mutex_lock(&myth_mutex);
 
@@ -586,6 +590,9 @@ mythtv_livetv_stop(void)
 	mythtv_livetv = 0;
 	pthread_mutex_unlock(&myth_mutex);
 
+	mvp_atomic_dec(&mythtv_prevent_request_block);
+	pthread_mutex_unlock(&request_block_mutex);
+
 
 	busy_end();
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) %d}\n",
@@ -604,7 +611,9 @@ int __change_channel(direction)
 		    __FUNCTION__, __FILE__, __LINE__);
 	changing_channel = 1;
 
+	mvp_atomic_inc(&mythtv_prevent_request_block);
 	busy_start();
+	pthread_mutex_lock(&request_block_mutex);
 	video_clear();
 	pthread_mutex_lock(&myth_mutex);
 
@@ -682,6 +691,8 @@ int __change_channel(direction)
 	}
 
  out:
+	mvp_atomic_dec(&mythtv_prevent_request_block);
+	pthread_mutex_unlock(&request_block_mutex);
 	ref_release(ctrl);
 	ref_release(rec);
 	changing_channel = 0;
@@ -720,8 +731,10 @@ mythtv_channel_set(char * channame)
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
 		    __FUNCTION__, __FILE__, __LINE__);
 	changing_channel = 1;
-
+        
+	mvp_atomic_inc(&mythtv_prevent_request_block);
 	busy_start();
+	pthread_mutex_lock(&request_block_mutex);
 	video_clear();
 	pthread_mutex_lock(&myth_mutex);
 
@@ -776,6 +789,8 @@ mythtv_channel_set(char * channame)
 	cmyth_livetv_chain_switch_last(rec);
 
  out:
+	mvp_atomic_dec(&mythtv_prevent_request_block);
+	pthread_mutex_unlock(&request_block_mutex);
 	ref_release(ctrl);
 	ref_release(rec);
 	changing_channel = 0;

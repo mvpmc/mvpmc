@@ -1200,6 +1200,10 @@ re_exec(void)
 	exit(0);
 }
 
+/*
+ * Call appropriate shutdown function to prepare to switch between
+ * applications.
+ */
 void
 switch_hw_state(mvpmc_state_t new)
 {
@@ -1212,22 +1216,28 @@ switch_hw_state(mvpmc_state_t new)
 	case MVPMC_STATE_NONE:
 		break;
 	case MVPMC_STATE_FILEBROWSER:
+	case MVPMC_STATE_FILEBROWSER_SHUTDOWN:
 	case MVPMC_STATE_HTTP:
+	case MVPMC_STATE_HTTP_SHUTDOWN:
 		fb_exit();
 		if (strstr(cwd,"/uPnP")!=NULL ){
 			unmount_djmount();
 		}
 		break;
 	case MVPMC_STATE_MYTHTV:
+	case MVPMC_STATE_MYTHTV_SHUTDOWN:
 		mythtv_exit();
 		break;
 	case MVPMC_STATE_REPLAYTV:
+	case MVPMC_STATE_REPLAYTV_SHUTDOWN:
 		replaytv_exit();
 		break;
 	case MVPMC_STATE_MCLIENT:
+	case MVPMC_STATE_MCLIENT_SHUTDOWN:
 		mclient_exit();
 		break;
 	case MVPMC_STATE_EMULATE:
+	case MVPMC_STATE_EMULATE_SHUTDOWN:
 		break;
 	}
 
@@ -1270,17 +1280,23 @@ atexit_handler(void)
 	case MVPMC_STATE_NONE:
 		break;
 	case MVPMC_STATE_FILEBROWSER:
+	case MVPMC_STATE_FILEBROWSER_SHUTDOWN:
 	case MVPMC_STATE_HTTP:
+	case MVPMC_STATE_HTTP_SHUTDOWN:
 		fb_exit();
 		break;
 	case MVPMC_STATE_MYTHTV:
+	case MVPMC_STATE_MYTHTV_SHUTDOWN:
 		mythtv_atexit();
 		break;
 	case MVPMC_STATE_REPLAYTV:
+	case MVPMC_STATE_REPLAYTV_SHUTDOWN:
 		break;
 	case MVPMC_STATE_MCLIENT:
+	case MVPMC_STATE_MCLIENT_SHUTDOWN:
 		break;
 	case MVPMC_STATE_EMULATE:
+	case MVPMC_STATE_EMULATE_SHUTDOWN:
 		break;
 
 	}
@@ -1289,19 +1305,25 @@ atexit_handler(void)
 	case MVPMC_STATE_NONE:
 		break;
 	case MVPMC_STATE_HTTP:
+	case MVPMC_STATE_HTTP_SHUTDOWN:
 	case MVPMC_STATE_FILEBROWSER:
+	case MVPMC_STATE_FILEBROWSER_SHUTDOWN:
 		if (strstr(cwd,"/uPnP")!=NULL ){
 			unmount_djmount();
 		}
 		break;
 	case MVPMC_STATE_MYTHTV:
+	case MVPMC_STATE_MYTHTV_SHUTDOWN:
 		break;
 	case MVPMC_STATE_REPLAYTV:
+	case MVPMC_STATE_REPLAYTV_SHUTDOWN:
 		replaytv_atexit();
 		break;
 	case MVPMC_STATE_MCLIENT:
+	case MVPMC_STATE_MCLIENT_SHUTDOWN:
 		break;
 	case MVPMC_STATE_EMULATE:
+	case MVPMC_STATE_EMULATE_SHUTDOWN:
 		break;
 
 	}

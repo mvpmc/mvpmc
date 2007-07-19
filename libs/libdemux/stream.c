@@ -607,6 +607,8 @@ parse_video_stream(unsigned char *pRingBuf, unsigned int tail,unsigned int head,
 	int ret = -1;
 	video_info_t *vi;
 	int delta;
+	/*Re-send any aspect ratio changes every 30 seconds*/
+	const int ASPECT_REFRESH_INTERVAL = 30*PTS_HZ;
 	vid_parser_data_t *pLD = (vid_parser_data_t *)pLocalData;
 	for (i=tail+5; ringbuf_valid(i); i++)
 	{
@@ -740,7 +742,9 @@ parse_video_stream(unsigned char *pRingBuf, unsigned int tail,unsigned int head,
 				vi->height = h;
 				
 				if(aspect != vi->aspect
-					  || pLD->pts < pLD->aspect_pts)
+					  || pLD->pts < pLD->aspect_pts
+					  || pLD->pts > (pLD->aspect_pts
+					             + ASPECT_REFRESH_INTERVAL))
 				{
 				    aspect_change_t * pInfo;
 				    pInfo = malloc(sizeof(*pInfo));
@@ -748,6 +752,7 @@ parse_video_stream(unsigned char *pRingBuf, unsigned int tail,unsigned int head,
 				    pInfo->afd = vi->afd;
 				    vid_event_add(pLD->pts,VID_EVENT_ASPECT,
 					    		(void *)pInfo);
+				    pLD->aspect_pts = pLD->pts;
 				}
 				vi->aspect = aspect;
 				vi->frame_rate = frame_rate;
@@ -768,7 +773,9 @@ parse_video_stream(unsigned char *pRingBuf, unsigned int tail,unsigned int head,
 				    {
 					vi = &handle->attr.video.stats.info.video;
 					if(new_afd != vi->afd
-					      || pLD->pts < pLD->aspect_pts)
+					      || pLD->pts < pLD->aspect_pts
+					      || pLD->pts > (pLD->aspect_pts
+					             + ASPECT_REFRESH_INTERVAL))
 
 					{
 					    aspect_change_t * pInfo;
@@ -779,6 +786,7 @@ parse_video_stream(unsigned char *pRingBuf, unsigned int tail,unsigned int head,
 					    vid_event_add(pLD->pts,
 						    VID_EVENT_ASPECT,
 						    (void *)pInfo);
+					    pLD->aspect_pts = pLD->pts;
 					}
 				    }
 				}

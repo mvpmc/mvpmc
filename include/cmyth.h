@@ -116,9 +116,9 @@ typedef struct cmyth_file *cmyth_file_t;
 
 struct cmyth_commbreak {
         long start_mark;
-        long start_offset;
+        long long start_offset;
         long end_mark;
-        long end_offset;
+        long long end_offset;
 };
 typedef struct cmyth_commbreak *cmyth_commbreak_t;
 
@@ -573,6 +573,8 @@ extern cmyth_timestamp_t cmyth_timestamp_from_unixtime(time_t l);
 extern time_t cmyth_timestamp_to_unixtime(cmyth_timestamp_t ts);
 
 extern int cmyth_timestamp_to_string(char *str, cmyth_timestamp_t ts);
+
+extern int cmyth_timestamp_to_isostring(char *str, cmyth_timestamp_t ts);
 
 extern int cmyth_timestamp_to_display_string(char *str, cmyth_timestamp_t ts,
 																						 int time_format_12);

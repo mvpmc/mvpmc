@@ -669,13 +669,17 @@ enable_osd(void)
 	set_osd_callback(OSD_DEMUX, video_demux);
 	switch (hw_state) {
 	case MVPMC_STATE_MYTHTV:
+	case MVPMC_STATE_MYTHTV_SHUTDOWN:
 		set_osd_callback(OSD_PROGRAM, mythtv_program);
 		break;
 	case MVPMC_STATE_REPLAYTV:
+	case MVPMC_STATE_REPLAYTV_SHUTDOWN:
 		set_osd_callback(OSD_PROGRAM, replaytv_osd_proginfo_update);
 		break;
 	case MVPMC_STATE_HTTP:
+	case MVPMC_STATE_HTTP_SHUTDOWN:
 	case MVPMC_STATE_FILEBROWSER:
+	case MVPMC_STATE_FILEBROWSER_SHUTDOWN:
 		set_osd_callback(OSD_PROGRAM, fb_program);
 		break;
 	default:
@@ -709,12 +713,14 @@ back_to_guide_menu()
 		switch (gui_state) {
         case MVPMC_STATE_NONE:
         case MVPMC_STATE_EMULATE:
+        case MVPMC_STATE_EMULATE_SHUTDOWN:
 
 			/*
 			 * XXX: redisplay the main menu?
 			 */
 			break;
 		case MVPMC_STATE_MYTHTV:
+		case MVPMC_STATE_MYTHTV_SHUTDOWN:
 			printf("%s(): %d\n", __FUNCTION__, __LINE__);
 			if (mythtv_livetv == 1) {
 				if (mythtv_state == MYTHTV_STATE_LIVETV) {
@@ -754,11 +760,14 @@ back_to_guide_menu()
 			}
 			break;
 		case MVPMC_STATE_REPLAYTV:
+		case MVPMC_STATE_REPLAYTV_SHUTDOWN:
 			video_playing = 0;
 			replaytv_back_from_video();
 			break;
 		case MVPMC_STATE_FILEBROWSER:
+		case MVPMC_STATE_FILEBROWSER_SHUTDOWN:
 		case MVPMC_STATE_HTTP:
+		case MVPMC_STATE_HTTP_SHUTDOWN:
 			if (playlist) {
 				mvpw_show(fb_progress);
 				mvpw_show(playlist_widget);
@@ -770,6 +779,7 @@ back_to_guide_menu()
 			}
 			break;
 		case MVPMC_STATE_MCLIENT:
+		case MVPMC_STATE_MCLIENT_SHUTDOWN:
 			/*
 			 * No code is necessary here because:
 			 * - The key is already trapped / processed in gui.c/mclient_key_callback.
@@ -1338,6 +1348,7 @@ file_open(void)
 			audio_clear();
 		
 		close(fd);
+		fd = -1;
 	}
 
 	pthread_kill(video_write_thread, SIGURG);
@@ -1370,6 +1381,7 @@ file_open(void)
 		ts_demux_reset(tshandle);
 		demux_attr_reset(handle);
 		demux_seek(handle);
+		vid_event_discontinuity_possible();
 		if (gui_state == MVPMC_STATE_EMULATE || http_playing == HTTP_VIDEO_FILE_MPG) {
 			video_thumbnail(0);
 		} else {
@@ -1426,6 +1438,7 @@ video_read_start(void *arg)
 			demux_reset(handle);
 			ts_demux_reset(tshandle);
 			demux_seek(handle);
+			vid_event_discontinuity_possible();
 			if ( !(sent_idle_notify) ) {
 				if ( video_functions->notify != NULL ) {
 					video_functions->notify(MVP_READ_THREAD_IDLE);
@@ -1446,6 +1459,7 @@ video_read_start(void *arg)
 #endif
 
 		if (video_reopen) {
+		        vid_event_clear();
 			if (video_functions->open() == 0) {
 				/* Jump to the start of the new file */
 				jump_target = 0;
@@ -1468,6 +1482,7 @@ video_read_start(void *arg)
 			demux_seek(handle);
 			av_get_state(&state);
 			av_reset();
+			vid_event_discontinuity_possible();
 			if (seeking)
 				reset = 0;
 			if (state.mute)
@@ -1655,7 +1670,7 @@ video_events_start(void *arg)
 static void video_change_aspect(int new_aspect, int new_afd)
 {
     printf("Changing to aspect %d, afd %d\n", new_aspect, new_afd);
-    if (new_aspect != 0) {
+    if (new_aspect != 0 && new_aspect != -1) {
 	av_wss_aspect_t wss;
 	if (new_aspect == 3) {
 	    printf("Source video aspect ratio: 16:9\n");
@@ -1668,7 +1683,7 @@ static void video_change_aspect(int new_aspect, int new_afd)
 	}
 	av_wss_update_aspect(wss);
     } else {
-	printf("Video aspect reported as ZERO - not changing setting\n");
+	printf("Video aspect reported as 0 or -1 - not changing setting\n");
 	fflush(stdout);
     }
 }

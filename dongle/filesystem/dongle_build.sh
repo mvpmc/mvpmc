@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # Copyright (C) 2004-2006 Jon Gettler
 # http://www.mvpmc.org/
