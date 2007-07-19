@@ -69,11 +69,11 @@ if not os.path.exists(file):
 
 env.Depends(cp, build)
 
-env.SideEffect(['../../install/' + target + '/include/mwobjects.h',
-                '../../install/' + target + '/include/mwtypes.h',
-                '../../install/' + target + '/include/nxcolors.h',
-                '../../install/' + target + '/include/nxdraw.h'],
-               build)
+#env.SideEffect(['../../install/' + target + '/include/mwobjects.h',
+#                '../../install/' + target + '/include/mwtypes.h',
+#                '../../install/' + target + '/include/nxcolors.h',
+#                '../../install/' + target + '/include/nxdraw.h'],
+#               build)
 
 env.Depends(build, pwd + '/patches/scr_mvposd.c')
 env.Depends(build, pwd + '/patches/kbd_irm.c')

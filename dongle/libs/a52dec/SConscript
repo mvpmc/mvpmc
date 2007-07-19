@@ -24,9 +24,6 @@ url = [ 'http://www.mvpmc.org/dl/a52dec-snapshot.tar.gz',
         'http://liba52.sourceforge.net/files/a52dec-snapshot.tar.gz' ]
 
 target = [ libdir + 'liba52.a',
-           incdir + 'a52.h',
-           incdir + 'attributes.h',
-           incdir + 'audio_out.h',
            incdir + 'mm_accel.h' ]
 cmd = [ './configure --prefix=%s %s' % (prefix,config),
         'make',

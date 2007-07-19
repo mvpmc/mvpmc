@@ -54,7 +54,7 @@ if not os.path.exists(file):
 	dl = GetSourceFile(url, '#' + downloads, e)
 	env.Depends(build, dl)
 
-env.SideEffect(['../../install/' + target + '/include/mysql/mysql.h'],
-                build)
+#env.SideEffect(['../../install/' + target + '/include/mysql/mysql.h'],
+#                build)
 
 Return('build')

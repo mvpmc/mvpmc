@@ -1,7 +1,5 @@
 #!/usr/bin/python
 #
-# $Id: SConscript 20 2006-03-14 05:26:56Z gettler $
-#
 # build third-party libraries
 #
 
@@ -22,12 +20,16 @@ id3 = env.SConscript('libid3/SConscript')
 tremor = env.SConscript('Tremor/SConscript')
 ncurses = env.SConscript('ncurses/SConscript')
 mysql = env.SConscript('mysql/SConscript')
+
+libs = [ zlib, png, jpg, mw, a52, expat, dvb, id3, tremor, ncurses, mysql ]
+
 if target == 'mvp':
 	flac = env.SConscript('flac/SConscript')
+	libs.append(flac)
 
 env.Depends(png, zlib)
 env.Depends(mw, png)
 env.Depends(mw, jpg)
 env.Depends(mysql, ncurses)
 
-Return('mw zlib png jpg a52 expat dvb id3 tremor ncurses mysql')
+Return('libs')

@@ -43,7 +43,6 @@ def get_sources(node, env, path):
 def get_targets(node, env, path):
     '''Scanner for dependencies'''
     debug(1, 'get_targets %s' % node)
-    patches = env.Dictionary().get('patches',[])
     targets = []
     return targets
 

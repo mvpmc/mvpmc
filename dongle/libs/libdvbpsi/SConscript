@@ -52,11 +52,11 @@ if not os.path.exists(file):
 	dl = GetSourceFile(url, '#' + downloads, e)
 	env.Depends(build, dl)
 
-env.SideEffect(['../../install/' + target + '/include/dvbpsi/dvbpsi.h',
-                '../../install/' + target + '/include/dvbpsi/psi.h',
-                '../../install/' + target + '/include/dvbpsi/descriptor.h',
-                '../../install/' + target + '/include/dvbpsi/pat.h',
-                '../../install/' + target + '/include/dvbpsi/pmt.h'],
-                build)
+#env.SideEffect(['../../install/' + target + '/include/dvbpsi/dvbpsi.h',
+#                '../../install/' + target + '/include/dvbpsi/psi.h',
+#                '../../install/' + target + '/include/dvbpsi/descriptor.h',
+#                '../../install/' + target + '/include/dvbpsi/pat.h',
+#                '../../install/' + target + '/include/dvbpsi/pmt.h'],
+#                build)
 
 Return('build')

@@ -104,7 +104,7 @@ else:
 	#
 	# do the application build
 	#
-	(inc, osdinc) = env.SConscript('include/SConscript')
+	inc = env.SConscript('include/SConscript')
 	dir = env['BUILD_DIR']
 
 	#
@@ -128,8 +128,8 @@ else:
 		if os.path.exists(cc) == 0:
 			print "build application cross-compiler"
 			gcc = env.SConscript('tools/toolchains/uclibc/SConscript')
-			for a in libs + apps:
-			    env.Depends(a, gcc)
+			env.Depends(libs, gcc)
+			env.Depends(apps, gcc)
 			env.Depends(mvplibs, gcc)
 			env.Depends(mvpmc, gcc)
 
@@ -139,10 +139,11 @@ else:
 	if target == 'mvp':
 		dongle = env.SConscript('dongle/SConscript')
 		env.Depends(dongle, mvpmc)
-		for a in apps + libs:
-		    env.Depends(dongle,a)
-		env.Depends(dongle,themes)
-		env.Depends(dongle,images)
+		env.Depends(dongle, mvplibs)
+		env.Depends(dongle, apps)
+		env.Depends(dongle, libs)
+		env.Depends(dongle, themes)
+		env.Depends(dongle, images)
 
 	#
 	# Build squashfs and mktree and mvprelay
@@ -162,11 +163,3 @@ else:
 		misc = env.SConscript('tools/misc/SConscript')
 		passwd = env.SConscript('tools/dongle_passwd/SConscript')
 
-	#
-	# Try and ensure a valid build order (is this really needed?)
-	#
-	env.Depends(libs[0], osdinc)
-	env.Depends(mvplibs, libs)
-	for a in libs:
-	    env.Depends(mvpmc, a)
-	env.Depends(mvpmc, mvplibs)

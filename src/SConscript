@@ -67,6 +67,6 @@ if target == 'mvp':
 else:
 	inst = env.Install(bindir, mvpmc)
 
-env.Depends(mvpmc, version)
+env.Depends(mvpmc, 'version.c')
 
 Return('inst')
