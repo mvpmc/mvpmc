@@ -723,3 +723,23 @@ int unmount_djmount(void)
 	}
 	return rc;
 }
+
+int quickdir_change(mvp_widget_t *widget,char *path )
+{
+	int rc;
+	struct stat64 sb;
+	rc = stat64(path, &sb);
+	if (rc==0) {
+		if (strstr(path,"/uPnP")!=NULL && strstr(cwd,"/uPnP")==NULL ){
+			mount_djmount(path);
+				
+		} else if (strstr(path,"/uPnP")==NULL && strstr(cwd,"/uPnP")!=NULL ) { 
+			unmount_djmount();
+		}
+		snprintf(cwd,1024,path);
+		fb_update(widget);
+	}
+	return rc;
+}
+
+

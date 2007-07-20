@@ -313,6 +313,14 @@ key(mvp_widget_t *widget, char c)
 
 			hilite_item(widget, i, 1);
 		break;
+	case MVPW_KEY_BLUE:
+		if (strcmp(widget->data.menu.items[0].label, "../") == 0)
+		{
+			str = widget->data.menu.items[0].label;
+			k = widget->data.menu.items[0].key;
+			widget->data.menu.items[0].select(widget, str, k);
+		}
+		break;
 	case MVPW_KEY_OK:
 		if (widget->data.menu.current < widget->data.menu.nitems) {
 			i = widget->data.menu.current;
