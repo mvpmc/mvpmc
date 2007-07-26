@@ -2254,6 +2254,16 @@ pl_menu_select_callback(mvp_widget_t *widget, char *item, void *key)
 	}
 }
 
+
+int quickdir_change(mvp_widget_t *widget,char *path );
+
+#define quickdir_videos    "/mvpmc_media/videos"
+#define quickdir_music     "/mvpmc_media/music"
+#define quickdir_pictures  "/mvpmc_media/pictures"
+#define quickdir_tv        "/mvpmc_media/tv"
+#define quickdir_radio     "/mvpmc_media/radio"
+
+
 void
 fb_key_callback(mvp_widget_t *widget, char key)
 {
@@ -2310,6 +2320,21 @@ fb_key_callback(mvp_widget_t *widget, char key)
 		volume_key_callback(volume_dialog, key);
 		mvpw_show(volume_dialog);
 		mvpw_set_timer(volume_dialog, timer_hide, 3000);
+		break;
+	case MVPW_KEY_VIDEOS:
+		quickdir_change(widget,quickdir_videos);
+		break;
+	case MVPW_KEY_MUSIC:
+		quickdir_change(widget,quickdir_music);
+		break;
+	case MVPW_KEY_PICTURES:
+		quickdir_change(widget,quickdir_pictures);
+		break;
+	case MVPW_KEY_TV:
+		quickdir_change(widget,quickdir_tv);
+		break;
+	case MVPW_KEY_RADIO:
+		quickdir_change(widget,quickdir_radio);
 		break;
 	}
 }

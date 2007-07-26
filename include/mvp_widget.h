@@ -1109,6 +1109,12 @@ mvpw_get_rgba(unsigned long c, unsigned char *r, unsigned char *g,
 #define	MVPW_KEY_PREV_CHAN	'C'
 #define	MVPW_KEY_GUIDE		'U'
 #define	MVPW_KEY_TV		'T'
+
+/* not mapped to keys yet use low */
+#define	MVPW_KEY_MUSIC		25
+#define	MVPW_KEY_PICTURES	26
+#define	MVPW_KEY_RADIO		29
+
 #else
 #define	MVPW_KEY_ZERO		 0
 #define	MVPW_KEY_ONE		 1
@@ -1131,6 +1137,7 @@ mvpw_get_rgba(unsigned long c, unsigned char *r, unsigned char *g,
 #define	MVPW_KEY_PICTURES	26
 #define	MVPW_KEY_GUIDE		27
 #define	MVPW_KEY_TV		28
+#define	MVPW_KEY_RADIO		29
 #define	MVPW_KEY_SKIP		30
 #define	MVPW_KEY_EXIT		31
 #define	MVPW_KEY_REPLAY		36
@@ -1158,8 +1165,6 @@ mvpw_get_rgba(unsigned long c, unsigned char *r, unsigned char *g,
 #define	MVPW_KEY_ASTERISK	10
 #define	MVPW_KEY_POUND		14
 #define	MVPW_KEY_PREV_CHAN	18
-
-#define	MVPW_KEY_RADIO		29
 
 #endif /* MVPMC_HOST */
 

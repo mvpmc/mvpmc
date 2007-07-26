@@ -484,7 +484,8 @@ int connect_to_servers(void)
 	osd_drawtext(surface, 150, 230, "Starting Application   ",
 		     osd_rgba(93,200, 237, 255),
 		     osd_rgba(0, 0, 0, 255), 1, &font_CaslonRoman_1_25);
-
+	log_emulation();;
+	PRINTF("%s Starting Application\n",logstr);
 	for (i=0;i<10 && stopLoop==false;i++) {
 		printf("RFB address %s:%d\n",c_server_host,c_gui_port);
 		printf("Media address %s:%d\n",c_server_host,c_stream_port);
@@ -747,7 +748,9 @@ void *mvp_server_start(void *arg)
 //	GrRegisterInput(rfbsock);
 //    SendIncrementalFramebufferUpdateRequest();
 	mvp_state=EMU_RUNNING;
-	set_timer_value(5000);	
+	set_timer_value(5000);
+	log_emulation();
+	PRINTF("%s Emulation timer started\n",logstr);
 //	mvpw_set_timer(vnc_widget, mvp_timer_callback, 1000);
 	while ( mvp_media == 1 ) {
 
@@ -959,18 +962,8 @@ void mvp_server_remote_key(char key)
 			sleep(2);
 			av_play();
 			*/
-			av_delay_video(1000);
+			av_delay_video(100000);
 			inKeyLoop = 0;
-			return;
-		case MVPW_KEY_ASTERISK:
-			/*
-			if (ioctl(fd_audio, _IOW('a',3,int), 0) < 0)
-				return ;
-			sleep(2);
-			av_play();
-			*/
-			inKeyLoop = 0;
-			av_delay_video(10000);
 			return;
 		case MVPW_KEY_STOP:
 			if (mvp_state==EMU_RUNNING || mvp_state==EMU_STEP) {
@@ -1097,7 +1090,8 @@ void mvp_server_remote_key(char key)
 		case MVPW_KEY_LEFT:
 		case MVPW_KEY_UP:
 		case MVPW_KEY_DOWN:
-		case MVPW_KEY_EXIT:		
+		case MVPW_KEY_EXIT:
+		case MVPW_KEY_ASTERISK:
 			SendKeyEvent(key1, 0);
 //			SendIncrementalFramebufferUpdateRequest();
 			break;
@@ -1273,8 +1267,6 @@ int rfb_init(char *hostname, int port)
 	if ( !ConnectToRFBServer(hostname, port)) {
 		return -1;
 	}
-
-	PRINTF("Socket %d\n",rfbsock);
 
 #ifdef VERBOSE_DEBUG
 	vnc_debug = true;
@@ -2094,6 +2086,7 @@ Bool media_read_message(stream_t *stream)
 	char   buf[40];
 	char  *ptr;
 	uint32_t ucount;
+	static int retryZero = 0;
 //	int32_t count;
 	MPRINTF("%s Received Media stream message ",logstr);
 
@@ -2274,6 +2267,7 @@ Bool media_read_message(stream_t *stream)
 			is_live = 0;
 //			PRINTF("Media Block %u ",blocklen);
 			if ( blocklen != 0 ) {
+				retryZero = 0;
 				if (buf[0]==MEDIA_BLOCK) {
 					ptr = buf + 12;
 					stream->current_position = media_offset_64(ptr);;
@@ -2294,6 +2288,10 @@ Bool media_read_message(stream_t *stream)
 					break;
 				}
 				media_queue_data(&mystream);
+				if (blocklen < stream->blocklen && mvp_state==EMU_RUNNING) {
+					PRINTF( "%s Read short pause %u \n",logstr,blocklen);
+					usleep(700000);
+				}
 			} else {
 				PRINTF("EOF %llu %llu\n",stream->current_position,stream->length);
 				/*
@@ -2326,6 +2324,13 @@ Bool media_read_message(stream_t *stream)
 					*/
 				} else {
 					PRINTF("\n");
+				}
+				if (retryZero == 0 && mvp_state == EMU_RUNNING) {
+					PRINTF( "%s Confirm EOF\n",logstr);
+					retryZero++;
+					sleep(1);
+					media_send_read(stream);
+					break;
 				}
 				PRINTF("Media Done %d\n",mvp_state);
 				if (mystream.mediatype==TYPE_AUDIO && em_safety ) {
@@ -3109,7 +3114,7 @@ Bool HandlePing(void)
 	char msg;
 //	pthread_mutex_lock(&mymut);
 	sentPing = false;
-	PRINTF("Handle Ping\n");
+	PRINTF("%s Handle Ping\n",logstr);
 	if (!ReadExact(rfbsock, (char *)&msg, 1)) {
 //		pthread_mutex_unlock(&mymut);
 		return False;
