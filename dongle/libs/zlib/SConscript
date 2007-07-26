@@ -4,50 +4,32 @@
 #
 
 import os
+import mvpmc
 
 Import('env')
 
-home = os.environ['HOME']
-cc = env['CC']
-downloads = env['DOWNLOADS']
-target = env['TARG']
+build_target = env['TARG']
+topdir = env['TOPDIR']
+libdir = '%s/dongle/install/%s/lib/' % (topdir,build_target)
+incdir = '%s/dongle/install/%s/include/' % (topdir,build_target)
+prefix = '%s/dongle/install/%s' % (topdir,build_target)
 
-if target == 'mvp':
-  cross = '-c ' + env['CROSS']
+if build_target == 'mvp':
+    config = '--host=powerpc'
 else:
-  cross = ''
-
-file = downloads + '/zlib-1.2.3.tar.gz'
-
+    config = ''
+  
 e = Environment()
-e.Tool('WGet', toolpath=['../../../scons'])
 
-def GetSourceFile(url, output_dir, env):
-  '''
-  Create a node for a file retrieved via wget.
-  This node can be used as a dependency in other rules.
-  '''
-  # Nab everything after the last slash as the filename
-  basefilename = str(url)[str( url).rfind(os.sep) + 1:]
-  munged = output_dir + os.sep + basefilename + os.sep + url
-  node = env.SourceCode( munged, env.WGet() )
-  return node
+url = [ 'http://www.mvpmc.org/dl/zlib-1.2.3.tar.gz',
+        'http://www.zlib.net/zlib-1.2.3.tar.gz' ]
 
-#url = 'http://www.zlib.net/zlib-1.2.3.tar.gz'
-url = 'http://www.mvpmc.org/dl/zlib-1.2.3.tar.gz'
-pwd = os.getcwd()
+target = [ libdir + 'libz.a' ]
 
-build = env.Command('../../install/' + target + '/lib/libz.a', 0,
-                    'scons/build_lib.sh -d ' + pwd + '/' + target +
-                    '/zlib-1.2.3 -i ' + file + ' ' +
-                    cross + ' ' +
-                    '-I ' + pwd + '/../../install/' + target + ' ')
+cmd = [ './configure --prefix=%s' % prefix,
+        'make',
+        'make install' ]
 
-if not os.path.exists(file):
-	dl = GetSourceFile(url, '#' + downloads, e)
-	env.Depends(build, dl)
-
-#env.SideEffect(['../../install/' + target + '/include/zlib.h'],
-#                build)
+build = mvpmc.OSSBuild(target, url, env, e, cmd)
 
 Return('build')

@@ -4,78 +4,62 @@
 #
 
 import os
+import mvpmc
 
 Import('env')
 
-home = os.environ['HOME']
-cc = env['CC']
-downloads = env['DOWNLOADS']
-target = env['TARG']
 machine = os.uname()[4]
 
-if target == 'mvp':
-  cross = '-c ' + env['CROSS']
-  host = '--host=powerpc'
-  Carg = '-C '
-  patches = ''
+build_target = env['TARG']
+topdir = env['TOPDIR']
+libdir = '%s/dongle/install/%s/lib/' % (topdir,build_target)
+incdir = '%s/dongle/install/%s/include/' % (topdir,build_target)
+prefix = '%s/dongle/install/%s' % (topdir,build_target)
+
+if build_target == 'mvp':
+    config = '--host=powerpc'
+    host_patch = ''
 else:
-  cross = ''
-  host = ''
-  Carg = ''
-  if machine == 'ppc':
-    patches = '-p patches/microwindows-0.91_host_be.patch'
-  else:
-    patches = '-p patches/microwindows-0.91_host_le.patch'
-
-file = downloads + '/microwindows-src-0.91.tar.gz'
-
+    config = ''
+    if machine == 'ppc':
+      host_patch = 'patches/microwindows-0.91_host_be.patch'
+    else:
+      host_patch = 'patches/microwindows-0.91_host_le.patch'
+  
 e = Environment()
-e.Tool('WGet', toolpath=['../../../scons'])
 
-def GetSourceFile(url, output_dir, env):
-  '''
-  Create a node for a file retrieved via wget.
-  This node can be used as a dependency in other rules.
-  '''
-  # Nab everything after the last slash as the filename
-  basefilename = str(url)[str( url).rfind(os.sep) + 1:]
-  munged = output_dir + os.sep + basefilename + os.sep + url
-  node = env.SourceCode( munged, env.WGet() )
-  return node
+url = [ 'http://www.mvpmc.org/dl/microwindows-src-0.91.tar.gz',
+        'ftp://microwindows.censoft.com/pub/microwindows/microwindows-src-0.91.tar.gz' ]
 
-#url = 'ftp://microwindows.censoft.com/pub/microwindows/microwindows-src-0.91.tar.gz'
-url = 'http://www.mvpmc.org/dl/microwindows-src-0.91.tar.gz'
+target = [ libdir + 'libnano-X.a' ]
+patches = [ 'patches/microwindows-0.91_abs.patch',
+            'patches/microwindows-0.91.patch' ]
+if host_patch != '':
+    patches.append(host_patch)
+patches.append('patches/microwindows-0.91_no_demos.patch')
+
+ppccmd = [ 'cp --remove-destination src/Configs/config.mvp src/config' ]
+
+commoncmd = [	'cd src',
+                'cp ../../../patches/*.c drivers',
+                'make CFLAGS=-I%s LDFLAGS=-L%s' % (incdir,libdir),
+                'cd ..',
+                'cp src/lib/*.a %s' % libdir ]
+
+if build_target == 'mvp':
+    cmd = ppccmd + commoncmd
+else:
+    cmd = commoncmd
+
+build = mvpmc.OSSBuild(target, url, env, e, cmd, patches)
+
 pwd = os.getcwd()
-
-build = env.Command('../../install/' + target + '/lib/libnano-X.a', 0,
-                    'scons/build_lib.sh -d ' + pwd + '/' + target +
-                    '/microwindows-0.91 -i ' + file + ' ' +
-                    cross + ' ' +
-                    '-I ' + pwd + '/../../install/' + target + ' ' +
-                    Carg + host + ' ' +
-                    '-p patches/microwindows-0.91_abs.patch ' +
-                    '-p patches/microwindows-0.91.patch ' +
-                    patches +
-		    ' -p patches/microwindows-0.91_no_demos.patch ')
-
-incdir = pwd + '/../../install/' + target + '/include'
-cp = env.Command(incdir + '/nano-X.h', 0,
-            'cp ' + pwd + '/' + target +
-            '/microwindows-0.91/src/include/*.h ' + incdir)
-
-if not os.path.exists(file):
-	dl = GetSourceFile(url, '#' + downloads, e)
-	env.Depends(build, dl)
-
-env.Depends(cp, build)
-
-#env.SideEffect(['../../install/' + target + '/include/mwobjects.h',
-#                '../../install/' + target + '/include/mwtypes.h',
-#                '../../install/' + target + '/include/nxcolors.h',
-#                '../../install/' + target + '/include/nxdraw.h'],
-#               build)
-
 env.Depends(build, pwd + '/patches/scr_mvposd.c')
 env.Depends(build, pwd + '/patches/kbd_irm.c')
+
+cp = env.Command(incdir + '/nano-X.h', 0,
+            'cp ' + pwd + '/' + build_target +
+            '/microwindows-0.91/src/include/*.h ' + incdir)
+env.Depends(cp, build)
 
 Return('build')

@@ -4,53 +4,32 @@
 #
 
 import os
+import mvpmc
 
 Import('env')
 
-home = os.environ['HOME']
-cc = env['CC']
-downloads = env['DOWNLOADS']
-target = env['TARG']
+build_target = env['TARG']
+topdir = env['TOPDIR']
+libdir = '%s/dongle/install/%s/lib/' % (topdir,build_target)
+incdir = '%s/dongle/install/%s/include/' % (topdir,build_target)
+prefix = '%s/dongle/install/%s' % (topdir,build_target)
 
-if target == 'mvp':
-  cross = '-c ' + env['CROSS']
-  host = '--host=powerpc'
+if build_target == 'mvp':
+    config = '--host=powerpc'
 else:
-  cross = ''
-  host = ''
-
-file = downloads + '/libpng-1.2.6-config.tar.gz'
-
+    config = ''
+  
 e = Environment()
-e.Tool('WGet', toolpath=['../../../scons'])
 
-def GetSourceFile(url, output_dir, env):
-  '''
-  Create a node for a file retrieved via wget.
-  This node can be used as a dependency in other rules.
-  '''
-  # Nab everything after the last slash as the filename
-  basefilename = str(url)[str( url).rfind(os.sep) + 1:]
-  munged = output_dir + os.sep + basefilename + os.sep + url
-  node = env.SourceCode( munged, env.WGet() )
-  return node
+url = [ 'http://www.mvpmc.org/dl/libpng-1.2.6-config.tar.gz',
+        'http://surfnet.dl.sourceforge.net/libpng/libpng-1.2.6-config.tar.gz' ]
 
-#url = 'http://surfnet.dl.sourceforge.net/libpng/libpng-1.2.6-config.tar.gz'
-url = 'http://www.mvpmc.org/dl/libpng-1.2.6-config.tar.gz'
-pwd = os.getcwd()
-inc = '../../../../install/' + target + '/include'
-lib = '../../../../install/' + target + '/lib'
+target = [ libdir + 'libpng12.a' ]
 
-build = env.Command('../../install/' + target + '/lib/libpng.a', 0,
-                    'scons/build_lib.sh -d ' + pwd + '/' + target +
-                    '/libpng-1.2.6-config -i ' + file + ' ' +
-                    cross + ' ' +
-                    '-I ' + pwd + '/../../install/' + target + ' '
-                    '-C "' + host + ' CFLAGS=-I' + inc +
-                    ' LDFLAGS=-L' + lib + '"')
+cmd = [ './configure --prefix=%s %s CFLAGS=-I%s LDFLAGS=-L%s' % (prefix,config,incdir,libdir),
+        'make',
+        'make install' ]
 
-if not os.path.exists(file):
-	dl = GetSourceFile(url, '#' + downloads, e)
-	env.Depends(build, dl)
+build = mvpmc.OSSBuild(target, url, env, e, cmd)
 
 Return('build')
