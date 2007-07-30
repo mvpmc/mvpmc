@@ -2403,7 +2403,7 @@ cmyth_rcv_proglist(cmyth_conn_t conn, int *err, cmyth_proglist_t buf,
 	consumed += r;
 	if (*err) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
-			  "%s: cmyth_rcv_proginfo() failed (%d)\n",
+			  "%s: cmyth_rcv_long() failed (%d)\n",
 			  __FUNCTION__, *err);
 		return consumed;
 	}
@@ -2432,7 +2432,7 @@ cmyth_rcv_proglist(cmyth_conn_t conn, int *err, cmyth_proglist_t buf,
 		if (*err) {
 			ref_release(pi);
 			cmyth_dbg(CMYTH_DBG_ERROR,
-				  "%s: cmyth_rcv_long() failed (%d)\n",
+				  "%s: cmyth_rcv_proginfo() failed (%d)\n",
 				  __FUNCTION__, *err);
 			break;
 		}
