@@ -341,6 +341,9 @@ cmyth_proginfo_dup(cmyth_proginfo_t p)
 	ret->proginfo_storagegroup = ref_hold(p->proginfo_storagegroup);
 	ret->proginfo_recpriority_2 = ref_hold(p->proginfo_recpriority_2);
 	ret->proginfo_parentid = p->proginfo_parentid;
+	ret->proginfo_audioproperties = p->proginfo_audioproperties;
+	ret->proginfo_videoproperties = p->proginfo_videoproperties;
+	ret->proginfo_subtitletype = p->proginfo_subtitletype;
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s }\n", __FUNCTION__);
 	return ret;
 }
@@ -539,6 +542,12 @@ delete_command(cmyth_conn_t control, cmyth_proginfo_t prog, char *cmd)
 		    sprintf(buf + strlen(buf), "%s[]:[]",
 		    		prog->proginfo_storagegroup);
 		}
+		if (control->conn_version >=35) {
+		    sprintf(buf + strlen(buf), "%ld[]:[]%ld[]:[]%ld[]:[]",
+		    		prog->proginfo_audioproperties,
+				prog->proginfo_videoproperties,
+				prog->proginfo_subtitletype);
+		}		
 	}
 
 	pthread_mutex_lock(&mutex);
@@ -1338,6 +1347,13 @@ fill_command(cmyth_conn_t control, cmyth_proginfo_t prog, char *cmd)
 		    sprintf(buf+strlen(buf),"%s[]:[]",
 			    prog->proginfo_storagegroup);
 		}
+		if(control->conn_version >= 35)
+		{
+		    sprintf(buf+strlen(buf),"%ld[]:[]%ld[]:[]%ld[]:[]",
+		    	    prog->proginfo_audioproperties,
+			    prog->proginfo_videoproperties,
+			    prog->proginfo_subtitletype);
+		}	    
 	}
 
 	if ((err = cmyth_send_message(control, buf)) < 0) {
