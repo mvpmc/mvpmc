@@ -450,7 +450,8 @@ http_content_t http_main(void)
 					} else if (ContentType == CONTENT_PLAYLIST) {
 						ContentType = CONTENT_UNKNOWN;
 					} else {
-//                        ContentType = CONTENT_UNKNOWN;
+		                        ContentType = CONTENT_UNSUPPORTED;
+///### break;///###
 					}
 					stateGet = HTTP_HEADER;
 					if ( shoutcastDisplay[0] ) {

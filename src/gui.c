@@ -147,6 +147,18 @@ mvpw_text_attr_t mclient_sub_image_attr = {
 	.font = FONT_LARGE,
 	.fg = MVPW_LIGHTGREY,
 	.border = MVPW_MIDNIGHTBLUE,
+	.border_size = 4,
+	.utf8 = true,
+};
+
+mvpw_text_attr_t mclient_sub_alt_image_attr = {
+	.wrap = true,
+	.pack = false,
+	.justify = MVPW_TEXT_LEFT,
+	.margin = 4,
+	.font = FONT_LARGE,
+	.fg = MVPW_LIGHTGREY,
+	.border = MVPW_MIDNIGHTBLUE,
 	.border_size = 0,
 	.utf8 = true,
 };
@@ -167,6 +179,28 @@ mvpw_graph_attr_t mclient_sub_volumebar_attr = {
    	.bg = MVPW_LIGHTGREY,
    	.border = MVPW_MIDNIGHTBLUE,
    	.border_size = 0,
+};
+
+mvpw_graph_attr_t mclient_sub_browsebar_attr = {
+	.min = 0,
+	.max = 100,
+	.fg = mvpw_color_alpha(MVPW_GREEN, 0x80),
+   	.bg = MVPW_LIGHTGREY,
+   	.border = MVPW_MIDNIGHTBLUE,
+   	.border_size = 4,
+};
+
+mvpw_menu_attr_t mclient_sub_localmenu_attr = {
+	.font = FONT_LARGE,
+	.fg = MVPW_LIGHTGREY,
+	.bg = MVPW_BLACK,
+	.hilite_fg = MVPW_GREEN,
+	.hilite_bg = MVPW_BLACK,
+	.title_fg = MVPW_WHITE,
+	.title_bg = MVPW_MIDNIGHTBLUE,
+	.border_size = 0,
+	.border = MVPW_DARKGREY2,
+	.margin = 4,
 };
 
 static mvpw_menu_attr_t settings_attr = {
@@ -339,6 +373,13 @@ static mvpw_menu_item_attr_t mclient_fullscreen_menu_item_attr = {
 	.selectable = false,
 	.fg = MVPW_LIGHTGREY, 
 	.bg = MVPW_BLACK,
+	.checkbox_fg = MVPW_GREEN,
+};
+
+static mvpw_menu_item_attr_t mclient_sub_localmenu_item_attr = {
+	.selectable = true,
+	.fg = MVPW_BLACK,
+	.bg = MVPW_LIGHTGREY,
 	.checkbox_fg = MVPW_GREEN,
 };
 
@@ -802,6 +843,9 @@ theme_attr_t theme_attr[] = {
 	{ .name = "mclient_sub_softsqueeze",
 	  .type = WIDGET_TEXT,
 	  .attr.text = &mclient_sub_softsqueeze_attr },
+	{ .name = "mclient_sub_localmenu",
+	  .type = WIDGET_MENU,
+	  .attr.menu = &mclient_sub_localmenu_attr },
 	{ .name = "busy_graph",
 	  .type = WIDGET_GRAPH,
 	  .attr.graph = &busy_graph_attr },
@@ -991,8 +1035,30 @@ mvp_widget_t *mclient;
 mvp_widget_t *mclient_fullscreen;
 mvp_widget_t *mclient_sub_softsqueeze;
 mvp_widget_t *mclient_sub_image;
+mvp_widget_t *mclient_sub_image_1_1;
+mvp_widget_t *mclient_sub_image_1_2;
+mvp_widget_t *mclient_sub_image_1_3;
+mvp_widget_t *mclient_sub_image_2_1;
+mvp_widget_t *mclient_sub_image_2_2;
+mvp_widget_t *mclient_sub_image_2_3;
+mvp_widget_t *mclient_sub_image_3_1;
+mvp_widget_t *mclient_sub_image_3_2;
+mvp_widget_t *mclient_sub_image_3_3;
+mvp_widget_t *mclient_sub_alt_image;
+mvp_widget_t *mclient_sub_alt_image_1_1;
+mvp_widget_t *mclient_sub_alt_image_1_2;
+mvp_widget_t *mclient_sub_alt_image_1_3;
+mvp_widget_t *mclient_sub_alt_image_2_1;
+mvp_widget_t *mclient_sub_alt_image_2_2;
+mvp_widget_t *mclient_sub_alt_image_2_3;
+mvp_widget_t *mclient_sub_alt_image_3_1;
+mvp_widget_t *mclient_sub_alt_image_3_2;
+mvp_widget_t *mclient_sub_alt_image_3_3;
+mvp_widget_t *mclient_sub_alt_image_info;
 mvp_widget_t *mclient_sub_progressbar;
 mvp_widget_t *mclient_sub_volumebar;
+mvp_widget_t *mclient_sub_browsebar;
+mvp_widget_t *mclient_sub_localmenu;
 static mvp_widget_t *setup_image;
 static mvp_widget_t *fb_image;
 static mvp_widget_t *mythtv_image;
@@ -1257,6 +1323,11 @@ enum {
 	MYTHTV_POPUP_SCHED_REC_SHOW_DAILY,	/* 9 - Record one showing of this title every day */
 	MYTHTV_POPUP_SCHED_REC_SHOW_WEEK,	/* 10 - Record one showing every week */
 	MYTHTV_POPUP_TUNER,		/* needs to be last */
+};
+
+enum {
+	MCLIENT_LOCALMENU_BROWSE_BY_COVER_ART = 1,
+	MCLIENT_LOCALMENU_CONTROL_ANOTHER_CLIENT,
 };
 
 mythtv_filter_t mythtv_filter = MYTHTV_FILTER_NONE;
@@ -3111,9 +3182,13 @@ mclient_key_callback(mvp_widget_t *widget, char key)
 		mvpw_hide(mclient_fullscreen); 
 		mvpw_hide(mclient_sub_softsqueeze); 
 		mvpw_hide(mclient_sub_image); 
+		mvpw_hide(mclient_sub_alt_image); 
 		mvpw_hide(mclient_sub_progressbar);
 		mvpw_hide(mclient_sub_volumebar);
 	        mvpw_hide(widget);
+
+                mclient_localmenu_hide_all_widgets();
+
 		/*
 		 * Give up the mclient GUI.
                  * We will turn off the audio later when the user
@@ -3127,6 +3202,114 @@ mclient_key_callback(mvp_widget_t *widget, char key)
 	{
                 curses2ir(key);
 	}
+}
+
+void
+mclient_localmenu_callback(mvp_widget_t *widget, char key)
+{
+	if (gui_state != MVPMC_STATE_MCLIENT)
+		return;
+
+        if(
+            (key == MVPW_KEY_EXIT) |
+            (key == MVPW_KEY_MENU)
+	)
+	{
+		/*
+		 * Exit the local menu.
+		 */
+		mclient_localmenu_hide_all_widgets();
+
+		remote_buttons.local_menu = FALSE;
+		remote_buttons.local_menu_browse = FALSE;
+                mvpw_focus(mclient);
+        }
+	else if (key == MVPW_KEY_OK)
+	{
+             if (remote_buttons.local_menu_browse)
+             {
+            /*
+             * If OK key pressed and we are browsing the user is selecting 
+             * one of the albums to play.
+             * Figure out which and act accordingly.
+             */
+             unsigned int album_index;
+	
+             album_index = ((cli_data.row_for_cover_art * 3 ) + cli_data.col_for_cover_art);
+	     if(
+	     ((remote_buttons.local_menu) & (remote_buttons.local_menu_browse)) &
+	     (album_index < 6)
+	     )
+	     {
+	       sprintf (pending_cli_string, "%s playlistcontrol cmd:load album_id:%d\n", 
+		decoded_player_id,
+		cli_data.album_id_for_cover_art[album_index]);
+	       // Exit out of BROWSE and LOCAL MENU mode.
+               remote_buttons.local_menu = FALSE;
+               remote_buttons.local_menu_browse = FALSE;
+	       // Hide the BROWSE and LOCAL MENU widgets.
+               mclient_localmenu_hide_all_widgets();
+               mvpw_focus(mclient);
+	     }
+             }
+             else
+             {
+            /*
+             * If OK key pressed user is selecting one of the local
+             * menu's items.  Figure out which and act accordingly.
+             */
+	    int which;
+	    which = (int) mvpw_menu_get_hilite(mclient_sub_localmenu);
+	    switch(which)
+	    {
+	        default:
+                    printf(">>>TEST: Let's start the album cover browser.\n");
+	            if (remote_buttons.local_menu_browse == FALSE)
+	            {
+		      // Initialize cover art state machine.
+		      cli_data.state_for_cover_art = GET_1ST_ALBUM_COVERART;
+		      cli_data.pending_proc_for_cover_art = TRUE;
+
+		      remote_buttons.local_menu_browse = TRUE;
+	            }
+		    break;
+	        case 2:
+                    printf(">>>TEST: Let's control another slimserver client.\n");
+		    break;
+	    }
+	    }
+	}
+	else
+	{
+		// Process this button press normally.
+                curses2ir(key);
+	}
+}
+
+void
+mclient_localmenu_hide_all_widgets(void)
+{
+	mvpw_hide(mclient_sub_localmenu); 
+    	mvpw_hide(mclient_sub_image_1_1);
+    	mvpw_hide(mclient_sub_image_1_2);
+    	mvpw_hide(mclient_sub_image_1_3);
+    	mvpw_hide(mclient_sub_image_2_1);
+    	mvpw_hide(mclient_sub_image_2_2);
+    	mvpw_hide(mclient_sub_image_2_3);
+    	mvpw_hide(mclient_sub_image_3_1);
+    	mvpw_hide(mclient_sub_image_3_2);
+    	mvpw_hide(mclient_sub_image_3_3);
+    	mvpw_hide(mclient_sub_alt_image_1_1);
+    	mvpw_hide(mclient_sub_alt_image_1_2);
+    	mvpw_hide(mclient_sub_alt_image_1_3);
+    	mvpw_hide(mclient_sub_alt_image_2_1);
+    	mvpw_hide(mclient_sub_alt_image_2_2);
+    	mvpw_hide(mclient_sub_alt_image_2_3);
+    	mvpw_hide(mclient_sub_alt_image_3_1);
+    	mvpw_hide(mclient_sub_alt_image_3_2);
+    	mvpw_hide(mclient_sub_alt_image_3_3);
+    	mvpw_hide(mclient_sub_alt_image_info);
+    	mvpw_hide(mclient_sub_browsebar);
 }
 
 static void
@@ -6100,14 +6283,18 @@ main_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mvpw_show(mclient);
 		mvpw_show(mclient_fullscreen);
 		mvpw_show(mclient_sub_softsqueeze);
-		mvpw_show(mclient_sub_image);
+///		mvpw_show(mclient_sub_image); /// Just do there where we pull image
+///		mvpw_show(mclient_sub_alt_image); /// "
 		mvpw_show(mclient_sub_progressbar);
 		mvpw_show(mclient_sub_volumebar);
 		mvpw_raise(mclient_fullscreen);
 		mvpw_raise(mclient_sub_softsqueeze);
-		mvpw_raise(mclient_sub_image);
+///		mvpw_raise(mclient_sub_image); /// "
+///		mvpw_raise(mclient_sub_alt_image); /// "
 		mvpw_raise(mclient_sub_progressbar);
 		mvpw_raise(mclient_sub_volumebar);
+		mvpw_raise(mclient_sub_image);
+		mvpw_raise(mclient_sub_alt_image);
 ///		mvpw_raise(mclient); /// Just don't raise this over other windows.
 ///		mvpw_lower(mclient); /// Really shouldn't need this as other widows have risen above this one.
 		mvpw_focus(mclient);
@@ -6686,11 +6873,15 @@ mclient_sub_softsqueeze_init(void)
 static int
 mclient_sub_image_init(void)
 {
+	#define SIZE_IMAGE_BROWSE 130
+	#define VERT_SPACER_BROWSE 22
+
 	int h, w, x, y;
 
 	splash_update("Creating mclient_sub_image dialog");
 
 	/*
+	 * For "Playing Now" cover art.
 	 * Place image in lower right corner of screen.
 	 */
 	h = 200;
@@ -6705,14 +6896,211 @@ mclient_sub_image_init(void)
 		 	mclient_sub_image_attr.border, 
 			mclient_sub_image_attr.border_size);
 
+	/*
+	 * For "Browse By Cover Art".
+	 * Place image in 2 rows of 3 colums.
+	 * Position 1,1
+	 */
+	h = SIZE_IMAGE_BROWSE;
+	w = ((SIZE_IMAGE_BROWSE * 4)/3);
+
+	x = si.cols - ((w * 3) + (mclient_sub_image_attr.border_size * 4) + viewport_edges[EDGE_RIGHT]);
+	y = si.rows - ((h * 2) + VERT_SPACER_BROWSE + (mclient_sub_image_attr.border_size * 2) + viewport_edges[EDGE_BOTTOM]);
+
+	mclient_sub_image_1_1 = mvpw_create_text(NULL, 
+			x, y, w, h,
+			mclient_sub_image_attr.bg,
+		 	mclient_sub_image_attr.border, 
+			mclient_sub_image_attr.border_size);
+
+	mclient_sub_alt_image_1_1 = mvpw_create_text(NULL, 
+			x, y, w, h,
+			mclient_sub_image_attr.bg,
+		 	mclient_sub_image_attr.border, 
+			mclient_sub_image_attr.border_size);
+
+			mvpw_set_text_attr(mclient_sub_alt_image_1_1, &mclient_sub_alt_image_attr);
+	/*
+	 * Position 1,2
+	 */
+	h = SIZE_IMAGE_BROWSE;
+	w = ((SIZE_IMAGE_BROWSE * 4)/3);
+
+	x = si.cols - ((w * 2) + (mclient_sub_image_attr.border_size * 2) + viewport_edges[EDGE_RIGHT]);
+	y = si.rows - ((h * 2) + VERT_SPACER_BROWSE + (mclient_sub_image_attr.border_size * 2) + viewport_edges[EDGE_BOTTOM]);
+
+	mclient_sub_image_1_2 = mvpw_create_text(NULL, 
+			x, y, w, h,
+			mclient_sub_image_attr.bg,
+		 	mclient_sub_image_attr.border, 
+			mclient_sub_image_attr.border_size);
+
+	mclient_sub_alt_image_1_2 = mvpw_create_text(NULL, 
+			x, y, w, h,
+			mclient_sub_image_attr.bg,
+		 	mclient_sub_image_attr.border, 
+			mclient_sub_image_attr.border_size);
+
+			mvpw_set_text_attr(mclient_sub_alt_image_1_2, &mclient_sub_alt_image_attr);
+
+	/*
+	 * Position 1,3
+	 */
+	h = SIZE_IMAGE_BROWSE;
+	w = ((SIZE_IMAGE_BROWSE * 4)/3);
+
+	x = si.cols - (w + viewport_edges[EDGE_RIGHT]);
+	y = si.rows - ((h * 2) + VERT_SPACER_BROWSE + (mclient_sub_image_attr.border_size * 2) + viewport_edges[EDGE_BOTTOM]);
+
+	mclient_sub_image_1_3 = mvpw_create_text(NULL, 
+			x, y, w, h,
+			mclient_sub_image_attr.bg,
+		 	mclient_sub_image_attr.border, 
+			mclient_sub_image_attr.border_size);
+
+	mclient_sub_alt_image_1_3 = mvpw_create_text(NULL, 
+			x, y, w, h,
+			mclient_sub_image_attr.bg,
+		 	mclient_sub_image_attr.border, 
+			mclient_sub_image_attr.border_size);
+
+			mvpw_set_text_attr(mclient_sub_alt_image_1_3, &mclient_sub_alt_image_attr);
+
+	/*
+	 * Position 2,1
+	 */
+	h = SIZE_IMAGE_BROWSE;
+	w = ((SIZE_IMAGE_BROWSE * 4)/3);
+
+	x = si.cols - ((w * 3) + (mclient_sub_image_attr.border_size * 4) + viewport_edges[EDGE_RIGHT]);
+	y = si.rows - ((h + VERT_SPACER_BROWSE) + viewport_edges[EDGE_BOTTOM]);
+
+	mclient_sub_image_2_1 = mvpw_create_text(NULL, 
+			x, y, w, h,
+			mclient_sub_image_attr.bg,
+		 	mclient_sub_image_attr.border, 
+			mclient_sub_image_attr.border_size);
+
+	mclient_sub_alt_image_2_1 = mvpw_create_text(NULL, 
+			x, y, w, h,
+			mclient_sub_image_attr.bg,
+		 	mclient_sub_image_attr.border, 
+			mclient_sub_image_attr.border_size);
+
+			mvpw_set_text_attr(mclient_sub_alt_image_2_1, &mclient_sub_alt_image_attr);
+
+	/*
+	 * Position 2,2
+	 */
+	h = SIZE_IMAGE_BROWSE;
+	w = ((SIZE_IMAGE_BROWSE * 4)/3);
+
+	x = si.cols - ((w * 2) + (mclient_sub_image_attr.border_size * 2) + viewport_edges[EDGE_RIGHT]);
+	y = si.rows - ((h + VERT_SPACER_BROWSE) + viewport_edges[EDGE_BOTTOM]);
+
+	mclient_sub_image_2_2 = mvpw_create_text(NULL, 
+			x, y, w, h,
+			mclient_sub_image_attr.bg,
+		 	mclient_sub_image_attr.border, 
+			mclient_sub_image_attr.border_size);
+
+	mclient_sub_alt_image_2_2 = mvpw_create_text(NULL, 
+			x, y, w, h,
+			mclient_sub_image_attr.bg,
+		 	mclient_sub_image_attr.border, 
+			mclient_sub_image_attr.border_size);
+
+			mvpw_set_text_attr(mclient_sub_alt_image_2_2, &mclient_sub_alt_image_attr);
+
+	/*
+	 * Position 2,3
+	 */
+	h = SIZE_IMAGE_BROWSE;
+	w = ((SIZE_IMAGE_BROWSE * 4)/3);
+
+	x = si.cols - (w + viewport_edges[EDGE_RIGHT]);
+	y = si.rows - ((h + VERT_SPACER_BROWSE) + viewport_edges[EDGE_BOTTOM]);
+
+	mclient_sub_image_2_3 = mvpw_create_text(NULL, 
+			x, y, w, h,
+			mclient_sub_image_attr.bg,
+		 	mclient_sub_image_attr.border, 
+			mclient_sub_image_attr.border_size);
+
+	mclient_sub_alt_image_2_3 = mvpw_create_text(NULL, 
+			x, y, w, h,
+			mclient_sub_image_attr.bg,
+		 	mclient_sub_image_attr.border, 
+			mclient_sub_image_attr.border_size);
+
+			mvpw_set_text_attr(mclient_sub_alt_image_2_3, &mclient_sub_alt_image_attr);
+
+	/*
+	 * Album cover art browser info widget.
+	 */
+	h = SIZE_IMAGE_BROWSE;
+	w = (3 * ((SIZE_IMAGE_BROWSE * 4)/3)) + (mclient_sub_image_attr.border_size * 4);
+
+	x = si.cols - ((w) + (mclient_sub_image_attr.border_size * 0) + viewport_edges[EDGE_RIGHT]);
+	y = si.rows - ((h * 3) + VERT_SPACER_BROWSE + (mclient_sub_image_attr.border_size * 4) + viewport_edges[EDGE_BOTTOM]);
+
+	mclient_sub_alt_image_info = mvpw_create_text(NULL, 
+			x, y, w, h,
+			mclient_sub_image_attr.bg,
+		 	mclient_sub_image_attr.border, 
+			mclient_sub_image_attr.border_size);
+
+			mvpw_set_text_attr(mclient_sub_alt_image_info, &mclient_sub_alt_image_attr);
+
 	return 0;
 }
 
 static int
-mclient_sub_progressbar_init(void)
+mclient_sub_alt_image_init(void)
 {
 	int h, w, x, y;
 
+	splash_update("Creating mclient_sub_alt_image dialog");
+
+	/*
+	 * Place image in lower right corner of screen.
+	 */
+	h = 200;
+	w = ((200*4)/3);
+
+	x = si.cols - (w + viewport_edges[EDGE_RIGHT]);
+	y = si.rows - (h + viewport_edges[EDGE_BOTTOM]);
+
+	mclient_sub_alt_image = mvpw_create_text(NULL, 
+			x, y, w, h,
+			mclient_sub_alt_image_attr.bg,
+		 	mclient_sub_alt_image_attr.border, 
+			mclient_sub_alt_image_attr.border_size);
+
+	mvpw_set_text_attr(mclient_sub_alt_image, &mclient_sub_alt_image_attr);
+
+	/*
+	 * Later we will write mclient_fullscreen's own call back.  For now
+	 * we will use it for displaying only.
+	 */
+	mvpw_set_key(mclient_fullscreen, mclient_key_callback);
+
+	popup_item_attr.select = popup_select_callback;
+
+	/*
+	 * Define the full screen lines here.
+	 */
+	mvpw_set_text_str(mclient_sub_alt_image, "No Album\nArt Work");
+
+	return 0;
+}
+
+static int
+mclient_sub_bar_init(void)
+{
+	int h, w, x, y;
+
+	// Progress bar initialization.
 	h = 5;
 	w = 300;
 
@@ -6728,14 +7116,8 @@ mclient_sub_progressbar_init(void)
 			mclient_sub_progressbar_attr.border_size);
 
         mvpw_set_graph_attr(mclient_sub_progressbar, &mclient_sub_progressbar_attr);
-	return 0;
-}
 
-static int
-mclient_sub_volumebar_init(void)
-{
-	int h, w, x, y;
-
+	// Volume bar initialization.
 	h = 5;
 	w = 300;
 
@@ -6751,6 +7133,65 @@ mclient_sub_volumebar_init(void)
 			mclient_sub_volumebar_attr.border_size);
 
         mvpw_set_graph_attr(mclient_sub_volumebar, &mclient_sub_volumebar_attr);
+
+	// Browse bar initialization.
+	h = 15;
+	w = 534;
+
+	x = si.cols - (w + viewport_edges[EDGE_RIGHT]);
+	y = si.rows - (h + viewport_edges[EDGE_BOTTOM]);
+
+	splash_update("Creating mclient_sub_browse dialog");
+
+        mclient_sub_browsebar = mvpw_create_graph(NULL, 
+			x, y, w, h,
+			mclient_sub_browsebar_attr.bg,
+		 	mclient_sub_browsebar_attr.border, 
+			mclient_sub_browsebar_attr.border_size);
+
+        mvpw_set_graph_attr(mclient_sub_browsebar, &mclient_sub_browsebar_attr);
+	return 0;
+}
+
+static int
+mclient_sub_localmenu_init(void)
+{
+	int h, w, x, y;
+
+	splash_update("Creating mclient_sub_localmenu dialog");
+
+	h = FONT_HEIGHT(mclient_sub_localmenu_attr);
+	w = 400;
+
+	x = si.cols * .22; // About 50% across screen
+	y = si.rows * .46; // About 50% down screen
+
+	mclient_sub_localmenu = mvpw_create_menu(NULL, 
+			x, y, w, (h * 3),
+			mclient_sub_localmenu_attr.bg,
+		 	mclient_sub_localmenu_attr.border, 
+			mclient_sub_localmenu_attr.border_size);
+
+
+	mclient_sub_localmenu_attr.checkboxes = 0;
+	mvpw_set_menu_attr(mclient_sub_localmenu, &mclient_sub_localmenu_attr);
+	mvpw_set_menu_title(mclient_sub_localmenu, "Local Menu...");
+	mvpw_set_key(mclient_sub_localmenu, mclient_localmenu_callback);
+
+	mclient_sub_localmenu_item_attr.fg = mclient_sub_localmenu_attr.fg;
+	mclient_sub_localmenu_item_attr.bg = mclient_sub_localmenu_attr.bg;
+	if (mclient_sub_localmenu_attr.checkbox_fg)
+		mclient_sub_localmenu_item_attr.checkbox_fg = mclient_sub_localmenu_attr.checkbox_fg;
+
+	mclient_sub_localmenu_item_attr.hilite = NULL;
+
+	mvpw_add_menu_item(mclient_sub_localmenu, "Browse by album cover",
+			   (void*)MCLIENT_LOCALMENU_BROWSE_BY_COVER_ART, 
+			   &mclient_sub_localmenu_item_attr);
+
+	mvpw_add_menu_item(mclient_sub_localmenu, "Control another client",
+			   (void*)MCLIENT_LOCALMENU_CONTROL_ANOTHER_CLIENT,
+			   &mclient_sub_localmenu_item_attr);
 	return 0;
 }
 
@@ -7307,12 +7748,6 @@ screensaver_init(void)
 
 	screensaver_enable();
 
-/// ### START
-///	screensaver_mclient = mvpmw_create_container(NULL, 0, 0,
-///						     si.cols, si.rows,
-///						     MVPW_BLACK, 0, 0);
-///	widget = mvpw_create_0
-/// ### END
 	return 0;
 }
 
@@ -7617,8 +8052,9 @@ gui_init(char *server, char *replaytv)
 	mclient_fullscreen_init();
 	mclient_sub_softsqueeze_init();
 	mclient_sub_image_init();
-	mclient_sub_progressbar_init();
-	mclient_sub_volumebar_init();
+	mclient_sub_alt_image_init();
+	mclient_sub_bar_init();
+	mclient_sub_localmenu_init();
 
 	thruput_init();
 
