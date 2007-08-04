@@ -678,20 +678,45 @@ cli_parse_response(int socket_handle_cli, mclient_cmd * response)
 				    slim_composit_ver, required_composit_ver;
 				char slim_version_buffer[strlen
 							 (response->param[0])];
+				char *slim_str_ptr;
 
 				// Parse the version number.  Expect 3 fields separated by "."s.
-				slim_major =
-				    atoi(strtok_r
-					 (response->param[0], ".",
-					  (char **)&slim_version_buffer));
-				slim_minor =
-				    atoi(strtok_r
-					 (NULL, ".",
-					  (char **)&slim_version_buffer));
-				slim_dot =
-				    atoi(strtok_r
-					 (NULL, ".",
-					  (char **)&slim_version_buffer));
+				slim_str_ptr = strtok_r (response->param[0], ".",
+			        (char **)&slim_version_buffer);
+				if (slim_str_ptr != NULL)
+				{
+				        slim_major = atoi(slim_str_ptr);
+
+			                slim_str_ptr = strtok_r (NULL, ".",
+					(char **)&slim_version_buffer);
+                                        if (slim_str_ptr != NULL)
+                                        {
+                                            slim_minor = atoi(slim_str_ptr);
+
+				            slim_str_ptr = strtok_r (NULL, ".",
+					    (char **)&slim_version_buffer);
+                                            if (slim_str_ptr != NULL)
+                                            {
+                                                slim_dot = atoi(slim_str_ptr);
+                                            }
+					    else
+					    {
+					        slim_dot = 0;
+					    }
+                                        }
+					else
+					{
+					    slim_minor = 0;
+					    slim_dot = 0;
+					}
+				}
+				else
+				{
+					slim_major = 0;    
+				 	slim_minor = 0;
+					slim_dot = 0;
+                                }
+				
 				printf
 				    ("mclient:cli_parse_response: Found slimserver version:%d.%d.%d, need:%d.%d.%d\n",
 				     slim_major, slim_minor, slim_dot,
@@ -714,6 +739,21 @@ cli_parse_response(int socket_handle_cli, mclient_cmd * response)
 					{
 						char buf[200];
 
+						if (slim_composit_ver == 0)
+						{
+						snprintf(buf, sizeof(buf),
+							 "%s%d%s%d%s%d%s%s",
+							 "We were unable to retrieve the Slimserver versoin information (",
+							 slim_major, ".",
+							 slim_minor, ".",
+							 slim_dot,
+							 ") we connected to at IP:",
+							 mclient_server ?
+							 mclient_server :
+							 "127.0.0.1");
+						}
+						else
+						{
 						snprintf(buf, sizeof(buf),
 							 "%s%d%s%d%s%d%s%s%s",
 							 "The version of slimserver (",
@@ -725,6 +765,7 @@ cli_parse_response(int socket_handle_cli, mclient_cmd * response)
 							 mclient_server :
 							 "127.0.0.1",
 							 " is less than this version of MClient requires.");
+						}
 						gui_error(buf);
 					}
 				}
