@@ -937,7 +937,7 @@ typedef struct cmyth_program {
 	char seriesid[24];
 	char category[84];
 	int recording;
-	char rec_status[2];
+	int rec_status;
 	int channum;
 	int event_flags;
 	int startoffset;
@@ -963,9 +963,12 @@ extern int cmyth_schedule_recording(cmyth_conn_t conn, char * msg);
 extern char * cmyth_mysql_escape_chars(cmyth_database_t db, char * string);
 extern int cmyth_mysql_get_commbreak_list(cmyth_database_t db, int chanid, char * start_ts_dt, cmyth_commbreaklist_t breaklist);
 
+extern int cmyth_mysql_get_prev_recorded(cmyth_database_t db, cmyth_program_t **prog);
+
+extern int cmyth_get_delete_list(cmyth_conn_t, char *, cmyth_proglist_t);
 
 #define PROGRAM_ADJUST  3600
 
-
+extern int cmyth_mythtv_remove_previos_recorded(cmyth_database_t db,char *query);
 
 #endif /* __CMYTH_H */

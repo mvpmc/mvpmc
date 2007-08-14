@@ -211,6 +211,7 @@ extern mvp_widget_t *episodes_widget;
 extern mvp_widget_t *shows_widget;
 extern mvp_widget_t *freespace_widget;
 extern mvp_widget_t *program_info_widget;
+extern mvp_widget_t *mythtv_options;
 
 extern mvp_widget_t *popup_menu;
 
