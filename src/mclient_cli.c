@@ -743,7 +743,7 @@ cli_parse_response(int socket_handle_cli, mclient_cmd * response)
 						{
 						snprintf(buf, sizeof(buf),
 							 "%s%d%s%d%s%d%s%s",
-							 "We were unable to retrieve the Slimserver versoin information (",
+							 "We were unable to retrieve the Slimserver version information (",
 							 slim_major, ".",
 							 slim_minor, ".",
 							 slim_dot,
@@ -861,10 +861,8 @@ cli_get_cover_art()
 			mvpw_hide(mclient_sub_alt_image);
 			mvpw_show(mclient_sub_image);
 		}
-		close(fd);
-		fd = -1;
 	}
-	else if (retcode == HTTP_FILE_UNKNOWN)
+	else
 	{
 		printf("mclient:cli_get_cover_art: ART WORK NOT FOUND.\n");
 
@@ -874,6 +872,8 @@ cli_get_cover_art()
 		mvpw_set_text_str(mclient_sub_alt_image,
 				  "   No ArtWork\n     for\n    this album");
 	}
+	close(fd);
+	fd = -1;
 	free(current);
 }
 

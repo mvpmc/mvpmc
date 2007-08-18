@@ -1721,10 +1721,8 @@ mclient_browse_by_cover(void)
 					mvpw_show(mclient_sub_image_1_1);
 					mvpw_raise(mclient_sub_image_1_1);
 				}
-				close(fd);
-				fd = -1;
 			}
-			else if (retcode == HTTP_FILE_UNKNOWN)
+			else
 			{
 				mvpw_hide(mclient_sub_image_1_1);
 				mvpw_show(mclient_sub_alt_image_1_1);
@@ -1735,6 +1733,8 @@ mclient_browse_by_cover(void)
 				mvpw_set_text_str(mclient_sub_alt_image_1_1,
 						  no_cover_art_text);
 			}
+			close(fd);
+			fd = -1;
 			// Set up for another call here as this case does not
 			// deal w/the CLI parsing function where this normally
 			// happens.
@@ -1760,10 +1760,8 @@ mclient_browse_by_cover(void)
 					mvpw_show(mclient_sub_image_1_2);
 					mvpw_raise(mclient_sub_image_1_2);
 				}
-				close(fd);
-				fd = -1;
 			}
-			else if (retcode == HTTP_FILE_UNKNOWN)
+			else
 			{
 				mvpw_hide(mclient_sub_image_1_2);
 				mvpw_show(mclient_sub_alt_image_1_2);
@@ -1774,6 +1772,8 @@ mclient_browse_by_cover(void)
 				mvpw_set_text_str(mclient_sub_alt_image_1_2,
 						  no_cover_art_text);
 			}
+			close(fd);
+			fd = -1;
 			// Set up for another call here as this case does not
 			// deal w/the CLI parsing function where this normally
 			// happens.
@@ -1799,10 +1799,8 @@ mclient_browse_by_cover(void)
 					mvpw_show(mclient_sub_image_1_3);
 					mvpw_raise(mclient_sub_image_1_3);
 				}
-				close(fd);
-				fd = -1;
 			}
-			else if (retcode == HTTP_FILE_UNKNOWN)
+			else
 			{
 				mvpw_hide(mclient_sub_image_1_3);
 				mvpw_show(mclient_sub_alt_image_1_3);
@@ -1813,6 +1811,8 @@ mclient_browse_by_cover(void)
 				mvpw_set_text_str(mclient_sub_alt_image_1_3,
 						  no_cover_art_text);
 			}
+			close(fd);
+			fd = -1;
 			// Set up for another call here as this case does not
 			// deal w/the CLI parsing function where this normally
 			// happens.
@@ -1838,10 +1838,8 @@ mclient_browse_by_cover(void)
 					mvpw_show(mclient_sub_image_2_1);
 					mvpw_raise(mclient_sub_image_2_1);
 				}
-				close(fd);
-				fd = -1;
 			}
-			else if (retcode == HTTP_FILE_UNKNOWN)
+			else
 			{
 				mvpw_hide(mclient_sub_image_2_1);
 				mvpw_show(mclient_sub_alt_image_2_1);
@@ -1852,6 +1850,8 @@ mclient_browse_by_cover(void)
 				mvpw_set_text_str(mclient_sub_alt_image_2_1,
 						  no_cover_art_text);
 			}
+			close(fd);
+			fd = -1;
 			// Set up for another call here as this case does not
 			// deal w/the CLI parsing function where this normally
 			// happens.
@@ -1877,10 +1877,8 @@ mclient_browse_by_cover(void)
 					mvpw_show(mclient_sub_image_2_2);
 					mvpw_raise(mclient_sub_image_2_2);
 				}
-				close(fd);
-				fd = -1;
 			}
-			else if (retcode == HTTP_FILE_UNKNOWN)
+			else
 			{
 				mvpw_hide(mclient_sub_image_2_2);
 				mvpw_show(mclient_sub_alt_image_2_2);
@@ -1891,6 +1889,8 @@ mclient_browse_by_cover(void)
 				mvpw_set_text_str(mclient_sub_alt_image_2_2,
 						  no_cover_art_text);
 			}
+			close(fd);
+			fd = -1;
 			// Set up for another call here as this case does not
 			// deal w/the CLI parsing function where this normally
 			// happens.
@@ -1916,10 +1916,8 @@ mclient_browse_by_cover(void)
 					mvpw_show(mclient_sub_image_2_3);
 					mvpw_raise(mclient_sub_image_2_3);
 				}
-				close(fd);
-				fd = -1;
 			}
-			else if (retcode == HTTP_FILE_UNKNOWN)
+			else
 			{
 				mvpw_hide(mclient_sub_image_2_3);
 				mvpw_show(mclient_sub_alt_image_2_3);
@@ -1932,6 +1930,8 @@ mclient_browse_by_cover(void)
 				mvpw_set_text_str(mclient_sub_alt_image_2_3,
 						  no_cover_art_text);
 			}
+			close(fd);
+			fd = -1;
 
 			// Show browserbar.
 			mvpw_show(mclient_sub_browsebar);

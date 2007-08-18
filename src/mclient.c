@@ -431,7 +431,8 @@ curses2ir(int key)
 		if (remote_buttons.local_menu)
 		{
 			cli_data.row_for_cover_art += 1;
-/// ###			if (cli_data.row_for_cover_art >= 3)
+			// if (cli_data.row_for_cover_art >= 3)
+			/// Swap above and below lines to skip/not-skip bar.
 			if (cli_data.row_for_cover_art >= 2)
 			{
 				cli_data.row_for_cover_art = 0;
@@ -485,7 +486,9 @@ curses2ir(int key)
 					// We fell off the edge, refresh images.
 					cli_data.state_for_cover_art = GET_1ST_ALBUM_COVERART;
 
-					cli_data.col_for_cover_art = 2;
+					// cli_data.col_for_cover_art = 2;
+					/// Swap above and below lines to switch stay/not-stay.
+					cli_data.col_for_cover_art = 0;
 
 					// Advance to the next set of 6 album covers.
 					// We are skipping backwards a screen worth of album covers.
@@ -545,7 +548,9 @@ curses2ir(int key)
 					// We fell off the edge, refresh images.
 					cli_data.state_for_cover_art = GET_1ST_ALBUM_COVERART;
 
-					cli_data.col_for_cover_art = 0;
+					// cli_data.col_for_cover_art = 0;
+					/// Swap above and below lines to switch stay/not-stay.
+					cli_data.col_for_cover_art = 2;
 
 					// Advance to the next set of 6 album covers.
 					// We are skipping forward a screen worth of album covers.
