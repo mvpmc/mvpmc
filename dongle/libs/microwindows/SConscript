@@ -42,6 +42,7 @@ ppccmd = [ 'cp --remove-destination src/Configs/config.mvp src/config' ]
 
 commoncmd = [	'cd src',
                 'cp ../../../patches/*.c drivers',
+                'cp include/*.h %s' % incdir,
                 'make CFLAGS=-I%s LDFLAGS=-L%s' % (incdir,libdir),
                 'cd ..',
                 'cp src/lib/*.a %s' % libdir ]
@@ -56,6 +57,7 @@ build = mvpmc.OSSBuild(target, url, env, e, cmd, patches)
 pwd = os.getcwd()
 env.Depends(build, pwd + '/patches/scr_mvposd.c')
 env.Depends(build, pwd + '/patches/kbd_irm.c')
+env.Depends(build, incdir + '/mvp_osd.h')
 
 cp = env.Command(incdir + '/nano-X.h', 0,
             'cp ' + pwd + '/' + build_target +

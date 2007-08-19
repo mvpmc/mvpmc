@@ -4,16 +4,18 @@
 #
 
 import os
+import mvpmc
 
 Import('env','crossroot')
 
-home = os.environ['HOME']
-cc = env['CC']
-downloads = env['DOWNLOADS']
-target = env['TARG']
+build_target = env['TARG']
+topdir = env['TOPDIR']
+libdir = '%s/dongle/install/%s/lib/' % (topdir,build_target)
+incdir = '%s/dongle/install/%s/include/' % (topdir,build_target)
+prefix = '%s/dongle/install/%s' % (topdir,build_target)
 
-if target == 'mvp':
-  cross = '-c ' + env['CROSS']
+if build_target == 'mvp':
+  cross = env['CROSS']
   host_configs = '--host=ppcbe --with-other-libc='+crossroot+'/lib'
 else:
   cross = ''
@@ -21,40 +23,34 @@ else:
 
 config_opts = '--without-docs --without-man --without-debug --without-server --without-query-cache  --without-extra-tools --without-perl --with-low-memory --enable-assembler  --with-comment --cache-file=build.cache ' + host_configs
 
-file = downloads + '/mysql-5.0.21.tar.gz'
-
 e = Environment()
-e.Tool('WGet', toolpath=['../../../scons'])
 
-def GetSourceFile(url, output_dir, env):
-  '''
-  Create a node for a file retrieved via wget.
-  This node can be used as a dependency in other rules.
-  '''
-  # Nab everything after the last slash as the filename
-  basefilename = str(url)[str( url).rfind(os.sep) + 1:]
-  munged = output_dir + os.sep + basefilename + os.sep + url
-  node = env.SourceCode( munged, env.WGet() )
-  return node
+url = [ 'http://www.mvpmc.org/dl/mysql-5.0.21.tar.gz' ]
 
-url = 'http://www.mvpmc.org/dl/mysql-5.0.21.tar.gz'
-pwd = os.getcwd()
+target = [ libdir + 'mysql/libmysqlclient.a' ]
+cmd = [
+    'export CXX=%sg++' % cross,
+    'export CPP=%scpp' % cross,
+    'unset LDFLAGS',
+    'unset CROSS',
+    'unset CFLAGS',
+    'unset CXXFLAGS',
+    'export C_INCLUDE_PATH=%s' % incdir,
+    'export CFLAGS=-I%s' % incdir,
+    'export LDFLAGS=-L%s' % libdir,
+    './configure %s --prefix=%s' % (config_opts,prefix),
+    'make',
+    'make install' ]
 
-build = env.Command('../../install/' + target + '/lib/mysql/libmysqlclient.a', 0,
-                    'scons/build_lib.sh -d ' + pwd + '/' + target +
-                    '/mysql-5.0.21 -i ' + file + ' ' +
-                    cross + ' ' +
-                    '-T ' + target + ' ' +
-                    '-A -I ' + pwd + '/../../install/' + target + ' ' +
-                    '-C \"' + config_opts + '\" ' +
-                    '-L \"-L../../install/' + target + '/lib\"' + ' ' +
-                    '-p patches/my_global.h.patch')
+if build_target == 'mvp':
+    patches = [ 'patches/my_global.h.patch',
+                'patches/configure.patch' ]
+else:
+    patches = [ 'patches/my_global.h.patch' ]
 
-if not os.path.exists(file):
-	dl = GetSourceFile(url, '#' + downloads, e)
-	env.Depends(build, dl)
+build = mvpmc.OSSBuild(target, url, env, e, cmd, patches)
 
-#env.SideEffect(['../../install/' + target + '/include/mysql/mysql.h'],
-#                build)
+env.SideEffect(['../../install/' + build_target + '/include/mysql/mysql.h'],
+                build)
 
 Return('build')

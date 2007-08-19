@@ -24,14 +24,18 @@ e = Environment()
 url = [ 'http://www.mvpmc.org/dl/flac-1.1.3.tar.gz',
         'http://flac.sourceforge.net/files/flac-1.1.3.tar.gz' ]
 
-target = [ libdir + 'libFLAC.a' ]
+target = [ libdir + 'libFLAC.a',
+           incdir + 'FLAC/stream_decoder.h' ]
 patches = [ 'flac.patch' ]
 
 cmd = [ './configure %s' % configopts,
         'cp ../../config.h config.h',
         'cd src/libFLAC',
         'make',
-        'cp .libs/libFLAC.a %s' % libdir ]
+        'cp .libs/libFLAC.a %s' % libdir,
+        'mkdir -p %s/FLAC' % incdir,
+        'cd ../../include/FLAC',
+        'cp * %s/FLAC' % incdir ]
 
 build = mvpmc.OSSBuild(target, url, env, e, cmd, patches)
 

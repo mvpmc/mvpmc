@@ -24,7 +24,8 @@ e = Environment()
 url = [ 'http://www.mvpmc.org/dl/zlib-1.2.3.tar.gz',
         'http://www.zlib.net/zlib-1.2.3.tar.gz' ]
 
-target = [ libdir + 'libz.a' ]
+target = [ libdir + 'libz.a',
+           incdir + 'zlib.h' ]
 
 cmd = [ './configure --prefix=%s' % prefix,
         'make',

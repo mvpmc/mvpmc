@@ -24,7 +24,8 @@ e = Environment()
 url = [ 'http://www.mvpmc.org/dl/libdvbpsi4-0.1.5.tar.gz',
         'http://download.videolan.org/pub/libdvbpsi/0.1.5/libdvbpsi4-0.1.5.tar.gz' ]
 
-target = [ libdir + 'libdvbpsi.a' ]
+target = [ libdir + 'libdvbpsi.a',
+           incdir + 'dvbpsi/dvbpsi.h' ]
 
 cmd = [ './configure --prefix=%s %s' % (prefix,config),
         'make',
