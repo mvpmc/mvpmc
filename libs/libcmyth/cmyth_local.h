@@ -225,6 +225,9 @@ struct cmyth_proginfo {
 	char *proginfo_recpriority_2;  /* new in V25 */
 	long proginfo_parentid; /* new in V31 */
 	char *proginfo_storagegroup; /* new in v32 */
+	unsigned long proginfo_audioproperties; /* new in v35 */
+	unsigned long proginfo_videoproperties; /* new in v35 */
+	unsigned long proginfo_subtitletype; /* new in v35 */
 };
 
 struct cmyth_proglist {

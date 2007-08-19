@@ -20,8 +20,19 @@
 #ifndef MCLIENT_H
 #define MCLIENT_H
 
+// Version history (when I remember to do it):
+//
+// Started tracking w/2.0.
+// Added shift key (REC) for accessing additional slimserver
+// features.
+// Added slimserver version checking and warning message.
+// Added warning message when CLI port to slimserver isn't working.
+//
+// 2.1:
+// Added browsing by album cover.
+//
 #define MCLIENT_VERSION_MAJOR	2
-#define MCLIENT_VERSION_MINOR	0
+#define MCLIENT_VERSION_MINOR	1
 
 #define SLIMSERVER_VERSION_MAJOR	6
 #define SLIMSERVER_VERSION_MINOR_1	3
@@ -54,7 +65,7 @@
  * Command Line Interface Defines.
  */
 #define MAX_ID_SIZE 32
-#define MAX_CMD_SIZE 32
+#define MAX_CMD_SIZE 256
 #define MAX_PARAM_SIZE 64
 #define MAX_PARAMS 16
 #define MAX_REPLY_LENGTH 256
@@ -143,6 +154,36 @@ enum
     INTERNET_RADIO,
     SETTINGS,
     PLUGINS,
+};
+
+/*
+ * Define slimserver get cover art states.
+ */
+enum
+{
+    IDLE_COVERART = 0,
+    GET_1ST_ALBUM_COVERART,
+    GET_1ST_TRACK_COVERART,
+    GET_2ND_ALBUM_COVERART,
+    GET_2ND_TRACK_COVERART,
+    GET_3RD_ALBUM_COVERART,
+    GET_3RD_TRACK_COVERART,
+    GET_4TH_ALBUM_COVERART,
+    GET_4TH_TRACK_COVERART,
+    GET_5TH_ALBUM_COVERART,
+    GET_5TH_TRACK_COVERART,
+    GET_6TH_ALBUM_COVERART,
+    GET_6TH_TRACK_COVERART,
+    DISPLAY_1ST_COVER_COVERART,
+    DISPLAY_2ND_COVER_COVERART,
+    DISPLAY_3RD_COVER_COVERART,
+    DISPLAY_4TH_COVER_COVERART,
+    DISPLAY_5TH_COVER_COVERART,
+    DISPLAY_6TH_COVER_COVERART,
+    DISPLAY_BROWSEBAR_COVERART,
+    ADJ_WIDGETS_COVERART,
+    GET_TOTAL_NUM_ALBUMS,
+    LAST_STATE_COVERART,
 };
 
 /*
@@ -243,6 +284,19 @@ typedef struct
     int get_cover_art_holdoff_timer;
     int get_cover_art_later;
     bool cli_comm_err_mask;	// True if we want to mute the cli_comm_err flag.
+    unsigned int state_for_cover_art;    // State we are in - what are we asking for over the CLI.
+    unsigned int album_index_for_cover_art;
+    unsigned int album_index_1_of_6_for_cover_art;
+    unsigned int album_start_index_for_cover_art;
+    unsigned int album_max_index_for_cover_art;
+    unsigned int album_index_plus_start_for_cover_art[6];
+    unsigned int album_id_for_cover_art[6];
+    char album_name_for_cover_art[6][51];
+    char artist_name_for_cover_art[6][21];
+    unsigned int track_id_for_cover_art[6];
+    bool pending_proc_for_cover_art;
+    unsigned int row_for_cover_art;
+    unsigned int col_for_cover_art;
 } cli_data_type;
 
 /*
@@ -257,6 +311,8 @@ typedef struct
     int number_of_pushes;
     int shift;
     int shift_time;
+    bool local_menu;
+    bool local_menu_browse;
 } remote_buttons_type;
 
 /*
@@ -264,6 +320,7 @@ typedef struct
  */
 extern int music_client (void);
 extern void mclient_idle_callback (mvp_widget_t *);
+extern void mclient_localmenu_callback (mvp_widget_t *, char);
 extern unsigned long curses2ir (int);
 extern void mclient_exit (void);
 extern void mclient_local_init (void);
@@ -293,6 +350,8 @@ extern void cli_parse_button (mclient_cmd *);
 extern void cli_parse_response (int, mclient_cmd *);
 extern void cli_parse_parameters (mclient_cmd *, char **);
 extern void cli_get_cover_art (void);
+extern void mclient_browse_by_cover (void);
+extern void mclient_localmenu_hide_all_widgets(void);
 
 
 /*

@@ -40,6 +40,7 @@ typedef enum {
 	MYTHTV_STATE_UPCOMING,
 	MYTHTV_STATE_SCHEDULE,
 	MYTHTV_STATE_PROG_FINDER,
+	MYTHTV_STATE_UTILS,
 } mythtv_state_t;
 
 extern volatile mythtv_state_t mythtv_state;
@@ -125,6 +126,7 @@ extern mvp_widget_t *mythtv_popup;
 extern mvp_widget_t *mythtv_program_widget;
 extern mvp_widget_t *mythtv_osd_program;
 extern mvp_widget_t *mythtv_osd_description;
+extern mvp_widget_t *mythtv_utils;
 
 extern mvpw_menu_attr_t mythtv_attr;
 
@@ -194,6 +196,11 @@ extern void myth_tvguide_clear_hilites(void);
 
 
 /* ----------------------------------------------------------------- */
+
+extern void run_mythtv_utils_prevrecorded(mvp_widget_t *,mvp_widget_t *);
+extern void run_mythtv_utils_priorities(mvp_widget_t *widget);
+extern void run_mythtv_utils_delrecordings(mvp_widget_t *widget);
+
 
 extern int mythtv_back(mvp_widget_t*);
 extern int mythtv_update(mvp_widget_t*);

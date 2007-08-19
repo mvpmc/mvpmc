@@ -593,7 +593,7 @@ http_content_t http_main(void)
 							playlistType = PLAYLIST_PODCAST ;
 							curEntry = -1;	 // start again
 						} else if (ContentType != CONTENT_GET_SHOUTCAST) {
-							ContentType = CONTENT_UNKNOWN;
+							ContentType = CONTENT_UNSUPPORTED;
 						}
 
 					} else if (strncasecmp (line_data, "icy-metaint:", 12)==0) {

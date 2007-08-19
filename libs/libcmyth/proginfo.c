@@ -341,6 +341,9 @@ cmyth_proginfo_dup(cmyth_proginfo_t p)
 	ret->proginfo_storagegroup = ref_hold(p->proginfo_storagegroup);
 	ret->proginfo_recpriority_2 = ref_hold(p->proginfo_recpriority_2);
 	ret->proginfo_parentid = p->proginfo_parentid;
+	ret->proginfo_audioproperties = p->proginfo_audioproperties;
+	ret->proginfo_videoproperties = p->proginfo_videoproperties;
+	ret->proginfo_subtitletype = p->proginfo_subtitletype;
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s }\n", __FUNCTION__);
 	return ret;
 }
@@ -539,6 +542,12 @@ delete_command(cmyth_conn_t control, cmyth_proginfo_t prog, char *cmd)
 		    sprintf(buf + strlen(buf), "%s[]:[]",
 		    		prog->proginfo_storagegroup);
 		}
+		if (control->conn_version >=35) {
+		    sprintf(buf + strlen(buf), "%ld[]:[]%ld[]:[]%ld[]:[]",
+		    		prog->proginfo_audioproperties,
+				prog->proginfo_videoproperties,
+				prog->proginfo_subtitletype);
+		}		
 	}
 
 	pthread_mutex_lock(&mutex);
@@ -1338,6 +1347,13 @@ fill_command(cmyth_conn_t control, cmyth_proginfo_t prog, char *cmd)
 		    sprintf(buf+strlen(buf),"%s[]:[]",
 			    prog->proginfo_storagegroup);
 		}
+		if(control->conn_version >= 35)
+		{
+		    sprintf(buf+strlen(buf),"%ld[]:[]%ld[]:[]%ld[]:[]",
+		    	    prog->proginfo_audioproperties,
+			    prog->proginfo_videoproperties,
+			    prog->proginfo_subtitletype);
+		}	    
 	}
 
 	if ((err = cmyth_send_message(control, buf)) < 0) {
@@ -1579,3 +1595,29 @@ cmyth_proginfo_recgroup(cmyth_proginfo_t prog)
 	}
 	return ref_hold(prog->proginfo_recgroup);
 }
+
+int 
+cmyth_get_delete_list(cmyth_conn_t conn, char * msg, cmyth_proglist_t prog)
+{
+        int err=0;
+        int count;
+        int prog_count=0;
+
+        if (!conn) {
+                cmyth_dbg(CMYTH_DBG_ERROR, "%s: no connection\n", __FUNCTION__);
+                return -1;
+        }
+        pthread_mutex_lock(&mutex);
+        if ((err = cmyth_send_message(conn, msg)) < 0) {
+                fprintf (stderr, "ERROR %d \n",err);
+                cmyth_dbg(CMYTH_DBG_ERROR,
+                        "%s: cmyth_send_message() failed (%d)\n",__FUNCTION__,err);
+                return err;
+        }
+        count = cmyth_rcv_length(conn);
+        cmyth_rcv_proglist(conn, &err, prog, count);
+        prog_count=cmyth_proglist_get_count(prog);
+        pthread_mutex_unlock(&mutex);
+        return prog_count;
+}
+

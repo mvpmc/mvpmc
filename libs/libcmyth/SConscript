@@ -12,7 +12,7 @@ toplevel = env['TOPLEVEL']
 
 src = [ 'bookmark.c', 'connection.c', 'debug.c', 'event.c',
         'file.c', 'freespace.c', 'keyframe.c', 'mythtv_mysql.c',
-        'posmap.c', 'proginfo.c', 'proglist.c', 'rec_num.c',
+        'posmap.c', 'proginfo.c', 'proglist.c', 'rec_num.c', 
         'recorder.c', 'ringbuf.c', 'socket.c', 'timestamp.c',
         'livetv.c', 'tvguide.c', 'mysql_query.c', 'commbreak.c' ]
 
