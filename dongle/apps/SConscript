@@ -1,4 +1,7 @@
 #!/usr/bin/python
+#
+# Third-Party Applications
+#
 
 import os
 
@@ -12,12 +15,8 @@ fuse = env.SConscript([ 'fuse/SConscript'])
 djmount = env.SConscript('djmount/SConscript')
 nbtscan = env.SConscript('nbtscan/SConscript')
 
-libs = [ busybox, ntp, dropbear, mtd, fuse, djmount, nbtscan ]
+apps = [ busybox, ntp, dropbear, mtd, fuse, djmount, nbtscan ]
 
-env.Depends(ntp, busybox)
-env.Depends(busybox, dropbear)
-env.Depends(busybox, mtd)
-env.Depends(djmount,fuse)
-env.Depends(busybox, nbtscan)
+env.Depends(djmount, fuse)
 
-Return('libs')
+Return('apps')

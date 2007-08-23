@@ -27,7 +27,6 @@ if target == 'mvp':
 	flac = env.SConscript('flac/SConscript')
 	libs.append(flac)
 
-env.Depends(mw, a52)
 env.Depends(png, zlib)
 env.Depends(mw, png)
 env.Depends(mw, jpg)
