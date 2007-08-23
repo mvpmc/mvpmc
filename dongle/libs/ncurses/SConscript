@@ -16,8 +16,10 @@ prefix = '%s/dongle/install/%s' % (topdir,build_target)
 
 if build_target == 'mvp':
     config = '--host=ppcbe'
+    cross = env['CROSS']
 else:
     config = ''
+    cross = ''
 
 e = Environment()
 
@@ -25,7 +27,8 @@ url = [ 'http://www.mvpmc.org/dl/ncurses-5.5.tar.gz',
         'http://ftp.gnu.org/pub/gnu/ncurses/ncurses-5.5.tar.gz' ]
 
 target = [ libdir + 'libncurses.a' ]
-cmd = [ './configure --prefix=%s %s' % (prefix,config),
+cmd = [ 'export CXX=%sg++' % cross,
+        './configure --prefix=%s %s' % (prefix,config),
         'make',
         'make install' ]
 
