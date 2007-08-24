@@ -74,7 +74,7 @@ mvpw_set_image(mvp_widget_t *widget, char *file)
 	if (pid == 0)
 		pid = GrNewPixmap(width, height, NULL);
         gc = GrNewGC();
-	GrSetGCForeground(gc, 0xff000000);
+	GrSetGCForeground(gc, widget->bg);
 	GrFillRect(pid, gc, 0, 0, width, height);
 	if (file) GrDrawImageFromFile(pid, gc, 0, 0, width, height, file, 0);
         GrDestroyGC(gc);

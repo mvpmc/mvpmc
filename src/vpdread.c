@@ -27,12 +27,12 @@
 
 void print_help(char *prog);
 
+#define VPD_NVRAM_MAC  11
 #define VPD_NVRAM_TFTP 0x3000
 
-           
 void print_help(char *prog)
 {
-    printf("MediaMVP VPD Read functions\n");
+	printf("MediaMVP VPD Read functions\n");
 	printf("Usage: %s [-ht]\n", basename(prog));
 	printf("\t-h   print help\n");
 	printf("\t-t   TFTP=dongle.bin server ip\n");
@@ -42,15 +42,16 @@ int vpdread_main(int argc, char **argv)
 {
 	int fd, i = 0, found = 0;
 	char ip[4];
+	char mac[6];
 	char path[64];
-    FILE *f;
-    int c;
-    int option=-1;
+	FILE *f;
+	int c;
+	int option=-1;
 
-    if (argc==1) {
-        print_help(argv[0]);
-        exit(1);
-    }
+	if (argc==1) {
+		print_help(argv[0]);
+		exit(1);
+	}
 
 	while ((c=getopt(argc, argv, "ht")) != -1) {
 		switch (c) {
@@ -58,8 +59,8 @@ int vpdread_main(int argc, char **argv)
 			print_help(argv[0]);
 			exit(0);
 			break;
-        case 't':
-            option = c;
+		case 't':
+			option = c;
 			break;
 		default:
 			print_help(argv[0]);
@@ -91,27 +92,34 @@ int vpdread_main(int argc, char **argv)
 	}
 
 	snprintf(path, sizeof(path), "/dev/mtd%d", i);
-    switch (option) {
-        case 't':
-            
-            /* note it can be 255.255.255.255.255 on older mvp's */
+	switch (option) {
+	case 't':
 
-            if ((fd=open(path, O_RDONLY)) < 0)
-                return -1;
+		/* note it can be 255.255.255.255.255 on older mvp's */
 
-            lseek(fd,VPD_NVRAM_TFTP,SEEK_SET);
-            if (read(fd, ip, 4) != 4) {
-                close(fd);
-                return -1;
-            }
-            close(fd);
-            f = fopen("/etc/tftp.config","w"); 
-            fprintf(f,"TFTP=%d.%d.%d.%d\n",ip[0],ip[1],ip[2],ip[3]);
-            fclose (f);
-            break;
-        default:
-            /* only one option so far */
-            break;
-    }
+		if ((fd=open(path, O_RDONLY)) < 0)
+			return -1;
+		lseek(fd,VPD_NVRAM_MAC,SEEK_SET);
+		if (read(fd, mac, 6) != 6) {
+			close(fd);
+			return -1;
+		}
+		
+		lseek(fd,VPD_NVRAM_TFTP,SEEK_SET);
+		if (read(fd, ip, 4) != 4) {
+			close(fd);
+			return -1;
+		}
+		close(fd);
+		f = fopen("/etc/tftp.config","w"); 
+		fprintf(f,"TFTP=%d.%d.%d.%d\n",ip[0],ip[1],ip[2],ip[3]);
+		fprintf(f,"MAC=%2.2X:%2.2X:%2.2X:%2.2X:%2.2X:%2.2X\n",mac[0],mac[1],mac[2],mac[3],mac[4],mac[5]);
+		fclose (f);
+		break;
+	default:
+		/* only one option so far */
+		break;
+	}
 	return 0;
 }
+

@@ -908,7 +908,7 @@ int mvp_config_general(char *line)
 			default:
 				break;
 			}
-		} else if (strcmp(ptr,"SetTime=Set Time")==0 ) {
+		} else if (strcmp(ptr,"SetTime=Set Time")==0 || strcmp(ptr,"SetTime=Set+Time")==0 ) {
 			setenv("TZ",web_config->tz,1);
 			tzset();
 			pthread_mutex_lock (&web_server_mutex);

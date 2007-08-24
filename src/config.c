@@ -274,6 +274,7 @@ add_item(config_list_t *list, int type)
 		ITEM_STRING(VLC_AOPTS, vlc_aopts);
 		ITEM_FIXED(VLC_VB, vlc_vb);
 		ITEM_FIXED(VLC_AB, vlc_ab);
+		ITEM_STRING(WEATHER_LOCATION, weather_location);
 	case CONFIG_ITEM_MYTHTV_RG_HIDE:
 		if ((config->bitmask & CONFIG_MYTHTV_RECGROUP) == 0)
 			return 0;
@@ -404,6 +405,7 @@ get_item(config_item_t *item, int override)
 		ITEM_STRING(VLC_AOPTS, vlc_aopts);
 		ITEM_FIXED(VLC_VB, vlc_vb);
 		ITEM_FIXED(VLC_AB, vlc_ab);
+		ITEM_STRING(WEATHER_LOCATION, weather_location);
 	case CONFIG_ITEM_MYTHTV_RG_HIDE:
 	case CONFIG_ITEM_MYTHTV_RG_SHOW:
 		config->bitmask |= CONFIG_MYTHTV_RECGROUP;
@@ -518,6 +520,8 @@ save_config_file(char *file)
 		goto err;
 	if (add_item(list, CONFIG_ITEM_VLC_AB) < 0) 
 		goto err;
+	if (add_item(list, CONFIG_ITEM_WEATHER_LOCATION) < 0) 
+		goto err;
 
 
 	list->crc = 0;
@@ -626,6 +630,8 @@ set_config(void)
 		display_type = config->display_type;
 	if (config->bitmask & CONFIG_MYTHTV_FILTER) 
 		mythtv_filter = config->mythtv_filter;
+	if (config->bitmask & CONFIG_WEATHER_LOCATION) 
+		weather_location = config->weather_location;
 }
 
 int

@@ -84,10 +84,11 @@ volatile int stopLoop = false;
 volatile static int timerTick=0;
 
 #define GBSAFETY 0
+#define RESETTIMEOUT 3
 
-#if 0
+#if 1
 #define PRINTF(x...) printf(x)
-	#define MPRINTF(x...)
+	#define MPRINTF(x...) 
 	#define LPRINTF(x...) log_emulation();printf(x)	
 	#define TRC(fmt, args...) printf(fmt, ## args)
 //	#define VERBOSE_DEBUG 
@@ -176,6 +177,7 @@ int wol_wake(void);
 
 int is_live = 0;
 static volatile int server_osd_visible = 0;
+static volatile int resetTime = 0;
 extern demux_handle_t *handle;
 extern ts_demux_handle_t *tshandle;
 void demux_set_iframe(demux_handle_t *handle,int type);
@@ -886,7 +888,7 @@ void mvp_server_remote_key(char key)
 
 	int key1;
 	int myTicks;
-        
+
 	av_state_t state;
 
 	if (av_get_state(&state) == 0) {
@@ -908,7 +910,7 @@ void mvp_server_remote_key(char key)
 	if (inKeyLoop) {
 		return;
 	}
-	if (em_safety) {
+	if (em_safety >= 3) {
 		inKeyLoop = 1;
                 myTicks=0;        
 		if (sentPing ) {
@@ -978,7 +980,7 @@ void mvp_server_remote_key(char key)
 			}
 			break;
 		case MVPW_KEY_PLAY:
-			if (mvp_state==EMU_STEP || mvp_state==EMU_STEP_SEEK ) { 
+			if (mvp_state==EMU_STEP || mvp_state==EMU_STEP_SEEK ) {
 				mvp_state=EMU_STEP_TO_PLAY;
 				SendKeyEvent(key1, 0);
 			} else {
@@ -1370,7 +1372,7 @@ Bool RDCSendProgress(stream_t *stream)
 	buf[0] = rfbRdcProgress;
 	ptr = buf + 4;
 	INT64_TO_PROGBUF(stream->current_position,ptr);
-	if (em_safety) {
+	if (em_safety >= 3 ) {
 		while (sentPing==true) {
 			usleep(100000);
 		}
@@ -1388,7 +1390,7 @@ Bool RDCSendPing(void)
 	char    buf[2];
 
 	if (mystream.mediatype!=TYPE_VIDEO && is_stopping == EMU_RUNNING) {
-		if (em_safety) {
+		if (em_safety >= 3 ) {
 			if ((currentTime - screenSaver > 18) && (currentTime - screenSaver) < 23) {
 				int myTicks = 0;
 				PRINTF("%s Ping avoid screen saver %d %d %d\n", logstr,screenSaver,timerTick,currentTime);
@@ -1399,7 +1401,7 @@ Bool RDCSendPing(void)
 			}
 		}
 	} else {
-		if (em_safety) {
+		if (em_safety >= 3 ) {
 			pthread_mutex_lock(&gbmut);
 			pthread_mutex_unlock(&gbmut);
 		}
@@ -1421,7 +1423,11 @@ Bool HandleRDCMessage(int sock)
 	char *ptr;
 //	int64_t value;
 	uint uvalue=0;
-	PRINTF("%s Received RDC command ",logstr);
+	PRINTF("%s %d %d Received RDC command ",logstr,resetTime,mvp_state);
+
+	if ( resetTime ) {
+		resetTime = 0;
+	}
 
 	if ( !ReadExact(sock,buf + 1,33) ) {
 		printf("HandleRDCMessage ReadExact error 1\n");
@@ -1462,6 +1468,7 @@ Bool HandleRDCMessage(int sock)
 					paused = 0;
 					pauseFileAck(0x01);
 					RDCSendRequestAck(RDC_PLAY,1);
+					media_send_read(&mystream);
 				} else {
 					if (mvp_state==EMU_STEP_TO_PLAY) {
 						mvp_state=EMU_SEEK_TO_PLAY;
@@ -1725,7 +1732,7 @@ Bool HandleRDCMessage(int sock)
 					printf("Show Busy icon\n");
 				}
 			} else {
-				PRINTF("Display is state %d %x\n",display[0],buf[7]);
+				PRINTF("Display is state %d %x %d %d\n",display[0],buf[7],is_stopping,mvp_state);
 				SetDisplayState(display[0]);
 			}
 			break;
@@ -2095,6 +2102,11 @@ Bool media_read_message(stream_t *stream)
 		return False;
 	}
 	MPRINTF("%d\n",buf[0]);
+	
+	if (resetTime) {
+		resetTime = 0;
+		PRINTF("%s Reset mvpmc key %x %d\n",logstr,buf[0],mvp_state);
+	}
 
 	switch ( buf[0] ) {
 	case MEDIA_REQUEST:
@@ -2208,7 +2220,7 @@ Bool media_read_message(stream_t *stream)
 					if (stream->length==0) {
 						usleep(10000);
 					}
-					if (em_safety){
+					if (em_safety >= 3 ){
 						pthread_mutex_lock(&gbmut);
 						RDCSendRequestAck(RDC_MENU,1);
 						pthread_mutex_unlock(&gbmut);
@@ -2253,7 +2265,7 @@ Bool media_read_message(stream_t *stream)
 				mvp_state=EMU_RUNNING;
 				numRead=5;
 				RDCSendRequestAck(MEDIA_SEEK,1);
-				pauseFileAck(0x01);
+
 			}
 			if (mvp_state==EMU_PERCENT_RUNNING) {
 				mvp_state=EMU_PERCENT;
@@ -2265,7 +2277,7 @@ Bool media_read_message(stream_t *stream)
 			}
 			BUF_TO_INT32(blocklen,ptr);
 			is_live = 0;
-//			PRINTF("Media Block %u ",blocklen);
+			MPRINTF("%s Media Block %u \n",logstr,blocklen);
 			if ( blocklen != 0 ) {
 				retryZero = 0;
 				if (buf[0]==MEDIA_BLOCK) {
@@ -2281,6 +2293,7 @@ Bool media_read_message(stream_t *stream)
 					printf("Media Block ReadExact error 1\n");
 					return False;
 				}
+				MPRINTF("%s Media Block out\n",logstr);
 				stream->inbuflen = blocklen;
 				stream->inbufpos = 0;
 				if (is_stopping == EMU_STOPPED ) {
@@ -2288,7 +2301,7 @@ Bool media_read_message(stream_t *stream)
 					break;
 				}
 				media_queue_data(&mystream);
-				if (blocklen < stream->blocklen && mvp_state==EMU_RUNNING) {
+				if (blocklen < stream->blocklen && mvp_state==EMU_RUNNING && mystream.mediatype==TYPE_VIDEO) {
 					PRINTF( "%s Read short pause %u \n",logstr,blocklen);
 					usleep(700000);
 				}
@@ -2325,7 +2338,8 @@ Bool media_read_message(stream_t *stream)
 				} else {
 					PRINTF("\n");
 				}
-				if (retryZero == 0 && mvp_state == EMU_RUNNING) {
+				if (retryZero == 0 && mvp_state == EMU_RUNNING && mystream.mediatype==TYPE_VIDEO 
+				    && stream->current_position != stream->length) {
 					PRINTF( "%s Confirm EOF\n",logstr);
 					retryZero++;
 					sleep(1);
@@ -2333,7 +2347,7 @@ Bool media_read_message(stream_t *stream)
 					break;
 				}
 				PRINTF("Media Done %d\n",mvp_state);
-				if (mystream.mediatype==TYPE_AUDIO && em_safety ) {
+				if (mystream.mediatype==TYPE_AUDIO && em_safety >= 1 ) {
 					if ((currentTime - screenSaver) > 18 && (currentTime - screenSaver) < 23) {
 						PRINTF("%s Avoid screen saver %d %d %d\n", logstr,screenSaver,timerTick,currentTime);
 						while ((currentTime - screenSaver) > 18 && (currentTime - screenSaver) < 23) {
@@ -2504,6 +2518,7 @@ Bool media_read_message(stream_t *stream)
 			break;
 		}
 	}
+	MPRINTF("Leaving media block\n");
 	return True;
 }
 
@@ -2511,14 +2526,17 @@ void media_queue_data(stream_t *stream)
 {
 	int      n;
 	int retry;
-
+	static int err_count = 0;
 	for (retry=0;retry<2;retry++) {
-		if (mvp_state==EMU_LIVE ) {
+		if (mvp_state==EMU_LIVE) {
 			n = stream->inbuflen- stream->inbufpos;
+			stream->inbufpos = stream->inbuflen;
+			PRINTF("Skipping write\n");
 		} else {
 			n = write(output_pipe,stream->inbuf + stream->inbufpos, stream->inbuflen - stream->inbufpos);
 		}
 		if ( n > 0 ) {
+			err_count = 0;
 			mystream.queued +=n;
 			stream->inbufpos += n;
 			if ( stream->inbufpos == stream->inbuflen || is_stopping!=EMU_RUNNING ) {
@@ -2539,33 +2557,53 @@ void media_queue_data(stream_t *stream)
 	
 	//                        PRINTF("Read Block\n");
 	//					sync_emulate();
-						media_send_read(stream);
+						if (!paused) {
+							media_send_read(stream);
+						} else {
+							PRINTF("Data read paused\n");
+						}
+
 						break;
 					case EMU_STEP_PENDING:
 						mvp_state=EMU_STEP_SEEK;
+						resetTime = currentTime + RESETTIMEOUT;
 						PRINTF("End of stream\n");
 						break;
 					case EMU_STEP_SEEK:
 					case EMU_SEEK_TO_PLAY:
 						PRINTF("Seeking\n");
+						resetTime = currentTime + RESETTIMEOUT;
 						break;
 					case EMU_STEP:
 						media_send_step(stream,stream->direction);
 						break;
 					default:
+						resetTime = currentTime + RESETTIMEOUT;
 						break;
 					}
+				} else {
+					resetTime = currentTime + RESETTIMEOUT;
 				}
 				break;
 			} else {
-				PRINTF("What if %d\n",n);
+				PRINTF("What if %d %d %d %lld %d %d\n",n,is_stopping,mvp_state, stream->inbufpos,stream->inbuflen,retry);
 			}
 		} else {
-			break;
-	#if 0		
-			perror("Write QueueData");
-			usleep(100000);
+	#if 1
+			if (retry > 0 ) {
+				stream->inbufpos = 0;
+				stream->inbuflen = 0;
+				FREENULL(stream->inbuf);
+				if (mvp_state == EMU_RUNNING) {
+					PRINTF("Clean out\n");
+					media_send_read(stream);
+				}
+			} else {
+				perror("Write QueueData");
+				usleep(10000);
+			}
 	#endif
+			break;	
 		}
 	}
 
@@ -3265,6 +3303,14 @@ void mvp_timer_callback(mvp_widget_t *widget)
 
 	currentTime++;
 
+	if (currentTime == resetTime) {
+		media_send_read(&mystream);
+		resetTime = 0;
+		mvp_state=EMU_RUNNING;
+		is_stopping=EMU_RUNNING;
+		PRINTF("%s No response reset %d\n",logstr,mvp_state);
+	}
+
 	if (newSession == 1 ) {
 		newSession = 0;
 		PRINTF("%s Timer %d New Session - %d %d\n",logstr,mvp_state,timerTick,heart_beat);
@@ -3281,12 +3327,12 @@ void mvp_timer_callback(mvp_widget_t *widget)
 			} 
 		} else if (heart_beat == 1000) {
 			PRINTF("%s Timer %d Fast Refresh - %d %d\n",logstr,mvp_state,timerTick,heart_beat);
-			if (em_safety) {
+			if (em_safety >= 3 ) {
 				while(sentPing) {
 					usleep(100000);
 				}
 			}
-			if (em_safety) {
+			if (em_safety >= 3 ) {
 				pthread_mutex_lock(&gbmut);
 				SendIncrementalFramebufferUpdateRequest();
 				pthread_mutex_unlock(&gbmut);
@@ -3303,7 +3349,7 @@ void mvp_timer_callback(mvp_widget_t *widget)
 			}
 		} else {
 			if (timerTick==0 ) {
-				if (mystream.mediatype==TYPE_VIDEO ) {                                        
+				if (mystream.mediatype==TYPE_VIDEO ) {
 					if ((useHauppageExtentions != 2 || is_stopping == EMU_RUNNING) && sentPing == false) {
 						PRINTF("%s Timer %d Video Ping - %d %d\n",logstr,mvp_state,timerTick,heart_beat);
 						RDCSendPing();

@@ -69,6 +69,9 @@ typedef enum {
 	CONTENT_DIVX,
 	CONTENT_FLAC,
 	CONTENT_JPEG,
+	CONTENT_PNG,
+	CONTENT_GIF,
+	CONTENT_WEATHER_RSS_HOST,
 } content_type_t;
 
 typedef enum {
@@ -486,6 +489,7 @@ http_content_t http_main(void)
 					if (ContentType == CONTENT_UNSUPPORTED || 
 					    ContentType==CONTENT_MP3 || ContentType==CONTENT_OGG || 
 					    ContentType==CONTENT_FLAC || ContentType==CONTENT_MPG || 
+					    ContentType==CONTENT_GIF || ContentType==CONTENT_PNG || ContentType==CONTENT_WEATHER_RSS_HOST ||
 					    ContentType==CONTENT_JPEG || stateGet==HTTP_RETRY ||
 					    ContentType==CONTENT_GET_SHOUTCAST || ContentType==CONTENT_AAC) {
 						// stream the following audio data or redirect
@@ -574,6 +578,10 @@ http_content_t http_main(void)
 							ContentType = CONTENT_MPG;
 						} else if ( strstr(line_data,"image/jpeg") != NULL ) {
 							ContentType = CONTENT_JPEG;
+						} else if ( strstr(line_data,"image/gif") != NULL ) {
+							ContentType = CONTENT_GIF;
+						} else if ( strstr(line_data,"image/png") != NULL ) {
+							ContentType = CONTENT_PNG;
 						} else if ( strstr(line_data,"video/divx") != NULL  || strstr(line_data,"video/divx") != NULL ) {
 							ContentType = CONTENT_DIVX;
 							stateGet=HTTP_RETRY;
@@ -589,9 +597,13 @@ http_content_t http_main(void)
 							}
 						} else if ( playlistType == PLAYLIST_NONE && (strstr(line_data,"text/xml") != NULL || strstr(line_data,"application/xml") != NULL ) ) {
 							// try and find podcast data
-							ContentType = CONTENT_PODCAST;
-							playlistType = PLAYLIST_PODCAST ;
-							curEntry = -1;	 // start again
+							if (strstr(current,WEATHER_RSS_HOST)!=NULL ) {
+								ContentType = CONTENT_WEATHER_RSS_HOST;
+							} else {
+								ContentType = CONTENT_PODCAST;
+								playlistType = PLAYLIST_PODCAST ;
+								curEntry = -1;	 // start again
+							}
 						} else if (ContentType != CONTENT_GET_SHOUTCAST) {
 							ContentType = CONTENT_UNSUPPORTED;
 						}
@@ -886,6 +898,9 @@ http_content_t http_main(void)
 				retcode = 3;
 				break;
 			case CONTENT_JPEG:
+			case CONTENT_PNG:
+			case CONTENT_GIF:
+			case CONTENT_WEATHER_RSS_HOST:
 				// this data doesn't make it to mpg or ogg streams change to use fdopen etc.
 				if (fcntl(httpsock, F_SETFL, flags | O_NONBLOCK) != 0) {
 					printf("nonblock fcntl failed \n");
@@ -894,7 +909,15 @@ http_content_t http_main(void)
 				fd = httpsock;
 				option = 65534; 
 				setsockopt(httpsock, SOL_SOCKET, SO_RCVBUF, &option, sizeof(option));
-				http_retcode = HTTP_IMAGE_FILE_JPEG;
+				if (ContentType == CONTENT_JPEG ) {
+					http_retcode = HTTP_IMAGE_FILE_JPEG;
+				} else if (ContentType == CONTENT_PNG ) {
+					http_retcode = HTTP_IMAGE_FILE_PNG;
+				} else if (ContentType == CONTENT_GIF ) {
+					http_retcode = HTTP_IMAGE_FILE_GIF;
+				} else if (ContentType == CONTENT_WEATHER_RSS_HOST ) {
+					http_retcode = HTTP_RSS_FILE_WEATHER;
+				}
 				retcode = 3;
 				break;
 			case CONTENT_GET_SHOUTCAST:

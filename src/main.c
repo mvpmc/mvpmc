@@ -121,6 +121,7 @@ static struct option opts[] = {
 	{ "mythtv-username", required_argument, 0, 'u'},
 	{ "mythtv-password", required_argument, 0, 'p'},
 	{ "mythtv-database", required_argument, 0, 'T'},
+	{ "weather-location", required_argument, 0, 0},
 	{ 0, 0, 0, 0 }
 };
 
@@ -154,6 +155,7 @@ char *replaytv_server = NULL;
 char *mclient_server = NULL;
 char *vlc_server = NULL;
 char *mvp_server = NULL;
+char *weather_location = NULL;
 
 char vnc_server[256];
 int vnc_port = 0;
@@ -309,6 +311,7 @@ print_help(char *prog)
 	printf("\t--flicker value\tflicker value 0-3\n");
 	printf("\t--rtwin size \tbuffer size of global rt_window\n");
 	printf("\t--fs-rtwin size \tbuffer size of filesystem rt_window\n");
+	printf("\t--weather-location location \tZIP code or location code for weather\n");
 }
 
 /*
@@ -697,6 +700,11 @@ mvpmc_main(int argc, char **argv)
 			}
 			if (strcmp(opts[opt_index].name, "flicker") == 0) {
 				flicker = atoi(optarg);
+			}
+			if (strcmp(opts[opt_index].name, "weather-location") == 0) {
+				weather_location = strdup(optarg);
+				sizeof_strncpy(config->weather_location, optarg);
+				config->bitmask |= CONFIG_WEATHER_LOCATION;
 			}
 			if (strcmp (opts[opt_index].name, "startup") == 0) {
 			/*
@@ -1239,6 +1247,8 @@ switch_hw_state(mvpmc_state_t new)
 	case MVPMC_STATE_EMULATE:
 	case MVPMC_STATE_EMULATE_SHUTDOWN:
 		break;
+	case MVPMC_STATE_WEATHER:
+		break;
 	}
 
 	hw_state = new;
@@ -1298,7 +1308,8 @@ atexit_handler(void)
 	case MVPMC_STATE_EMULATE:
 	case MVPMC_STATE_EMULATE_SHUTDOWN:
 		break;
-
+	case MVPMC_STATE_WEATHER:
+		break;
 	}
 
 	switch (gui_state) {
@@ -1325,7 +1336,8 @@ atexit_handler(void)
 	case MVPMC_STATE_EMULATE:
 	case MVPMC_STATE_EMULATE_SHUTDOWN:
 		break;
-
+	case MVPMC_STATE_WEATHER:
+		break;
 	}
 
 	printf("%s(): exiting...\n", __FUNCTION__);

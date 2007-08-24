@@ -50,6 +50,7 @@
 #include "http_stream.h"
 #include "display.h"
 #include "bmp.h"
+#include "weather.h"
 
 #include <vncviewer.h>
 #include <nano-X.h>
@@ -592,6 +593,19 @@ static mvpw_text_attr_t slow_connect_attr = {
 	.margin = 4,
 };
 
+static mvpw_text_attr_t weather_attr = {
+	.wrap = true,
+	.pack = false,
+	.justify = MVPW_TEXT_LEFT,
+	.margin = 4,
+	.font = FONT_LARGE,
+	.fg = MVPW_WHITE,
+	.bg = MVPW_BLACK,
+	.border = MVPW_BLACK,
+	.border_size = 0,
+	.margin = 0,
+};
+
 static mvpw_dialog_attr_t warn_attr = {
 	.font = FONT_STANDARD,
 	.fg = MVPW_WHITE,
@@ -1065,6 +1079,8 @@ static mvp_widget_t *mythtv_image;
 static mvp_widget_t *replaytv_image;
 static mvp_widget_t *about_image;
 static mvp_widget_t *emulate_image;
+static mvp_widget_t *weather_image;
+static mvp_widget_t *mclient_image;
 static mvp_widget_t *exit_image;
 static mvp_widget_t *warn_widget;
 static mvp_widget_t *busy_widget;
@@ -1151,6 +1167,7 @@ mvp_widget_t *fb_offset_widget;
 mvp_widget_t *fb_offset_bar;
 
 mvp_widget_t *vnc_widget;
+mvp_widget_t *weather_widget;
 
 /* Widgets supporting the new livetv program guide */
 mvp_widget_t *mythtv_livetv_clock;
@@ -1338,6 +1355,7 @@ static void settings_display_mode_callback(mvp_widget_t*, char*, void*);
 static void settings_vlc_video_callback(mvp_widget_t *widget, char *item, void *key);
 static void settings_vlc_audio_callback(mvp_widget_t *widget, char *item, void *key);
 extern char* vlc_server;
+extern char* weather_location;
 
 static void main_menu_items(void);
 
@@ -3328,6 +3346,18 @@ mclient_localmenu_hide_all_widgets(void)
     	mvpw_hide(mclient_sub_browsebar);
 }
 
+static void
+weather_key_callback(mvp_widget_t *widget, char key)
+{
+	if( key==MVPW_KEY_EXIT) {
+		mvpw_destroy(widget);
+		mvpw_show(main_menu);
+		mvpw_show(mvpmc_logo);
+		mvpw_show(weather_image);
+		mvpw_focus(main_menu);
+	}
+}
+ 
 static void
 vnc_key_callback(mvp_widget_t *widget, char key)
 {
@@ -6447,6 +6477,20 @@ main_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mvpw_focus(vnc_widget);
 		canvas = surface.wid;
 		break;
+	case MM_WEATHER:
+		switch_gui_state(MVPMC_STATE_WEATHER);
+		weather_widget = mvpw_create_container(NULL, 40, 40, si.cols - 40, si.rows - 40,
+			weather_attr.bg, weather_attr.border,
+			weather_attr.border_size);
+
+		mvpw_hide(mvpmc_logo);
+		mvpw_hide(weather_image);
+		mvpw_hide(main_menu);
+		mvpw_show(weather_widget);
+		mvpw_focus(weather_widget);
+		mvpw_set_key(weather_widget, weather_key_callback);
+		update_weather(weather_widget, &weather_attr);
+		break;
 	}
 }
 
@@ -6489,17 +6533,23 @@ main_hilite_callback(mvp_widget_t *widget, char *item, void *key, bool hilite)
 			display_send(display_message);
 			break;
 		case MM_MCLIENT:
-			mvpw_show(fb_image);
+			mvpw_show(mclient_image);
 			snprintf(display_message, sizeof(display_message),
 				  "File:%s\n", "Music Client");
 			display_send(display_message);
 			break;
-        case MM_VNC:
-            break;
-        case MM_EMULATE:
+		case MM_VNC:
+		        break;
+		case MM_EMULATE:
 			mvpw_show(emulate_image);
 			snprintf(display_message, sizeof(display_message),
 				  "File:%s\n", "Emulate");
+			display_send(display_message);
+			break;
+		case MM_WEATHER:
+			mvpw_show(weather_image);
+			snprintf(display_message, sizeof(display_message),
+				  "File:%s\n", "Weather");
 			display_send(display_message);
 			break;
 		case MM_ABOUT:
@@ -6530,7 +6580,7 @@ main_hilite_callback(mvp_widget_t *widget, char *item, void *key, bool hilite)
 			mvpw_hide(replaytv_image);
 			break;
 		case MM_MCLIENT:
-			mvpw_hide(fb_image);
+			mvpw_hide(mclient_image);
 			break;
 		case MM_ABOUT:
 			mvpw_hide(about_image);
@@ -6538,8 +6588,12 @@ main_hilite_callback(mvp_widget_t *widget, char *item, void *key, bool hilite)
 		case MM_EXIT:
 			mvpw_hide(exit_image);
 			break;
-        case MM_EMULATE:
+		case MM_EMULATE:
 			mvpw_hide(emulate_image);
+			break;
+		case MM_WEATHER:
+			mvpw_hide(weather_image);
+			break;
 		}
 	}
 }
@@ -6557,23 +6611,27 @@ main_menu_items(void)
 	if (replaytv_server)
 		mvpw_add_menu_item(main_menu, "ReplayTV",
 				   (void*)MM_REPLAYTV, &item_attr);
+	if (mvp_server)
+		mvpw_add_menu_item(main_menu, "Emulation Mode",
+				   (void*)MM_EMULATE, &item_attr);
+	if (mclient_server)
+		mvpw_add_menu_item(main_menu, "Music Client",
+				   (void*)MM_MCLIENT, &item_attr);
 	if (!filebrowser_disable)
 		mvpw_add_menu_item(main_menu, "Filesystem",
 				   (void*)MM_FILESYSTEM, &item_attr);
+	if (weather_location)
+		mvpw_add_menu_item(main_menu, "Weather",
+				   (void*)MM_WEATHER, &item_attr);
+	if (strnlen(vnc_server, 254))
+		mvpw_add_menu_item(main_menu, "VNC",
+			   (void*)MM_VNC, &item_attr);
 	if (!settings_disable)
 		mvpw_add_menu_item(main_menu, "Settings",
 				   (void*)MM_SETTINGS, &item_attr);
 	mvpw_add_menu_item(main_menu, "About",
 			   (void*)MM_ABOUT, &item_attr);
-	if (mclient_server)
-		mvpw_add_menu_item(main_menu, "Music Client",
-				   (void*)MM_MCLIENT, &item_attr);
-	if (strnlen(vnc_server, 254))
-		mvpw_add_menu_item(main_menu, "VNC",
-			   (void*)MM_VNC, &item_attr);
-	if (mvp_server)
-		mvpw_add_menu_item(main_menu, "Emulation Mode",
-				   (void*)MM_EMULATE, &item_attr);
+
 	if (!reboot_disable) {
 #ifdef MVPMC_HOST
 		mvpw_add_menu_item(main_menu, "Exit",
@@ -6602,7 +6660,7 @@ main_menu_init(void)
 
 	splash_update("Creating setup image");
 
-	snprintf(file, sizeof(file), "%s/wrench.png", imagedir);
+	snprintf(file, sizeof(file), "%s/setup.png", imagedir);
 	if (mvpw_get_image_info(file, &iid) < 0)
 		return -1;
 	setup_image = mvpw_create_image(NULL, 50, 25, iid.width, iid.height,
@@ -6658,10 +6716,32 @@ main_menu_init(void)
 	if (mvpw_get_image_info(file, &iid) < 0) {
 	    snprintf(file, sizeof(file), "%s/unknown.png", imagedir);
 	    mvpw_get_image_info(file, &iid);
-    }
+        }
 	emulate_image = mvpw_create_image(NULL, 50, 25, iid.width, iid.height,
 					MVPW_BLACK, 0, 0);
 	mvpw_set_image(emulate_image, file);
+
+	splash_update("Creating weather image");
+
+	snprintf(file, sizeof(file), "%s/weather.png", imagedir);
+	if (mvpw_get_image_info(file, &iid) < 0) {
+	    snprintf(file, sizeof(file), "%s/unknown.png", imagedir);
+	    mvpw_get_image_info(file, &iid);
+         }
+	weather_image = mvpw_create_image(NULL, 50, 25, iid.width, iid.height,
+					MVPW_BLACK, 0, 0);
+	mvpw_set_image(weather_image, file);
+
+	splash_update("Creating mclient image");
+
+	snprintf(file, sizeof(file), "%s/mclient.png", imagedir);
+	if (mvpw_get_image_info(file, &iid) < 0) {
+	    snprintf(file, sizeof(file), "%s/unknown.png", imagedir);
+	    mvpw_get_image_info(file, &iid);
+         }
+	mclient_image = mvpw_create_image(NULL, 50, 25, iid.width, iid.height,
+					MVPW_BLACK, 0, 0);
+	mvpw_set_image(mclient_image, file);
 
 	splash_update("Creating exit image");
 
@@ -6698,6 +6778,8 @@ main_menu_init(void)
 	mvpw_moveto(about_image, wid.x, wid.y);
 	mvpw_moveto(exit_image, wid.x, wid.y);
 	mvpw_moveto(emulate_image, wid.x, wid.y);
+	mvpw_moveto(weather_image, wid.x, wid.y);
+	mvpw_moveto(mclient_image, wid.x, wid.y);
 	mvpw_set_menu_attr(main_menu, &attr);
 
 	item_attr.select = main_select_callback;
@@ -8268,6 +8350,7 @@ gui_init(char *server, char *replaytv)
 	case MM_MCLIENT:
 		if (mclient_server)
 		{
+			mvpw_hide(fb_image);
 			mvpw_hide(setup_image);
 			mvpw_hide(mythtv_image);
 			mvpw_hide(replaytv_image);
@@ -8275,7 +8358,7 @@ gui_init(char *server, char *replaytv)
 			mvpw_hide(exit_image);
 			mvpw_hide(emulate_image);
 
-			mvpw_show(fb_image);
+			mvpw_show(mclient_image);
 		
 			mvpw_menu_hilite_item(main_menu, (void*)startup_this_feature);
 
