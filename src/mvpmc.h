@@ -46,6 +46,7 @@ typedef enum {
 	MVPMC_STATE_HTTP_SHUTDOWN,	/**< http shutdown */
 	MVPMC_STATE_EMULATE,		/**< hauppauge emulation */
 	MVPMC_STATE_EMULATE_SHUTDOWN,	/**< hauppauge emulation shutdown */
+	MVPMC_STATE_WEATHER,
 } mvpmc_state_t;
 
 /**
@@ -321,6 +322,8 @@ extern void video_stop_play(void);
 
 extern int fb_update(mvp_widget_t*);
 
+extern int weather_update(mvp_widget_t*);
+
 extern void video_callback(mvp_widget_t*, char);
 extern void video_thumbnail(int on);
 
@@ -554,6 +557,7 @@ enum {
 	MM_REPLAYTV,
 	MM_MCLIENT,
 	MM_EMULATE,
+	MM_WEATHER,
 };
 
 extern int startup_selection;
@@ -567,6 +571,7 @@ extern int rfb_mode;
 extern int flicker;
 extern char *rtv_init_str;
 extern char *mclient_server;
+extern char *weather_location;
 
 extern char cwd[];
 

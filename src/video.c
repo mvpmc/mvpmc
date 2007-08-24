@@ -711,10 +711,10 @@ back_to_guide_menu()
 		display_on = 0;
 		zoomed = 0;
 		switch (gui_state) {
-        case MVPMC_STATE_NONE:
-        case MVPMC_STATE_EMULATE:
-        case MVPMC_STATE_EMULATE_SHUTDOWN:
-
+		case MVPMC_STATE_NONE:
+		case MVPMC_STATE_EMULATE:
+		case MVPMC_STATE_EMULATE_SHUTDOWN:
+		case MVPMC_STATE_WEATHER:
 			/*
 			 * XXX: redisplay the main menu?
 			 */
@@ -1155,7 +1155,7 @@ audio_switch_stream(mvp_widget_t *widget, int stream)
 		if (type == STREAM_MPEG)
 			av_set_audio_output(AV_AUDIO_MPEG);
 		else
-			av_set_audio_output(AV_AUDIO_PCM);
+			av_set_audio_output(AV_AUDIO_AC3);
 
 		fd_audio = av_get_audio_fd();
 
@@ -1971,6 +1971,7 @@ end_thruput_test(void)
 
 void sync_ac3_audio(void)
 {
+#ifndef MVPMC_HOST
 	pts_sync_data_t async, vsync;
 	long long syncDiff;
 	int threshold=0;
@@ -1983,22 +1984,26 @@ void sync_ac3_audio(void)
 	av_get_audio_sync(&async);
 	av_get_video_sync(&vsync);
 	syncDiff = async.stc-vsync.stc;
-	/*
+#if 0
+
 	printf("PRE SYNC:  a 0x%llx 0x%llx  v 0x%llx 0x%llx 0x%llx\n",
-		async.stc, async.pts, vsync.stc, vsync.pts, syncDiff)
-	*/
+		async.stc, async.pts, vsync.stc, vsync.pts, syncDiff);
+#endif
+		
+#if 1
 	if ( abs(syncDiff) > AC3OK ) {
 		if ( syncDiff < threshold ) {
 			av_delay_video(threshold-syncDiff);
-		} else if ( syncDiff > threshold + 0x1000 ) {
-			if (ioctl(fd_audio, _IOW('a',3,int), 0) < 0) {
-			} else {
-//				usleep(syncDiff-(threshold+0x1000));
-			}
+		} else if ( syncDiff > threshold  ) {
+                        mvpstb_audio_end();
+			/*
 			if (ioctl(fd_audio, _IOW('a',4,int), 0) < 0) {
 			} else {
 			}
+			*/
 		}
 	}
-	
+
+#endif
+#endif	
 }

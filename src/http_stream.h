@@ -26,6 +26,9 @@ typedef enum {
 	HTTP_VIDEO_FILE_MPG,
 	HTTP_AUDIO_FILE_FLAC,
 	HTTP_IMAGE_FILE_JPEG,
+	HTTP_IMAGE_FILE_GIF,
+	HTTP_IMAGE_FILE_PNG,
+	HTTP_RSS_FILE_WEATHER,
 } http_content_t;
 
 // note using Winamp now for testing
@@ -44,7 +47,7 @@ typedef enum {
 #define  MAX_URL_LEN 275
 #define  MAX_PLAYLIST 5
 #define  MAX_META_LEN 256
-#define  STREAM_PACKET_SIZE  1448
+#define  STREAM_PACKET_SIZE  1448 
 
 extern int bufferFull;
 extern char bitRate[];
@@ -64,3 +67,6 @@ void content_osd_update(mvp_widget_t *widget);
 int is_streaming(char *url);
 
 http_content_t http_main(void);
+
+
+#define WEATHER_RSS_HOST "weather.yahooapis.com"
