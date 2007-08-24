@@ -59,8 +59,6 @@
 
 #define WEATHER_IMAGE_HOST "http://l.yimg.com/us.yimg.com/i/us/we/52/%d.gif"
 
-#define BUFFSIZE	1024
-
 #define WEATHER_OUTPUT "Yahoo! Weather for %s, %s\n\
 %s\n\
 Sunrise: %s  Sunset: %s\n\
@@ -168,7 +166,7 @@ start_tag(void *data, const char *el, const char **attr)
 static void
 parse_data(FILE * data_stream, weather_info_t * weather_data)
 {
-	char Buff[BUFFSIZE];
+	char Buff[STREAM_PACKET_SIZE];
 	char *ptr;
 
 	XML_Parser p = XML_ParserCreate(NULL);
@@ -183,20 +181,28 @@ parse_data(FILE * data_stream, weather_info_t * weather_data)
 	XML_SetUserData(p, weather_data);
 
 	int first_time = 1;
+	int err_retry = 0;
 
 	for (;;) {
 		int done;
 		int len;
 		int offset;
 
-		len = fread(Buff, 1, BUFFSIZE, data_stream);
+		len = fread(Buff, 1, STREAM_PACKET_SIZE, data_stream);
+		if (len < 0 && (errno==EAGAIN || errno==EINTR) && err_retry < 5 ) {
+			printf("http timeout %d\n",err_retry);
+			usleep(100000);
+			err_retry++;
+			continue;
+		}
 		if (ferror(data_stream)) {
 			fprintf(stderr, "Read error\n");
 			strcpy(weather_data->city,"Error");
-			sprintf(weather_data->last_update,"Yahoo! RSS Feed Error");
+			sprintf(weather_data->last_update,"Yahoo! RSS Feed Read Error");
 			return;
 
 		}
+		err_retry = 0;
 		done = feof(data_stream);
 
 		if (first_time) {
@@ -212,7 +218,7 @@ parse_data(FILE * data_stream, weather_info_t * weather_data)
 				XML_GetCurrentLineNumber(p),
 				XML_ErrorString(XML_GetErrorCode(p)));
 			strcpy(weather_data->city,"Error");
-			sprintf(weather_data->last_update,"Yahoo! RSS Feed Error");
+			sprintf(weather_data->last_update,"Yahoo! RSS Feed XML Error");
 			done = 1;
 		} else {
 			ptr = strstr(Buff,"Sorry, your location");
@@ -288,10 +294,10 @@ fetch_weather_image(int code, char *filename)
 		close(fd);
 		return -1;
 	}
-
 	if (sockfd != -1) {
+		retcode = 0;
 		FILE *rsock;
-		char buf[BUFFSIZE];
+		char buf[STREAM_PACKET_SIZE];
 		rsock = fdopen(sockfd, "rb");
 		setvbuf(rsock, NULL, _IOFBF, 0);
 
@@ -299,9 +305,23 @@ fetch_weather_image(int code, char *filename)
 
 		int first_time = 1;
 		int offset = 0;
+		int err_retry = 0;
 
 		while (!feof(rsock)) {
-			int nitems = fread(buf, 1, BUFFSIZE, rsock);
+			int nitems = fread(buf, 1, STREAM_PACKET_SIZE, rsock);
+			if (nitems < 0 ){
+				if ( (errno==EAGAIN || errno==EINTR) && err_retry < 5 ) {
+					printf("http timeout %d\n",err_retry);
+					usleep(100000);
+					err_retry++;
+					continue;
+				} else {
+					retcode = -1;
+					break;
+				}
+			}
+			err_retry = 0;
+
 			if (first_time) {
 				char * ptr = strstr(buf, "GIF89a");
 				if (ptr != NULL)
@@ -313,12 +333,12 @@ fetch_weather_image(int code, char *filename)
 			}
 			fwrite(buf + offset, 1, nitems - offset, outfile);
 		}
-
 		fclose(outfile);
 		close(sockfd);
-		return 0;
+	} else {
+		retcode = -1;
 	}
-	return -1;
+	return retcode;
 }
 
 int
