@@ -3409,6 +3409,7 @@ weather_key_callback(mvp_widget_t *widget, char key)
 {
 	switch (key) {
 	case MVPW_KEY_EXIT:
+		switch_gui_state(MVPMC_STATE_NONE);
 		mvpw_hide(widget);
 		mvpw_show(main_menu);
 		mvpw_show(mvpmc_logo);
@@ -6632,22 +6633,24 @@ main_select_callback(mvp_widget_t *widget, char *item, void *key)
 		canvas = surface.wid;
 		break;
 	case MM_WEATHER:
-		switch_gui_state(MVPMC_STATE_WEATHER);
-
-		mvpw_hide(mvpmc_logo);
-		mvpw_hide(weather_image);
-		mvpw_hide(main_menu);
-
-		for (i=0; i<5; i++) {
-			mvpw_hide(forecast[i]);
-			mvpw_hide(forecast_image[i]);
+		if (gui_state != MVPMC_STATE_WEATHER ) {
+			switch_gui_state(MVPMC_STATE_WEATHER);
+	
+			mvpw_hide(mvpmc_logo);
+			mvpw_hide(weather_image);
+			mvpw_hide(main_menu);
+	
+			for (i=0; i<5; i++) {
+				mvpw_hide(forecast[i]);
+				mvpw_hide(forecast_image[i]);
+			}
+			mvpw_hide(current_conditions_image);
+	
+			mvpw_show(weather_widget);
+			mvpw_focus(weather_widget);
+			mvpw_set_key(weather_widget, weather_key_callback);
+			update_weather(weather_widget, &weather_attr);
 		}
-		mvpw_hide(current_conditions_image);
-
-		mvpw_show(weather_widget);
-		mvpw_focus(weather_widget);
-		mvpw_set_key(weather_widget, weather_key_callback);
-		update_weather(weather_widget, &weather_attr);
 		break;
 	}
 }

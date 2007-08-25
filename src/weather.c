@@ -203,20 +203,18 @@ parse_data(FILE * data_stream, weather_info_t * weather_data)
 	XML_SetUserData(p, weather_data);
 
 	int first_time = 1;
-	int err_retry = 0;
 
-	for (;;) {
+	while (gui_state == MVPMC_STATE_WEATHER ) {
 		int done;
 		int len;
 		int offset;
 
 		len = fread(Buff, 1, STREAM_PACKET_SIZE, data_stream);
-		if (len < 0 && (errno==EAGAIN || errno==EINTR) && err_retry < 5 ) {
-			printf("http timeout %d\n",err_retry);
+		if (len < 0 && (errno==EAGAIN || errno==EINTR)) {
 			usleep(100000);
-			err_retry++;
 			continue;
 		}
+
 		if (ferror(data_stream)) {
 			fprintf(stderr, "Read error\n");
 			strcpy(weather_data->city,"Error");
@@ -224,7 +222,6 @@ parse_data(FILE * data_stream, weather_info_t * weather_data)
 			return;
 
 		}
-		err_retry = 0;
 		done = feof(data_stream);
 
 		if (first_time) {
@@ -327,22 +324,18 @@ fetch_weather_image(int code, char *filename)
 
 		int first_time = 1;
 		int offset = 0;
-		int err_retry = 0;
 
-		while (!feof(rsock)) {
+		while (!feof(rsock) && gui_state == MVPMC_STATE_WEATHER) {
 			int nitems = fread(buf, 1, STREAM_PACKET_SIZE, rsock);
 			if (nitems < 0 ){
-				if ( (errno==EAGAIN || errno==EINTR) && err_retry < 5 ) {
-					printf("http timeout %d\n",err_retry);
+				if ( (errno==EAGAIN || errno==EINTR)  ) {
 					usleep(100000);
-					err_retry++;
 					continue;
 				} else {
 					retcode = -1;
 					break;
 				}
 			}
-			err_retry = 0;
 
 			if (first_time) {
 				char * ptr = strstr(buf, "GIF89a");
@@ -378,7 +371,7 @@ update_weather(mvp_widget_t * weather_widget, mvpw_text_attr_t * weather_attr)
 		printf("Weather feed %s\n",weather_data->location_id);
 		weather_data->current_forecast = 0;
 		mvp_widget_t *text = mvpw_create_text(weather_widget, 0, 0, 600, 220, MVPW_BLACK, MVPW_BLACK, 0);
-		if (get_weather_data(weather_data) == 0) {
+		if (get_weather_data(weather_data) == 0 && gui_state == MVPMC_STATE_WEATHER) {
 			char output[300];
 			char image[100];
 			if (strcmp(weather_data->city,"Error")) {
@@ -419,11 +412,14 @@ update_weather(mvp_widget_t * weather_widget, mvpw_text_attr_t * weather_attr)
 						snprintf(image,100,"%s/%s", imagedir, "weather_unknown.png");
 						mvpw_set_image(current_conditions_image, image);
 					}
-				mvpw_raise(current_conditions_image);
-				mvpw_show(current_conditions_image);
+				if ( gui_state == MVPMC_STATE_WEATHER ) {
+					mvpw_raise(current_conditions_image);
+					mvpw_show(current_conditions_image);
+				}
+
 	
 				int i;
-				for(i = 0; i < 5; i++) {
+				for(i = 0; i < 5 && gui_state == MVPMC_STATE_WEATHER; i++) {
 					snprintf(output,200, FORECAST_OUTPUT,
 						weather_data->forecast_day[i],
 						weather_data->forecast_condition[i],
@@ -432,7 +428,6 @@ update_weather(mvp_widget_t * weather_widget, mvpw_text_attr_t * weather_attr)
 					mvpw_set_text_str(forecast[i], output);
 					mvpw_set_text_attr(forecast[i], weather_attr);
 					mvpw_show(forecast[i]);
-	
 					snprintf(image,100,"/tmp/weather_image%1d.gif", i);
 					if (fetch_weather_image(weather_data->forecast_code[i], image) == 0) {
 						mvpw_set_image(forecast_image[i], image);
@@ -445,15 +440,19 @@ update_weather(mvp_widget_t * weather_widget, mvpw_text_attr_t * weather_attr)
 					mvpw_show(forecast_image[i]);
 				}
 			} else {
-				snprintf(output,sizeof(output),"Yahoo! Weather - Error\n%s",weather_data->last_update);
-				mvpw_set_text_str(text,output );
+				if ( gui_state == MVPMC_STATE_WEATHER ) {
+					snprintf(output,sizeof(output),"Yahoo! Weather - Error\n%s",weather_data->last_update);
+					mvpw_set_text_str(text,output );
+					mvpw_set_text_attr(text, weather_attr);
+					mvpw_show(text);
+				}
+			}
+		} else {
+			if ( gui_state == MVPMC_STATE_WEATHER ) {
+				mvpw_set_text_str(text,"There was a problem connecting to Yahoo! Weather feed" );
 				mvpw_set_text_attr(text, weather_attr);
 				mvpw_show(text);
 			}
-		} else {
-			mvpw_set_text_str(text,"There was a problem connecting to Yahoo! Weather feed" );
-			mvpw_set_text_attr(text, weather_attr);
-			mvpw_show(text);
 		}
 		free(weather_data);
 	}
