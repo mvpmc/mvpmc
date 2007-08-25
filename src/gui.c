@@ -8426,6 +8426,10 @@ gui_init(char *server, char *replaytv)
 		mvpw_show(mythtv_image);
 	else if (replaytv)
 		mvpw_show(replaytv_image);
+	else if (mvp_server)
+		mvpw_show(emulate_image);
+	else if (mclient_server)
+		mvpw_show(mclient_image);
 	else
 		mvpw_show(fb_image);
 	mvpw_show(mvpmc_logo);
