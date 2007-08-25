@@ -17,6 +17,23 @@
 * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 
+#ifndef WEATHER_H
+#define WEATHER_H
+
 #include <mvp_widget.h>
 
+typedef struct {
+	char *name;
+	char *code;
+} weather_code_t;
+
+extern mvp_widget_t *current_conditions_image;
+extern mvp_widget_t *forecast_image[5];
+extern mvp_widget_t *forecast[5];
+
+extern weather_code_t weather_codes_europe[];
+extern weather_code_t weather_codes_na[];
+
 int update_weather(mvp_widget_t *weather_widget, mvpw_text_attr_t * weather_attr);
+
+#endif /* WEATHER_H */

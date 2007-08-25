@@ -48,6 +48,7 @@
 #include "mvpmc.h"
 #include "http_stream.h"
 #include "display.h"
+#include "weather.h"
 
 // Yahoo! Weather API page
 
@@ -96,6 +97,27 @@ typedef struct {
 } weather_info_t;
 
 #define rss_fmt(X) snprintf((X),sizeof((X)),"%s",attr[i + 1])
+
+weather_code_t weather_codes_europe[] = {
+	{ "Amsterdam", "NLXX0002_c" },
+	{ "Berlin", "GMXX0007_c" },
+	{ "London", "UKXX0085_c" },
+	{ "Madrid", "SPXX0050_c" },
+	{ "Paris", "FRXX0076_c" },
+	{ "Rome", "ITXX0067_c" },
+	{ NULL, NULL },
+};
+
+weather_code_t weather_codes_na[] = {
+	{ "Chicago", "USIL0225" },
+	{ "Denver", "USCO0105" },
+	{ "Houston", "USTX0617" },
+	{ "Minneapolis", "USMN0503" },
+	{ "Ottawa", "CAXX0343_c" },
+	{ "Raleigh", "USNC0558" },
+	{ "San Francisco", "USCA0987" },
+	{ NULL, NULL },
+};
 
 static void
 start_tag(void *data, const char *el, const char **attr)
@@ -370,9 +392,6 @@ update_weather(mvp_widget_t * weather_widget, mvpw_text_attr_t * weather_attr)
 					}
 				}
 	
-				mvp_widget_t *current_conditions_image =
-				    mvpw_create_image(weather_widget, 30, 95, 75, 75, 
-				    MVPW_WHITE, MVPW_LIGHTGREY, 2);
 				if (fetch_weather_image(weather_data->current_code, "/tmp/weather_image.gif") == 0) {
 						mvpw_set_image(current_conditions_image, "/tmp/weather_image.gif");
 					}
@@ -380,32 +399,30 @@ update_weather(mvp_widget_t * weather_widget, mvpw_text_attr_t * weather_attr)
 						snprintf(image,100,"%s/%s", imagedir, "weather_unknown.png");
 						mvpw_set_image(current_conditions_image, image);
 					}
+				mvpw_raise(current_conditions_image);
 				mvpw_show(current_conditions_image);
 	
 				int i;
 				for(i = 0; i < 5; i++) {
-					mvp_widget_t *forecast = mvpw_create_text(weather_widget, i * 130 + 10, 270, 130, 210, MVPW_BLACK, MVPW_BLACK, 0);
 					snprintf(output,200, FORECAST_OUTPUT,
 						weather_data->forecast_day[i],
 						weather_data->forecast_condition[i],
 						weather_data->forecast_high[i],
 						weather_data->forecast_low[i]);
-					mvpw_set_text_str(forecast, output);
-					mvpw_set_text_attr(forecast, weather_attr);
-					mvpw_show(forecast);
+					mvpw_set_text_str(forecast[i], output);
+					mvpw_set_text_attr(forecast[i], weather_attr);
+					mvpw_show(forecast[i]);
 	
-					mvp_widget_t *forecast_image =
-					    mvpw_create_image(weather_widget, i * 130 + 10, 190, 80, 80,
-					    	MVPW_WHITE, MVPW_BLUE, 2);
 					snprintf(image,100,"/tmp/weather_image%1d.gif", i);
 					if (fetch_weather_image(weather_data->forecast_code[i], image) == 0) {
-						mvpw_set_image(forecast_image, image);
+						mvpw_set_image(forecast_image[i], image);
 					}
 					else {
 						sprintf(image, "%s/%s", imagedir, "weather_unknown.png");
-						mvpw_set_image(forecast_image, image);
+						mvpw_set_image(forecast_image[i], image);
 					}
-					mvpw_show(forecast_image);
+					mvpw_raise(forecast_image[i]);
+					mvpw_show(forecast_image[i]);
 				}
 			} else {
 				snprintf(output,sizeof(output),"Yahoo! Weather - Error\n%s",weather_data->last_update);

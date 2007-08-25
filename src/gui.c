@@ -686,7 +686,7 @@ static mvpw_text_attr_t thruput_text_attr = {
 
 static mvpw_graph_attr_t splash_graph_attr = {
 	.min = 0,
-	.max = 20,
+	.max = 35,
 	.bg = MVPW_BLACK,
 	.gradient = true,
 	.left = MVPW_BLACK,
@@ -705,6 +705,20 @@ static mvpw_graph_attr_t demux_video_graph_attr = {
 	.max = 1024*1024*2,
 	.fg = mvpw_color_alpha(MVPW_BLUE, 0x80),
 	.bg = mvpw_color_alpha(MVPW_BLACK, 0x80),
+};
+
+static mvpw_menu_attr_t weather_menu_attr = {
+	.font = FONT_STANDARD,
+	.fg = MVPW_BLACK,
+	.bg = MVPW_LIGHTGREY,
+	.hilite_fg = MVPW_WHITE,
+	.hilite_bg = MVPW_DARKGREY2,
+	.title_fg = MVPW_WHITE,
+	.title_bg = MVPW_BLUE,
+	.border_size = 2,
+	.border = MVPW_DARKGREY2,
+	.checkbox_fg = MVPW_GREEN,
+	.margin = 4,
 };
 
 /* 
@@ -1043,6 +1057,8 @@ static mvp_widget_t *settings_help;
 static mvp_widget_t *settings_startup;
 static mvp_widget_t *settings_wireless;
 static mvp_widget_t *settings_wireless_signal;
+static mvp_widget_t *settings_weather;
+static mvp_widget_t *settings_weather_region;
 static mvp_widget_t *screensaver_dialog;
 static mvp_widget_t *about;
 mvp_widget_t *mclient;
@@ -1168,6 +1184,9 @@ mvp_widget_t *fb_offset_bar;
 
 mvp_widget_t *vnc_widget;
 mvp_widget_t *weather_widget;
+mvp_widget_t *current_conditions_image;
+mvp_widget_t *forecast[5];
+mvp_widget_t *forecast_image[5];
 
 /* Widgets supporting the new livetv program guide */
 mvp_widget_t *mythtv_livetv_clock;
@@ -1178,6 +1197,8 @@ mvp_widget_t *mythtv_tvguide_menu;
 mvp_widget_t *mythtv_tvguide_dialog;
 mvp_widget_t *mythtv_tvguide_tune_warn;
 mvp_widget_t *mythtv_tvguide_tune_conflict;
+
+mvp_widget_t *weather_menu;
 
 static int screensaver_enabled = 0;
 volatile int screensaver_timeout = 60;
@@ -1242,6 +1263,7 @@ typedef enum {
 	SETTINGS_MAIN_VIEWPORT,
 	SETTINGS_MAIN_STARTUP,
 	SETTINGS_MAIN_WIRELESS,
+	SETTINGS_MAIN_WEATHER,
 } settings_main_t;
 
 typedef enum {
@@ -1303,6 +1325,11 @@ enum {
 	SETTINGS_OSD_BRIGHTNESS = 1,
 	SETTINGS_OSD_COLOR,
 };
+
+typedef enum {
+	SETTINGS_WEATHER_EUROPE = 1,
+	SETTINGS_WEATHER_NA = 2,
+} settings_weather_t;
 
 typedef enum {
 	SETTINGS_WIRELESS_SIGNAL = 1,
@@ -1423,10 +1450,17 @@ osd_widget_toggle(int type)
 static void
 splash_update(char *str)
 {
+#if 0
+	static int i = 0;
+
+	printf("splash %d\n", ++i);
+#endif
+
 	mvpw_set_text_str(splash, str);
 	mvpw_expose(splash);
 	mvpw_graph_incr(splash_graph, 1);
 	mvpw_event_flush();
+
 }
 
 void
@@ -1900,6 +1934,30 @@ settings_startup_key_callback(mvp_widget_t *widget, char key)
 		startup_selection = (SETTINGS_STARTUP_ENDOFLIST - 2);
 	if (startup_selection > (SETTINGS_STARTUP_ENDOFLIST - 2))
 		startup_selection = 0;
+}
+
+static void
+settings_weather_key_callback(mvp_widget_t *widget, char key)
+{
+	switch (key) {
+	case MVPW_KEY_EXIT:
+		mvpw_hide(widget);
+		mvpw_show(settings);
+		mvpw_focus(settings);
+		break;
+	}
+}
+
+static void
+settings_weather_region_key_callback(mvp_widget_t *widget, char key)
+{
+	switch (key) {
+	case MVPW_KEY_EXIT:
+		mvpw_hide(widget);
+		mvpw_show(settings_weather);
+		mvpw_focus(settings_weather);
+		break;
+	}
 }
 
 static void
@@ -3349,12 +3407,17 @@ mclient_localmenu_hide_all_widgets(void)
 static void
 weather_key_callback(mvp_widget_t *widget, char key)
 {
-	if( key==MVPW_KEY_EXIT) {
-		mvpw_destroy(widget);
+	switch (key) {
+	case MVPW_KEY_EXIT:
+		mvpw_hide(widget);
 		mvpw_show(main_menu);
 		mvpw_show(mvpmc_logo);
 		mvpw_show(weather_image);
 		mvpw_focus(main_menu);
+		break;
+	case MVPW_KEY_MENU:
+		printf("Menu key...\n");
+		break;
 	}
 }
  
@@ -4010,6 +4073,10 @@ settings_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mvpw_show(settings_wireless);
 		mvpw_focus(settings_wireless);
 		break;
+	case SETTINGS_MAIN_WEATHER:
+		mvpw_show(settings_weather);
+		mvpw_focus(settings_weather);
+		break;
 	}
 }
 
@@ -4154,6 +4221,61 @@ startup_select_callback(mvp_widget_t *widget, char *item, void *key)
 		config->startup_selection = startup_selection;
 		config->bitmask |= CONFIG_STARTUP_SELECT;
 	}
+}
+
+static void
+settings_weather_callback(mvp_widget_t *widget, char *item, void *key)
+{
+	char *code = (char*)key;
+
+	if (code) {
+		char *old = weather_location;
+		printf("Weather Location: %s  Code: %s\n", item, code);
+		weather_location = strdup(code);
+		if (old) {
+			free(old);
+		} else {
+			main_menu_items();
+		}
+	}
+}
+
+static void
+weather_select_callback(mvp_widget_t *widget, char *item, void *key)
+{
+	int i = 0;
+	weather_code_t *codes = NULL;
+
+	switch ((settings_weather_t)key) {
+	case SETTINGS_WEATHER_EUROPE:
+		codes = weather_codes_europe;
+		mvpw_set_menu_title(settings_weather_region, "Europe");
+		break;
+	case SETTINGS_WEATHER_NA:
+		codes = weather_codes_na;
+		mvpw_set_menu_title(settings_weather_region, "North America");
+		break;
+	}
+
+	if (codes == NULL) {
+		return;
+	}
+
+	settings_item_attr.select = settings_weather_callback;
+	mvpw_set_menu_attr(settings_weather_region, &settings_attr);
+
+	mvpw_clear_menu(settings_weather_region);
+
+	while (codes[i].name) {
+		mvpw_add_menu_item(settings_weather_region,
+				   codes[i].name,
+				   (void*)codes[i].code,
+				   &settings_item_attr);
+		i++;
+	}
+
+	mvpw_hide(widget);
+	mvpw_show(settings_weather_region);
 }
 
 static void
@@ -4689,6 +4811,8 @@ settings_init(void)
 		mvpw_add_menu_item(settings, "Wireless",
 				   (void*)SETTINGS_MAIN_WIRELESS,
 				   &settings_item_attr);
+	mvpw_add_menu_item(settings, "Weather",
+			   (void*)SETTINGS_MAIN_WEATHER, &settings_item_attr);
 	if (config_file)
 		mvpw_add_menu_item(settings, "Viewport",
 				   (void*)SETTINGS_MAIN_VIEWPORT,
@@ -5020,6 +5144,39 @@ settings_init(void)
 		mvpw_check_menu_item(settings_startup, (void*)(startup_this_feature - 1), 1);
 	}
 
+	/*
+	 * Yahoo! Weather
+	 */
+	settings_weather = mvpw_create_menu(NULL, x, y, w, h,
+					    settings_attr.bg,
+					    settings_attr.border,
+					    settings_attr.border_size);
+	settings_attr.checkboxes = 0;
+	mvpw_set_menu_attr(settings_weather, &settings_attr);
+	mvpw_set_menu_title(settings_weather, "Yahoo! Weather");
+	mvpw_set_key(settings_weather, settings_weather_key_callback);
+
+	settings_item_attr.hilite = NULL;
+	settings_item_attr.select = weather_select_callback;
+
+	mvpw_add_menu_item(settings_weather,
+			   "Europe",
+			   (void*)SETTINGS_WEATHER_EUROPE,
+			   &settings_item_attr);
+	mvpw_add_menu_item(settings_weather,
+			   "North America",
+			   (void*)SETTINGS_WEATHER_NA,
+			   &settings_item_attr);
+
+	settings_weather_region = mvpw_create_menu(NULL, x, y, w, h,
+						   settings_attr.bg,
+						   settings_attr.border,
+						   settings_attr.border_size);
+
+	settings_attr.checkboxes = 0;
+	mvpw_set_menu_attr(settings_weather_region, &settings_attr);
+	mvpw_set_key(settings_weather_region,
+		     settings_weather_region_key_callback);
 
 	/*
 	 * wireless settings menu
@@ -5040,10 +5197,6 @@ settings_init(void)
 			   "Signal Strength",
 			   (void*)SETTINGS_WIRELESS_SIGNAL,
 			   &settings_item_attr);
-
-
-
-
 
 	/*
 	 * settings menu with checkboxes
@@ -6320,6 +6473,7 @@ static void
 main_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
 	int k = (int)key;
+	int i;
 	mvpw_surface_attr_t surface;
 
 	if (gui_state==MVPMC_STATE_EMULATE) {
@@ -6479,13 +6633,17 @@ main_select_callback(mvp_widget_t *widget, char *item, void *key)
 		break;
 	case MM_WEATHER:
 		switch_gui_state(MVPMC_STATE_WEATHER);
-		weather_widget = mvpw_create_container(NULL, 40, 40, si.cols - 40, si.rows - 40,
-			weather_attr.bg, weather_attr.border,
-			weather_attr.border_size);
 
 		mvpw_hide(mvpmc_logo);
 		mvpw_hide(weather_image);
 		mvpw_hide(main_menu);
+
+		for (i=0; i<5; i++) {
+			mvpw_hide(forecast[i]);
+			mvpw_hide(forecast_image[i]);
+		}
+		mvpw_hide(current_conditions_image);
+
 		mvpw_show(weather_widget);
 		mvpw_focus(weather_widget);
 		mvpw_set_key(weather_widget, weather_key_callback);
@@ -7907,6 +8065,49 @@ screensaver_init(void)
 	return 0;
 }
 
+static int
+weather_init(void)
+{
+	int x, y, w, h;
+	int i;
+
+	splash_update("Creating weather menus");
+
+	weather_widget = mvpw_create_container(NULL, 40, 40,
+					       si.cols - 40, si.rows - 40,
+					       weather_attr.bg,
+					       weather_attr.border,
+					       weather_attr.border_size);
+
+	h = 6 * FONT_HEIGHT(weather_menu_attr);
+	w = (si.cols - 250);
+	x = (si.cols - w) / 2;
+	y = (si.rows - h) / 2;
+
+	weather_menu = mvpw_create_menu(NULL, x, y, w, h,
+					weather_menu_attr.bg,
+					weather_menu_attr.border,
+					weather_menu_attr.border_size);
+
+	for (i=0; i<5; i++) {
+		forecast[i] = mvpw_create_text(weather_widget,
+					       i * 130 + 10, 270, 130, 210,
+					       MVPW_BLACK, MVPW_BLACK, 0);
+		forecast_image[i] = mvpw_create_image(weather_widget,
+						      i * 130 + 10, 190,
+						      80, 80,
+						      MVPW_WHITE, MVPW_BLUE,
+						      2);
+	}
+
+	current_conditions_image = mvpw_create_image(weather_widget,
+						     30, 95, 75, 75,
+						     MVPW_WHITE,
+						     MVPW_LIGHTGREY, 2);
+
+	return 0;
+}
+
 void
 gui_mesg(char *title, char *msg)
 {
@@ -8211,6 +8412,7 @@ gui_init(char *server, char *replaytv)
 	mclient_sub_alt_image_init();
 	mclient_sub_bar_init();
 	mclient_sub_localmenu_init();
+	weather_init();
 
 	thruput_init();
 
