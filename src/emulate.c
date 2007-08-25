@@ -86,7 +86,7 @@ volatile static int timerTick=0;
 #define GBSAFETY 0
 #define RESETTIMEOUT 3
 
-#if 1
+#if 0
 #define PRINTF(x...) printf(x)
 	#define MPRINTF(x...) 
 	#define LPRINTF(x...) log_emulation();printf(x)	
