@@ -6969,14 +6969,14 @@ about_init(void)
 		"Audio: mp3, ogg, wav, ac3, flac\n"
 		"Video: mpeg1, mpeg2\n"
 		"Images: bmp, gif, png, jpeg\n"
-		"Servers: MythTV, ReplayTV, NFS, CIFS, SlimServer,\n"
-		"VLC, VNC, HTTP, Hauppauge, UPnP\n";
+		"Servers: MythTV, ReplayTV, NFS, CIFS, SlimServer,"
+		"VLC, VNC, HTTP, Hauppauge, UPnP, Yahoo! Weather\n";
 	struct utsname myname;
 
 	splash_update("Creating about dialog");
 
-	h = 10 * FONT_HEIGHT(about_attr);
-	w = 550;
+	h = 11 * FONT_HEIGHT(about_attr);
+	w = 580;
 
 	x = (si.cols - w) / 2;
 	y = (si.rows - h) / 2;
