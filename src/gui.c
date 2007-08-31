@@ -38,6 +38,7 @@
 #include <mvp_av.h>
 #include <mvp_demux.h>
 #include <mvp_osd.h>
+#include <mvp_string.h>
 #include <cmyth.h>
 
 #include "mvpmc.h"
@@ -4238,6 +4239,8 @@ settings_weather_callback(mvp_widget_t *widget, char *item, void *key)
 		} else {
 			main_menu_items();
 		}
+		sizeof_strncpy(config->weather_location, weather_location);
+		config->bitmask |= CONFIG_WEATHER_LOCATION;
 	}
 }
 
