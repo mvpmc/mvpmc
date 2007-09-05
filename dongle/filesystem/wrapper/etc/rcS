@@ -27,8 +27,8 @@ insmod ac3_mod
 insmod mvpstb_mod.o mvpmod_major=230
 insmod -f unionfs
 insmod xrmod
-insmod tiwlan_drv
 insmod fuse
+insmod tiwlan_drv
 
 mount -t proc /proc /proc
 

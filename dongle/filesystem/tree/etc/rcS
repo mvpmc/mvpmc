@@ -103,6 +103,14 @@ done
 . /etc/udhcpc.config
 
 #
+# Free up some memory if the wireless device is not being used.
+#
+if [ "$ETH" == "eth0" ] ; then
+    /sbin/ifconfig eth1 down
+    /sbin/rmmod tiwlan_drv
+fi
+
+#
 # Make sure the hostname is set to something
 #
 if [ "$HNAME" = "" ] ; then
