@@ -156,6 +156,7 @@ char *mclient_server = NULL;
 char *vlc_server = NULL;
 char *mvp_server = NULL;
 char *weather_location = NULL;
+char *weather_cmdline = NULL;
 
 char vnc_server[256];
 int vnc_port = 0;
@@ -703,6 +704,8 @@ mvpmc_main(int argc, char **argv)
 			}
 			if (strcmp(opts[opt_index].name, "weather-location") == 0) {
 				weather_location = strdup(optarg);
+				printf("cmdline location '%s' %p\n", weather_location, weather_location);
+				weather_cmdline = strdup(optarg);
 				sizeof_strncpy(config->weather_location, optarg);
 				config->bitmask |= CONFIG_WEATHER_LOCATION;
 			}
