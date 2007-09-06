@@ -43,9 +43,8 @@ if target == 'mvp':
                              LIBPATH = [ libdir ],
                              LINKFLAGS = [ '' ])
 
-pwd = os.getcwd()
 s2 = env.Command('splash2.c', 0,
-		 'cp %s/src/splash.c %s/splash2.c' % (toplevel,pwd))
+		 'cp %s/src/splash.c %s/src/obj/%s/splash2.c' % (toplevel,toplevel,target))
 
 mvpmc = mvp.Program('mvpmc',
                     ['audio.c', 'colorlist.c', 'config.c', 'display.c',
