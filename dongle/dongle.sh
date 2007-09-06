@@ -14,7 +14,7 @@ DIRS="bin sbin usr/bin usr/sbin lib dev proc var usr/share usr/share/mvpmc usr/s
 WRAPPER_DIRS="bin sbin etc usr/bin usr/sbin dev tmp lib proc mnt"
 
 BIN="busybox flashcp mvpmc ntpclient scp djmount nbtscan"
-MVPMC_BIN="ticonfig vpdread"
+MVPMC_BIN="ticonfig vpdread splash"
 WRAPPER_BIN="busybox splash"
 
 SBIN="dropbearmulti dropbear dropbearkey fusermount"

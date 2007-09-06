@@ -3,6 +3,21 @@
 # mvpmc startup script
 #
 
+progress() {
+    /bin/splash --progress $PROGRESS --state 1
+    let PROGRESS=PROGRESS+1
+}
+
+progress_test() {
+    /bin/splash --progress $PROGRESS --state 2
+}
+
+progress_done() {
+    /bin/splash --progress $PROGRESS --state 3
+}
+
+PROGRESS=4
+
 #
 # Connect to the first available NTP server
 #
@@ -27,6 +42,7 @@ do_ntp() {
 #
 /bin/umount /oldroot
 /sbin/freeramdisk /dev/ram0
+progress
 
 #
 # Create the tmpfs filesystem and mount it on top of the squashfs root
@@ -37,6 +53,7 @@ mount -t unionfs -o dirs=/memory=rw:/=ro unionfs /union
 cd /union
 mkdir live
 pivot_root . live
+progress
 
 #
 # Remount everything read/write
@@ -89,11 +106,15 @@ fi
 # Iterate over the two devices waiting for one of them to get an address.
 #
 while [ $LEASE -eq 0 ] ; do
+    progress_test
     udhcpc -i eth1 -n
     RET=$?
+    progress_done
     if [ $RET -ne 0 ] ; then
+	progress_test
 	udhcpc -i eth0 -n
 	RET=$?
+	progress_done
     fi
     if [ $RET -eq 0 ] ; then
 	LEASE=1
@@ -101,6 +122,7 @@ while [ $LEASE -eq 0 ] ; do
 done
 
 . /etc/udhcpc.config
+progress
 
 #
 # Free up some memory if the wireless device is not being used.
@@ -149,6 +171,7 @@ if [ -n "$DONGLE" ] ; then
         fi
     fi
 fi
+progress
 
 #
 # if the user has set NTP, restart NTP with their server

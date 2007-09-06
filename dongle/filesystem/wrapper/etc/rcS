@@ -3,6 +3,13 @@
 # Startup script for the wrapper filesystem
 #
 
+progress() {
+    /bin/splash --progress $PROGRESS --state 0
+    let PROGRESS=PROGRESS+1
+}
+
+PROGRESS=0
+
 ROOTDEV=/dev/mtd5
 ROOTBLK=/dev/mtdblock5
 
@@ -18,7 +25,7 @@ insmod osdfb
 #
 # Draw the splash screen on the framebuffer
 #
-/bin/splash
+/bin/splash --logo
 
 #
 # Load the other kernel modules
@@ -29,6 +36,7 @@ insmod -f unionfs
 insmod xrmod
 insmod fuse
 insmod tiwlan_drv
+progress
 
 mount -t proc /proc /proc
 
@@ -36,11 +44,14 @@ mount -t proc /proc /proc
 # Switch to the embedded filesystem, if it exists.
 #
 if [ -n /etc/rootfs.img ] ; then
+    progress
     dd if=/etc/rootfs.img of=$ROOTDEV
     mount $ROOTBLK /mnt
     cd /mnt
+    progress
     /sbin/pivot_root . oldroot
     umount /oldroot/proc
+    progress
     kill -QUIT 1
 else
     echo embedded filesystem not found

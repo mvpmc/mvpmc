@@ -1351,6 +1351,7 @@ main(int argc, char **argv)
 {
 	extern int ticonfig_main(int argc, char **argv);
 	extern int vpdread_main(int argc, char **argv);
+	extern int splash_main(int argc, char **argv);
 	char *prog;
 
 	prog = basename(argv[0]);
@@ -1362,6 +1363,8 @@ main(int argc, char **argv)
 		return ticonfig_main(argc, argv);
 	} else if (strcmp(prog, "vpdread") == 0) {
 		return vpdread_main(argc, argv);
+	} else if (strcmp(prog, "splash") == 0) {
+		return splash_main(argc, argv);
 #endif /* !MVPMC_HOST */
 	}
 
