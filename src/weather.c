@@ -48,6 +48,7 @@
 #include "mvpmc.h"
 #include "http_stream.h"
 #include "display.h"
+#include "weather.h"
 
 // Yahoo! Weather API page
 
@@ -58,8 +59,6 @@
 #define WEATHER_RSS_PATH "/forecastrss"
 
 #define WEATHER_IMAGE_HOST "http://l.yimg.com/us.yimg.com/i/us/we/52/%d.gif"
-
-#define BUFFSIZE	1024
 
 #define WEATHER_OUTPUT "Yahoo! Weather for %s, %s\n\
 %s\n\
@@ -73,7 +72,6 @@ Sunrise: %s  Sunset: %s\n\
 High: %s\n\
 Low :%s"
 
-extern char *weather_location;
 extern char *imagedir;
 
 typedef struct {
@@ -96,6 +94,27 @@ typedef struct {
 } weather_info_t;
 
 #define rss_fmt(X) snprintf((X),sizeof((X)),"%s",attr[i + 1])
+
+weather_code_t weather_codes_europe[] = {
+	{ "Amsterdam", "NLXX0002_c" },
+	{ "Berlin", "GMXX0007_c" },
+	{ "London", "UKXX0085_c" },
+	{ "Madrid", "SPXX0050_c" },
+	{ "Paris", "FRXX0076_c" },
+	{ "Rome", "ITXX0067_c" },
+	{ NULL, NULL },
+};
+
+weather_code_t weather_codes_na[] = {
+	{ "Chicago", "USIL0225" },
+	{ "Denver", "USCO0105" },
+	{ "Houston", "USTX0617" },
+	{ "Minneapolis", "USMN0503" },
+	{ "Ottawa", "CAXX0343_c" },
+	{ "Raleigh", "USNC0558" },
+	{ "San Francisco", "USCA0987" },
+	{ NULL, NULL },
+};
 
 static void
 start_tag(void *data, const char *el, const char **attr)
@@ -166,9 +185,9 @@ start_tag(void *data, const char *el, const char **attr)
 }				/* End of start handler */
 
 static void
-parse_data(FILE * data_stream, weather_info_t * weather_data)
+parse_data(int data_stream, weather_info_t * weather_data)
 {
-	char Buff[BUFFSIZE];
+	char Buff[STREAM_PACKET_SIZE+1]; //One byte extra for parsing
 	char *ptr;
 
 	XML_Parser p = XML_ParserCreate(NULL);
@@ -181,55 +200,48 @@ parse_data(FILE * data_stream, weather_info_t * weather_data)
 
 	XML_SetElementHandler(p, start_tag, NULL);
 	XML_SetUserData(p, weather_data);
-
-	int first_time = 1;
-
-	for (;;) {
-		int done;
+	Buff[STREAM_PACKET_SIZE]=0;
+	while (gui_state == MVPMC_STATE_WEATHER ) {
 		int len;
-		int offset;
-
-		len = fread(Buff, 1, BUFFSIZE, data_stream);
-		if (ferror(data_stream)) {
-			fprintf(stderr, "Read error\n");
+		len = read(data_stream, Buff, STREAM_PACKET_SIZE);
+		if (len < 0 ) {
+			if ( errno==EAGAIN || errno==EINTR) {
+				usleep(100000);
+				continue;
+			}
+			fprintf(stderr, "Read error %d\n",errno);
 			strcpy(weather_data->city,"Error");
-			sprintf(weather_data->last_update,"Yahoo! RSS Feed Error");
-			return;
-
+			sprintf(weather_data->last_update,"Yahoo! RSS Feed Read Error");
 		}
-		done = feof(data_stream);
-
-		if (first_time) {
-			first_time = 0;
-			char *start = strchr(Buff, '<');
-			offset = start - Buff;
-		} else {
-			offset = 0;
-		}
-
-		if (!XML_Parse(p, Buff + offset, len - offset, done)) {
+		if (!XML_Parse(p, Buff , len , len==0)) {
 			fprintf(stderr, "Parse error at line %d:\n%s\n",
 				XML_GetCurrentLineNumber(p),
 				XML_ErrorString(XML_GetErrorCode(p)));
-			strcpy(weather_data->city,"Error");
-			sprintf(weather_data->last_update,"Yahoo! RSS Feed Error");
-			done = 1;
-		} else {
-			ptr = strstr(Buff,"Sorry, your location");
-			if (ptr!=NULL ) {
+
+                        if ( XML_GetErrorCode(p) != XML_ERROR_FINISHED ) {
 				strcpy(weather_data->city,"Error");
-				snprintf(weather_data->last_update,60,ptr);
-				ptr = strstr(weather_data->last_update,"<");
-				if (ptr!=NULL) {
-					*ptr=0;
+				sprintf(weather_data->last_update,"Yahoo! RSS Feed XML Error");
+			}
+			break;
+		} else {
+			if (weather_data->city[0]==0) {
+				ptr = strstr(Buff,"Sorry, your location");
+				if (ptr!=NULL ) {
+					strcpy(weather_data->city,"Error");
+					snprintf(weather_data->last_update,60,"%s",ptr);
+					ptr = strstr(weather_data->last_update,"<");
+					if (ptr!=NULL) {
+						*ptr=0;
+					}
+					break;
 				}
-				done = 1;
 			}
 		}
-
-		if (done)
+		if (len==0) {
 			break;
+		}
 	}
+        XML_ParserFree(p);
 }
 
 static int 
@@ -244,26 +256,16 @@ get_weather_data(weather_info_t * weather_data) {
 	current = strdup(path);
 	retcode = http_main();
 	free(current);
-	int sockfd;
 
 	if (retcode==HTTP_RSS_FILE_WEATHER) {
-		sockfd = dup(fd);
+                parse_data(fd, weather_data);
+		retcode = 0;
 	} else {
-		close(fd);
-		return -1;
+		retcode =  -1;
 	}
+	close(fd);
 
-	if (sockfd != -1) {
-		FILE *rsock;
-		rsock = fdopen(sockfd, "r");
-		setvbuf(rsock, NULL, _IOLBF, 0);
-
-		parse_data(rsock, weather_data);
-
-		close(sockfd);
-		return 0;
-	}
-	return -1;
+	return retcode;
 }
 
 static int
@@ -274,51 +276,36 @@ fetch_weather_image(int code, char *filename)
 	if (code == 0 ) {
 		return -1;
 	}
-
 	snprintf(path,80,WEATHER_IMAGE_HOST,code);
 
 	current = strdup(path);
 	retcode = http_main();
 	free(current);
-	int sockfd;
 
 	if (retcode==HTTP_IMAGE_FILE_GIF) {
-		sockfd = dup(fd);
-	} else {
-		close(fd);
-		return -1;
-	}
-
-	if (sockfd != -1) {
-		FILE *rsock;
-		char buf[BUFFSIZE];
-		rsock = fdopen(sockfd, "rb");
-		setvbuf(rsock, NULL, _IOFBF, 0);
-
+		char buf[STREAM_PACKET_SIZE];
 		FILE *outfile = fopen(filename, "wb");
-
-		int first_time = 1;
-		int offset = 0;
-
-		while (!feof(rsock)) {
-			int nitems = fread(buf, 1, BUFFSIZE, rsock);
-			if (first_time) {
-				char * ptr = strstr(buf, "GIF89a");
-				if (ptr != NULL)
-					offset = ptr - buf;
-				first_time = 0;
+		retcode = 0;
+		int nitems = -1;
+		while (nitems && gui_state == MVPMC_STATE_WEATHER) {
+			nitems = read(fd,buf, STREAM_PACKET_SIZE);
+			if (nitems < 0 ){
+				if ( (errno==EAGAIN || errno==EINTR)  ) {
+					usleep(100000);
+					continue;
+				} else {
+					retcode = -1;
+					break;
+				}
 			}
-			else {
-				offset = 0;
-			}
-			fwrite(buf + offset, 1, nitems - offset, outfile);
+			fwrite(buf,1, nitems, outfile);
 		}
-
 		fclose(outfile);
-		close(sockfd);
-		return 0;
+	} else {
+		retcode = -1;
 	}
-	return -1;
+	close(fd);
+	return retcode;
 }
 
 int
@@ -336,7 +323,7 @@ update_weather(mvp_widget_t * weather_widget, mvpw_text_attr_t * weather_attr)
 		printf("Weather feed %s\n",weather_data->location_id);
 		weather_data->current_forecast = 0;
 		mvp_widget_t *text = mvpw_create_text(weather_widget, 0, 0, 600, 220, MVPW_BLACK, MVPW_BLACK, 0);
-		if (get_weather_data(weather_data) == 0) {
+		if (get_weather_data(weather_data) == 0 && gui_state == MVPMC_STATE_WEATHER) {
 			char output[300];
 			char image[100];
 			if (strcmp(weather_data->city,"Error")) {
@@ -370,9 +357,6 @@ update_weather(mvp_widget_t * weather_widget, mvpw_text_attr_t * weather_attr)
 					}
 				}
 	
-				mvp_widget_t *current_conditions_image =
-				    mvpw_create_image(weather_widget, 30, 95, 75, 75, 
-				    MVPW_WHITE, MVPW_LIGHTGREY, 2);
 				if (fetch_weather_image(weather_data->current_code, "/tmp/weather_image.gif") == 0) {
 						mvpw_set_image(current_conditions_image, "/tmp/weather_image.gif");
 					}
@@ -380,43 +364,53 @@ update_weather(mvp_widget_t * weather_widget, mvpw_text_attr_t * weather_attr)
 						snprintf(image,100,"%s/%s", imagedir, "weather_unknown.png");
 						mvpw_set_image(current_conditions_image, image);
 					}
-				mvpw_show(current_conditions_image);
+				if ( gui_state == MVPMC_STATE_WEATHER ) {
+					mvpw_raise(current_conditions_image);
+					mvpw_show(current_conditions_image);
+				}
+
 	
 				int i;
-				for(i = 0; i < 5; i++) {
-					mvp_widget_t *forecast = mvpw_create_text(weather_widget, i * 130 + 10, 270, 130, 210, MVPW_BLACK, MVPW_BLACK, 0);
+				for(i = 0; i < 5 && gui_state == MVPMC_STATE_WEATHER; i++) {
 					snprintf(output,200, FORECAST_OUTPUT,
 						weather_data->forecast_day[i],
 						weather_data->forecast_condition[i],
 						weather_data->forecast_high[i],
 						weather_data->forecast_low[i]);
-					mvpw_set_text_str(forecast, output);
-					mvpw_set_text_attr(forecast, weather_attr);
-					mvpw_show(forecast);
-	
-					mvp_widget_t *forecast_image =
-					    mvpw_create_image(weather_widget, i * 130 + 10, 190, 80, 80,
-					    	MVPW_WHITE, MVPW_BLUE, 2);
-					snprintf(image,100,"/tmp/weather_image%1d.gif", i);
-					if (fetch_weather_image(weather_data->forecast_code[i], image) == 0) {
-						mvpw_set_image(forecast_image, image);
+					mvpw_set_text_str(forecast[i], output);
+					mvpw_set_text_attr(forecast[i], weather_attr);
+					mvpw_show(forecast[i]);
+					snprintf(image,100,"/tmp/weather_code%d.gif", weather_data->forecast_code[i]);
+					if (access(image,F_OK) ) {
+						if (fetch_weather_image(weather_data->forecast_code[i], image) != 0) {
+							sprintf(image, "%s/%s", imagedir, "weather_unknown.png");
+						}
 					}
-					else {
-						sprintf(image, "%s/%s", imagedir, "weather_unknown.png");
-						mvpw_set_image(forecast_image, image);
-					}
-					mvpw_show(forecast_image);
+					mvpw_set_image(forecast_image[i], image);
+					mvpw_raise(forecast_image[i]);
+					mvpw_show(forecast_image[i]);
 				}
+				for(i = 0; i < 5; i++) {
+					snprintf(image,100,"/tmp/weather_code%d.gif", weather_data->forecast_code[i]);
+					if (access(image,F_OK)==0 ) {
+						unlink(image);
+					}
+				}
+				unlink("/tmp/weather_image.gif");						
 			} else {
-				snprintf(output,sizeof(output),"Yahoo! Weather - Error\n%s",weather_data->last_update);
-				mvpw_set_text_str(text,output );
+				if ( gui_state == MVPMC_STATE_WEATHER ) {
+					snprintf(output,sizeof(output),"Yahoo! Weather - Error\n%s",weather_data->last_update);
+					mvpw_set_text_str(text,output );
+					mvpw_set_text_attr(text, weather_attr);
+					mvpw_show(text);
+				}
+			}
+		} else {
+			if ( gui_state == MVPMC_STATE_WEATHER ) {
+				mvpw_set_text_str(text,"There was a problem connecting to Yahoo! Weather feed" );
 				mvpw_set_text_attr(text, weather_attr);
 				mvpw_show(text);
 			}
-		} else {
-			mvpw_set_text_str(text,"There was a problem connecting to Yahoo! Weather feed" );
-			mvpw_set_text_attr(text, weather_attr);
-			mvpw_show(text);
 		}
 		free(weather_data);
 	}

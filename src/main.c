@@ -156,6 +156,7 @@ char *mclient_server = NULL;
 char *vlc_server = NULL;
 char *mvp_server = NULL;
 char *weather_location = NULL;
+char *weather_cmdline = NULL;
 
 char vnc_server[256];
 int vnc_port = 0;
@@ -703,6 +704,8 @@ mvpmc_main(int argc, char **argv)
 			}
 			if (strcmp(opts[opt_index].name, "weather-location") == 0) {
 				weather_location = strdup(optarg);
+				printf("cmdline location '%s' %p\n", weather_location, weather_location);
+				weather_cmdline = strdup(optarg);
 				sizeof_strncpy(config->weather_location, optarg);
 				config->bitmask |= CONFIG_WEATHER_LOCATION;
 			}
@@ -1348,6 +1351,7 @@ main(int argc, char **argv)
 {
 	extern int ticonfig_main(int argc, char **argv);
 	extern int vpdread_main(int argc, char **argv);
+	extern int splash_main(int argc, char **argv);
 	char *prog;
 
 	prog = basename(argv[0]);
@@ -1359,6 +1363,8 @@ main(int argc, char **argv)
 		return ticonfig_main(argc, argv);
 	} else if (strcmp(prog, "vpdread") == 0) {
 		return vpdread_main(argc, argv);
+	} else if (strcmp(prog, "splash") == 0) {
+		return splash_main(argc, argv);
 #endif /* !MVPMC_HOST */
 	}
 

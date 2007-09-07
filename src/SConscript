@@ -38,15 +38,19 @@ if target == 'mvp':
                              ['splash.c'],
                              CPPPATH = [ env['INCDIR'], env['INSTINCDIR'],
                                          '.', '../include' ],
+			     CCFLAGS = env['CCFLAGS'] + ' -DSTANDALONE',
                              LIBS = ['osd', 'av'],
                              LIBPATH = [ libdir ],
                              LINKFLAGS = [ '' ])
+
+s2 = env.Command('splash2.c', 0,
+		 'cp %s/src/splash.c %s/src/obj/%s/splash2.c' % (toplevel,toplevel,target))
 
 mvpmc = mvp.Program('mvpmc',
                     ['audio.c', 'colorlist.c', 'config.c', 'display.c',
 		     'emulate.c', 'fb.c', 'gui.c', 'http_stream.c', 'main.c',
 		     'mclient.c', 'mclient_mvpmc.c', 'mclient_cli.c',
-		     'mythtv.c', 'mythtv_livetv.c', 'tvguide.c',
+		     'mythtv.c', 'mythtv_livetv.c', 'splash2.c', 'tvguide.c',
 		     'playlist.c', 'replaytv.c', 'theme.c', 'video.c',
 		     'version.c', 'vlc_control.c', 'web_config.c', 'wss.c', 
 		     'weather.c'] + mvpapps,
@@ -68,5 +72,7 @@ else:
 	inst = env.Install(bindir, mvpmc)
 
 env.Depends(mvpmc, 'version.c')
+env.Depends(mvpmc, s2)
+env.Depends(s2, 'splash.c')
 
 Return('inst')

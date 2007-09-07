@@ -1,6 +1,6 @@
 #
 # MediaMVP Media Center (mvpmc)
-# http://mvpmc.sourceforge.net/
+# http://www.mvpmc.org/
 #
 
 all: mvp host
@@ -35,9 +35,6 @@ distclean: clean
 	rm -rf dongle/filesystem/install
 	rm -rf dongle/filesystem/install_wrapper
 	rm -rf dongle/kernel/filesystem
-	rm -rf dongle/kernel/linux-2.4.17/ac3
-	rm -rf dongle/kernel/linux-2.4.17/mvpdist
-	rm -rf dongle/kernel/linux-2.4.17/unionfs-1.0.14
 	rm -rf dongle/kernel/linux-2.4.31/linux-2.4.31
 	rm -rf dongle/kernel/linux-2.4.31/unionfs-1.0.14
 	rm -rf dongle/kernel/linux-2.4.31/fuse/fuse-2.5.3

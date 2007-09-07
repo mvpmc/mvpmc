@@ -749,6 +749,20 @@ mvpw_check_menu_item(mvp_widget_t *widget, void *key, bool checked)
 	}
 }
 
+void
+mvpw_check_all_items(mvp_widget_t *widget, bool checked)
+{
+	struct menu_item_s *item;
+	void *k;
+	int i;
+
+	for (i=0; i<widget->data.menu.nitems; i++) {
+		item = widget->data.menu.items + i;
+		k = item->key;
+		mvpw_check_menu_item(widget, k, checked);
+	}
+}
+
 int
 mvpw_menu_hilite_item(mvp_widget_t *widget, void *key)
 {

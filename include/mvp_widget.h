@@ -620,6 +620,13 @@ extern char* mvpw_get_menu_item(mvp_widget_t *widget, void *key);
 extern void mvpw_check_menu_item(mvp_widget_t *widget, void *key, bool checked);
 
 /**
+ * Check or uncheck all menu items.
+ * \param widget widget handle
+ * \param checked 0 to uncheck, 1 to check
+ */
+extern void mvpw_check_all_items(mvp_widget_t *widget, bool checked);
+
+/**
  * Hilite a specific menu item.
  * \param widget widget handle
  * \param key menu item key

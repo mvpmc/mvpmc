@@ -572,6 +572,7 @@ extern int flicker;
 extern char *rtv_init_str;
 extern char *mclient_server;
 extern char *weather_location;
+extern char *weather_cmdline;
 
 extern char cwd[];
 

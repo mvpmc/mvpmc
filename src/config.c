@@ -631,7 +631,7 @@ set_config(void)
 	if (config->bitmask & CONFIG_MYTHTV_FILTER) 
 		mythtv_filter = config->mythtv_filter;
 	if (config->bitmask & CONFIG_WEATHER_LOCATION) 
-		weather_location = config->weather_location;
+		weather_location = strdup(config->weather_location);
 }
 
 int
