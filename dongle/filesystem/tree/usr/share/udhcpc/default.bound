@@ -45,6 +45,7 @@ cat <<EOF > /etc/udhcpc.config
 DONGLE=$boot_file
 SERVER=${siaddr:-$serverid}
 IP=$ip
+ETH=$interface
 HNAME=$hostname
 NTP="$ntpsrv"
 EOF

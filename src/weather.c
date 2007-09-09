@@ -72,7 +72,6 @@ Sunrise: %s  Sunset: %s\n\
 High: %s\n\
 Low :%s"
 
-extern char *weather_location;
 extern char *imagedir;
 
 typedef struct {

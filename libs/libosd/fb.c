@@ -53,6 +53,10 @@ fb_add_color(osd_surface_t *surface, unsigned int c)
 	surface->data.fb.blue[index+32] = b << 8;
 	surface->data.fb.green[index+32] = g << 8;
 
+	surface->data.fb.map.red[index+32] = r << 8;
+	surface->data.fb.map.blue[index+32] = b << 8;
+	surface->data.fb.map.green[index+32] = g << 8;
+
 	if (ioctl(surface->fd, FBIOPUTCMAP, &surface->data.fb.map) != 0) {
 		return -1;
 	}
@@ -158,6 +162,22 @@ static int
 fb_fill_rect(osd_surface_t *surface, int x, int y, int width, int height, 
 	     unsigned int c)
 {
+	int i, j;
+	int pixel;
+
+	fb_add_color(surface, c);
+
+	if ((pixel=find_color(surface, c)) == -1) {
+		printf("color not found!\n");
+		return -1;
+	}
+
+	for (i=0; i<width; i++) {
+		for (j=0; j<height; j++) {
+			draw_pixel(surface, x+i, y+j, (unsigned char)pixel);
+		}
+	}
+
 	return 0;
 }
 
@@ -196,6 +216,7 @@ fb_create(int w, int h, unsigned long color)
 {
 	osd_surface_t *surface;
 	int x, y;
+	unsigned char r, g, b, a;
 
 	if (fb) {
 		return NULL;
@@ -215,10 +236,6 @@ fb_create(int w, int h, unsigned long color)
 		goto err;
 	}
 
-	if (ioctl(surface->fd, FBIOGET_FSCREENINFO, &surface->data.fb.finfo)) {
-		goto err;
-	}
-
 	if ((surface->data.fb.base=mmap(0, surface->data.fb.finfo.smem_len,
 					PROT_READ | PROT_WRITE, MAP_SHARED,
 					surface->fd, 0)) == MAP_FAILED) {
@@ -231,11 +248,31 @@ fb_create(int w, int h, unsigned long color)
 	surface->width = w;
 	surface->height = h;
 
-	fb_add_color(surface, color);
+	memset(&surface->data.fb.map, 0, sizeof(surface->data.fb.map));
 
-	for (x=0; x<w; x++) {
-		for (y=0; y<h; y++) {
-			fb_draw_pixel(surface, x, y, color);
+	surface->data.fb.colors = 0;
+	surface->data.fb.map.start = 0;
+	surface->data.fb.map.len = 256;
+
+	surface->data.fb.map.red = (__u16*)calloc(256, sizeof(__u16));
+	surface->data.fb.map.blue = (__u16*)calloc(256, sizeof(__u16));
+	surface->data.fb.map.green = (__u16*)calloc(256, sizeof(__u16));
+	surface->data.fb.map.transp = NULL;
+
+	if (ioctl(surface->fd, FBIOGETCMAP, &surface->data.fb.map) != 0) {
+		goto err;
+	}
+
+	surface->data.fb.colors = 210;
+
+	c2rgba(color, &r, &g, &b, &a);
+	if (a != 0) {
+		fb_add_color(surface, color);
+
+		for (x=0; x<w; x++) {
+			for (y=0; y<h; y++) {
+				fb_draw_pixel(surface, x, y, color);
+			}
 		}
 	}
 

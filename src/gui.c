@@ -1330,6 +1330,7 @@ enum {
 typedef enum {
 	SETTINGS_WEATHER_EUROPE = 1,
 	SETTINGS_WEATHER_NA = 2,
+	SETTINGS_WEATHER_DEFAULT = 3,
 } settings_weather_t;
 
 typedef enum {
@@ -1383,7 +1384,6 @@ static void settings_display_mode_callback(mvp_widget_t*, char*, void*);
 static void settings_vlc_video_callback(mvp_widget_t *widget, char *item, void *key);
 static void settings_vlc_audio_callback(mvp_widget_t *widget, char *item, void *key);
 extern char* vlc_server;
-extern char* weather_location;
 
 static void main_menu_items(void);
 
@@ -1955,6 +1955,12 @@ settings_weather_region_key_callback(mvp_widget_t *widget, char key)
 	switch (key) {
 	case MVPW_KEY_EXIT:
 		mvpw_hide(widget);
+		if (weather_location && weather_cmdline) {
+			if (strcmp(weather_location, weather_cmdline) == 0) {
+				mvpw_check_menu_item(settings_weather,
+						     (void*)SETTINGS_WEATHER_DEFAULT, 1);
+			}
+		}
 		mvpw_show(settings_weather);
 		mvpw_focus(settings_weather);
 		break;
@@ -4076,6 +4082,12 @@ settings_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mvpw_focus(settings_wireless);
 		break;
 	case SETTINGS_MAIN_WEATHER:
+		if (weather_location && weather_cmdline) {
+			if (strcmp(weather_location, weather_cmdline) == 0) {
+				mvpw_check_menu_item(settings_weather,
+						     (void*)SETTINGS_WEATHER_DEFAULT, 1);
+			}
+		}
 		mvpw_show(settings_weather);
 		mvpw_focus(settings_weather);
 		break;
@@ -4230,9 +4242,15 @@ settings_weather_callback(mvp_widget_t *widget, char *item, void *key)
 {
 	char *code = (char*)key;
 
+	mvpw_check_all_items(widget, 0);
+
+	if (code && item) {
+		mvpw_check_menu_item(widget, key, 1);
+		printf("Weather Location: %s  Code: %s\n", item, code);
+	}
+
 	if (code) {
 		char *old = weather_location;
-		printf("Weather Location: %s  Code: %s\n", item, code);
 		weather_location = strdup(code);
 		if (old) {
 			free(old);
@@ -4250,7 +4268,15 @@ weather_select_callback(mvp_widget_t *widget, char *item, void *key)
 	int i = 0;
 	weather_code_t *codes = NULL;
 
+	mvpw_check_all_items(widget, 0);
+
 	switch ((settings_weather_t)key) {
+	case SETTINGS_WEATHER_DEFAULT:
+		settings_weather_callback(widget, NULL,
+					  (void*)weather_cmdline);
+		mvpw_check_menu_item(widget, key, 1);
+		return;
+		break;
 	case SETTINGS_WEATHER_EUROPE:
 		codes = weather_codes_europe;
 		mvpw_set_menu_title(settings_weather_region, "Europe");
@@ -4266,6 +4292,7 @@ weather_select_callback(mvp_widget_t *widget, char *item, void *key)
 	}
 
 	settings_item_attr.select = settings_weather_callback;
+	settings_attr.checkboxes = 1;
 	mvpw_set_menu_attr(settings_weather_region, &settings_attr);
 
 	mvpw_clear_menu(settings_weather_region);
@@ -4275,6 +4302,12 @@ weather_select_callback(mvp_widget_t *widget, char *item, void *key)
 				   codes[i].name,
 				   (void*)codes[i].code,
 				   &settings_item_attr);
+		if (weather_location) {
+			if (strcmp(weather_location, codes[i].code) == 0) {
+				mvpw_check_menu_item(settings_weather_region,
+						     (void*)codes[i].code, 1);
+			}
+		}
 		i++;
 	}
 
@@ -5155,7 +5188,7 @@ settings_init(void)
 					    settings_attr.bg,
 					    settings_attr.border,
 					    settings_attr.border_size);
-	settings_attr.checkboxes = 0;
+	settings_attr.checkboxes = 1;
 	mvpw_set_menu_attr(settings_weather, &settings_attr);
 	mvpw_set_menu_title(settings_weather, "Yahoo! Weather");
 	mvpw_set_key(settings_weather, settings_weather_key_callback);
@@ -5163,6 +5196,12 @@ settings_init(void)
 	settings_item_attr.hilite = NULL;
 	settings_item_attr.select = weather_select_callback;
 
+	if (weather_cmdline) {
+		mvpw_add_menu_item(settings_weather,
+				   "Default",
+				   (void*)SETTINGS_WEATHER_DEFAULT,
+				   &settings_item_attr);
+	}
 	mvpw_add_menu_item(settings_weather,
 			   "Europe",
 			   (void*)SETTINGS_WEATHER_EUROPE,
@@ -5177,7 +5216,7 @@ settings_init(void)
 						   settings_attr.border,
 						   settings_attr.border_size);
 
-	settings_attr.checkboxes = 0;
+	settings_attr.checkboxes = 1;
 	mvpw_set_menu_attr(settings_weather_region, &settings_attr);
 	mvpw_set_key(settings_weather_region,
 		     settings_weather_region_key_callback);
