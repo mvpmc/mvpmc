@@ -323,7 +323,7 @@ stream_add(demux_handle_t *handle, stream_t *stream, unsigned char *buf, int len
 }
 
 /*
- * stream_drain() - Drain data out of a media stream buffer
+ * stream_peek() - Peek at data out of a media stream buffer
  *
  * Arguments:
  *	stream	- stream pointer
@@ -333,11 +333,12 @@ stream_add(demux_handle_t *handle, stream_t *stream, unsigned char *buf, int len
  * Returns:
  *	number of bytes written into buffer
  */
+
 int
-stream_drain(stream_t *stream, void *buf, int max)
+stream_peek(stream_t *stream, void *buf, int max)
 {
 	int size1, size2;
-	unsigned int head;
+	unsigned int head, tail;
 
 	if (max <= 0)
 		return 0;
@@ -346,17 +347,18 @@ stream_drain(stream_t *stream, void *buf, int max)
 	    pthread_mutex_lock(stream->ptr_tail_mutex);
 	}
 	head = stream->head;
+	tail = stream->tail;
 
 	PRINTF("%s(): stream 0x%p buf 0x%p max %d\n",
 	       __FUNCTION__, stream, buf, max);
 	PRINTF("stream size %d head %d tail %d\n", stream->size,
-	       head, stream->tail);
+	       head, tail);
 
-	if (head >= stream->tail) {
-		size1 = head - stream->tail - 1;
+	if (head >= tail) {
+		size1 = head - tail - 1;
 		size2 = 0;
 	} else {
-		size1 = stream->size - stream->tail - 1;
+		size1 = stream->size - tail - 1;
 		size2 = head;
 	}
 
@@ -375,7 +377,7 @@ stream_drain(stream_t *stream, void *buf, int max)
 	}
 
 	if (size1 > 0)
-		memcpy(buf, stream->buf+stream->tail+1, size1);
+		memcpy(buf, stream->buf+tail+1, size1);
 	if (size2 > 0)
 		memcpy(buf+size1, stream->buf, size2);
 
@@ -386,20 +388,46 @@ stream_drain(stream_t *stream, void *buf, int max)
 
 	stream->attr->stats.cur_bytes -= (size1 + size2);
 
-	if(stream->ptr_tail_mutex != NULL)
-	{
-	    pthread_mutex_unlock(stream->ptr_tail_mutex);
-	}
 	return size1 + size2;
 
  empty:
 	stream->attr->stats.empty_count++;
 
+	return 0;
+}
+
+/*
+ * stream_drain() - Drain data out of a media stream buffer
+ *
+ * Arguments:
+ *	stream	- stream pointer
+ *	buf	- buffer to write stream data into
+ *	max	- size of buffer
+ *
+ * Returns:
+ *	number of bytes written into buffer
+ */
+int
+stream_drain(stream_t *stream, void *buf, int max)
+{
+	int ret;
+
+	if(stream->ptr_tail_mutex != NULL)
+	{
+	    pthread_mutex_lock(stream->ptr_tail_mutex);
+	}
+	
+	ret = stream_peek(stream, buf, max);
+	
+	stream->tail = (stream->tail + ret) % stream->size;
+
+	stream->attr->stats.cur_bytes -= ret;
+
 	if(stream->ptr_tail_mutex != NULL)
 	{
 	    pthread_mutex_unlock(stream->ptr_tail_mutex);
 	}
-	return 0;
+	return ret;
 }
 
 /*
@@ -409,12 +437,13 @@ stream_drain(stream_t *stream, void *buf, int max)
  * Arguments:
  *	stream	- stream pointer
  *	fd	- file descriptor
+ *	max	- maximum number of bytes to write (-1 specifies no max)
  *
  * Returns:
  *	number of bytes written to the file descriptor
  */
 int
-stream_drain_fd(stream_t *stream, int fd)
+stream_drain_fd(stream_t *stream, int fd, int max)
 {
 	unsigned int head;
 	int size1, size2;
@@ -437,6 +466,15 @@ stream_drain_fd(stream_t *stream, int fd)
 	} else {
 		size1 = stream->size - stream->tail - 1;
 		size2 = head;
+	}
+
+	if (max >= 0 && (size1 + size2) > max) {
+		if (size1 > max) {
+			size1 = max;
+			size2 = 0;
+		} else {
+			size2 = max - size1;
+		}
 	}
 
 	PRINTF("%s(): size1 %d size2 %d\n", __FUNCTION__, size1, size2);
@@ -865,6 +903,7 @@ parse_video_stream(unsigned char *pRingBuf, unsigned int tail,unsigned int head,
 	if(handle->seeking && seekingFoundStart > 1 && syncFound)
 	{
 	    handle->seeking = 0;
+	    handle->seek_end_pts = pLD->pts;
 	}
 	return (buf_size+ret-5)%buf_size;
 }

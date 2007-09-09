@@ -223,7 +223,109 @@ demux_write_audio(demux_handle_t *handle, int fd)
 	if (handle->audio == NULL)
 		return 0;
 
-	return stream_drain_fd(handle->audio, fd);
+	return stream_drain_fd(handle->audio, fd,-1);
+}
+
+/*
+ * demux_jit_write_audio() - Write audio data to a file descriptor Just In Time
+ *
+ * Arguments:
+ *	handle	- pointer to demux context
+ *	fd	- file descriptor for writing
+ *	pts     - current video PTS (32 LSBits of it anyway)
+ *	flags	- Indicate any A/V action that must be performed:
+ *		  1 - video_pause
+ *		  2 - video_unpause
+ *
+ * Returns:
+ *	number of bytes written
+ */
+int
+demux_jit_write_audio(demux_handle_t *handle, int fd, unsigned int pts, int *flags)
+{
+        *flags = 0;
+	if (handle == NULL)
+		return -1;
+	if (handle->audio == NULL)
+		return 0;
+	if(handle->jit_audio_remain <= 0 || handle->seek_end_pts != 0)
+	{
+	    unsigned char buf[14];
+	    int len = stream_peek(handle->audio,buf,14);
+	    int pack_len = 0;
+	    if(len < 8)
+		return 0;
+	    while(buf[0] != 0 || buf[1] != 0 || buf[2] != 1)
+	    {
+		/* Not synced, move forward until we hit the start of a frame */
+		char tmp;
+		stream_drain(handle->audio,&tmp,1);
+		len = stream_peek(handle->audio,buf,14);
+		if(len < 8)
+		    return 0;
+	    }
+	    handle->jit_audio_dump = 0;
+	    /*See http://dvd.sourceforge.net/dvdinfo/pes-hdr.html for info
+	     * on MPEG PES headers
+	     */
+	    pack_len = buf[4] << 8 | buf[5];
+	    /*Check if there's a PTS present:*/
+	    if((buf[7] & 0x80) != 0)
+	    {
+		unsigned int audio_pts;
+		if(len < 14)
+		    return 0;
+		/* Ignore MSB to keep this in a 32bit int */
+		audio_pts = (buf[13] >> 1) | (buf[12] << 7)
+			     | ((buf[11] & 0xFE) << 14) | (buf[10] << 22)
+			     | ((buf[9] & 0x6) << 29);
+		/* If we have a seek end pts then we just throw everything
+		 * away until we get to that PTS
+		 */
+		/*Wrap arounds make all this maths annoying*/
+		/*Assume that anything within 5 minutes in either direction
+		 *is in that direction, otherwise assume audio is thoroughly
+		 *non-sync anyway, so just let it past
+		 */
+
+		if(handle->seek_end_pts)
+		{
+		    unsigned int window_start = handle->seek_end_pts - 5*60*PTS_HZ;
+		    /*If it's within .25 seconds then we'll send it out*/
+		    unsigned int window_end = handle->seek_end_pts - PTS_HZ/4
+
+		    /*If our audio is outside the window then clear
+		     * seek_end_pts, allowing data to go out
+		     */
+		    if(window_start < window_end && (window_start > audio_pts
+			|| audio_pts > window_end))
+		    {
+			handle->seek_end_pts = 0;
+			*flag |= 2 /*Trigger video un-pause*/
+		    }
+		    else if(window_start > window_end && window_start > audio_pts && window_end < audio_pts)
+		    {
+			handle->seek_end_pts = 0;
+			*flag |= 2 /*Trigger video un-pause*/
+		    }
+		    else
+		    {
+			*flag |= 1;/*Trigger video pause*/
+		    }
+		}
+		else /* We aren't doing handling just after a seek so do normal "JIT" audio handling */
+		{
+		    unsigned int window_end, window_start;
+		    window_end = pts
+		}
+
+
+		handle->jit_audio_remain = pack_len + 5;
+
+	    }
+
+
+	return stream_drain_fd(handle->audio, fd,-1);
 }
 
 /*
@@ -244,7 +346,7 @@ demux_write_video(demux_handle_t *handle, int fd)
 	if (handle->video == NULL)
 		return 0;
 
-	return stream_drain_fd(handle->video, fd);
+	return stream_drain_fd(handle->video, fd, -1);
 }
 
 /*
