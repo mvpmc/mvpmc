@@ -3,7 +3,15 @@
 # Startup script for the wrapper filesystem
 #
 
+check_proc() {
+    #/proc is needed for /bin/splash to determine PAL vs NTSC
+    if ! [ -e /proc/mtd ]; then
+       mount proc /proc -t proc
+    fi
+}
+
 progress() {
+    check_proc
     /bin/splash --progress $PROGRESS --state 0
     let PROGRESS=PROGRESS+1
 }
@@ -25,6 +33,7 @@ insmod osdfb
 #
 # Draw the splash screen on the framebuffer
 #
+check_proc
 /bin/splash --logo
 
 #
@@ -38,7 +47,6 @@ insmod fuse
 insmod tiwlan_drv
 progress
 
-mount -t proc /proc /proc
 
 #
 # Switch to the embedded filesystem, if it exists.
