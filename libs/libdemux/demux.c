@@ -38,12 +38,23 @@
 #include <string.h>
 
 #include "mvp_demux.h"
+#include "mvp_av.h"
 #include "demux.h"
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #if 0
 #define PRINTF(x...) printf(x)
 #else
 #define PRINTF(x...)
+#endif
+
+#if 0
+#define JIT_PRINTF(x...) printf(x)
+#else
+#define JIT_PRINTF(x...) PRINTF(x)
 #endif
 
 /*
@@ -226,6 +237,19 @@ demux_write_audio(demux_handle_t *handle, int fd)
 	return stream_drain_fd(handle->audio, fd,-1);
 }
 
+static inline int
+demux_pts_in_window(unsigned int window_start, unsigned int window_end,
+		    unsigned int check)
+{
+    /*Must handle the case when window_end has wrapped around so that the
+     *value appears to be less than window_start
+     */
+    if(window_end > window_start)
+	return (check >= window_start && check <= window_end);
+    else
+	return (check >= window_start || check <= window_end);
+}
+
 /*
  * demux_jit_write_audio() - Write audio data to a file descriptor Just In Time
  *
@@ -236,35 +260,57 @@ demux_write_audio(demux_handle_t *handle, int fd)
  *	flags	- Indicate any A/V action that must be performed:
  *		  1 - video_pause
  *		  2 - video_unpause
+ *		  4 - video_pause_duration - Pause the video for the specified
+ *		                      duration.
+ *		  8 - audio_stall - Wait a while before re-trying to send audio
+ *	duration - Duration of any video_pause_duration/audio_stall in
+ *	            milliseconds
  *
  * Returns:
  *	number of bytes written
  */
 int
-demux_jit_write_audio(demux_handle_t *handle, int fd, unsigned int pts, int *flags)
+demux_jit_write_audio(demux_handle_t *handle, int fd, unsigned int pts, int *flags, int *duration)
 {
-        *flags = 0;
+        (*flags) = 0;
+	(*duration) = 0;
 	if (handle == NULL)
 		return -1;
 	if (handle->audio == NULL)
 		return 0;
-	if(handle->jit_audio_remain <= 0 || handle->seek_end_pts != 0)
+	if(handle->jit.frame_remain <= 0)
 	{
 	    unsigned char buf[14];
 	    int len = stream_peek(handle->audio,buf,14);
 	    int pack_len = 0;
+	    int resync = 0;
+	    int i;
 	    if(len < 8)
 		return 0;
 	    while(buf[0] != 0 || buf[1] != 0 || buf[2] != 1)
 	    {
 		/* Not synced, move forward until we hit the start of a frame */
 		char tmp;
-		stream_drain(handle->audio,&tmp,1);
+		int drained;
+		drained = stream_drain(handle->audio,&tmp,1);
+		resync++;
 		len = stream_peek(handle->audio,buf,14);
-		if(len < 8)
+		if(len < 8 )
+		{
+		    JIT_PRINTF("JIT Audio lost sync, haven't regained it yet after moving %d bytes\n",resync);
 		    return 0;
+		}
 	    }
-	    handle->jit_audio_dump = 0;
+	    JIT_PRINTF("Buf: ");
+	    for(i = 0; i < len; i++)
+	    {
+		JIT_PRINTF("%02X ",buf[i]);
+	    }
+	    JIT_PRINTF("\n");
+	    if(resync != 0)
+	    {
+		JIT_PRINTF("JIT Audio lost sync, had to move %d bytes to resync\n",resync);
+	    }
 	    /*See http://dvd.sourceforge.net/dvdinfo/pes-hdr.html for info
 	     * on MPEG PES headers
 	     */
@@ -282,50 +328,86 @@ demux_jit_write_audio(demux_handle_t *handle, int fd, unsigned int pts, int *fla
 		/* If we have a seek end pts then we just throw everything
 		 * away until we get to that PTS
 		 */
-		/*Wrap arounds make all this maths annoying*/
-		/*Assume that anything within 5 minutes in either direction
-		 *is in that direction, otherwise assume audio is thoroughly
-		 *non-sync anyway, so just let it past
+		/*Assume that anything close (30sec-5min) to the PTS is synced
+		 *otherwise assume audio is thoroughly non-sync anyway, so just
+		 *let it past
 		 */
 
-		if(handle->seek_end_pts)
+		if(handle->jit.seek_end_pts)
 		{
-		    unsigned int window_start = handle->seek_end_pts - 5*60*PTS_HZ;
-		    /*If it's within .25 seconds then we'll send it out*/
-		    unsigned int window_end = handle->seek_end_pts - PTS_HZ/4
+		    unsigned int window_start = handle->jit.seek_end_pts - 5*60*PTS_HZ;
+		    /*If it's .05 second late then we'll send it out*/
+		    unsigned int window_end = handle->jit.seek_end_pts + PTS_HZ/20;
 
 		    /*If our audio is outside the window then clear
 		     * seek_end_pts, allowing data to go out
 		     */
-		    if(window_start < window_end && (window_start > audio_pts
-			|| audio_pts > window_end))
+		    if(!demux_pts_in_window(window_start,window_end,audio_pts))
 		    {
-			handle->seek_end_pts = 0;
-			*flag |= 2 /*Trigger video un-pause*/
-		    }
-		    else if(window_start > window_end && window_start > audio_pts && window_end < audio_pts)
-		    {
-			handle->seek_end_pts = 0;
-			*flag |= 2 /*Trigger video un-pause*/
+			JIT_PRINTF("JIT Audio in range after seek, unpausing video\n");
+			handle->jit.seek_end_pts = 0;
+			handle->jit.ignore_frame_pts = 2;
+			(*flags) |= 2;/*Trigger video un-pause*/
 		    }
 		    else
 		    {
-			*flag |= 1;/*Trigger video pause*/
+			JIT_PRINTF("JIT Audio out of range after seek, pausing video\n");
+			(*flags) |= 1;/*Trigger video pause*/
 		    }
+		}
+		else if(handle->jit.ignore_frame_pts > 0)
+		{
+		    handle->jit.ignore_frame_pts--;
 		}
 		else /* We aren't doing handling just after a seek so do normal "JIT" audio handling */
 		{
-		    unsigned int window_end, window_start;
-		    window_end = pts
+		    unsigned int windows[4];
+		    /*We'd always like the PTS of the audio we're delivering
+		     * to be greater than the current video pts:
+		     */
+		    /*If the Audio PTS isn't between windows[0] and windows[3],
+		     * then assume it's totally unsynced and just let it pass
+		     */
+		    windows[0] = pts - 30*PTS_HZ; /*Video ahead of audio*/
+		    windows[1] = pts + 0.25*PTS_HZ; /*Beginning of "valid" window*/
+		    windows[2] = pts + 3*PTS_HZ; /*End of "valid" window*/
+		    windows[3] = pts + 60*PTS_HZ; /*Audio getting ahead of video*/
+		    if(demux_pts_in_window(windows[0],windows[1],audio_pts))
+		    {
+			JIT_PRINTF("JIT Audio: Video leading audio, triggering video pause\n");
+			(*flags) |= 4;
+			(*duration) = 1000*(windows[1] - audio_pts)/PTS_HZ;
+		    }
+		    else if(demux_pts_in_window(windows[2],windows[3],audio_pts))
+		    {
+			JIT_PRINTF("JIT Audio: Audio buffer leading video, waiting to send audio\n");
+			(*flags) |= 8;
+			(*duration) = 10;
+			return 0;
+		    }
 		}
-
-
-		handle->jit_audio_remain = pack_len + 5;
-
+		JIT_PRINTF("JIT Audio: Found packet of length %d\n",pack_len);
+		handle->jit.frame_remain = pack_len + 6;
 	    }
+	}
 
+	if(handle->jit.seek_end_pts > 0)
+	{
+	    JIT_PRINTF("JIT Audio: Dumping frame of audio because we've just seeked\n");
+	    fd = open("/dev/null",O_WRONLY);
+	}
 
-	return stream_drain_fd(handle->audio, fd,-1);
+	if(handle->jit.frame_remain > 0)
+	{
+	    int sent = stream_drain_fd(handle->audio, fd, handle->jit.frame_remain);
+	    handle->jit.frame_remain -= sent;
+	    if(handle->jit.seek_end_pts <= 0)
+	    {
+		JIT_PRINTF("JIT Audio: Wrote %d bytes to the audio fd\n",sent);
+	    }
+	    return sent;
+	}
+	return 0;
 }
 
 /*
@@ -479,7 +561,9 @@ demux_flush(demux_handle_t *handle)
 		handle->audio->tail = handle->audio->parser_tail = handle->audio->size - 1;
 		handle->audio->attr->stats.cur_bytes = 0;
 	}
-
+        handle->jit.frame_remain = 0;
+	handle->jit.seek_end_pts = 0;
+	handle->jit.ignore_frame_pts = 0;
 	handle->seeking = 1;
 
 	return 0;
@@ -552,6 +636,9 @@ demux_reset(demux_handle_t *handle)
 	 * XXX: reset stats...
 	 */
 
+	handle->jit.frame_remain = 0;
+	handle->jit.seek_end_pts = 0;
+	handle->jit.ignore_frame_pts = 0;
 	handle->seeking = 1;
 	handle->spu_current = -1;
 

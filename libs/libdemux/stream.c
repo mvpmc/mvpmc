@@ -381,13 +381,6 @@ stream_peek(stream_t *stream, void *buf, int max)
 	if (size2 > 0)
 		memcpy(buf+size1, stream->buf, size2);
 
-	stream->tail = (stream->tail + size1 + size2) % stream->size;
-
-	PRINTF("stream size %d head %d tail %d\n", stream->size,
-	       head, stream->tail);
-
-	stream->attr->stats.cur_bytes -= (size1 + size2);
-
 	return size1 + size2;
 
  empty:
@@ -422,6 +415,9 @@ stream_drain(stream_t *stream, void *buf, int max)
 	stream->tail = (stream->tail + ret) % stream->size;
 
 	stream->attr->stats.cur_bytes -= ret;
+
+	PRINTF("stream size %d head %d tail %d\n", stream->size,
+	       head, stream->tail);
 
 	if(stream->ptr_tail_mutex != NULL)
 	{
@@ -903,7 +899,7 @@ parse_video_stream(unsigned char *pRingBuf, unsigned int tail,unsigned int head,
 	if(handle->seeking && seekingFoundStart > 1 && syncFound)
 	{
 	    handle->seeking = 0;
-	    handle->seek_end_pts = pLD->pts;
+	    handle->jit.seek_end_pts = pLD->pts;
 	}
 	return (buf_size+ret-5)%buf_size;
 }

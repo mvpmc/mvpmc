@@ -326,6 +326,13 @@ extern int av_current_stc(av_stc_t *stc);
  */
 extern int av_delay_video(int usec);
 
+/**
+ * Pausing only the video playback (not associated audio).
+ * \retval 0 playback is now paused
+ * \retval -1 error
+ */
+extern int av_pause_video(void);
+
 extern int vid_event_add(unsigned int pts, eventq_type_t type, void * info);
 extern int vid_event_wait_next(eventq_type_t * type, void **info);
 extern void vid_event_discontinuity_possible();

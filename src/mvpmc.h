@@ -422,6 +422,7 @@ extern demux_handle_t *handle;
 extern int (*DEMUX_PUT)(demux_handle_t*, void*, int);
 extern int (*DEMUX_WRITE_VIDEO)(demux_handle_t*, int);
 extern int (*DEMUX_WRITE_AUDIO)(demux_handle_t*, int);
+extern int (*DEMUX_JIT_WRITE_AUDIO)(demux_handle_t*, int,unsigned int,int*,int*);
 
 extern void empty_ac3(void);
 

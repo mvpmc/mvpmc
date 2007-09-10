@@ -1763,6 +1763,13 @@ timed_osd(int timeout)
 	mvpw_set_timer(root, seek_disable_osd, timeout);
 }
 
+static inline unsigned int get_cur_vid_pts()
+{
+    pts_sync_data_t pts_struct;
+    av_get_video_sync(&pts_struct);
+    return pts_struct.stc & 0xFFFFFFFF;
+}
+
 void*
 audio_write_start(void *arg)
 {
@@ -1829,10 +1836,43 @@ audio_write_start(void *arg)
 		case AUDIO_MODE_MPEG1_PES:
 		case AUDIO_MODE_MPEG2_PES:
 		case AUDIO_MODE_ES:
+#if 0
 			if ((len=DEMUX_WRITE_AUDIO(handle, fd_audio)) > 0)
 				pthread_cond_broadcast(&video_cond);
 			else
 				pthread_cond_wait(&video_cond, &mutex);
+#else
+			{
+			    int flags, duration;
+			    len=DEMUX_JIT_WRITE_AUDIO(handle, fd_audio,
+					    get_cur_vid_pts(),&flags,&duration);
+			    if(flags & 1)
+			    {
+				av_pause_video();
+			    }
+			    else if((flags & 2) && !paused)
+			    {
+				av_play();
+			    }
+			    if(flags & 4)
+			    {
+				/*TODO: Work out how to delay video by a timer,
+				 *since this stalls the whole audio writing
+				 *thread*/
+				av_delay_video(duration*1000);
+			    }
+			    if(flags & 8)
+			    {
+				usleep(duration*1000);
+			    }
+
+
+			    if(len > 0)
+				    pthread_cond_broadcast(&video_cond);
+			    else if(!(flags & 8) && !(flags & 4))
+				    pthread_cond_wait(&video_cond, &mutex);
+			}
+#endif
 			break;
 		case AUDIO_MODE_PCM:
 			/*
@@ -1908,6 +1948,13 @@ demux_write_audio_nop(demux_handle_t *handle, int fd)
 	return len;
 }
 
+static int
+demux_jit_write_audio_nop(demux_handle_t *handle, int fd, unsigned int pts,
+			  int* flags, int *duration)
+{
+    return demux_write_audio_nop(handle,fd);
+}
+
 void
 start_thruput_test(void)
 {
@@ -1915,6 +1962,7 @@ start_thruput_test(void)
 
 	DEMUX_WRITE_VIDEO = demux_write_video_nop;
 	DEMUX_WRITE_AUDIO = demux_write_audio_nop;
+	DEMUX_JIT_WRITE_AUDIO = demux_jit_write_audio_nop;
 
 	thruput = 1;
 
@@ -1956,6 +2004,7 @@ end_thruput_test(void)
 
 	DEMUX_WRITE_VIDEO = demux_write_video;
 	DEMUX_WRITE_AUDIO = demux_write_audio;
+	DEMUX_JIT_WRITE_AUDIO = demux_jit_write_audio;
 
 	thruput = 0;
 	thruput_count = 0;

@@ -608,13 +608,23 @@ av_pause(void)
 }
 
 int
-av_delay_video(int usec)
+av_pause_video()
 {
 	if (state.pause)
 		return -1;
 
 	if (ioctl(fd_video, AV_SET_VID_PAUSE, 0) < 0)
 		return -1;
+
+	return 0;
+}
+
+int
+av_delay_video(int usec)
+{
+        if (av_pause_video() < 0)
+		return -1;
+
 	usleep(usec);
 	av_play();
 
