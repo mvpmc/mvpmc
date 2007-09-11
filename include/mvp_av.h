@@ -187,7 +187,8 @@ typedef struct {
 	bool ffwd;	/**< Video is being played back at double speed */
 } av_state_t;
 
-#define PTS_HZ 90000	/**< Presentation time stamp clock frequency */
+#define PTS_kHz 90	/**< Presentation time stamp clock frequency */
+#define PTS_HZ (1000*PTS_kHz)/**< Presentation time stamp clock frequency */
 
 /**
  * Initialize the MedaiMVP audio/video hardware.

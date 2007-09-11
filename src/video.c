@@ -1482,6 +1482,7 @@ video_read_start(void *arg)
 			demux_seek(handle);
 			av_get_state(&state);
 			av_reset();
+			av_reset_stc();
 			vid_event_discontinuity_possible();
 			if (seeking)
 				reset = 0;
@@ -1495,6 +1496,7 @@ video_read_start(void *arg)
 			}
 			pcm_decoded = 0;
 			ac3len = 0;
+			len = 0;
 			if (jumping) {
 				while (jump_target < 0)
 					usleep(1000);
@@ -1527,7 +1529,7 @@ video_read_start(void *arg)
 					tsmode = ts_demux_is_ts(tshandle, tsbuf, tslen);
 					printf("auto detection transport stream returned %d\n", tsmode);
 					if (tsmode == TS_MODE_NO)
-					len = tslen;
+						len = tslen;
 			    	}
 			} else if (tsmode == TS_MODE_NO) {
 				len = tslen;
@@ -1763,11 +1765,19 @@ timed_osd(int timeout)
 	mvpw_set_timer(root, seek_disable_osd, timeout);
 }
 
-static inline unsigned int get_cur_vid_pts()
+static inline unsigned int get_cur_vid_stc()
 {
     pts_sync_data_t pts_struct;
     av_get_video_sync(&pts_struct);
     return pts_struct.stc & 0xFFFFFFFF;
+}
+
+static void
+video_unpause_timer_callback(mvp_widget_t * widget)
+{
+        if(!paused)
+		av_play();
+	mvpw_set_timer(widget,NULL,0);
 }
 
 void*
@@ -1845,21 +1855,24 @@ audio_write_start(void *arg)
 			{
 			    int flags, duration;
 			    len=DEMUX_JIT_WRITE_AUDIO(handle, fd_audio,
-					    get_cur_vid_pts(),&flags,&duration);
+					    get_cur_vid_stc(),&flags,&duration);
+
+			    if(flags & 4)
+			    {
+				/*4 is the same as 1 followed by 2*/
+				flags = (flags | 1 | 2) & ~4;
+			    }
 			    if(flags & 1)
 			    {
 				av_pause_video();
 			    }
-			    else if((flags & 2) && !paused)
+			    if((flags & 2) && !paused)
 			    {
-				av_play();
-			    }
-			    if(flags & 4)
-			    {
-				/*TODO: Work out how to delay video by a timer,
-				 *since this stalls the whole audio writing
-				 *thread*/
-				av_delay_video(duration*1000);
+				if(duration <= 10)
+				    video_unpause_timer_callback(pause_widget);
+				else
+				    mvpw_set_timer(pause_widget,
+				       video_unpause_timer_callback, duration);
 			    }
 			    if(flags & 8)
 			    {
@@ -1869,7 +1882,7 @@ audio_write_start(void *arg)
 
 			    if(len > 0)
 				    pthread_cond_broadcast(&video_cond);
-			    else if(!(flags & 8) && !(flags & 4))
+			    else if(!(flags & 8))
 				    pthread_cond_wait(&video_cond, &mutex);
 			}
 #endif
