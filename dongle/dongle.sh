@@ -68,6 +68,11 @@ for i in $WRAPPERLIB ; do
     $STRIP filesystem/install_wrapper/lib/$i
 done
 
+for i in $SBIN ; do
+    cp -d install/mvp/sbin/$i filesystem/install/sbin
+    $STRIP filesystem/install/sbin/$i
+done
+
 for i in $BIN ; do
     cp -d install/mvp/bin/$i filesystem/install/bin
     $STRIP filesystem/install/bin/$i
@@ -78,11 +83,6 @@ for i in $WRAPPER_BIN ; do
 done
 for i in $MVPMC_BIN ; do
     ln -sf mvpmc filesystem/install/bin/$i
-done
-
-for i in $SBIN ; do
-    cp -d install/mvp/sbin/$i filesystem/install/sbin
-    $STRIP filesystem/install/sbin/$i
 done
 
 for i in $USRBIN ; do
