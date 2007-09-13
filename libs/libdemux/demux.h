@@ -57,6 +57,12 @@ typedef struct {
 	int inuse;
 } spu_t;
 
+struct jit_audio_data {
+    int frame_remain;
+    int ignore_frame_pts;
+    int seek_end_pts;
+};
+
 struct demux_handle_s {
 	demux_attr_t attr;
 	stream_t *audio;
@@ -65,6 +71,7 @@ struct demux_handle_s {
 	int frame_state;
     int allow_iframe;
 	int remain;
+	struct jit_audio_data jit;
 	unsigned int size;
 	unsigned char buf[16];
 	int bufsz;
@@ -132,7 +139,8 @@ extern int add_buffer(demux_handle_t *handle, void *buf, int len);
 extern int parse_frame(demux_handle_t *handle, unsigned char *buf,
 		       int len, int type);
 extern int stream_drain(stream_t *stream, void *buf, int max);
-extern int stream_drain_fd(stream_t *stream, int fd);
+extern int stream_peek(stream_t *stream, void *buf, int max);
+extern int stream_drain_fd(stream_t *stream, int fd, int max);
 extern int stream_resize(stream_t *stream, void *start, int size);
 
 extern inline void

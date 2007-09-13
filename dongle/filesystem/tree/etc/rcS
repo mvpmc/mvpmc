@@ -3,16 +3,26 @@
 # mvpmc startup script
 #
 
+check_proc() {
+    #/proc is needed for /bin/splash to determine PAL vs NTSC
+    if ! [ -e /proc/mtd ]; then
+	mount proc /proc -t proc
+    fi
+}
+
 progress() {
+    check_proc
     /bin/splash --progress $PROGRESS --state 1
     let PROGRESS=PROGRESS+1
 }
 
 progress_test() {
+    check_proc
     /bin/splash --progress $PROGRESS --state 2
 }
 
 progress_done() {
+    check_proc
     /bin/splash --progress $PROGRESS --state 3
 }
 
@@ -53,6 +63,7 @@ mount -t unionfs -o dirs=/memory=rw:/=ro unionfs /union
 cd /union
 mkdir live
 pivot_root . live
+umount /live/proc
 progress
 
 #

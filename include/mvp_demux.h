@@ -206,6 +206,23 @@ extern int demux_get_video(demux_handle_t *handle, void *buf, int max);
 extern int demux_write_audio(demux_handle_t *handle, int fd);
 
 /**
+ * Write audio data from a demuxer to a file descriptor Just In Time
+ * \param handle handle to a demuxer
+ * \param fd file descriptor
+ * \param pts current video PTS (32 LSBits of it)
+ * \param flags Indicate A/V action to be performed by caller:
+ *        1 - video_pause
+ *        2 - video_unpause
+ *        4 - video_pause_duration - Pause video for the specified duration.
+ *        8 - audio_stall - Wait a while before re-trying to send audio.
+ * \param duration Duration of any video_pause_duration/audio_stall in
+ *                 milliseconds
+ * \return number of bytes written
+ */
+extern int demux_jit_write_audio(demux_handle_t *handle, int fd,
+                                 unsigned int pts, int *flags, int *duration);
+
+/**
  * Write video data from a demuxer to a file descriptor.
  * \param handle handle to a demuxer
  * \param fd file descriptor

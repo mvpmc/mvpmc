@@ -1482,6 +1482,7 @@ video_read_start(void *arg)
 			demux_seek(handle);
 			av_get_state(&state);
 			av_reset();
+			av_reset_stc();
 			vid_event_discontinuity_possible();
 			if (seeking)
 				reset = 0;
@@ -1495,6 +1496,7 @@ video_read_start(void *arg)
 			}
 			pcm_decoded = 0;
 			ac3len = 0;
+			len = 0;
 			if (jumping) {
 				while (jump_target < 0)
 					usleep(1000);
@@ -1527,7 +1529,7 @@ video_read_start(void *arg)
 					tsmode = ts_demux_is_ts(tshandle, tsbuf, tslen);
 					printf("auto detection transport stream returned %d\n", tsmode);
 					if (tsmode == TS_MODE_NO)
-					len = tslen;
+						len = tslen;
 			    	}
 			} else if (tsmode == TS_MODE_NO) {
 				len = tslen;
@@ -1763,6 +1765,21 @@ timed_osd(int timeout)
 	mvpw_set_timer(root, seek_disable_osd, timeout);
 }
 
+static inline unsigned int get_cur_vid_stc()
+{
+    pts_sync_data_t pts_struct;
+    av_get_video_sync(&pts_struct);
+    return pts_struct.stc & 0xFFFFFFFF;
+}
+
+static void
+video_unpause_timer_callback(mvp_widget_t * widget)
+{
+        if(!paused)
+		av_play();
+	mvpw_set_timer(widget,NULL,0);
+}
+
 void*
 audio_write_start(void *arg)
 {
@@ -1829,10 +1846,46 @@ audio_write_start(void *arg)
 		case AUDIO_MODE_MPEG1_PES:
 		case AUDIO_MODE_MPEG2_PES:
 		case AUDIO_MODE_ES:
+#if 0
 			if ((len=DEMUX_WRITE_AUDIO(handle, fd_audio)) > 0)
 				pthread_cond_broadcast(&video_cond);
 			else
 				pthread_cond_wait(&video_cond, &mutex);
+#else
+			{
+			    int flags, duration;
+			    len=DEMUX_JIT_WRITE_AUDIO(handle, fd_audio,
+					    get_cur_vid_stc(),&flags,&duration);
+
+			    if(flags & 4)
+			    {
+				/*4 is the same as 1 followed by 2*/
+				flags = (flags | 1 | 2) & ~4;
+			    }
+			    if(flags & 1)
+			    {
+				av_pause_video();
+			    }
+			    if((flags & 2) && !paused)
+			    {
+				if(duration <= 10)
+				    video_unpause_timer_callback(pause_widget);
+				else
+				    mvpw_set_timer(pause_widget,
+				       video_unpause_timer_callback, duration);
+			    }
+			    if(flags & 8)
+			    {
+				usleep(duration*1000);
+			    }
+
+
+			    if(len > 0)
+				    pthread_cond_broadcast(&video_cond);
+			    else if(!(flags & 8))
+				    pthread_cond_wait(&video_cond, &mutex);
+			}
+#endif
 			break;
 		case AUDIO_MODE_PCM:
 			/*
@@ -1908,6 +1961,13 @@ demux_write_audio_nop(demux_handle_t *handle, int fd)
 	return len;
 }
 
+static int
+demux_jit_write_audio_nop(demux_handle_t *handle, int fd, unsigned int pts,
+			  int* flags, int *duration)
+{
+    return demux_write_audio_nop(handle,fd);
+}
+
 void
 start_thruput_test(void)
 {
@@ -1915,6 +1975,7 @@ start_thruput_test(void)
 
 	DEMUX_WRITE_VIDEO = demux_write_video_nop;
 	DEMUX_WRITE_AUDIO = demux_write_audio_nop;
+	DEMUX_JIT_WRITE_AUDIO = demux_jit_write_audio_nop;
 
 	thruput = 1;
 
@@ -1956,6 +2017,7 @@ end_thruput_test(void)
 
 	DEMUX_WRITE_VIDEO = demux_write_video;
 	DEMUX_WRITE_AUDIO = demux_write_audio;
+	DEMUX_JIT_WRITE_AUDIO = demux_jit_write_audio;
 
 	thruput = 0;
 	thruput_count = 0;

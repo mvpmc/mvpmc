@@ -187,7 +187,8 @@ typedef struct {
 	bool ffwd;	/**< Video is being played back at double speed */
 } av_state_t;
 
-#define PTS_HZ 90000	/**< Presentation time stamp clock frequency */
+#define PTS_kHz 90	/**< Presentation time stamp clock frequency */
+#define PTS_HZ (1000*PTS_kHz)/**< Presentation time stamp clock frequency */
 
 /**
  * Initialize the MedaiMVP audio/video hardware.
@@ -325,6 +326,13 @@ extern int av_current_stc(av_stc_t *stc);
  * \retval -1 error
  */
 extern int av_delay_video(int usec);
+
+/**
+ * Pausing only the video playback (not associated audio).
+ * \retval 0 playback is now paused
+ * \retval -1 error
+ */
+extern int av_pause_video(void);
 
 extern int vid_event_add(unsigned int pts, eventq_type_t type, void * info);
 extern int vid_event_wait_next(eventq_type_t * type, void **info);

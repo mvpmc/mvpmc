@@ -1487,7 +1487,7 @@ mythtv_livetv_menu_start(void)
 	ver = cmyth_conn_get_protocol_version(ctrl);
 	ref_release(ctrl);
 
-	if (ver >= 26) {
+	if (ver >= 15) {
 		rc = mythtv_new_livetv();
 	} else {
 		rc = mythtv_livetv_menu();

@@ -138,7 +138,7 @@ extern uint32_t mvpw_get_bg(const mvp_widget_t *widget);
  * Set the timer callback and timeout value for a widget.
  * \param widget widget handle
  * \param callback callback function (NULL to disable)
- * \param timeout timeout in microseconds
+ * \param timeout timeout in milliseconds
  */
 extern void mvpw_set_timer(mvp_widget_t *widget,
 			   void (*callback)(mvp_widget_t*), uint32_t timeout);
