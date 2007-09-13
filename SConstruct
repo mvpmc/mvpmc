@@ -120,7 +120,6 @@ else:
 	#
 	if target == 'mvp':
 		apps = env.SConscript('dongle/apps/SConscript')
-		env.Depends(apps, inc)
 
 	libs = env.SConscript('dongle/libs/SConscript')
 	mvplibs = env.SConscript('libs/SConscript')
@@ -129,11 +128,8 @@ else:
 	themes = env.SConscript('themes/SConscript')
 	images = env.SConscript('images/SConscript')
 
-	env.Depends(mvpmc, inc)
 	env.Depends(mvpmc, libs)
 	env.Depends(mvplibs, libs)
-	env.Depends(libs, inc)
-	env.Depends(mvplibs, inc)
 
 	#
 	# Install the cross compilation tools, if needed.
