@@ -65,9 +65,9 @@
  * Command Line Interface Defines.
  */
 #define MAX_ID_SIZE 32
-#define MAX_CMD_SIZE 256
+#define MAX_CMD_SIZE 1024
 #define MAX_PARAM_SIZE 64
-#define MAX_PARAMS 16
+#define MAX_PARAMS 64
 #define MAX_REPLY_LENGTH 256
 
 #define FALSE 0
@@ -184,6 +184,16 @@ enum
     ADJ_WIDGETS_COVERART,
     GET_TOTAL_NUM_ALBUMS,
     LAST_STATE_COVERART,
+};
+
+/*
+ * Define slimserver get cover art states.
+ */
+enum
+{
+    IDLE_CONTROL_ANOTHER = 0,
+    WE_ARE_CONTROLLING_ANOTHER,
+    LAST_STATE_CONTROL_ANOTHER,
 };
 
 /*
@@ -313,6 +323,7 @@ typedef struct
     int shift_time;
     bool local_menu;
     bool local_menu_browse;
+    bool local_menu_remote;
 } remote_buttons_type;
 
 /*
@@ -345,7 +356,7 @@ extern void cli_pick_starting_index (void);
 extern void cli_decode_response (int, char *, mclient_cmd *);
 extern void cli_parse_playlist (mclient_cmd *);
 extern void cli_parse_display (mclient_cmd *);
-extern void cli_parse_player (mclient_cmd *);
+extern void cli_parse_players (mclient_cmd *);
 extern void cli_parse_button (mclient_cmd *);
 extern void cli_parse_response (int, mclient_cmd *);
 extern void cli_parse_parameters (mclient_cmd *, char **);

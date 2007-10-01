@@ -424,11 +424,7 @@ cli_parse_response(int socket_handle_cli, mclient_cmd * response)
 {
 	if (response->cmd != NULL)
 	{
-		if (strncmp("player", response->cmd, strlen("player")) == 0)
-		{
-			cli_parse_player(response);
-		}
-		else if (strncmp("playlist", response->cmd, strlen("playlist"))
+		if (strncmp("playlist", response->cmd, strlen("playlist"))
 			 == 0)
 		{
 			debug("mclient_cli:Found playlist in response.\n");
@@ -701,17 +697,23 @@ cli_parse_response(int socket_handle_cli, mclient_cmd * response)
                                             }
 					    else
 					    {
+                                                // If any conversion fails set all to 0.
+					        slim_major = 0;    
+				 	        slim_minor = 0;
 					        slim_dot = 0;
 					    }
                                         }
 					else
 					{
+                                            // If any conversion fails set all to 0.
+					    slim_major = 0;    
 					    slim_minor = 0;
 					    slim_dot = 0;
 					}
 				}
 				else
 				{
+                                        // If any conversion fails set all to 0.
 					slim_major = 0;    
 				 	slim_minor = 0;
 					slim_dot = 0;

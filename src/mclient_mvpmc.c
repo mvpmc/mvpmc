@@ -99,12 +99,6 @@ int cli_fullscreen_widget_state = UNINITIALIZED;
 void mclient_audio_play(mvp_widget_t * widget);
 
 /*
-* Need the MAC to uniquely identify this mvpmc box to
-* mclient server.
-*/
-unsigned char *mac_address_ptr;
-
-/*
 * Lookup table to adjust the volume contol - make it sound
 * more like a normal volume control.
 *
@@ -1206,8 +1200,8 @@ mclient_loop_thread(void *arg)
 					/*
 					 * Do we need to get the cover art?
 					 */
-					if (cli_data.get_cover_art_later ==
-					    TRUE)
+					if ((cli_data.get_cover_art_later == TRUE) &&
+		                            (gui_state == MVPMC_STATE_MCLIENT))
 					{
 						/*
 						 * Only get new cover art if the local menu is not active.
@@ -1236,8 +1230,8 @@ mclient_loop_thread(void *arg)
 					/*
 					 * Do we need to get the cover art for album browser?
 					 */
-					if (cli_data.
-					    pending_proc_for_cover_art == TRUE)
+					if ((cli_data.pending_proc_for_cover_art == TRUE) &&
+		                            (gui_state == MVPMC_STATE_MCLIENT))
 					{
 						cli_data.
 						    pending_proc_for_cover_art =

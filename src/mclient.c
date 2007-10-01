@@ -579,7 +579,6 @@ curses2ir(int key)
 		{
 			if (cli_data.row_for_cover_art == 0)
 			{
-/// ###				cli_data.row_for_cover_art = 2;
 				cli_data.row_for_cover_art = 1;
 			}
 			else
