@@ -284,8 +284,7 @@ curses2ir(int key)
 		{
 			cli_data.album_start_index_for_cover_art = 0;
 			// Only need to adjust the widget (user focus) unless we fall off edge.
-			cli_data.state_for_cover_art = GET_1ST_ALBUM_COVERART;
-			cli_data.pending_proc_for_cover_art = TRUE;
+			cli_data.trigger_proc_for_cover_art = TRUE;
 		}
 		else
 		{
@@ -299,8 +298,7 @@ curses2ir(int key)
 			cli_data.album_start_index_for_cover_art = 
                           (cli_data.album_max_index_for_cover_art  * .10);
 			// Only need to adjust the widget (user focus) unless we fall off edge.
-			cli_data.state_for_cover_art = GET_1ST_ALBUM_COVERART;
-			cli_data.pending_proc_for_cover_art = TRUE;
+			cli_data.trigger_proc_for_cover_art = TRUE;
 		}
 		else
 		{
@@ -314,8 +312,7 @@ curses2ir(int key)
 			cli_data.album_start_index_for_cover_art = 
                           (cli_data.album_max_index_for_cover_art  * .20);
 			// Only need to adjust the widget (user focus) unless we fall off edge.
-			cli_data.state_for_cover_art = GET_1ST_ALBUM_COVERART;
-			cli_data.pending_proc_for_cover_art = TRUE;
+			cli_data.trigger_proc_for_cover_art = TRUE;
 		}
 		else
 		{
@@ -329,8 +326,7 @@ curses2ir(int key)
 			cli_data.album_start_index_for_cover_art = 
                           (cli_data.album_max_index_for_cover_art  * .30);
 			// Only need to adjust the widget (user focus) unless we fall off edge.
-			cli_data.state_for_cover_art = GET_1ST_ALBUM_COVERART;
-			cli_data.pending_proc_for_cover_art = TRUE;
+			cli_data.trigger_proc_for_cover_art = TRUE;
 		}
 		else
 		{
@@ -344,8 +340,7 @@ curses2ir(int key)
 			cli_data.album_start_index_for_cover_art = 
                           (cli_data.album_max_index_for_cover_art  * .40);
 			// Only need to adjust the widget (user focus) unless we fall off edge.
-			cli_data.state_for_cover_art = GET_1ST_ALBUM_COVERART;
-			cli_data.pending_proc_for_cover_art = TRUE;
+			cli_data.trigger_proc_for_cover_art = TRUE;
 		}
 		else
 		{
@@ -359,8 +354,7 @@ curses2ir(int key)
 			cli_data.album_start_index_for_cover_art = 
                           (cli_data.album_max_index_for_cover_art  * .50);
 			// Only need to adjust the widget (user focus) unless we fall off edge.
-			cli_data.state_for_cover_art = GET_1ST_ALBUM_COVERART;
-			cli_data.pending_proc_for_cover_art = TRUE;
+			cli_data.trigger_proc_for_cover_art = TRUE;
 		}
 		else
 		{
@@ -374,8 +368,7 @@ curses2ir(int key)
 			cli_data.album_start_index_for_cover_art = 
                           (cli_data.album_max_index_for_cover_art  * .60);
 			// Only need to adjust the widget (user focus) unless we fall off edge.
-			cli_data.state_for_cover_art = GET_1ST_ALBUM_COVERART;
-			cli_data.pending_proc_for_cover_art = TRUE;
+			cli_data.trigger_proc_for_cover_art = TRUE;
 		}
 		else
 		{
@@ -389,8 +382,7 @@ curses2ir(int key)
 			cli_data.album_start_index_for_cover_art = 
                           (cli_data.album_max_index_for_cover_art  * .70);
 			// Only need to adjust the widget (user focus) unless we fall off edge.
-			cli_data.state_for_cover_art = GET_1ST_ALBUM_COVERART;
-			cli_data.pending_proc_for_cover_art = TRUE;
+			cli_data.trigger_proc_for_cover_art = TRUE;
 		}
 		else
 		{
@@ -404,8 +396,7 @@ curses2ir(int key)
 			cli_data.album_start_index_for_cover_art = 
                           (cli_data.album_max_index_for_cover_art  * .80);
 			// Only need to adjust the widget (user focus) unless we fall off edge.
-			cli_data.state_for_cover_art = GET_1ST_ALBUM_COVERART;
-			cli_data.pending_proc_for_cover_art = TRUE;
+			cli_data.trigger_proc_for_cover_art = TRUE;
 		}
 		else
 		{
@@ -419,8 +410,7 @@ curses2ir(int key)
 			cli_data.album_start_index_for_cover_art = 
                           (cli_data.album_max_index_for_cover_art  * .90);
 			// Only need to adjust the widget (user focus) unless we fall off edge.
-			cli_data.state_for_cover_art = GET_1ST_ALBUM_COVERART;
-			cli_data.pending_proc_for_cover_art = TRUE;
+			cli_data.trigger_proc_for_cover_art = TRUE;
 		}
 		else
 		{
@@ -437,9 +427,12 @@ curses2ir(int key)
 			{
 				cli_data.row_for_cover_art = 0;
 			}
-			// Only need to adjust the widget (user focus) unless we fall off edge.
-			cli_data.state_for_cover_art = ADJ_WIDGETS_COVERART;
-			cli_data.pending_proc_for_cover_art = TRUE;
+
+			if(cli_data.state_for_cover_art_widget == IDLE_COVERART_WIDGET)
+			{
+			    cli_data.state_for_cover_art_widget = ADJ_COVERART_WIDGET;
+			    cli_data.pending_proc_for_cover_art_widget = TRUE;
+			}
 		}
 		else
 		{
@@ -469,22 +462,17 @@ curses2ir(int key)
 									     cli_data.
 									     album_start_index_for_cover_art);
 				}
-				cli_data.state_for_cover_art =
-				    GET_1ST_ALBUM_COVERART;
-				cli_data.pending_proc_for_cover_art = TRUE;
+				cli_data.trigger_proc_for_cover_art = TRUE;
 			}
 			else
 			{
 				// We are focused on an album cover.
 				// Only need to adjust the widget (user focus) unless we fall off edge.
-				cli_data.state_for_cover_art =
-				    ADJ_WIDGETS_COVERART;
-
 				cli_data.col_for_cover_art -= 1;
 				if (cli_data.col_for_cover_art >= 3)
 				{
 					// We fell off the edge, refresh images.
-					cli_data.state_for_cover_art = GET_1ST_ALBUM_COVERART;
+					cli_data.trigger_proc_for_cover_art = TRUE;
 
 					// cli_data.col_for_cover_art = 2;
 					/// Swap above and below lines to switch stay/not-stay.
@@ -507,8 +495,12 @@ curses2ir(int key)
 									     album_start_index_for_cover_art);
 					}
 				}
-
-				cli_data.pending_proc_for_cover_art = TRUE;
+				else
+				{
+					// Only need to adjust the widget (user focus).
+					cli_data.state_for_cover_art_widget = ADJ_COVERART_WIDGET;
+					cli_data.pending_proc_for_cover_art_widget = TRUE;
+				}
 			}
 		}
 		else
@@ -532,21 +524,17 @@ curses2ir(int key)
 					    cli_data.
 					    album_max_index_for_cover_art;
 				}
-				cli_data.state_for_cover_art =
-				    GET_1ST_ALBUM_COVERART;
-				cli_data.pending_proc_for_cover_art = TRUE;
+				cli_data.trigger_proc_for_cover_art = TRUE;
 			}
 			else
 			{
 				// We are focused on an album cover.
 				// Only need to adjust the widget (user focus) unless we fall off edge.
-				cli_data.state_for_cover_art = ADJ_WIDGETS_COVERART;
-
 				cli_data.col_for_cover_art += 1;
 				if (cli_data.col_for_cover_art >= 3)
 				{
 					// We fell off the edge, refresh images.
-					cli_data.state_for_cover_art = GET_1ST_ALBUM_COVERART;
+					cli_data.trigger_proc_for_cover_art = TRUE;
 
 					// cli_data.col_for_cover_art = 0;
 					/// Swap above and below lines to switch stay/not-stay.
@@ -564,8 +552,12 @@ curses2ir(int key)
 						    album_max_index_for_cover_art;
 					}
 				}
-
-				cli_data.pending_proc_for_cover_art = TRUE;
+				else
+				{
+					// Only need to adjust the widget (user focus).
+					cli_data.state_for_cover_art_widget = ADJ_COVERART_WIDGET;
+					cli_data.pending_proc_for_cover_art_widget = TRUE;
+				}
 			}
 		}
 		else
@@ -577,7 +569,7 @@ curses2ir(int key)
 		// Only if we are in local menu mode and we are browsing albums.
 		if (remote_buttons.local_menu)
 		{
-			if (cli_data.row_for_cover_art == 0)
+			if (cli_data.row_for_cover_art <= 0)
 			{
 				cli_data.row_for_cover_art = 1;
 			}
@@ -585,9 +577,12 @@ curses2ir(int key)
 			{
 				cli_data.row_for_cover_art -= 1;
 			}
-			// Only need to adjust the widget (user focus) unless we fall off edge.
-			cli_data.state_for_cover_art = ADJ_WIDGETS_COVERART;
-			cli_data.pending_proc_for_cover_art = TRUE;
+
+			if(cli_data.state_for_cover_art_widget == IDLE_COVERART_WIDGET)
+			{
+			    cli_data.state_for_cover_art_widget = ADJ_COVERART_WIDGET;
+			    cli_data.pending_proc_for_cover_art_widget = TRUE;
+			}
 		}
 		else
 		{
@@ -711,8 +706,7 @@ curses2ir(int key)
 				cli_data.album_start_index_for_cover_art %=
 				    cli_data.album_max_index_for_cover_art;
 			}
-			cli_data.state_for_cover_art = GET_1ST_ALBUM_COVERART;
-			cli_data.pending_proc_for_cover_art = TRUE;
+			cli_data.trigger_proc_for_cover_art = TRUE;
 		}
 		else
 		{
@@ -744,8 +738,7 @@ curses2ir(int key)
 				    (6 -
 				     cli_data.album_start_index_for_cover_art);
 			}
-			cli_data.state_for_cover_art = GET_1ST_ALBUM_COVERART;
-			cli_data.pending_proc_for_cover_art = TRUE;
+			cli_data.trigger_proc_for_cover_art = TRUE;
 		}
 		else
 		{

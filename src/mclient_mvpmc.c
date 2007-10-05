@@ -798,27 +798,11 @@ mclient_loop_thread(void *arg)
 				 */
 				outbuf->playmode = 3;
 
-				/*
-				 * ...the get album art hold off timer & flag.
-				 */
-				cli_data.get_cover_art_holdoff_timer =
-				    time(NULL);
-				cli_data.get_cover_art_later = FALSE;
-
-				/*
-				 * ...the browse by album cover art work values.
-				 */
-				cli_data.album_index_for_cover_art = 0;
-				cli_data.album_start_index_for_cover_art = 0;
-				cli_data.album_max_index_for_cover_art = 1;
-				cli_data.pending_proc_for_cover_art = FALSE;
-				cli_data.row_for_cover_art = 0;
-				cli_data.col_for_cover_art = 0;
 
 				remote_buttons.local_menu = FALSE;
 				remote_buttons.local_menu_browse = FALSE;
 
-		      		// Get the max number of albums from server
+		      		// Get (initialize) the max number of albums from server.
 		      		cli_data.state_for_cover_art = GET_TOTAL_NUM_ALBUMS;
 		      		cli_data.pending_proc_for_cover_art = TRUE;
 
@@ -1195,6 +1179,10 @@ mclient_loop_thread(void *arg)
 						    (socket_handle_cli,
 						     pending_cli_string);
 						pending_cli_string[0] = '\0';
+
+						// Now that there's a message out, set the outstanding
+						// CLI flag.
+						cli_data.outstanding_cli_message_cover_art = TRUE;
 					}
 
 					/*
@@ -1233,18 +1221,57 @@ mclient_loop_thread(void *arg)
 					if ((cli_data.pending_proc_for_cover_art == TRUE) &&
 		                            (gui_state == MVPMC_STATE_MCLIENT))
 					{
-						cli_data.
-						    pending_proc_for_cover_art =
-						    FALSE;
+					    // If there is a CLI message out, don't send another.
+					    if(cli_data.outstanding_cli_message_cover_art != TRUE)
+					    {
+						cli_data.pending_proc_for_cover_art = FALSE;
+						/*
+						 * Check if we have been triggered to restart the
+						 * state machine.
+						 */
+						if(cli_data.trigger_proc_for_cover_art == TRUE)
+						{
+						    cli_data.trigger_proc_for_cover_art = FALSE;
+						    cli_data.state_for_cover_art = GET_1ST_ALBUM_COVERART;
+						}
 						mclient_browse_by_cover();
+					    }
+					}
+					else
+					{
+					    /*
+					     * Is there an outstanding request?  Then don't setup
+					     * to start over.
+					     */
+					    if(cli_data.outstanding_cli_message_cover_art == FALSE)
+					    {
+						/*
+						 * If we are not getting cover art, check, we may
+						 * have been triggered to start over, if so, set it up
+						 * the next go around.
+						 */
+						if(cli_data.trigger_proc_for_cover_art == TRUE)
+						{
+						    cli_data.pending_proc_for_cover_art = TRUE;
+						}
+					    }
+					}
+
+					/*
+					 * Do we need to get the update cover art widgets for album browser?
+					 */
+					if ((cli_data.pending_proc_for_cover_art_widget == TRUE) &&
+		                            (gui_state == MVPMC_STATE_MCLIENT))
+					{
+						cli_data.pending_proc_for_cover_art_widget = FALSE;
+						mclient_browse_by_cover_widget();
 					}
 
 					/*
 					 * If this is the first time through, send a command to the CLI that 
 					 * will trigger a CLI / fullscreen update.
 					 */
-					if (cli_fullscreen_widget_state ==
-					    UNINITIALIZED)
+					if (cli_fullscreen_widget_state == UNINITIALIZED)
 					{
 						char cmd[MAX_CMD_SIZE];
 						/*
@@ -1938,12 +1965,45 @@ mclient_browse_by_cover(void)
 			free(current);
 			break;
 
-		case DISPLAY_BROWSEBAR_COVERART:
+		case GET_TOTAL_NUM_ALBUMS:
 			sprintf(pending_cli_string, "%s info total albums ?\n",
 				decoded_player_id);
+			cli_data.album_index_for_cover_art++;
 			break;
 
-		case ADJ_WIDGETS_COVERART:
+		default:
+			cli_data.state_for_cover_art = IDLE_COVERART;
+			break;
+		}
+
+		// If we loaded up to send another CLI command, then
+		// set the flag to indicate we can not re-start the
+		// album browser until we have finished this transaction.
+		if (pending_cli_string[0] != '\0')
+		{
+			cli_data.outstanding_cli_message_cover_art = TRUE;
+		}
+	}
+
+	if (cli_data.state_for_cover_art != IDLE_COVERART)
+	{
+		cli_data.state_for_cover_art++;
+		if (cli_data.state_for_cover_art >= LAST_STATE_COVERART)
+		{
+			cli_data.state_for_cover_art = IDLE_COVERART;
+		}
+	}
+}
+
+void
+mclient_browse_by_cover_widget(void)
+{
+	// State machine for updating album cover widgets
+	if (pending_cli_string[0] == '\0')
+	{
+		switch (cli_data.state_for_cover_art_widget)
+		{
+		case ADJ_COVERART_WIDGET:
 			{
 				int row, col;
 				bool user_focus;
@@ -2284,27 +2344,24 @@ mvpw_set_text_str(mclient_sub_alt_image_info, album_info);
 					}
 				}
 			}
-
-			cli_data.album_index_for_cover_art++;
-			break;
-
-		case GET_TOTAL_NUM_ALBUMS:
-			sprintf(pending_cli_string, "%s info total albums ?\n",
-				decoded_player_id);
+			// We need to self flag as this state does not
+			// produce a response. We usually flag when we
+			// process a response.
+                        cli_data.pending_proc_for_cover_art_widget = TRUE;
 			break;
 
 		default:
-			cli_data.state_for_cover_art = IDLE_COVERART;
+			cli_data.state_for_cover_art = IDLE_COVERART_WIDGET;
 			break;
 		}
 	}
 
-	if (cli_data.state_for_cover_art != IDLE_COVERART)
+	if (cli_data.state_for_cover_art_widget != IDLE_COVERART_WIDGET)
 	{
-		cli_data.state_for_cover_art++;
-		if (cli_data.state_for_cover_art >= LAST_STATE_COVERART)
+		cli_data.state_for_cover_art_widget++;
+		if (cli_data.state_for_cover_art_widget >= LAST_STATE_COVERART_WIDGET)
 		{
-			cli_data.state_for_cover_art = IDLE_COVERART;
+			cli_data.state_for_cover_art_widget = IDLE_COVERART_WIDGET;
 		}
 	}
 }

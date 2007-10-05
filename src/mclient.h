@@ -180,10 +180,18 @@ enum
     DISPLAY_4TH_COVER_COVERART,
     DISPLAY_5TH_COVER_COVERART,
     DISPLAY_6TH_COVER_COVERART,
-    DISPLAY_BROWSEBAR_COVERART,
-    ADJ_WIDGETS_COVERART,
     GET_TOTAL_NUM_ALBUMS,
     LAST_STATE_COVERART,
+};
+
+/*
+ * Define slimserver cover art update widget states.
+ */
+enum
+{
+    IDLE_COVERART_WIDGET = 0,
+    ADJ_COVERART_WIDGET,
+    LAST_STATE_COVERART_WIDGET,
 };
 
 /*
@@ -295,6 +303,7 @@ typedef struct
     int get_cover_art_later;
     bool cli_comm_err_mask;	// True if we want to mute the cli_comm_err flag.
     unsigned int state_for_cover_art;    // State we are in - what are we asking for over the CLI.
+    unsigned int state_for_cover_art_widget;
     unsigned int album_index_for_cover_art;
     unsigned int album_index_1_of_6_for_cover_art;
     unsigned int album_start_index_for_cover_art;
@@ -305,6 +314,10 @@ typedef struct
     char artist_name_for_cover_art[6][21];
     unsigned int track_id_for_cover_art[6];
     bool pending_proc_for_cover_art;
+    bool pending_proc_for_cover_art_widget;
+    bool trigger_proc_for_cover_art;
+    bool outstanding_cli_message_cover_art;
+    unsigned int outstanding_cli_message_timer;
     unsigned int row_for_cover_art;
     unsigned int col_for_cover_art;
 } cli_data_type;
@@ -362,6 +375,7 @@ extern void cli_parse_response (int, mclient_cmd *);
 extern void cli_parse_parameters (mclient_cmd *, char **);
 extern void cli_get_cover_art (void);
 extern void mclient_browse_by_cover (void);
+extern void mclient_browse_by_cover_widget (void);
 extern void mclient_localmenu_hide_all_widgets(void);
 
 

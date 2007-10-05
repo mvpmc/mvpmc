@@ -3368,6 +3368,8 @@ mclient_localmenu_callback(mvp_widget_t *widget, char key)
 		      // Initialize cover art state machine.
 		      cli_data.state_for_cover_art = GET_1ST_ALBUM_COVERART;
 		      cli_data.pending_proc_for_cover_art = TRUE;
+		      cli_data.state_for_cover_art_widget = IDLE_COVERART_WIDGET;
+		      cli_data.pending_proc_for_cover_art_widget = TRUE;
 
 		      remote_buttons.local_menu_browse = TRUE;
 	            }

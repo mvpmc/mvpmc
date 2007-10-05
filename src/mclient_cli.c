@@ -797,6 +797,12 @@ cli_parse_response(int socket_handle_cli, mclient_cmd * response)
 			    [50] = '\0';
 
 			cli_data.pending_proc_for_cover_art = TRUE;
+
+			/*
+			 * At this point clear the outstanding CLI cover art 
+			 * request flag.
+			 */
+			cli_data.outstanding_cli_message_cover_art = FALSE;
 		}
 		else if (strncmp("titles", response->cmd, strlen("titles")) ==
 			 0)
@@ -822,12 +828,24 @@ cli_parse_response(int socket_handle_cli, mclient_cmd * response)
 			    [20] = '\0';
 
 			cli_data.pending_proc_for_cover_art = TRUE;
+
+			/*
+			 * At this point clear the outstanding CLI cover art 
+			 * request flag.
+			 */
+			cli_data.outstanding_cli_message_cover_art = FALSE;
 		}
 		else if (strncmp("info", response->cmd, strlen("info")) == 0)
 		{
 			cli_data.album_max_index_for_cover_art =
 			    atoi(response->param[2]);
 			cli_data.pending_proc_for_cover_art = TRUE;
+
+			/*
+			 * At this point clear the outstanding CLI cover art 
+			 * request flag.
+			 */
+			cli_data.outstanding_cli_message_cover_art = FALSE;
 		}
 		else
 		{
@@ -1737,12 +1755,34 @@ void
 cli_init(void)
 {
 	debug("mclient_cli:Entering mclinet_cli init.\n");
+
 	/*
 	 * Create the buffer to store data from the server.
 	 */
 	recvbuf_back = (void *)calloc(1, RECV_BUF_SIZE_CLI);
 
 	cli_data.cli_comm_err_mask = FALSE;
+
+	/*
+	 * Start w/no pending CLI messages.
+	 */
+	cli_data.outstanding_cli_message_cover_art = FALSE;
+
+	/*
+	 * Initialize the get album art hold off timer & flag.
+	 */
+	cli_data.get_cover_art_holdoff_timer = time(NULL);
+	cli_data.get_cover_art_later = FALSE;
+
+	/*
+	 * Initialize the browse by album cover art work values.
+	 */
+	cli_data.album_index_for_cover_art = 0;
+	cli_data.album_start_index_for_cover_art = 0;
+	cli_data.album_max_index_for_cover_art = 1;
+	cli_data.pending_proc_for_cover_art = FALSE;
+	cli_data.row_for_cover_art = 0;
+	cli_data.col_for_cover_art = 0;
 }
 
 void
