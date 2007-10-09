@@ -405,6 +405,8 @@ demux_jit_write_audio(demux_handle_t *handle, int fd, unsigned int stc, int *fla
 		}
 		JIT_PRINTF("JIT Audio: Found packet of length %d\n",pack_len);
 		handle->jit.frame_remain = pack_len + 6;
+	    } else {
+		handle->jit.frame_remain = pack_len + 6;
 	    }
 	}
 
