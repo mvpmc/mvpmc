@@ -390,6 +390,30 @@ stream_peek(stream_t *stream, void *buf, int max)
 }
 
 /*
+ * stream_empty() - Empty all data out of a media stream buffer
+ *
+ * Arguments:
+ *	stream	- stream pointer
+ */
+void
+stream_empty(stream_t *stream)
+{
+	if(stream->ptr_tail_mutex != NULL)
+	{
+	    pthread_mutex_lock(stream->ptr_tail_mutex);
+	}
+
+	stream->head = 0;
+	stream->tail = stream->parser_tail = stream->size - 1;
+	stream->attr->stats.cur_bytes = 0;
+
+	if(stream->ptr_tail_mutex != NULL)
+	{
+	    pthread_mutex_unlock(stream->ptr_tail_mutex);
+	}
+}
+
+/*
  * stream_drain() - Drain data out of a media stream buffer
  *
  * Arguments:

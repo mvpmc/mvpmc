@@ -413,7 +413,8 @@ demux_jit_write_audio(demux_handle_t *handle, int fd, unsigned int stc, int *fla
 	if(handle->jit.seek_end_pts != 0)
 	{
 	    JIT_PRINTF("JIT Audio: Dumping frame of audio because we've just seeked\n");
-	    demux_flush(handle);
+	    stream_empty(handle->audio);
+	    handle->jit.frame_remain = 0;
 	    return 0;
 	}
 

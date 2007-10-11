@@ -142,6 +142,7 @@ extern int stream_drain(stream_t *stream, void *buf, int max);
 extern int stream_peek(stream_t *stream, void *buf, int max);
 extern int stream_drain_fd(stream_t *stream, int fd, int max);
 extern int stream_resize(stream_t *stream, void *start, int size);
+extern void stream_empty(stream_t *stream);
 
 extern inline void
 register_stream(stream_t *stream, int id, stream_type_t type)
