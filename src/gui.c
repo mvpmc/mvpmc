@@ -1034,6 +1034,8 @@ static mvp_widget_t *settings_av;
 static mvp_widget_t *settings_osd;
 static mvp_widget_t *settings_mythtv;
 static mvp_widget_t *settings_tvguide;
+static mvp_widget_t *settings_mythtv_options;
+static mvp_widget_t *osd_mythtv_options;
 static mvp_widget_t *settings_mythtv_control;
 static mvp_widget_t *settings_mythtv_program;
 static mvp_widget_t *settings_playback_osd;
@@ -1128,6 +1130,7 @@ mvp_widget_t *mythtv_menu;
 mvp_widget_t *mythtv_logo;
 mvp_widget_t *mythtv_date;
 mvp_widget_t *mythtv_description;
+mvp_widget_t *settings_mythtv_testdb;
 mvp_widget_t *mythtv_channel;
 mvp_widget_t *mythtv_record;
 mvp_widget_t *mythtv_popup;
@@ -1283,7 +1286,15 @@ typedef enum {
 	SETTINGS_MYTHTV_PROGRAMS,
 	SETTINGS_MYTHTV_RECGROUP_FILTER,
 	SETTINGS_MYTHTV_PENDING,
+	SETTINGS_MYTHTV_OPTIONS,
+	SETTINGS_MYTHTV_TESTDB
 } settings_mythtv_t;
+
+typedef enum {
+	COMMSKIP = 1,
+	SEEK30,
+	SEEK60
+} mythtv_options_t;
 
 typedef enum {
 	SETTINGS_VLC_IP = 1,
@@ -1345,6 +1356,7 @@ enum {
 	MENU_OSD,
 	MENU_BRIGHT,
 	MENU_VOLUME,
+	MYTHTV_SETTINGS,
 };
 
 enum {
@@ -1396,6 +1408,7 @@ osd_settings_t osd_settings = {
 	.program	= 1,
 	.timecode	= 1,
 };
+
 
 /*
  * Holds startup application selection for OSD menu.
@@ -2256,6 +2269,18 @@ settings_ip_key_callback(mvp_widget_t *widget, char key)
 			mvpw_set_bg(settings_ip_new[tmp], c);
 			mvpw_set_bg(settings_ip_new[which], attr.fg);
 		}
+		break;
+	}
+}
+
+static void
+settings_mythtv_options_key_callback(mvp_widget_t *widget, char key)
+{
+	switch (key) {
+	case MVPW_KEY_EXIT:
+		mvpw_hide(widget);
+		mvpw_show(settings_mythtv);
+		mvpw_focus(settings_mythtv);
 		break;
 	}
 }
@@ -3246,6 +3271,7 @@ popup_key_callback(mvp_widget_t *widget, char key)
 		mvpw_hide(video_stream_menu);
 		mvpw_hide(subtitle_stream_menu);
 		mvpw_hide(osd_menu);
+		mvpw_hide(osd_mythtv_options);
 		mvpw_hide(bright_menu);
 		mvpw_focus(root);
 	}
@@ -3260,6 +3286,7 @@ popup_key_callback(mvp_widget_t *widget, char key)
 			mvpw_hide(subtitle_stream_menu);
 			mvpw_hide(osd_menu);
 			mvpw_hide(bright_menu);
+			mvpw_hide(osd_mythtv_options);
 			mvpw_show(popup_menu);
 			mvpw_focus(popup_menu);
 		}
@@ -3713,6 +3740,32 @@ osd_select_callback(mvp_widget_t *widget, char *item, void *key)
 }
 
 static void
+settings_mythtv_options_select_callback(mvp_widget_t *widget, char *item, void *key)
+{
+        switch ((mythtv_options_t)key) {
+        case COMMSKIP: //COMMSKIP
+		mythtv_commskip ^= 1;
+                mvpw_check_menu_item(widget, (void*)key, mythtv_commskip);
+		config->mythtv_commskip = mythtv_commskip;
+		//config->bitmask |= CONFIG_MYTHTV_COMMSKIP;
+                break;
+	case SEEK30: // seek amount in seconds
+                mvpw_check_menu_item(widget, (void*)SEEK30, 0);
+                mvpw_check_menu_item(widget, (void*)SEEK60, 0);
+                mvpw_check_menu_item(widget, (void*)key, 1);
+		mythtv_seek_amount = (int)key;
+		break;
+	case SEEK60: // seek amount in seconds
+                mvpw_check_menu_item(widget, (void*)SEEK30, 0);
+                mvpw_check_menu_item(widget, (void*)SEEK60, 0);
+                mvpw_check_menu_item(widget, (void*)key, 1);
+		mythtv_seek_amount = (int)key;
+		break;
+        }
+}
+
+
+static void
 tvguide_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
 
@@ -3874,6 +3927,10 @@ popup_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mvpw_set_dialog_text(volume_dialog, buf);
 		mvpw_show(volume_dialog);
 		mvpw_focus(volume_dialog);
+		break;
+	case MYTHTV_SETTINGS:
+		mvpw_show(osd_mythtv_options);
+		mvpw_focus(osd_mythtv_options);
 		break;
 	}
 }
@@ -4213,6 +4270,15 @@ mythtv_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mvpw_set_dialog_text(settings_mythtv_filter_pending, buf);
 		mvpw_show(settings_mythtv_filter_pending);
 		mvpw_focus(settings_mythtv_filter_pending);
+		break;
+	case SETTINGS_MYTHTV_OPTIONS:
+		mvpw_check_menu_item(settings_mythtv_options, (void*)COMMSKIP, mythtv_commskip);
+		mvpw_check_menu_item(settings_mythtv_options, (void*)SEEK30, 1);
+		mvpw_show(settings_mythtv_options);
+		mvpw_focus(settings_mythtv_options);
+		break;
+	case SETTINGS_MYTHTV_TESTDB:
+		mythtv_testdb(settings_mythtv_testdb);
 		break;
 	}
 }
@@ -4938,7 +5004,7 @@ settings_init(void)
 	/*
 	 * mythtv settings menu
 	 */
-	settings_mythtv = mvpw_create_menu(NULL, x, y, w, h,
+	settings_mythtv = mvpw_create_menu(NULL, x, y, w, h+80,
 					   settings_attr.bg,
 					   settings_attr.border,
 					   settings_attr.border_size);
@@ -4969,6 +5035,14 @@ settings_init(void)
 	mvpw_add_menu_item(settings_mythtv,
 			   "Program TCP Receive Buffer",
 			   (void*)SETTINGS_MYTHTV_TCP_PROGRAM,
+			   &settings_item_attr);
+	mvpw_add_menu_item(settings_mythtv,
+			   "MythTV Options",
+			   (void*)SETTINGS_MYTHTV_OPTIONS,
+			   &settings_item_attr);
+	mvpw_add_menu_item(settings_mythtv,
+			   "Test Mythtv DB Connection",
+			   (void*)SETTINGS_MYTHTV_TESTDB,
 			   &settings_item_attr);
 	mvpw_add_menu_item(settings_mythtv,
 			   "Recording Group Filtering",
@@ -5007,6 +5081,25 @@ settings_init(void)
 			   "Audio Bitrate",
 			   (void*)SETTINGS_VLC_AUDIOBITRATE, &settings_item_attr);
 
+	/* 
+	* mythtv options menu
+	*/
+	settings_mythtv_options = mvpw_create_menu(NULL, x, y, w, h,
+					   settings_attr.bg,
+					   settings_attr.border,
+					   settings_attr.border_size);
+	settings_attr.checkboxes = 1;
+	mvpw_set_menu_attr(settings_mythtv_options, &settings_attr);
+	mvpw_set_menu_title(settings_mythtv_options, "MythTV Options");
+	mvpw_set_key(settings_mythtv_options, settings_mythtv_options_key_callback);
+
+	settings_item_attr.hilite = NULL;
+	settings_item_attr.select = settings_mythtv_options_select_callback;
+
+	mvpw_add_menu_item(settings_mythtv_options, "Enable Commercial Skip", (void*)COMMSKIP, &settings_item_attr);
+
+	mvpw_add_menu_item(settings_mythtv_options,"Skip 30 seconds",(void*)SEEK30,&settings_item_attr);
+	mvpw_add_menu_item(settings_mythtv_options,"Skip 60 seconds",(void*)SEEK60,&settings_item_attr);
 
 	/*
 	 * tvguide settings menu
@@ -6088,13 +6181,9 @@ run_mythtv_guide_menu(void)
 static void
 run_mythtv_prog_finder_char_menu(void)
 { 
-
-	fprintf(stderr, "%s : start\n",__FUNCTION__);
 	mvpw_set_key(mythtv_prog_finder_1,mythtv_prog_finder_char_search_keymovement_callback);
 	mvpw_set_key(mythtv_prog_finder_2,mythtv_prog_finder_title_search_keymovement_callback);
 	mvpw_set_key(mythtv_prog_finder_3,mythtv_prog_finder_time_search_keymovement_callback);
-	fprintf(stderr, "%s : back from\n",__FUNCTION__);
-
 	mythtv_prog_finder_char_menu(mythtv_prog_finder_1,mythtv_prog_finder_2,mythtv_prog_finder_3);
 	mvpw_hide(mythtv_menu);
 	mvpw_focus(mythtv_prog_finder_1);
@@ -6301,10 +6390,10 @@ myth_browser_init(void)
 			mythtv_attr.border_size);
 
 	mythtv_options = mvpw_create_menu(NULL,
-			459, 150, 190, 150,
-			mythtv_attr.bg,
-			mythtv_attr.border,
-			mythtv_attr.border_size);
+                        459, 150, 190, 150,
+                        mythtv_attr.bg,
+                        mythtv_attr.border,
+                        mythtv_attr.border_size);
 
 	mythtv_prog_finder_1 = mvpw_create_menu(NULL,
 			viewport_edges[EDGE_LEFT]+iid.width,
@@ -6383,7 +6472,7 @@ myth_browser_init(void)
 	mvpw_set_menu_title(mythtv_sched_option_1, "Scheduling Options");
 	mvpw_set_menu_title(mythtv_sched_option_4, "Recording Groups");
 	
-	mvpw_set_menu_attr(mythtv_options, &mythtv_attr);
+	mvpw_set_menu_attr(osd_mythtv_options, &mythtv_attr);
 
 	h = FONT_HEIGHT(description_attr);
 
@@ -6395,15 +6484,23 @@ myth_browser_init(void)
 				       description_attr.bg,
 				       description_attr.border,
 				       description_attr.border_size);
-	mythtv_description = mvpw_create_text(NULL, 0, 0, 350, h*3,
+	mythtv_description = mvpw_create_text(NULL, 0, 0, 350, h*3, 
 					      description_attr.bg,
 					      description_attr.border,
 					      description_attr.border_size);
+
+	settings_mythtv_testdb = mvpw_create_text(NULL, 50, 125, 700, 700, 
+					      description_attr.bg,
+					      description_attr.border,
+					      description_attr.border_size);
+
 	mythtv_record = mvpw_create_text(NULL, 0, 0, 350, h,
 					 description_attr.bg,
 					 description_attr.border,
 					 description_attr.border_size);
 
+	mvpw_set_key(settings_mythtv_testdb, settings_mythtv_options_key_callback);
+	mvpw_set_text_attr(settings_mythtv_testdb, &description_attr);
 	mvpw_set_text_attr(mythtv_channel, &description_attr);
 	mvpw_set_text_attr(mythtv_date, &description_attr);
 	mvpw_set_text_attr(mythtv_description, &description_attr);
@@ -7837,6 +7934,8 @@ popup_init(void)
 			   (void*)MENU_BRIGHT, &popup_item_attr);
 	mvpw_add_menu_item(popup_menu, "Volume",
 			   (void*)MENU_VOLUME, &popup_item_attr);
+	mvpw_add_menu_item(popup_menu, "MythTV Settings",
+			   (void*)MYTHTV_SETTINGS, &popup_item_attr);
 
 	mvpw_set_key(popup_menu, popup_key_callback);
 
@@ -7916,6 +8015,23 @@ popup_init(void)
 			     osd_settings.program);
 	mvpw_check_menu_item(osd_menu, (void*)OSD_TIMECODE,
 			     osd_settings.timecode);
+
+
+	/* mythtv options */
+	osd_mythtv_options = mvpw_create_menu(NULL, x, y, w, h,
+				    popup_attr.bg,
+				    popup_attr.border,
+				    popup_attr.border_size);
+	mvpw_set_menu_attr(osd_mythtv_options, &popup_attr);
+	mvpw_set_menu_title(osd_mythtv_options, "OSD MythTV Options");
+	mvpw_set_key(osd_mythtv_options, popup_key_callback);
+	popup_item_attr.select = settings_mythtv_options_select_callback;
+	mvpw_add_menu_item(osd_mythtv_options, "Enable Commercial Skip", (void*)COMMSKIP, &popup_item_attr);
+	mvpw_check_menu_item(osd_mythtv_options, (void*)COMMSKIP, mythtv_commskip);
+	
+	mvpw_add_menu_item(osd_mythtv_options,"Skip 30 seconds",(void*)SEEK30,&popup_item_attr);
+	mvpw_add_menu_item(osd_mythtv_options,"Skip 60 seconds",(void*)SEEK60,&popup_item_attr);
+	mvpw_check_menu_item(osd_mythtv_options, (void*)SEEK30, 1);
 
 	/*
 	 * Brightness menu
@@ -8437,6 +8553,7 @@ gui_init(char *server, char *replaytv)
 	if (myth_browser_init() < 0)
 		return -1;
 	file_browser_init();
+
 	settings_init();
 	colortest_init();
 	viewport_init();

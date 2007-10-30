@@ -65,6 +65,7 @@ typedef struct {
 #define CONFIG_VLC_VB		0x0000000040000000LL
 #define CONFIG_VLC_AB		0x0000000080000000LL
 #define CONFIG_WEATHER_LOCATION 0x0000000100000000LL
+//#define CONFIG_MYTHTV_COMMSKIP  0x0000000200000000LL
 
 #define MYTHTV_RG_MAX	32
 
@@ -121,9 +122,8 @@ typedef struct {
 	char			vlc_aopts[6];
 	int			vlc_vb;
 	int			vlc_ab;
-
 	char			weather_location[20];
-
+	int			mythtv_commskip;
 } config_t;
 
 extern config_t *config;
@@ -166,6 +166,7 @@ extern config_t *config;
 #define CONFIG_ITEM_VLC_VB		0x0025
 #define CONFIG_ITEM_VLC_AB		0x0026
 #define CONFIG_ITEM_WEATHER_LOCATION    0x0027
+//#define CONFIG_ITEM_MYTHTV_COMMSKIP	0x0028
 
 /*
  * The flags in config_list_t

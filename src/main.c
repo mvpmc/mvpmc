@@ -138,6 +138,9 @@ int em_rtwin = -1;
 int rfb_mode = 3;
 int flicker = -1;
 int wireless = 0;
+int mythtv_seek_amount=2;
+int mythtv_commskip=1;
+
 
 int mount_djmount(char *);
 int unmount_djmount(void);

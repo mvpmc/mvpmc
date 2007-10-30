@@ -626,6 +626,21 @@ disable_osd(void)
 	set_osd_callback(OSD_TIMECODE, NULL);
 }
 
+static void
+seek_disable_osd(mvp_widget_t *widget)
+{
+	if (display_on_alt != 1)
+		return;
+
+	display_on_alt = 0;
+
+	if (!display_on) {
+		disable_osd();
+	}
+
+	mvpw_expose(root);
+}
+
 void
 set_bookmark_status(mvp_widget_t *widget)
 {
@@ -647,16 +662,52 @@ goto_bookmark_status(mvp_widget_t *widget)
 }
 
 void
+set_commbreak_status(mvp_widget_t *widget)
+{
+	char buf[55];
+	// current_breaklist not available
+	// snprintf(buf, sizeof(buf),"MythTV Commercial Skip\n%li Commercial Breaks Found",current_breaklist->commbreak_count);
+	snprintf(buf, sizeof(buf),"MythTV Commercial Skip\n");
+	mvpw_set_text_str(mythtv_osd_description, buf);
+	mvpw_expose(mythtv_osd_description);
+}
+
+void
+set_seek_status(mvp_widget_t *widget)
+{
+	char buf[42];
+	if (mythtv_commskip) 
+		snprintf(buf, sizeof(buf),"MythTV Seek\nNot in Commercial Break");
+	else 
+		snprintf(buf, sizeof(buf),"MythTV Seek\nCommercial Skip Disabled");
+	mvpw_set_text_str(mythtv_osd_description, buf);
+	mvpw_expose(mythtv_osd_description);
+}
+
+void
 display_bookmark_status_osd(int function)
 {
+	display_on_alt = 1;
 	set_osd_callback(OSD_PROGRESS, video_progress);
 	set_osd_callback(OSD_TIMECODE, video_timecode);
-	if (function) { // set bookmark
-		set_osd_callback(OSD_PROGRAM, set_bookmark_status);
+	switch (function) {
+		case 0:
+			//seek to bookmark
+			set_osd_callback(OSD_PROGRAM, goto_bookmark_status);
+			break;
+		case 1:
+			// set bookmark
+			set_osd_callback(OSD_PROGRAM, set_bookmark_status);
+			break;
+		case 2:
+			// doing a commskip seek
+			set_osd_callback(OSD_PROGRAM, set_commbreak_status);
+			break;
+		case 3:
+			// doing a normal seek
+			set_osd_callback(OSD_PROGRAM, set_seek_status);
 	}
-	else { //seek to bookmark
-		set_osd_callback(OSD_PROGRAM, goto_bookmark_status);
-	}
+	mvpw_set_timer(root, seek_disable_osd, 5000);
 }
 
 void
@@ -897,7 +948,15 @@ video_callback(mvp_widget_t *widget, char key)
 		timed_osd(seek_osd_timeout*1000);
 		break;
 	case MVPW_KEY_SKIP:
-		seek_by(30);
+		if (mythtv_seek_amount == 2 ) {
+			seek_by(30);
+		}
+		else if (mythtv_seek_amount == 3 ) {
+			seek_by(60);
+		}
+		else {
+			seek_by(30);
+		}
 		timed_osd(seek_osd_timeout*1000);
 		break;
 	case MVPW_KEY_FFWD:
@@ -1736,21 +1795,6 @@ video_write_start(void *arg)
 	}
 
 	return NULL;
-}
-
-static void
-seek_disable_osd(mvp_widget_t *widget)
-{
-	if (display_on_alt != 1)
-		return;
-
-	display_on_alt = 0;
-
-	if (!display_on) {
-		disable_osd();
-	}
-
-	mvpw_expose(root);
 }
 
 void

@@ -958,7 +958,7 @@ extern int cmyth_get_offset_mysql(cmyth_database_t, int, char *, int, char *, ch
 extern int cmyth_mysql_get_prog_finder_char_title(cmyth_database_t db, cmyth_program_t **prog, time_t starttime, char *program_name);
 extern int cmyth_mysql_get_prog_finder_time(cmyth_database_t db, cmyth_program_t **prog,  time_t starttime, char *program_name);
 extern int cmyth_mysql_get_guide(cmyth_database_t db, cmyth_program_t **prog, time_t starttime, time_t endtime);
-
+extern int cmyth_mysql_testdb_connection(cmyth_database_t db,char **message);
 extern int cmyth_schedule_recording(cmyth_conn_t conn, char * msg);
 extern char * cmyth_mysql_escape_chars(cmyth_database_t db, char * string);
 extern int cmyth_mysql_get_commbreak_list(cmyth_database_t db, int chanid, char * start_ts_dt, cmyth_commbreaklist_t breaklist);

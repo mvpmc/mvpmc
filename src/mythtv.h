@@ -255,6 +255,7 @@ extern void livetv_select_callback(mvp_widget_t *widget, char *item, void *key);
 extern int mythtv_verify(void);
 extern void mythtv_shutdown(int display);
 extern void mythtv_fullscreen(void);
+extern int mythtv_testdb(mvp_widget_t *widget);
 
 /*
  * Swap a reference counted global for a new reference (including NULL).

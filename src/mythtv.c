@@ -192,15 +192,17 @@ mythtv_video_key(char key)
 	long long offset=0;
 	long long dbmark=0;
 	cmyth_conn_t ctrl=ref_hold(control);
-	
+
 	switch (key) {
 		case MVPW_KEY_SKIP:
-			if ((breakidx = in_commbreak()) >= 0) {
+			if ( (mythtv_commskip) &&  ((breakidx = in_commbreak()) >= 0) ) {
 				fprintf(stderr, "Jumping to %lli\n", current_breaklist->commbreak_list[breakidx]->end_offset);
 				seek_to(current_breaklist->commbreak_list[breakidx]->end_offset);
+				display_bookmark_status_osd(2);
 				rc = 1;
 			} else {
-				fprintf(stderr, "Not in commbreak.  Reverting to standard skip.\n");
+				display_bookmark_status_osd(3);
+				fprintf(stderr, "Not in commbreak or disabled.  Reverting to standard skip.\n");
 			}
 			break;
 		case MVPW_KEY_REPLAY:
@@ -365,6 +367,44 @@ mythtv_verify(void)
 		    __FUNCTION__, __FILE__, __LINE__);
 
 	return 0;
+}
+
+int
+mythtv_testdb(mvp_widget_t *widget) {
+	char results[450];
+	int status=0;
+	char *msg=NULL;
+	char buf[150];
+	if (mythtv_verify() < 0) {
+		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1}\n",
+			    __FUNCTION__, __FILE__, __LINE__);
+		status=1;
+                snprintf(buf, sizeof(buf), "No connection to mythtv Server\nIs the server running?\n");
+		msg=buf;
+		goto end;
+	}
+	if ( (cmyth_mysql_testdb_connection(mythtv_database,&msg)) < 0) {
+		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) -1}\n",
+			    __FUNCTION__, __FILE__, __LINE__);
+		status=2;
+                snprintf(buf, sizeof(buf), "Database not available\nPlease read the wiki on remote MythTV frontends\n%s\n",msg);
+		msg=buf;
+		goto end;
+	}
+		
+	end:
+		mvpw_expose(widget);
+                snprintf(results, sizeof(results), "DB Host %s\nDB Username %s\nDB Password %s\nDB Table %s\nHere are the results:\n%s\n", 
+			mysqlptr->host,
+			mysqlptr->user,
+			mysqlptr->pass,
+			mysqlptr->db,
+			msg
+			);
+		mvpw_set_text_str(widget,results);
+		mvpw_show(widget);
+		mvpw_focus(widget);
+		return status;
 }
 
 static void
