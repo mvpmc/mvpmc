@@ -441,7 +441,7 @@ stream_drain(stream_t *stream, void *buf, int max)
 	stream->attr->stats.cur_bytes -= ret;
 
 	PRINTF("stream size %d head %d tail %d\n", stream->size,
-	       head, stream->tail);
+	       stream->head, stream->tail);
 
 	if(stream->ptr_tail_mutex != NULL)
 	{

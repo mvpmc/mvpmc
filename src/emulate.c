@@ -70,6 +70,7 @@
 #include "mythtv.h"
 #include "config.h"
 #include "web_config.h"
+#include "http_stream.h"
 
 #include <vncviewer.h>
 #include <nano-X.h>
@@ -83,12 +84,12 @@ static int newSession = 0;
 volatile int stopLoop = false;
 volatile static int timerTick=0;
 
-#define GBSAFETY 0
+#define GBSAFETY 1
 #define RESETTIMEOUT 3
 
 #if 0
 #define PRINTF(x...) printf(x)
-	#define MPRINTF(x...) 
+	#define MPRINTF(x...)
 	#define LPRINTF(x...) log_emulation();printf(x)	
 	#define TRC(fmt, args...) printf(fmt, ## args)
 //	#define VERBOSE_DEBUG 
@@ -863,22 +864,23 @@ void mvp_server_cleanup(void)
 	set_route(web_config->rtwin);
 }
 
-#define HAUP_KEY_FORWARD 0x0f
-#define HAUP_KEY_PLAY    0x19
-#define HAUP_KEY_GUIDE   0x1f
-#define HAUP_KEY_STOP    0x1b
-#define HAUP_KEY_PAUSE   0x1c
-#define HAUP_KEY_REWIND  0x0e
-#define HAUP_KEY_REPLAY  0x2a
-#define HAUP_KEY_SKIP    0x2b
-
+#define HAUP_KEY_FORWARD  0x0f
+#define HAUP_KEY_PLAY     0x19
+#define HAUP_KEY_GUIDE    0x1f
+#define HAUP_KEY_STOP     0x1b
+#define HAUP_KEY_PAUSE    0x1c
+#define HAUP_KEY_REWIND   0x0e
+#define HAUP_KEY_REPLAY   0x2a
+#define HAUP_KEY_SKIP     0x2b
+#define HAUP_KEY_VOL_UP   0x31
+#define HAUP_KEY_VOL_DOWN 0x32
 void mvp_server_remote_key(char key)
 {
 	static int inKeyLoop = 0; 
 	static int hauppageKey[] = {
 		0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
 		0x09, 0x0a, 0x36, 0x24, 0x28, 0x1e, 0x37, 0x15,
-		0x11, 0x10, 0x35, 0x00, 0x33, 0x34, 0x32, 0x31,
+		0x11, 0x10, 0x35, 0x00, 0x33, 0x34, HAUP_KEY_VOL_DOWN, HAUP_KEY_VOL_UP,
 		0x2d, 0x2e, 0x2f, HAUP_KEY_GUIDE, 0x2c, 0x30, HAUP_KEY_SKIP, 0x20,
 		0x12, 0x13, 0x00, 0x00, HAUP_KEY_REPLAY, 0x0d, 0x00, 0x00,
 		0x00, 0x27, 0x00, 0x00, 0x00, 0x00, 0x25, 0x00,
@@ -1071,6 +1073,14 @@ void mvp_server_remote_key(char key)
 				// only Hauppauge protocol supported
 				if (useHauppageExtentions == 2 ) {
 					mvp_state = EMU_PERCENT_PENDING;
+				} else if ( mystream.mediatype==TYPE_AUDIO) {
+					if (key == MVPW_KEY_THREE ) {
+						SendKeyEvent(HAUP_KEY_VOL_UP, 0);
+						break;
+					} else if ( key == MVPW_KEY_ONE ) {
+						SendKeyEvent(HAUP_KEY_VOL_DOWN, 0);
+						break;
+					}
 				}
 				mystream.direction = key1;
 				SendKeyEvent(key1, 0);
@@ -2237,7 +2247,7 @@ Bool media_read_message(stream_t *stream)
 			BUF_TO_INT32(ucount,ptr);
 //			PRINTF("Media msgfast redo %d ffwd %d count %u\n",buf[8],buf[9],ucount);
 			ptr = buf + 16;
-			stream->current_position = media_offset_64(ptr);;
+			stream->current_position = media_offset_64(ptr);
 			if (mvp_state== EMU_STEP_SEEK) {
 				PRINTF("Step received1\n");
 				mvp_state=EMU_STEP;
@@ -2978,6 +2988,7 @@ void UpdateFinished(void)
 //        osd_blit(surface,0,0,surface_blank,0,0,SURFACE_X,surface_y);
 	}
 	screenSaver = currentTime;
+	osd_fill_rect(surface2,0,0,SURFACE_X,surface_y,MVPW_TRANSPARENT);
 
 }
 
@@ -3038,7 +3049,7 @@ void mvp_fdinput_callback(mvp_widget_t *widget, int fd)
 {
    	static int err_count = 0;
 	int len;
-	pthread_mutex_lock(&gbmut);
+//	pthread_mutex_lock(&gbmut);
 	if (!HandleRFBServerMessage()) {
 		printf("Error updating screen\n");
 		char buf[32000];
@@ -3054,11 +3065,15 @@ void mvp_fdinput_callback(mvp_widget_t *widget, int fd)
 	} else {
 		err_count = 0;
 	}
-	pthread_mutex_unlock(&gbmut);
+//	pthread_mutex_unlock(&gbmut);
 	if (err_count) {
 		sentPing = false;
                 usleep(1000);
         }
+
+	if (osd_visible) {
+                usleep(10000);
+	}
 }
 
 int64_t media_seek(int64_t value)
@@ -3215,7 +3230,7 @@ int auto_select_audio(void)
 			break;
 		case STREAM_AC3:
 		case STREAM_PCM:
-			if ( another_id==0 || id == 0x80 ) {
+			if ( another_id==0 || id == 0x80 || id == 0x81 ) {
 				another_id = id;
 			}
 			break;
@@ -3243,6 +3258,12 @@ void mvp_emulation_end(void);
 void mvp_key_callback(mvp_widget_t *widget, char key)
 {
 	static int wasGo = 0;
+	static int waitHttp = 0;
+
+	if (waitHttp) {
+		wasGo = 0;
+		return;
+	}
 	if (key==MVPW_KEY_POWER || (wasGo==1 && key==MVPW_KEY_EXIT)) {
 		wasGo = 0;
 		mvp_server_stop();
@@ -3263,19 +3284,32 @@ void mvp_key_callback(mvp_widget_t *widget, char key)
 				mystream.mediatype=0;
 			}
 		}
-	} else if (wasGo==1 && key==MVPW_KEY_RED) {
-		root_color = mvpw_color_alpha(MVPW_WHITE,(++root_bright)*4);
-		mvpw_set_bg(root, root_color);
-		wasGo = 0;
-
 	} else if (wasGo==1 && key==MVPW_KEY_GREEN) {
-		root_color = mvpw_color_alpha(MVPW_WHITE,(--root_bright)*4);
-		mvpw_set_bg(root, root_color);
+		waitHttp = 1;
+		char *temp_current=NULL;
+		if ( mystream.mediatype != 0 ) {
+			if (current==NULL) {
+				temp_current = NULL;
+			} else {
+				temp_current = strdup(current);
+				free(current);
+			}
+		}
+		char gen_event[120];
+		snprintf (gen_event,120,"http://%s/emptypage.html?mvpmcEvent",mvp_server);
+		current = strdup(gen_event);
+		http_main();
+		free(current);
+		if (temp_current!=NULL && mystream.mediatype != 0) {
+			current = strdup(temp_current);
+			free(temp_current);
+		}
 		wasGo = 0;
+		waitHttp = 0;
 	} else if (wasGo==1 && key==MVPW_KEY_FFWD) {
 		av_ffwd();
 		wasGo = 0;
-	} else if (wasGo==1 && key==MVPW_KEY_MUTE && emulation_audio_selected ) {		
+	} else if (wasGo==1 && key==MVPW_KEY_MUTE && emulation_audio_selected==0 ) {
 		if (emulation_audio_selected == 0xc0) {
 			audio_switch_stream(NULL, 0x80);
 			emulation_audio_selected = 0x80;
@@ -3336,7 +3370,7 @@ void mvp_timer_callback(mvp_widget_t *widget)
 				pthread_mutex_lock(&gbmut);
 				SendIncrementalFramebufferUpdateRequest();
 				pthread_mutex_unlock(&gbmut);
-			} else {
+			} else if (currentTime%2) {
 				SendIncrementalFramebufferUpdateRequest();
 			}
 
@@ -3352,9 +3386,12 @@ void mvp_timer_callback(mvp_widget_t *widget)
 				if (mystream.mediatype==TYPE_VIDEO ) {
 					if ((useHauppageExtentions != 2 || is_stopping == EMU_RUNNING) && sentPing == false) {
 						PRINTF("%s Timer %d Video Ping - %d %d\n",logstr,mvp_state,timerTick,heart_beat);
-						RDCSendPing();
-						needPing = timerTick;
-						sentPing = true;
+						if ( RDCSendPing() ) {
+							needPing = timerTick;
+							sentPing = true;
+						} else {
+							printf("Ping error\n");
+						}
 					}
 				} else {
 					PRINTF("%s Timer %d OSD  %d %d\n",logstr,mvp_state,timerTick,heart_beat);
@@ -3365,9 +3402,12 @@ void mvp_timer_callback(mvp_widget_t *widget)
 			} else if (timerTick==10) {
 				if ((useHauppageExtentions != 2 || is_stopping == EMU_RUNNING) && sentPing == false) {
 					PRINTF("%s Timer %d Ping - %d %d\n",logstr,mvp_state,timerTick,heart_beat);
-					RDCSendPing();
-					needPing = timerTick;
-					sentPing = true;
+					if ( RDCSendPing() ) {
+						needPing = timerTick;
+						sentPing = true;
+					} else {
+						printf("Ping error\n");
+					}
 				}
 			} else if (timerTick==19) {
 				timerTick = -1;

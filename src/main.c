@@ -95,6 +95,7 @@ static struct option opts[] = {
 	{ "mythtv", required_argument, 0, 's' },
 	{ "mythtv-debug", no_argument, 0, 'M' },
 	{ "no-wss", no_argument, 0, 0 },
+	{ "no-jit-sync", no_argument, 0, 0 },
 	{ "no-filebrowser", no_argument, 0, 0 },
 	{ "no-reboot", no_argument, 0, 0 },
 	{ "no-settings", no_argument, 0, 0 },
@@ -128,6 +129,7 @@ static struct option opts[] = {
 
 int settings_disable = 0;
 int reboot_disable = 0;
+int jit_enable = 1;
 int filebrowser_disable = 0;
 int mplayer_disable = 1;
 int em_connect_wait = 0;
@@ -298,6 +300,7 @@ print_help(char *prog)
 	printf("\t-c server \tslimdevices musicClient server IP address\n");
 	printf("\n");
 	printf("\t--no-wss  \tdisable Wide Screen Signalling(WSS)\n");
+	printf("\t--no-jit-sync\tdisable JIT a/v Sync\n");
 	printf("\t--no-filebrowser\n");
 	printf("\t--no-reboot\n");
 	printf("\t--no-settings\n");
@@ -635,6 +638,9 @@ mvpmc_main(int argc, char **argv)
 			}
 			if (strcmp(opts[opt_index].name, "no-wss") == 0) {
 			    	av_wss_visible(0);
+			}
+			if (strcmp(opts[opt_index].name, "no-jit-sync") == 0) {
+			    	jit_enable = 0;
 			}
 			if (strcmp(opts[opt_index].name, "no-filebrowser") == 0) {
 				filebrowser_disable = 1;
