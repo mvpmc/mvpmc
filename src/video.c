@@ -52,6 +52,7 @@
 #endif
 
 extern int new_live_tv;
+extern int jit_enable;
 
 /* #define STREAM_TEST 1 */
 #ifdef STREAM_TEST 
@@ -1890,13 +1891,12 @@ audio_write_start(void *arg)
 		case AUDIO_MODE_MPEG1_PES:
 		case AUDIO_MODE_MPEG2_PES:
 		case AUDIO_MODE_ES:
-#if 0
-			if ((len=DEMUX_WRITE_AUDIO(handle, fd_audio)) > 0)
-				pthread_cond_broadcast(&video_cond);
-			else
-				pthread_cond_wait(&video_cond, &mutex);
-#else
-			{
+			if (jit_enable == 0) {
+				if ((len=DEMUX_WRITE_AUDIO(handle, fd_audio)) > 0)
+					pthread_cond_broadcast(&video_cond);
+				else
+					pthread_cond_wait(&video_cond, &mutex);
+			} else {
 			    int flags, duration;
 			    len=DEMUX_JIT_WRITE_AUDIO(handle, fd_audio,
 					    get_cur_vid_stc(),&flags,&duration);
@@ -1929,7 +1929,6 @@ audio_write_start(void *arg)
 			    else if(!(flags & 8))
 				    pthread_cond_wait(&video_cond, &mutex);
 			}
-#endif
 			break;
 		case AUDIO_MODE_PCM:
 			/*
