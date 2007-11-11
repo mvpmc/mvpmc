@@ -2220,13 +2220,16 @@ Bool media_read_message(stream_t *stream)
 					}
 					break;
 				}
-				if (useHauppageExtentions == 2 && dropoff > 0 ) {
+				if (useHauppageExtentions == 2 ) {
+					RDCSendRequestAck(RDC_PLAY,1);
+				}
+				if (useHauppageExtentions == 2 && dropoff > 0 && mystream.mediatype == TYPE_VIDEO) {
 					media_send_seek(stream,dropoff);
 				} else {
 					media_send_seek(stream,0);
-	//				media_send_read(stream);
+//					media_send_read(stream);
 				}
-				if ( mystream.mediatype == TYPE_VIDEO ) {
+				if ( mystream.mediatype == TYPE_VIDEO && useHauppageExtentions != 2 ) {
 					if (stream->length==0) {
 						usleep(10000);
 					}
@@ -2553,6 +2556,7 @@ void media_queue_data(stream_t *stream)
 				if (++numRead == 2) {
 					/* We've opened the file, send an OSD update*/
 					pauseFileAck(0x05);
+					RDCSendRequestAck(RDC_PLAY,1);
 				} else if (numRead == 5) {
 					RDCSendRequestAck(RDC_PLAY,1);
 				}
