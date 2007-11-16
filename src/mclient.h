@@ -316,7 +316,7 @@ typedef struct
     bool pending_proc_for_cover_art;
     bool pending_proc_for_cover_art_widget;
     bool trigger_proc_for_cover_art;
-    bool outstanding_cli_message_cover_art;
+    bool outstanding_cli_message;
     unsigned int outstanding_cli_message_timer;
     unsigned int row_for_cover_art;
     unsigned int col_for_cover_art;

@@ -3317,8 +3317,10 @@ mclient_localmenu_callback(mvp_widget_t *widget, char key)
 		/*
 		 * Exit the local menu.
 		 */
+	       // Hide the BROWSE and LOCAL MENU widgets.
 		mclient_localmenu_hide_all_widgets();
 
+	       // Exit out of BROWSE and LOCAL MENU mode.
 		remote_buttons.local_menu = FALSE;
 		remote_buttons.local_menu_browse = FALSE;
                 mvpw_focus(mclient);
@@ -3343,11 +3345,13 @@ mclient_localmenu_callback(mvp_widget_t *widget, char key)
 	       sprintf (pending_cli_string, "%s playlistcontrol cmd:load album_id:%d\n", 
 		decoded_player_id,
 		cli_data.album_id_for_cover_art[album_index]);
+
+	       // Hide the BROWSE and LOCAL MENU widgets.
+               mclient_localmenu_hide_all_widgets();
+
 	       // Exit out of BROWSE and LOCAL MENU mode.
                remote_buttons.local_menu = FALSE;
                remote_buttons.local_menu_browse = FALSE;
-	       // Hide the BROWSE and LOCAL MENU widgets.
-               mclient_localmenu_hide_all_widgets();
                mvpw_focus(mclient);
 	     }
              }
@@ -8048,22 +8052,26 @@ screensaver_event(mvp_widget_t *widget, int activate)
 			 * Only show mclient widget if mclient has control
 			 * of the gui.
 			 */
-			if(gui_state == MVPMC_STATE_MCLIENT || gui_state == MVPMC_STATE_HTTP )
-			{
-///				mvpw_raise(mclient); /// This window has focus, but we don't want to see it.
-				mvpw_lower(mclient);
-				if(gui_state == MVPMC_STATE_MCLIENT ) {
-					mvpw_show(mclient);
-					mvpw_focus(mclient);
-				} else {
-					mvpw_focus(playlist_widget);
-				}
-
-				/*
-				 * Initialize small widget hide time out.
-				 */
-				cli_small_widget_timeout = time (NULL) + 10;
+			mvpw_lower(mclient);
+			if(gui_state == MVPMC_STATE_MCLIENT ) {
+				mvpw_show(mclient);
+				mvpw_focus(mclient);
+			} else {
+				mvpw_focus(playlist_widget);
 			}
+
+                        // Exit local menus in case they were being accessed.
+                        // Hide the BROWSE and LOCAL MENU widgets.
+                        mclient_localmenu_hide_all_widgets();
+
+                        // Exit out of BROWSE and LOCAL MENU mode.
+                        remote_buttons.local_menu = FALSE;
+                        remote_buttons.local_menu_browse = FALSE;
+
+			/*
+			 * Initialize small widget hide time out.
+			 */
+			cli_small_widget_timeout = time (NULL) + 10;
 		}
 		else
 		{

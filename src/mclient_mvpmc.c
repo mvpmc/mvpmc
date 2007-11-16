@@ -105,26 +105,26 @@ void mclient_audio_play(mvp_widget_t * widget);
 * Mvpmc vol range appears to be between 220 to 255.
 */
 unsigned char volume_adj[] = {
-	225, 225, 226, 226, 227, 227, 228, 228, 229, 229,
-	230, 230, 231, 231, 232, 232, 233, 233, 234, 234,
-	235, 236, 237, 238, 239, 240, 241, 242, 243, 244,
-	245, 246, 247, 248, 249, 250, 251, 252, 253, 254,
-	255
+    225, 225, 226, 226, 227, 227, 228, 228, 229, 229,
+    230, 230, 231, 231, 232, 232, 233, 233, 234, 234,
+    235, 236, 237, 238, 239, 240, 241, 242, 243, 244,
+    245, 246, 247, 248, 249, 250, 251, 252, 253, 254,
+    255
 };
 
 /*
 * Volume data received from the server.
 */
 unsigned int volume_server[] = {
-	0x0, 0x147, 0x51e, 0xb85, 0x147a,
-	0x2000, 0x2e14, 0x3eb8, 0x51eb, 0x67ae,
-	0x8000, 0x9ae1, 0xb851, 0xd851, 0xfae1,
-	0x12000, 0x147ae, 0x171eb, 0x19eb8, 0x1ce14,
-	0x20000, 0x2347a, 0x26b85, 0x2a51e, 0x2e147,
-	0x32000, 0x36147, 0x3a51e, 0x3eb85, 0x4347a,
-	0x48000, 0x4ce14, 0x51eb8, 0x571eb, 0x5c7ae,
-	0x62000, 0x67ae1, 0x6d851, 0x73851, 0x79ae1,
-	0x80000
+    0x0, 0x147, 0x51e, 0xb85, 0x147a,
+    0x2000, 0x2e14, 0x3eb8, 0x51eb, 0x67ae,
+    0x8000, 0x9ae1, 0xb851, 0xd851, 0xfae1,
+    0x12000, 0x147ae, 0x171eb, 0x19eb8, 0x1ce14,
+    0x20000, 0x2347a, 0x26b85, 0x2a51e, 0x2e147,
+    0x32000, 0x36147, 0x3a51e, 0x3eb85, 0x4347a,
+    0x48000, 0x4ce14, 0x51eb8, 0x571eb, 0x5c7ae,
+    0x62000, 0x67ae1, 0x6d851, 0x73851, 0x79ae1,
+    0x80000
 };
 
 static int debug = 0;
@@ -137,2231 +137,1944 @@ char pending_cli_string[MAX_CMD_SIZE];
 void
 receive_mpeg_data(int s, receive_mpeg_header * data, int bytes_read)
 {
-	static int seq_history = 0;
-	int message_length = 0;
-	static int rec_seq = 0;	// for use in ack test
+    static int seq_history = 0;
+    int message_length = 0;
+    static int rec_seq = 0;	// for use in ack test
 
-	rec_seq = ntohs(data->seq);
-	if (seq_history > rec_seq)
+    rec_seq = ntohs(data->seq);
+    if (seq_history > rec_seq)
+    {
+	// reset on server or client reboots or when SlimServer ushort resets at 64k
+	seq_history = -1;
+    }
+
+    if (debug)
+    {
+	printf
+	    ("mclient:     Address:%8.8d Cntr:%8.8d     Seq:%8.8d  BytesIn:%8.8d\n",
+	     ntohs(data->wptr), data->control, ntohs(data->seq), bytes_read);
+
+	if (seq_history == ntohs(data->seq))
 	{
-// reset on server or client reboots or when SlimServer ushort resets at 64k
-		seq_history = -1;
+	    printf("mclient:Sequence says - NO  data\n");
+	}
+	else
+	{
+	    printf("mclient:Sequence says - NEW data\n");
 	}
 
-	if (debug)
+	if (outbuf->head == (ntohs(data->wptr) << 1))
 	{
-		printf
-		    ("mclient:     Address:%8.8d Cntr:%8.8d     Seq:%8.8d  BytesIn:%8.8d\n",
-		     ntohs(data->wptr), data->control, ntohs(data->seq),
-		     bytes_read);
-
-		if (seq_history == ntohs(data->seq))
-		{
-			printf("mclient:Sequence says - NO  data\n");
-		}
-		else
-		{
-			printf("mclient:Sequence says - NEW data\n");
-		}
-
-		if (outbuf->head == (ntohs(data->wptr) << 1))
-		{
-			printf("mclient:Server and Client pntrs - AGREE\n");
-		}
-		else
-		{
-			printf
-			    ("mclient:Server and Client pntrs - DIFFERENT (by:%d)\n",
-			     outbuf->head - ((ntohs(data->wptr)) << 1));
-		}
+	    printf("mclient:Server and Client pntrs - AGREE\n");
 	}
-
-/*
-* Set head pointer to value received from server.
-* (Server needs this control when switching between
-* programs (i.e. when switching between tracks).)
-*/
-	outbuf->head = ntohs((data->wptr) << 1);
-
-/*
-* Store play mode into global variable.
-*/
-	outbuf->playmode = data->control;
-
-/*
-* Must be some header bytes we need to get rid of.
-*/
-	message_length = bytes_read - 18;
-
-/*
-* If this is a new sequence (new data) then
-* add it to the input buffer.
-*
-* Don't procees when 0 (sendEmptyChunk from SlimServer) or if it has 
-* already been buffered.
-*/
-	if (message_length != 0 && seq_history < ntohs(data->seq))
+	else
 	{
-/*
- * Keep history of seq so next time
- * we are here we can tell if
- * we are getting new data that should be 
- * processed.
- */
-		seq_history = ntohs(data->seq);
-
-/*
- * Check if there is room at the end of the buffer for the new data.
- */
-
-		if ((outbuf->head + message_length) <= OUT_BUF_SIZE)
-		{
-			/*
-			 * Put data into the rec buf.
-			 */
-			memcpy((outbuf->buf + outbuf->head), (recvbuf + 18),
-			       message_length);
-
-			/*
-			 * Move head by number of bytes read.
-			 */
-			outbuf->head += message_length;
-
-			if (outbuf->head == OUT_BUF_SIZE)
-			{
-				outbuf->head = 0;
-			}
-		}
-		else
-		{
-			/*
-			 * If not, then split data between the end and beginning of
-			 * the buffer.
-			 */
-			memcpy((outbuf->buf + outbuf->head), (recvbuf + 18),
-			       (OUT_BUF_SIZE - outbuf->head));
-			memcpy(outbuf->buf,
-			       (recvbuf + 18 + (OUT_BUF_SIZE - outbuf->head)),
-			       (message_length -
-				(OUT_BUF_SIZE - outbuf->head)));
-
-			/*
-			 * Move head by number of bytes written from the beginning of the buffer.
-			 */
-			outbuf->head =
-			    (message_length - (OUT_BUF_SIZE - outbuf->head));
-		}
+	    printf("mclient:Server and Client pntrs - DIFFERENT (by:%d)\n",
+		   outbuf->head - ((ntohs(data->wptr)) << 1));
 	}
+    }
 
-/*
-* Send ack back to server.
-* (If a new bigger rec_seq has been received, don't re-ack 
-* an outdated packet.)
-*/
-	if (seq_history <= rec_seq)
+    /*
+     * Set head pointer to value received from server.
+     * (Server needs this control when switching between
+     * programs (i.e. when switching between tracks).)
+     */
+    outbuf->head = ntohs((data->wptr) << 1);
+
+    /*
+     * Store play mode into global variable.
+     */
+    outbuf->playmode = data->control;
+
+    /*
+     * Must be some header bytes we need to get rid of.
+     */
+    message_length = bytes_read - 18;
+
+    /*
+     * If this is a new sequence (new data) then
+     * add it to the input buffer.
+     *
+     * Don't procees when 0 (sendEmptyChunk from SlimServer) or if it has 
+     * already been buffered.
+     */
+    if (message_length != 0 && seq_history < ntohs(data->seq))
+    {
+	/*
+	 * Keep history of seq so next time
+	 * we are here we can tell if
+	 * we are getting new data that should be 
+	 * processed.
+	 */
+	seq_history = ntohs(data->seq);
+
+	/*
+	 * Check if there is room at the end of the buffer for the new data.
+	 */
+
+	if ((outbuf->head + message_length) <= OUT_BUF_SIZE)
 	{
-		send_ack(s, ntohs(data->seq));
+	    /*
+	     * Put data into the rec buf.
+	     */
+	    memcpy((outbuf->buf + outbuf->head), (recvbuf + 18), message_length);
+
+	    /*
+	     * Move head by number of bytes read.
+	     */
+	    outbuf->head += message_length;
+
+	    if (outbuf->head == OUT_BUF_SIZE)
+	    {
+		outbuf->head = 0;
+	    }
 	}
+	else
+	{
+	    /*
+	     * If not, then split data between the end and beginning of
+	     * the buffer.
+	     */
+	    memcpy((outbuf->buf + outbuf->head), (recvbuf + 18), (OUT_BUF_SIZE - outbuf->head));
+	    memcpy(outbuf->buf,
+		   (recvbuf + 18 + (OUT_BUF_SIZE - outbuf->head)),
+		   (message_length - (OUT_BUF_SIZE - outbuf->head)));
+
+	    /*
+	     * Move head by number of bytes written from the beginning of the buffer.
+	     */
+	    outbuf->head = (message_length - (OUT_BUF_SIZE - outbuf->head));
+	}
+    }
+
+    /*
+     * Send ack back to server.
+     * (If a new bigger rec_seq has been received, don't re-ack 
+     * an outdated packet.)
+     */
+    if (seq_history <= rec_seq)
+    {
+	send_ack(s, ntohs(data->seq));
+    }
 }
 
 void
 send_mpeg_data(void)
 {
-	int amount_written = 0;
-	int afd;
-	static int playmode_history = 0;
+    int amount_written = 0;
+    int afd;
+    static int playmode_history = 0;
 
-/*
-* Play control (play, pause & stop).
-*/
-	switch (outbuf->playmode)
+    /*
+     * Play control (play, pause & stop).
+     */
+    switch (outbuf->playmode)
+    {
+    case 0:
+	/*
+	 * PLAY: Decode data.
+	 */
+
+	/*
+	 * Un-Pause the mvpmc so it will start playing anything that is or
+	 * will be copied into the mvpmc buffer.
+	 */
+	if (local_paused == 1)
 	{
-	case 0:
-/*
- * PLAY: Decode data.
- */
+	    local_paused = av_pause();
+	    if (debug)
+	    {
+		printf("mclient:UN-PAUSE returned:%d\n", local_paused);
+	    }
+	}
 
-/*
- * Un-Pause the mvpmc so it will start playing anything that is or
- * will be copied into the mvpmc buffer.
- */
-		if (local_paused == 1)
+	/*
+	 * Get file descriptor of hardware.
+	 */
+	afd = av_get_audio_fd();
+
+	/*
+	 * Problems opening the audio hardware?
+	 */
+	if (afd < 0)
+	{
+	    outbuf->head = 0;
+	    outbuf->tail = 0;
+	    if (debug)
+		printf("mclient:Problems opening the audio hardware.\n");
+	}
+	else
+	{
+	    /*
+	     * If there is room, wirte data in the input buffer to
+	     * the audio device.
+	     *
+	     * Careful, if the head pointer (in) has wrapped and the tail (out) pointer
+	     * has not, the data is split between the end and then the beginning of the 
+	     * ring buffer.
+	     */
+	    if (outbuf->head < outbuf->tail)
+	    {
+		/*
+		 * Data is split, use the end of the buffer before going back to the 
+		 * beginning.
+		 */
+		if ((amount_written =
+		     write(afd, outbuf->buf + outbuf->tail, OUT_BUF_SIZE - outbuf->tail)) == 0)
 		{
-			local_paused = av_pause();
-			if (debug)
-			{
-				printf("mclient:UN-PAUSE returned:%d\n",
-				       local_paused);
-			}
-		}
-
-/*
- * Get file descriptor of hardware.
- */
-		afd = av_get_audio_fd();
-
-/*
- * Problems opening the audio hardware?
- */
-		if (afd < 0)
-		{
-			outbuf->head = 0;
-			outbuf->tail = 0;
-			if (debug)
-				printf
-				    ("mclient:Problems opening the audio hardware.\n");
+		    /*
+		     * Couldn't use the end of the buffer.  We know the buffer is not
+		     * empty from above (outbuf->head < (or !=) outbuf->tail), so the hardware
+		     * must be full. Go into an idle mode.
+		     */
+		    if (debug)
+		    {
+			printf("mclient:The audio output device is full or there is nothing to write (1).\n");
+		    }
 		}
 		else
 		{
+		    /// Just in case...
+		    if (amount_written < 0)
+		    {
+			printf("mclinet:WARNING (1), the write returned a negative value:%d\n",
+			       amount_written);
+		    }
+		    /*
+		     * Data is split and we were able to use some or all of
+		     * the data at the end of the ring buffer.  Find out which
+		     * the case might be.
+		     */
+		    if (amount_written == (OUT_BUF_SIZE - outbuf->tail))
+		    {
 			/*
-			 * If there is room, wirte data in the input buffer to
-			 * the audio device.
-			 *
-			 * Careful, if the head pointer (in) has wrapped and the tail (out) pointer
-			 * has not, the data is split between the end and then the beginning of the 
-			 * ring buffer.
+			 * All the data at the end of the buffer was written.  Now,
+			 * adjust the pointers and start writing from the beginning
+			 * of the buffer.
 			 */
-			if (outbuf->head < outbuf->tail)
-			{
-				/*
-				 * Data is split, use the end of the buffer before going back to the 
-				 * beginning.
-				 */
-				if ((amount_written =
-				     write(afd, outbuf->buf + outbuf->tail,
-					   OUT_BUF_SIZE - outbuf->tail)) == 0)
-				{
-					/*
-					 * Couldn't use the end of the buffer.  We know the buffer is not
-					 * empty from above (outbuf->head < (or !=) outbuf->tail), so the hardware
-					 * must be full. Go into an idle mode.
-					 */
-					if (debug)
-					{
-						printf
-						    ("mclient:The audio output device is full or there is nothing to write (1).\n");
-					}
-				}
-				else
-				{
-					/// Just in case...
-					if (amount_written < 0)
-					{
-						printf
-						    ("mclinet:WARNING (1), the write returned a negative value:%d\n",
-						     amount_written);
-					}
-					/*
-					 * Data is split and we were able to use some or all of
-					 * the data at the end of the ring buffer.  Find out which
-					 * the case might be.
-					 */
-					if (amount_written ==
-					    (OUT_BUF_SIZE - outbuf->tail))
-					{
-						/*
-						 * All the data at the end of the buffer was written.  Now,
-						 * adjust the pointers and start writing from the beginning
-						 * of the buffer.
-						 */
-						outbuf->tail = 0;
+			outbuf->tail = 0;
 
-						if ((amount_written =
-						     write(afd, outbuf->buf,
-							   outbuf->head)) == 0)
-						{
-							/*
-							 * Couldn't use the start of the buffer.  The hardware is
-							 * full of data.
-							 */
-							if (debug)
-							{
-								printf
-								    ("mclient:The audio output device is full or there is nothing to write (2).\n");
-							}
-						}
-						else
-						{
-							/// Just in case...
-							if (amount_written < 0)
-							{
-								printf
-								    ("mclinet:WARNING (2), the write returned a negative value:%d\n",
-								     amount_written);
-							}
-							/*
-							 * We were able to use some or all of
-							 * the data.  Find out which the case might be.
-							 */
-							if (amount_written ==
-							    outbuf->head)
-							{
-								/*
-								 * We wrote all of it.
-								 */
-								outbuf->tail =
-								    outbuf->
-								    head;
-							}
-							else
-							{
-								/*
-								 * The amount written was not zero and it was not up to the 
-								 * head pointer.  Adjust the tail to only account for the 
-								 * portion of the buffer consumed.
-								 */
-								outbuf->tail =
-								    amount_written;
-							}
-						}
-					}
-					else
-					{
-						/*
-						 * The amount written was not zero and it was not up to the 
-						 * end of the buffer.  Adjust the tail to only account for the 
-						 * portion of the buffer consumed.
-						 */
-						outbuf->tail += amount_written;
-					}
-				}
+			if ((amount_written = write(afd, outbuf->buf, outbuf->head)) == 0)
+			{
+			    /*
+			     * Couldn't use the start of the buffer.  The hardware is
+			     * full of data.
+			     */
+			    if (debug)
+			    {
+				printf
+				    ("mclient:The audio output device is full or there is nothing to write (2).\n");
+			    }
 			}
 			else
 			{
-				if ((amount_written =
-				     write(afd, outbuf->buf + outbuf->tail,
-					   outbuf->head - outbuf->tail)) == 0)
-				{
-					if (debug)
-					{
-						printf
-						    ("mclient:The audio output device is full or there is nothing to write (3).\n");
-					}
-				}
-				else
-				{
-					/// Just in case...
-					if (amount_written < 0)
-					{
-						printf
-						    ("mclinet:WARNING (3), the write returned a negative value:%d\n",
-						     amount_written);
-					}
-					/*
-					 * We wrote something:
-					 * Move the tail of the ring buffer up to show the server
-					 * we are actually using data.
-					 */
-					outbuf->tail += amount_written;
-				}
+			    /// Just in case...
+			    if (amount_written < 0)
+			    {
+				printf("mclinet:WARNING (2), the write returned a negative value:%d\n",
+				       amount_written);
+			    }
+			    /*
+			     * We were able to use some or all of
+			     * the data.  Find out which the case might be.
+			     */
+			    if (amount_written == outbuf->head)
+			    {
+				/*
+				 * We wrote all of it.
+				 */
+				outbuf->tail = outbuf->head;
+			    }
+			    else
+			    {
+				/*
+				 * The amount written was not zero and it was not up to the 
+				 * head pointer.  Adjust the tail to only account for the 
+				 * portion of the buffer consumed.
+				 */
+				outbuf->tail = amount_written;
+			    }
 			}
-		}
-
-/*
- * If we are in PLAY mode, we probably do not want to reset the hardware
- * audio buffer when we transition to STOP. But, as the server's CLI and 
- * data/control interface are not necessaraly in sync, we need to wait before
- * we can assume we do not need to reset the hardware buffer for the next
- * PLAY to STOP transition.
- *
- * The small widget hide timer is perfect for this.  It starts when a button
- * is pressed on the remote and clears several seconds later.
- */
-		if ((reset_mclient_hardware_buffer == 1) &&
-		    (cli_small_widget_timeout < time(NULL)))
-		{
-			printf
-			    ("mclient_mvpmc:send_mpeg_data: Clear the HW buffer reset flag as we are still playing a song.\n");
-			reset_mclient_hardware_buffer = 0;
-		}
-		break;
-
-	case 1:
-/*
- * PAUSE: Do not play, and do not reset buffer.
- */
-
-/*
- * Pause the mvpmc so as not to continue to play what has already
- * been copied into the mvpmc buffer.
- */
-		if (local_paused == 0)
-		{
-			local_paused = av_pause();
-			if (debug)
-			{
-				printf
-				    ("mclient_mvpmc:send_mpeg_data: UN-PAUSE returned:%d\n",
-				     local_paused);
-			}
-		}
-		break;
-
-	case 3:
-/*
- * STOP: Do not play, and reset tail to beginning of buffer.
- * (Server needs this control when switching between programs.)
- */
-		if (playmode_history != 3)
-		{
+		    }
+		    else
+		    {
 			/*
-			 * But only reset the buffer when the user is stopping or skipping around
-			 * with either the remote or web interface.  Use the CLI from the server to
-			 * detect these events.  As we don't know which stop indication will come first
-			 * (the server's data/control or CLI port) have similar code in the CLI processing
-			 * functions (we are in the data/control processing functions).
+			 * The amount written was not zero and it was not up to the 
+			 * end of the buffer.  Adjust the tail to only account for the 
+			 * portion of the buffer consumed.
 			 */
-			if (reset_mclient_hardware_buffer == 1)
-			{
-				printf
-				    ("mclient_mvpmc:send_mpeg_data: Resetting HW audio buffer from data/control functions.\n");
-				av_reset();
-				reset_mclient_hardware_buffer = 0;
-			}
+			outbuf->tail += amount_written;
+		    }
 		}
-
-		outbuf->tail = 0;
-		break;
-
-	default:
-		break;
+	    }
+	    else
+	    {
+		if ((amount_written =
+		     write(afd, outbuf->buf + outbuf->tail, outbuf->head - outbuf->tail)) == 0)
+		{
+		    if (debug)
+		    {
+			printf("mclient:The audio output device is full or there is nothing to write (3).\n");
+		    }
+		}
+		else
+		{
+		    /// Just in case...
+		    if (amount_written < 0)
+		    {
+			printf("mclinet:WARNING (3), the write returned a negative value:%d\n",
+			       amount_written);
+		    }
+		    /*
+		     * We wrote something:
+		     * Move the tail of the ring buffer up to show the server
+		     * we are actually using data.
+		     */
+		    outbuf->tail += amount_written;
+		}
+	    }
 	}
-	playmode_history = outbuf->playmode;
+
+	/*
+	 * If we are in PLAY mode, we probably do not want to reset the hardware
+	 * audio buffer when we transition to STOP. But, as the server's CLI and 
+	 * data/control interface are not necessaraly in sync, we need to wait before
+	 * we can assume we do not need to reset the hardware buffer for the next
+	 * PLAY to STOP transition.
+	 *
+	 * The small widget hide timer is perfect for this.  It starts when a button
+	 * is pressed on the remote and clears several seconds later.
+	 */
+	if ((reset_mclient_hardware_buffer == 1) && (cli_small_widget_timeout < time(NULL)))
+	{
+	    printf
+		("mclient_mvpmc:send_mpeg_data: Clear the HW buffer reset flag as we are still playing a song.\n");
+	    reset_mclient_hardware_buffer = 0;
+	}
+	break;
+
+    case 1:
+	/*
+	 * PAUSE: Do not play, and do not reset buffer.
+	 */
+
+	/*
+	 * Pause the mvpmc so as not to continue to play what has already
+	 * been copied into the mvpmc buffer.
+	 */
+	if (local_paused == 0)
+	{
+	    local_paused = av_pause();
+	    if (debug)
+	    {
+		printf("mclient_mvpmc:send_mpeg_data: UN-PAUSE returned:%d\n", local_paused);
+	    }
+	}
+	break;
+
+    case 3:
+	/*
+	 * STOP: Do not play, and reset tail to beginning of buffer.
+	 * (Server needs this control when switching between programs.)
+	 */
+	if (playmode_history != 3)
+	{
+	    /*
+	     * But only reset the buffer when the user is stopping or skipping around
+	     * with either the remote or web interface.  Use the CLI from the server to
+	     * detect these events.  As we don't know which stop indication will come first
+	     * (the server's data/control or CLI port) have similar code in the CLI processing
+	     * functions (we are in the data/control processing functions).
+	     */
+	    if (reset_mclient_hardware_buffer == 1)
+	    {
+		printf
+		    ("mclient_mvpmc:send_mpeg_data: Resetting HW audio buffer from data/control functions.\n");
+		av_reset();
+		reset_mclient_hardware_buffer = 0;
+	    }
+	}
+
+	outbuf->tail = 0;
+	break;
+
+    default:
+	break;
+    }
+    playmode_history = outbuf->playmode;
 }
 
 void
 mclient_idle_callback(mvp_widget_t * widget)
 {
-	static int doubletime = 100;
-	static char oldstring[140] = "OriginalString";
-	static int send_display_data_state = 0;
-	char newstring[140];
+    static int doubletime = 100;
+    static char oldstring[140] = "OriginalString";
+    static int send_display_data_state = 0;
+    char newstring[140];
 
-	pthread_mutex_lock(&mclient_mutex);
+    pthread_mutex_lock(&mclient_mutex);
 
-/*
-* Only use the first 40 characters.  Looks like the server
-* leaves old characters laying round past the 40th character.
-*/
-	sprintf(newstring, "%-40.40s\n%-40.40s\n", slimp3_display,
-		&slimp3_display[64]);
+    /*
+     * Only use the first 40 characters.  Looks like the server
+     * leaves old characters laying round past the 40th character.
+     */
+    sprintf(newstring, "%-40.40s\n%-40.40s\n", slimp3_display, &slimp3_display[64]);
 
-	pthread_mutex_unlock(&mclient_mutex);
+    pthread_mutex_unlock(&mclient_mutex);
 
-/*
-* Set the call back for the slower 100ms interval.
-*/
-	doubletime = 100;
+    /*
+     * Set the call back for the slower 100ms interval.
+     */
+    doubletime = 100;
 
-	if (strcmp(newstring, oldstring) != 0)
-	{
-/*
- * If we are looking a new title data, reduce the 
- * call back interval to a faster 10ms (in anticipation
- * of the need to handle scrolling data).
- *
- * Send text to OSD.
- */
-		doubletime = 10;
-		mvpw_set_dialog_text(mclient, newstring);
-/*
- * Send text to sub fullscreen OSD as well.
- */
-// For some reason the text widget can not handle
-// the ">>" character so we will just over write it
-// with a end of string null character...
-		newstring[79] = '\0';
-		mvpw_set_text_str(mclient_sub_softsqueeze, newstring);
-	}
+    if (strcmp(newstring, oldstring) != 0)
+    {
+	/*
+	 * If we are looking a new title data, reduce the 
+	 * call back interval to a faster 10ms (in anticipation
+	 * of the need to handle scrolling data).
+	 *
+	 * Send text to OSD.
+	 */
+	doubletime = 10;
+	mvpw_set_dialog_text(mclient, newstring);
+	/*
+	 * Send text to sub fullscreen OSD as well.
+	 */
+	// For some reason the text widget can not handle
+	// the ">>" character so we will just over write it
+	// with a end of string null character...
+	newstring[79] = '\0';
+	mvpw_set_text_str(mclient_sub_softsqueeze, newstring);
+    }
 
-/*
-* Send text to VFD.
-*
-* Only send data when Line1 has changed.  We don't want to send
-* text when the server is scrolling text on Line2.
-*/
-	if ((strncmp(newstring, oldstring, 40) != 0)
-	    && (send_display_data_state == 0))
-	{
-		if (debug)
-			printf
-			    ("mclient:TEST:new&old are diff new:%s old:%s state:%d\n",
-			     newstring, oldstring, send_display_data_state);
-/*
- * But, wait until server animation has stopped before deciding
- * to send data.
- */
-		send_display_data_state = 1;
-	}
-
-	if ((strncmp(newstring, oldstring, 40) == 0)
-	    && (send_display_data_state == 1))
-	{
-		if (debug)
-			printf
-			    ("mclient:TEST:new&old are same new:%s old:%s state:%d\n",
-			     newstring, oldstring, send_display_data_state);
-		snprintf(display_message, sizeof(display_message),
-			 "Line1:%40.40s\n", &newstring[0]);
-		display_send(display_message);
-
-		snprintf(display_message, sizeof(display_message),
-			 "Line2:%40.40s\n", &newstring[41]);
-		display_send(display_message);
-
-		send_display_data_state = 0;
-	}
-/*
-* Make copy of string to compair with next time 
-* through.
-*/
-	strncpy(oldstring, newstring, 135);
-
+    /*
+     * Send text to VFD.
+     *
+     * Only send data when Line1 has changed.  We don't want to send
+     * text when the server is scrolling text on Line2.
+     */
+    if ((strncmp(newstring, oldstring, 40) != 0) && (send_display_data_state == 0))
+    {
 	if (debug)
-		if (doubletime == 10)
-			printf("mclient:Test:Double Time Activated.\n");
-	mvpw_set_timer(mclient, mclient_idle_callback, doubletime);
+	    printf
+		("mclient:TEST:new&old are diff new:%s old:%s state:%d\n",
+		 newstring, oldstring, send_display_data_state);
+	/*
+	 * But, wait until server animation has stopped before deciding
+	 * to send data.
+	 */
+	send_display_data_state = 1;
+    }
+
+    if ((strncmp(newstring, oldstring, 40) == 0) && (send_display_data_state == 1))
+    {
+	if (debug)
+	    printf
+		("mclient:TEST:new&old are same new:%s old:%s state:%d\n",
+		 newstring, oldstring, send_display_data_state);
+	snprintf(display_message, sizeof(display_message), "Line1:%40.40s\n", &newstring[0]);
+	display_send(display_message);
+
+	snprintf(display_message, sizeof(display_message), "Line2:%40.40s\n", &newstring[41]);
+	display_send(display_message);
+
+	send_display_data_state = 0;
+    }
+    /*
+     * Make copy of string to compair with next time 
+     * through.
+     */
+    strncpy(oldstring, newstring, 135);
+
+    if (debug)
+	if (doubletime == 10)
+	    printf("mclient:Test:Double Time Activated.\n");
+    mvpw_set_timer(mclient, mclient_idle_callback, doubletime);
 }
 
 void
 receive_volume_data(unsigned short *data, int bytes_read)
 {
-	unsigned short vol_2, vol_1, vol_0;
-	unsigned short addr_hi, addr_lo;
-	uint addr;
-	ulong vol_server;
-	uint vol_mvpmc;
-	int i;
+    unsigned short vol_2, vol_1, vol_0;
+    unsigned short addr_hi, addr_lo;
+    uint addr;
+    ulong vol_server;
+    uint vol_mvpmc;
+    int i;
 
-/*
-* Verify i2c Address for chan 1.
-*
-* Data starts at byte 18 (9), addres is at 32 (16)
-* vol_server at 38 (18).
-*/
-	addr_hi = data[16] & 0xff00;
-	addr_lo = data[17] & 0xff00;
-	addr = (addr_hi + (addr_lo >> 8));
-/*
-* Get volume data for chan 1.
-* Assume chan 1 & 2 (left & right) chan are same.
-*/
-	if (addr == 0x7f8)
+    /*
+     * Verify i2c Address for chan 1.
+     *
+     * Data starts at byte 18 (9), addres is at 32 (16)
+     * vol_server at 38 (18).
+     */
+    addr_hi = data[16] & 0xff00;
+    addr_lo = data[17] & 0xff00;
+    addr = (addr_hi + (addr_lo >> 8));
+    /*
+     * Get volume data for chan 1.
+     * Assume chan 1 & 2 (left & right) chan are same.
+     */
+    if (addr == 0x7f8)
+    {
+	vol_2 = (data[21]) & 0xff00;
+	vol_1 = (data[18]) & 0xff00;
+	vol_0 = (data[19]) & 0xff00;
+	vol_server = ((vol_2 << 8) + (vol_1) + (vol_0 >> 8));
+	/*
+	 * Mvpmc vol range appears to be between 220 to 255.  Find a
+	 * best fit for our vol_server we receive from the server.
+	 * (If we could, we might do better if we used the square
+	 * root of vol_server.))
+	 */
+	vol_mvpmc = 0;
+	i = 0;
+	while ((volume_server[i] <= vol_server) & (i <= 40))
 	{
-		vol_2 = (data[21]) & 0xff00;
-		vol_1 = (data[18]) & 0xff00;
-		vol_0 = (data[19]) & 0xff00;
-		vol_server = ((vol_2 << 8) + (vol_1) + (vol_0 >> 8));
-/*
- * Mvpmc vol range appears to be between 220 to 255.  Find a
- * best fit for our vol_server we receive from the server.
- * (If we could, we might do better if we used the square
- * root of vol_server.))
- */
-		vol_mvpmc = 0;
-		i = 0;
-		while ((volume_server[i] <= vol_server) & (i <= 40))
-		{
-			i++;
-		}
-
-		if (i > 40)
-		{
-			i = 40;
-		}
-
-		vol_mvpmc = volume_adj[i];
-
-		{
-			av_state_t state;
-
-			av_get_state(&state);
-
-			/*
-			 * If vol_40 is zero, set mute.
-			 */
-			if ((i == 0) & (state.mute == 0))
-			{
-				if (av_mute() == 1)
-				{
-					mvpw_show(mute_widget);
-				}
-			}
-
-			/*
-			 * If vol_40 is changed and not 0, clear mute.
-			 */
-			if ((i != 0) & (state.mute == 1))
-			{
-				if (av_mute() == 0)
-				{
-					mvpw_hide(mute_widget);
-				}
-			}
-		}
-		if (debug)
-			printf("mclient:vol_raw:%5x vol_data:%d i:%d\n",
-			       (uint) vol_server, vol_mvpmc, i);
-		if (av_set_volume(vol_mvpmc) < 0)
-			printf("mclient:error:volume could not be set\n");
-		volume = vol_mvpmc;
+	    i++;
 	}
+
+	if (i > 40)
+	{
+	    i = 40;
+	}
+
+	vol_mvpmc = volume_adj[i];
+
+	{
+	    av_state_t state;
+
+	    av_get_state(&state);
+
+	    /*
+	     * If vol_40 is zero, set mute.
+	     */
+	    if ((i == 0) & (state.mute == 0))
+	    {
+		if (av_mute() == 1)
+		{
+		    mvpw_show(mute_widget);
+		}
+	    }
+
+	    /*
+	     * If vol_40 is changed and not 0, clear mute.
+	     */
+	    if ((i != 0) & (state.mute == 1))
+	    {
+		if (av_mute() == 0)
+		{
+		    mvpw_hide(mute_widget);
+		}
+	    }
+	}
+	if (debug)
+	    printf("mclient:vol_raw:%5x vol_data:%d i:%d\n", (uint) vol_server, vol_mvpmc, i);
+	if (av_set_volume(vol_mvpmc) < 0)
+	    printf("mclient:error:volume could not be set\n");
+	volume = vol_mvpmc;
+    }
 }
 
 void *
 mclient_loop_thread(void *arg)
 {
-	int socket_handle_data;
-	int socket_handle_cli;
-	pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+    int socket_handle_data;
+    int socket_handle_cli;
+    pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
-	fd_set read_fds;
-	FD_ZERO(&read_fds);
-	pthread_mutex_lock(&mutex);
+    fd_set read_fds;
+    FD_ZERO(&read_fds);
+    pthread_mutex_lock(&mutex);
 
-	for (;;)
+    for (;;)
+    {
+	/*
+	 * Check when we get "turned on" (grab the GUI).
+	 */
+	if (gui_state == MVPMC_STATE_MCLIENT)
 	{
-/*
- * Check when we get "turned on" (grab the GUI).
- */
-		if (gui_state == MVPMC_STATE_MCLIENT)
+	    /*
+	     * Let's try initializing mclient here.
+	     * Grab the audio hardware.
+	     */
+	    switch_hw_state(MVPMC_STATE_MCLIENT);
+
+	    if (debug)
+		printf("mclient:Initializing mclient\n");
+	    mclient_local_init();
+
+	    if (debug)
+		printf("mclient:Initializing mclient cli\n");
+	    cli_init();
+
+	    /*
+	     * Get the socket handles for mclient ports (control-data & CLI).
+	     */
+	    printf("mclient:Get socket handle for mclient_cli data\n");
+	    socket_handle_cli = cli_server_connect();
+	    printf("mclient:Get socket handle for mclient data\n");
+	    socket_handle_data = mclient_server_connect();
+	    if ((socket_handle_cli == -1) || (socket_handle_data == -1))
+	    {
+		/*
+		 * Warning, could not open sockets for MClient.
+		 * Display Warning box on OSD.
+		 */
 		{
+		    char buf[200];
+
+		    snprintf(buf, sizeof(buf), "%s%s%s",
+			     "Could not open either the normal or CLI socket for MClient. ",
+			     "We were trying to connect to Slimserver at:",
+			     mclient_server ? mclient_server : "127.0.0.1");
+		    gui_error(buf);
+		}
+	    }
+	    else
+	    {
+
+		mclient_socket = socket_handle_data;
+		send_discovery(socket_handle_data);
+		cli_send_discovery(socket_handle_cli);
+
+		/*
+		 * Check Slimserver's version number for compatability.
+		 */
+		{
+		    char cmd[MAX_CMD_SIZE];
+		    sprintf(cmd, "%s version ?\n", decoded_player_id);
+		    cli_send_packet(socket_handle_cli, cmd);
+		}
+
+		/*
+		 * Set up the hardware to pass mp3 data.
+		 * (Should only do once?...)
+		 */
+		av_set_audio_output(AV_AUDIO_MPEG);
+		av_set_audio_type(0);
+		av_play();
+
+		/*
+		 * Stay in loop processing server's audio data
+		 * until we give up the audio hardware.
+		 */
+		while (hw_state == MVPMC_STATE_MCLIENT)
+		{
+		    struct timeval mclient_tv;
+		    int n = 0;
+
+		    /*
+		     * Check if short (about 1 second) display update
+		     * (for widgets like the progressbar) is needed.
+		     */
+		    if (cli_data.short_update_timer < time(NULL))
+		    {
+			cli_data.short_update_timer = time(NULL) + 1;
+			cli_data.short_update_timer_expired = TRUE;
+			mvpw_set_graph_current(mclient_sub_progressbar, cli_data.percent);
+			mvpw_expose(mclient_sub_progressbar);
+			mvpw_set_graph_current(mclient_sub_volumebar, cli_data.volume);
+			mvpw_expose(mclient_sub_volumebar);
 			/*
-			 * Let's try initializing mclient here.
-			 * Grab the audio hardware.
+			 * Has there been an outstanding CLI message fo
+			 * a long period of time.  If so clear the flag
+			 * as we expect we lost the transaction.
 			 */
-			switch_hw_state(MVPMC_STATE_MCLIENT);
-
-			if (debug)
-				printf("mclient:Initializing mclient\n");
-			mclient_local_init();
-
-			if (debug)
-				printf("mclient:Initializing mclient cli\n");
-			cli_init();
-
-			/*
-			 * Get the socket handles for mclient ports (control-data & CLI).
-			 */
-			printf
-			    ("mclient:Get socket handle for mclient_cli data\n");
-			socket_handle_cli = cli_server_connect();
-			printf("mclient:Get socket handle for mclient data\n");
-			socket_handle_data = mclient_server_connect();
-			if ((socket_handle_cli == -1)
-			    || (socket_handle_data == -1))
+			if (cli_data.outstanding_cli_message == TRUE)
 			{
-				/*
-				 * Warning, could not open sockets for MClient.
-				 * Display Warning box on OSD.
-				 */
-				{
-					char buf[200];
+			    cli_data.outstanding_cli_message_timer++;
+			    // 2 seconds should be long enough to
+			    // process a CLI message.
+			    if (cli_data.outstanding_cli_message_timer > 2)
+			    {
+				printf("mclient: WARNING, Outstanding CLI message TIME OUT!\n");
+				cli_data.outstanding_cli_message = FALSE;
+				cli_data.outstanding_cli_message_timer = 0;
+			    }
+			}
+		    }
 
-					snprintf(buf, sizeof(buf), "%s%s%s",
-						 "Could not open either the normal or CLI socket for MClient. ",
-						 "We were trying to connect to Slimserver at:",
-						 mclient_server ? mclient_server
-						 : "127.0.0.1");
-					gui_error(buf);
+		    /*
+		     * Switch to "Now Playing" from "Up Next" after several seconds to
+		     * accomodate for the lag presented by the audio HW buffer.
+		     */
+		    if ((now_playing_timeout < time(NULL)) && (now_playing_timeout != 0))
+		    {
+			cli_data.state = UPDATE_PLAYLIST_MINMINUS1 + 1;
+			now_playing_timeout = 0;
+			cli_update_playlist(socket_handle_cli);
+		    }
+
+		    /*
+		     * Switch from userfocus to nowplaying on full screen mclient dispaly.
+		     */
+		    if ((cli_userfocus_timeout < time(NULL)) && (cli_userfocus_timeout != 0))
+		    {
+			cli_userfocus_timeout = 0;
+			/*
+			 * Need to trigger a pull of track info from server when switching from
+			 * user to player focus.
+			 * Set to fist state (always MINMUNIS1 plus 1).
+			 */
+			cli_data.state = UPDATE_PLAYLIST_MINMINUS1 + 1;
+			cli_update_playlist(socket_handle_cli);
+
+			printf("mclient_mvpmc:User focus hilite off.\n");
+		    }
+
+		    /*
+		     * Empty the set we are keeping an eye on and add all the ones we are 
+		     * interested in.
+		     * (i.e. We are interested in MP3 & Control data from the music server, 
+		     * and additional data from the Command Line Interface (CLI) for the full 
+		     * screen display.)
+		     */
+		    FD_ZERO(&read_fds);
+		    FD_SET(socket_handle_cli, &read_fds);
+		    FD_SET(socket_handle_data, &read_fds);
+		    /*
+		     * We need to know the largest file descriptor value we need to track.
+		     */
+		    if (socket_handle_data > n)
+			n = socket_handle_data;
+		    if (socket_handle_cli > n)
+			n = socket_handle_cli;
+
+		    /*
+		     * Wait until we receive data from server or up to 100ms
+		     * (1/10 of a second).
+		     */
+		    mclient_tv.tv_usec = 100000;
+
+		    if (select(n + 1, &read_fds, NULL, NULL, &mclient_tv) == -1)
+		    {
+			if (errno != EINTR)
+			{
+			    if (debug)
+				printf("mclient:select error\n");
+			    abort();
+			}
+		    }
+
+		    /*
+		     * Check if the "select" event could have been caused because data
+		     * has been sent by the server.
+		     */
+		    if (FD_ISSET(socket_handle_data, &read_fds))
+		    {
+			if (debug)
+			    printf("mclient_mvpmc:We found data to read on the socket_handle_data handle.\n");
+			read_packet(socket_handle_data);
+		    }
+
+		    /*
+		     * This is the highest level hack for receiving CLI radio / streaming info.
+		     * Once slimserver 6.5 is in wide use, get rid of this stuff.
+		     *
+		     * Check if we have a delayed request to send to the
+		     * servers' CLI.
+		     */
+		    if (cli_identical_state_interval_timer < time(NULL))
+		    {
+			if (cli_identical_state_interval_timer != 0)
+			{
+			    if (debug)
+				printf("mclient_cli:Detected delayed request.\n");
+			    cli_data.state = UPDATE_RADIO_NOWPLAYING;
+			    cli_identical_state_interval_timer = 0;
+			    cli_update_playlist(socket_handle_cli);
+			}
+		    }
+
+		    /*
+		     * Check if the "select" event could have been caused because new cli data
+		     * has been sent. 
+		     */
+		    if (FD_ISSET(socket_handle_cli, &read_fds))
+		    {
+			if (debug)
+			    printf("mclient_mvpmc:We found data to read on the socket_handle_cli handle.\n");
+			cli_read_data(socket_handle_cli);
+		    }
+
+		    /*
+		     * Need to check for a shift key event.
+		     * 
+		     * Has shift time expired?
+		     */
+		    if (remote_buttons.shift_time <= time(NULL))
+		    {
+			remote_buttons.shift = FALSE;
+		    }
+		    if (remote_buttons.last_pressed == MVPW_KEY_RECORD)
+		    {
+			remote_buttons.last_pressed = MVPW_KEY_NONE;
+			remote_buttons.shift = TRUE;
+			// Renew shift timer.
+			remote_buttons.shift_time = time(NULL) + 2;
+		    }
+		    else
+		    {
+			switch (remote_buttons.last_pressed)
+			{
+			case MVPW_KEY_SKIP:
+			    remote_buttons.last_pressed = MVPW_KEY_NONE;
+			    if (remote_buttons.shift == TRUE)
+			    {
+				// Renew shift timer.
+				remote_buttons.shift_time = time(NULL) + 2;
+			    }
+			    break;
+			case MVPW_KEY_REPLAY:
+			    remote_buttons.last_pressed = MVPW_KEY_NONE;
+			    if (remote_buttons.shift == TRUE)
+			    {
+				// Renew shift timer.
+				remote_buttons.shift_time = time(NULL) + 2;
+			    }
+			}
+		    }
+
+		    /*
+		     * If time expired, need to check on buttons monitored for
+		     * a "held down" event.
+		     */
+		    if (remote_buttons.elapsed_time <= time(NULL))
+		    {
+			remote_buttons.elapsed_time = time(NULL) + 1;
+			if (remote_buttons.number_of_scans > 1)
+			{
+			    /*
+			     * Passed threshold, assume button held down.
+			     */
+			    if (remote_buttons.state != RELEASED_BUTTON)
+			    {
+				/*
+				 * Same pressed button as last time.
+				 */
+				switch (remote_buttons.last_pressed)
+				{
+				case MVPW_KEY_FFWD:
+				    remote_buttons.number_of_pushes++;
+				    sprintf
+					(pending_cli_string,
+					 "%s rate %d\n", decoded_player_id, remote_buttons.number_of_pushes);
+				    break;
+				case MVPW_KEY_REWIND:
+				    remote_buttons.number_of_pushes--;
+				    sprintf
+					(pending_cli_string,
+					 "%s rate %d\n", decoded_player_id, remote_buttons.number_of_pushes);
+				    break;
 				}
+				remote_buttons.state = PUSHING_BUTTON;
+				remote_buttons.number_of_scans = 0;	/// Snyc
+				remote_buttons.elapsed_time = time(NULL) + 1;
+			    }
+			    else
+			    {
+				/*
+				 * Newly pressed button since last time.
+				 */
+				switch (remote_buttons.last_pressed)
+				{
+				case MVPW_KEY_FFWD:
+				    remote_buttons.number_of_pushes = 2;
+				    sprintf
+					(pending_cli_string,
+					 "%s rate %d\n", decoded_player_id, remote_buttons.number_of_pushes);
+				    break;
+				case MVPW_KEY_REWIND:
+				    remote_buttons.number_of_pushes = -2;
+				    sprintf
+					(pending_cli_string,
+					 "%s rate %d\n", decoded_player_id, remote_buttons.number_of_pushes);
+				    break;
+				}
+				remote_buttons.state = PUSHING_BUTTON;
+				remote_buttons.number_of_scans = 0;	/// Snyc
+				remote_buttons.elapsed_time = time(NULL) + 1;
+
+			    }
 			}
 			else
 			{
+			    /*
+			     * Assumed button not held down.
+			     */
+			    switch (remote_buttons.last_pressed)
+			    {
+			    case MVPW_KEY_FFWD:
+				break;
+			    case MVPW_KEY_REWIND:
+				break;
+			    }
+			    remote_buttons.state = RELEASED_BUTTON;
+			    remote_buttons.number_of_scans = 0;	/// Snyc
+			    remote_buttons.elapsed_time = time(NULL) + 1;
+			}
+		    }
 
-				mclient_socket = socket_handle_data;
-				send_discovery(socket_handle_data);
-				cli_send_discovery(socket_handle_cli);
+		    /*
+		     * Any timed CLI messages to be sent out to slimserver?
+		     */
+		    if (cli_data.short_update_timer_expired == TRUE)
+		    {
+			char cmd[MAX_CMD_SIZE];
+			cli_data.short_update_timer_expired = FALSE;
+			sprintf(cmd, "%s time ?\n", decoded_player_id);
+			cli_send_packet(socket_handle_cli, cmd);
 
-				/*
-				 * Check Slimserver's version number for compatability.
-				 */
-				{
-					char cmd[MAX_CMD_SIZE];
-					sprintf(cmd, "%s version ?\n",
-						decoded_player_id);
-					cli_send_packet(socket_handle_cli, cmd);
-				}
+			sprintf(cmd, "%s mixer volume ?\n", decoded_player_id);
+			cli_send_packet(socket_handle_cli, cmd);
 
-				/*
-				 * Set up the hardware to pass mp3 data.
-				 * (Should only do once?...)
-				 */
-				av_set_audio_output(AV_AUDIO_MPEG);
-				av_set_audio_type(0);
-				av_play();
+			sprintf(cmd, "%s mode ?\n", decoded_player_id);
+			cli_send_packet(socket_handle_cli, cmd);
+		    }
 
-				/*
-				 * Initialize...
-				 * ...the play mode to "not start playing"
-				 * and "clear the buffer".
-				 */
-				outbuf->playmode = 3;
+		    /*
+		     * Any pending CLI messages to be sent out to slimserver?
+		     */
+		    if (pending_cli_string[0] != '\0')
+		    {
+			/*
+			 * If there is a CLI message out, don't send another.
+			 */
+			if (cli_data.outstanding_cli_message != TRUE)
+			{
+			    cli_send_packet(socket_handle_cli, pending_cli_string);
+			    pending_cli_string[0] = '\0';
+			}
+		    }
 
+		    /*
+		     * Do we need to get the cover art?
+		     */
+		    if ((cli_data.get_cover_art_later == TRUE) && (gui_state == MVPMC_STATE_MCLIENT))
+		    {
+			/*
+			 * Only get new cover art if the local menu is 
+			 * not active.
+			 */
+			if (remote_buttons.local_menu == FALSE)
+			{
+			    if (cli_data.get_cover_art_holdoff_timer < time(NULL))
+			    {
+				cli_data.get_cover_art_holdoff_timer = time(NULL) + 5;
+				cli_data.get_cover_art_later = FALSE;
+				cli_get_cover_art();
+			    }
+			}
+		    }
 
-				remote_buttons.local_menu = FALSE;
-				remote_buttons.local_menu_browse = FALSE;
+		    /*
+		     * Do we need to get the cover art for album browser?
+		     */
+		    if ((cli_data.pending_proc_for_cover_art == TRUE) && (gui_state == MVPMC_STATE_MCLIENT))
+		    {
+			/*
+			 * If there is a CLI message out, don't send another.
+			 */
+			if (cli_data.outstanding_cli_message != TRUE)
+			{
+			    cli_data.pending_proc_for_cover_art = FALSE;
+			    /*
+			     * Check if we have been triggered to restart the
+			     * state machine.
+			     */
+			    if (cli_data.trigger_proc_for_cover_art == TRUE)
+			    {
+				cli_data.trigger_proc_for_cover_art = FALSE;
+				cli_data.state_for_cover_art = GET_1ST_ALBUM_COVERART;
+			    }
+			    mclient_browse_by_cover();
+			}
+		    }
+		    else
+		    {
+			/*
+			 * If there are no outstanding requests, then we
+			 * can start over.
+			 */
+			if (cli_data.outstanding_cli_message == FALSE)
+			{
+			    /*
+			     * If we are not getting cover art, check, we may
+			     * have been triggered to start over, if so, set 
+			     * it up the next go around.
+			     */
+			    if (cli_data.trigger_proc_for_cover_art == TRUE)
+			    {
+				cli_data.pending_proc_for_cover_art = TRUE;
+			    }
+			}
+		    }
 
-		      		// Get (initialize) the max number of albums from server.
-		      		cli_data.state_for_cover_art = GET_TOTAL_NUM_ALBUMS;
-		      		cli_data.pending_proc_for_cover_art = TRUE;
+		    /*
+		     * Do we need to get the update cover art widgets for 
+		     * album browser?
+		     */
+		    if ((cli_data.pending_proc_for_cover_art_widget == TRUE) &&
+			(gui_state == MVPMC_STATE_MCLIENT) && (remote_buttons.local_menu_browse == TRUE))
+		    {
+			cli_data.pending_proc_for_cover_art_widget = FALSE;
+			mclient_browse_by_cover_widget();
+		    }
 
-				/*
-				 * Stay in loop processing server's audio data
-				 * until we give up the audio hardware.
-				 */
-				while (hw_state == MVPMC_STATE_MCLIENT)
-				{
-					struct timeval mclient_tv;
-					int n = 0;
-
-					/*
-					 * Check if short (about 1 second) display update
-					 * (for widgets like the progressbar) is needed.
-					 */
-					if (cli_data.short_update_timer <
-					    time(NULL))
-					{
-						cli_data.short_update_timer =
-						    time(NULL) + 1;
-						cli_data.
-						    short_update_timer_expired =
-						    TRUE;
-						mvpw_set_graph_current
-						    (mclient_sub_progressbar,
-						     cli_data.percent);
-						mvpw_expose
-						    (mclient_sub_progressbar);
-						mvpw_set_graph_current
-						    (mclient_sub_volumebar,
-						     cli_data.volume);
-						mvpw_expose
-						    (mclient_sub_volumebar);
-					}
-
-					/*
-					 * Switch to "Now Playing" from "Up Next" after several seconds to
-					 * accomodate for the lag presented by the audio HW buffer.
-					 */
-					if ((now_playing_timeout < time(NULL))
-					    && (now_playing_timeout != 0))
-					{
-						cli_data.state =
-						    UPDATE_PLAYLIST_MINMINUS1 +
-						    1;
-						now_playing_timeout = 0;
-						cli_update_playlist
-						    (socket_handle_cli);
-					}
-
-					/*
-					 * Switch from userfocus to nowplaying on full screen mclient dispaly.
-					 */
-					if ((cli_userfocus_timeout < time(NULL))
-					    && (cli_userfocus_timeout != 0))
-					{
-						cli_userfocus_timeout = 0;
-						/*
-						 * Need to trigger a pull of track info from server when switching from
-						 * user to player focus.
-						 * Set to fist state (always MINMUNIS1 plus 1).
-						 */
-						cli_data.state =
-						    UPDATE_PLAYLIST_MINMINUS1 +
-						    1;
-						cli_update_playlist
-						    (socket_handle_cli);
-
-						printf
-						    ("mclient_mvpmc:User focus hilite off.\n");
-					}
-
-					/*
-					 * Empty the set we are keeping an eye on and add all the ones we are 
-					 * interested in.
-					 * (i.e. We are interested in MP3 & Control data from the music server, 
-					 * and additional data from the Command Line Interface (CLI) for the full 
-					 * screen display.)
-					 */
-					FD_ZERO(&read_fds);
-					FD_SET(socket_handle_cli, &read_fds);
-					FD_SET(socket_handle_data, &read_fds);
-					/*
-					 * We need to know the largest file descriptor value we need to track.
-					 */
-					if (socket_handle_data > n)
-						n = socket_handle_data;
-					if (socket_handle_cli > n)
-						n = socket_handle_cli;
-
-					/*
-					 * Wait until we receive data from server or up to 100ms
-					 * (1/10 of a second).
-					 */
-					mclient_tv.tv_usec = 100000;
-
-					if (select
-					    (n + 1, &read_fds, NULL, NULL,
-					     &mclient_tv) == -1)
-					{
-						if (errno != EINTR)
-						{
-							if (debug)
-								printf
-								    ("mclient:select error\n");
-							abort();
-						}
-					}
-
-					/*
-					 * Check if the "select" event could have been caused because data
-					 * has been sent by the server.
-					 */
-					if (FD_ISSET
-					    (socket_handle_data, &read_fds))
-					{
-						if (debug)
-							printf
-							    ("mclient_mvpmc:We found data to read on the socket_handle_data handle.\n");
-						read_packet(socket_handle_data);
-					}
-
-					/*
-					 * This is the highest level hack for receiving CLI radio / streaming info.
-					 * Once slimserver 6.5 is in wide use, get rid of this stuff.
-					 *
-					 * Check if we have a delayed request to send to the
-					 * servers' CLI.
-					 */
-					if (cli_identical_state_interval_timer <
-					    time(NULL))
-					{
-						if (cli_identical_state_interval_timer != 0)
-						{
-							if (debug)
-								printf
-								    ("mclient_cli:Detected delayed request.\n");
-							cli_data.state =
-							    UPDATE_RADIO_NOWPLAYING;
-							cli_identical_state_interval_timer
-							    = 0;
-							cli_update_playlist
-							    (socket_handle_cli);
-						}
-					}
-
-					/*
-					 * Check if the "select" event could have been caused because new cli data
-					 * has been sent. 
-					 */
-					if (FD_ISSET
-					    (socket_handle_cli, &read_fds))
-					{
-						if (debug)
-							printf
-							    ("mclient_mvpmc:We found data to read on the socket_handle_cli handle.\n");
-						cli_read_data
-						    (socket_handle_cli);
-					}
-
-					/*
-					 * Need to check for a shift key event.
-					 * 
-					 * Has shift time expired?
-					 */
-					if (remote_buttons.shift_time <=
-					    time(NULL))
-					{
-						remote_buttons.shift = FALSE;
-					}
-					if (remote_buttons.last_pressed ==
-					    MVPW_KEY_RECORD)
-					{
-						remote_buttons.last_pressed =
-						    MVPW_KEY_NONE;
-						remote_buttons.shift = TRUE;
-						// Renew shift timer.
-						remote_buttons.shift_time =
-						    time(NULL) + 2;
-					}
-					else
-					{
-						switch (remote_buttons.
-							last_pressed)
-						{
-						case MVPW_KEY_SKIP:
-							remote_buttons.
-							    last_pressed =
-							    MVPW_KEY_NONE;
-							if (remote_buttons.
-							    shift == TRUE)
-							{
-								// Renew shift timer.
-								remote_buttons.
-								    shift_time =
-								    time(NULL) +
-								    2;
-							}
-							break;
-						case MVPW_KEY_REPLAY:
-							remote_buttons.
-							    last_pressed =
-							    MVPW_KEY_NONE;
-							if (remote_buttons.
-							    shift == TRUE)
-							{
-								// Renew shift timer.
-								remote_buttons.
-								    shift_time =
-								    time(NULL) +
-								    2;
-							}
-						}
-					}
-
-					/*
-					 * If time expired, need to check on buttons monitored for
-					 * a "held down" event.
-					 */
-					if (remote_buttons.elapsed_time <=
-					    time(NULL))
-					{
-						remote_buttons.elapsed_time =
-						    time(NULL) + 1;
-						if (remote_buttons.
-						    number_of_scans > 1)
-						{
-							/*
-							 * Passed threshold, assume button held down.
-							 */
-							if (remote_buttons.
-							    state !=
-							    RELEASED_BUTTON)
-							{
-								/*
-								 * Same pressed button as last time.
-								 */
-								switch
-								    (remote_buttons.
-								     last_pressed)
-								{
-								case MVPW_KEY_FFWD:
-									remote_buttons.
-									    number_of_pushes++;
-									sprintf
-									    (pending_cli_string,
-									     "%s rate %d\n",
-									     decoded_player_id,
-									     remote_buttons.
-									     number_of_pushes);
-									break;
-								case MVPW_KEY_REWIND:
-									remote_buttons.
-									    number_of_pushes--;
-									sprintf
-									    (pending_cli_string,
-									     "%s rate %d\n",
-									     decoded_player_id,
-									     remote_buttons.
-									     number_of_pushes);
-									break;
-								}
-								remote_buttons.
-								    state =
-								    PUSHING_BUTTON;
-								remote_buttons.number_of_scans = 0;	/// Snyc
-								remote_buttons.
-								    elapsed_time
-								    =
-								    time(NULL) +
-								    1;
-							}
-							else
-							{
-								/*
-								 * Newly pressed button since last time.
-								 */
-								switch
-								    (remote_buttons.
-								     last_pressed)
-								{
-								case MVPW_KEY_FFWD:
-									remote_buttons.
-									    number_of_pushes
-									    = 2;
-									sprintf
-									    (pending_cli_string,
-									     "%s rate %d\n",
-									     decoded_player_id,
-									     remote_buttons.
-									     number_of_pushes);
-									break;
-								case MVPW_KEY_REWIND:
-									remote_buttons.
-									    number_of_pushes
-									    =
-									    -2;
-									sprintf
-									    (pending_cli_string,
-									     "%s rate %d\n",
-									     decoded_player_id,
-									     remote_buttons.
-									     number_of_pushes);
-									break;
-								}
-								remote_buttons.
-								    state =
-								    PUSHING_BUTTON;
-								remote_buttons.number_of_scans = 0;	/// Snyc
-								remote_buttons.
-								    elapsed_time
-								    =
-								    time(NULL) +
-								    1;
-
-							}
-						}
-						else
-						{
-							/*
-							 * Assumed button not held down.
-							 */
-							switch (remote_buttons.
-								last_pressed)
-							{
-							case MVPW_KEY_FFWD:
-								break;
-							case MVPW_KEY_REWIND:
-								break;
-							}
-							remote_buttons.state =
-							    RELEASED_BUTTON;
-							remote_buttons.number_of_scans = 0;	/// Snyc
-							remote_buttons.
-							    elapsed_time =
-							    time(NULL) + 1;
-						}
-					}
-
-					/*
-					 * Any timed CLI messages to be sent out to slimserver?
-					 */
-					if (cli_data.
-					    short_update_timer_expired == TRUE)
-					{
-						char cmd[MAX_CMD_SIZE];
-						cli_data.
-						    short_update_timer_expired =
-						    FALSE;
-						sprintf(cmd, "%s time ?\n",
-							decoded_player_id);
-						cli_send_packet
-						    (socket_handle_cli, cmd);
-
-						sprintf(cmd,
-							"%s mixer volume ?\n",
-							decoded_player_id);
-						cli_send_packet
-						    (socket_handle_cli, cmd);
-
-						sprintf(cmd, "%s mode ?\n",
-							decoded_player_id);
-						cli_send_packet
-						    (socket_handle_cli, cmd);
-					}
-
-					/*
-					 * Any pending CLI messages to be sent out to slimserver?
-					 */
-					if (pending_cli_string[0] != '\0')
-					{
-						cli_send_packet
-						    (socket_handle_cli,
-						     pending_cli_string);
-						pending_cli_string[0] = '\0';
-
-						// Now that there's a message out, set the outstanding
-						// CLI flag.
-						cli_data.outstanding_cli_message_cover_art = TRUE;
-					}
-
-					/*
-					 * Do we need to get the cover art?
-					 */
-					if ((cli_data.get_cover_art_later == TRUE) &&
-		                            (gui_state == MVPMC_STATE_MCLIENT))
-					{
-						/*
-						 * Only get new cover art if the local menu is not active.
-						 */
-						if (remote_buttons.local_menu ==
-						    FALSE)
-						{
-							if (cli_data.
-							    get_cover_art_holdoff_timer
-							    < time(NULL))
-							{
-								cli_data.
-								    get_cover_art_holdoff_timer
-								    =
-								    time(NULL) +
-								    5;
-								cli_data.
-								    get_cover_art_later
-								    = FALSE;
-								cli_get_cover_art
-								    ();
-							}
-						}
-					}
-
-					/*
-					 * Do we need to get the cover art for album browser?
-					 */
-					if ((cli_data.pending_proc_for_cover_art == TRUE) &&
-		                            (gui_state == MVPMC_STATE_MCLIENT))
-					{
-					    // If there is a CLI message out, don't send another.
-					    if(cli_data.outstanding_cli_message_cover_art != TRUE)
-					    {
-						cli_data.pending_proc_for_cover_art = FALSE;
-						/*
-						 * Check if we have been triggered to restart the
-						 * state machine.
-						 */
-						if(cli_data.trigger_proc_for_cover_art == TRUE)
-						{
-						    cli_data.trigger_proc_for_cover_art = FALSE;
-						    cli_data.state_for_cover_art = GET_1ST_ALBUM_COVERART;
-						}
-						mclient_browse_by_cover();
-					    }
-					}
-					else
-					{
-					    /*
-					     * Is there an outstanding request?  Then don't setup
-					     * to start over.
-					     */
-					    if(cli_data.outstanding_cli_message_cover_art == FALSE)
-					    {
-						/*
-						 * If we are not getting cover art, check, we may
-						 * have been triggered to start over, if so, set it up
-						 * the next go around.
-						 */
-						if(cli_data.trigger_proc_for_cover_art == TRUE)
-						{
-						    cli_data.pending_proc_for_cover_art = TRUE;
-						}
-					    }
-					}
-
-					/*
-					 * Do we need to get the update cover art widgets for album browser?
-					 */
-					if ((cli_data.pending_proc_for_cover_art_widget == TRUE) &&
-		                            (gui_state == MVPMC_STATE_MCLIENT))
-					{
-						cli_data.pending_proc_for_cover_art_widget = FALSE;
-						mclient_browse_by_cover_widget();
-					}
-
-					/*
-					 * If this is the first time through, send a command to the CLI that 
-					 * will trigger a CLI / fullscreen update.
-					 */
-					if (cli_fullscreen_widget_state == UNINITIALIZED)
-					{
-						char cmd[MAX_CMD_SIZE];
-						/*
-						 * Initialize the CLI state machine to the beginning of getting
-						 * playlist information.
-						 */
-						cli_data.state =
-						    UPDATE_PLAYLIST_MINMINUS1 +
-						    1;
-
-						sprintf(cmd, "playlist 1\n");
-						cli_send_packet
-						    (socket_handle_cli, cmd);
-						cli_fullscreen_widget_state =
-						    INITIALIZED;
-
-						/*
-						 * Grab new duration for current track.
-						 */
-						{
-							char cmd[MAX_CMD_SIZE];
-							sprintf(cmd,
-								"%s duration ?\n",
-								decoded_player_id);
-							cli_send_packet
-							    (socket_handle_cli,
-							     cmd);
-						}
-					}
-
-					/*
-					 * Regardless if we got here because of the "select" time out or receiving
-					 * a message from the server (again a "select" event), check to see if we
-					 * can send more data to the hardware, if there has been a remote control
-					 * key press or if we have exited out of the music client.
-					 */
-					send_mpeg_data();
-				}
-
-				/*
-				 * The hardware state has changed and is no longer reserved for mclient 
-				 * (i.e. we got "turned off") so start shutting down.
-				 */
-				audio_clear();
-				sleep(1);	/// ### Adding delays, need to test if necessary for stability.
-
-				av_stop();
-				sleep(1);	/// ### Adding delays, need to test if necessary for stability.
-
-			}	// Could not open sockets, so jump here.
+		    /*
+		     * If this is the first time through, send a command to 
+		     * the CLI that will trigger a CLI / fullscreen update.
+		     */
+		    if (cli_fullscreen_widget_state == UNINITIALIZED)
+		    {
+			char cmd[MAX_CMD_SIZE];
 
 			/*
-			 * Close the connection.
+			 * Initialize the CLI state machine to the beginning 
+			 * of getting playlist information.
 			 */
-			close(socket_handle_data);
-			close(socket_handle_cli);
-			sleep(1);	/// ### Adding delays, need to test if necessary for stability.
+			cli_data.state = UPDATE_PLAYLIST_MINMINUS1 + 1;
+
+			sprintf(cmd, "%s listen 1\n", decoded_player_id);
+			cli_send_packet(socket_handle_cli, cmd);
+			cli_fullscreen_widget_state = INITIALIZED;
 
 			/*
-			 * Free up the alloc'd memory.
+			 * Grab new duration for current track.
 			 */
-			free(outbuf->buf);
-			free(outbuf);
-			free(recvbuf);
-			free(recvbuf_back);
+			{
+			    char cmd[MAX_CMD_SIZE];
+			    sprintf(cmd, "%s duration ?\n", decoded_player_id);
+			    cli_send_packet(socket_handle_cli, cmd);
+			}
 
-			/*
-			 * TEST: See if we need a hold off state to sync
-			 * activity between threads.
-			 */
-			hw_state = MVPMC_STATE_NONE;
+                        /*
+                         * Set up a call to initialize the total number of 
+                         * albums.
+                         */
+                        sprintf(cmd, "%s info total albums ?\n", decoded_player_id);
+			cli_send_packet(socket_handle_cli, cmd);
+		    }
+
+		    /*
+		     * Regardless if we got here because of the "select" time 
+		     * out or receiving a message from the server (again a 
+		     * "select" event), check to see if we can send more 
+		     * data to the hardware, if there has been a remote control
+		     * key press or if we have exited out of the music client.
+		     */
+		    send_mpeg_data();
 		}
-		else
-		{
-			pthread_cond_wait(&mclient_cond, &mutex);
-		}
+
+		/*
+		 * The hardware state has changed and is no longer reserved 
+		 * for mclient (i.e. we got "turned off") so start shutting 
+		 * down.
+		 */
+		audio_clear();
+		sleep(1);	/// ### Adding delays, need to test if necessary for stability.
+
+		av_stop();
+		sleep(1);	/// ### Adding delays, need to test if necessary for stability.
+
+	    }			// Could not open sockets, so jump here.
+
+	    /*
+	     * Close the connection.
+	     */
+	    close(socket_handle_data);
+	    close(socket_handle_cli);
+	    sleep(1);		/// ### Adding delays, need to test if necessary for stability.
+
+	    /*
+	     * Free up the alloc'd memory.
+	     */
+	    free(outbuf->buf);
+	    free(outbuf);
+	    free(recvbuf);
+	    free(recvbuf_back);
+
+	    /*
+	     * TEST: See if we need a hold off state to sync
+	     * activity between threads.
+	     */
+	    hw_state = MVPMC_STATE_NONE;
 	}
+	else
+	{
+	    pthread_cond_wait(&mclient_cond, &mutex);
+	}
+    }
 }
 
 void
 mclient_local_init(void)
 {
-	struct hostent *h;
-	struct timezone tz;
-	static struct in_addr hostname_mclient;
+    struct hostent *h;
+    struct timezone tz;
+    static struct in_addr hostname_mclient;
 
-/*
-* Create the buffer and associated info to store data before
-* sending it out to the hardware.
-*/
-	outbuf = ring_buf_create(OUT_BUF_SIZE);
+    /*
+     * Create the buffer and associated info to store data before
+     * sending it out to the hardware.
+     */
+    outbuf = ring_buf_create(OUT_BUF_SIZE);
 
-/*
-* Create the buffer to store data from the server.
-*/
-	recvbuf = (void *)calloc(1, RECV_BUF_SIZE);
+    /*
+     * Create the buffer to store data from the server.
+     */
+    recvbuf = (void *)calloc(1, RECV_BUF_SIZE);
 
-	h = gethostbyname((const char *)mclient_server);
-	if (h == NULL)
+    h = gethostbyname((const char *)mclient_server);
+    if (h == NULL)
+    {
+	printf("mclient:Unable to get address for %s\n", mclient_server);
+	exit(1);
+    }
+    else
+    {
+	printf("mclient:Was able to get an address for:%s\n", mclient_server);
+    }
+
+    /*
+     * Save address from gethostbyname structure to memory for 
+     * later use.
+     */
+    memcpy(&hostname_mclient, h->h_addr_list[0], sizeof(hostname_mclient));
+    server_addr_mclient = &hostname_mclient;
+
+    memset(slimp3_display, ' ', DISPLAY_SIZE);
+    slimp3_display[DISPLAY_SIZE] = '\0';
+
+    setlocale(LC_ALL, "");	/* so that isprint() works properly */
+
+    // Save start time for sending IR packet
+    gettimeofday(&uptime, &tz);
+    // Canonicalize to GMT/UTC 
+    uptime.tv_sec -= 60 * tz.tz_minuteswest;
+
+    // Initialize pause state
+    local_paused = av_pause();
+
+    // Initialize radio title history.
+    {
+	int i;
+	for (i = 0; i < CLI_MAX_TRACKS; i++)
 	{
-		printf("mclient:Unable to get address for %s\n",
-		       mclient_server);
-		exit(1);
+	    strcpy(cli_data.title_history[i], "-no history-");
 	}
-	else
-	{
-		printf("mclient:Was able to get an address for:%s\n",
-		       mclient_server);
-	}
+    }
 
-/*
-* Save address from gethostbyname structure to memory for 
-* later use.
-*/
-	memcpy(&hostname_mclient, h->h_addr_list[0], sizeof(hostname_mclient));
-	server_addr_mclient = &hostname_mclient;
+    // Initialize small widget hide time out.
+    cli_small_widget_timeout = time(NULL) + 10;
 
-	memset(slimp3_display, ' ', DISPLAY_SIZE);
-	slimp3_display[DISPLAY_SIZE] = '\0';
+    // Force to draw boxes around cover art browser windows.
+    cli_data.pending_proc_for_cover_art_widget = TRUE;
 
-	setlocale(LC_ALL, "");	/* so that isprint() works properly */
+    // Force 1st time through initialization of full screen.
+    cli_fullscreen_widget_state = UNINITIALIZED;
 
-/* save start time for sending IR packet */
-	gettimeofday(&uptime, &tz);
-	uptime.tv_sec -= 60 * tz.tz_minuteswest;	/* canonicalize to GMT/UTC */
+    // Force the initial time out.
+    cli_data.short_update_timer = time(NULL) + 1;
 
-/*
-* Initialize pause state
-*/
-	local_paused = av_pause();
+    // CLI samaphore for cover art & full scree CLI commands.
+    cli_data.outstanding_cli_message = FALSE;
+    cli_data.outstanding_cli_message_timer = 0;
 
-/*
-* Initialize radio title history.
-*/
-	{
-		int i;
-		for (i = 0; i < CLI_MAX_TRACKS; i++)
-		{
-			strcpy(cli_data.title_history[i], "-no history-");
-		}
-	}
+    // Initialize the play mode to "not start playing"
+    // and "clear the buffer".
+    outbuf->playmode = 3;
 
-/*
-* Initialize small widget hide time out.
-*/
-	cli_small_widget_timeout = time(NULL) + 10;
+    // Sart with local menus off.
+    remote_buttons.local_menu = FALSE;
+    remote_buttons.local_menu_browse = FALSE;
 }
 
-/*
-* Main routine for mclient.
-*/
+ /*
+  * Main routine for mclient.
+  */
 int
 music_client(void)
 {
-	printf("mclient:Starting mclient pthread.\n");
-	pthread_create(&mclient_loop_thread_handle, &thread_attr_small,
-		       mclient_loop_thread, NULL);
+    printf("mclient:Starting mclient pthread.\n");
+    pthread_create(&mclient_loop_thread_handle, &thread_attr_small, mclient_loop_thread, NULL);
 
-	mvpw_set_dialog_text(mclient,
-			     "Update text lines....................... \n line 2................................... \n line 3................................... \n");
+    mvpw_set_dialog_text(mclient,
+			 "Update text lines....................... \n line 2................................... \n line 3................................... \n");
 
-	return 0;
+    return 0;
 }
 
 void
 mclient_exit(void)
 {
-	uint limit_counter = 500;
+    uint limit_counter = 500;
 
-	hw_state = MVPMC_STATE_MCLIENT_SHUTDOWN;
+    hw_state = MVPMC_STATE_MCLIENT_SHUTDOWN;
 
-	while ((hw_state == MVPMC_STATE_MCLIENT_SHUTDOWN)
-	       && (limit_counter > 0))
-	{
-		limit_counter--;
-		printf(".");
-		sleep(1);
-	}
-	printf("\n");
+    while ((hw_state == MVPMC_STATE_MCLIENT_SHUTDOWN) && (limit_counter > 0))
+    {
+	limit_counter--;
+	printf(".");
+	sleep(1);
+    }
+    printf("\n");
 
-	if (hw_state == MVPMC_STATE_MCLIENT_SHUTDOWN)
-	{
-		printf
-		    (">>>TEST:mclient_exit: WARNING:The mclient thread did NOT FINISHED!\n");
-	}
-	else
-	{
-		printf
-		    (">>>TEST:mclient_exit: The mclient thread has FINISHED.\n");
-	}
+    if (hw_state == MVPMC_STATE_MCLIENT_SHUTDOWN)
+    {
+	printf(">>>TEST:mclient_exit: WARNING:The mclient thread did NOT FINISHED!\n");
+    }
+    else
+    {
+	printf(">>>TEST:mclient_exit: The mclient thread has FINISHED.\n");
+    }
 }
 
 void
 mclient_browse_by_cover(void)
 {
-// How to get number of albums, album_id, track_id and album image:
-//
-// ...command examples:
-// info total albums
-// albums 0 6
-// ...that get's you back 6 album IDs and the title of each.  Now for each do:
-// titles 0 1 album_id:<album_id>
-// ...that get's you back the 1st track from the album.  Now you have that track's ID.
-// http://<server's ip addr>:9000/music/<track's ID>/cover.jpg
+    // How to get number of albums, album_id, track_id and album image:
+    //
+    // ...command examples:
+    // info total albums
+    // albums 0 6
+    // ...that get's you back 6 album IDs and the title of each.  Now for each do:
+    // titles 0 1 album_id:<album_id>
+    // ...that get's you back the 1st track from the album.  Now you have that track's ID.
+    // http://<server's ip addr>:9000/music/<track's ID>/cover.jpg
 
-	char url_string[100];
-	char no_cover_art_text[500];
-	int retcode;
-	int album_number;
+    char url_string[100];
+    char no_cover_art_text[500];
+    int retcode;
+    int album_number;
 
-	// State machine for requesting album and track id information.
-	if (pending_cli_string[0] == '\0')
+    // State machine for requesting album and track id information.
+    if (pending_cli_string[0] == '\0')
+    {
+	// Pull 6 albums
+	switch (cli_data.state_for_cover_art)
 	{
-		// Pull 6 albums
-		switch (cli_data.state_for_cover_art)
+	case GET_1ST_ALBUM_COVERART:
+	    // Generate album index for next 6 albums here.
+	    for (album_number = 0; album_number < 6; album_number++)
+	    {
+		cli_data.album_index_plus_start_for_cover_art[album_number] =
+		    cli_data.album_start_index_for_cover_art + album_number;
+		if (cli_data.
+		    album_index_plus_start_for_cover_art[album_number] >=
+		    cli_data.album_max_index_for_cover_art)
 		{
-		case GET_1ST_ALBUM_COVERART:
-			// Generate album index for next 6 albums here.
-			for (album_number = 0; album_number < 6; album_number++)
-			{
-				cli_data.album_index_plus_start_for_cover_art[album_number] =
-				    cli_data.album_start_index_for_cover_art + album_number;
-				if (cli_data.album_index_plus_start_for_cover_art[album_number] >=
-				    cli_data.album_max_index_for_cover_art)
-				{
-					cli_data.
-					    album_index_plus_start_for_cover_art
-					    [album_number] %=
-					    cli_data.
-					    album_max_index_for_cover_art;
-				}
-			}
-
-			// While in the first state,
-			// Show user a message indicating new images are loading.
-			sprintf(no_cover_art_text, "Loading album %d (of %d)...",
-				cli_data.
-				album_index_plus_start_for_cover_art[0],
-				cli_data.album_max_index_for_cover_art);
-			mvpw_set_text_str(mclient_sub_alt_image_1_1,
-					  no_cover_art_text);
-			sprintf(no_cover_art_text, "Loading album %d...",
-				cli_data.
-				album_index_plus_start_for_cover_art[1]);
-			mvpw_set_text_str(mclient_sub_alt_image_1_2,
-					  no_cover_art_text);
-			sprintf(no_cover_art_text, "Loading album %d...",
-				cli_data.
-				album_index_plus_start_for_cover_art[2]);
-			mvpw_set_text_str(mclient_sub_alt_image_1_3,
-					  no_cover_art_text);
-			sprintf(no_cover_art_text, "Loading album %d...",
-				cli_data.
-				album_index_plus_start_for_cover_art[3]);
-			mvpw_set_text_str(mclient_sub_alt_image_2_1,
-					  no_cover_art_text);
-			sprintf(no_cover_art_text, "Loading album %d...",
-				cli_data.
-				album_index_plus_start_for_cover_art[4]);
-			mvpw_set_text_str(mclient_sub_alt_image_2_2,
-					  no_cover_art_text);
-			sprintf(no_cover_art_text, "Loading album %d...",
-				cli_data.
-				album_index_plus_start_for_cover_art[5]);
-			mvpw_set_text_str(mclient_sub_alt_image_2_3,
-					  no_cover_art_text);
-			{
-				char album_info[500];
-				sprintf(album_info,
-					"[MClient Album Cover Browser]\nLoading albums %d through %d of %d albums.\n             --please wait--",
-					cli_data.album_index_plus_start_for_cover_art[0] + 1,
-					cli_data.album_index_plus_start_for_cover_art[5] + 1,
-					cli_data.album_max_index_for_cover_art);
-				mvpw_set_text_str(mclient_sub_alt_image_info, album_info);
-			}
-			mvpw_show(mclient_sub_alt_image_1_1);
-			mvpw_raise(mclient_sub_alt_image_1_1);
-			mvpw_show(mclient_sub_alt_image_1_2);
-			mvpw_raise(mclient_sub_alt_image_1_2);
-			mvpw_show(mclient_sub_alt_image_1_3);
-			mvpw_raise(mclient_sub_alt_image_1_3);
-			mvpw_show(mclient_sub_alt_image_2_1);
-			mvpw_raise(mclient_sub_alt_image_2_1);
-			mvpw_show(mclient_sub_alt_image_2_2);
-			mvpw_raise(mclient_sub_alt_image_2_2);
-			mvpw_show(mclient_sub_alt_image_2_3);
-			mvpw_raise(mclient_sub_alt_image_2_3);
-			mvpw_show(mclient_sub_alt_image_info);
-			mvpw_raise(mclient_sub_alt_image_info);
-			// update the position we are in the album collecion.
-			// Size bar propotional to where we are in album list.
-			mvpw_set_graph_current
-			    (mclient_sub_browsebar,
-			     ((100 * cli_data.album_start_index_for_cover_art) /
-			      cli_data.album_max_index_for_cover_art));
-
-			// Get 1st album id.
-			cli_data.album_index_1_of_6_for_cover_art = 0;
-			cli_data.album_index_for_cover_art =
-			    cli_data.album_index_plus_start_for_cover_art[0];
-			sprintf(pending_cli_string, "%s albums %d 1\n",
-				decoded_player_id,
-				cli_data.album_index_for_cover_art);
-			break;
-
-		case GET_1ST_TRACK_COVERART:
-			// Get 1st track id.
-			sprintf(pending_cli_string,
-				"%s titles 0 1 album_id:%d\n",
-				decoded_player_id,
-				cli_data.album_id_for_cover_art[0]);
-			break;
-
-		case GET_2ND_ALBUM_COVERART:
-			// Display 1st album text in widget.
-			mvpw_show(mclient_sub_alt_image_1_1);
-			mvpw_raise(mclient_sub_alt_image_1_1);
-			sprintf(no_cover_art_text, "%s...",
-				cli_data.album_name_for_cover_art[0]);
-			mvpw_set_text_str(mclient_sub_alt_image_1_1,
-					  no_cover_art_text);
-
-			// Get 2nd album id.
-			cli_data.album_index_1_of_6_for_cover_art = 1;
-			cli_data.album_index_for_cover_art =
-			    cli_data.album_index_plus_start_for_cover_art[1];
-			sprintf(pending_cli_string, "%s albums %d 1\n",
-				decoded_player_id,
-				cli_data.album_index_for_cover_art);
-			break;
-
-		case GET_2ND_TRACK_COVERART:
-			// Get 2st track id.
-			sprintf(pending_cli_string,
-				"%s titles 0 1 album_id:%d\n",
-				decoded_player_id,
-				cli_data.album_id_for_cover_art[1]);
-			break;
-
-		case GET_3RD_ALBUM_COVERART:
-			// Display 2nd album text in widget.
-			mvpw_show(mclient_sub_alt_image_1_2);
-			mvpw_raise(mclient_sub_alt_image_1_2);
-			sprintf(no_cover_art_text, "%s...",
-				cli_data.album_name_for_cover_art[1]);
-			mvpw_set_text_str(mclient_sub_alt_image_1_2,
-					  no_cover_art_text);
-
-			// Get 3rd album id.
-			cli_data.album_index_1_of_6_for_cover_art = 2;
-			cli_data.album_index_for_cover_art =
-			    cli_data.album_index_plus_start_for_cover_art[2];
-			sprintf(pending_cli_string, "%s albums %d 1\n",
-				decoded_player_id,
-				cli_data.album_index_for_cover_art);
-			break;
-
-		case GET_3RD_TRACK_COVERART:
-			// Get 3rd track id.
-			sprintf(pending_cli_string,
-				"%s titles 0 1 album_id:%d\n",
-				decoded_player_id,
-				cli_data.album_id_for_cover_art[2]);
-			break;
-
-		case GET_4TH_ALBUM_COVERART:
-			// Display 3rd album text in widget.
-			mvpw_show(mclient_sub_alt_image_1_3);
-			mvpw_raise(mclient_sub_alt_image_1_3);
-			sprintf(no_cover_art_text, "%s...",
-				cli_data.album_name_for_cover_art[2]);
-			mvpw_set_text_str(mclient_sub_alt_image_1_3,
-					  no_cover_art_text);
-
-			// Get 4th album id.
-			cli_data.album_index_1_of_6_for_cover_art = 3;
-			cli_data.album_index_for_cover_art =
-			    cli_data.album_index_plus_start_for_cover_art[3];
-			sprintf(pending_cli_string, "%s albums %d 1\n",
-				decoded_player_id,
-				cli_data.album_index_for_cover_art);
-			break;
-
-		case GET_4TH_TRACK_COVERART:
-			// Get 4th track id.
-			sprintf(pending_cli_string,
-				"%s titles 0 1 album_id:%d\n",
-				decoded_player_id,
-				cli_data.album_id_for_cover_art[3]);
-			break;
-
-		case GET_5TH_ALBUM_COVERART:
-			// Display 4th album text in widget.
-			mvpw_show(mclient_sub_alt_image_2_1);
-			mvpw_raise(mclient_sub_alt_image_2_1);
-			sprintf(no_cover_art_text, "%s...",
-				cli_data.album_name_for_cover_art[3]);
-			mvpw_set_text_str(mclient_sub_alt_image_2_1,
-					  no_cover_art_text);
-
-			// Get 5th album id.
-			cli_data.album_index_1_of_6_for_cover_art = 4;
-			cli_data.album_index_for_cover_art =
-			    cli_data.album_index_plus_start_for_cover_art[4];
-			sprintf(pending_cli_string, "%s albums %d 1\n",
-				decoded_player_id,
-				cli_data.album_index_for_cover_art);
-			break;
-
-		case GET_5TH_TRACK_COVERART:
-			// Get 5th track id.
-			sprintf(pending_cli_string,
-				"%s titles 0 1 album_id:%d\n",
-				decoded_player_id,
-				cli_data.album_id_for_cover_art[4]);
-			break;
-
-		case GET_6TH_ALBUM_COVERART:
-			// Display 5th album text in widget.
-			mvpw_show(mclient_sub_alt_image_2_2);
-			mvpw_raise(mclient_sub_alt_image_2_2);
-			sprintf(no_cover_art_text, "%s...",
-				cli_data.album_name_for_cover_art[4]);
-			mvpw_set_text_str(mclient_sub_alt_image_2_2,
-					  no_cover_art_text);
-
-			// Get 6th album id.
-			cli_data.album_index_1_of_6_for_cover_art = 5;
-			cli_data.album_index_for_cover_art =
-			    cli_data.album_index_plus_start_for_cover_art[5];
-			sprintf(pending_cli_string, "%s albums %d 1\n",
-				decoded_player_id,
-				cli_data.album_index_for_cover_art);
-			break;
-
-		case GET_6TH_TRACK_COVERART:
-			// Get 6th track id.
-			sprintf(pending_cli_string,
-				"%s titles 0 1 album_id:%d\n",
-				decoded_player_id,
-				cli_data.album_id_for_cover_art[5]);
-			break;
-
-		case DISPLAY_1ST_COVER_COVERART:
-			// Display 6th album text in widget.
-			mvpw_show(mclient_sub_alt_image_2_3);
-			mvpw_raise(mclient_sub_alt_image_2_3);
-			sprintf(no_cover_art_text, "%s...",
-				cli_data.album_name_for_cover_art[5]);
-			mvpw_set_text_str(mclient_sub_alt_image_2_3,
-					  no_cover_art_text);
-
-			// Pull cover art for all 6 albums.
-			sprintf(url_string,
-				"http://%s:9000/music/%d/cover.jpg\n",
-				mclient_server,
-				cli_data.track_id_for_cover_art[0]);
-			current = strdup(url_string);
-			retcode = http_main();
-			if (retcode == HTTP_IMAGE_FILE_JPEG)
-			{
-				mvpw_load_image_fd(fd);
-				if (mvpw_load_image_jpeg
-				    (mclient_sub_image_1_1, NULL) == 0)
-				{
-					mvpw_show_image_jpeg
-					    (mclient_sub_image_1_1);
-					mvpw_show(mclient_sub_image_1_1);
-					mvpw_raise(mclient_sub_image_1_1);
-				}
-			}
-			else
-			{
-				mvpw_hide(mclient_sub_image_1_1);
-				mvpw_show(mclient_sub_alt_image_1_1);
-				mvpw_raise(mclient_sub_alt_image_1_1);
-				sprintf(no_cover_art_text,
-					"%s...\nNo ArtWork for this album.",
-					cli_data.album_name_for_cover_art[0]);
-				mvpw_set_text_str(mclient_sub_alt_image_1_1,
-						  no_cover_art_text);
-			}
-			close(fd);
-			fd = -1;
-			// Set up for another call here as this case does not
-			// deal w/the CLI parsing function where this normally
-			// happens.
-			cli_data.pending_proc_for_cover_art = TRUE;
-			free(current);
-			break;
-
-		case DISPLAY_2ND_COVER_COVERART:
-			sprintf(url_string,
-				"http://%s:9000/music/%d/cover.jpg\n",
-				mclient_server,
-				cli_data.track_id_for_cover_art[1]);
-			current = strdup(url_string);
-			retcode = http_main();
-			if (retcode == HTTP_IMAGE_FILE_JPEG)
-			{
-				mvpw_load_image_fd(fd);
-				if (mvpw_load_image_jpeg
-				    (mclient_sub_image_1_2, NULL) == 0)
-				{
-					mvpw_show_image_jpeg
-					    (mclient_sub_image_1_2);
-					mvpw_show(mclient_sub_image_1_2);
-					mvpw_raise(mclient_sub_image_1_2);
-				}
-			}
-			else
-			{
-				mvpw_hide(mclient_sub_image_1_2);
-				mvpw_show(mclient_sub_alt_image_1_2);
-				mvpw_raise(mclient_sub_alt_image_1_2);
-				sprintf(no_cover_art_text,
-					"%s...\nNo ArtWork for this album.",
-					cli_data.album_name_for_cover_art[1]);
-				mvpw_set_text_str(mclient_sub_alt_image_1_2,
-						  no_cover_art_text);
-			}
-			close(fd);
-			fd = -1;
-			// Set up for another call here as this case does not
-			// deal w/the CLI parsing function where this normally
-			// happens.
-			cli_data.pending_proc_for_cover_art = TRUE;
-			free(current);
-			break;
-
-		case DISPLAY_3RD_COVER_COVERART:
-			sprintf(url_string,
-				"http://%s:9000/music/%d/cover.jpg\n",
-				mclient_server,
-				cli_data.track_id_for_cover_art[2]);
-			current = strdup(url_string);
-			retcode = http_main();
-			if (retcode == HTTP_IMAGE_FILE_JPEG)
-			{
-				mvpw_load_image_fd(fd);
-				if (mvpw_load_image_jpeg
-				    (mclient_sub_image_1_3, NULL) == 0)
-				{
-					mvpw_show_image_jpeg
-					    (mclient_sub_image_1_3);
-					mvpw_show(mclient_sub_image_1_3);
-					mvpw_raise(mclient_sub_image_1_3);
-				}
-			}
-			else
-			{
-				mvpw_hide(mclient_sub_image_1_3);
-				mvpw_show(mclient_sub_alt_image_1_3);
-				mvpw_raise(mclient_sub_alt_image_1_3);
-				sprintf(no_cover_art_text,
-					"%s...\nNo ArtWork for this album.",
-					cli_data.album_name_for_cover_art[2]);
-				mvpw_set_text_str(mclient_sub_alt_image_1_3,
-						  no_cover_art_text);
-			}
-			close(fd);
-			fd = -1;
-			// Set up for another call here as this case does not
-			// deal w/the CLI parsing function where this normally
-			// happens.
-			cli_data.pending_proc_for_cover_art = TRUE;
-			free(current);
-			break;
-
-		case DISPLAY_4TH_COVER_COVERART:
-			sprintf(url_string,
-				"http://%s:9000/music/%d/cover.jpg\n",
-				mclient_server,
-				cli_data.track_id_for_cover_art[3]);
-			current = strdup(url_string);
-			retcode = http_main();
-			if (retcode == HTTP_IMAGE_FILE_JPEG)
-			{
-				mvpw_load_image_fd(fd);
-				if (mvpw_load_image_jpeg
-				    (mclient_sub_image_2_1, NULL) == 0)
-				{
-					mvpw_show_image_jpeg
-					    (mclient_sub_image_2_1);
-					mvpw_show(mclient_sub_image_2_1);
-					mvpw_raise(mclient_sub_image_2_1);
-				}
-			}
-			else
-			{
-				mvpw_hide(mclient_sub_image_2_1);
-				mvpw_show(mclient_sub_alt_image_2_1);
-				mvpw_raise(mclient_sub_alt_image_2_1);
-				sprintf(no_cover_art_text,
-					"%s...\nNo ArtWork for this album.",
-					cli_data.album_name_for_cover_art[3]);
-				mvpw_set_text_str(mclient_sub_alt_image_2_1,
-						  no_cover_art_text);
-			}
-			close(fd);
-			fd = -1;
-			// Set up for another call here as this case does not
-			// deal w/the CLI parsing function where this normally
-			// happens.
-			cli_data.pending_proc_for_cover_art = TRUE;
-			free(current);
-			break;
-
-		case DISPLAY_5TH_COVER_COVERART:
-			sprintf(url_string,
-				"http://%s:9000/music/%d/cover.jpg\n",
-				mclient_server,
-				cli_data.track_id_for_cover_art[4]);
-			current = strdup(url_string);
-			retcode = http_main();
-			if (retcode == HTTP_IMAGE_FILE_JPEG)
-			{
-				mvpw_load_image_fd(fd);
-				if (mvpw_load_image_jpeg
-				    (mclient_sub_image_2_2, NULL) == 0)
-				{
-					mvpw_show_image_jpeg
-					    (mclient_sub_image_2_2);
-					mvpw_show(mclient_sub_image_2_2);
-					mvpw_raise(mclient_sub_image_2_2);
-				}
-			}
-			else
-			{
-				mvpw_hide(mclient_sub_image_2_2);
-				mvpw_show(mclient_sub_alt_image_2_2);
-				mvpw_raise(mclient_sub_alt_image_2_2);
-				sprintf(no_cover_art_text,
-					"%s...\nNo ArtWork for this album.",
-					cli_data.album_name_for_cover_art[4]);
-				mvpw_set_text_str(mclient_sub_alt_image_2_2,
-						  no_cover_art_text);
-			}
-			close(fd);
-			fd = -1;
-			// Set up for another call here as this case does not
-			// deal w/the CLI parsing function where this normally
-			// happens.
-			cli_data.pending_proc_for_cover_art = TRUE;
-			free(current);
-			break;
-
-		case DISPLAY_6TH_COVER_COVERART:
-			sprintf(url_string,
-				"http://%s:9000/music/%d/cover.jpg\n",
-				mclient_server,
-				cli_data.track_id_for_cover_art[5]);
-			current = strdup(url_string);
-			retcode = http_main();
-			if (retcode == HTTP_IMAGE_FILE_JPEG)
-			{
-				mvpw_load_image_fd(fd);
-				if (mvpw_load_image_jpeg
-				    (mclient_sub_image_2_3, NULL) == 0)
-				{
-					mvpw_show_image_jpeg
-					    (mclient_sub_image_2_3);
-					mvpw_show(mclient_sub_image_2_3);
-					mvpw_raise(mclient_sub_image_2_3);
-				}
-			}
-			else
-			{
-				mvpw_hide(mclient_sub_image_2_3);
-				mvpw_show(mclient_sub_alt_image_2_3);
-				mvpw_raise(mclient_sub_alt_image_2_3);
-				mvpw_set_text_str(mclient_sub_alt_image_2_3,
-						  "   No ArtWork\n     for\n    this album");
-				sprintf(no_cover_art_text,
-					"%s...\nNo ArtWork for this album.",
-					cli_data.album_name_for_cover_art[5]);
-				mvpw_set_text_str(mclient_sub_alt_image_2_3,
-						  no_cover_art_text);
-			}
-			close(fd);
-			fd = -1;
-
-			// Show browserbar.
-			mvpw_show(mclient_sub_browsebar);
-			mvpw_raise(mclient_sub_browsebar);
-
-			// Set up for another call here as this case does not
-			// deal w/the CLI parsing function where this normally
-			// happens.
-			cli_data.pending_proc_for_cover_art = TRUE;
-			free(current);
-			break;
-
-		case GET_TOTAL_NUM_ALBUMS:
-			sprintf(pending_cli_string, "%s info total albums ?\n",
-				decoded_player_id);
-			cli_data.album_index_for_cover_art++;
-			break;
-
-		default:
-			cli_data.state_for_cover_art = IDLE_COVERART;
-			break;
+		    cli_data.
+			album_index_plus_start_for_cover_art[album_number] %=
+			cli_data.album_max_index_for_cover_art;
 		}
+	    }
 
-		// If we loaded up to send another CLI command, then
-		// set the flag to indicate we can not re-start the
-		// album browser until we have finished this transaction.
-		if (pending_cli_string[0] != '\0')
+	    // While in the first state,
+	    // Show user a message indicating new images are loading.
+	    sprintf(no_cover_art_text, "Loading album %d (of %d)...",
+		    cli_data.album_index_plus_start_for_cover_art[0], cli_data.album_max_index_for_cover_art);
+	    mvpw_set_text_str(mclient_sub_alt_image_1_1, no_cover_art_text);
+	    sprintf(no_cover_art_text, "Loading album %d...",
+		    cli_data.album_index_plus_start_for_cover_art[1]);
+	    mvpw_set_text_str(mclient_sub_alt_image_1_2, no_cover_art_text);
+	    sprintf(no_cover_art_text, "Loading album %d...",
+		    cli_data.album_index_plus_start_for_cover_art[2]);
+	    mvpw_set_text_str(mclient_sub_alt_image_1_3, no_cover_art_text);
+	    sprintf(no_cover_art_text, "Loading album %d...",
+		    cli_data.album_index_plus_start_for_cover_art[3]);
+	    mvpw_set_text_str(mclient_sub_alt_image_2_1, no_cover_art_text);
+	    sprintf(no_cover_art_text, "Loading album %d...",
+		    cli_data.album_index_plus_start_for_cover_art[4]);
+	    mvpw_set_text_str(mclient_sub_alt_image_2_2, no_cover_art_text);
+	    sprintf(no_cover_art_text, "Loading album %d...",
+		    cli_data.album_index_plus_start_for_cover_art[5]);
+	    mvpw_set_text_str(mclient_sub_alt_image_2_3, no_cover_art_text);
+	    {
+		char album_info[500];
+		sprintf(album_info,
+			">>>Loading albums %d through %d of %d albums<<<\n--please wait--   --please wait--   --please wait---",
+			cli_data.album_index_plus_start_for_cover_art[0] + 1,
+			cli_data.album_index_plus_start_for_cover_art[5] + 1,
+			cli_data.album_max_index_for_cover_art);
+		mvpw_set_text_str(mclient_sub_alt_image_info, album_info);
+	    }
+	    mvpw_show(mclient_sub_alt_image_1_1);
+	    mvpw_raise(mclient_sub_alt_image_1_1);
+	    mvpw_show(mclient_sub_alt_image_1_2);
+	    mvpw_raise(mclient_sub_alt_image_1_2);
+	    mvpw_show(mclient_sub_alt_image_1_3);
+	    mvpw_raise(mclient_sub_alt_image_1_3);
+	    mvpw_show(mclient_sub_alt_image_2_1);
+	    mvpw_raise(mclient_sub_alt_image_2_1);
+	    mvpw_show(mclient_sub_alt_image_2_2);
+	    mvpw_raise(mclient_sub_alt_image_2_2);
+	    mvpw_show(mclient_sub_alt_image_2_3);
+	    mvpw_raise(mclient_sub_alt_image_2_3);
+	    mvpw_show(mclient_sub_alt_image_info);
+	    mvpw_raise(mclient_sub_alt_image_info);
+	    // update the position we are in the album collecion.
+	    // Size bar propotional to where we are in album list.
+	    mvpw_set_graph_current
+		(mclient_sub_browsebar,
+		 ((100 * cli_data.album_start_index_for_cover_art) / cli_data.album_max_index_for_cover_art));
+
+	    // Get 1st album id.
+	    cli_data.album_index_1_of_6_for_cover_art = 0;
+	    cli_data.album_index_for_cover_art = cli_data.album_index_plus_start_for_cover_art[0];
+	    sprintf(pending_cli_string, "%s albums %d 1\n", decoded_player_id,
+		    cli_data.album_index_for_cover_art);
+	    break;
+
+	case GET_1ST_TRACK_COVERART:
+	    // Get 1st track id.
+	    sprintf(pending_cli_string,
+		    "%s titles 0 1 album_id:%d\n", decoded_player_id, cli_data.album_id_for_cover_art[0]);
+	    break;
+
+	case GET_2ND_ALBUM_COVERART:
+	    // Display 1st album text in widget.
+	    mvpw_show(mclient_sub_alt_image_1_1);
+	    mvpw_raise(mclient_sub_alt_image_1_1);
+	    sprintf(no_cover_art_text, "%s...", cli_data.album_name_for_cover_art[0]);
+	    mvpw_set_text_str(mclient_sub_alt_image_1_1, no_cover_art_text);
+
+	    // Get 2nd album id.
+	    cli_data.album_index_1_of_6_for_cover_art = 1;
+	    cli_data.album_index_for_cover_art = cli_data.album_index_plus_start_for_cover_art[1];
+	    sprintf(pending_cli_string, "%s albums %d 1\n", decoded_player_id,
+		    cli_data.album_index_for_cover_art);
+	    break;
+
+	case GET_2ND_TRACK_COVERART:
+	    // Get 2st track id.
+	    sprintf(pending_cli_string,
+		    "%s titles 0 1 album_id:%d\n", decoded_player_id, cli_data.album_id_for_cover_art[1]);
+	    break;
+
+	case GET_3RD_ALBUM_COVERART:
+	    // Display 2nd album text in widget.
+	    mvpw_show(mclient_sub_alt_image_1_2);
+	    mvpw_raise(mclient_sub_alt_image_1_2);
+	    sprintf(no_cover_art_text, "%s...", cli_data.album_name_for_cover_art[1]);
+	    mvpw_set_text_str(mclient_sub_alt_image_1_2, no_cover_art_text);
+
+	    // Get 3rd album id.
+	    cli_data.album_index_1_of_6_for_cover_art = 2;
+	    cli_data.album_index_for_cover_art = cli_data.album_index_plus_start_for_cover_art[2];
+	    sprintf(pending_cli_string, "%s albums %d 1\n", decoded_player_id,
+		    cli_data.album_index_for_cover_art);
+	    break;
+
+	case GET_3RD_TRACK_COVERART:
+	    // Get 3rd track id.
+	    sprintf(pending_cli_string,
+		    "%s titles 0 1 album_id:%d\n", decoded_player_id, cli_data.album_id_for_cover_art[2]);
+	    break;
+
+	case GET_4TH_ALBUM_COVERART:
+	    // Display 3rd album text in widget.
+	    mvpw_show(mclient_sub_alt_image_1_3);
+	    mvpw_raise(mclient_sub_alt_image_1_3);
+	    sprintf(no_cover_art_text, "%s...", cli_data.album_name_for_cover_art[2]);
+	    mvpw_set_text_str(mclient_sub_alt_image_1_3, no_cover_art_text);
+
+	    // Get 4th album id.
+	    cli_data.album_index_1_of_6_for_cover_art = 3;
+	    cli_data.album_index_for_cover_art = cli_data.album_index_plus_start_for_cover_art[3];
+	    sprintf(pending_cli_string, "%s albums %d 1\n", decoded_player_id,
+		    cli_data.album_index_for_cover_art);
+	    break;
+
+	case GET_4TH_TRACK_COVERART:
+	    // Get 4th track id.
+	    sprintf(pending_cli_string,
+		    "%s titles 0 1 album_id:%d\n", decoded_player_id, cli_data.album_id_for_cover_art[3]);
+	    break;
+
+	case GET_5TH_ALBUM_COVERART:
+	    // Display 4th album text in widget.
+	    mvpw_show(mclient_sub_alt_image_2_1);
+	    mvpw_raise(mclient_sub_alt_image_2_1);
+	    sprintf(no_cover_art_text, "%s...", cli_data.album_name_for_cover_art[3]);
+	    mvpw_set_text_str(mclient_sub_alt_image_2_1, no_cover_art_text);
+
+	    // Get 5th album id.
+	    cli_data.album_index_1_of_6_for_cover_art = 4;
+	    cli_data.album_index_for_cover_art = cli_data.album_index_plus_start_for_cover_art[4];
+	    sprintf(pending_cli_string, "%s albums %d 1\n", decoded_player_id,
+		    cli_data.album_index_for_cover_art);
+	    break;
+
+	case GET_5TH_TRACK_COVERART:
+	    // Get 5th track id.
+	    sprintf(pending_cli_string,
+		    "%s titles 0 1 album_id:%d\n", decoded_player_id, cli_data.album_id_for_cover_art[4]);
+	    break;
+
+	case GET_6TH_ALBUM_COVERART:
+	    // Display 5th album text in widget.
+	    mvpw_show(mclient_sub_alt_image_2_2);
+	    mvpw_raise(mclient_sub_alt_image_2_2);
+	    sprintf(no_cover_art_text, "%s...", cli_data.album_name_for_cover_art[4]);
+	    mvpw_set_text_str(mclient_sub_alt_image_2_2, no_cover_art_text);
+
+	    // Get 6th album id.
+	    cli_data.album_index_1_of_6_for_cover_art = 5;
+	    cli_data.album_index_for_cover_art = cli_data.album_index_plus_start_for_cover_art[5];
+	    sprintf(pending_cli_string, "%s albums %d 1\n", decoded_player_id,
+		    cli_data.album_index_for_cover_art);
+	    break;
+
+	case GET_6TH_TRACK_COVERART:
+	    // Get 6th track id.
+	    sprintf(pending_cli_string,
+		    "%s titles 0 1 album_id:%d\n", decoded_player_id, cli_data.album_id_for_cover_art[5]);
+	    break;
+
+	case DISPLAY_1ST_COVER_COVERART:
+	    // Display 6th album text in widget.
+	    mvpw_show(mclient_sub_alt_image_2_3);
+	    mvpw_raise(mclient_sub_alt_image_2_3);
+	    sprintf(no_cover_art_text, "%s...", cli_data.album_name_for_cover_art[5]);
+	    mvpw_set_text_str(mclient_sub_alt_image_2_3, no_cover_art_text);
+
+	    // Pull cover art for all 6 albums.
+	    sprintf(url_string,
+		    "http://%s:9000/music/%d/cover.jpg\n", mclient_server,
+		    cli_data.track_id_for_cover_art[0]);
+	    current = strdup(url_string);
+	    retcode = http_main();
+	    if (retcode == HTTP_IMAGE_FILE_JPEG)
+	    {
+		mvpw_load_image_fd(fd);
+		if (mvpw_load_image_jpeg(mclient_sub_image_1_1, NULL) == 0)
 		{
-			cli_data.outstanding_cli_message_cover_art = TRUE;
+		    mvpw_show_image_jpeg(mclient_sub_image_1_1);
+		    mvpw_show(mclient_sub_image_1_1);
+		    mvpw_raise(mclient_sub_image_1_1);
 		}
+	    }
+	    else
+	    {
+		mvpw_hide(mclient_sub_image_1_1);
+		mvpw_show(mclient_sub_alt_image_1_1);
+		mvpw_raise(mclient_sub_alt_image_1_1);
+		sprintf(no_cover_art_text, "%s...\nNo ArtWork for this album.",
+			cli_data.album_name_for_cover_art[0]);
+		mvpw_set_text_str(mclient_sub_alt_image_1_1, no_cover_art_text);
+	    }
+	    close(fd);
+	    fd = -1;
+	    // Set up for another call here as this case does not
+	    // deal w/the CLI parsing function where this normally
+	    // happens.
+	    cli_data.pending_proc_for_cover_art = TRUE;
+	    free(current);
+	    break;
+
+	case DISPLAY_2ND_COVER_COVERART:
+	    sprintf(url_string,
+		    "http://%s:9000/music/%d/cover.jpg\n", mclient_server,
+		    cli_data.track_id_for_cover_art[1]);
+	    current = strdup(url_string);
+	    retcode = http_main();
+	    if (retcode == HTTP_IMAGE_FILE_JPEG)
+	    {
+		mvpw_load_image_fd(fd);
+		if (mvpw_load_image_jpeg(mclient_sub_image_1_2, NULL) == 0)
+		{
+		    mvpw_show_image_jpeg(mclient_sub_image_1_2);
+		    mvpw_show(mclient_sub_image_1_2);
+		    mvpw_raise(mclient_sub_image_1_2);
+		}
+	    }
+	    else
+	    {
+		mvpw_hide(mclient_sub_image_1_2);
+		mvpw_show(mclient_sub_alt_image_1_2);
+		mvpw_raise(mclient_sub_alt_image_1_2);
+		sprintf(no_cover_art_text, "%s...\nNo ArtWork for this album.",
+			cli_data.album_name_for_cover_art[1]);
+		mvpw_set_text_str(mclient_sub_alt_image_1_2, no_cover_art_text);
+	    }
+	    close(fd);
+	    fd = -1;
+	    // Set up for another call here as this case does not
+	    // deal w/the CLI parsing function where this normally
+	    // happens.
+	    cli_data.pending_proc_for_cover_art = TRUE;
+	    free(current);
+	    break;
+
+	case DISPLAY_3RD_COVER_COVERART:
+	    sprintf(url_string,
+		    "http://%s:9000/music/%d/cover.jpg\n", mclient_server,
+		    cli_data.track_id_for_cover_art[2]);
+	    current = strdup(url_string);
+	    retcode = http_main();
+	    if (retcode == HTTP_IMAGE_FILE_JPEG)
+	    {
+		mvpw_load_image_fd(fd);
+		if (mvpw_load_image_jpeg(mclient_sub_image_1_3, NULL) == 0)
+		{
+		    mvpw_show_image_jpeg(mclient_sub_image_1_3);
+		    mvpw_show(mclient_sub_image_1_3);
+		    mvpw_raise(mclient_sub_image_1_3);
+		}
+	    }
+	    else
+	    {
+		mvpw_hide(mclient_sub_image_1_3);
+		mvpw_show(mclient_sub_alt_image_1_3);
+		mvpw_raise(mclient_sub_alt_image_1_3);
+		sprintf(no_cover_art_text, "%s...\nNo ArtWork for this album.",
+			cli_data.album_name_for_cover_art[2]);
+		mvpw_set_text_str(mclient_sub_alt_image_1_3, no_cover_art_text);
+	    }
+	    close(fd);
+	    fd = -1;
+	    // Set up for another call here as this case does not
+	    // deal w/the CLI parsing function where this normally
+	    // happens.
+	    cli_data.pending_proc_for_cover_art = TRUE;
+	    free(current);
+	    break;
+
+	case DISPLAY_4TH_COVER_COVERART:
+	    sprintf(url_string,
+		    "http://%s:9000/music/%d/cover.jpg\n", mclient_server,
+		    cli_data.track_id_for_cover_art[3]);
+	    current = strdup(url_string);
+	    retcode = http_main();
+	    if (retcode == HTTP_IMAGE_FILE_JPEG)
+	    {
+		mvpw_load_image_fd(fd);
+		if (mvpw_load_image_jpeg(mclient_sub_image_2_1, NULL) == 0)
+		{
+		    mvpw_show_image_jpeg(mclient_sub_image_2_1);
+		    mvpw_show(mclient_sub_image_2_1);
+		    mvpw_raise(mclient_sub_image_2_1);
+		}
+	    }
+	    else
+	    {
+		mvpw_hide(mclient_sub_image_2_1);
+		mvpw_show(mclient_sub_alt_image_2_1);
+		mvpw_raise(mclient_sub_alt_image_2_1);
+		sprintf(no_cover_art_text, "%s...\nNo ArtWork for this album.",
+			cli_data.album_name_for_cover_art[3]);
+		mvpw_set_text_str(mclient_sub_alt_image_2_1, no_cover_art_text);
+	    }
+	    close(fd);
+	    fd = -1;
+	    // Set up for another call here as this case does not
+	    // deal w/the CLI parsing function where this normally
+	    // happens.
+	    cli_data.pending_proc_for_cover_art = TRUE;
+	    free(current);
+	    break;
+
+	case DISPLAY_5TH_COVER_COVERART:
+	    sprintf(url_string,
+		    "http://%s:9000/music/%d/cover.jpg\n", mclient_server,
+		    cli_data.track_id_for_cover_art[4]);
+	    current = strdup(url_string);
+	    retcode = http_main();
+	    if (retcode == HTTP_IMAGE_FILE_JPEG)
+	    {
+		mvpw_load_image_fd(fd);
+		if (mvpw_load_image_jpeg(mclient_sub_image_2_2, NULL) == 0)
+		{
+		    mvpw_show_image_jpeg(mclient_sub_image_2_2);
+		    mvpw_show(mclient_sub_image_2_2);
+		    mvpw_raise(mclient_sub_image_2_2);
+		}
+	    }
+	    else
+	    {
+		mvpw_hide(mclient_sub_image_2_2);
+		mvpw_show(mclient_sub_alt_image_2_2);
+		mvpw_raise(mclient_sub_alt_image_2_2);
+		sprintf(no_cover_art_text, "%s...\nNo ArtWork for this album.",
+			cli_data.album_name_for_cover_art[4]);
+		mvpw_set_text_str(mclient_sub_alt_image_2_2, no_cover_art_text);
+	    }
+	    close(fd);
+	    fd = -1;
+	    // Set up for another call here as this case does not
+	    // deal w/the CLI parsing function where this normally
+	    // happens.
+	    cli_data.pending_proc_for_cover_art = TRUE;
+	    free(current);
+	    break;
+
+	case DISPLAY_6TH_COVER_COVERART:
+	    sprintf(url_string,
+		    "http://%s:9000/music/%d/cover.jpg\n", mclient_server,
+		    cli_data.track_id_for_cover_art[5]);
+	    current = strdup(url_string);
+	    retcode = http_main();
+	    if (retcode == HTTP_IMAGE_FILE_JPEG)
+	    {
+		mvpw_load_image_fd(fd);
+		if (mvpw_load_image_jpeg(mclient_sub_image_2_3, NULL) == 0)
+		{
+		    mvpw_show_image_jpeg(mclient_sub_image_2_3);
+		    mvpw_show(mclient_sub_image_2_3);
+		    mvpw_raise(mclient_sub_image_2_3);
+		}
+	    }
+	    else
+	    {
+		mvpw_hide(mclient_sub_image_2_3);
+		mvpw_show(mclient_sub_alt_image_2_3);
+		mvpw_raise(mclient_sub_alt_image_2_3);
+		mvpw_set_text_str(mclient_sub_alt_image_2_3, "   No ArtWork\n     for\n    this album");
+		sprintf(no_cover_art_text, "%s...\nNo ArtWork for this album.",
+			cli_data.album_name_for_cover_art[5]);
+		mvpw_set_text_str(mclient_sub_alt_image_2_3, no_cover_art_text);
+	    }
+	    close(fd);
+	    fd = -1;
+
+	    // Show browserbar.
+	    mvpw_show(mclient_sub_browsebar);
+	    mvpw_raise(mclient_sub_browsebar);
+
+	    // Set up for another call here as this case does not
+	    // deal w/the CLI parsing function where this normally
+	    // happens.
+	    cli_data.pending_proc_for_cover_art = TRUE;
+	    free(current);
+	    break;
+
+	case GET_TOTAL_NUM_ALBUMS:
+	    sprintf(pending_cli_string, "%s info total albums ?\n", decoded_player_id);
+	    cli_data.album_index_for_cover_art++;
+	    break;
+
+	default:
+	    cli_data.state_for_cover_art = IDLE_COVERART;
+
+            // This is the last state, before going idle
+            // set up to update widget after loading new cover art.
+            cli_data.state_for_cover_art_widget = ADJ_COVERART_WIDGET;
+            cli_data.pending_proc_for_cover_art_widget = TRUE;
+	    break;
 	}
+    }
 
-	if (cli_data.state_for_cover_art != IDLE_COVERART)
+    // Switch to next state before exeting.
+    if (cli_data.state_for_cover_art != IDLE_COVERART)
+    {
+	cli_data.state_for_cover_art++;
+	if (cli_data.state_for_cover_art >= LAST_STATE_COVERART)
 	{
-		cli_data.state_for_cover_art++;
-		if (cli_data.state_for_cover_art >= LAST_STATE_COVERART)
-		{
-			cli_data.state_for_cover_art = IDLE_COVERART;
-		}
+	    cli_data.state_for_cover_art = IDLE_COVERART;
 	}
+    }
 }
 
 void
 mclient_browse_by_cover_widget(void)
 {
-	// State machine for updating album cover widgets
-	if (pending_cli_string[0] == '\0')
+    // State machine for updating album cover widgets
+    if (pending_cli_string[0] == '\0')
+    {
+	switch (cli_data.state_for_cover_art_widget)
 	{
-		switch (cli_data.state_for_cover_art_widget)
+	case ADJ_COVERART_WIDGET:
+	    {
+		int row, col;
+		bool user_focus;
+		mvpw_text_attr_t attr;
+
+		for (row = 0; row < 3; row++)
 		{
-		case ADJ_COVERART_WIDGET:
+		    for (col = 0; col < 3; col++)
+		    {
+			if (((cli_data.
+			      row_for_cover_art ==
+			      row) & (cli_data.
+				      col_for_cover_art == col))
+			    || ((cli_data.row_for_cover_art == row) & (row == 2)))
 			{
-				int row, col;
-				bool user_focus;
-				mvpw_text_attr_t attr;
-
-				for (row = 0; row < 3; row++)
-				{
-					for (col = 0; col < 3; col++)
-					{
-						if (((cli_data.
-						      row_for_cover_art ==
-						      row) & (cli_data.
-							      col_for_cover_art
-							      == col))
-						    ||
-						    ((cli_data.
-						      row_for_cover_art ==
-						      row) & (row == 2)))
-						{
-							user_focus = TRUE;
-						}
-						else
-						{
-							user_focus = FALSE;
-						}
-
-						switch ((row * 3) + col)
-						{
-						case 0:
-							mvpw_get_text_attr
-							    (mclient_sub_image_1_1,
-							     &attr);
-							if (user_focus == TRUE)
-							{
-								attr.border =
-								    MVPW_GREEN;
-							}
-							else
-							{
-								attr.border =
-								    MVPW_MIDNIGHTBLUE;
-							}
-							mvpw_set_text_attr
-							    (mclient_sub_image_1_1,
-							     &attr);
-
-							mvpw_get_text_attr
-							    (mclient_sub_alt_image_1_1,
-							     &attr);
-							if (user_focus == TRUE)
-							{
-								attr.border =
-								    MVPW_GREEN;
-							}
-							else
-							{
-								attr.border =
-								    MVPW_MIDNIGHTBLUE;
-							}
-							mvpw_set_text_attr
-							    (mclient_sub_alt_image_1_1,
-							     &attr);
-if (user_focus == TRUE)
-{
-char album_info[500];
-sprintf(album_info,
-"[MClient Album Cover Browser]   Album %d of %d\nAlbum:%s\nArtist:%s",
-cli_data.album_index_plus_start_for_cover_art[0] + 1,
-cli_data.album_max_index_for_cover_art,
-cli_data.album_name_for_cover_art[0],
-cli_data.artist_name_for_cover_art[0]);
-mvpw_set_text_str(mclient_sub_alt_image_info, album_info);
-}
-							break;
-
-						case 1:
-							mvpw_get_text_attr
-							    (mclient_sub_image_1_2,
-							     &attr);
-							if (user_focus == TRUE)
-							{
-								attr.border =
-								    MVPW_GREEN;
-							}
-							else
-							{
-								attr.border =
-								    MVPW_MIDNIGHTBLUE;
-							}
-							mvpw_set_text_attr
-							    (mclient_sub_image_1_2,
-							     &attr);
-
-							mvpw_get_text_attr
-							    (mclient_sub_alt_image_1_2,
-							     &attr);
-							if (user_focus == TRUE)
-							{
-								attr.border =
-								    MVPW_GREEN;
-							}
-							else
-							{
-								attr.border =
-								    MVPW_MIDNIGHTBLUE;
-							}
-							mvpw_set_text_attr
-							    (mclient_sub_alt_image_1_2,
-							     &attr);
-
-if (user_focus == TRUE)
-{
-char album_info[500];
-sprintf(album_info,
-"[MClient Album Cover Browser]   Album %d of %d\nAlbum:%s\nArtist:%s",
-cli_data.album_index_plus_start_for_cover_art[1] + 1,
-cli_data.album_max_index_for_cover_art,
-cli_data.album_name_for_cover_art[1],
-cli_data.artist_name_for_cover_art[1]);
-mvpw_set_text_str(mclient_sub_alt_image_info, album_info);
-}
-							break;
-
-						case 2:
-							mvpw_get_text_attr
-							    (mclient_sub_image_1_3,
-							     &attr);
-							if (user_focus == TRUE)
-							{
-								attr.border =
-								    MVPW_GREEN;
-							}
-							else
-							{
-								attr.border =
-								    MVPW_MIDNIGHTBLUE;
-							}
-							mvpw_set_text_attr
-							    (mclient_sub_image_1_3,
-							     &attr);
-
-							mvpw_get_text_attr
-							    (mclient_sub_alt_image_1_3,
-							     &attr);
-							if (user_focus == TRUE)
-							{
-								attr.border =
-								    MVPW_GREEN;
-							}
-							else
-							{
-								attr.border =
-								    MVPW_MIDNIGHTBLUE;
-							}
-							mvpw_set_text_attr
-							    (mclient_sub_alt_image_1_3,
-							     &attr);
-
-if (user_focus == TRUE)
-{
-char album_info[500];
-sprintf(album_info,
-"[MClient Album Cover Browser]   Album %d of %d\nAlbum:%s\nArtist:%s",
-cli_data.album_index_plus_start_for_cover_art[2] + 1,
-cli_data.album_max_index_for_cover_art,
-cli_data.album_name_for_cover_art[2],
-cli_data.artist_name_for_cover_art[2]);
-mvpw_set_text_str(mclient_sub_alt_image_info, album_info);
-}
-							break;
-
-						case 3:
-							mvpw_get_text_attr
-							    (mclient_sub_image_2_1,
-							     &attr);
-							if (user_focus == TRUE)
-							{
-								attr.border =
-								    MVPW_GREEN;
-							}
-							else
-							{
-								attr.border =
-								    MVPW_MIDNIGHTBLUE;
-							}
-							mvpw_set_text_attr
-							    (mclient_sub_image_2_1,
-							     &attr);
-
-							mvpw_get_text_attr
-							    (mclient_sub_alt_image_2_1,
-							     &attr);
-							if (user_focus == TRUE)
-							{
-								attr.border =
-								    MVPW_GREEN;
-							}
-							else
-							{
-								attr.border =
-								    MVPW_MIDNIGHTBLUE;
-							}
-							mvpw_set_text_attr
-							    (mclient_sub_alt_image_2_1,
-							     &attr);
-
-if (user_focus == TRUE)
-{
-char album_info[500];
-sprintf(album_info,
-"[MClient Album Cover Browser]   Album %d of %d\nAlbum:%s\nArtist:%s",
-cli_data.album_index_plus_start_for_cover_art[3] + 1,
-cli_data.album_max_index_for_cover_art,
-cli_data.album_name_for_cover_art[3],
-cli_data.artist_name_for_cover_art[3]);
-mvpw_set_text_str(mclient_sub_alt_image_info, album_info);
-}
-							break;
-
-						case 4:
-							mvpw_get_text_attr
-							    (mclient_sub_image_2_2,
-							     &attr);
-							if (user_focus == TRUE)
-							{
-								attr.border =
-								    MVPW_GREEN;
-							}
-							else
-							{
-								attr.border =
-								    MVPW_MIDNIGHTBLUE;
-							}
-							mvpw_set_text_attr
-							    (mclient_sub_image_2_2,
-							     &attr);
-
-							mvpw_get_text_attr
-							    (mclient_sub_alt_image_2_2,
-							     &attr);
-							if (user_focus == TRUE)
-							{
-								attr.border =
-								    MVPW_GREEN;
-							}
-							else
-							{
-								attr.border =
-								    MVPW_MIDNIGHTBLUE;
-							}
-							mvpw_set_text_attr
-							    (mclient_sub_alt_image_2_2,
-							     &attr);
-
-if (user_focus == TRUE)
-{
-char album_info[500];
-sprintf(album_info,
-"[MClient Album Cover Browser]   Album %d of %d\nAlbum:%s\nArtist:%s",
-cli_data.album_index_plus_start_for_cover_art[4] + 1,
-cli_data.album_max_index_for_cover_art,
-cli_data.album_name_for_cover_art[4],
-cli_data.artist_name_for_cover_art[4]);
-mvpw_set_text_str(mclient_sub_alt_image_info, album_info);
-}
-							break;
-
-						case 5:
-							mvpw_get_text_attr
-							    (mclient_sub_image_2_3,
-							     &attr);
-							if (user_focus == TRUE)
-							{
-								attr.border =
-								    MVPW_GREEN;
-							}
-							else
-							{
-								attr.border =
-								    MVPW_MIDNIGHTBLUE;
-							}
-							mvpw_set_text_attr
-							    (mclient_sub_image_2_3,
-							     &attr);
-
-							mvpw_get_text_attr
-							    (mclient_sub_alt_image_2_3,
-							     &attr);
-							if (user_focus == TRUE)
-							{
-								attr.border =
-								    MVPW_GREEN;
-							}
-							else
-							{
-								attr.border =
-								    MVPW_MIDNIGHTBLUE;
-							}
-							mvpw_set_text_attr
-							    (mclient_sub_alt_image_2_3,
-							     &attr);
-
-if (user_focus == TRUE)
-{
-char album_info[500];
-sprintf(album_info,
-"[MClient Album Cover Browser]   Album %d of %d\nAlbum:%s\nArtist:%s",
-cli_data.album_index_plus_start_for_cover_art[5] + 1,
-cli_data.album_max_index_for_cover_art,
-cli_data.album_name_for_cover_art[5],
-cli_data.artist_name_for_cover_art[5]);
-mvpw_set_text_str(mclient_sub_alt_image_info, album_info);
-}
-							break;
-
-						case 6:
-						case 7:
-						case 8:
-							mvpw_get_text_attr
-							    (mclient_sub_browsebar,
-							     &attr);
-							if (user_focus == TRUE)
-							{
-								attr.border =
-								    MVPW_GREEN;
-							}
-							else
-							{
-								attr.border =
-								    MVPW_MIDNIGHTBLUE;
-							}
-							mvpw_set_text_attr
-							    (mclient_sub_browsebar,
-							     &attr);
-							break;
-
-						}
-					}
-				}
+			    user_focus = TRUE;
 			}
-			// We need to self flag as this state does not
-			// produce a response. We usually flag when we
-			// process a response.
-                        cli_data.pending_proc_for_cover_art_widget = TRUE;
-			break;
+			else
+			{
+			    user_focus = FALSE;
+			}
 
-		default:
-			cli_data.state_for_cover_art = IDLE_COVERART_WIDGET;
-			break;
+			switch ((row * 3) + col)
+			{
+			case 0:
+			    mvpw_get_text_attr(mclient_sub_image_1_1, &attr);
+			    if (user_focus == TRUE)
+			    {
+				attr.border = MVPW_GREEN;
+			    }
+			    else
+			    {
+				attr.border = MVPW_MIDNIGHTBLUE;
+			    }
+			    mvpw_set_text_attr(mclient_sub_image_1_1, &attr);
+
+			    mvpw_get_text_attr(mclient_sub_alt_image_1_1, &attr);
+			    if (user_focus == TRUE)
+			    {
+				attr.border = MVPW_GREEN;
+			    }
+			    else
+			    {
+				attr.border = MVPW_MIDNIGHTBLUE;
+			    }
+			    mvpw_set_text_attr(mclient_sub_alt_image_1_1, &attr);
+			    if (user_focus == TRUE)
+			    {
+				char album_info[500];
+				sprintf(album_info,
+					"Album %d of %d\nAlbum:%s\nArtist:%s",
+					cli_data.
+					album_index_plus_start_for_cover_art[0]
+					+ 1,
+					cli_data.album_max_index_for_cover_art,
+					cli_data.album_name_for_cover_art[0],
+					cli_data.artist_name_for_cover_art[0]);
+				mvpw_set_text_str(mclient_sub_alt_image_info, album_info);
+			    }
+			    break;
+
+			case 1:
+			    mvpw_get_text_attr(mclient_sub_image_1_2, &attr);
+			    if (user_focus == TRUE)
+			    {
+				attr.border = MVPW_GREEN;
+			    }
+			    else
+			    {
+				attr.border = MVPW_MIDNIGHTBLUE;
+			    }
+			    mvpw_set_text_attr(mclient_sub_image_1_2, &attr);
+
+			    mvpw_get_text_attr(mclient_sub_alt_image_1_2, &attr);
+			    if (user_focus == TRUE)
+			    {
+				attr.border = MVPW_GREEN;
+			    }
+			    else
+			    {
+				attr.border = MVPW_MIDNIGHTBLUE;
+			    }
+			    mvpw_set_text_attr(mclient_sub_alt_image_1_2, &attr);
+
+			    if (user_focus == TRUE)
+			    {
+				char album_info[500];
+				sprintf(album_info,
+					"Album %d of %d\nAlbum:%s\nArtist:%s",
+					cli_data.
+					album_index_plus_start_for_cover_art[1]
+					+ 1,
+					cli_data.album_max_index_for_cover_art,
+					cli_data.album_name_for_cover_art[1],
+					cli_data.artist_name_for_cover_art[1]);
+				mvpw_set_text_str(mclient_sub_alt_image_info, album_info);
+			    }
+			    break;
+
+			case 2:
+			    mvpw_get_text_attr(mclient_sub_image_1_3, &attr);
+			    if (user_focus == TRUE)
+			    {
+				attr.border = MVPW_GREEN;
+			    }
+			    else
+			    {
+				attr.border = MVPW_MIDNIGHTBLUE;
+			    }
+			    mvpw_set_text_attr(mclient_sub_image_1_3, &attr);
+
+			    mvpw_get_text_attr(mclient_sub_alt_image_1_3, &attr);
+			    if (user_focus == TRUE)
+			    {
+				attr.border = MVPW_GREEN;
+			    }
+			    else
+			    {
+				attr.border = MVPW_MIDNIGHTBLUE;
+			    }
+			    mvpw_set_text_attr(mclient_sub_alt_image_1_3, &attr);
+
+			    if (user_focus == TRUE)
+			    {
+				char album_info[500];
+				sprintf(album_info,
+					"Album %d of %d\nAlbum:%s\nArtist:%s",
+					cli_data.
+					album_index_plus_start_for_cover_art[2]
+					+ 1,
+					cli_data.album_max_index_for_cover_art,
+					cli_data.album_name_for_cover_art[2],
+					cli_data.artist_name_for_cover_art[2]);
+				mvpw_set_text_str(mclient_sub_alt_image_info, album_info);
+			    }
+			    break;
+
+			case 3:
+			    mvpw_get_text_attr(mclient_sub_image_2_1, &attr);
+			    if (user_focus == TRUE)
+			    {
+				attr.border = MVPW_GREEN;
+			    }
+			    else
+			    {
+				attr.border = MVPW_MIDNIGHTBLUE;
+			    }
+			    mvpw_set_text_attr(mclient_sub_image_2_1, &attr);
+
+			    mvpw_get_text_attr(mclient_sub_alt_image_2_1, &attr);
+			    if (user_focus == TRUE)
+			    {
+				attr.border = MVPW_GREEN;
+			    }
+			    else
+			    {
+				attr.border = MVPW_MIDNIGHTBLUE;
+			    }
+			    mvpw_set_text_attr(mclient_sub_alt_image_2_1, &attr);
+
+			    if (user_focus == TRUE)
+			    {
+				char album_info[500];
+				sprintf(album_info,
+					"Album %d of %d\nAlbum:%s\nArtist:%s",
+					cli_data.
+					album_index_plus_start_for_cover_art[3]
+					+ 1,
+					cli_data.album_max_index_for_cover_art,
+					cli_data.album_name_for_cover_art[3],
+					cli_data.artist_name_for_cover_art[3]);
+				mvpw_set_text_str(mclient_sub_alt_image_info, album_info);
+			    }
+			    break;
+
+			case 4:
+			    mvpw_get_text_attr(mclient_sub_image_2_2, &attr);
+			    if (user_focus == TRUE)
+			    {
+				attr.border = MVPW_GREEN;
+			    }
+			    else
+			    {
+				attr.border = MVPW_MIDNIGHTBLUE;
+			    }
+			    mvpw_set_text_attr(mclient_sub_image_2_2, &attr);
+
+			    mvpw_get_text_attr(mclient_sub_alt_image_2_2, &attr);
+			    if (user_focus == TRUE)
+			    {
+				attr.border = MVPW_GREEN;
+			    }
+			    else
+			    {
+				attr.border = MVPW_MIDNIGHTBLUE;
+			    }
+			    mvpw_set_text_attr(mclient_sub_alt_image_2_2, &attr);
+
+			    if (user_focus == TRUE)
+			    {
+				char album_info[500];
+				sprintf(album_info,
+					"Album %d of %d\nAlbum:%s\nArtist:%s",
+					cli_data.
+					album_index_plus_start_for_cover_art[4]
+					+ 1,
+					cli_data.album_max_index_for_cover_art,
+					cli_data.album_name_for_cover_art[4],
+					cli_data.artist_name_for_cover_art[4]);
+				mvpw_set_text_str(mclient_sub_alt_image_info, album_info);
+			    }
+			    break;
+
+			case 5:
+			    mvpw_get_text_attr(mclient_sub_image_2_3, &attr);
+			    if (user_focus == TRUE)
+			    {
+				attr.border = MVPW_GREEN;
+			    }
+			    else
+			    {
+				attr.border = MVPW_MIDNIGHTBLUE;
+			    }
+			    mvpw_set_text_attr(mclient_sub_image_2_3, &attr);
+
+			    mvpw_get_text_attr(mclient_sub_alt_image_2_3, &attr);
+			    if (user_focus == TRUE)
+			    {
+				attr.border = MVPW_GREEN;
+			    }
+			    else
+			    {
+				attr.border = MVPW_MIDNIGHTBLUE;
+			    }
+			    mvpw_set_text_attr(mclient_sub_alt_image_2_3, &attr);
+
+			    if (user_focus == TRUE)
+			    {
+				char album_info[500];
+				sprintf(album_info,
+					"Album %d of %d\nAlbum:%s\nArtist:%s",
+					cli_data.
+					album_index_plus_start_for_cover_art[5]
+					+ 1,
+					cli_data.album_max_index_for_cover_art,
+					cli_data.album_name_for_cover_art[5],
+					cli_data.artist_name_for_cover_art[5]);
+				mvpw_set_text_str(mclient_sub_alt_image_info, album_info);
+			    }
+			    break;
+
+			case 6:
+			case 7:
+			case 8:
+			    mvpw_get_text_attr(mclient_sub_browsebar, &attr);
+			    if (user_focus == TRUE)
+			    {
+				attr.border = MVPW_GREEN;
+			    }
+			    else
+			    {
+				attr.border = MVPW_MIDNIGHTBLUE;
+			    }
+			    mvpw_set_text_attr(mclient_sub_browsebar, &attr);
+			    break;
+
+			}
+		    }
 		}
-	}
+	    }
+	    // We need to self flag as this state does not
+	    // produce a response. We usually flag when we
+	    // process a response.
+	    cli_data.pending_proc_for_cover_art_widget = TRUE;
+	    break;
 
-	if (cli_data.state_for_cover_art_widget != IDLE_COVERART_WIDGET)
+	default:
+	    cli_data.state_for_cover_art = IDLE_COVERART_WIDGET;
+	    break;
+	}
+    }
+
+    if (cli_data.state_for_cover_art_widget != IDLE_COVERART_WIDGET)
+    {
+	cli_data.state_for_cover_art_widget++;
+	if (cli_data.state_for_cover_art_widget >= LAST_STATE_COVERART_WIDGET)
 	{
-		cli_data.state_for_cover_art_widget++;
-		if (cli_data.state_for_cover_art_widget >= LAST_STATE_COVERART_WIDGET)
-		{
-			cli_data.state_for_cover_art_widget = IDLE_COVERART_WIDGET;
-		}
+	    cli_data.state_for_cover_art_widget = IDLE_COVERART_WIDGET;
 	}
+    }
 }
