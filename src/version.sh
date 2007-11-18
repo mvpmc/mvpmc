@@ -6,7 +6,7 @@
 
 WORKING_DIR=$1
 DIR=$2
-VERSION="0.3.4-pre"
+VERSION="0.3.4"
 
 if [ "$WORKING_DIR" = "" -o "$DIR" = "" ] ; then
     exit 1
