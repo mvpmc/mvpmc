@@ -15,14 +15,14 @@ incdir = '%s/dongle/install/%s/include/' % (topdir,build_target)
 prefix = '%s/dongle/install/%s' % (topdir,build_target)
 
 if build_target == 'mvp':
-  configopts = '--host=powerpc --disable-3dnow --disable-thorough-tests --disable-xmms-plugin --disable-oggtest'
+  configopts = '--host=powerpc --disable-3dnow --disable-thorough-tests --disable-xmms-plugin --disable-ogg  --disable-oggtest --disable-cpplibs'
 else:
   configopts = '--disable-thorough-tests --disable-xmms-plugin --disable-oggtest'
 
 e = Environment()
 
-url = [ 'http://www.mvpmc.org/dl/flac-1.1.3.tar.gz',
-        'http://flac.sourceforge.net/files/flac-1.1.3.tar.gz' ]
+url = [ 'http://www.mvpmc.org/dl/flac-1.2.1.tar.gz',
+        'http://flac.sourceforge.net/files/flac-1.2.1.tar.gz' ]
 
 target = [ libdir + 'libFLAC.a',
            incdir + 'FLAC/stream_decoder.h' ]
