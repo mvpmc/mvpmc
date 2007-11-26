@@ -209,7 +209,10 @@ extern int demux_write_audio(demux_handle_t *handle, int fd);
  * Write audio data from a demuxer to a file descriptor Just In Time
  * \param handle handle to a demuxer
  * \param fd file descriptor
- * \param pts current video PTS (32 LSBits of it)
+ * \param stc current video STC (32 LSBits of it)
+ * \param mode a bitwise or of the following flags:
+ *                 1 - Bring audio in sync after a seek by throwing some away
+ *                 2 - Try to keep audio in sync at other times
  * \param flags Indicate A/V action to be performed by caller:
  *        1 - video_pause
  *        2 - video_unpause
@@ -220,7 +223,8 @@ extern int demux_write_audio(demux_handle_t *handle, int fd);
  * \return number of bytes written
  */
 extern int demux_jit_write_audio(demux_handle_t *handle, int fd,
-                                 unsigned int pts, int *flags, int *duration);
+                                 unsigned int pts, int mode, 
+				 int *flags, int *duration);
 
 /**
  * Write video data from a demuxer to a file descriptor.

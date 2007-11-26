@@ -256,7 +256,11 @@ demux_pts_in_window(unsigned int window_start, unsigned int window_end,
  * Arguments:
  *	handle	- pointer to demux context
  *	fd	- file descriptor for writing
- *	pts     - current video PTS (32 LSBits of it anyway)
+ *	mode    - a bitwise or of the following flags:
+ *	           1 - Bring audio in sync after a seek by throwing some away
+ *	           2 - Try to keep audio in sync at other times
+ *	stc     - current video STC (32 LSBits of it anyway)
+ *		   (only needed for mode 2)
  *	flags	- Indicate any A/V action that must be performed:
  *		  1 - video_pause
  *		  2 - video_unpause (after duration)
@@ -270,25 +274,42 @@ demux_pts_in_window(unsigned int window_start, unsigned int window_end,
  *	number of bytes written
  */
 int
-demux_jit_write_audio(demux_handle_t *handle, int fd, unsigned int stc, int *flags, int *duration)
+demux_jit_write_audio(demux_handle_t *handle, int fd, unsigned int stc, int mode, int *flags, int *duration)
 {
         (*flags) = 0;
 	(*duration) = 0;
+
+	/* If neither "JIT" function is enabled, then just let the normal
+	 * demux_write handle it. If we're handling doing post-seek audio sync
+	 * then do a normal demux_write if we're not just post-sync.*/
+	if (mode == 0 || (mode == 1 && handle->jit.seek_end_pts == 0))
+	    return demux_write_audio(handle,fd);
+
+	/* Sanity check: */
 	if (handle == NULL)
 		return -1;
 	if (handle->audio == NULL)
 		return 0;
+
+	/* No left over audio from a previous attempt to send/discard a frame?
+	 * Start processing a new frame then.*/
 	if(handle->jit.frame_remain <= 0)
 	{
 	    unsigned char buf[14];
-	    int len = stream_peek(handle->audio,buf,14);
 	    int pack_len = 0;
 	    int resync = 0;
-	    if(len < 8)
+	    /* Try and see if we can find a header */
+	    int len = stream_peek(handle->audio,buf,14);
+
+	    /* Didn't get enough bytes to read a header? Then give up and
+	     * try again later */
+	    if(len < 8) 
 		return 0;
+	
 	    while(buf[0] != 0 || buf[1] != 0 || buf[2] != 1)
 	    {
-		/* Not synced, move forward until we hit the start of a frame */
+		/* Not synced, so move forward one byte at a time until we hit
+		 * the start of a frame */
 		char tmp;
 		stream_drain(handle->audio,&tmp,1);
 		resync++;
@@ -299,6 +320,9 @@ demux_jit_write_audio(demux_handle_t *handle, int fd, unsigned int stc, int *fla
 		    return 0;
 		}
 	    }
+
+	    /* Warn if we had to re-sync, there's either an erronous stream, or
+	     * a bug in this code */
 	    if(resync != 0)
 	    {
 		JIT_PRINTF("JIT Audio lost sync, had to move %d bytes to resync\n",resync);
@@ -326,7 +350,7 @@ demux_jit_write_audio(demux_handle_t *handle, int fd, unsigned int stc, int *fla
 		 */
 		JIT_PRINTF("JIT Audio: Frame has audio_pts: %X, seek_end_pts: %X, stc: %X\n",audio_pts, handle->jit.seek_end_pts,stc);
 
-		if(handle->jit.seek_end_pts != 0)
+		if((mode & 1) && handle->jit.seek_end_pts != 0)
 		{
 		    unsigned int window_start = handle->jit.seek_end_pts - 30*PTS_HZ;
 		    /*If it's .3 second early then we'll send it out*/
@@ -371,7 +395,7 @@ demux_jit_write_audio(demux_handle_t *handle, int fd, unsigned int stc, int *fla
 		{
 		    handle->jit.ignore_frame_pts--;
 		}
-		else /* We aren't doing handling just after a seek so do normal "JIT" audio handling */
+		else if(mode & 2)/* We aren't doing handling just after a seek so do normal "JIT" audio handling */
 		{
 		    unsigned int windows[4];
 		    /*We'd always like the PTS of the audio we're delivering
@@ -410,17 +434,18 @@ demux_jit_write_audio(demux_handle_t *handle, int fd, unsigned int stc, int *fla
 	    }
 	}
 
-	if(handle->jit.seek_end_pts != 0)
-	{
-	    JIT_PRINTF("JIT Audio: Dumping frame of audio because we've just seeked\n");
-	    stream_empty(handle->audio);
-	    handle->jit.frame_remain = 0;
-	    return 0;
-	}
-
 	if(handle->jit.frame_remain > 0)
 	{
-	    int sent = stream_drain_fd(handle->audio, fd, handle->jit.frame_remain);
+	    int sent;
+	    if(handle->jit.seek_end_pts != 0)
+	    {
+		JIT_PRINTF("JIT Audio: Dumping frame of audio because we've just seeked\n");
+		sent = stream_drain(handle->audio, NULL, handle->jit.frame_remain);
+	    }
+	    else
+	    {
+		sent = stream_drain_fd(handle->audio, fd, handle->jit.frame_remain);
+	    }
 	    handle->jit.frame_remain -= sent;
 	    JIT_PRINTF("JIT Audio: Wrote %d bytes to the audio fd\n",sent);
 	    return sent;

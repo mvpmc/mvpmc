@@ -376,10 +376,15 @@ stream_peek(stream_t *stream, void *buf, int max)
 		}
 	}
 
-	if (size1 > 0)
-		memcpy(buf, stream->buf+tail+1, size1);
-	if (size2 > 0)
-		memcpy(buf+size1, stream->buf, size2);
+	/*buf may be NULL if someone is doing a stream_drain with a NULL
+	 *buf to just junk a certain number of bytes off the stream */
+	if(buf != NULL)
+	{
+		if (size1 > 0)
+			memcpy(buf, stream->buf+tail+1, size1);
+		if (size2 > 0)
+			memcpy(buf+size1, stream->buf, size2);
+	}
 
 	return size1 + size2;
 
@@ -418,7 +423,7 @@ stream_empty(stream_t *stream)
  *
  * Arguments:
  *	stream	- stream pointer
- *	buf	- buffer to write stream data into
+ *	buf	- buffer to write stream data into, NULL if simply discarding data
  *	max	- size of buffer
  *
  * Returns:
