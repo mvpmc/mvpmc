@@ -112,11 +112,18 @@
 /* Define to the version of this package. */
 #define PACKAGE_VERSION ""
 
+/* The size of a `void*', as computed by sizeof. */
+#define SIZEOF_VOIDP 4
+
 /* Define to 1 if you have the ANSI C header files. */
 #define STDC_HEADERS 1
 
 /* Version number of package */
-#define VERSION "1.1.3"
+#define VERSION "1.2.1"
+
+/* Define to 1 if your processor stores words with the most significant byte
+   first (like Motorola and SPARC, unlike Intel and VAX). */
+#define WORDS_BIGENDIAN 1
 
 /* Number of bits in a file offset, on hosts where this is settable. */
 #define _FILE_OFFSET_BITS 64

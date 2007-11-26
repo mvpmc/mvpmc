@@ -1,7 +1,6 @@
-diff -Naur Makefile.in
---- flac-1.1.3/src/libFLAC/Makefile.in	2006-11-27 01:41:10.000000000 -0500
-+++ src/libFLAC/Makefile.in	2007-01-07 18:15:50.000000000 -0500
-@@ -280,13 +280,8 @@
+--- flac-1.2.1/src/libFLAC/Makefile.in	2007-09-16 16:05:12.000000000 -0400
++++ src/libFLAC/Makefile.in        	2007-11-20 20:06:40.000000000 -0500
+@@ -292,13 +292,8 @@
  	lpc.c \
  	md5.c \
  	memory.c \
@@ -12,36 +11,35 @@ diff -Naur Makefile.in
 -	stream_encoder_framing.c \
 -	window.c \
 -	$(extra_ogg_sources)
-+	window.c
++	window.c 
  
  subdir = src/libFLAC
  ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-@@ -380,18 +375,14 @@
- @FLaC__CPU_IA32_TRUE@@FLaC__CPU_PPC_TRUE@@FLaC__HAS_AS__TEMPORARILY_DISABLED_TRUE@@FLaC__HAS_GAS__TEMPORARILY_DISABLED_TRUE@@FLaC__HAS_NASM_TRUE@@FLaC__NO_ASM_FALSE@	ia32/libFLAC-asm.la \
+@@ -393,18 +388,13 @@
  @FLaC__CPU_IA32_TRUE@@FLaC__CPU_PPC_TRUE@@FLaC__HAS_AS__TEMPORARILY_DISABLED_TRUE@@FLaC__HAS_GAS__TEMPORARILY_DISABLED_TRUE@@FLaC__HAS_NASM_TRUE@@FLaC__NO_ASM_FALSE@	ppc/as/libFLAC-asm.la
- am__libFLAC_la_SOURCES_DIST = bitbuffer.c bitmath.c cpu.c crc.c fixed.c \
--	float.c format.c lpc.c md5.c memory.c metadata_iterators.c \
--	metadata_object.c stream_decoder.c stream_encoder.c \
--	stream_encoder_framing.c window.c ogg_decoder_aspect.c \
--	ogg_encoder_aspect.c ogg_helper.c ogg_mapping.c
-+	float.c format.c lpc.c md5.c memory.c \
+ am__libFLAC_la_SOURCES_DIST = bitmath.c bitreader.c bitwriter.c cpu.c \
+ 	crc.c fixed.c float.c format.c lpc.c md5.c memory.c \
+-	metadata_iterators.c metadata_object.c stream_decoder.c \
+-	stream_encoder.c stream_encoder_framing.c window.c \
+-	ogg_decoder_aspect.c ogg_encoder_aspect.c ogg_helper.c \
+-	ogg_mapping.c
 +	stream_decoder.c window.c 
  @FLaC__HAS_OGG_TRUE@am__objects_1 = ogg_decoder_aspect.lo \
  @FLaC__HAS_OGG_TRUE@	ogg_encoder_aspect.lo ogg_helper.lo \
  @FLaC__HAS_OGG_TRUE@	ogg_mapping.lo
- am_libFLAC_la_OBJECTS = bitbuffer.lo bitmath.lo cpu.lo crc.lo fixed.lo \
- 	float.lo format.lo lpc.lo md5.lo memory.lo \
+ am_libFLAC_la_OBJECTS = bitmath.lo bitreader.lo bitwriter.lo cpu.lo \
+ 	crc.lo fixed.lo float.lo format.lo lpc.lo md5.lo memory.lo \
 -	metadata_iterators.lo metadata_object.lo stream_decoder.lo \
 -	stream_encoder.lo stream_encoder_framing.lo window.lo \
 -	$(am__objects_1)
-+	stream_decoder.lo window.lo 
++	stream_decoder.lo window.lo
  libFLAC_la_OBJECTS = $(am_libFLAC_la_OBJECTS)
  
  DEFAULT_INCLUDES =  -I. -I$(srcdir) -I$(top_builddir)
-@@ -403,15 +394,7 @@
- @AMDEP_TRUE@	./$(DEPDIR)/float.Plo ./$(DEPDIR)/format.Plo \
- @AMDEP_TRUE@	./$(DEPDIR)/lpc.Plo ./$(DEPDIR)/md5.Plo \
- @AMDEP_TRUE@	./$(DEPDIR)/memory.Plo \
+@@ -416,15 +406,7 @@
+ @AMDEP_TRUE@	./$(DEPDIR)/fixed.Plo ./$(DEPDIR)/float.Plo \
+ @AMDEP_TRUE@	./$(DEPDIR)/format.Plo ./$(DEPDIR)/lpc.Plo \
+ @AMDEP_TRUE@	./$(DEPDIR)/md5.Plo ./$(DEPDIR)/memory.Plo \
 -@AMDEP_TRUE@	./$(DEPDIR)/metadata_iterators.Plo \
 -@AMDEP_TRUE@	./$(DEPDIR)/metadata_object.Plo \
 -@AMDEP_TRUE@	./$(DEPDIR)/ogg_decoder_aspect.Plo \
@@ -54,7 +52,7 @@ diff -Naur Makefile.in
  @AMDEP_TRUE@	./$(DEPDIR)/window.Plo
  COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
  	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
-@@ -489,15 +472,7 @@
+@@ -505,15 +487,7 @@
  @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lpc.Plo@am__quote@
  @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/md5.Plo@am__quote@
  @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memory.Plo@am__quote@
