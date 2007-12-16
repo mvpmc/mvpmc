@@ -115,6 +115,8 @@ int running_mythtv = 0;
 int mythtv_main_menu = 0;
 int mythtv_debug = 0;
 int mythtv_use_12hour_clock = 0;
+int mythtv_use_friendly_date = 0;
+int mythtv_use_duration_minutes = 0;
 
 volatile int playing_via_mythtv = 0;
 volatile int close_mythtv = 0;
@@ -161,6 +163,62 @@ mythtv_color_t mythtv_colors = {
 int chan_Total_rows=0;
 
 extern void seek_to(long long offset);
+
+static char *
+timestr(time_t time)
+{
+	static char ret_string[64];
+	struct tm loctime;
+	static char format_string[25];
+	char *time_format = mythtv_use_12hour_clock ? "%I:%M %p" : "%H:%M";
+	if (mythtv_use_friendly_date)
+		sprintf(format_string, "%%a %%b %%d %%Y, %s", time_format);
+	else
+		sprintf(format_string, "%%Y-%%m-%%d %s ", time_format);
+
+	localtime_r(&time, &loctime);
+	strftime(ret_string, 64, format_string, &loctime);
+	return ret_string;
+}
+
+static char *
+timestr_short(time_t time)
+{
+	static char ret_string[16];
+	struct tm loctime;
+	static char format_string[25];
+	char *time_format = mythtv_use_12hour_clock ? "%I:%M %p" : "%H:%M";
+	if (mythtv_use_friendly_date)
+		sprintf(format_string, "%%a %%b %%d  %s", time_format);
+	else
+		sprintf(format_string, "%%m/%%d  %s", time_format);
+
+	localtime_r(&time, &loctime);
+	strftime(ret_string, 64, format_string, &loctime);
+	return ret_string;
+}
+
+static char *
+timestr_duration(time_t start, time_t end)
+{
+	/* FIXME: use a define for TIMESTR_LEN to avoid maintenance issues */
+	static char ret_string[75]; /* max: timestr + ' - ' + end_time */
+	char *start_string;
+	char *time_format = mythtv_use_12hour_clock ? "%I:%M %p" : "%H:%M";
+
+	start_string = timestr(start);
+
+	if (mythtv_use_duration_minutes) {
+		sprintf(ret_string, "%s (%ld min)", start_string, (end-start)/60);
+	} else {
+		struct tm loctime;
+		char end_string[9];
+		localtime_r(&end, &loctime);
+		strftime(end_string, 9, time_format, &loctime);
+		sprintf(ret_string, "%s - %s", start_string, end_string);
+	}
+	return ret_string;
+}
 
 static int
 in_commbreak(void)
@@ -551,8 +609,8 @@ hilite_callback(mvp_widget_t *widget, char *item, void *key, bool hilite)
 	mvpw_hide(freespace_widget);
 
 	if (hilite) {
-		cmyth_timestamp_t ts;
-		char start[256], end[256], str[256], *ptr;
+		cmyth_timestamp_t ts1, ts2;
+		time_t start_time, end_time;
 		cmyth_proginfo_t hi_prog = ref_hold(hilite_prog);
 		cmyth_proglist_t ep_list = ref_hold(episode_plist);
 
@@ -599,12 +657,13 @@ hilite_callback(mvp_widget_t *widget, char *item, void *key, bool hilite)
 		}
 		mvpw_expose(mythtv_description);
 
-		ts = cmyth_proginfo_rec_start(hi_prog);
-		cmyth_timestamp_to_display_string(start, ts, mythtv_use_12hour_clock);
-		ref_release(ts);
-		ts = cmyth_proginfo_rec_end(hi_prog);
-		cmyth_timestamp_to_display_string(end, ts, mythtv_use_12hour_clock);
-		ref_release(ts);
+		/* FIXME: can't we access the time_t for directly? */
+		ts1 = cmyth_proginfo_rec_start(hi_prog);
+		ts2 = cmyth_proginfo_rec_end(hi_prog);
+		start_time = cmyth_timestamp_to_unixtime(ts1);
+		end_time = cmyth_timestamp_to_unixtime(ts2);
+		ref_release(ts1);
+		ref_release(ts2);
 		
 		pathname = cmyth_proginfo_pathname(hi_prog);
 		if (!pathname) {
@@ -643,13 +702,9 @@ hilite_callback(mvp_widget_t *widget, char *item, void *key, bool hilite)
 			CHANGE_GLOBAL_REF(hilite_path, pathname);
 		}
 		ref_release(pathname);
-		ptr = strchr(start, 'T');
-		*ptr = '\0';
-		sprintf(str, "%s %s - ", start, ptr+1);
-		ptr = strchr(end, 'T');
-		*ptr = '\0';
-		strcat(str, ptr+1);
-		mvpw_set_text_str(mythtv_date, str);
+
+		mvpw_set_text_str(mythtv_date, timestr_duration(start_time, end_time));
+
 		mvpw_expose(mythtv_date);
 	} else {
 		mvpw_set_text_str(mythtv_channel, "");
@@ -1647,9 +1702,8 @@ mythtv_pending_filter(mvp_widget_t *widget, mythtv_filter_t filter)
 
 		if (display) {
 			snprintf(buf, sizeof(buf),
-				 "%.2d/%.2d  %.2d:%.2d   %s   %s  -  %s",
-				 month, day, hour, minute, type,
-				 title, subtitle);
+				 "%s   %s   %s  -  %s",
+				 timestr_short(rec_t), type, title, subtitle);
 			mvpw_add_menu_item(widget, buf, (void*)i, &item_attr);
 			displayed++;
 		}
@@ -2703,19 +2757,6 @@ mythtv_schedule_options_move(mvp_widget_t *widget, char *item , void *key, bool 
       	mvpw_check_menu_item(widget, (void*)i, 1);
 }
 
-static char *
-timestr(time_t time)
-{
-    static char ret_string[64];
-    struct tm loctime;
-    localtime_r(&time,&loctime);
-    if (mythtv_use_12hour_clock)
-        strftime(ret_string, 64, "%Y-%m-%d %I:%M %p", &loctime);
-    else
-        strftime(ret_string, 64, "%Y-%m-%d %H:%M", &loctime);
-    return ret_string;
-}
-
 void
 schedule_recording_callback(mvp_widget_t *widget, char *item , void *key)
 {
@@ -2856,7 +2897,6 @@ hilite_schedule_recording_callback(mvp_widget_t *widget, char *item , void *key,
 	int which = (int)key;
 	char buf[550];
 	char *record_message;
-	char startstring[50];
 	if(which >= 0)
 	{
 			cmyth_dbg(CMYTH_DBG_DEBUG, "which=%d sqlprog[which].recording=%d\n",
@@ -2895,9 +2935,10 @@ hilite_schedule_recording_callback(mvp_widget_t *widget, char *item , void *key,
 				default:
 					record_message = "Not Scheduled to record";
 			}
-			sprintf(startstring, "%s - ",timestr(sqlprog[which].starttime));
-			strcat(startstring,timestr(sqlprog[which].endtime));
-			sprintf(buf, "%s\n%s\n%d - %s  - Tuner %d\n%s",record_message,startstring,sqlprog[which].channum,sqlprog[which].callsign,sqlprog[which].sourceid,sqlprog[which].description);
+			sprintf(buf, "%s\n%s\n%d - %s  - Tuner %d\n%s", record_message,
+			        timestr_duration(sqlprog[which].starttime, sqlprog[which].endtime),
+				sqlprog[which].channum, sqlprog[which].callsign, sqlprog[which].sourceid,
+				sqlprog[which].description);
 			mvpw_set_text_str(program_info_widget, buf);
 			mvpw_show(program_info_widget);
 	}
@@ -3617,21 +3658,15 @@ static void
 hilite_prog_finder_time_callback(mvp_widget_t *widget, char *item , void *key, bool hilite)
 {
 	char buf[550];
-	char startstring[50];
-        char frmttime[25];
-        struct tm loctime;
-
 
 	int which = (int)key;
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) \n",
 		__FUNCTION__, __FILE__, __LINE__);
 	if (hilite){
-	        localtime_r(&(sqlprog[which].starttime),&loctime);
-		strftime(startstring,25, "%a %b %d, %I:%M %p", &loctime);
-	        localtime_r(&(sqlprog[which].endtime),&loctime);
-		strftime(frmttime,25, " - %I:%M %p", &loctime);
-		strncat(startstring, frmttime, sizeof(frmttime));
- 		sprintf(buf, "%s\n%d - %s\n%s\n%s",startstring,sqlprog[which].channum,sqlprog[which].callsign,sqlprog[which].subtitle,sqlprog[which].description); 
+ 		sprintf(buf, "%s\n%d - %s\n%s\n%s",
+		        timestr_duration(sqlprog[which].starttime, sqlprog[which].endtime),
+			sqlprog[which].channum, sqlprog[which].callsign,
+			sqlprog[which].subtitle, sqlprog[which].description);
 		cmyth_dbg(CMYTH_DBG_DEBUG, "buf = %s\n",buf);
 		mvpw_set_text_str(program_info_widget, buf); 
 		mvpw_show(program_info_widget);

@@ -35,7 +35,6 @@
 #include <cmyth_local.h>
 #include <time.h>
 
-
 /*
  * cmyth_timestamp_create(void)
  * 

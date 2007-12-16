@@ -1319,6 +1319,8 @@ typedef enum {
 typedef enum {
 	SETTINGS_TVGUIDE_CLOCK_12 = 1,
 	SETTINGS_TVGUIDE_SORT,
+	SETTINGS_TVGUIDE_FRIENDLY_DATE,
+	SETTINGS_TVGUIDE_DURATION_MINUTES,
 } settings_tvguide_t;
 
 typedef enum {
@@ -3782,6 +3784,18 @@ tvguide_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mythtv_tvguide_sort_desc ^= 1;
 		mvpw_check_menu_item(widget, (void*)key, mythtv_tvguide_sort_desc);
 		break;
+	case SETTINGS_TVGUIDE_FRIENDLY_DATE:
+		mythtv_use_friendly_date ^= 1;
+		mvpw_check_menu_item(widget, (void*)key, mythtv_use_friendly_date);
+		config->mythtv_use_friendly_date = mythtv_use_friendly_date;
+		config->bitmask |= CONFIG_FRIENDLY_DATE;
+		break;
+	case SETTINGS_TVGUIDE_DURATION_MINUTES:
+		mythtv_use_duration_minutes ^= 1;
+		mvpw_check_menu_item(widget, (void*)key, mythtv_use_duration_minutes);
+		config->mythtv_use_duration_minutes = mythtv_use_duration_minutes;
+		config->bitmask |= CONFIG_DURATION_MINUTES;
+		break;
 	}
 
 }
@@ -5126,11 +5140,21 @@ settings_init(void)
 	mvpw_add_menu_item(settings_tvguide,
 			   "Descending Channel Sort Order",
 			   (void*)SETTINGS_TVGUIDE_SORT, &settings_item_attr);
+	mvpw_add_menu_item(settings_tvguide,
+			   "Friendly Date Format",
+			   (void*)SETTINGS_TVGUIDE_FRIENDLY_DATE, &settings_item_attr);
+	mvpw_add_menu_item(settings_tvguide,
+			   "Duration in Minutes",
+			   (void*)SETTINGS_TVGUIDE_DURATION_MINUTES, &settings_item_attr);
 
 	mvpw_check_menu_item(settings_tvguide, (void*)SETTINGS_TVGUIDE_CLOCK_12,
 			     mythtv_use_12hour_clock);
 	mvpw_check_menu_item(settings_tvguide, (void*)SETTINGS_TVGUIDE_SORT,
 			     mythtv_tvguide_sort_desc);
+	mvpw_check_menu_item(settings_tvguide, (void*)SETTINGS_TVGUIDE_FRIENDLY_DATE,
+			     mythtv_use_friendly_date);
+	mvpw_check_menu_item(settings_tvguide, (void*)SETTINGS_TVGUIDE_DURATION_MINUTES,
+			     mythtv_use_duration_minutes);
 
 	/*
 	 * mythtv recording group menu
@@ -6572,7 +6596,7 @@ myth_browser_init(void)
 
 	mvpw_attach(shows_widget, episodes_widget, MVPW_DIR_DOWN);
 	mvpw_attach(episodes_widget, freespace_widget, MVPW_DIR_DOWN);
-	mvpw_attach(shows_widget, program_info_widget, MVPW_DIR_DOWN);
+	mvpw_attach(mythtv_sched_1, program_info_widget, MVPW_DIR_DOWN);
 
 	/*
 	 * mythtv popup menu

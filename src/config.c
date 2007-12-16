@@ -275,6 +275,8 @@ add_item(config_list_t *list, int type)
 		ITEM_FIXED(VLC_AB, vlc_ab);
 		ITEM_STRING(WEATHER_LOCATION, weather_location);
 		//ITEM_FIXED(MYTHTV_COMMSKIP,mythtv_commskip);
+		ITEM_FIXED(FRIENDLY_DATE, mythtv_use_friendly_date);
+		ITEM_FIXED(DURATION_MINUTES, mythtv_use_duration_minutes);
 	case CONFIG_ITEM_MYTHTV_RG_HIDE:
 		if ((config->bitmask & CONFIG_MYTHTV_RECGROUP) == 0)
 			return 0;
@@ -407,6 +409,8 @@ get_item(config_item_t *item, int override)
 		ITEM_FIXED(VLC_AB, vlc_ab);
 		ITEM_STRING(WEATHER_LOCATION, weather_location);
 		//ITEM_FIXED(MYTHTV_COMMSKIP, mythtv_commskip);
+		ITEM_FIXED(FRIENDLY_DATE, mythtv_use_friendly_date);
+		ITEM_FIXED(DURATION_MINUTES, mythtv_use_duration_minutes);
 	case CONFIG_ITEM_MYTHTV_RG_HIDE:
 	case CONFIG_ITEM_MYTHTV_RG_SHOW:
 		config->bitmask |= CONFIG_MYTHTV_RECGROUP;
@@ -525,6 +529,10 @@ save_config_file(char *file)
 		goto err;
 //	if (add_item(list, CONFIG_ITEM_MYTHTV_COMMSKIP) < 0) 
 //		goto err;
+	if (add_item(list, CONFIG_ITEM_FRIENDLY_DATE) < 0)
+		goto err;
+	if (add_item(list, CONFIG_ITEM_DURATION_MINUTES) < 0)
+		goto err;
 
 	list->crc = 0;
 	list->version = CONFIG_VERSION;
@@ -635,6 +643,10 @@ set_config(void)
 		weather_location = strdup(config->weather_location);
 	//if (config->bitmask & CONFIG_MYTHTV_COMMSKIP)
 	//	mythtv_commskip = config->mythtv_commskip;
+	if (config->bitmask & CONFIG_FRIENDLY_DATE)
+		mythtv_use_friendly_date = config->mythtv_use_friendly_date;
+	if (config->bitmask & CONFIG_DURATION_MINUTES)
+		mythtv_use_duration_minutes = config->mythtv_use_duration_minutes;
 }
 
 int

@@ -87,6 +87,8 @@ extern mythtv_color_t mythtv_colors;
 extern char *mythtv_server;
 extern int mythtv_debug;
 extern int mythtv_use_12hour_clock;
+extern int mythtv_use_duration_minutes;
+extern int mythtv_use_friendly_date;
 extern int mythtv_tvguide_sort_desc;
 extern char *mythtv_recdir;
 extern char *mythtv_ringbuf;

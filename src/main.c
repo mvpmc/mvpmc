@@ -124,6 +124,8 @@ static struct option opts[] = {
 	{ "mythtv-password", required_argument, 0, 'p'},
 	{ "mythtv-database", required_argument, 0, 'T'},
 	{ "weather-location", required_argument, 0, 0},
+	{ "friendly-date", no_argument, 0, 0 },
+	{ "duration-minutes", no_argument, 0, 0 },
 	{ 0, 0, 0, 0 }
 };
 
@@ -328,6 +330,9 @@ print_help(char *prog)
 	printf("\t--rtwin size \tbuffer size of global rt_window\n");
 	printf("\t--fs-rtwin size \tbuffer size of filesystem rt_window\n");
 	printf("\t--weather-location location \tZIP code or location code for weather\n");
+	printf("\n");
+	printf("\t--friendly-date \tSat Dec 15 instead of 12/15\n");
+	printf("\t--duration-minutes \tDisplay duration in minutes intead of a date/time range\n");
 }
 
 /*
@@ -612,6 +617,8 @@ mvpmc_main(int argc, char **argv)
 	config->av_video_output = AV_OUTPUT_COMPOSITE;
 	config->av_tv_aspect = AV_TV_ASPECT_4x3;
 	config->av_mode = AV_MODE_PAL;
+	//config->mythtv_use_friendly_date = mythtv_use_friendly_date;
+	//config->mythtv_use_duration_minutes = mythtv_use_duration_minutes;
 	vnc_server[0] = 0;
 	em_wol_mac[0] = 0;
 	/*
@@ -770,6 +777,14 @@ mvpmc_main(int argc, char **argv)
 						}
 					}
 			      	}
+			}
+			if (strcmp(opts[opt_index].name, "friendly-date") == 0) {
+				mythtv_use_friendly_date = 1;
+				config->mythtv_use_friendly_date = 1;
+			}
+			if (strcmp(opts[opt_index].name, "duration-minutes") == 0) {
+				mythtv_use_duration_minutes = 1;
+				config->mythtv_use_duration_minutes = 1;
 			}
 			break;
 		case 'a':
