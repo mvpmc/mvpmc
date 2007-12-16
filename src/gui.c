@@ -6288,9 +6288,12 @@ static int
 myth_browser_init(void)
 {
 	mvpw_image_info_t iid;
-	mvpw_widget_info_t wid, wid2, info;
+	mvpw_widget_info_t wid, info;
 	char file[128];
 	int x, y, w, h;
+	int rcol_x, rcol_w; 
+
+        h = FONT_HEIGHT(description_attr);
 
 	splash_update("Creating MythTV browser");
 
@@ -6342,7 +6345,7 @@ myth_browser_init(void)
 				       si.cols-iid.width-
 				       viewport_edges[EDGE_LEFT]-
 				       viewport_edges[EDGE_RIGHT],
-				       si.rows-190,
+				       si.rows-viewport_edges[EDGE_BOTTOM],
 				       myth_main_attr.bg,
 				       myth_main_attr.border,
 				       myth_main_attr.border_size);
@@ -6364,7 +6367,8 @@ myth_browser_init(void)
 					  (si.cols-iid.width-
 					  viewport_edges[EDGE_LEFT]-
 					  viewport_edges[EDGE_RIGHT]),
-					  si.rows-190,
+					  /* leave room for channel,date, and description */
+					  si.rows-viewport_edges[EDGE_BOTTOM]-6*h,
 					  mythtv_attr.bg, mythtv_attr.border,
 					  mythtv_attr.border_size);
 	mythtv_sched_option_1 = mvpw_create_menu(NULL,
@@ -6373,22 +6377,41 @@ myth_browser_init(void)
 			(si.cols-iid.width-
 			(viewport_edges[EDGE_LEFT]-
 			viewport_edges[EDGE_RIGHT]))/2-50,
-			si.rows-190,
+			/* leave room for channel,date, and description */
+			si.rows-viewport_edges[EDGE_BOTTOM]-6*h,
 			mythtv_attr.bg, 
 			mythtv_attr.border,
 		  	mythtv_attr.border_size);
+	
+	mvpw_get_widget_info(mythtv_sched_option_1, &wid);
+	rcol_x = wid.x + wid.w + 15;
+	rcol_w = si.cols - viewport_edges[EDGE_RIGHT] - rcol_x - 15;
+
 	mythtv_sched_option_2 = mvpw_create_dialog(NULL,
-			459, 50, 75, 55,
+			rcol_x,
+			viewport_edges[EDGE_TOP],
+			(rcol_w - 15) / 2,
+			55,
 			mythtv_attr.bg,
 			mythtv_attr.border,
 			mythtv_attr.border_size);
+
+	mvpw_get_widget_info(mythtv_sched_option_2, &wid);
+
 	mythtv_sched_option_3 = mvpw_create_dialog(NULL,
-			550, 50, 75, 55,
+			wid.x + wid.w + 15,
+			viewport_edges[EDGE_TOP],
+			(rcol_w - 15) / 2,
+			55,
 			mythtv_attr.bg,
 			mythtv_attr.border,
 			mythtv_attr.border_size);
+
 	mythtv_sched_option_4 = mvpw_create_menu(NULL,
-			459, 150, 125, 150,
+			rcol_x,
+			wid.y + wid.h + 15,
+			rcol_w,
+			150,
 			mythtv_attr.bg,
 			mythtv_attr.border,
 			mythtv_attr.border_size);
@@ -6403,7 +6426,8 @@ myth_browser_init(void)
 			viewport_edges[EDGE_LEFT]+iid.width,
 			viewport_edges[EDGE_TOP],
 			50,
-			si.rows-190,
+			/* leave room for channel,date, and description */
+			si.rows-viewport_edges[EDGE_BOTTOM]-6*h,
 			mythtv_attr.bg, 
 			mythtv_attr.border,
 			mythtv_attr.border_size);
@@ -6414,7 +6438,8 @@ myth_browser_init(void)
 			(si.cols-iid.width-
 			(viewport_edges[EDGE_LEFT]-
 			viewport_edges[EDGE_RIGHT]))/3,
-			si.rows-190,
+			/* leave room for channel,date, and description */
+			si.rows-viewport_edges[EDGE_BOTTOM]-6*h,
 			mythtv_attr.bg, 
 			mythtv_attr.border,
 			mythtv_attr.border_size);
@@ -6425,7 +6450,8 @@ myth_browser_init(void)
 			(si.cols-iid.width-
 			(viewport_edges[EDGE_LEFT]-
 			viewport_edges[EDGE_RIGHT]))/3,
-			si.rows-190,
+			/* leave room for channel,date, and description */
+			si.rows-viewport_edges[EDGE_BOTTOM]-6*h,
 			mythtv_attr.bg,
 			mythtv_attr.border,
 			mythtv_attr.border_size);
@@ -6436,7 +6462,8 @@ myth_browser_init(void)
 					  si.cols-iid.width-
 					  viewport_edges[EDGE_LEFT]-
 					  viewport_edges[EDGE_RIGHT],
-					  si.rows-190,
+					  /* leave room for channel,date, and description */
+					  si.rows-viewport_edges[EDGE_BOTTOM]-6*h,
 					  mythtv_attr.bg, mythtv_attr.border,
 					  mythtv_attr.border_size);
 
@@ -6478,8 +6505,6 @@ myth_browser_init(void)
 	
 	mvpw_set_menu_attr(osd_mythtv_options, &mythtv_attr);
 
-	h = FONT_HEIGHT(description_attr);
-
 	mythtv_channel = mvpw_create_text(NULL, 0, 0, 350, h,
 					  description_attr.bg,
 					  description_attr.border,
@@ -6510,13 +6535,12 @@ myth_browser_init(void)
 	mvpw_set_text_attr(mythtv_description, &description_attr);
 	mvpw_set_text_attr(mythtv_record, &description_attr);
 
-	mvpw_get_widget_info(mythtv_logo, &wid);
-	mvpw_get_widget_info(mythtv_browser, &wid2);
-	mvpw_moveto(mythtv_channel, wid.x, wid2.y+wid2.h);
-	mvpw_get_widget_info(mythtv_channel, &wid2);
-	mvpw_moveto(mythtv_date, wid.x, wid2.y+wid2.h);
-	mvpw_get_widget_info(mythtv_date, &wid2);
-	mvpw_moveto(mythtv_description, wid.x, wid2.y+wid2.h);
+	mvpw_get_widget_info(mythtv_browser, &wid);
+	mvpw_moveto(mythtv_channel, wid.x, wid.y+wid.h);
+	mvpw_get_widget_info(mythtv_channel, &wid);
+	mvpw_moveto(mythtv_date, wid.x, wid.y+wid.h);
+	mvpw_get_widget_info(mythtv_date, &wid);
+	mvpw_moveto(mythtv_description, wid.x, wid.y+wid.h);
 
 	mvpw_attach(mythtv_channel, mythtv_record, MVPW_DIR_RIGHT);
 
@@ -6528,6 +6552,7 @@ myth_browser_init(void)
 					300, h, description_attr.bg,
 					description_attr.border,
 					description_attr.border_size);
+	printf("Shows widget: %d.%d.%dx%d\n", info.x, info.y, info.w, info.h);
 	episodes_widget = mvpw_create_text(NULL, 50, 80,
 					   300, h, description_attr.bg,
 					   description_attr.border,
@@ -6537,7 +6562,7 @@ myth_browser_init(void)
 					    description_attr.border,
 					    description_attr.border_size);
 	program_info_widget = mvpw_create_text(NULL, 50, 80,
-					    300, h*6 , description_attr.bg,
+					    300, h*6, description_attr.bg,
 					    description_attr.border,
 					    description_attr.border_size);
 	mvpw_set_text_attr(shows_widget, &description_attr);
@@ -7064,8 +7089,8 @@ main_menu_init(void)
 	if (mvpw_get_image_info(file, &iid) < 0)
 		return -1;
 
-	mvpmc_logo = mvpw_create_image(NULL, 50, 25, iid.width, iid.height,
-				       MVPW_BLACK, 0, 0);
+	mvpmc_logo = mvpw_create_image(NULL, viewport_edges[EDGE_LEFT], viewport_edges[EDGE_TOP],
+	                               iid.width, iid.height, MVPW_BLACK, 0, 0);
 	mvpw_set_image(mvpmc_logo, file);
 
 	splash_update("Creating main menu");
@@ -7682,7 +7707,7 @@ osd_init(void)
 	/*
 	 * State widgets for pause, mute, fast forward, zoom
 	 */
-	mute_widget = mvpw_create_text(NULL, 50, 25, 75, h,
+	mute_widget = mvpw_create_text(NULL, viewport_edges[EDGE_LEFT], viewport_edges[EDGE_TOP], 75, h,
 				       display_attr.bg,
 				       display_attr.border,
 				       display_attr.border_size);
@@ -7769,8 +7794,8 @@ osd_init(void)
 	/*
 	 * myth OSD
 	 */
-	x = si.cols - 475;
-	y = si.rows - 125;
+	x = si.cols - viewport_edges[EDGE_RIGHT] - 475;
+	y = si.rows - viewport_edges[EDGE_BOTTOM] - 125;
 	h = FONT_HEIGHT(mythtv_program_attr) +
 		(3 * FONT_HEIGHT(mythtv_description_attr));
 	contain = mvpw_create_container(NULL, x, y,
