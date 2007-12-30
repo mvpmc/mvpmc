@@ -525,10 +525,6 @@ mvp_tvguide_callback(mvp_widget_t *widget, char key)
 	//char msg[128];
 
 	switch(key) {
-		case MVPW_KEY_GUIDE:
-			/* This is where favorites are handled */
-			rtrn = 1;
-		break;
 		case MVPW_KEY_TV:
 			PRINTF("In %s hiding guide %d \n", __FUNCTION__, key);
 			rtrn = 0;

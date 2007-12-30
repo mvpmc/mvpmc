@@ -878,8 +878,9 @@ video_callback(mvp_widget_t *widget, char key)
 			mvp_tvguide_video_topright(1);
 			mvp_tvguide_show(mythtv_livetv_program_list, mythtv_livetv_description,
 											 mythtv_livetv_clock);
+			break;
 		}
-		break;
+	/* if the guide button is pressed while guide is active fall through to go back to remove guide and return to TV */
 	case MVPW_KEY_TV:
 		if(showing_guide == 1) {
 			printf("In %s hiding guide %d \n", __FUNCTION__, key);
