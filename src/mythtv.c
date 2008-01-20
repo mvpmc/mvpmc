@@ -3130,6 +3130,35 @@ mythtv_schedule_recording(mvp_widget_t *widget, char *item , void *key, int type
 					'0')", \
 					sqlprog[which].seriesid,sqlprog[which].programid,(int)sqlprog[which].starttime,(int)sqlprog[which].starttime,(int)sqlprog[which].starttime);
 				break;
+                       case 32 ... 37:
+                               sprintf(query, "REPLACE INTO record ( \
+                                       recordid,type,chanid,starttime,startdate,endtime, \
+                                       enddate,search,\
+                                       title,\
+                                       subtitle, \
+                                       description, \
+                                       profile,recpriority,category,maxnewest,inactive,maxepisodes, \
+                                       autoexpire,startoffset,endoffset,recgroup,dupmethod,dupin, \
+                                       station,\
+                                       seriesid,programid,autocommflag,findday,findtime,findid, \
+                                       autotranscode,parentid,transcoder,tsdefault,autouserjob1,autouserjob2,autouserjob3, \
+                                       autouserjob4,playgroup,prefinput, \
+                                       next_record,last_record,last_delete) values \
+                                       ('%s','%d','%d',FROM_UNIXTIME(%d), \
+                                        FROM_UNIXTIME(%d), FROM_UNIXTIME(%d), \
+                                        FROM_UNIXTIME(%d),'',", recordid,
+                                       type, sqlprog[which].chanid,
+                                       (int)sqlprog[which].starttime,
+                                       (int)sqlprog[which].starttime,
+                                       (int)sqlprog[which].endtime,
+                                       (int)sqlprog[which].endtime);
+                               sprintf(query1, " ,'Default','0','%s','0','0','0','0', '%s', '%s','%s','6','15',", sqlprog[which].category,startoffset,endoffset,sqlrecgroups[rgroup].recgroups);
+                               sprintf(query2,",'%s','%s','1',DAYOFWEEK(FROM_UNIXTIME(%d)),FROM_UNIXTIME(%d),TO_DAYS(FROM_UNIXTIME(%d)), \
+                                       '0','0','0','1.00','0','0','0', \
+                                       '0','0','0', \
+                                       '00:00:00','00:00:00','00:00:00')", \
+                                       sqlprog[which].seriesid,sqlprog[which].programid,(int)sqlprog[which].starttime,(int)sqlprog[which].starttime,(int)sqlprog[which].starttime);
+                               break;
 			default:
 				sprintf(guierrormsg, "No MythTV SQL support\nMythTV version: %d\n", cmyth_conn_get_protocol_version(control));
 				gui_error(guierrormsg);
