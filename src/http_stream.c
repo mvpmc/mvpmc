@@ -1329,6 +1329,8 @@ int is_streaming(char *url)
 		".RM",
 		".ogm",
 		".OGM",
+		".iso",
+		".ISO",
 		NULL
 	};
 	int i=0;

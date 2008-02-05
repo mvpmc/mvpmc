@@ -114,6 +114,23 @@ int vlc_totalhours = 0;
 int vlc_totalminutes = 0;
 int vlc_totalseconds = 0;
 
+static int
+is_ISO(char *item)
+{
+	char *wc[] = { ".iso",".ISO", NULL };
+	int i = 0;
+
+	while (wc[i] != NULL) {
+		if ((strlen(item) >= strlen(wc[i])) &&
+		    (strcasecmp(item+strlen(item)-strlen(wc[i]), wc[i]) == 0))
+			return 1;
+		i++;
+	}
+
+	return 0;
+}
+
+
 /* video_callback_t for vlc functions */
 video_callback_t vlc_functions = {
 	.open      = file_open,
@@ -188,6 +205,11 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
         NULL,
         "setup mvpmc option sout-http-mime=%s/%s\r\n",
         "control mvpmc play\r\n"
+    };
+
+    // Override standard commands
+    char *vlc_alt_connects[]= {
+        "setup mvpmc input dvdsimple://%s\r\n"
     };
 
     // CONTROL commands
@@ -324,8 +346,13 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
                                 ContentType = 2;
                                 break;
                             case 3:
-                                fprintf(instream,vlc_connects[i],newurl);
-                                VLC_LOG_FILE(vlc_connects[i],newurl);
+				if(is_ISO(url)) {
+					fprintf(instream,vlc_alt_connects[0],newurl);
+					VLC_LOG_FILE(vlc_alt_connects[0],newurl);
+				} else {
+					fprintf(instream,vlc_connects[i],newurl);
+					VLC_LOG_FILE(vlc_connects[i],newurl);
+				}
                                 break;
                             case 4:
                                 if ( ContentType == 100 ) {

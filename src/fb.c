@@ -105,7 +105,7 @@ is_image(char *item)
 int
 is_audio(char *item)
 {
-	char *wc[] = { ".mp3", ".ogg", ".wav", ".ac3", ".flac", NULL };
+	char *wc[] = { ".mp3", ".ogg", ".wav", ".ac3", ".flac", ".fla", NULL };
 	int i = 0;
 
 	while (wc[i] != NULL) {
@@ -451,10 +451,10 @@ add_files(mvp_widget_t *fbw)
 {
 	char *wc[] = { "*.mpg", "*.mpeg", "*.mp3", "*.nuv", "*.vob", "*.gif",
 			"*.bmp", "*.m3u", "*.pls", "*.jpg", "*.jpeg", "*.png", "*.wav",
-			"*.ac3", "*.ogg", "*.ts", "*.flac", NULL };
+			"*.ac3", "*.ogg", "*.ts", "*.flac", ".fla", NULL };
 	char *WC[] = { "*.MPG", "*.MPEG", "*.MP3", "*.NUV", "*.VOB", "*.GIF",
 			"*.BMP", "*.M3U", "*.JPG", "*.JPEG", "*.PNG", "*.WAV",
-			"*.AC3", "*.OGG", "*.TS", "*.FLAC", NULL };
+			"*.AC3", "*.OGG", "*.TS", "*.FLAC", "*.FLA", NULL };
 
 
 	item_attr.select = select_callback;
@@ -469,7 +469,7 @@ add_files(mvp_widget_t *fbw)
 		char *vlc[] = { "*.divx", "*.DIVX", "*.flv", "*.FLV", "*.avi", "*.AVI", "*.wmv",
 			"*.WMV", "*.wma", "*.WMA", "*.mp4", "*.MP4",
  			"*.mov", "*.MOV",
-			"*.rm", "*.RM", "*.ogm", "*.OGM", NULL };
+			"*.rm", "*.RM", "*.ogm", "*.OGM", "*.iso", "*.ISO", NULL };
 		do_glob(fbw, vlc);
 	}
 }
