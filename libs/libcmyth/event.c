@@ -80,15 +80,15 @@ cmyth_event_get(cmyth_conn_t conn, char * data, int len)
 		}
 	} else if (strncmp(tmp, "ASK_RECORDING", 13) == 0) {
 		event = CMYTH_EVENT_ASK_RECORDING;
-		switch (cmyth_conn_get_protocol_version(conn)) {
-		case 4 ... 36:
+		if (cmyth_conn_get_protocol_version(conn) < 37) {
 			/* receive 4 string - do nothing with them */
 			for (i=0; i<4; i++) {
 				consumed = cmyth_rcv_string(conn, &err, tmp, sizeof(tmp) -1, count);
 				count -= consumed;
 			}
-			break;
-		case 37 ... 40:
+		}
+		else
+		{
 			/* receive a proginfo structure - do nothing with it (yet?)*/
 			proginfo = cmyth_proginfo_create();
 			if (!proginfo) {
@@ -101,12 +101,6 @@ cmyth_event_get(cmyth_conn_t conn, char * data, int len)
 			ref_release(proginfo);
 			proginfo=NULL;
 			count -= consumed;
-			break;
-		default:
-			cmyth_dbg(CMYTH_DBG_ERROR,
-				"%s: Protocol unknown\n",
-				__FUNCTION__);
-			goto fail;
 		}
 	} else {
 		printf("unknown mythtv BACKEND_MESSAGE '%s'\n", tmp);
