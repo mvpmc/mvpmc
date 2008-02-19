@@ -1787,6 +1787,9 @@ event_start(void *arg)
 		case CMYTH_EVENT_SIGNAL:
 			printf("MythTV event SIGNAL\n");
 			break;
+		case CMYTH_EVENT_ASK_RECORDING:
+			printf("MythTV event ASK RECORDING\n");
+			break;
 		}
 	}
 
