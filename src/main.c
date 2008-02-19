@@ -946,7 +946,11 @@ mvpmc_main(int argc, char **argv)
 		if ( settings_disable == 1) {
 			web_port = 0;
 		} else {
-			web_port = 80;
+			if (replaytv_server) {
+				web_port = 8080;
+			} else {
+				web_port = 80;
+			}
 		}
 	}
 
