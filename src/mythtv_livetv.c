@@ -1009,7 +1009,8 @@ get_livetv_programs_rec(int id, struct livetv_prog **list, int *n, int *p)
 	char *title = NULL, *subtitle = NULL, *channame = NULL;
 	char *start_channame = NULL, *chansign = NULL;
 	char *description = NULL;
-	char start[256], end[256], *ptr;
+	char *start, *end, *ptr;
+	char tsbuf[256];
 	int cur_id, i; 
 	int shows = 0, unique = 0, busy = 0;
 	struct livetv_proginfo *pi;
@@ -1088,19 +1089,25 @@ get_livetv_programs_rec(int id, struct livetv_prog **list, int *n, int *p)
 		channame = (char *) cmyth_proginfo_channame(next_prog);
 		chansign = (char *) cmyth_proginfo_chansign(next_prog);
 						
+		start = end = NULL;
+
 		ts = cmyth_proginfo_start(next_prog);
 		if (ts != NULL ) {
-			cmyth_timestamp_to_string(start, ts);
+			cmyth_timestamp_to_string(tsbuf, ts);
 			ref_release(ts);
-			ts = cmyth_proginfo_end(next_prog);
-			cmyth_timestamp_to_string(end, ts);
+			ptr = strchr(tsbuf, 'T');
+			*ptr = '\0';
+			memmove(tsbuf, ptr+1, strlen(ptr+1)+1);
+			start = ref_strdup(tsbuf);
+		}
+		ts = cmyth_proginfo_end(next_prog);
+		if (ts != NULL ) {
+			cmyth_timestamp_to_string(tsbuf, ts);
 			ref_release(ts);
-			ptr = strchr(start, 'T');
+			ptr = strchr(tsbuf, 'T');
 			*ptr = '\0';
-			memmove(start, ptr+1, strlen(ptr+1)+1);
-			ptr = strchr(end, 'T');
-			*ptr = '\0';
-			memmove(end, ptr+1, strlen(ptr+1)+1);
+			memmove(tsbuf, ptr+1, strlen(ptr+1)+1);
+			end = ref_strdup(tsbuf);
 		}
 
 		ref_release(cur);
@@ -1134,14 +1141,8 @@ get_livetv_programs_rec(int id, struct livetv_prog **list, int *n, int *p)
 		(*list)[*p].title = ref_hold(title);
 		(*list)[*p].subtitle = ref_hold(subtitle);
 		(*list)[*p].description = ref_hold(description);
-		if (start)
-			(*list)[*p].start = ref_strdup(start);
-		else
-			(*list)[*p].start = NULL;
-		if (end)
-			(*list)[*p].end = ref_strdup(end);
-		else
-			(*list)[*p].end = NULL;
+		(*list)[*p].start = start;
+		(*list)[*p].end = end;
 		(*list)[*p].count = 1;
 		(*list)[*p].pi[0].rec_id = id;
 		(*list)[*p].pi[0].busy = busy;
