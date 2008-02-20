@@ -322,6 +322,13 @@ extern int cmyth_conn_get_protocol_version(cmyth_conn_t conn);
  */
 extern cmyth_event_t cmyth_event_get(cmyth_conn_t conn, char * data, int len);
 
+/**
+ * Selects on the event socket, waiting for an event to show up.
+ * allows nonblocking access to events.
+ * \return <= 0 on failure
+ */
+extern int cmyth_event_select(cmyth_conn_t conn, struct timeval *timeout);
+
 /*
  * -----------------------------------------------------------------
  * Recorder Operations

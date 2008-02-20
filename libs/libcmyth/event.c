@@ -123,3 +123,30 @@ cmyth_event_get(cmyth_conn_t conn, char * data, int len)
  fail:
 	return CMYTH_EVENT_UNKNOWN;
 }
+
+int
+cmyth_event_select(cmyth_conn_t conn, struct timeval *timeout)
+{
+	fd_set fds;
+	int ret;
+	cmyth_socket_t fd;
+
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n", __FUNCTION__,
+				__FILE__, __LINE__);
+
+	if (conn == NULL)
+		return -EINVAL;
+
+	fd = conn->conn_fd;
+
+	FD_ZERO(&fds);
+	FD_SET(fd, &fds);
+
+	ret = select((int)fd+1, &fds, NULL, NULL, timeout);
+
+	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) }\n",
+				__FUNCTION__, __FILE__, __LINE__);
+
+	return ret;
+}
+
