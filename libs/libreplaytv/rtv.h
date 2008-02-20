@@ -27,12 +27,13 @@
 // Make sure to include <netinet/in.h> for ntohl, ...
 //+**********************************************************
 #ifdef __unix__
+#include <stdint.h>
 #define _LARGEFILE64_SOURCE
-typedef unsigned char      __u8;
-typedef unsigned short     __u16;
-typedef unsigned long      __u32;
-typedef unsigned long long __u64;
-typedef          long long __s64;
+typedef uint8_t            __u8;
+typedef uint16_t           __u16;
+typedef uint32_t           __u32;
+typedef uint64_t           __u64;
+typedef int64_t            __s64;
 #define __RTV_DATA_SIZES_DEFINED__
 #endif
 
