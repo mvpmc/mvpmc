@@ -772,6 +772,9 @@ cmyth_livetv_chain_request_block(cmyth_recorder_t rec, unsigned long len)
 
 	pthread_mutex_lock(&mutex);
 
+	if(len > (unsigned int)rec->rec_conn->conn_tcp_rcvbuf)
+		len = (unsigned int)rec->rec_conn->conn_tcp_rcvbuf;
+
 	do {
 		retry = 0;
 		snprintf(msg, sizeof(msg),

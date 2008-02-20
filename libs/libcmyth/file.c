@@ -354,6 +354,9 @@ cmyth_file_request_block(cmyth_file_t file, unsigned long len)
 
 	pthread_mutex_lock(&mutex);
 
+	if(len > (unsigned int)file->file_control->conn_tcp_rcvbuf)
+		len = (unsigned int)file->file_control->conn_tcp_rcvbuf;
+
 	snprintf(msg, sizeof(msg),
 		 "QUERY_FILETRANSFER %ld[]:[]REQUEST_BLOCK[]:[]%ld",
 		 file->file_id, len);
