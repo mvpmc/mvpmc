@@ -592,6 +592,17 @@ seek_by(int seconds)
 	size = video_functions->size();
 
 	seek_seconds = seek_start_seconds + seconds;
+
+	/* The mvpmc hardware can only handle 12Mbps and some off-air DVB/ATSC
+	 * SD broadcasts appear to some way result in huge (200+Mbps) values
+	 * to appear in the seeks and cause 30 seconds seeks to go for a lot
+	 * longer */
+	if ( seek_Bps > (12/8)*1024*1024) {
+		printf("Calculated Seek Bps was %d kbps, which is too high " \
+		       "- set to 4Mbps\n",8*seek_Bps/1024);
+		seek_Bps = (4/8) * 1024 * 1024;
+	}
+
 	delta = seek_Bps * seconds;
 
 	/*
