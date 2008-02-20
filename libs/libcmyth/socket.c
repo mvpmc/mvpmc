@@ -1230,7 +1230,7 @@ cmyth_rcv_datetime(cmyth_conn_t conn, int *err, cmyth_timestamp_t *ts,
 		return 0;
 	}
 	*err = 0;
-	tbuf[CMYTH_TIMESTAMP_LEN] = '\0';
+	tbuf[CMYTH_LONG_LEN] = '\0';
 	consumed = cmyth_rcv_string(conn, err, tbuf, CMYTH_LONG_LEN, count);
 	if (*err) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
