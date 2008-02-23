@@ -23,7 +23,7 @@ if target == 'host':
 	libFLAC = []
 	libx11 = ['X11', 'pthread', 'rt', 'Xau', 'dl', 'Xdmcp']
 	libs = []
-	linkflags = '-static'
+	linkflags = ''
 	mvpapps = []
 else:
 	libx11dir = []

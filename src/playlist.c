@@ -768,19 +768,17 @@ static int build_playlist_from_pls_file(const char *filename)
 						pl_item->seconds = seconds;
 					else
 						pl_item->seconds = -1;
-					if (pls_title)
-						pl_item->name = ptr = strdup(pls_title);
-					else
-						pl_item->name = NULL;
+					pl_item->name = strdup(pls_title);
 					pl_item->key = (void*)count;
 					pl_item->next = NULL;
 					pl_item->prev = NULL;
 					item_attr.select = select_callback;
+					ptr = pl_item->name;
 					if (ptr[strlen(ptr)-1] == '\r')
 						ptr[strlen(ptr)-1] = '\0';
-					mvpw_add_menu_item(playlist_widget, ptr,
+					mvpw_add_menu_item(playlist_widget, pl_item->name,
 							   pl_item->key, &item_attr);
-					pl_item->label = strdup(ptr);
+					pl_item->label = strdup(pl_item->name);
 					if (pl_dest==NULL) {
 						playlist = pl_item;
 					} else {
