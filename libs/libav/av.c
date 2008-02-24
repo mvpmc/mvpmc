@@ -907,8 +907,37 @@ av_move(int x, int y, int video_mode)
 
 	memset(&pos_d, 0, sizeof(pos_d));
 
-	pos_d.dest.y = y;
-	pos_d.dest.x = x;
+	/*Both X and Y offsets in pos_d seem to have a range of 0-255
+	 *and represent (give or take a couple of pixels) half the pixel
+	 *offset of the thumbnail
+	 *
+	 * This does mean X/Y pixels greater than 510 can't be used
+	 */
+	pos_d.dest.y = y/2;
+	pos_d.dest.x = x/2;
+	if(pos_d.dest.y > 1)
+	    pos_d.dest.y--;
+	if(pos_d.dest.y > 255)
+	{
+	    pos_d.dest.y = 255;
+	    fprintf(stderr, "WARNING: Out of range Y value passed to av_move, resetting to max (512 pixels)\n");
+	}
+	if(pos_d.dest.y < 0)
+	{
+	    pos_d.dest.y = 0;
+	    fprintf(stderr, "WARNING: Out of range Y value passed to av_move, resetting to min (0 pixels)\n");
+	}
+
+	if(pos_d.dest.x > 255)
+	{
+	    pos_d.dest.x = 255;
+	    fprintf(stderr, "WARNING: Out of range X value passed to av_move, resetting to max (510 pixels)\n");
+	}
+	if(pos_d.dest.x < 0)
+	{
+	    pos_d.dest.x = 0;
+	    fprintf(stderr, "WARNING: Out of range X value passed to av_move, resetting to min (0 pixels)\n");
+	}
 
 	ioctl(fd_video, AV_SET_VID_POSITION, &pos_d);
 	

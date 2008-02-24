@@ -333,8 +333,8 @@ mythtv_fullscreen(void)
 	mvpw_hide(shows_widget);
 	mvpw_hide(episodes_widget);
 	mvpw_hide(freespace_widget);
-
-	av_move(0, 0, 0);
+	
+	video_thumbnail(0);
 	mvpw_show(root);
 	mvpw_expose(root);
 	mvpw_focus(root);
@@ -718,7 +718,7 @@ show_select_callback(mvp_widget_t *widget, char *item, void *key)
 
 		demux_reset(handle);
 		demux_attr_reset(handle);
-		av_move(0, 0, 0);
+		video_thumbnail(0);
 		av_play();
 		video_play(root);
 	}
@@ -750,12 +750,9 @@ mythtv_start_thumbnail(void)
 	if (mythtv_state == MYTHTV_STATE_LIVETV) {
 		fprintf(stderr, "trying to start livetv thumbnail...\n");
 		livetv_select_callback(NULL, NULL, (void*)current_livetv);
-
-		if (si.rows == 480)
-			av_move(475, si.rows-60, 4);
-		else
-			av_move(475, si.rows-113, 4);
-
+		
+		video_thumbnail(1);
+		
 		fprintf(stderr, "thumbnail video mode\n");
 
 		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) }\n",
@@ -766,10 +763,7 @@ mythtv_start_thumbnail(void)
 	if (cmyth_proginfo_compare(hi_prog, loc_prog) != 0) {
 		char *path;
 
-		if (si.rows == 480)
-			av_move(475, si.rows-60, 4);
-		else
-			av_move(475, si.rows-113, 4);
+		video_thumbnail(1);
 
 		fprintf(stderr, "thumbnail video mode\n");
 

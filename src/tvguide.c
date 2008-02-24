@@ -479,9 +479,8 @@ auto_tune_loop(void *arg)
 void
 mvp_tvguide_video_topright(int on)
 {
-
 	if (on) {
-		av_move(410, 0, 3);
+		av_move(308, 0, 3);
 		/*av_move(si.cols/2, 0, 3); */
 	} else {
 		/*

@@ -166,9 +166,9 @@ video_thumbnail(int on)
 
 	if (on) {
 		if (si.rows == 480)
-			av_move(475, si.rows-60, 4);
+			av_move(436, si.rows-150, 4);
 		else
-			av_move(475, si.rows-113, 4);
+			av_move(436, si.rows-165, 4);
 		screensaver_enable();
 		enable = 1;
 	} else {
@@ -1458,9 +1458,9 @@ file_open(void)
 			video_thumbnail(0);
 		} else {
 			if (si.rows == 480)
-				av_move(475, si.rows-60, 4);
+				av_move(436, si.rows-150, 4);
 			else
-				av_move(475, si.rows-113, 4);
+				av_move(436, si.rows-165, 4);
 		}
 		av_play();
 	}
