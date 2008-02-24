@@ -1847,6 +1847,8 @@ Bool HandleRDCMessage(int sock)
 				av_wss_redraw();
 				gb_scale.x = gb_scale.y = gb_scale.mode = 0;
 			}
+			gb_scale.x*=2;
+			gb_scale.y*=2;
 			if ( mystream.mediatype==TYPE_VIDEO  ) {
 				av_move(gb_scale.x, gb_scale.y, gb_scale.mode);
 			}
