@@ -340,8 +340,10 @@ cmyth_ringbuf_request_block(cmyth_recorder_t rec, unsigned long len)
 
 	pthread_mutex_lock(&mutex);
 
+#ifdef LIBCMYTH_READ_SINGLE_THREAD
 	if(len > (unsigned int)rec->rec_conn->conn_tcp_rcvbuf)
 		len = (unsigned int)rec->rec_conn->conn_tcp_rcvbuf;
+#endif
 
 	snprintf(msg, sizeof(msg),
 		 "QUERY_RECORDER %u[]:[]REQUEST_BLOCK_RINGBUF[]:[]%ld",
