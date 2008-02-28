@@ -46,6 +46,11 @@ extern pthread_mutex_t mutex;
 #define CMYTH_COMMBREAK_START 4
 #define CMYTH_COMMBREAK_END 5
 
+/*
+ * Typedef for fd to allow windows port in xbmc to work
+ */
+typedef int cmyth_socket_t;
+
 /**
  * MythTV backend connection
  */

@@ -160,6 +160,8 @@ cmyth_connect(char *server, unsigned short port, unsigned buflen,
 	int fd;
 	void (*old_sighandler)(int);
 	int old_alarm;
+	int temp;
+	socklen_t size;
 
 	/*
 	 * First try to establish the connection with the server.
@@ -186,19 +188,29 @@ cmyth_connect(char *server, unsigned short port, unsigned buflen,
 	memcpy(&addr.sin_addr, host->h_addr_list[0], host->h_length);
 
 	fd = socket(PF_INET, SOCK_STREAM, 0);
-	/*
-	 * Set a 4kb tcp receive buffer on all myth protocol sockets,
-	 * otherwise we risk the connection hanging.  Oddly, setting this
-	 * on the data sockets causes stuttering during playback.
-	 */
-	if (tcp_rcvbuf > 0)
-		setsockopt(fd, SOL_SOCKET, SO_RCVBUF,
-			   (void*)&tcp_rcvbuf, sizeof(tcp_rcvbuf));
 	if (fd < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cannot create socket (%d)\n",
 			  __FUNCTION__, errno);
 		return NULL;
 	}
+
+	/*
+	 * Set a 4kb tcp receive buffer on all myth protocol sockets,
+	 * otherwise we risk the connection hanging.  Oddly, setting this
+	 * on the data sockets causes stuttering during playback.
+	 */
+	if (tcp_rcvbuf == 0)
+		tcp_rcvbuf = 4096;
+
+	temp = tcp_rcvbuf;
+	size = sizeof(temp);
+	setsockopt(fd, SOL_SOCKET, SO_RCVBUF, (void*)&temp, size);
+	if(getsockopt(fd, SOL_SOCKET, SO_RCVBUF, (void*)&temp, &size)) {
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: could not get rcvbuf from socket(%d)\n",
+			  __FUNCTION__, errno);
+		temp = tcp_rcvbuf;
+	}
+	tcp_rcvbuf = temp;
 
 	cmyth_dbg(CMYTH_DBG_PROTO, "%s: connecting to %d.%d.%d.%d fd = %d\n",
 		  __FUNCTION__,

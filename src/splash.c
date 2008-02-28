@@ -61,9 +61,14 @@ static int
 draw_logo(osd_surface_t *surface)
 {
 	osd_indexed_image_t image;
-	int x, y;
+	int x, y, i;
+	unsigned int black;
 
-	osd_fill_rect(surface, 0, 0, width, height, 0);
+	black = osd_rgba(0, 0, 0, 0xff);
+	for (i=0; i<223; i++)
+		osd_palette_add_color(surface, black);
+
+	osd_fill_rect(surface, 0, 0, width, height, black);
 
 	image.colors = LINUX_LOGO_COLORS;
 	image.width = LOGO_W;
