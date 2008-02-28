@@ -211,7 +211,7 @@ tag_widget_color(parser_data_t *pdata, const char *el, const char **attr,
 		 char *value)
 {
 	char *tok;
-	unsigned int *color;
+	unsigned int *color = NULL;
 	int cur_attr = pdata->cur_attr;
 
 	if ((attr[0] == NULL) || (attr[1] == NULL))
@@ -360,6 +360,9 @@ tag_widget_color(parser_data_t *pdata, const char *el, const char **attr,
 		pdata->theme_err = "unknown attribute";
 		return -1;
 	}
+
+	if (color == NULL)
+		return -1;
 
 	if (find_color(value, color) < 0) {
 		pdata->theme_err = "unknown color";
