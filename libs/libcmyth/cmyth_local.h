@@ -51,6 +51,12 @@ extern pthread_mutex_t mutex;
  */
 typedef int cmyth_socket_t;
 
+/*
+ * Define closesocket to close on posix operating system
+ * windows system need the separate closesocket
+ */
+#define closesocket(a) close(a)
+
 /**
  * MythTV backend connection
  */

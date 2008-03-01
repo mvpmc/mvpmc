@@ -70,7 +70,7 @@ cmyth_conn_destroy(cmyth_conn_t conn)
 			  "%s: shutdown and close connection fd = %d\n",
 			  __FUNCTION__, conn->conn_fd);
 		shutdown(conn->conn_fd, SHUT_RDWR);
-		close(conn->conn_fd);
+		closesocket(conn->conn_fd);
 	}
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s }\n", __FUNCTION__);
 }
@@ -145,7 +145,7 @@ sighandler(int sig)
 	/*
 	 * XXX: This is not thread safe...
 	 */
-	close(my_fd);
+	closesocket(my_fd);
 	my_fd = -1;
 }
 
@@ -226,7 +226,7 @@ cmyth_connect(char *server, unsigned short port, unsigned buflen,
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: connect failed on port %d to '%s' (%d)\n",
 			  __FUNCTION__, port, server, errno);
-		close(fd);
+		closesocket(fd);
 		signal(SIGALRM, old_sighandler);
 		alarm(old_alarm);
 		return NULL;
@@ -281,7 +281,7 @@ cmyth_connect(char *server, unsigned short port, unsigned buflen,
 		  (ntohl(addr.sin_addr.s_addr) & 0x000000FF),
 		  fd);
 	shutdown(fd, 2);
-	close(fd);
+	closesocket(fd);
 	return NULL;
 }
 
