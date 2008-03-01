@@ -27,6 +27,7 @@
 #include <sys/types.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <sys/socket.h>
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
@@ -282,7 +283,7 @@ cmyth_ringbuf_get_block(cmyth_recorder_t rec, char *buf, unsigned long len)
 	} else {
 		rec->rec_ring->conn_data->conn_hang = 0;
 	}
-	return read(rec->rec_ring->conn_data->conn_fd, buf, len);
+	return recv(rec->rec_ring->conn_data->conn_fd, buf, len, 0);
 }
 
 int
