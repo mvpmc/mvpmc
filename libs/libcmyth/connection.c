@@ -137,7 +137,7 @@ cmyth_conn_create(void)
  * Failure: A NULL cmyth_conn_t
  */
 static char my_hostname[128];
-static volatile int my_fd;
+static volatile cmyth_socket_t my_fd;
 
 static void
 sighandler(int sig)
@@ -157,7 +157,7 @@ cmyth_connect(char *server, unsigned short port, unsigned buflen,
 	struct hostent *host;
 	struct sockaddr_in addr;
 	unsigned char *buf = NULL;
-	int fd;
+	cmyth_socket_t fd;
 	void (*old_sighandler)(int);
 	int old_alarm;
 	int temp;

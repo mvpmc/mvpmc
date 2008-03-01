@@ -55,7 +55,7 @@ typedef int cmyth_socket_t;
  * MythTV backend connection
  */
 struct cmyth_conn {
-	int		conn_fd;	/**< socket file descriptor */
+	cmyth_socket_t	conn_fd;	/**< socket file descriptor */
 	unsigned char	*conn_buf;	/**< connection buffer */
 	int		conn_buflen;	/**< buffer size */
 	int		conn_len;	/**< amount of data in buffer */

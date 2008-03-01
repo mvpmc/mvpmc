@@ -289,7 +289,8 @@ int
 cmyth_ringbuf_select(cmyth_recorder_t rec, struct timeval *timeout)
 {
 	fd_set fds;
-	int fd, ret;
+	int ret;
+	cmyth_socket_t fd;
 	if (rec == NULL)
 		return -EINVAL;
 

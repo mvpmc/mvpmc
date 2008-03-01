@@ -302,7 +302,8 @@ int
 cmyth_file_select(cmyth_file_t file, struct timeval *timeout)
 {
 	fd_set fds;
-	int fd, ret;
+	int ret;
+	cmyth_socket_t fd;
 
 	if (file == NULL || file->file_data == NULL)
 		return -EINVAL;
