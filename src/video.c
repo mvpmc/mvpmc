@@ -160,15 +160,22 @@ sighandler(int sig)
 }
 
 void
-video_thumbnail(int on)
+video_thumbnail(av_thumbnail_mode_t thumb_mode, vid_thumb_location_t loc)
 {
 	static int enable = 1;
 
-	if (on) {
-		if (si.rows == 480)
-			av_move(436, si.rows-150, 4);
+	if (thumb_mode != AV_THUMBNAIL_OFF) {
+		int x,y;
+		if((loc & 1) == 0)
+			x = VIEWPORT_LEFT;
 		else
-			av_move(436, si.rows-165, 4);
+			x = VIEWPORT_RIGHT - av_thumbnail_width(thumb_mode);
+
+		if((loc & 2) == 0)
+			y = VIEWPORT_TOP;
+		else
+			y = VIEWPORT_BOTTOM - av_thumbnail_height(thumb_mode);
+		av_move(x, y, thumb_mode);
 		screensaver_enable();
 		enable = 1;
 	} else {
@@ -249,7 +256,7 @@ video_subtitle_check(mvp_widget_t *widget)
 	       mvpw_visible(ct_text_box) ||
 	       mvpw_visible(mythtv_menu))) {
 		if(showing_guide == 0) {
-			video_thumbnail(0);
+			video_thumbnail(AV_THUMBNAIL_OFF,0);
 		}
 	} 
 }
@@ -757,7 +764,7 @@ back_to_guide_menu()
 	
 		disable_osd();
 		if ( !running_replaytv ) {
-			video_thumbnail(1);
+			video_thumbnail(AV_THUMBNAIL_EIGTH,VID_THUMB_BOTTOM_RIGHT);
 		}
 		if (spu_widget) {
 			mvpw_hide(spu_widget);
@@ -804,7 +811,7 @@ back_to_guide_menu()
 						mvpw_show(mythtv_logo);
 						mvpw_show(mythtv_browser);
 						mvpw_focus(mythtv_browser);
-						video_thumbnail(1);
+						video_thumbnail(AV_THUMBNAIL_EIGTH,VID_THUMB_BOTTOM_RIGHT);
 					}
 				} else if (mythtv_state == MYTHTV_STATE_MAIN) {
 					mvpw_show(mythtv_logo);
@@ -1455,12 +1462,9 @@ file_open(void)
 		demux_seek(handle);
 		vid_event_discontinuity_possible();
 		if (gui_state == MVPMC_STATE_EMULATE || http_playing == HTTP_VIDEO_FILE_MPG) {
-			video_thumbnail(0);
+			video_thumbnail(AV_THUMBNAIL_OFF, 0);
 		} else {
-			if (si.rows == 480)
-				av_move(436, si.rows-150, 4);
-			else
-				av_move(436, si.rows-165, 4);
+			video_thumbnail(AV_THUMBNAIL_EIGTH, 0);
 		}
 		av_play();
 	}

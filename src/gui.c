@@ -1213,12 +1213,10 @@ static int colorbars = 0;
 int chan_digit_cnt = 0;
 char chan_num[4] =  "\0\0\0";
 
-enum {
-	EDGE_TOP = 0,
-	EDGE_LEFT = 1,
-	EDGE_BOTTOM = 2,
-	EDGE_RIGHT = 3,
-};
+#define EDGE_TOP VIEWPORT_EDGE_TOP
+#define EDGE_LEFT VIEWPORT_EDGE_LEFT
+#define EDGE_BOTTOM VIEWPORT_EDGE_BOTTOM
+#define EDGE_RIGHT VIEWPORT_EDGE_RIGHT
 
 /*
  * The following will give similar results to the code prior to adding
@@ -3509,14 +3507,22 @@ static int
 file_browser_init(void)
 {
 	mvp_widget_t *contain, *widget;
-	int h, h2, w, w2, x, y;
+	int h, h2, w, w2, x, y, h3;
 
 	splash_update("Creating file browser");
 
 	h = FONT_HEIGHT(display_attr);
 
 	w = si.cols - viewport_edges[EDGE_LEFT] - viewport_edges[EDGE_RIGHT];
-	h2 = si.rows - (h*3) -
+
+	/* Calculate the height of the lower section which the file list must
+	 * not stray onto
+	 */
+	h3 = av_thumbnail_height(AV_THUMBNAIL_EIGTH);
+	if(h3 < h*3)
+		h3 = h*3;
+
+	h2 = si.rows - h3 -
 		viewport_edges[EDGE_TOP] - viewport_edges[EDGE_BOTTOM];
 	file_browser = mvpw_create_menu(NULL,
 					viewport_edges[EDGE_LEFT],
@@ -3531,9 +3537,10 @@ file_browser_init(void)
 
 	mvpw_set_key(file_browser, fb_key_callback);
 
-	w = 300;
+	w = VIEWPORT_RIGHT - VIEWPORT_LEFT
+		- av_thumbnail_width(AV_THUMBNAIL_EIGTH);
 
-	contain = mvpw_create_container(NULL, 50, 80,
+	contain = mvpw_create_container(NULL, 0, 0,
 					w, h*3, display_attr.bg,
 					display_attr.border,
 					display_attr.border_size);
@@ -6316,6 +6323,8 @@ myth_browser_init(void)
 	char file[128];
 	int x, y, w, h;
 	int rcol_x, rcol_w; 
+	int description_width;
+	int temp;
 
         h = FONT_HEIGHT(description_attr);
 
@@ -6480,6 +6489,13 @@ myth_browser_init(void)
 			mythtv_attr.border,
 			mythtv_attr.border_size);
  
+ 	/* Leave at least enough space below the browser menu for the thumbnail
+	 * or 6 lines of text, whichever is greatest
+	 */
+ 	temp = av_thumbnail_height(AV_THUMBNAIL_EIGTH);
+	if(temp < 6*h)
+		temp = 6*h;
+
 	mythtv_browser = mvpw_create_menu(NULL,
 					  viewport_edges[EDGE_LEFT]+iid.width,
 					  viewport_edges[EDGE_TOP],
@@ -6487,7 +6503,7 @@ myth_browser_init(void)
 					  viewport_edges[EDGE_LEFT]-
 					  viewport_edges[EDGE_RIGHT],
 					  /* leave room for channel,date, and description */
-					  si.rows-viewport_edges[EDGE_BOTTOM]-6*h,
+					  VIEWPORT_BOTTOM - VIEWPORT_TOP - temp,
 					  mythtv_attr.bg, mythtv_attr.border,
 					  mythtv_attr.border_size);
 
@@ -6529,15 +6545,39 @@ myth_browser_init(void)
 	
 	mvpw_set_menu_attr(osd_mythtv_options, &mythtv_attr);
 
-	mythtv_channel = mvpw_create_text(NULL, 0, 0, 350, h,
+	/*
+	 * Description widgets
+	 */
+	
+	mvpw_get_widget_info(mythtv_browser, &wid);
+	
+	description_width = VIEWPORT_RIGHT - VIEWPORT_LEFT
+			     - av_thumbnail_width(AV_THUMBNAIL_EIGTH);
+
+	/* Thumbnail cannot be placed more than 510 pixels across
+	 * because the MVP's API doesn't support it
+	 */
+	if(description_width + VIEWPORT_LEFT > 510)
+	{
+		description_width = 510 - VIEWPORT_LEFT;
+	}
+
+	/* If the image is longer than the browser then we'll have to
+	 * place the description below the browser, instead of below
+	 * the image, so it'll have to be narrower
+	 */
+	if(wid.h < iid.height)
+		description_width -= iid.width;
+
+	mythtv_channel = mvpw_create_text(NULL, 0, 0, description_width, h,
 					  description_attr.bg,
 					  description_attr.border,
 					  description_attr.border_size);
-	mythtv_date = mvpw_create_text(NULL, 0, 0, 350, h,
+	mythtv_date = mvpw_create_text(NULL, 0, 0, description_width, h,
 				       description_attr.bg,
 				       description_attr.border,
 				       description_attr.border_size);
-	mythtv_description = mvpw_create_text(NULL, 0, 0, 350, h*3, 
+	mythtv_description = mvpw_create_text(NULL, 0, 0, description_width, h*3, 
 					      description_attr.bg,
 					      description_attr.border,
 					      description_attr.border_size);
@@ -6547,7 +6587,7 @@ myth_browser_init(void)
 					      description_attr.border,
 					      description_attr.border_size);
 
-	mythtv_record = mvpw_create_text(NULL, 0, 0, 350, h,
+	mythtv_record = mvpw_create_text(NULL, 0, 0, description_width, h,
 					 description_attr.bg,
 					 description_attr.border,
 					 description_attr.border_size);
@@ -6560,7 +6600,13 @@ myth_browser_init(void)
 	mvpw_set_text_attr(mythtv_record, &description_attr);
 
 	mvpw_get_widget_info(mythtv_browser, &wid);
-	mvpw_moveto(mythtv_channel, wid.x, wid.y+wid.h);
+	if(iid.height <= wid.h)
+	{
+		mvpw_get_widget_info(mythtv_logo, &info);
+		mvpw_moveto(mythtv_channel, info.x, wid.y+wid.h);
+	}
+	else
+		mvpw_moveto(mythtv_channel, wid.x, wid.y+wid.h);
 	mvpw_get_widget_info(mythtv_channel, &wid);
 	mvpw_moveto(mythtv_date, wid.x, wid.y+wid.h);
 	mvpw_get_widget_info(mythtv_date, &wid);

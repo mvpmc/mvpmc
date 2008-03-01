@@ -325,7 +325,17 @@ extern int fb_update(mvp_widget_t*);
 extern int weather_update(mvp_widget_t*);
 
 extern void video_callback(mvp_widget_t*, char);
-extern void video_thumbnail(int on);
+
+/* vid_thumb_loc & 1 = left/right, vid_thumb_loc & 2 = top/bottom */
+typedef enum {
+	VID_THUMB_TOP_LEFT = 0,
+	VID_THUMB_TOP_RIGHT = 1,
+	VID_THUMB_BOTTOM_LEFT = 2,
+	VID_THUMB_BOTTOM_RIGHT = 3
+} vid_thumb_location_t;
+
+extern void video_thumbnail(av_thumbnail_mode_t thumb_mode,
+			    vid_thumb_location_t loc);
 
 extern void fb_program(mvp_widget_t *widget);
 extern void fb_shuffle(int);
@@ -544,7 +554,20 @@ extern int reboot_disable;
 extern int filebrowser_disable;
 extern int startup_this_feature;
 
+enum {
+        VIEWPORT_EDGE_TOP = 0,
+	VIEWPORT_EDGE_LEFT = 1,
+	VIEWPORT_EDGE_BOTTOM = 2,
+	VIEWPORT_EDGE_RIGHT = 3,
+};
+
+
 extern unsigned short viewport_edges[4];
+
+#define VIEWPORT_TOP (viewport_edges[VIEWPORT_EDGE_TOP])
+#define VIEWPORT_LEFT (viewport_edges[VIEWPORT_EDGE_LEFT])
+#define VIEWPORT_BOTTOM (si.rows - viewport_edges[VIEWPORT_EDGE_BOTTOM])
+#define VIEWPORT_RIGHT (si.cols - viewport_edges[VIEWPORT_EDGE_RIGHT])
 
 extern void start_thruput_test(void);
 extern void end_thruput_test(void);

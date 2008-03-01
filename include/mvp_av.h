@@ -96,6 +96,15 @@ typedef enum {
 } av_tv_aspect_t;
 
 /**
+ * The thumbnail mode, as passed to av_move
+ */
+typedef enum {
+	AV_THUMBNAIL_OFF = 0,
+	AV_THUMBNAIL_QUATER = 3,
+	AV_THUMBNAIL_EIGTH = 4
+} av_thumbnail_mode_t;
+
+/**
  * The widescreen signalling tells WSS compatible TVs what mode to run in.
  */
 typedef enum {
@@ -251,11 +260,11 @@ extern int av_pause(void);
  * Move the video image around on the screen.
  * \param x horizontal coordinate
  * \param y vertical coordinate
- * \param video_mode
+ * \param thumbnail_mode
  * \retval 0 success
  * \retval -1 error
  */
-extern int av_move(int x, int y, int video_mode);
+extern int av_move(int x, int y, av_thumbnail_mode_t thumbnail_mode);
 
 /**
  * Toggle between fast forward and normal speed playback.
@@ -629,6 +638,24 @@ extern int mvpstb_video_end(void);
  * \retval 0 no flicker
  * \retval 1-3 flicker modes
  */
-int av_get_flicker(void);
+extern int av_get_flicker(void);
+
+/**
+ * Get the total display height
+ * \retval height of display (at the moment this is 576/480 depending on whether this is a PAL or NTSC display)
+ */
+#define av_get_height(void) ((av_get_mode() == AV_MODE_PAL)? 576:480)
+
+/**
+ * Determin the width of a thumbnail
+ * \retval mode type of thumbnail
+ */
+#define av_thumbnail_width(mode) (720/(((mode) == AV_THUMBNAIL_QUATER)? 2 :4))
+
+/**
+ * Determin the height of a thumbnail
+ * \retval mode type of thumbnail
+ */
+#define av_thumbnail_height(mode) (av_get_height()/(((mode) == AV_THUMBNAIL_QUATER)? 2 :4))
 
 #endif /* MVP_AV_H */

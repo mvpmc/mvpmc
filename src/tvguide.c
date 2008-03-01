@@ -480,13 +480,9 @@ void
 mvp_tvguide_video_topright(int on)
 {
 	if (on) {
-		av_move(308, 0, 3);
-		/*av_move(si.cols/2, 0, 3); */
+		video_thumbnail(AV_THUMBNAIL_QUATER,VID_THUMB_TOP_RIGHT);
 	} else {
-		/*
-		PRINTF("av_move(0,0,0): %s [%s,%d]\n", __FUNCTION__, __FILE__, __LINE__);
-		*/
-		av_move(0, 0, 0);
+		video_thumbnail(AV_THUMBNAIL_OFF,0);
 	}
 }
 

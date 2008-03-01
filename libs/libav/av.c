@@ -169,15 +169,15 @@ av_get_output(void)
 	return output;
 }
 
+
+/*
+ * av_init_letterbox() - Initialise hardware APIs for letterbox mode
+ */
 int
 av_init_letterbox(void)
 {
-    int height,y;
-    if(av_get_mode() == AV_MODE_PAL)
-	height = 576;
-    else
-	height = 480;
-    y = (((height*4)/16))/2;
+    int y;
+    y = (((av_get_height()*4)/16))/2;
     /* STB seems to want offset/field, rather than offset/frame */
     y /=2;
     return mvpstb_set_lbox_offset(y);
@@ -891,7 +891,7 @@ av_current_stc(av_stc_t *stc)
  * Arguments:
  *	x		- location of video on x axis
  *	y		- location of video on y axis
- *	video_mode	- specify a video mode from the following
+ *	thumnbail_mode	- specify a video mode from the following
  *				0 - normal
  *				1 - ??
  *				2 - ??
@@ -901,7 +901,7 @@ av_current_stc(av_stc_t *stc)
  *				6 - ??
  */
 int
-av_move(int x, int y, int video_mode)
+av_move(int x, int y, av_thumbnail_mode_t thumbnail_mode)
 {
 	vid_pos_regs_t pos_d;
 
@@ -941,7 +941,7 @@ av_move(int x, int y, int video_mode)
 
 	ioctl(fd_video, AV_SET_VID_POSITION, &pos_d);
 	
-	if (video_mode == 0)
+	if (thumbnail_mode == AV_THUMBNAIL_OFF)
 	{
 	    	in_thumbnail = 0;
 		ioctl(fd_video, AV_SET_VID_OUTPUT_MODE, cur_dispmode);
@@ -949,10 +949,10 @@ av_move(int x, int y, int video_mode)
 	else
 	{
 	        in_thumbnail = 1;
-		ioctl(fd_video, AV_SET_VID_OUTPUT_MODE, video_mode);
+		ioctl(fd_video, AV_SET_VID_OUTPUT_MODE, thumbnail_mode);
 	}
 
-	if (video_mode == 0)
+	if (thumbnail_mode == 0)
 		ioctl(fd_video, AV_SET_VID_SRC, 1);
 
 	return 0;

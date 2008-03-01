@@ -285,10 +285,10 @@ mythtv_new_livetv_start(cmyth_recorder_t rec)
 	av_play();
 	video_play(root);
 
-	video_thumbnail(1);
+	video_thumbnail(AV_THUMBNAIL_EIGTH,VID_THUMB_BOTTOM_RIGHT);
 
 	mythtv_fullscreen();
-	video_thumbnail(1);
+	video_thumbnail(AV_THUMBNAIL_EIGTH,VID_THUMB_BOTTOM_RIGHT);
 	mythtv_fullscreen();
 
 	// enable program info widget
@@ -498,7 +498,7 @@ mythtv_livetv_start(int *tuner)
 
 	demux_reset(handle);
 	demux_attr_reset(handle);
-	video_thumbnail(1);
+	video_thumbnail(AV_THUMBNAIL_EIGTH,VID_THUMB_BOTTOM_RIGHT);
 	av_play();
 	video_play(root);
 

@@ -1380,7 +1380,7 @@ static int http_play(int afd)
 					mvpw_hide(playlist_widget);
 				}
 				mvpw_hide(file_browser);
-				video_thumbnail(0);
+				video_thumbnail(AV_THUMBNAIL_OFF,0);
 				video_set_root();
 				mvpw_focus(root);
 				screensaver_disable();

@@ -100,7 +100,7 @@ av_pause(void)
 }
 
 int
-av_move(int x, int y, int video_mode)
+av_move(int x, int y, av_thumbnail_mode_t thumbnail_mode)
 {
 	return 0;
 }
