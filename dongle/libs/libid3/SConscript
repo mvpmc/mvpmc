@@ -17,6 +17,8 @@ prefix = '%s/dongle/install/%s' % (topdir,build_target)
 config = '--enable-fixed'
 if build_target == 'mvp':
     config = config + ' --host=powerpc'
+else:
+    config = config + ' --disable-shared'
 
 e = Environment()
 

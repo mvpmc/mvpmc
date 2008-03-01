@@ -17,9 +17,9 @@ prefix = '%s/dongle/install/%s' % (topdir,build_target)
 config = '--enable-fixed'
 if build_target == 'mvp':
     config = config + ' --host=powerpc'
-    autogen = '--host powerpc-linux-gnu'
+    autogen = '--enable-shared --host powerpc-linux-gnu'
 else:
-    autogen = ''
+    autogen = '--disable-shared'
 
 e = Environment()
 
@@ -28,7 +28,7 @@ url = [ 'http://www.mvpmc.org/dl/tremor-1.0.2.tar.gz' ]
 target = [ libdir + 'libvorbisidec.a',
            incdir + 'ivorbiscodec.h',
            incdir + 'ivorbisfile.h' ]
-cmd = [ './autogen.sh --enable-shared %s --prefix=%s' % (autogen,prefix),
+cmd = [ './autogen.sh %s --prefix=%s' % (autogen,prefix),
         'make',
         'make install' ]
 

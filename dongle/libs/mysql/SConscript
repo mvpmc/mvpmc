@@ -19,7 +19,7 @@ if build_target == 'mvp':
   host_configs = '--host=ppcbe --with-other-libc='+crossroot+'/lib'
 else:
   cross = ''
-  host_configs = ''
+  host_configs = '--disable-shared'
 
 config_opts = '--without-docs --without-man --without-debug --without-server --without-query-cache  --without-extra-tools --without-perl --with-low-memory --enable-assembler  --with-comment --cache-file=build.cache ' + host_configs
 
