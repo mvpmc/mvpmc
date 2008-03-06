@@ -913,7 +913,9 @@ int mvp_config_general(char *line)
 			tzset();
 			pthread_mutex_lock (&web_server_mutex);
 			if (fork()==0) {
-				rc = execlp("/usr/sbin/rdate","rdate", "-s", web_config->time_server, (char *)0);
+				rc = execlp("/bin/ntpclient","ntpclient", "-s","-h", web_config->time_server, (char *)0);
+				/*We should only reach here if the exec fails*/
+				exit(1);
 			}
 			pthread_mutex_unlock (&web_server_mutex);
 			setTime = 1;
