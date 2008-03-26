@@ -1200,11 +1200,10 @@ mvpmc_main(int argc, char **argv)
 	}
 #endif /* !MVPMC_HOST */
 
-#ifdef CONFIG_MYTHTV_IP
-	if (strcmp(mysqlptr->host,"localhost") == 0) {
+	if ((config->bitmask & CONFIG_MYTHTV_IP) != 0
+		&& strcmp(mysqlptr->host,"localhost") == 0) {
 		sizeof_strncpy(mysqlptr->host,config->mythtv_ip);
 	}
-#endif
 
 	pthread_create(&video_read_thread, &thread_attr_small,
 		       video_read_start, NULL);
