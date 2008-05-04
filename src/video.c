@@ -1516,7 +1516,8 @@ video_read_start(void *arg)
 			demux_seek(handle);
 			vid_event_discontinuity_possible();
 			if ( !(sent_idle_notify) ) {
-				if ( video_functions->notify != NULL ) {
+				if ( video_functions != NULL &&
+				     video_functions->notify != NULL ) {
 					video_functions->notify(MVP_READ_THREAD_IDLE);
 				}
 				printf("mpeg read thread sleeping...\n");
