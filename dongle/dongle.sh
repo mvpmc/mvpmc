@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # Build the dongle.bin file
 #

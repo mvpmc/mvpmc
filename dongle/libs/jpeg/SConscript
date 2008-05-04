@@ -29,6 +29,7 @@ patches = [ 'patches/jpegscale.patch' ]
 
 cmd = [ './configure --prefix=%s %s CFLAGS=-I%s LDFLAGS=-L%s' % (prefix,config,incdir,libdir),
         'make',
+        'mkdir -p %s/man/man1' % prefix,
         'make install',
         'make install-lib' ]
 
