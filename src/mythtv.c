@@ -2935,7 +2935,7 @@ hilite_schedule_recording_callback(mvp_widget_t *widget, char *item , void *key,
 				default:
 					record_message = "Not Scheduled to record";
 			}
-			snprintf(buf, sizeof(buf) - 1, "%s\n%s\n%d - %s  - Tuner %d\n%s",
+			snprintf(buf, sizeof(buf), "%s\n%s\n%d - %s  - Tuner %d\n%s",
                                  record_message,
 			         timestr_duration(sqlprog[which].starttime,sqlprog[which].endtime),
 				 sqlprog[which].channum, sqlprog[which].callsign,
@@ -3664,7 +3664,7 @@ hilite_prog_finder_time_callback(mvp_widget_t *widget, char *item , void *key, b
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) \n",
 		__FUNCTION__, __FILE__, __LINE__);
 	if (hilite){
- 		snprintf(buf, sizeof(buf) - 1, "%s\n%d - %s\n%s\n%s",
+ 		snprintf(buf, sizeof(buf), "%s\n%d - %s\n%s\n%s",
 		         timestr_duration(sqlprog[which].starttime, sqlprog[which].endtime),
 			 sqlprog[which].channum, sqlprog[which].callsign,
 			 sqlprog[which].subtitle, sqlprog[which].description);
@@ -4265,7 +4265,7 @@ hilite_mythtv_delete_previous_recorded(mvp_widget_t *widget, char *item , void *
 		sqlprog[which].description[83]='.';
 		sqlprog[which].description[84]='\0';
 	}
-	snprintf(buf, sizeof(buf) - 1, "%s\n%d  %s    %s\n'%s'\n%s\n%s       %s\n",
+	snprintf(buf, sizeof(buf), "%s\n%d  %s    %s\n'%s'\n%s\n%s       %s\n",
                  sqlprog[which].title,sqlprog[which].channum,sqlprog[which].callsign,date,
                  sqlprog[which].subtitle,sqlprog[which].description,
                  rec_stat,sqlprog[which].programid);
@@ -4311,7 +4311,7 @@ run_mythtv_utils_prevrecorded(mvp_widget_t *widget,mvp_widget_t *mythtv_browser)
 	for (i=0;i<sqlcount;i++) {
 		localtime_r(&(sqlprog[i].starttime),&loctime);
 		strftime(string,64,"%m/%d  %I:%M", &loctime);
-		snprintf(buf, sizeof(buf) - 1, "%s    %d  %s     %s  --  %s",
+		snprintf(buf, sizeof(buf), "%s    %d  %s     %s  --  %s",
                          string,sqlprog[i].channum,sqlprog[i].callsign,
                          sqlprog[i].title,sqlprog[i].subtitle);
 		mvpw_add_menu_item(mythtv_browser, buf , (void*)i, &item_attr);
@@ -4429,7 +4429,7 @@ hilite_mythtv_delete_recorded(mvp_widget_t *widget, char *item , void *key, bool
 		localtime_r(&(start),&loctime);
 		strftime(date1,25,"%I:%M %p", &loctime);
 		strcat(date,date1);
-		snprintf(buf, sizeof(buf) - 1, "%s\n%ld  %s    %s\n'%s'\n%s\n",
+		snprintf(buf, sizeof(buf), "%s\n%ld  %s    %s\n'%s'\n%s\n",
                          title,channum,callsign,date,subtitle,description);
 		mvpw_set_text_str(program_info_widget, buf);
 		mvpw_show(program_info_widget);
@@ -4508,7 +4508,7 @@ run_mythtv_utils_delrecordings(mvp_widget_t *widget)
 	
 			//fprintf(stderr, "subtitle = %s %d\n",subtitle,strlen(subtitle));
 			//fprintf(stderr, "%d %s - %s      %s    %lld\n",i,title,subtitle,string,disksize);
-			snprintf(buf, sizeof(buf) - 1, "%s  -  %s      %s    %.2fGB",
+			snprintf(buf, sizeof(buf), "%s  -  %s      %s    %.2fGB",
                                  title,subtitle,string,size);
 			mvpw_add_menu_item(mythtv_browser, buf , (void*)i, &item_attr);
 			title = NULL;
