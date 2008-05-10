@@ -578,6 +578,8 @@ http_content_t http_main(void)
 							ContentType = CONTENT_MPG;
 						} else if ( strstr(line_data,"image/jpeg") != NULL ) {
 							ContentType = CONTENT_JPEG;
+						} else if ( strstr(line_data,"image/jpg") != NULL ) {
+							ContentType = CONTENT_JPEG;
 						} else if ( strstr(line_data,"image/gif") != NULL ) {
 							ContentType = CONTENT_GIF;
 						} else if ( strstr(line_data,"image/png") != NULL ) {

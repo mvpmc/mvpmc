@@ -720,45 +720,88 @@ cli_parse_response(int socket_handle_cli, mclient_cmd * response)
 	}
 	else if (strncmp("albums", response->cmd, strlen("albums")) == 0)
 	{
-	    char id_buffer[strlen(response->param[3])];
+	    char id_buffer[20];
+            char tag[50];
+            unsigned int tag_field;
 
-	    // Parse the album ID number.  Expect 2 fields separated by ":"s.
-	    // Just ignor the return from the following line, we don't need it:
-	    strtok_r(response->param[3], ":", (char **)&id_buffer);
-	    cli_data.album_id_for_cover_art[cli_data.
-					    album_index_1_of_6_for_cover_art]
-		= atoi(strtok_r(NULL, ".", (char **)&id_buffer));
+	    // We are expecting the tag fields: id, album & count.
+	    for(tag_field = 2; tag_field <= 4; tag_field++)
+            {
+	        strncpy(tag, strtok_r(response->param[tag_field], ":", (char **)&id_buffer), 50);
 
-	    // Parse the album name.  Expect 2 fields separated by ":"s.
-	    // Just ignor the return from the following line, we don't need it:
-	    strtok_r(response->param[4], ":", (char **)&id_buffer);
-	    strncpy(cli_data.
-		    album_name_for_cover_art[cli_data.
-					     album_index_1_of_6_for_cover_art],
-		    (strtok_r(NULL, ".", (char **)&id_buffer)), 50);
-	    cli_data.album_name_for_cover_art[cli_data.album_index_1_of_6_for_cover_art][50] = '\0';
+                if (strcmp(tag, "id") == 0)
+                {
+	            // Parse the album ID number.  Expect 2 fields separated by ":"s.
+	            cli_data.album_id_for_cover_art[cli_data.album_index_1_of_6_for_cover_art]
+		        = atoi(strtok_r(NULL, ".", (char **)&id_buffer));
+                }
+                else if (strcmp(tag, "album") == 0)
+                {
+	            // Parse the album name.  Expect 2 fields separated by ":"s.
+	            strncpy(cli_data.album_name_for_cover_art[cli_data.album_index_1_of_6_for_cover_art],
+		        (strtok_r(NULL, ".", (char **)&id_buffer)), 50);
+	            cli_data.album_name_for_cover_art[cli_data.album_index_1_of_6_for_cover_art][50] = '\0';
+                }
+                else if (strcmp(tag, "count") == 0)
+                {
+	            // Parse the album name.  Expect 2 fields separated by ":"s.
+	            // We don't need the count tag's data.
+                }
+            }
 
 	    cli_data.pending_proc_for_cover_art = TRUE;
 	}
 	else if (strncmp("titles", response->cmd, strlen("titles")) == 0)
 	{
-	    char id_buffer[strlen(response->param[4])];
+	    char id_buffer[20];
+            char tag[50];
+            unsigned int tag_field;
 
-	    // Parse the version number.  Expect 2 fields separated by ":"s.
-	    // Just ignor the return from the following line, we don't need it:
-	    strtok_r(response->param[4], ":", (char **)&id_buffer);
-	    cli_data.track_id_for_cover_art[cli_data.
-					    album_index_1_of_6_for_cover_art]
-		= atoi(strtok_r(NULL, ".", (char **)&id_buffer));
+	    // We are expecting the tag fields: id, title, genre, artist, album, duration & count.
+	    for(tag_field = 2; tag_field <= 8; tag_field++)
+            {
+	        strncpy(tag, strtok_r(response->param[tag_field], ":", (char **)&id_buffer), 50);
 
-	    // Parse the artist name.  Expect 2 fields separated by ":"s.
-	    // Just ignor the return from the following line, we don't need it:
-	    strtok_r(response->param[7], ":", (char **)&id_buffer);
-	    strncpy(cli_data.
-		    artist_name_for_cover_art[cli_data.
-					      album_index_1_of_6_for_cover_art],
-		    (strtok_r(NULL, ".", (char **)&id_buffer)), 20);
-	    cli_data.artist_name_for_cover_art[cli_data.album_index_1_of_6_for_cover_art][20] = '\0';
+                if (strcmp(tag, "id") == 0)
+                {
+	            // Parse the album ID number.  Expect 2 fields separated by ":"s.
+	            cli_data.track_id_for_cover_art[cli_data.album_index_1_of_6_for_cover_art]
+		        = atoi(strtok_r(NULL, ".", (char **)&id_buffer));
+                }
+                else if (strcmp(tag, "title") == 0)
+                {
+	            // Parse the album name.  Expect 2 fields separated by ":"s.
+	            // We don't need the title tag's data.
+                }
+                else if (strcmp(tag, "genre") == 0)
+                {
+	            // Parse the album name.  Expect 2 fields separated by ":"s.
+	            // We don't need the genre tag's data.
+                }
+                else if (strcmp(tag, "artist") == 0)
+                {
+	            // Parse the album name.  Expect 2 fields separated by ":"s.
+	            strncpy(cli_data.artist_name_for_cover_art[cli_data.
+                        album_index_1_of_6_for_cover_art],
+		        (strtok_r(NULL, ".", (char **)&id_buffer)), 20);
+	            cli_data.artist_name_for_cover_art[cli_data.album_index_1_of_6_for_cover_art][20] = '\0';
+                }
+                else if (strcmp(tag, "album") == 0)
+                {
+	            // Parse the album name.  Expect 2 fields separated by ":"s.
+	            // We don't need the album tag's data.
+                }
+                else if (strcmp(tag, "duration") == 0)
+                {
+	            // Parse the album name.  Expect 2 fields separated by ":"s.
+	            // We don't need the duration tag's data.
+                }
+                else if (strcmp(tag, "count") == 0)
+                {
+	            // Parse the album name.  Expect 2 fields separated by ":"s.
+	            // We don't need the count tag's data.
+                }
+            }
 
 	    cli_data.pending_proc_for_cover_art = TRUE;
 	}
@@ -784,7 +827,8 @@ cli_get_cover_art()
     char url_string[100];
     int retcode;
 
-    sprintf(url_string, "http://%s:9000/music/current/cover.jpg?player=%s\n", mclient_server,
+///###    sprintf(url_string, "http://%s:9000/music/current/cover.jpg?player=%s\n", mclient_server,
+    sprintf(url_string, "http://%s:9000/music/current/cover?player=%s\n", mclient_server,
 	    decoded_player_id);
     current = strdup(url_string);
     retcode = http_main();

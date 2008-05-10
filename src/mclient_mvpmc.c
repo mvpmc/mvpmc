@@ -1543,7 +1543,8 @@ mclient_browse_by_cover(void)
 
 	    // Pull cover art for all 6 albums.
 	    sprintf(url_string,
-		    "http://%s:9000/music/%d/cover.jpg\n", mclient_server,
+///###		    "http://%s:9000/music/%d/cover.jpg\n", mclient_server,
+		    "http://%s:9000/music/%d/cover\n", mclient_server,
 		    cli_data.track_id_for_cover_art[0]);
 	    current = strdup(url_string);
 	    retcode = http_main();
@@ -1577,7 +1578,8 @@ mclient_browse_by_cover(void)
 
 	case DISPLAY_2ND_COVER_COVERART:
 	    sprintf(url_string,
-		    "http://%s:9000/music/%d/cover.jpg\n", mclient_server,
+///###		    "http://%s:9000/music/%d/cover.jpg\n", mclient_server,
+		    "http://%s:9000/music/%d/cover\n", mclient_server,
 		    cli_data.track_id_for_cover_art[1]);
 	    current = strdup(url_string);
 	    retcode = http_main();
@@ -1611,7 +1613,8 @@ mclient_browse_by_cover(void)
 
 	case DISPLAY_3RD_COVER_COVERART:
 	    sprintf(url_string,
-		    "http://%s:9000/music/%d/cover.jpg\n", mclient_server,
+///###		    "http://%s:9000/music/%d/cover.jpg\n", mclient_server,
+		    "http://%s:9000/music/%d/cover\n", mclient_server,
 		    cli_data.track_id_for_cover_art[2]);
 	    current = strdup(url_string);
 	    retcode = http_main();
@@ -1645,7 +1648,8 @@ mclient_browse_by_cover(void)
 
 	case DISPLAY_4TH_COVER_COVERART:
 	    sprintf(url_string,
-		    "http://%s:9000/music/%d/cover.jpg\n", mclient_server,
+///###		    "http://%s:9000/music/%d/cover.jpg\n", mclient_server,
+		    "http://%s:9000/music/%d/cover\n", mclient_server,
 		    cli_data.track_id_for_cover_art[3]);
 	    current = strdup(url_string);
 	    retcode = http_main();
@@ -1679,7 +1683,8 @@ mclient_browse_by_cover(void)
 
 	case DISPLAY_5TH_COVER_COVERART:
 	    sprintf(url_string,
-		    "http://%s:9000/music/%d/cover.jpg\n", mclient_server,
+///###		    "http://%s:9000/music/%d/cover.jpg\n", mclient_server,
+		    "http://%s:9000/music/%d/cover\n", mclient_server,
 		    cli_data.track_id_for_cover_art[4]);
 	    current = strdup(url_string);
 	    retcode = http_main();
@@ -1713,7 +1718,8 @@ mclient_browse_by_cover(void)
 
 	case DISPLAY_6TH_COVER_COVERART:
 	    sprintf(url_string,
-		    "http://%s:9000/music/%d/cover.jpg\n", mclient_server,
+///###		    "http://%s:9000/music/%d/cover.jpg\n", mclient_server,
+		    "http://%s:9000/music/%d/cover\n", mclient_server,
 		    cli_data.track_id_for_cover_art[5]);
 	    current = strdup(url_string);
 	    retcode = http_main();
