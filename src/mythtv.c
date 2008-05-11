@@ -133,7 +133,7 @@ static volatile int myth_seeking = 0;
 static char *hilite_path = NULL;
 
 int mythtv_tcp_control = 4096;
-int mythtv_tcp_program = 0;
+int mythtv_tcp_program = 43689; /* Default for MediaMVP kernel/network, as read back using getsockopt */
 int mythtv_sort = 0;
 int mythtv_sort_dirty = 1;
 static int mythtv_video_key(char);

@@ -195,9 +195,11 @@ cmyth_connect(char *server, unsigned short port, unsigned buflen,
 	}
 
 	/*
-	 * Set a 4kb tcp receive buffer on all myth protocol sockets,
-	 * otherwise we risk the connection hanging.  Oddly, setting this
-	 * on the data sockets causes stuttering during playback.
+	 * Set tcp receive buffer size.
+	 * On all myth protocol sockets this should be 4kb, otherwise we
+	 * risk the connection hanging.
+	 * For playback sockets the default of 43689 seems best, a buffer
+	 * of only 4kb causes stuttering during playback.
 	 */
 	if (tcp_rcvbuf == 0)
 		tcp_rcvbuf = 4096;
@@ -205,6 +207,7 @@ cmyth_connect(char *server, unsigned short port, unsigned buflen,
 	temp = tcp_rcvbuf;
 	size = sizeof(temp);
 	setsockopt(fd, SOL_SOCKET, SO_RCVBUF, (void*)&temp, size);
+
 	if(getsockopt(fd, SOL_SOCKET, SO_RCVBUF, (void*)&temp, &size)) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: could not get rcvbuf from socket(%d)\n",
 			  __FUNCTION__, errno);
