@@ -827,7 +827,6 @@ cli_get_cover_art()
     char url_string[100];
     int retcode;
 
-///###    sprintf(url_string, "http://%s:9000/music/current/cover.jpg?player=%s\n", mclient_server,
     sprintf(url_string, "http://%s:9000/music/current/cover?player=%s\n", mclient_server,
 	    decoded_player_id);
     current = strdup(url_string);
