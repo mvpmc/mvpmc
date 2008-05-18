@@ -6390,7 +6390,7 @@ myth_browser_init(void)
 
 	mvpw_add_menu_item(mythtv_utils, "Previously Recorded",
 			   (void*)1, &myth_menu_item_attr);
-	mvpw_add_menu_item(mythtv_utils, "Delete Recordedings",
+	mvpw_add_menu_item(mythtv_utils, "Delete Recordings",
 			   (void*)2, &myth_menu_item_attr);
 	mvpw_set_key(mythtv_utils, mythtv_key_callback);
 
