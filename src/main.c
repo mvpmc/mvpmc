@@ -118,6 +118,7 @@ static struct option opts[] = {
 	{ "em-wolwt", required_argument, 0, 0},
 	{ "em-conwt", required_argument, 0, 0},
 	{ "em-safety", required_argument, 0, 0},
+	{ "em-flac", no_argument, 0, 0},
 	{ "flicker", required_argument, 0, 0},
 	{ "mythtv-db", required_argument, 0, 'y'},
 	{ "mythtv-username", required_argument, 0, 'u'},
@@ -126,6 +127,7 @@ static struct option opts[] = {
 	{ "weather-location", required_argument, 0, 0},
 	{ "friendly-date", no_argument, 0, 0 },
 	{ "duration-minutes", no_argument, 0, 0 },
+	{ "classic", no_argument, 0, 0 },
 	{ 0, 0, 0, 0 }
 };
 
@@ -137,6 +139,7 @@ int filebrowser_disable = 0;
 int mplayer_disable = 1;
 int em_connect_wait = 0;
 int em_wol_wait = 0;
+int em_flac = 0;
 char em_wol_mac[20];
 int em_safety=-1;
 int em_rtwin = -1;
@@ -145,6 +148,7 @@ int flicker = -1;
 int wireless = 0;
 int mythtv_seek_amount=2;
 int mythtv_commskip=1;
+int mvpmc_classic = 0;
 
 
 int mount_djmount(char *);
@@ -325,6 +329,7 @@ print_help(char *prog)
 	printf("\t--em-conwt seconds \tWait # seconds for Emulation connect\n");
 	printf("\t--em-safety level \tEmulation protection level\n");
 	printf("\t--em-rtwin size \tbuffer size of Emulation rt_window\n");
+	printf("\t--flac \tFLAC enabled in Emulation Mode\n");
 	printf("\t--rfb-mode mode\t(0, 1, 2)\n");
 	printf("\t--flicker value\tflicker value 0-3\n");
 	printf("\t--rtwin size \tbuffer size of global rt_window\n");
@@ -333,6 +338,7 @@ print_help(char *prog)
 	printf("\n");
 	printf("\t--friendly-date \tSat Dec 15 instead of 12/15\n");
 	printf("\t--duration-minutes \tDisplay duration in minutes intead of a date/time range\n");
+	printf("\t--classic \tDisplay original file browser display\n");
 }
 
 /*
@@ -680,6 +686,9 @@ mvpmc_main(int argc, char **argv)
 			if (strcmp(opts[opt_index].name, "em-rtwin") == 0) {
 				em_rtwin = atoi(optarg_tmp);
 			}
+			if (strcmp(opts[opt_index].name, "em-flac") == 0) {
+				em_flac = 1;
+			}
 			if (strcmp(opts[opt_index].name, "version") == 0) {
 				printf("MediaMVP Media Center\n");
 				printf("http://www.mvpmc.org/\n");
@@ -785,6 +794,9 @@ mvpmc_main(int argc, char **argv)
 			if (strcmp(opts[opt_index].name, "duration-minutes") == 0) {
 				mythtv_use_duration_minutes = 1;
 				config->mythtv_use_duration_minutes = 1;
+			}
+			if (strcmp(opts[opt_index].name, "classic") == 0) {
+				mvpmc_classic = 1;
 			}
 			break;
 		case 'a':
@@ -1271,6 +1283,7 @@ switch_hw_state(mvpmc_state_t new)
 	case MVPMC_STATE_FILEBROWSER_SHUTDOWN:
 	case MVPMC_STATE_HTTP:
 	case MVPMC_STATE_HTTP_SHUTDOWN:
+	case MVPMC_STATE_WEB_CLIENT:
 		fb_exit();
 		if (strstr(cwd,"/uPnP")!=NULL ){
 			unmount_djmount();
@@ -1332,6 +1345,7 @@ atexit_handler(void)
 
 	switch (hw_state) {
 	case MVPMC_STATE_NONE:
+	case MVPMC_STATE_WEB_CLIENT:
 		break;
 	case MVPMC_STATE_FILEBROWSER:
 	case MVPMC_STATE_FILEBROWSER_SHUTDOWN:
@@ -1358,6 +1372,7 @@ atexit_handler(void)
 
 	switch (gui_state) {
 	case MVPMC_STATE_NONE:
+	case MVPMC_STATE_WEB_CLIENT:
 		break;
 	case MVPMC_STATE_HTTP:
 	case MVPMC_STATE_HTTP_SHUTDOWN:

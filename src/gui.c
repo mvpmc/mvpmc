@@ -1397,6 +1397,8 @@ static void settings_vlc_video_callback(mvp_widget_t *widget, char *item, void *
 static void settings_vlc_audio_callback(mvp_widget_t *widget, char *item, void *key);
 extern char* vlc_server;
 
+extern int mvpmc_classic;
+
 static void main_menu_items(void);
 
 osd_widget_t osd_widgets[MAX_OSD_WIDGETS];
@@ -3507,7 +3509,7 @@ static int
 file_browser_init(void)
 {
 	mvp_widget_t *contain, *widget;
-	int h, h2, w, w2, x, y, h3;
+	int h, h2, w, w2, x, y, h3, a, b;
 
 	splash_update("Creating file browser");
 
@@ -3518,12 +3520,22 @@ file_browser_init(void)
 	/* Calculate the height of the lower section which the file list must
 	 * not stray onto
 	 */
-	h3 = av_thumbnail_height(AV_THUMBNAIL_EIGTH);
-	if(h3 < h*3)
-		h3 = h*3;
 
-	h2 = si.rows - h3 -
-		viewport_edges[EDGE_TOP] - viewport_edges[EDGE_BOTTOM];
+	if (mvpmc_classic==0) {
+		h3 = av_thumbnail_height(AV_THUMBNAIL_EIGTH);
+		if(h3 < h*3)
+			h3 = h*3;
+		h2 = si.rows - h3 - 
+			viewport_edges[EDGE_TOP] - viewport_edges[EDGE_BOTTOM];
+		a = b = 0;
+	} else {
+		h3 = 0;
+		h2 = si.rows - (h*3) -
+			viewport_edges[EDGE_TOP] - viewport_edges[EDGE_BOTTOM];
+		a = 50;
+		b = 80;
+	}
+
 	file_browser = mvpw_create_menu(NULL,
 					viewport_edges[EDGE_LEFT],
 					viewport_edges[EDGE_TOP],
@@ -3537,10 +3549,15 @@ file_browser_init(void)
 
 	mvpw_set_key(file_browser, fb_key_callback);
 
-	w = VIEWPORT_RIGHT - VIEWPORT_LEFT
-		- av_thumbnail_width(AV_THUMBNAIL_EIGTH);
+	
+	if (mvpmc_classic==0) {
+		w = VIEWPORT_RIGHT - VIEWPORT_LEFT
+			- av_thumbnail_width(AV_THUMBNAIL_EIGTH);
+	} else {
+		w = 300;
+	}
 
-	contain = mvpw_create_container(NULL, 0, 0,
+	contain = mvpw_create_container(NULL, a, b,
 					w, h*3, display_attr.bg,
 					display_attr.border,
 					display_attr.border_size);
