@@ -1283,7 +1283,6 @@ switch_hw_state(mvpmc_state_t new)
 	case MVPMC_STATE_FILEBROWSER_SHUTDOWN:
 	case MVPMC_STATE_HTTP:
 	case MVPMC_STATE_HTTP_SHUTDOWN:
-	case MVPMC_STATE_WEB_CLIENT:
 		fb_exit();
 		if (strstr(cwd,"/uPnP")!=NULL ){
 			unmount_djmount();
@@ -1345,7 +1344,6 @@ atexit_handler(void)
 
 	switch (hw_state) {
 	case MVPMC_STATE_NONE:
-	case MVPMC_STATE_WEB_CLIENT:
 		break;
 	case MVPMC_STATE_FILEBROWSER:
 	case MVPMC_STATE_FILEBROWSER_SHUTDOWN:
@@ -1372,7 +1370,6 @@ atexit_handler(void)
 
 	switch (gui_state) {
 	case MVPMC_STATE_NONE:
-	case MVPMC_STATE_WEB_CLIENT:
 		break;
 	case MVPMC_STATE_HTTP:
 	case MVPMC_STATE_HTTP_SHUTDOWN:
