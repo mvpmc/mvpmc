@@ -1,5 +1,5 @@
 /*
-*  Copyright (C) 2006-2007, Rick Stuart
+*  Copyright (C) 2006-2008, Rick Stuart
 *  http://www.mvpmc.org/
 *
 * This program is free software; you can redistribute it and/or modify
@@ -133,6 +133,13 @@ static int debug = 0;
 * Passes CLI commands from outside socket_handle_cli space.
 */
 char pending_cli_string[MAX_CMD_SIZE];
+
+/*
+ * Number of album covers to keep locally cached.
+ */
+char cached_album_covers_names[CACHED_ALBUM_COVERS_MAX][50];
+unsigned int cached_album_covers_head = 0;
+unsigned int cached_album_covers_tail = 0;
 
 void
 receive_mpeg_data(int s, receive_mpeg_header * data, int bytes_read)
@@ -1196,6 +1203,25 @@ mclient_loop_thread(void *arg)
 	    free(recvbuf);
 	    free(recvbuf_back);
 
+            /*
+             * Free up virtual disk space (delet any cached
+             * album cover images.
+             */
+             printf("TEST>>> We have this many cached album covers: head:%d tail:%d\n", cached_album_covers_head, cached_album_covers_tail);///###
+             // Let's be safe (no infinit loops).
+             cached_album_covers_head %= CACHED_ALBUM_COVERS_MAX;
+             while (cached_album_covers_head != cached_album_covers_tail)
+             {
+		// Delet album cover pointed at by tail.
+		unlink(cached_album_covers_names[cached_album_covers_tail]);
+		printf("TEST>>> Deleting this cover:%s\n", cached_album_covers_names[cached_album_covers_tail]);///###
+		cached_album_covers_tail = (cached_album_covers_tail + 1) % CACHED_ALBUM_COVERS_MAX;
+             }
+	     // Don't forget the newest one.
+	     unlink(cached_album_covers_names[cached_album_covers_tail]);
+	     printf("TEST>>> Deleting this last cover:%s\n", cached_album_covers_names[cached_album_covers_tail]);///###
+	     unlink("/tmp/cover_current");
+
 	    /*
 	     * TEST: See if we need a hold off state to sync
 	     * activity between threads.
@@ -1345,9 +1371,7 @@ mclient_browse_by_cover(void)
     // ...that get's you back the 1st track from the album.  Now you have that track's ID.
     // http://<server's ip addr>:9000/music/<track's ID>/cover.jpg
 
-    char url_string[100];
     char no_cover_art_text[500];
-    int retcode;
     int album_number;
 
     // State machine for requesting album and track id information.
@@ -1430,8 +1454,17 @@ mclient_browse_by_cover(void)
 
 	case GET_1ST_TRACK_COVERART:
 	    // Get 1st track id.
+	    
+	    // Initialize the album_id_for_cover_art for this album to default -1 in case there
+	    // is no cover art and no album art tag is returned form the server.
+	    cli_data.artwork_track_id[0] = -1;
+
 	    sprintf(pending_cli_string,
-		    "%s titles 0 1 album_id:%d\n", decoded_player_id, cli_data.album_id_for_cover_art[0]);
+/// ###		    "%s titles 0 1 album_id:%d\n", decoded_player_id, cli_data.album_id_for_cover_art[0]);
+/// ### This change will not get: genre, artist, album & duration
+/// ### The "J" tag only works in 7.0+ but doesn't appear to have a negative impact on earlier versions of
+/// ### the server.
+		    "%s titles 0 1 album_id:%d tags:J\n", decoded_player_id, cli_data.album_id_for_cover_art[0]);
 	    break;
 
 	case GET_2ND_ALBUM_COVERART:
@@ -1450,8 +1483,13 @@ mclient_browse_by_cover(void)
 
 	case GET_2ND_TRACK_COVERART:
 	    // Get 2st track id.
+	    
+	    // Initialize the album_id_for_cover_art for this album to default -1 in case there
+	    // is no cover art and no album art tag is returned form the server.
+	    cli_data.artwork_track_id[1] = -1;
+
 	    sprintf(pending_cli_string,
-		    "%s titles 0 1 album_id:%d\n", decoded_player_id, cli_data.album_id_for_cover_art[1]);
+		    "%s titles 0 1 album_id:%d tags:J\n", decoded_player_id, cli_data.album_id_for_cover_art[1]);
 	    break;
 
 	case GET_3RD_ALBUM_COVERART:
@@ -1470,8 +1508,13 @@ mclient_browse_by_cover(void)
 
 	case GET_3RD_TRACK_COVERART:
 	    // Get 3rd track id.
+	    
+	    // Initialize the album_id_for_cover_art for this album to default -1 in case there
+	    // is no cover art and no album art tag is returned form the server.
+	    cli_data.artwork_track_id[2] = -1;
+
 	    sprintf(pending_cli_string,
-		    "%s titles 0 1 album_id:%d\n", decoded_player_id, cli_data.album_id_for_cover_art[2]);
+		    "%s titles 0 1 album_id:%d tags:J\n", decoded_player_id, cli_data.album_id_for_cover_art[2]);
 	    break;
 
 	case GET_4TH_ALBUM_COVERART:
@@ -1490,8 +1533,13 @@ mclient_browse_by_cover(void)
 
 	case GET_4TH_TRACK_COVERART:
 	    // Get 4th track id.
+	    
+	    // Initialize the album_id_for_cover_art for this album to default -1 in case there
+	    // is no cover art and no album art tag is returned form the server.
+	    cli_data.artwork_track_id[3] = -1;
+
 	    sprintf(pending_cli_string,
-		    "%s titles 0 1 album_id:%d\n", decoded_player_id, cli_data.album_id_for_cover_art[3]);
+		    "%s titles 0 1 album_id:%d tags:J\n", decoded_player_id, cli_data.album_id_for_cover_art[3]);
 	    break;
 
 	case GET_5TH_ALBUM_COVERART:
@@ -1510,8 +1558,13 @@ mclient_browse_by_cover(void)
 
 	case GET_5TH_TRACK_COVERART:
 	    // Get 5th track id.
+	    
+	    // Initialize the album_id_for_cover_art for this album to default -1 in case there
+	    // is no cover art and no album art tag is returned form the server.
+	    cli_data.artwork_track_id[4] = -1;
+
 	    sprintf(pending_cli_string,
-		    "%s titles 0 1 album_id:%d\n", decoded_player_id, cli_data.album_id_for_cover_art[4]);
+		    "%s titles 0 1 album_id:%d tags:J\n", decoded_player_id, cli_data.album_id_for_cover_art[4]);
 	    break;
 
 	case GET_6TH_ALBUM_COVERART:
@@ -1530,8 +1583,13 @@ mclient_browse_by_cover(void)
 
 	case GET_6TH_TRACK_COVERART:
 	    // Get 6th track id.
+	    
+	    // Initialize the album_id_for_cover_art for this album to default -1 in case there
+	    // is no cover art and no album art tag is returned form the server.
+	    cli_data.artwork_track_id[5] = -1;
+
 	    sprintf(pending_cli_string,
-		    "%s titles 0 1 album_id:%d\n", decoded_player_id, cli_data.album_id_for_cover_art[5]);
+		    "%s titles 0 1 album_id:%d tags:J\n", decoded_player_id, cli_data.album_id_for_cover_art[5]);
 	    break;
 
 	case DISPLAY_1ST_COVER_COVERART:
@@ -1542,213 +1600,27 @@ mclient_browse_by_cover(void)
 	    mvpw_set_text_str(mclient_sub_alt_image_2_3, no_cover_art_text);
 
 	    // Pull cover art for all 6 albums.
-	    sprintf(url_string,
-		    "http://%s:9000/music/%d/cover\n", mclient_server,
-		    cli_data.track_id_for_cover_art[0]);
-	    current = strdup(url_string);
-	    retcode = http_main();
-	    if (retcode == HTTP_IMAGE_FILE_JPEG)
-	    {
-		mvpw_load_image_fd(fd);
-		if (mvpw_load_image_jpeg(mclient_sub_image_1_1, NULL) == 0)
-		{
-		    mvpw_show_image_jpeg(mclient_sub_image_1_1);
-		    mvpw_show(mclient_sub_image_1_1);
-		    mvpw_raise(mclient_sub_image_1_1);
-		}
-	    }
-	    else
-	    {
-		mvpw_hide(mclient_sub_image_1_1);
-		mvpw_show(mclient_sub_alt_image_1_1);
-		mvpw_raise(mclient_sub_alt_image_1_1);
-		sprintf(no_cover_art_text, "%s...\nNo ArtWork for this album.",
-			cli_data.album_name_for_cover_art[0]);
-		mvpw_set_text_str(mclient_sub_alt_image_1_1, no_cover_art_text);
-	    }
-	    close(fd);
-	    fd = -1;
-	    // Set up for another call here as this case does not
-	    // deal w/the CLI parsing function where this normally
-	    // happens.
-	    cli_data.pending_proc_for_cover_art = TRUE;
-	    free(current);
+            mclient_get_browser_cover_art(0, mclient_sub_image_1_1, mclient_sub_alt_image_1_1);
 	    break;
 
 	case DISPLAY_2ND_COVER_COVERART:
-	    sprintf(url_string,
-		    "http://%s:9000/music/%d/cover\n", mclient_server,
-		    cli_data.track_id_for_cover_art[1]);
-	    current = strdup(url_string);
-	    retcode = http_main();
-	    if (retcode == HTTP_IMAGE_FILE_JPEG)
-	    {
-		mvpw_load_image_fd(fd);
-		if (mvpw_load_image_jpeg(mclient_sub_image_1_2, NULL) == 0)
-		{
-		    mvpw_show_image_jpeg(mclient_sub_image_1_2);
-		    mvpw_show(mclient_sub_image_1_2);
-		    mvpw_raise(mclient_sub_image_1_2);
-		}
-	    }
-	    else
-	    {
-		mvpw_hide(mclient_sub_image_1_2);
-		mvpw_show(mclient_sub_alt_image_1_2);
-		mvpw_raise(mclient_sub_alt_image_1_2);
-		sprintf(no_cover_art_text, "%s...\nNo ArtWork for this album.",
-			cli_data.album_name_for_cover_art[1]);
-		mvpw_set_text_str(mclient_sub_alt_image_1_2, no_cover_art_text);
-	    }
-	    close(fd);
-	    fd = -1;
-	    // Set up for another call here as this case does not
-	    // deal w/the CLI parsing function where this normally
-	    // happens.
-	    cli_data.pending_proc_for_cover_art = TRUE;
-	    free(current);
+            mclient_get_browser_cover_art(1, mclient_sub_image_1_2, mclient_sub_alt_image_1_2);
 	    break;
 
 	case DISPLAY_3RD_COVER_COVERART:
-	    sprintf(url_string,
-		    "http://%s:9000/music/%d/cover\n", mclient_server,
-		    cli_data.track_id_for_cover_art[2]);
-	    current = strdup(url_string);
-	    retcode = http_main();
-	    if (retcode == HTTP_IMAGE_FILE_JPEG)
-	    {
-		mvpw_load_image_fd(fd);
-		if (mvpw_load_image_jpeg(mclient_sub_image_1_3, NULL) == 0)
-		{
-		    mvpw_show_image_jpeg(mclient_sub_image_1_3);
-		    mvpw_show(mclient_sub_image_1_3);
-		    mvpw_raise(mclient_sub_image_1_3);
-		}
-	    }
-	    else
-	    {
-		mvpw_hide(mclient_sub_image_1_3);
-		mvpw_show(mclient_sub_alt_image_1_3);
-		mvpw_raise(mclient_sub_alt_image_1_3);
-		sprintf(no_cover_art_text, "%s...\nNo ArtWork for this album.",
-			cli_data.album_name_for_cover_art[2]);
-		mvpw_set_text_str(mclient_sub_alt_image_1_3, no_cover_art_text);
-	    }
-	    close(fd);
-	    fd = -1;
-	    // Set up for another call here as this case does not
-	    // deal w/the CLI parsing function where this normally
-	    // happens.
-	    cli_data.pending_proc_for_cover_art = TRUE;
-	    free(current);
+            mclient_get_browser_cover_art(2, mclient_sub_image_1_3, mclient_sub_alt_image_1_3);
 	    break;
 
 	case DISPLAY_4TH_COVER_COVERART:
-	    sprintf(url_string,
-		    "http://%s:9000/music/%d/cover\n", mclient_server,
-		    cli_data.track_id_for_cover_art[3]);
-	    current = strdup(url_string);
-	    retcode = http_main();
-	    if (retcode == HTTP_IMAGE_FILE_JPEG)
-	    {
-		mvpw_load_image_fd(fd);
-		if (mvpw_load_image_jpeg(mclient_sub_image_2_1, NULL) == 0)
-		{
-		    mvpw_show_image_jpeg(mclient_sub_image_2_1);
-		    mvpw_show(mclient_sub_image_2_1);
-		    mvpw_raise(mclient_sub_image_2_1);
-		}
-	    }
-	    else
-	    {
-		mvpw_hide(mclient_sub_image_2_1);
-		mvpw_show(mclient_sub_alt_image_2_1);
-		mvpw_raise(mclient_sub_alt_image_2_1);
-		sprintf(no_cover_art_text, "%s...\nNo ArtWork for this album.",
-			cli_data.album_name_for_cover_art[3]);
-		mvpw_set_text_str(mclient_sub_alt_image_2_1, no_cover_art_text);
-	    }
-	    close(fd);
-	    fd = -1;
-	    // Set up for another call here as this case does not
-	    // deal w/the CLI parsing function where this normally
-	    // happens.
-	    cli_data.pending_proc_for_cover_art = TRUE;
-	    free(current);
+            mclient_get_browser_cover_art(3, mclient_sub_image_2_1, mclient_sub_alt_image_2_1);
 	    break;
 
 	case DISPLAY_5TH_COVER_COVERART:
-	    sprintf(url_string,
-		    "http://%s:9000/music/%d/cover\n", mclient_server,
-		    cli_data.track_id_for_cover_art[4]);
-	    current = strdup(url_string);
-	    retcode = http_main();
-	    if (retcode == HTTP_IMAGE_FILE_JPEG)
-	    {
-		mvpw_load_image_fd(fd);
-		if (mvpw_load_image_jpeg(mclient_sub_image_2_2, NULL) == 0)
-		{
-		    mvpw_show_image_jpeg(mclient_sub_image_2_2);
-		    mvpw_show(mclient_sub_image_2_2);
-		    mvpw_raise(mclient_sub_image_2_2);
-		}
-	    }
-	    else
-	    {
-		mvpw_hide(mclient_sub_image_2_2);
-		mvpw_show(mclient_sub_alt_image_2_2);
-		mvpw_raise(mclient_sub_alt_image_2_2);
-		sprintf(no_cover_art_text, "%s...\nNo ArtWork for this album.",
-			cli_data.album_name_for_cover_art[4]);
-		mvpw_set_text_str(mclient_sub_alt_image_2_2, no_cover_art_text);
-	    }
-	    close(fd);
-	    fd = -1;
-	    // Set up for another call here as this case does not
-	    // deal w/the CLI parsing function where this normally
-	    // happens.
-	    cli_data.pending_proc_for_cover_art = TRUE;
-	    free(current);
+            mclient_get_browser_cover_art(4, mclient_sub_image_2_2, mclient_sub_alt_image_2_2);
 	    break;
 
 	case DISPLAY_6TH_COVER_COVERART:
-	    sprintf(url_string,
-		    "http://%s:9000/music/%d/cover\n", mclient_server,
-		    cli_data.track_id_for_cover_art[5]);
-	    current = strdup(url_string);
-	    retcode = http_main();
-	    if (retcode == HTTP_IMAGE_FILE_JPEG)
-	    {
-		mvpw_load_image_fd(fd);
-		if (mvpw_load_image_jpeg(mclient_sub_image_2_3, NULL) == 0)
-		{
-		    mvpw_show_image_jpeg(mclient_sub_image_2_3);
-		    mvpw_show(mclient_sub_image_2_3);
-		    mvpw_raise(mclient_sub_image_2_3);
-		}
-	    }
-	    else
-	    {
-		mvpw_hide(mclient_sub_image_2_3);
-		mvpw_show(mclient_sub_alt_image_2_3);
-		mvpw_raise(mclient_sub_alt_image_2_3);
-		mvpw_set_text_str(mclient_sub_alt_image_2_3, "   No ArtWork\n     for\n    this album");
-		sprintf(no_cover_art_text, "%s...\nNo ArtWork for this album.",
-			cli_data.album_name_for_cover_art[5]);
-		mvpw_set_text_str(mclient_sub_alt_image_2_3, no_cover_art_text);
-	    }
-	    close(fd);
-	    fd = -1;
-
-	    // Show browserbar.
-	    mvpw_show(mclient_sub_browsebar);
-	    mvpw_raise(mclient_sub_browsebar);
-
-	    // Set up for another call here as this case does not
-	    // deal w/the CLI parsing function where this normally
-	    // happens.
-	    cli_data.pending_proc_for_cover_art = TRUE;
-	    free(current);
+            mclient_get_browser_cover_art(5, mclient_sub_image_2_3, mclient_sub_alt_image_2_3);
 	    break;
 
 	case GET_TOTAL_NUM_ALBUMS:
@@ -1776,6 +1648,78 @@ mclient_browse_by_cover(void)
 	    cli_data.state_for_cover_art = IDLE_COVERART;
 	}
     }
+}
+
+void
+mclient_get_browser_cover_art(int index, mvp_widget_t * mclient_sub_image, mvp_widget_t * mclient_sub_alt_image)
+{
+    char url_string[100];
+    char no_cover_art_text[500];
+    char cached_image_filename[50];
+    int	 ret_val;
+
+	    sprintf(url_string, "http://%s:9000/music/%d/cover_100x100\n", mclient_server,
+		    cli_data.track_id_for_cover_art[index]);
+	    sprintf(cached_image_filename, "/tmp/cover_%d", cli_data.track_id_for_cover_art[index]);
+            printf("mclient: Album cover URL:%s local file name:%s\n", url_string, cached_image_filename);
+
+            // If file does not exits, get new image.
+            ret_val = -1;
+
+            // Do we already know there is no cover art for this album?
+            printf("TEST>>>Album_id_for_cover_art:%d index:%d\n", cli_data.album_id_for_cover_art[index], index);///###
+            if (cli_data.artwork_track_id[index] != -1)
+	    {
+
+            if (access(cached_image_filename,R_OK) != 0)
+            {
+		printf("TEST>>> Didn't find the cover image:%s, getting another one.\n", cached_image_filename);///###
+		unsigned int tries = 0;
+		while ((ret_val != 0) && (tries++ < 4))
+		{
+                	ret_val = fetch_cover_image(cached_image_filename, url_string); 
+		}
+		// New cover?  Log it.
+		if (ret_val == 0)
+		{
+			// Too many covers? Delet oldest.
+			printf("TEST>>> Too many covers? head+1:%d tail:%d\n", (cached_album_covers_head + 1) % CACHED_ALBUM_COVERS_MAX, cached_album_covers_tail);///###
+			if (((cached_album_covers_head + 1) % CACHED_ALBUM_COVERS_MAX) == cached_album_covers_tail)
+			{
+				// Delet album cover pointed at by tail.
+				unlink(cached_album_covers_names[cached_album_covers_tail]);
+				printf("TEST>>> Deleting this cover:%s\n", cached_album_covers_names[cached_album_covers_tail]);///###
+				cached_album_covers_tail = (cached_album_covers_tail + 1) % CACHED_ALBUM_COVERS_MAX;
+			}
+			cached_album_covers_head = (cached_album_covers_head + 1) % CACHED_ALBUM_COVERS_MAX;
+			strncpy(cached_album_covers_names[cached_album_covers_head],cached_image_filename,strlen(cached_image_filename));
+		}
+            }
+            else
+            {
+		ret_val = 0;
+		printf("TEST>>> Found the cover image:%s, use the one we have.\n", cached_image_filename);///###
+            }
+	    }
+
+            if((mvpw_set_image(mclient_sub_image, cached_image_filename) == 0) && (ret_val == 0))
+	    {
+		    mvpw_show(mclient_sub_image);
+		    mvpw_raise(mclient_sub_image);
+	    }
+	    else
+	    {
+		mvpw_hide(mclient_sub_image);
+		mvpw_show(mclient_sub_alt_image);
+		mvpw_raise(mclient_sub_alt_image);
+		sprintf(no_cover_art_text, "%s...\nNo ArtWork for this album.",
+			cli_data.album_name_for_cover_art[index]);
+		mvpw_set_text_str(mclient_sub_alt_image, no_cover_art_text);
+	    }
+	    // Set up for another call here as this case does not
+	    // deal w/the CLI parsing function where this normally
+	    // happens.
+	    cli_data.pending_proc_for_cover_art = TRUE;
 }
 
 void

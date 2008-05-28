@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2006-2007, Joe Carter
+ *  Copyright (C) 2006-2008, Joe Carter
  *  http://www.mvpmc.org/
  *
  * This program is free software; you can redistribute it and/or modify
@@ -718,91 +718,145 @@ cli_parse_response(int socket_handle_cli, mclient_cmd * response)
 		}
 	    }
 	}
-	else if (strncmp("albums", response->cmd, strlen("albums")) == 0)
+	else if (
+                    (strncmp("albums", response->cmd, strlen("albums")) == 0) ||
+	            (strncmp("titles", response->cmd, strlen("titles")) == 0)
+                )
 	{
 	    char id_buffer[20];
             char tag[50];
             unsigned int tag_field;
 
-	    // We are expecting the tag fields: id, album & count.
-	    for(tag_field = 2; tag_field <= 4; tag_field++)
+            // Note: The following tags use duplicate names but have different meannings
+            // between albums and titles command:
+            // id, album & count
+            // We need to be carful how we store them so as not to over write neede data.
+
+	    // Cycle through tags until they are all gone.
+            for (tag_field = 2; ((strchr(response->param[tag_field], ':') != NULL)&& (tag_field < MAX_PARAMS)); tag_field++)
             {
 	        strncpy(tag, strtok_r(response->param[tag_field], ":", (char **)&id_buffer), 50);
 
                 if (strcmp(tag, "id") == 0)
                 {
-	            // Parse the album ID number.  Expect 2 fields separated by ":"s.
-	            cli_data.album_id_for_cover_art[cli_data.album_index_1_of_6_for_cover_art]
-		        = atoi(strtok_r(NULL, ".", (char **)&id_buffer));
+                    // There is a conflict.  The album and title responses both have "id" tags.  We
+                    // need to separate them.
+	            if (strncmp("albums", response->cmd, strlen("albums")) == 0)
+                    {
+	                // Parse the album ID number.  Expect 2 fields separated by ":"s.
+	                cli_data.album_id_for_cover_art[cli_data.album_index_1_of_6_for_cover_art]
+		            = atoi(strtok_r(NULL, "\n", (char **)&id_buffer));
+                    }
+                    else
+                    {
+	                // Parse the track ID number.  Expect 2 fields separated by ":"s.
+	                cli_data.track_id_for_cover_art[cli_data.album_index_1_of_6_for_cover_art]
+		            = atoi(strtok_r(NULL, "\n", (char **)&id_buffer));
+                    }
                 }
                 else if (strcmp(tag, "album") == 0)
                 {
-	            // Parse the album name.  Expect 2 fields separated by ":"s.
-	            strncpy(cli_data.album_name_for_cover_art[cli_data.album_index_1_of_6_for_cover_art],
-		        (strtok_r(NULL, ".", (char **)&id_buffer)), 50);
-	            cli_data.album_name_for_cover_art[cli_data.album_index_1_of_6_for_cover_art][50] = '\0';
+                    // There is a conflict.  The album and title responses both have "id" tags.  We
+                    // need to separate them.
+	            if (strncmp("albums", response->cmd, strlen("albums")) == 0)
+                    {
+	                // Parse the album name.  Expect 2 fields separated by ":"s.
+	                strncpy(cli_data.album_name_for_cover_art[cli_data.album_index_1_of_6_for_cover_art],
+		            (strtok_r(NULL, "\n", (char **)&id_buffer)), 50);
+	                cli_data.album_name_for_cover_art[cli_data.album_index_1_of_6_for_cover_art][50] = '\0';
+                    }
+                    else
+                    {
+	                // Parse the track name.  Expect 2 fields separated by ":"s.
+	                // We don't need the track's album tag field.
+                    }
                 }
                 else if (strcmp(tag, "count") == 0)
                 {
-	            // Parse the album name.  Expect 2 fields separated by ":"s.
+	            // Parse the count.  Expect 2 fields separated by ":"s.
 	            // We don't need the count tag's data.
-                }
-            }
-
-	    cli_data.pending_proc_for_cover_art = TRUE;
-	}
-	else if (strncmp("titles", response->cmd, strlen("titles")) == 0)
-	{
-	    char id_buffer[20];
-            char tag[50];
-            unsigned int tag_field;
-
-	    // We are expecting the tag fields: id, title, genre, artist, album, duration & count.
-	    for(tag_field = 2; tag_field <= 8; tag_field++)
-            {
-	        strncpy(tag, strtok_r(response->param[tag_field], ":", (char **)&id_buffer), 50);
-
-                if (strcmp(tag, "id") == 0)
-                {
-	            // Parse the album ID number.  Expect 2 fields separated by ":"s.
-	            cli_data.track_id_for_cover_art[cli_data.album_index_1_of_6_for_cover_art]
-		        = atoi(strtok_r(NULL, ".", (char **)&id_buffer));
                 }
                 else if (strcmp(tag, "title") == 0)
                 {
-	            // Parse the album name.  Expect 2 fields separated by ":"s.
+	            // Parse the title.  Expect 2 fields separated by ":"s.
 	            // We don't need the title tag's data.
                 }
                 else if (strcmp(tag, "genre") == 0)
                 {
-	            // Parse the album name.  Expect 2 fields separated by ":"s.
+	            // Parse the genre.  Expect 2 fields separated by ":"s.
 	            // We don't need the genre tag's data.
                 }
                 else if (strcmp(tag, "artist") == 0)
                 {
-	            // Parse the album name.  Expect 2 fields separated by ":"s.
+	            // Parse the artist name.  Expect 2 fields separated by ":"s.
 	            strncpy(cli_data.artist_name_for_cover_art[cli_data.
                         album_index_1_of_6_for_cover_art],
-		        (strtok_r(NULL, ".", (char **)&id_buffer)), 20);
+		        (strtok_r(NULL, "\n", (char **)&id_buffer)), 20);
 	            cli_data.artist_name_for_cover_art[cli_data.album_index_1_of_6_for_cover_art][20] = '\0';
-                }
-                else if (strcmp(tag, "album") == 0)
-                {
-	            // Parse the album name.  Expect 2 fields separated by ":"s.
-	            // We don't need the album tag's data.
                 }
                 else if (strcmp(tag, "duration") == 0)
                 {
-	            // Parse the album name.  Expect 2 fields separated by ":"s.
+	            // Parse the duration.  Expect 2 fields separated by ":"s.
 	            // We don't need the duration tag's data.
                 }
-                else if (strcmp(tag, "count") == 0)
+                else if (strcmp(tag, "rescan") == 0)
                 {
-	            // Parse the album name.  Expect 2 fields separated by ":"s.
-	            // We don't need the count tag's data.
+	            // Parse the rescan.  Expect 2 fields separated by ":"s.
+                    cli_data.rescanning_in_progress = atoi(strtok_r(NULL, "\n", (char **)&id_buffer));
+                }
+                else if (strcmp(tag, "artwork_track_id") == 0)
+                {
+	            // Parse the rescan.  Expect 2 fields separated by ":"s.
+	            cli_data.artwork_track_id[cli_data.album_index_1_of_6_for_cover_art]
+		        = atoi(strtok_r(NULL, "\n", (char **)&id_buffer));
                 }
             }
-
+/// ### START
+	            if (strncmp("albums", response->cmd, strlen("albums")) == 0)
+		    {
+			printf("Albums <-data found:\n");
+printf(" album_id:%d\n",
+cli_data.album_id_for_cover_art[cli_data.album_index_1_of_6_for_cover_art]
+	);
+printf(" track_id:%d\n",
+cli_data.track_id_for_cover_art[cli_data.album_index_1_of_6_for_cover_art]
+	);
+printf(" album_name:%s\n",
+cli_data.album_name_for_cover_art[cli_data.album_index_1_of_6_for_cover_art]
+	);
+printf(" artist_name:%s\n",
+cli_data.artist_name_for_cover_art[cli_data.album_index_1_of_6_for_cover_art]
+	);
+printf(" rescannin_status:%d\n",
+cli_data.rescanning_in_progress
+	);
+printf(" artwork_track_id:%d\n",
+cli_data.artwork_track_id[cli_data.album_index_1_of_6_for_cover_art]
+	);
+		    }
+		    else
+		    {
+			printf("Titles <-data found:\n");
+printf(" album_id:%d\n",
+cli_data.album_id_for_cover_art[cli_data.album_index_1_of_6_for_cover_art]
+	);
+printf(" track_id:%d\n",
+cli_data.track_id_for_cover_art[cli_data.album_index_1_of_6_for_cover_art]
+	);
+printf(" album_name:%s\n",
+cli_data.album_name_for_cover_art[cli_data.album_index_1_of_6_for_cover_art]
+	);
+printf(" artist_name:%s\n",
+cli_data.artist_name_for_cover_art[cli_data.album_index_1_of_6_for_cover_art]
+	);
+printf(" rescannin_status:%d\n",
+cli_data.rescanning_in_progress
+	);
+printf(" artwork_track_id:%d\n",
+cli_data.artwork_track_id[cli_data.album_index_1_of_6_for_cover_art]
+	);
+		    }
+// ### END
 	    cli_data.pending_proc_for_cover_art = TRUE;
 	}
 	else if (strncmp("info", response->cmd, strlen("info")) == 0)
@@ -824,24 +878,25 @@ cli_parse_response(int socket_handle_cli, mclient_cmd * response)
 void
 cli_get_cover_art()
 {
-    char url_string[100];
-    int retcode;
+    char url_string[200];
+    char cached_image_filename[50];
+
+    sprintf(cached_image_filename, "/tmp/cover_current");
 
     sprintf(url_string, "http://%s:9000/music/current/cover?player=%s\n", mclient_server,
 	    decoded_player_id);
-    current = strdup(url_string);
-    retcode = http_main();
-    printf("mclient:cli_get_cover_art: PULLING NEW ART WORK. retcode:%d\n", retcode);
-    if (retcode == HTTP_IMAGE_FILE_JPEG)
+    printf("mclient:cli_get_cover_art: PULLING NEW ART WORK FROM:%s.\n", url_string);
+    if(fetch_cover_image(cached_image_filename, url_string) == 0)
     {
-	mvpw_load_image_fd(fd);
-	if (mvpw_load_image_jpeg(mclient_sub_image, NULL) == 0)
+	if(mvpw_set_image(mclient_sub_image, cached_image_filename) == 0)
 	{
-	    mvpw_show_image_jpeg(mclient_sub_image);
-	    av_wss_update_aspect(WSS_ASPECT_UNKNOWN);
 	    // As we have a valid image, expose it.
 	    mvpw_hide(mclient_sub_alt_image);
 	    mvpw_show(mclient_sub_image);
+	}
+	else
+	{
+		printf("mclient: Problem displaying image.\n");
 	}
     }
     else
@@ -853,9 +908,6 @@ cli_get_cover_art()
 	mvpw_show(mclient_sub_alt_image);
 	mvpw_set_text_str(mclient_sub_alt_image, "   No ArtWork\n     for\n    this album");
     }
-    close(fd);
-    fd = -1;
-    free(current);
 }
 
 /*
@@ -1699,3 +1751,44 @@ cli_send_discovery(int socket_handle_cli)
     sprintf(cmd, "listen 1\n");
     cli_send_packet(socket_handle_cli, cmd);
 }
+
+// Get cover image from URL "url_string" and save it to /tmp/<filename>.
+int fetch_cover_image(char *filename,char *url_string)
+{
+	int retcode;
+
+	current = strdup(url_string);
+	retcode = http_main();
+	free(current);
+
+	if (
+		(retcode==HTTP_IMAGE_FILE_JPEG) ||
+		(retcode==HTTP_IMAGE_FILE_PNG) ||
+		(retcode==HTTP_IMAGE_FILE_GIF) 
+	   ) 
+	{
+		char buf[STREAM_PACKET_SIZE];
+		FILE *outfile = fopen(filename, "wb");
+		retcode = 0;
+		int nitems = -1;
+		while (nitems && gui_state == MVPMC_STATE_MCLIENT) {
+			nitems = read(fd,buf, STREAM_PACKET_SIZE);
+			if (nitems < 0 ){
+				if ( (errno==EAGAIN || errno==EINTR)  ) {
+					usleep(100000);
+					continue;
+				} else {
+					retcode = -1;
+					break;
+				}
+			}
+			fwrite(buf,1, nitems, outfile);
+		}
+		fclose(outfile);
+	} else {
+		retcode = -1;
+	}
+	close(fd);
+	return retcode;
+}
+

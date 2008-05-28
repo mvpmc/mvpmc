@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005-2007, Rick Stuart
+ *  Copyright (C) 2005-2008, Rick Stuart
  *  http://www.mvpmc.org/
  *
  * This program is free software; you can redistribute it and/or modify
@@ -309,7 +309,7 @@ typedef struct
     unsigned int album_start_index_for_cover_art;
     unsigned int album_max_index_for_cover_art;
     unsigned int album_index_plus_start_for_cover_art[6];
-    unsigned int album_id_for_cover_art[6];
+    int album_id_for_cover_art[6];
     char album_name_for_cover_art[6][51];
     char artist_name_for_cover_art[6][21];
     unsigned int track_id_for_cover_art[6];
@@ -320,6 +320,8 @@ typedef struct
     unsigned int outstanding_cli_message_timer;
     unsigned int row_for_cover_art;
     unsigned int col_for_cover_art;
+    unsigned int rescanning_in_progress;
+    unsigned int artwork_track_id[6];
 } cli_data_type;
 
 /*
@@ -377,7 +379,8 @@ extern void cli_get_cover_art (void);
 extern void mclient_browse_by_cover (void);
 extern void mclient_browse_by_cover_widget (void);
 extern void mclient_localmenu_hide_all_widgets(void);
-
+extern int fetch_cover_image(char *,char *);
+extern void mclient_get_browser_cover_art(int, mvp_widget_t *, mvp_widget_t *);
 
 /*
  * Track which music server is being used (none, slim, UPNP,...)
@@ -463,5 +466,13 @@ extern char pending_cli_string[MAX_CMD_SIZE];
  * Track remote control button activity.
  */
 extern remote_buttons_type remote_buttons;
+
+/*
+ * Track last n (100?) locally cached album cover names.
+ */
+#define CACHED_ALBUM_COVERS_MAX 100
+extern char cached_album_covers_names[CACHED_ALBUM_COVERS_MAX][50]; 
+extern unsigned int cached_album_covers_head;
+extern unsigned int cached_album_covers_tail;
 
 #endif /* MCLIENT_H */
