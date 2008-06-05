@@ -628,7 +628,7 @@ cli_parse_response(int socket_handle_cli, mclient_cmd * response)
 	{
 	    debug("mclient:cli_parse_response: Found version.\n");
 	    {
-		int slim_major, slim_minor, slim_dot, slim_composit_ver, required_composit_ver;
+		int slim_major, slim_minor, slim_dot, required_composit_ver;
 		char slim_version_buffer[strlen(response->param[0])];
 		char *slim_str_ptr;
 
@@ -676,11 +676,11 @@ cli_parse_response(int socket_handle_cli, mclient_cmd * response)
 		    ("mclient:cli_parse_response: Found slimserver version:%d.%d.%d, need:%d.%d.%d\n",
 		     slim_major, slim_minor, slim_dot,
 		     SLIMSERVER_VERSION_MAJOR, SLIMSERVER_VERSION_MINOR_1, SLIMSERVER_VERSION_MINOR_2);
-		slim_composit_ver = (slim_major * 10000) + (slim_minor * 100) + slim_dot;
+		cli_data.slim_composit_ver = (slim_major * 10000) + (slim_minor * 100) + slim_dot;
 		required_composit_ver =
 		    (SLIMSERVER_VERSION_MAJOR * 10000) +
 		    (SLIMSERVER_VERSION_MINOR_1 * 100) + SLIMSERVER_VERSION_MINOR_2;
-		if (slim_composit_ver < required_composit_ver)
+		if (cli_data.slim_composit_ver < required_composit_ver)
 		{
 		    /*
 		     * Warning, the version of slimserver is less than that required.
@@ -689,7 +689,7 @@ cli_parse_response(int socket_handle_cli, mclient_cmd * response)
 		    {
 			char buf[200];
 
-			if (slim_composit_ver == 0)
+			if (cli_data.slim_composit_ver == 0)
 			{
 			    snprintf(buf, sizeof(buf),
 				     "%s%d%s%d%s%d%s%s",
@@ -703,7 +703,7 @@ cli_parse_response(int socket_handle_cli, mclient_cmd * response)
 			else
 			{
 			    snprintf(buf, sizeof(buf),
-				     "%s%d%s%d%s%d%s%s%s",
+				     "%s%d%s%d%s%d%s%s%s%s%s",
 				     "The version of slimserver (",
 				     slim_major, ".",
 				     slim_minor, ".",
@@ -711,7 +711,9 @@ cli_parse_response(int socket_handle_cli, mclient_cmd * response)
 				     ") we connected to at IP:",
 				     mclient_server ?
 				     mclient_server :
-				     "127.0.0.1", " is less than this version of MClient requires.");
+				     "127.0.0.1", " is less than what this version of MClient has ",
+			             "been optimized for.  MClient likes 7.0.1 but might work ",
+				     "with 6.5.4 & 6.3.0");
 			}
 			gui_error(buf);
 		    }
@@ -883,8 +885,20 @@ cli_get_cover_art()
 
     sprintf(cached_image_filename, "/tmp/cover_current");
 
-    sprintf(url_string, "http://%s:9000/music/current/cover?player=%s\n", mclient_server,
+    // ### Part of back compat.
+    // If we are connected to the perferred version of SlimServer/SqueezeServer use the optimal
+    // method of retrieving a cover image.
+    if (cli_data.slim_composit_ver == SLIMSERVER_VERSION_COMPOSIT)
+    {
+        sprintf(url_string, "http://%s:9000/music/current/cover?player=%s\n", mclient_server,
 	    decoded_player_id);
+    }
+    // If not, assume the image is a jpeg.
+    else
+    {
+        sprintf(url_string, "http://%s:9000/music/current/cover.jpg?player=%s\n", mclient_server,
+	    decoded_player_id);
+    }
     printf("mclient:cli_get_cover_art: PULLING NEW ART WORK FROM:%s.\n", url_string);
     if(fetch_cover_image(cached_image_filename, url_string) == 0)
     {
@@ -1269,9 +1283,9 @@ cli_parse_display(mclient_cmd * response)
 	}
 
 	/*
-	 * After slimserver 6.5 is widly availble, we should use the autonomous
+	 * ### After slimserver 6.5 is widly availble, we should use the autonomous
 	 * listen command to find out what is streaming.  Not this code that handles
-	 * the return from the display command.
+	 * the return from the display command. ####
 	 *
 	 * We want what is streaming / playing, or the 2nd line of the display.
 	 * But we only want it if the fist line starts with "Now playing".
@@ -1739,6 +1753,13 @@ cli_init(void)
      * Initialize full screen display w/playlist information.
      */
     cli_fullscreen_widget_state = UNINITIALIZED;
+
+    /*
+     * Initialize to ask for server version number once after waiting
+     * one (1) second.
+     */
+     cli_data.check_server_version = true;
+     cli_data.check_server_version_timer = time(NULL) + 1;
 }
 
 void
@@ -1760,6 +1781,21 @@ int fetch_cover_image(char *filename,char *url_string)
 	current = strdup(url_string);
 	retcode = http_main();
 	free(current);
+
+/// ### START
+        switch(retcode)
+	{
+		case HTTP_IMAGE_FILE_JPEG:
+printf("TEST>>>Image detected as JPEG.\n");
+			break;
+		case HTTP_IMAGE_FILE_PNG:
+printf("TEST>>>Image detected as PNG.\n");
+			break;
+		case HTTP_IMAGE_FILE_GIF:
+printf("TEST>>>Image detected as GIF.\n");
+			break;
+	}
+/// ### END
 
 	if (
 		(retcode==HTTP_IMAGE_FILE_JPEG) ||

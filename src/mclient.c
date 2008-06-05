@@ -217,11 +217,33 @@ say_hello(int s)
     char pkt[18];
 
     memset(pkt, 0, sizeof(pkt));
-    pkt[0] = 'h';
-    pkt[1] = 1;
-    pkt[2] = 0x11;
 
+    // For SLIMP3 the hello message format is:
+    pkt[0] = 'h';	// Hello
+    pkt[1] = 1;		// Device ID (1=SLIMP3)
+    pkt[2] = 0x11;	// Firmware revision (0x11 for version 1.1)
+    // Bits 3..11 are reserved
+    // For SLIMP3 bits 12..17 are for MAC address, bits 3..11 are reserved
     memcpy(&pkt[12], mac_address_ptr, 6);
+
+#if 0
+    // For SqueezeBox the format is different:
+    // For bits 0..3 are "HELO"
+    pkt[0] = 'H';	// Hello
+    pkt[1] = 'E';	// Hello
+    pkt[2] = 'L';	// Hello
+    pkt[3] = 'O';	// Hello
+    // For bit 4 Device ID (2=SqueezeBox)
+    pkt[4] = 2;		// Device ID (1=SLIMP3)
+    // For bit 5 Firmware revision (0x11 for version 1.1)
+    pkt[5] = 0x11;	// Firmware revision (0x11 for version 1.1)
+    // For bits 6..11 player's MAC address
+    memcpy(&pkt[6], mac_address_ptr, 6);
+    // for bits 12..13 list of 802.11 channels enabled (0x7ff means chan 0
+    // through 11 are enabled).
+    pkt[12] = 0x07;
+    pkt[13] = 0xff;
+#endif
 
     send_packet(s, pkt, sizeof(pkt));
 }

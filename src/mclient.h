@@ -31,12 +31,19 @@
 // 2.1:
 // Added browsing by album cover.
 //
+// 2.2
+// Added browsing by album cover caching.
+//
 #define MCLIENT_VERSION_MAJOR	2
-#define MCLIENT_VERSION_MINOR	1
+#define MCLIENT_VERSION_MINOR	2
 
-#define SLIMSERVER_VERSION_MAJOR	6
-#define SLIMSERVER_VERSION_MINOR_1	3
+#define SLIMSERVER_VERSION_MAJOR	7
+#define SLIMSERVER_VERSION_MINOR_1	0
 #define SLIMSERVER_VERSION_MINOR_2	1
+
+#define SLIMSERVER_VERSION_COMPOSIT	((SLIMSERVER_VERSION_MAJOR * 10000) + (SLIMSERVER_VERSION_MINOR_1 * 100) + SLIMSERVER_VERSION_MINOR_2)
+#define SLIMSERVER_VERSION_COMPOSIT_OLD_1	((6 * 10000) + (5 * 100) + 4)
+#define SLIMSERVER_VERSION_COMPOSIT_OLD_2	((6 * 10000) + (3 * 100) + 0)
 
 #define MCLIENT_DISABLE		0
 #define MCLIENT			1
@@ -322,6 +329,9 @@ typedef struct
     unsigned int col_for_cover_art;
     unsigned int rescanning_in_progress;
     unsigned int artwork_track_id[6];
+    bool check_server_version;		// Only ask server version once at start of application.
+    int check_server_version_timer;	// Tracks back off asking until server is ready.
+    int slim_composit_ver;		// SlimServer/SqueezeBox composit version.
 } cli_data_type;
 
 /*

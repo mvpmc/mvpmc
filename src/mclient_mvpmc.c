@@ -747,15 +747,6 @@ mclient_loop_thread(void *arg)
 		cli_send_discovery(socket_handle_cli);
 
 		/*
-		 * Check Slimserver's version number for compatability.
-		 */
-		{
-		    char cmd[MAX_CMD_SIZE];
-		    sprintf(cmd, "%s version ?\n", decoded_player_id);
-		    cli_send_packet(socket_handle_cli, cmd);
-		}
-
-		/*
 		 * Set up the hardware to pass mp3 data.
 		 * (Should only do once?...)
 		 */
@@ -771,6 +762,22 @@ mclient_loop_thread(void *arg)
 		{
 		    struct timeval mclient_tv;
 		    int n = 0;
+
+		    /*
+		     * Check Slimserver's version number for compatability.
+		     * Only need to do this once but must wait (back off) if this 
+		     * is the first time this client has been seen by the server.
+		     */
+                    if (
+                        (cli_data.check_server_version) &&
+                        (cli_data.check_server_version_timer < time(NULL))
+                       )
+		    {
+			cli_data.check_server_version = false;
+		        char cmd[MAX_CMD_SIZE];
+		        sprintf(cmd, "%s version ?\n", decoded_player_id);
+		        cli_send_packet(socket_handle_cli, cmd);
+		    }
 
 		    /*
 		     * Check if short (about 1 second) display update
@@ -1658,13 +1665,19 @@ mclient_get_browser_cover_art(int index, mvp_widget_t * mclient_sub_image, mvp_w
     char cached_image_filename[50];
     int	 ret_val;
 
-	    sprintf(url_string, "http://%s:9000/music/%d/cover_100x100\n", mclient_server,
-		    cli_data.track_id_for_cover_art[index]);
-	    sprintf(cached_image_filename, "/tmp/cover_%d", cli_data.track_id_for_cover_art[index]);
-            printf("mclient: Album cover URL:%s local file name:%s\n", url_string, cached_image_filename);
-
             // If file does not exits, get new image.
             ret_val = -1;
+
+            // ### Part of back compat.
+            // If we are connected to the perferred version of SlimServer/SqueezeServer use the optimal
+            // method of retrieving a cover image.
+            if (cli_data.slim_composit_ver == SLIMSERVER_VERSION_COMPOSIT)
+            {
+	        sprintf(url_string, "http://%s:9000/music/%d/cover_100x100\n", mclient_server,
+		    cli_data.track_id_for_cover_art[index]);
+
+	    sprintf(cached_image_filename, "/tmp/cover_%d", cli_data.track_id_for_cover_art[index]);
+            printf("mclient: Album cover URL:%s local file name:%s\n", url_string, cached_image_filename);
 
             // Do we already know there is no cover art for this album?
             printf("TEST>>>Album_id_for_cover_art:%d index:%d\n", cli_data.album_id_for_cover_art[index], index);///###
@@ -1701,6 +1714,61 @@ mclient_get_browser_cover_art(int index, mvp_widget_t * mclient_sub_image, mvp_w
 		printf("TEST>>> Found the cover image:%s, use the one we have.\n", cached_image_filename);///###
             }
 	    }
+
+            }
+            // If not, assume the image is a jpeg.
+            else
+            {
+	        sprintf(url_string, "http://%s:9000/music/%d/cover.jpg\n", mclient_server,
+                    cli_data.track_id_for_cover_art[index]);
+
+
+	    sprintf(cached_image_filename, "/tmp/cover_%d", cli_data.track_id_for_cover_art[index]);
+            printf("mclient: Album cover URL:%s local file name:%s\n", url_string, cached_image_filename);
+
+
+
+
+            if (access(cached_image_filename,R_OK) != 0)
+            {
+		printf("TEST>>> Didn't find the cover image:%s, getting another one.\n", cached_image_filename);///###
+		unsigned int tries = 0;
+		while ((ret_val != 0) && (tries++ < 4))
+		{
+                	ret_val = fetch_cover_image(cached_image_filename, url_string); 
+		}
+		// New cover?  Log it.
+		if (ret_val == 0)
+		{
+			// Too many covers? Delet oldest.
+			printf("TEST>>> Too many covers? head+1:%d tail:%d\n", (cached_album_covers_head + 1) % CACHED_ALBUM_COVERS_MAX, cached_album_covers_tail);///###
+			if (((cached_album_covers_head + 1) % CACHED_ALBUM_COVERS_MAX) == cached_album_covers_tail)
+			{
+				// Delet album cover pointed at by tail.
+				unlink(cached_album_covers_names[cached_album_covers_tail]);
+				printf("TEST>>> Deleting this cover:%s\n", cached_album_covers_names[cached_album_covers_tail]);///###
+				cached_album_covers_tail = (cached_album_covers_tail + 1) % CACHED_ALBUM_COVERS_MAX;
+			}
+			cached_album_covers_head = (cached_album_covers_head + 1) % CACHED_ALBUM_COVERS_MAX;
+			strncpy(cached_album_covers_names[cached_album_covers_head],cached_image_filename,strlen(cached_image_filename));
+		}
+            }
+            else
+            {
+		ret_val = 0;
+		printf("TEST>>> Found the cover image:%s, use the one we have.\n", cached_image_filename);///###
+            }
+
+
+
+
+
+		unsigned int tries = 0;
+		while ((ret_val != 0) && (tries++ < 4))
+		{
+                	ret_val = fetch_cover_image(cached_image_filename, url_string); 
+		}
+            }
 
             if((mvpw_set_image(mclient_sub_image, cached_image_filename) == 0) && (ret_val == 0))
 	    {

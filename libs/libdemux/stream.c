@@ -162,16 +162,21 @@ stream_resize(stream_t *stream, void *start, int size)
  *	stream	- stream pointer
  *	buf	- buffer containing media stream data
  *	len	- amount of data in the buffer
+ *	force   - pass data even when in seeking mode
  *
  * Returns:
  *	number of bytes consumed
  */
 static int
-stream_add(demux_handle_t *handle, stream_t *stream, unsigned char *buf, int len)
+stream_add(demux_handle_t *handle, stream_t *stream, unsigned char *buf,
+	    int len, int force)
 {
 	unsigned int end, tail, head;
 	int size1, size2;
 	int was_seeking = handle->seeking;
+
+	if(force)
+	    was_seeking = 0;
 
 	if (len <= 0)
 		return 0;
@@ -261,7 +266,7 @@ stream_add(demux_handle_t *handle, stream_t *stream, unsigned char *buf, int len
 		memcpy(stream->buf, buf+size1, size2);
 
 
-	if(handle->seeking)
+	if(was_seeking)
 	{
 	    stream->seeking_head = end;
 	    stream->seeking_head_valid = 1;
@@ -342,10 +347,6 @@ stream_peek(stream_t *stream, void *buf, int max)
 
 	if (max <= 0)
 		return 0;
-	if(stream->ptr_tail_mutex != NULL)
-	{
-	    pthread_mutex_lock(stream->ptr_tail_mutex);
-	}
 	head = stream->head;
 	tail = stream->tail;
 
@@ -1215,7 +1216,7 @@ parse_ac3_frame(demux_handle_t *handle, unsigned char *buf, int len)
 		/*
 		 * XXX: broken if the demuxer fills up
 		 */
-		m = stream_add(handle, handle->audio, buf+offset, len-offset);
+		m = stream_add(handle, handle->audio, buf+offset, len-offset, 1);
 
 		return m + offset;
 	} else {
@@ -1263,7 +1264,7 @@ parse_pcm_frame(demux_handle_t *handle, unsigned char *buf, int len)
 		/*
 		 * XXX: broken if the demuxer fills up
 		 */
-		m = stream_add(handle, handle->audio, buf+offset, len-offset);
+		m = stream_add(handle, handle->audio, buf+offset, len-offset, 1);
 
 		return m + offset;
 	} else {
@@ -1322,12 +1323,12 @@ parse_frame(demux_handle_t *handle, unsigned char *buf, int len, int type)
 			break;
 		case 1:
 			/* audio */
-			m = stream_add(handle, handle->audio, buf, n);
+			m = stream_add(handle, handle->audio, buf, n, 1);
 			n = m;
 			break;
 		case 2:
 			/* video */
-			m = stream_add(handle, handle->video, buf, n);
+			m = stream_add(handle, handle->video, buf, n, 0);
 			n = m;
 			break;
 		case 3:
@@ -1550,7 +1551,7 @@ parse_frame(demux_handle_t *handle, unsigned char *buf, int len, int type)
 			header[2] = 1;
 			header[3] = type;
 			if (stream_add(handle, handle->video,
-				       header, 4) != 4) {
+				       header, 4, 0) != 4) {
 				break;
 			}
 
@@ -1560,7 +1561,7 @@ parse_frame(demux_handle_t *handle, unsigned char *buf, int len, int type)
 
 		    if (handle->headernum % 2 == 1) {
 			if (stream_add(handle, handle->video, handle->buf,
-				       handle->bufsz) != handle->bufsz) {
+				       handle->bufsz, 0) != handle->bufsz) {
 				break;
 			}
 			handle->headernum++;
@@ -1574,7 +1575,7 @@ parse_frame(demux_handle_t *handle, unsigned char *buf, int len, int type)
 		handle->attr.video.stats.frames++;
 
 		if (n <= (len-ret)) {
-			m = stream_add(handle, handle->video, buf, n);
+			m = stream_add(handle, handle->video, buf, n, 0);
 			PRINTF("line %d: n %d m %d\n", __LINE__, n, m);
 			buf += m;
 			ret += m;
@@ -1585,7 +1586,7 @@ parse_frame(demux_handle_t *handle, unsigned char *buf, int len, int type)
 				handle->frame_state = 2;
 			}
 		} else {
-			m = stream_add(handle, handle->video, buf, (len-ret));
+			m = stream_add(handle, handle->video, buf, (len-ret), 0);
 			PRINTF("line %d: n %d m %d\n", __LINE__, n, m);
 			handle->remain = n - m;
             handle->frame_state = 2;
@@ -1606,10 +1607,10 @@ parse_frame(demux_handle_t *handle, unsigned char *buf, int len, int type)
             header[1] = 0;
             header[2] = 1;
             header[3] = type;
-            if (stream_add(handle, handle->video,header, 4) != 4) {
+            if (stream_add(handle, handle->video,header, 4, 0) != 4) {
                 break;
             }
-            m = stream_add(handle, handle->video, buf, len-ret);
+            m = stream_add(handle, handle->video, buf, len-ret, 0);
             if ((len-ret) == m) {
                 handle->state = 1;
             } else {
@@ -1667,7 +1668,7 @@ parse_frame(demux_handle_t *handle, unsigned char *buf, int len, int type)
 			header[2] = 1;
 			header[3] = type;
 			if (stream_add(handle, handle->audio,
-				       header, 4) != 4) {
+				       header, 4, 1) != 4) {
 				break;
 			}
 			handle->headernum++;
@@ -1675,7 +1676,7 @@ parse_frame(demux_handle_t *handle, unsigned char *buf, int len, int type)
 
 		if (handle->headernum == 1) {
 			if (stream_add(handle, handle->audio, handle->buf,
-				       handle->bufsz) != handle->bufsz) {
+				       handle->bufsz, 1) != handle->bufsz) {
 				break;
 			}
 			handle->headernum++;
@@ -1705,7 +1706,7 @@ parse_frame(demux_handle_t *handle, unsigned char *buf, int len, int type)
 		}
 
 		if (n <= (len-ret)) {
-			m = stream_add(handle, handle->audio, buf, n);
+			m = stream_add(handle, handle->audio, buf, n, 1);
 			buf += m;
 			ret += m;
 			if (n == m) {
@@ -1715,7 +1716,7 @@ parse_frame(demux_handle_t *handle, unsigned char *buf, int len, int type)
 				handle->frame_state = 1;
 			}
 		} else {
-			m = stream_add(handle, handle->audio, buf, (len-ret));
+			m = stream_add(handle, handle->audio, buf, (len-ret), 1);
 			handle->remain = n - m;
 			handle->frame_state = 1;
 			buf += m;
