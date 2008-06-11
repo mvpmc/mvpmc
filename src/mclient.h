@@ -47,7 +47,7 @@
 
 #define MCLIENT_DISABLE		0
 #define MCLIENT			1
-#define MCLIENT_OTHER		2        /* Maybe someday UPNP? */
+#define MCLIENT_OTHER		2       /* Maybe someday UPNP? */
 
 #define SERVER_PORT    3483
 
@@ -67,7 +67,6 @@
 
 #define MAX_BUTTON_SCANS 10
 
-
 /*
  * Command Line Interface Defines.
  */
@@ -83,8 +82,7 @@
 /*
  * Define states of the cli process.
  */
-enum
-{
+enum {
     UPDATE_PLAYLIST_MINMINUS1 = 0,
     UPDATE_PLAYLIST_NOWPLAYING,
     UPDATE_PLAYLIST_INDEX,
@@ -102,8 +100,7 @@ enum
 /*
  * Define mclient's small widget states.
  */
-enum
-{
+enum {
     SHOW = 0,
     HIDE,
 };
@@ -111,8 +108,7 @@ enum
 /*
  * Define mclient's large widget states.
  */
-enum
-{
+enum {
     UNINITIALIZED = 0,
     INITIALIZED,
     PLAY_LISTS,
@@ -122,8 +118,7 @@ enum
 /*
  * Define current state to display on OSD.
  */
-enum
-{
+enum {
     MODE_UNINITIALIZED = 0,
     STOP,
     PLAY,
@@ -134,8 +129,7 @@ enum
 /*
  * Define last button press direction.
  */
-enum
-{
+enum {
     DIR_CLEARED = 0,
     UP,
     DOWN,
@@ -147,8 +141,7 @@ enum
 /*
  * Define slimserver menu states.
  */
-enum
-{
+enum {
     UNKNOWN = 0,
     SLIMP3_HOME,
     PLAYLIST,
@@ -166,8 +159,7 @@ enum
 /*
  * Define slimserver get cover art states.
  */
-enum
-{
+enum {
     IDLE_COVERART = 0,
     GET_1ST_ALBUM_COVERART,
     GET_1ST_TRACK_COVERART,
@@ -194,8 +186,7 @@ enum
 /*
  * Define slimserver cover art update widget states.
  */
-enum
-{
+enum {
     IDLE_COVERART_WIDGET = 0,
     ADJ_COVERART_WIDGET,
     LAST_STATE_COVERART_WIDGET,
@@ -204,8 +195,7 @@ enum
 /*
  * Define slimserver get cover art states.
  */
-enum
-{
+enum {
     IDLE_CONTROL_ANOTHER = 0,
     WE_ARE_CONTROLLING_ANOTHER,
     LAST_STATE_CONTROL_ANOTHER,
@@ -214,16 +204,14 @@ enum
 /*
  * Define states of remote control button pushing.
  */
-enum
-{
-    NO_RECENT_BUTTONS_PUSHED = 0,  // After about 1.5 seconds after last release.
-    PUSHING_BUTTON,  // Seen button code on this scan.
-    RELEASING_BUTTON,  // Counting scans w/o button code.
-    RELEASED_BUTTON,  // Reached num of scans w/o button code.
+enum {
+    NO_RECENT_BUTTONS_PUSHED = 0,       // After about 1.5 seconds after last release.
+    PUSHING_BUTTON,             // Seen button code on this scan.
+    RELEASING_BUTTON,           // Counting scans w/o button code.
+    RELEASED_BUTTON,            // Reached num of scans w/o button code.
 };
 
-typedef struct
-{
+typedef struct {
     char type;
     char reserved1[5];
     unsigned short wptr;
@@ -232,8 +220,7 @@ typedef struct
     char mac_addr[6];
 } packet_ack;
 
-typedef struct
-{
+typedef struct {
     void *buf;
     int head;
     int tail;
@@ -243,8 +230,7 @@ typedef struct
 
 extern ring_buf *outbuf;
 
-typedef struct
-{
+typedef struct {
     char type;
     char reserved1;
     unsigned short wptr;
@@ -252,8 +238,7 @@ typedef struct
     char reserved2[12];
 } request_data_struct;
 
-typedef struct
-{
+typedef struct {
     char type;
     char zero;
     /* optimizer wants to put two bytes here */
@@ -263,10 +248,9 @@ typedef struct
     /* optimizer wants to put two bytes here */
     unsigned long code;
     char mac_addr[6];
-} __attribute__ ((packed)) send_ir_struct; /* be smarter than the optimizer */
+} __attribute__ ((packed)) send_ir_struct;      /* be smarter than the optimizer */
 
-typedef struct
-{
+typedef struct {
     char type;
     char control;
     char reserved1[4];
@@ -276,9 +260,7 @@ typedef struct
     char reserved3[6];
 } receive_mpeg_header;
 
-
-typedef struct
-{
+typedef struct {
     char player_id[MAX_ID_SIZE];
     char cmd[MAX_CMD_SIZE];
     char param[MAX_PARAMS][MAX_PARAM_SIZE];
@@ -287,8 +269,7 @@ typedef struct
 /*
  * Stores cli data and states.
  */
-typedef struct
-{
+typedef struct {
     int state;                  // State we are in - what are we asking for over the CLI.
     int tracks;                 // Tracks on disk.
     int index_playing;          // Track we are playing.
@@ -300,16 +281,16 @@ typedef struct
     char titles[50];
     char title_history[10][50];
     int slimserver_menu_state;
-    int short_update_timer;	// Tracks cli update interval which should occur every few seconds.
-    int short_update_timer_expired; // Marks cli updates which should occur every few seconds.
-    int percent;		// Tracks song progress from 0 to 100%.
+    int short_update_timer;     // Tracks cli update interval which should occur every few seconds.
+    int short_update_timer_expired;     // Marks cli updates which should occur every few seconds.
+    int percent;                // Tracks song progress from 0 to 100%.
     int elapsed_time;
     int total_time;
     int volume;
     int get_cover_art_holdoff_timer;
     int get_cover_art_later;
-    bool cli_comm_err_mask;	// True if we want to mute the cli_comm_err flag.
-    unsigned int state_for_cover_art;    // State we are in - what are we asking for over the CLI.
+    bool cli_comm_err_mask;     // True if we want to mute the cli_comm_err flag.
+    unsigned int state_for_cover_art;   // State we are in - what are we asking for over the CLI.
     unsigned int state_for_cover_art_widget;
     unsigned int album_index_for_cover_art;
     unsigned int album_index_1_of_6_for_cover_art;
@@ -329,16 +310,15 @@ typedef struct
     unsigned int col_for_cover_art;
     unsigned int rescanning_in_progress;
     unsigned int artwork_track_id[6];
-    bool check_server_version;		// Only ask server version once at start of application.
-    int check_server_version_timer;	// Tracks back off asking until server is ready.
-    int slim_composit_ver;		// SlimServer/SqueezeBox composit version.
+    bool check_server_version;  // Only ask server version once at start of application.
+    int check_server_version_timer;     // Tracks back off asking until server is ready.
+    int slim_composit_ver;      // SlimServer/SqueezeBox composit version.
 } cli_data_type;
 
 /*
  *
  */
-typedef struct
-{
+typedef struct {
     int last_pressed;
     int elapsed_time;
     int state;
@@ -354,43 +334,44 @@ typedef struct
 /*
  * Functions:
  */
-extern int music_client (void);
-extern void mclient_idle_callback (mvp_widget_t *);
-extern void mclient_localmenu_callback (mvp_widget_t *, char);
-extern unsigned long curses2ir (int);
-extern void mclient_exit (void);
-extern void mclient_local_init (void);
-extern int mclient_server_connect (void);
-extern void receive_volume_data (unsigned short *, int);
-extern void read_packet (int);
-extern ring_buf *ring_buf_create (int);
-extern void receive_mpeg_data (int, receive_mpeg_header *, int);
-extern void send_ack (int, unsigned short);
-extern void send_discovery (int);
-extern void cli_init (void);
-extern void *mcg_socket_reader_thread (void *);
-extern void cli_send_discovery (int);
-extern void cli_update_playlist (int socket);
-extern void cli_send_packet (int, char *);
-extern int cli_read_message (int, char *);
-extern void cli_read_data (int);
+extern int music_client(void);
+extern void mclient_idle_callback(mvp_widget_t *);
+extern void mclient_localmenu_callback(mvp_widget_t *, char);
+extern unsigned long curses2ir(int);
+extern void mclient_exit(void);
+extern void mclient_local_init(void);
+extern int mclient_server_connect(void);
+extern void receive_volume_data(unsigned short *, int);
+extern void read_packet(int);
+extern ring_buf *ring_buf_create(int);
+extern void receive_mpeg_data(int, receive_mpeg_header *, int);
+extern void send_ack(int, unsigned short);
+extern void send_discovery(int);
+extern void cli_init(void);
+extern void *mcg_socket_reader_thread(void *);
+extern void cli_send_discovery(int);
+extern void cli_update_playlist(int socket);
+extern void cli_send_packet(int, char *);
+extern int cli_read_message(int, char *);
+extern void cli_read_data(int);
 extern mvp_widget_t *mclient;
 extern char *mclient_server;
-extern int cli_server_connect (void);
-extern void cli_pick_starting_index (void);
-extern void cli_decode_response (int, char *, mclient_cmd *);
-extern void cli_parse_playlist (mclient_cmd *);
-extern void cli_parse_display (mclient_cmd *);
-extern void cli_parse_players (mclient_cmd *);
-extern void cli_parse_button (mclient_cmd *);
-extern void cli_parse_response (int, mclient_cmd *);
-extern void cli_parse_parameters (mclient_cmd *, char **);
-extern void cli_get_cover_art (void);
-extern void mclient_browse_by_cover (void);
-extern void mclient_browse_by_cover_widget (void);
+extern int cli_server_connect(void);
+extern void cli_pick_starting_index(void);
+extern void cli_decode_response(int, char *, mclient_cmd *);
+extern void cli_parse_playlist(mclient_cmd *);
+extern void cli_parse_display(mclient_cmd *);
+extern void cli_parse_players(mclient_cmd *);
+extern void cli_parse_button(mclient_cmd *);
+extern void cli_parse_response(int, mclient_cmd *);
+extern void cli_parse_parameters(mclient_cmd *, char **);
+extern void cli_get_cover_art(void);
+extern void mclient_browse_by_cover(void);
+extern void mclient_browse_by_cover_widget(void);
 extern void mclient_localmenu_hide_all_widgets(void);
-extern int fetch_cover_image(char *,char *);
+extern int fetch_cover_image(char *, char *);
 extern void mclient_get_browser_cover_art(int, mvp_widget_t *, mvp_widget_t *);
+extern void send_ir(int, char, unsigned long, int);
 
 /*
  * Track which music server is being used (none, slim, UPNP,...)
@@ -481,7 +462,7 @@ extern remote_buttons_type remote_buttons;
  * Track last n (100?) locally cached album cover names.
  */
 #define CACHED_ALBUM_COVERS_MAX 100
-extern char cached_album_covers_names[CACHED_ALBUM_COVERS_MAX][50]; 
+extern char cached_album_covers_names[CACHED_ALBUM_COVERS_MAX][50];
 extern unsigned int cached_album_covers_head;
 extern unsigned int cached_album_covers_tail;
 

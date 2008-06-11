@@ -7393,7 +7393,7 @@ mclient_fullscreen_init(void)
 	 */
 	mvpw_add_menu_item(mclient_fullscreen, "Music Client",
 			   (void*)1, &mclient_fullscreen_menu_item_attr);
-	mvpw_add_menu_item(mclient_fullscreen, "Full Screen / Phase One: Read Only",
+	mvpw_add_menu_item(mclient_fullscreen, "Full Screen / Uninitialized",
 			   (void*)2, &mclient_fullscreen_menu_item_attr);
 
 	/*
