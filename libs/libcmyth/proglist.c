@@ -590,8 +590,20 @@ airdate_compare(const void *a, const void *b)
 	const cmyth_proginfo_t y = *(cmyth_proginfo_t *)b;
 	const cmyth_timestamp_t X = x->proginfo_originalairdate;
 	const cmyth_timestamp_t Y = y->proginfo_originalairdate;
+	int rc;
 
-	return sort_timestamp(X, Y);
+	rc = sort_timestamp(X, Y);
+	/* Fixup case were original airdate is set for a generic episode, without
+	   this code generic episode's sort order appears to be random - RAH */
+	if (rc == 0)
+	  {
+          cmyth_timestamp_t X = x->proginfo_rec_start_ts;
+          cmyth_timestamp_t Y = y->proginfo_rec_start_ts;
+	  rc = sort_timestamp(X, Y);
+	  }
+
+	return rc;
+ 
 }
 
 /*
