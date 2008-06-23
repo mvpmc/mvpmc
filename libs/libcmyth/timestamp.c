@@ -303,12 +303,12 @@ cmyth_timestamp_to_string(char *str, cmyth_timestamp_t ts)
 	}
 	sprintf(str,
 		"%4.4ld-%2.2ld-%2.2ldT%2.2ld:%2.2ld:%2.2ld",
-		ts->timestamp_year,
-		ts->timestamp_month,
-		ts->timestamp_day,
-		ts->timestamp_hour,
-		ts->timestamp_minute,
-		ts->timestamp_second);
+		(unsigned long)ts->timestamp_year,
+		(unsigned long)ts->timestamp_month,
+		(unsigned long)ts->timestamp_day,
+		(unsigned long)ts->timestamp_hour,
+		(unsigned long)ts->timestamp_minute,
+		(unsigned long)ts->timestamp_second);
 	return 0;
 }
 
@@ -345,9 +345,9 @@ cmyth_timestamp_to_isostring(char *str, cmyth_timestamp_t ts)
 	}
 	sprintf(str,
 		"%4.4ld-%2.2ld-%2.2ld",
-		ts->timestamp_year,
-		ts->timestamp_month,
-		ts->timestamp_day);
+		(unsigned long)ts->timestamp_year,
+		(unsigned long)ts->timestamp_month,
+		(unsigned long)ts->timestamp_day);
 	return 0;
 }
 
@@ -379,24 +379,24 @@ cmyth_timestamp_to_display_string(char *str, cmyth_timestamp_t ts,
 
 		sprintf(str,
 			"%4.4ld-%2.2ld-%2.2ldT%2.2ld:%2.2ld:%2.2ld %s",
-			ts->timestamp_year,
-			ts->timestamp_month,
-			ts->timestamp_day,
+			(unsigned long)ts->timestamp_year,
+			(unsigned long)ts->timestamp_month,
+			(unsigned long)ts->timestamp_day,
 			hour,
-			ts->timestamp_minute,
-			ts->timestamp_second,
+			(unsigned long)ts->timestamp_minute,
+			(unsigned long)ts->timestamp_second,
 			pm ? "PM" : "AM");
 	}
 	else
 	{
 		sprintf(str,
 			"%4.4ld-%2.2ld-%2.2ldT%2.2ld:%2.2ld:%2.2ld",
-			ts->timestamp_year,
-			ts->timestamp_month,
-			ts->timestamp_day,
-			ts->timestamp_hour,
-			ts->timestamp_minute,
-			ts->timestamp_second);
+			(unsigned long)ts->timestamp_year,
+			(unsigned long)ts->timestamp_month,
+			(unsigned long)ts->timestamp_day,
+			(unsigned long)ts->timestamp_hour,
+			(unsigned long)ts->timestamp_minute,
+			(unsigned long)ts->timestamp_second);
 	}
 	return 0;
 }
@@ -447,12 +447,12 @@ cmyth_datetime_to_string(char *str, cmyth_timestamp_t ts)
 	t_datetime = mktime(&tm_datetime);
 	sprintf(str,
 		"%4.4ld-%2.2ld-%2.2ldT%2.2ld:%2.2ld:%2.2ld",
-		ts->timestamp_year,
-		ts->timestamp_month,
-		ts->timestamp_day,
-		ts->timestamp_hour,
-		ts->timestamp_minute,
-		ts->timestamp_second);
+		(unsigned long)ts->timestamp_year,
+		(unsigned long)ts->timestamp_month,
+		(unsigned long)ts->timestamp_day,
+		(unsigned long)ts->timestamp_hour,
+		(unsigned long)ts->timestamp_minute,
+		(unsigned long)ts->timestamp_second);
 	cmyth_dbg(CMYTH_DBG_ERROR, "original timestamp string: %s \n",str);
 	sprintf(str,"%lu",(unsigned long) t_datetime);
 	cmyth_dbg(CMYTH_DBG_ERROR, "time in seconds: %s \n",str);

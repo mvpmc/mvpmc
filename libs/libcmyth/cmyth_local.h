@@ -177,13 +177,13 @@ struct cmyth_freespace {
 };
 
 struct cmyth_timestamp {
-	unsigned long timestamp_year;
-	unsigned long timestamp_month;
-	unsigned long timestamp_day;
-	unsigned long timestamp_hour;
-	unsigned long timestamp_minute;
-	unsigned long timestamp_second;
-	int timestamp_isdst;
+	unsigned short int timestamp_year;
+	unsigned char timestamp_month;
+	unsigned char timestamp_day;
+	unsigned char timestamp_hour;
+	unsigned char timestamp_minute;
+	unsigned char timestamp_second;
+	char timestamp_isdst;
 };
 
 struct cmyth_proginfo {
