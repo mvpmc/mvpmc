@@ -940,6 +940,7 @@ episode_exists(char *title)
 	if ((episode_plist == NULL) || (title == NULL)) {
 		cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) 0}\n",
 			    __FUNCTION__, __FILE__, __LINE__);
+		if (ep_list != NULL) ref_release(ep_list);
 		return 0;
 	}
 
@@ -966,6 +967,8 @@ episode_exists(char *title)
 			cmyth_dbg(CMYTH_DBG_DEBUG,
 				    "%s [%s:%d]: (trace) 1}\n",
 				    __FUNCTION__, __FILE__, __LINE__);
+		        ref_release(t);
+			ref_release(ep_list);
 			return 1;
 		}
 		ref_release(t);
