@@ -52,11 +52,13 @@ static void
 cmyth_proglist_destroy(cmyth_proglist_t pl)
 {
 	int i;
-
+	ref_get_refcount("Before cmyth_proglist_destroy");
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s\n", __FUNCTION__);
 	if (!pl) {
 		return;
 	}
+
+	printf("Destroying proglist %p with count %ld\n",pl,pl->proglist_count);
 	for (i  = 0; i < pl->proglist_count; ++i) {
 		if (pl->proglist_list[i]) {
 			ref_release(pl->proglist_list[i]);
@@ -66,6 +68,7 @@ cmyth_proglist_destroy(cmyth_proglist_t pl)
 	if (pl->proglist_list) {
 		free(pl->proglist_list);
 	}
+	ref_get_refcount("After cmyth_proglist_destroy");
 }
 
 /*
@@ -89,6 +92,7 @@ cmyth_proglist_create(void)
 	cmyth_proglist_t ret;
 
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s\n", __FUNCTION__);
+	ref_get_refcount("before cmyth_proglist_create:");
 	ret = ref_alloc(sizeof(*ret));
 	if (!ret) {
 		return(NULL);
@@ -97,6 +101,8 @@ cmyth_proglist_create(void)
 
 	ret->proglist_list = NULL;
 	ret->proglist_count = 0;
+	ref_get_refcount("after cmyth_proglist_create:");
+
 	return ret;
 }
 
@@ -317,6 +323,7 @@ cmyth_proglist_get_all_recorded(cmyth_conn_t control)
 {
 	cmyth_proglist_t proglist = cmyth_proglist_create();
 
+	ref_get_refcount("before cmyth_proglist_get_all_recorded:");
 	if (proglist == NULL) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_proglist_create() failed\n",
@@ -333,6 +340,7 @@ cmyth_proglist_get_all_recorded(cmyth_conn_t control)
 		ref_release(proglist);
 		return NULL;
 	}
+	ref_get_refcount("after cmyth_proglist_get_all_recorded:");
 	return proglist;
 }
 
@@ -359,7 +367,7 @@ cmyth_proglist_t
 cmyth_proglist_get_all_pending(cmyth_conn_t control)
 {
 	cmyth_proglist_t proglist = cmyth_proglist_create();
-
+        ref_get_refcount("before cmyth_get_all_pending:");
 	if (proglist == NULL) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_proglist_create() failed\n",
@@ -376,6 +384,7 @@ cmyth_proglist_get_all_pending(cmyth_conn_t control)
 		ref_release(proglist);
 		return NULL;
 	}
+        ref_get_refcount("before cmyth_get_all_pending:");
 	return proglist;
 }
 

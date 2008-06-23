@@ -32,6 +32,9 @@
  * -----------------------------------------------------------------
  */
 
+/* Return current number of references outstanding for everything */
+extern int ref_get_refcount();
+
 /**
  * Release a reference to allocated memory.
  * \param p allocated memory
