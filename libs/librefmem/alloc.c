@@ -55,8 +55,8 @@
 #define GUARD_MAGIC 0xe3
 #endif /* DEBUG */
 
-static int total_refcount=0;
-static int total_bytecount=0;
+static mvp_atomic_t total_refcount=0;
+static mvp_atomic_t total_bytecount=0;
 /*
  * struct refcounter
  *
@@ -106,7 +106,9 @@ static refcounter_t *ref_list[REF_ALLOC_BINS];
 
 int ref_get_refcount(char *loc)
   {
-  printf("%s Refs: %7d   Bytes: %8d\n",loc,total_refcount,total_bytecount);
+  /* REF_DBG_COUNTERS does not seem to work - what am I missing? */
+  refmem_dbg(REF_DBG_COUNTERS,"%40.40s Refs: %7d   Bytes: %8d\n",loc,total_refcount,total_bytecount); 
+  fprintf(stderr,",%40.40s Refs: %7d   Bytes: %8d\n",loc,total_refcount,total_bytecount); 
   return(total_refcount);
   }
 
@@ -236,7 +238,7 @@ __ref_alloc(size_t len, const char *file, const char *func, int line)
 	if (block) {
 		memset(block, 0, sizeof(refcounter_t) + len);
 		mvp_atomic_set(&ref->refcount, 1);
-		total_refcount ++;
+		mvp_atomic_inc(&total_refcount);
 		total_bytecount += sizeof(refcounter_t) + len;
 
 #ifdef DEBUG
@@ -414,7 +416,7 @@ ref_hold(void *p)
 		assert(guard->magic == GUARD_MAGIC);
 #endif /* DEBUG */
 		mvp_atomic_inc(&ref->refcount);
-		total_refcount ++;
+		mvp_atomic_inc(&total_refcount);
 	}
 	refmem_dbg(REF_DBG_DEBUG, "%s(%p) }\n", __FUNCTION__, p);
         return p;
@@ -459,7 +461,7 @@ ref_release(void *p)
 #endif /* DEBUG */
 
 /* Remove a refcount */
-		total_refcount --;
+		mvp_atomic_dec(&total_refcount);
 
 		if (mvp_atomic_dec_and_test(&ref->refcount)) {
 			/*

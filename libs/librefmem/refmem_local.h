@@ -6,9 +6,11 @@
  * to be done and the debug level of any given message.
  */
 
-#define REF_DBG_NONE  -1
-#define REF_DBG_DEBUG  0
-#define REF_DBG_ALL    0
+#define REF_DBG_NONE    -1
+#define REF_DBG_ERRORS   0 
+#define REF_DBG_COUNTERS 1
+#define REF_DBG_DEBUG    2 
+#define REF_DBG_ALL      2 
 
 void refmem_dbg_level(int l);
 
