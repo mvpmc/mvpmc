@@ -53,6 +53,7 @@
 #include <assert.h>
 #define ALLOC_MAGIC 0xef37a45d
 #define GUARD_MAGIC 0xe3
+#define GUARD_BYTES 1
 #endif /* DEBUG */
 
 static mvp_atomic_t total_refcount=0;
@@ -92,7 +93,7 @@ typedef struct refcounter {
 
 #ifdef DEBUG
 typedef struct {
-	unsigned char magic;
+	unsigned char magic[GUARD_BYTES];
 } guard_t;
 #endif /* DEBUG */
 
@@ -102,6 +103,24 @@ typedef struct {
 #if defined(DEBUG)
 #define REF_ALLOC_BINS	101
 static refcounter_t *ref_list[REF_ALLOC_BINS];
+#endif /* DEBUG */
+
+#ifdef DEBUG
+static inline void
+guard_set(guard_t *guard, unsigned char val)
+{
+	memset(&(guard->magic[0]), val, GUARD_BYTES);
+}
+
+static inline void
+guard_check(guard_t *guard)
+{
+	int i;
+
+	for (i=0; i<GUARD_BYTES; i++) {
+		assert(guard->magic[i] == GUARD_MAGIC);
+	}
+}
 #endif /* DEBUG */
 
 int ref_get_refcount(char *loc)
@@ -248,7 +267,7 @@ __ref_alloc(size_t len, const char *file, const char *func, int line)
 		ref->line = line;
 		guard = (guard_t*)((unsigned long)block +
 				   sizeof(refcounter_t) + len);
-		guard->magic = GUARD_MAGIC;
+		guard_set(guard, GUARD_MAGIC);
 		ref_add(ref);
 #endif /* DEBUG */
 		ref->destroy = NULL;
@@ -413,7 +432,7 @@ ref_hold(void *p)
 		assert(ref->magic == ALLOC_MAGIC);
 		guard = (guard_t*)((unsigned long)block +
 				   sizeof(refcounter_t) + ref->length);
-		assert(guard->magic == GUARD_MAGIC);
+		guard_check(guard);
 #endif /* DEBUG */
 		mvp_atomic_inc(&ref->refcount);
 		mvp_atomic_inc(&total_refcount);
@@ -457,7 +476,7 @@ ref_release(void *p)
 		assert(ref->magic == ALLOC_MAGIC);
 		guard = (guard_t*)((unsigned long)block +
 				   sizeof(refcounter_t) + ref->length);
-		assert(guard->magic == GUARD_MAGIC);
+		guard_check(guard);
 #endif /* DEBUG */
 
 /* Remove a refcount */
@@ -477,8 +496,8 @@ ref_release(void *p)
 				   __FILE__, __LINE__, __FUNCTION__);
 #ifdef DEBUG
 			ref->magic = 0;
-			guard->magic = 0;
-			refmem_ref_remove(ref);
+			guard_set(guard, 0);
+			ref_remove(ref);
 			ref->next = NULL;
 #endif /* DEBUG */
 /* Remove its bytes */
