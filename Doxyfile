@@ -77,7 +77,7 @@ WARN_LOGFILE           =
 #---------------------------------------------------------------------------
 INPUT                  = src include \
 			 libs/libav libs/libcmyth libs/libdemux libs/libosd \
-			 libs/librefmem libs/libreplaytv libtiwlan \
+			 libs/librefmem libs/libreplaytv libs/libtiwlan \
 			 libs/libts_demux libs/libvnc \
 			 libs/libwidget
 FILE_PATTERNS          = *.h \
