@@ -33,6 +33,8 @@
  * \li \link cmyth.h libcmyth \endlink
  * \li \link mvp_demux.h libdemux \endlink
  * \li \link mvp_osd.h libosd \endlink
+ * \li \link mvp_refmem.h librefmem \endlink
+ * \li \link tiwlan.h libtiwlan \endlink
  * \li \link mvp_widget.h libwidget \endlink
  *
  * \section application Application Headers
