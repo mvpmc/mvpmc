@@ -656,17 +656,32 @@ seek_disable_osd(mvp_widget_t *widget)
 	if (!display_on) {
 		disable_osd();
 	}
-
 	mvpw_expose(root);
+}
+
+void
+set_bookmark_status_fail(mvp_widget_t *widget)
+{
+	char buf[32];
+	char data[16]="Bookmark Status";
+	//display_on=!display_on;
+	display_on=0;
+	snprintf(buf, sizeof(buf),"Bookmark Failed");
+	mvpw_set_text_str(mythtv_osd_program, data);
+	mvpw_set_text_str(mythtv_osd_description, buf);
+	mvpw_expose(mythtv_osd_description);
 }
 
 void
 set_bookmark_status(mvp_widget_t *widget)
 {
 	char buf[32];
-	display_on=!display_on;
+	char data[16]="Bookmark Status";
+	//display_on=!display_on;
+	display_on=0;
 	snprintf(buf, sizeof(buf),"New Bookmark Set");
 	mvpw_set_text_str(mythtv_osd_description, buf);
+	mvpw_set_text_str(mythtv_osd_program, data);
 	mvpw_expose(mythtv_osd_description);
 }
 
@@ -674,9 +689,11 @@ void
 goto_bookmark_status(mvp_widget_t *widget)
 {
 	char buf[32];
-	display_on=!display_on;
+	char data[16]="Bookmark Status";
+	display_on=0;
 	snprintf(buf, sizeof(buf),"Jumping to bookmark");
 	mvpw_set_text_str(mythtv_osd_description, buf);
+	mvpw_set_text_str(mythtv_osd_program, data);
 	mvpw_expose(mythtv_osd_description);
 }
 
@@ -684,10 +701,11 @@ void
 set_commbreak_status(mvp_widget_t *widget)
 {
 	char buf[55];
-	// current_breaklist not available
-	// snprintf(buf, sizeof(buf),"MythTV Commercial Skip\n%li Commercial Breaks Found",current_breaklist->commbreak_count);
+	char data[16]="Commercial Skip";
+	display_on=0;
 	snprintf(buf, sizeof(buf),"MythTV Commercial Skip\n");
 	mvpw_set_text_str(mythtv_osd_description, buf);
+	mvpw_set_text_str(mythtv_osd_program, data);
 	mvpw_expose(mythtv_osd_description);
 }
 
@@ -695,11 +713,14 @@ void
 set_seek_status(mvp_widget_t *widget)
 {
 	char buf[42];
+	char data[16]="Skip";
+	display_on=0;
 	if (mythtv_commskip) 
 		snprintf(buf, sizeof(buf),"MythTV Seek\nNot in Commercial Break");
 	else 
 		snprintf(buf, sizeof(buf),"MythTV Seek\nCommercial Skip Disabled");
 	mvpw_set_text_str(mythtv_osd_description, buf);
+	mvpw_set_text_str(mythtv_osd_program, data);
 	mvpw_expose(mythtv_osd_description);
 }
 
@@ -709,6 +730,7 @@ display_bookmark_status_osd(int function)
 	display_on_alt = 1;
 	set_osd_callback(OSD_PROGRESS, video_progress);
 	set_osd_callback(OSD_TIMECODE, video_timecode);
+
 	switch (function) {
 		case 0:
 			//seek to bookmark
@@ -725,8 +747,14 @@ display_bookmark_status_osd(int function)
 		case 3:
 			// doing a normal seek
 			set_osd_callback(OSD_PROGRAM, set_seek_status);
+			break;
+		case 4:
+			// set bookmark failed
+			set_osd_callback(OSD_PROGRAM, set_bookmark_status_fail);
+			break;
 	}
-	mvpw_set_timer(root, seek_disable_osd, 5000);
+	mvpw_set_timer(mythtv_osd_description, seek_disable_osd , 5000);
+	mvpw_set_timer(mythtv_osd_program, seek_disable_osd , 5000);
 }
 
 void

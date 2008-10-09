@@ -648,21 +648,50 @@ fill_program_recording_status(cmyth_conn_t conn, char * msg)
 	}
 	return err;
 }
+int
+cmyth_update_bookmark_setting(cmyth_database_t db, cmyth_proginfo_t prog)
+{
+	MYSQL_RES *res = NULL;
+	const char *query_str = "UPDATE recorded SET bookmark = 1 WHERE chanid = ? AND starttime = ?";
+	cmyth_mysql_query_t * query;
+	char starttime[CMYTH_TIMESTAMP_LEN + 1];
 
-int 
-cmyth_get_bookmark_mark(cmyth_database_t db, cmyth_proginfo_t prog, long long bk)
+	cmyth_timestamp_to_string(starttime, prog->proginfo_rec_start_ts);
+	query = cmyth_mysql_query_create(db,query_str);
+	if (cmyth_mysql_query_param_long(query, prog->proginfo_chanId) < 0
+		|| cmyth_mysql_query_param_str(query, starttime) < 0 ) {
+		cmyth_dbg(CMYTH_DBG_ERROR,"%s, binding of query parameters failed! Maybe we're out of memory?\n", __FUNCTION__);
+		ref_release(query);
+		return -1;
+	}
+	res = cmyth_mysql_query_result(query);
+	ref_release(query);
+	if (res == NULL) {
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s, finalisation/execution of query failed!\n", __FUNCTION__);
+		return -1;
+	}
+	mysql_free_result(res);
+	return (1);
+}
+
+/* used to set bookmark in mythtv */
+long long 
+cmyth_get_bookmark_mark(cmyth_database_t db, cmyth_proginfo_t prog, long long bk, int mode)
 {
 	MYSQL_RES *res = NULL;
 	MYSQL_ROW row;
-	const char *query_str = "SELECT mark FROM recordedseek WHERE chanid = ? AND offset>= ? AND type = 6 ORDER by MARK ASC LIMIT 0,1;";
+	const char *query_str = "SELECT mark,type FROM recordedseek WHERE chanid = ? AND offset< ? AND (type = 6 or type = 9 )AND starttime = ? ORDER by MARK DESC LIMIT 0,1;";
 	int rows = 0;
-	int mark=0;
+	long long mark=0;
+	int rectype = 0;
 	char start_ts_dt[CMYTH_TIMESTAMP_LEN + 1];
 	cmyth_mysql_query_t * query;
-	cmyth_datetime_to_string(start_ts_dt, prog->proginfo_rec_start_ts);
+	cmyth_timestamp_to_string(start_ts_dt, prog->proginfo_rec_start_ts);
 	query = cmyth_mysql_query_create(db,query_str);
+
 	if (cmyth_mysql_query_param_long(query, prog->proginfo_chanId) < 0
 		|| cmyth_mysql_query_param_long(query, bk) < 0
+		|| cmyth_mysql_query_param_str(query, start_ts_dt) < 0
 		) {
 		cmyth_dbg(CMYTH_DBG_ERROR,"%s, binding of query parameters failed! Maybe we're out of memory?\n", __FUNCTION__);
 		ref_release(query);
@@ -676,24 +705,44 @@ cmyth_get_bookmark_mark(cmyth_database_t db, cmyth_proginfo_t prog, long long bk
 	}
 	while ((row = mysql_fetch_row(res))) {
 		mark = safe_atoi(row[0]);
+		rectype = safe_atoi(row[1]);
 		rows++;
 	}
 	mysql_free_result(res);
-	return mark;
+
+	if (rectype == 6) {
+		if (mode == 0) {
+			mark=(mark-1)*15;
+		}
+		else if (mode == 1) {
+			mark=(mark-1)*12;
+		}
+	}
+
+
+	return (mark);
 }
 
+/* used for getting mythtv bookmarks 
+BLUE button on the remote
+*/
 int 
-cmyth_get_bookmark_offset(cmyth_database_t db, long chanid, long long mark) 
+cmyth_get_bookmark_offset(cmyth_database_t db, long chanid, long long mark, char *starttime, int mode) 
 {
 	MYSQL_RES *res = NULL;
 	MYSQL_ROW row;
-	const char *query_str = "SELECT * FROM recordedseek WHERE chanid = ? AND mark= ?;";
 	int offset=0;
 	int rows = 0;
+	int rectype = 0;
 	cmyth_mysql_query_t * query;
+	
+	//const char *query_str = "SELECT * FROM recordedseek WHERE chanid = ? AND mark= ? AND starttime = ?;";
+	const char *query_str = "SELECT * FROM recordedseek WHERE chanid = ? AND mark<= ? AND starttime = ? ORDER BY MARK DESC LIMIT 1;";
+
 	query = cmyth_mysql_query_create(db,query_str);
 	if (cmyth_mysql_query_param_long(query, chanid) < 0
 		|| cmyth_mysql_query_param_long(query, mark) < 0
+		|| cmyth_mysql_query_param_str(query, starttime) < 0
 		) {
 		cmyth_dbg(CMYTH_DBG_ERROR,"%s, binding of query parameters failed! Maybe we're out of memory?\n", __FUNCTION__);
 		ref_release(query);
@@ -707,7 +756,36 @@ cmyth_get_bookmark_offset(cmyth_database_t db, long chanid, long long mark)
 	}
 	while ((row = mysql_fetch_row(res))) {
 		offset = safe_atoi(row[3]);
+		rectype = safe_atoi(row[4]);
 		rows++;
+	}
+	if (rectype != 9) {
+		if (mode == 0) {
+			mark=(mark/15)+1;
+		}
+		else if (mode == 1) {
+			mark=(mark/12)+1;
+		}
+		query = cmyth_mysql_query_create(db,query_str);
+		if (cmyth_mysql_query_param_long(query, chanid) < 0
+			|| cmyth_mysql_query_param_long(query, mark) < 0
+			|| cmyth_mysql_query_param_str(query, starttime) < 0
+			) {
+			cmyth_dbg(CMYTH_DBG_ERROR,"%s, binding of query parameters failed! Maybe we're out of memory?\n", __FUNCTION__);
+			ref_release(query);
+			return -1;
+		}
+		res = cmyth_mysql_query_result(query);
+		ref_release(query);
+		if (res == NULL) {
+			cmyth_dbg(CMYTH_DBG_ERROR, "%s, finalisation/execution of query failed!\n", __FUNCTION__);
+			return -1;
+		}
+		while ((row = mysql_fetch_row(res))) {
+			offset = safe_atoi(row[3]);
+			rectype = safe_atoi(row[4]);
+			rows++;
+		}
 	}
 	mysql_free_result(res);
 	return offset;
@@ -718,7 +796,11 @@ cmyth_mysql_get_commbreak_list(cmyth_database_t db, int chanid, char * start_ts_
 {
 	MYSQL_RES *res = NULL;
 	MYSQL_ROW row;
-	const char *query_str = "SELECT m.type AS type, m.mark AS mark, s.offset AS offset FROM recordedmarkup m INNER JOIN recordedseek AS s ON (m.chanid = s.chanid AND m.starttime = s.starttime AND (FLOOR(m.mark / 15) + 1) = s.mark) WHERE m.chanid = ? AND m.starttime = ? AND m.type IN (?, ?) ORDER BY mark;";
+	/*if (av_get_mode()== 1) {
+		const char *query_str = "SELECT m.type AS type, m.mark AS mark, s.offset AS offset FROM recordedmarkup m INNER JOIN recordedseek AS s ON (m.chanid = s.chanid AND m.starttime = s.starttime AND (FLOOR(m.mark / 12) + 1) = s.mark) WHERE m.chanid = ? AND m.starttime = ? AND m.type IN (?, ?) ORDER BY mark;";
+	}
+	else { */
+		const char *query_str = "SELECT m.type AS type, m.mark AS mark, s.offset AS offset FROM recordedmarkup m INNER JOIN recordedseek AS s ON (m.chanid = s.chanid AND m.starttime = s.starttime AND (FLOOR(m.mark / 15) + 1) = s.mark) WHERE m.chanid = ? AND m.starttime = ? AND m.type IN (?, ?) ORDER BY mark;";
 	int rows = 0;
 	cmyth_mysql_query_t * query;
 	query = cmyth_mysql_query_create(db,query_str);

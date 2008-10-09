@@ -250,6 +250,10 @@ mythtv_video_key(char key)
 	long long offset=0;
 	long long dbmark=0;
 	cmyth_conn_t ctrl=ref_hold(control);
+	char starttime[24];
+	int mode=0;
+	mode=av_get_mode();
+	fprintf(stderr, "VIDEO MODE = %d\n",mode);
 
 	switch (key) {
 		case MVPW_KEY_SKIP:
@@ -272,12 +276,13 @@ mythtv_video_key(char key)
 				fprintf(stderr, "Not in commbreak.  Reverting to standard replay.\n");
 			}
 			break;
-		case MVPW_KEY_BLUE:
+		case MVPW_KEY_BLUE: //get bookmark
 			if ((mark=cmyth_get_bookmark(ctrl,current_prog)) >0) {
-				mark=(mark/15)+1;
 				chanid=cmyth_proginfo_chan_id(current_prog);
-				if ((offset = cmyth_get_bookmark_offset(mythtv_database,chanid,mark)) <0) {
+				cmyth_timestamp_to_string(starttime,cmyth_proginfo_rec_start(current_prog));
+				if ((offset = cmyth_get_bookmark_offset(mythtv_database,chanid,mark,starttime,mode)) <0) {
 					fprintf(stderr,"No offset found in recordedseek chanid=%ld mark=%qd\n",chanid,mark);
+					display_bookmark_status_osd(4);
 				}
 				else {
 					display_bookmark_status_osd(0);
@@ -288,21 +293,30 @@ mythtv_video_key(char key)
 			}
 			else {
 				fprintf (stderr,"No bookmark found\n");
+				display_bookmark_status_osd(4);
 			}
 			break;
-		case MVPW_KEY_YELLOW:
+		case MVPW_KEY_YELLOW: //set bookmark
 			bookmark = video_functions->seek(0, SEEK_CUR);
 			bk= bookmark;
-			if ((dbmark=cmyth_get_bookmark_mark(mythtv_database,current_prog,bk)) < 0) {
+			if ((dbmark=cmyth_get_bookmark_mark(mythtv_database,current_prog,bk,mode)) < 0) {
 				fprintf(stderr, "Bookmark not set\n");
+				display_bookmark_status_osd(4);
 			}
 			else {
-				dbmark = (dbmark-1)*15;
 				fprintf (stderr,"keyframe mark = %lld\n",dbmark);
-				cmyth_set_bookmark(ctrl, current_prog, dbmark );
-				cmyth_dbg(CMYTH_DBG_DEBUG, "bookmark saved, value: %qd \n",bookmark);
-				display_bookmark_status_osd(1);
-				rc=1;
+				if ( cmyth_set_bookmark(ctrl, current_prog, dbmark ) < 0 ) {
+					display_bookmark_status_osd(4);
+					cmyth_dbg(CMYTH_DBG_DEBUG, "ERROR bookmark FAILED, value: %qd \n",bookmark);
+				}
+				else {
+					cmyth_dbg(CMYTH_DBG_DEBUG, "bookmark saved, value: %qd \n",bookmark);
+					display_bookmark_status_osd(1);
+					if (cmyth_update_bookmark_setting(mythtv_database, current_prog) <0) {
+						cmyth_dbg(CMYTH_DBG_DEBUG, "ERROR cmyth_update_bookmark_setting failed\n");
+					}
+					rc=1;
+				}
 			}
 			break;
 	}
