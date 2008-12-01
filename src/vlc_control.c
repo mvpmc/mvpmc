@@ -341,7 +341,7 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
                                 }
                                 break;
                             case 1:
-                                fprintf(instream,vlc_connects[i]);
+                                fprintf(instream,"%s",vlc_connects[i]);
                                 VLC_LOG_FILE(vlc_connects[i],newurl);
                                 ContentType = 2;
                                 break;
@@ -356,11 +356,15 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
                                 break;
                             case 4:
                                 if ( ContentType == 100 ) {
-                                    fprintf(instream,vlc_get_video_transcode());
-                                    VLC_LOG_FILE(vlc_get_video_transcode());
+                                    fprintf(instream,
+					    "%s", vlc_get_video_transcode());
+                                    VLC_LOG_FILE("%s",
+						 vlc_get_video_transcode());
                                 } else {
-                                    fprintf(instream,vlc_get_audio_transcode());
-                                    VLC_LOG_FILE(vlc_get_audio_transcode());
+                                    fprintf(instream,
+					    "%s", vlc_get_audio_transcode());
+                                    VLC_LOG_FILE("%s",
+						 vlc_get_audio_transcode());
                                 }
                                 break;
                             case 5:
@@ -386,8 +390,8 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
                                     break;
                                 }
                             default:
-                                fprintf(instream,vlc_connects[i]);
-                                VLC_LOG_FILE(vlc_connects[i]);
+                                fprintf(instream, "%s", vlc_connects[i]);
+                                VLC_LOG_FILE("%s", vlc_connects[i]);
                                 break;
                         }
                     } else if (VlcCommandType == VLC_CONTROL) {
@@ -400,8 +404,8 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
                                 VLC_LOG_FILE(vlc_controls[i],VlcCommandArgs);
                                 break;
                             default:
-                                fprintf(instream, vlc_controls[i]);
-                                VLC_LOG_FILE(vlc_controls[i]);
+                                fprintf(instream, "%s", vlc_controls[i]);
+                                VLC_LOG_FILE("%s", vlc_controls[i]);
                                 break;
                         }
                     } else if (VlcCommandType == VLC_DESTROY) {
@@ -410,12 +414,12 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
                                 fprintf(instream,"admin\r\n");
                                 break; 
                             case 1:
-                                fprintf(instream,vlc_connects[i]);
-                                VLC_LOG_FILE(vlc_connects[i]);
+                                fprintf(instream, "%s", vlc_connects[i]);
+                                VLC_LOG_FILE("%s", vlc_connects[i]);
                                 break;
                             default:
-                                fprintf(instream, vlc_controls[i]);
-                                VLC_LOG_FILE(vlc_controls[i]);
+                                fprintf(instream, "%s", vlc_controls[i]);
+                                VLC_LOG_FILE("%s", vlc_controls[i]);
                                 break;
                         }
                     } else if (VlcCommandType == VLC_SEEK_PCT) {
@@ -426,7 +430,7 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
 				    break;
 				case 1:
 				    // SHOW MVPMC command
-				    fprintf(instream,vlc_pct[i]);
+				    fprintf(instream, "%s", vlc_pct[i]);
 				    break;
 				case 2:
 				    // Parse the show mvpmc response and
@@ -463,8 +467,8 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
 			            close(vlc_sock);
 				    return newpos;
 				default:
-				    fprintf(instream,vlc_pct[i]);
-				    VLC_LOG_FILE(vlc_pct[i]);
+				    fprintf(instream,"%s",vlc_pct[i]);
+				    VLC_LOG_FILE("%s",vlc_pct[i]);
 				    break;
 			}
                     } else if (VlcCommandType == VLC_SEEK_SEC) {
@@ -475,7 +479,7 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
 				    break;
 				case 1:
 				    // SHOW MVPMC command
-				    fprintf(instream,vlc_sec[i]);
+				    fprintf(instream,"%s",vlc_sec[i]);
 				    break;
 				case 2:
 				    // Parse the show mvpmc response and
@@ -536,8 +540,8 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
 				    close(vlc_sock);
 				    return newpos;
 				default:
-				    fprintf(instream,vlc_sec[i]);
-				    VLC_LOG_FILE(vlc_sec[i]);
+				    fprintf(instream,"%s",vlc_sec[i]);
+				    VLC_LOG_FILE("%s",vlc_sec[i]);
 				    break;
 			}
 
@@ -549,7 +553,7 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
 				    break;
 				case 1:
 				    // SHOW MVPMC command
-				    fprintf(instream,vlc_pct[i]);
+				    fprintf(instream,"%s",vlc_pct[i]);
 				    break;
 				case 2:
 				    // Parse the show mvpmc response and
@@ -596,8 +600,8 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
 			            close(vlc_sock);            
 				    return mpos;
 				default:
-				    fprintf(instream,vlc_pct[i]);
-				    VLC_LOG_STDOUT(vlc_pct[i]);
+				    fprintf(instream,"%s",vlc_pct[i]);
+				    VLC_LOG_STDOUT("%s",vlc_pct[i]);
 				    break;
 			}
 

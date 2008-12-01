@@ -379,8 +379,9 @@ playlist_idle(mvp_widget_t *widget)
 				  char *p;
     
 				  snprintf(artist, sizeof(artist),
-					   info->artist);
-				  snprintf(title, sizeof(title), info->title);
+					   "%s", info->artist);
+				  snprintf(title, sizeof(title),
+					   "%s", info->title);
 				  p = artist + strlen(artist) - 1;
 				  while (*p == ' ')
 					  *(p--) = '\0';

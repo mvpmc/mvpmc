@@ -666,7 +666,11 @@ load_config_file(char *file, int override)
 	memset(list, 0, sizeof(*list));
 
 	fstat(fd, &sb);
-	read(fd, list, sb.st_size);
+
+	if(read(fd, list, sb.st_size) != sb.st_size) {
+		fprintf(stderr,"read failed/read incorrect number of bytes\n");
+		goto err;
+	}
 
 	if (list->magic != CONFIG_MAGIC) {
 		fprintf(stderr, "invalid magic number\n");

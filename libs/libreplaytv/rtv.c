@@ -24,6 +24,7 @@
 #include <unistd.h>
 #include <time.h>
 #include <errno.h>
+#include <limits.h>
 #include "rtv.h"
 
 // ID Numbers used for communication with RTV's

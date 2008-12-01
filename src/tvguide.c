@@ -312,7 +312,7 @@ auto_tune_add(char *chanstr, char *title, time_t start_time, time_t end_time)
 		strncpy(rtrn->chanstr, chanstr, 10);
 		rtrn->chanstr[9] = '\0';
 		strncpy(rtrn->title, title, 150);
-		rtrn->chanstr[149] = '\0';
+		rtrn->title[149] = '\0';
 		PRINTF("** SSDEBUG: Auto tune @ %ld,%ld to channel %s at pos %d\n",
 					 start_time, end_time, rtrn->chanstr, auto_tune_list->at_count);
 	}

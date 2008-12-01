@@ -531,8 +531,9 @@ void strencode( char* to, size_t tosize, const char* from )
 static void post_post_garbage_hack( FILE *stream,int conn_fd )
 {
 	char buf[2];
+	int bytes;
 	set_ndelay( conn_fd );
-	fread(buf, sizeof(buf),1,stream );
+	bytes = fread(buf, sizeof(buf),1,stream );
 	clear_ndelay( conn_fd );
 }
 
@@ -931,7 +932,10 @@ int mvp_config_general(char *line)
 		FILE *web_config_file;
 		web_config_file = fopen (WEB_CONFIG_FILENAME,"wb");
 		if (web_config_file!=NULL) {
-			fwrite((char *)web_config,sizeof(web_config_t),1,web_config_file);
+			if(fwrite((char *)web_config,sizeof(web_config_t),1,web_config_file) < 1)
+			{
+				fprintf(stderr,"Failed to write web config data\n");
+			}
 			fclose(web_config_file);
 		}
 
@@ -988,7 +992,10 @@ int mvp_config_script(char *line)
 	fclose(fp);
 	chmod(MVPSHAREFN,S_IRWXU|S_IRWXG);
 	if (upexec==101) {
-		system(MVPSHAREFN);
+		if(system(MVPSHAREFN) != 0)
+		{
+			fprintf(stderr,"Failed to run '%s'\n",MVPSHAREFN);
+		}
 	}
 	return rc;
 }
@@ -1011,16 +1018,25 @@ int mvp_load_data(FILE *stream,char *line)
 				*embed = 0;
 				embed = strchr(ptr,'>');
 				if (embed!=NULL) {
+					int written;
 					if (id < 100) {
 						// undefined zero is a problem
 					} else if (id>=700 && id < 800) {
-						fwrite(remaining,sizeof(char),strlen(remaining),stream);
+						while((written = fwrite(remaining,sizeof(char),strlen(remaining),stream)) < strlen(remaining))
+						{
+							if(written > 0)
+								remaining += written;
+						}
 						if (web_config->pick_playlist == (id - 700) ) {
 							fprintf(stream," SELECTED");
 						}
 
 					} else if (id < 10000) {
-						fwrite(remaining,sizeof(char),strlen(remaining),stream);
+						while((written = fwrite(remaining,sizeof(char),strlen(remaining),stream)) < strlen(remaining))
+						{
+							if(written > 0)
+								remaining += written;
+						}
 						switch (id) {
 						case WEB_CONFIG_TZ:
 							fprintf(stream,"VALUE=\"%s\"",web_config->tz);
@@ -1292,9 +1308,9 @@ void load_web_config(char *font)
 
 	web_config->control = 0;
 	web_config_file = fopen (WEB_CONFIG_FILENAME,"rb");
-	if (web_config_file !=NULL ) {
-		printf("web file open\n");
-		fread((char *)web_config,sizeof(web_config_t),1,web_config_file);
+	if ((web_config_file !=NULL) &&
+	    (fread((char *)web_config,sizeof(web_config_t),1,web_config_file) == 1))
+	{
 		fclose(web_config_file);
 		char live_environ[75];
 		snprintf(live_environ,75,"%s&password=%s",web_config->live365_userid,web_config->live365_password);

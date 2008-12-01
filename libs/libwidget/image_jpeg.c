@@ -212,8 +212,8 @@ mvpw_load_image_jpeg(mvp_widget_t *widget, char *file)
 			goto err1;
 		}
 	
-		read(fd, prefix, 2);
-		if ((prefix[0] != 0xff) && (prefix[1] != 0xd8)) {
+		if((read(fd, prefix, 2) != 2) ||
+		   ((prefix[0] != 0xff) && (prefix[1] != 0xd8))) {
 			EPRINTF("%s: not a JPEG file: %s\n", __FUNCTION__, file);
 			ret = -1;
 			goto err1;

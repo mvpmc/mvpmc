@@ -141,7 +141,7 @@ display_timecode(mvp_widget_t *widget)
 
   attr = demux_get_attr(handle);
   av_current_stc(&stc);
-  snprintf(display_struct.Time.String, sizeof(display_struct.Time), "%.2d:%.2d:%.2d",
+  snprintf(display_struct.Time.String, sizeof(display_struct.Time.String), "%.2d:%.2d:%.2d",
 	   stc.hour, stc.minute, stc.second);
   /*
    * Tell main display function new time data

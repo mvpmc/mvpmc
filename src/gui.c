@@ -2357,8 +2357,11 @@ themes_select_callback(mvp_widget_t *widget, char *item, void *key)
 
 	if (config->bitmask & CONFIG_THEME) {
 		strcpy(buf, config->theme);
-	} else {
-		readlink(DEFAULT_THEME, buf, sizeof(buf));
+	}
+	else if(readlink(DEFAULT_THEME, buf, sizeof(buf)) <= 0)
+	{
+		fprintf(stderr,"Error doing readlink on %s, aborting theme switch\n",DEFAULT_THEME);
+		return;
 	}
 
 	path = theme_list[(int)key].path;
@@ -2367,7 +2370,10 @@ themes_select_callback(mvp_widget_t *widget, char *item, void *key)
 		printf("switch to theme '%s'\n", item);
 		unlink(DEFAULT_THEME);
 		if (symlink(path, DEFAULT_THEME) != 0) {
-			symlink(buf, DEFAULT_THEME);
+			if(symlink(buf, DEFAULT_THEME) != 0){
+				fprintf(stderr, "switch abort failed!\n");
+				exit(2);
+			}
 			fprintf(stderr, "switch failed!\n");
 			return;
 		}
@@ -5825,8 +5831,8 @@ themes_init(void)
 			if (strcmp(config->theme, theme_list[i].path) == 0)
 				check = 1;
 		} else {
-			readlink(DEFAULT_THEME, buf, sizeof(buf));
-			if (strcmp(buf, theme_list[i].path) == 0)
+			if ((readlink(DEFAULT_THEME, buf, sizeof(buf)) > 0) &&
+			    (strcmp(buf, theme_list[i].path) == 0))
 				check = 1;
 		}
 		if (theme_list[i].name)
@@ -8605,7 +8611,12 @@ capture_screenshot(void)
 	bmp.iheader.important = 0;
 
 	fd = open(screen_capture_file, O_CREAT|O_TRUNC|O_WRONLY, 0644);
-	write(fd, &bmp, sizeof(bmp));
+	if(write(fd, &bmp, sizeof(bmp)) != sizeof(bmp))
+	{
+		fprintf(stderr, "Bitmap write failed!\n");
+		return;
+	}
+		
 
 	w = info.w;
 	h = info.h;
@@ -8630,7 +8641,11 @@ capture_screenshot(void)
 			printf("screenshot error!\n");
 			break;
 		}
-		write(fd, buf, w*3);
+		if(write(fd, buf, w*3) != w*3)
+		{
+			fprintf(stderr, "Bitmap write failed!\n");
+			return;
+		}
 	}
 	printf("done with screenshot\n");
 

@@ -340,7 +340,7 @@ add_recgroup(char *recgroup)
 			printf("Add recgroup: %s\n", recgroup);
 			snprintf(config->mythtv_recgroup[i].label,
 				 sizeof(config->mythtv_recgroup[i].label),
-				 recgroup);
+				 "%s",recgroup);
 			config->bitmask |= CONFIG_MYTHTV_RECGROUP;
 			return;
 		}
@@ -4249,10 +4249,13 @@ mythtv_delete_previous_recorded(mvp_widget_t *widget, char *item , void *key)
 	mvpw_focus(mythtv_options);
 }
 
+#define min(a,b) (((a) < (b))? (a) : (b))
+
 void
 hilite_mythtv_delete_previous_recorded(mvp_widget_t *widget, char *item , void *key, bool hilite)
 {
 	int which = (int)key;
+	size_t len;
 	char buf[512];
 	char date[30];
 	char date1[5];
@@ -4264,23 +4267,26 @@ hilite_mythtv_delete_previous_recorded(mvp_widget_t *widget, char *item , void *
 	strftime(date1,25,"%I:%M %p", &loctime);
 	strcat(date,date1);
 	rec_stat=mythtv_RecStatusType_Lookup(sqlprog[which].rec_status);
-	if (strlen(sqlprog[which].description) > 384) {
-		sqlprog[which].description[381]='.';
-		sqlprog[which].description[382]='.';
-		sqlprog[which].description[383]='.';
-		sqlprog[which].description[384]='\0';
+	len = min(sizeof(sqlprog[which].description), 135);
+	if (strlen(sqlprog[which].description) >= len - 1 ) {
+		sqlprog[which].description[len - 4] =
+		    sqlprog[which].description[len - 3] =
+		    sqlprog[which].description[len - 2] = '.';
+		sqlprog[which].description[len - 1] = '\0';
 	}
-	if (strlen(sqlprog[which].title) > 84) {
-		sqlprog[which].description[81]='.';
-		sqlprog[which].description[82]='.';
-		sqlprog[which].description[83]='.';
-		sqlprog[which].description[84]='\0';
+	len = min(sizeof(sqlprog[which].title), 85);
+	if (strlen(sqlprog[which].title) >= len - 1) {
+		sqlprog[which].description[len - 4]='.';
+		sqlprog[which].description[len - 3]='.';
+		sqlprog[which].description[len - 2]='.';
+		sqlprog[which].description[len - 1]='\0';
 	}
-	if (strlen(sqlprog[which].subtitle) > 84) {
-		sqlprog[which].description[81]='.';
-		sqlprog[which].description[82]='.';
-		sqlprog[which].description[83]='.';
-		sqlprog[which].description[84]='\0';
+	len = min(sizeof(sqlprog[which].subtitle), 85);
+	if (strlen(sqlprog[which].subtitle) >= len - 1) {
+		sqlprog[which].description[len - 4]='.';
+		sqlprog[which].description[len - 3]='.';
+		sqlprog[which].description[len - 2]='.';
+		sqlprog[which].description[len - 1]='\0';
 	}
 	snprintf(buf, sizeof(buf), "%s\n%d  %s    %s\n'%s'\n%s\n%s       %s\n",
                  sqlprog[which].title,sqlprog[which].channum,sqlprog[which].callsign,date,

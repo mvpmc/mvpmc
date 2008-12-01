@@ -25,7 +25,7 @@
 #include <mvp_av.h>
 
 #define WSS_PAL_ELEMENTS 137
-#define WSS_NTSC_BITS 17
+#define WSS_NTSC_BITS 23
 static mvp_widget_t *wss_surface = NULL;
 static char wss_pal_elems[WSS_PAL_ELEMENTS];
 static void wss_pal_update_surface();

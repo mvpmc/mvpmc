@@ -1895,9 +1895,11 @@ fetch_cover_image(char *filename, char *url_string)
         (retcode == HTTP_IMAGE_FILE_PNG) || (retcode == HTTP_IMAGE_FILE_GIF))
     {
         char buf[STREAM_PACKET_SIZE];
+	char *bufptr;
         FILE *outfile = fopen(filename, "wb");
         retcode = 0;
         int nitems = -1;
+	int written = -1;
         while (nitems && gui_state == MVPMC_STATE_MCLIENT)
         {
             nitems = read(fd, buf, STREAM_PACKET_SIZE);
@@ -1914,7 +1916,15 @@ fetch_cover_image(char *filename, char *url_string)
                     break;
                 }
             }
-            fwrite(buf, 1, nitems, outfile);
+	    bufptr = buf;
+	    while((written = fwrite(bufptr, 1, nitems, outfile)) < nitems)
+	    {
+		if(written > 0)
+		{
+			nitems -= written;
+			bufptr += written;
+		}
+	    }
         }
         fclose(outfile);
     }

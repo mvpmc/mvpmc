@@ -421,8 +421,9 @@ spawn_child(void)
 			key = web_config->control;
 			if ( key!=0 || select(fd+1, &fds, NULL, NULL, &to) > 0) {
 				if (key == 0 ) {
-					read(fd, &key, sizeof(key));
-					read(fd, &key, sizeof(key));
+					if(read(fd, &key, sizeof(key)) != sizeof(key)
+					   || read(fd, &key, sizeof(key)) != sizeof(key))
+						continue;
 				} 
 
 				if ((key & 0xff) == 0x3d) {

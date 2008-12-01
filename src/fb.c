@@ -400,7 +400,8 @@ add_dirs(mvp_widget_t *fbw)
 					ptr = gb.gl_pathv[i];
 				else
 					ptr++;
-				sprintf(buf, ptr);
+				snprintf(buf, sizeof(buf)/sizeof(*buf) - 1,
+					 "%s", ptr);
 				strcat(buf, "/");
 				mvpw_add_menu_item(fbw, buf,
 						   (void*)dir_count++,
@@ -736,7 +737,7 @@ int quickdir_change(mvp_widget_t *widget,char *path )
 		} else if (strstr(path,"/uPnP")==NULL && strstr(cwd,"/uPnP")!=NULL ) { 
 			unmount_djmount();
 		}
-		snprintf(cwd,1024,path);
+		snprintf(cwd,1024,"%s",path);
 		fb_update(widget);
 	}
 	return rc;

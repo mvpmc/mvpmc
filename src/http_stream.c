@@ -642,12 +642,12 @@ http_content_t http_main(void)
 						}
 						mvpw_set_text_str(fb_name,icyn );
 						mvpw_menu_change_item(playlist_widget,playlist->key, icyn);
-						snprintf(shoutcastDisplay,40,icyn);
+						snprintf(shoutcastDisplay,40,"%s",icyn);
 					} else if (strncasecmp (line_data,"x-audiocast-name:",17)==0 ) {
 						line_data[70]=0;
 						mvpw_set_text_str(fb_name, &line_data[17]);
 						mvpw_menu_change_item(playlist_widget,playlist->key, &line_data[17]);
-						snprintf(shoutcastDisplay,40,&line_data[17]);
+						snprintf(shoutcastDisplay,40,"%s",&line_data[17]);
 					} else if (strncasecmp (line_data, "icy-br:",6)==0) {
 						snprintf(bitRate,10,"kbps%s",&line_data[6]);
 					} else if (strncasecmp (line_data, "x-audiocast-bitrate:",20)==0) {

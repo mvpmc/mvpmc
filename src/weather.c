@@ -284,9 +284,11 @@ fetch_weather_image(int code, char *filename)
 
 	if (retcode==HTTP_IMAGE_FILE_GIF) {
 		char buf[STREAM_PACKET_SIZE];
+		char *bufptr;
 		FILE *outfile = fopen(filename, "wb");
 		retcode = 0;
 		int nitems = -1;
+		int written = -1;
 		while (nitems && gui_state == MVPMC_STATE_WEATHER) {
 			nitems = read(fd,buf, STREAM_PACKET_SIZE);
 			if (nitems < 0 ){
@@ -298,7 +300,16 @@ fetch_weather_image(int code, char *filename)
 					break;
 				}
 			}
-			fwrite(buf,1, nitems, outfile);
+			bufptr = buf;
+			while((written = fwrite(bufptr,1, nitems, outfile)) < nitems)
+			{
+				if(written > 0)
+				{
+					nitems -= written;
+					bufptr += written;
+				}
+			}
+			
 		}
 		fclose(outfile);
 	} else {
