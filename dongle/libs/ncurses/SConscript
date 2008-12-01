@@ -29,8 +29,8 @@ url = [ 'http://www.mvpmc.org/dl/ncurses-5.5.tar.gz',
 target = [ libdir + 'libncurses.a' ]
 cmd = [ 'export CXX=%sg++' % cross,
         './configure --prefix=%s %s' % (prefix,config),
-        'make',
-        'make install' ]
+        'make libs',
+        'make install.libs' ]
 
 build = mvpmc.OSSBuild(target, url, env, e, cmd)
 
