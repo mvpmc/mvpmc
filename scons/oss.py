@@ -116,6 +116,10 @@ def build_action(source, target, env):
     command += '"'
     debug(2, command)
     build = os.system(command)
+    #Delete directory full of intermediary files, it'll be deleted if this is
+    #ever rebuilt anyway, so there's no reason to keep it around
+    if (build == 0) and os.path.exists(dir):
+        os.system('rm -rf %s' % dir)
     return None
 
 def ossTarget(target):
