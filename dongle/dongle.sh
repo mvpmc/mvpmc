@@ -13,11 +13,11 @@ echo STRIP $STRIP
 DIRS="bin sbin usr/bin usr/sbin lib dev proc var usr/share usr/share/mvpmc usr/share/udhcpc etc tmp oldroot"
 WRAPPER_DIRS="bin sbin etc usr/bin usr/sbin dev tmp lib proc mnt"
 
-BIN="busybox flashcp mvpmc ntpclient scp djmount nbtscan"
+BIN="busybox flashcp mvpmc ntpclient scp djmount nbtscan fusermount"
 MVPMC_BIN="ticonfig vpdread splash"
 WRAPPER_BIN="busybox splash"
 
-SBIN="dropbearmulti dropbear dropbearkey fusermount"
+SBIN="dropbearmulti dropbear dropbearkey"
 
 USRBIN=""
 
@@ -97,8 +97,8 @@ done
 
 cp $TOOLLIB/../powerpc-405-linux-uclibc/target_utils/ldd filesystem/install/usr/bin
 
-awk -F/ '{if(/^\/bin\/[^\/]+$/) { system("ln -s busybox filesystem/install" $0 ) } else {rp=sprintf("%" NF-2 "s", ""); gsub(/./,"../",rp); system("ln -sf " rp "bin/busybox filesystem/install" $0) }}' apps/busybox/mvp/busybox-*/busybox.links
-awk -F/ '{if(/^\/bin\/[^\/]+$/) { system("ln -s busybox filesystem/install_wrapper" $0 ) } else {rp=sprintf("%" NF-2 "s", ""); gsub(/./,"../",rp); system("ln -sf " rp "bin/busybox filesystem/install_wrapper" $0) }}' apps/busybox/mvp/busybox-*/busybox.links
+awk -F/ '{if(/^\/bin\/[^\/]+$/) { system("ln -s busybox filesystem/install" $0 ) } else {rp=sprintf("%" NF-2 "s", ""); gsub(/./,"../",rp); system("ln -sf " rp "bin/busybox filesystem/install" $0) }}' install/mvp/bin/busybox.links
+awk -F/ '{if(/^\/bin\/[^\/]+$/) { system("ln -s busybox filesystem/install_wrapper" $0 ) } else {rp=sprintf("%" NF-2 "s", ""); gsub(/./,"../",rp); system("ln -sf " rp "bin/busybox filesystem/install_wrapper" $0) }}' install/mvp/bin/busybox.links
 
 cp -d install/mvp/usr/share/mvpmc/* filesystem/install/usr/share/mvpmc
 cp -d install/mvp/linuxrc filesystem/install

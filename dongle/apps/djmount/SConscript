@@ -11,6 +11,7 @@ Import('env')
 build_target = env['TARG']
 topdir = env['TOPDIR']
 bindir = '%s/dongle/install/%s/bin/' % (topdir,build_target)
+prefix = '%s/dongle/install/%s' % (topdir,build_target)
 
 e = Environment()
 
@@ -19,9 +20,9 @@ url = [ 'http://www.mvpmc.org/dl/djmount-0.71.tar.gz' ]
 pwd = os.getcwd()
 
 target = [ bindir + 'djmount' ]
-cmd = [ './configure --host=powerpc-405-linux-uclibc --with-fuse-prefix=%s/../fuse/mvp/fuse-2.5.3/ --disable-debug --with-gnu-ld' % pwd,
+cmd = [ './configure --host=powerpc-405-linux-uclibc --disable-debug --with-gnu-ld --prefix=%s --with-fuse-prefix=%s' % (prefix, prefix),
         'make',
-        'cp djmount/djmount %s' % bindir ]
+        'make install' ]
 patches = [ 'djmount.patch' ]
 
 build = mvpmc.OSSBuild(target, url, env, e, cmd, patches)

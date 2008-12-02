@@ -720,7 +720,7 @@ int unmount_djmount(void)
 		set_route(0);
 	}
 	if (fork()==0) {
-		rc = execlp("/sbin/fusermount","fusermount","-u","/uPnP",(char *)0);
+		rc = execlp("/bin/fusermount","fusermount","-u","/uPnP",(char *)0);
 	}
 	return rc;
 }

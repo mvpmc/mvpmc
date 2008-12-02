@@ -19,7 +19,8 @@ url = [ 'http://www.mvpmc.org/dl/busybox-1.1.3.tar.bz2',
 
 target = [ bindir + 'busybox' ]
 cmd = [ 'make oldconfig',
-	'make install' ]
+	'make install',
+	'cp busybox.links %s' % bindir]
 patches = [ 'patches/busybox_config.patch',
 	    'patches/busybox-1.1.3.patch' ]
 
