@@ -91,6 +91,7 @@ def build_action(source, target, env):
     cross = env.Dictionary().get('cross','')
     prefix = env.Dictionary().get('prefix','')
     cmd = env.Dictionary().get('command','')
+    flagfile = '%s/%s/flag_keep_buildtree' % (path,buildtarget)
 
     src = str(source[0])
     i = src.rfind('.') + 1
@@ -118,7 +119,7 @@ def build_action(source, target, env):
     build = os.system(command)
     #Delete directory full of intermediary files, it'll be deleted if this is
     #ever rebuilt anyway, so there's no reason to keep it around
-    if (build == 0) and os.path.exists(dir):
+    if (build == 0) and os.path.exists(dir) and not os.path.exists(flagfile):
         os.system('rm -rf %s' % dir)
     return None
 
