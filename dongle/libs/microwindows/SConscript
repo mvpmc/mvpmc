@@ -16,15 +16,18 @@ libdir = '%s/dongle/install/%s/lib/' % (topdir,build_target)
 incdir = '%s/dongle/install/%s/include/' % (topdir,build_target)
 prefix = '%s/dongle/install/%s' % (topdir,build_target)
 
+patches = [ 'patches/microwindows-0.91_abs.patch',
+            'patches/microwindows-0.91.patch' ]
+
 if build_target == 'mvp':
     config = '--host=powerpc'
-    host_patch = ''
 else:
     config = ''
     if machine == 'ppc':
-      host_patch = 'patches/microwindows-0.91_host_be.patch'
+      patches.append('patches/microwindows-0.91_host_be.patch')
     else:
-      host_patch = 'patches/microwindows-0.91_host_le.patch'
+      patches.append('patches/microwindows-0.91_host_le.patch')
+    patches.append('patches/microwindows-0.91_fix_recent_x11.patch')
   
 e = Environment()
 
@@ -32,10 +35,7 @@ url = [ 'http://www.mvpmc.org/dl/microwindows-src-0.91.tar.gz',
         'ftp://microwindows.censoft.com/pub/microwindows/microwindows-src-0.91.tar.gz' ]
 
 target = [ libdir + 'libnano-X.a' ]
-patches = [ 'patches/microwindows-0.91_abs.patch',
-            'patches/microwindows-0.91.patch' ]
-if host_patch != '':
-    patches.append(host_patch)
+
 patches.append('patches/microwindows-0.91_no_demos.patch')
 
 ppccmd = [ 'cp -p --remove-destination src/Configs/config.mvp src/config' ]

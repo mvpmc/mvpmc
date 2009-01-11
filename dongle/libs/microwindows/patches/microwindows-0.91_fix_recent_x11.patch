@@ -1,0 +1,119 @@
+diff -ur microwindows-0.91-orig/src/drivers/mou_x11.c microwindows-0.91/src/drivers/mou_x11.c
+--- microwindows-0.91-orig/src/drivers/mou_x11.c	2003-04-30 07:01:40.000000000 +0100
++++ microwindows-0.91/src/drivers/mou_x11.c	2009-01-11 11:08:07.000000000 +0000
+@@ -89,12 +89,10 @@
+     static int noevent_count = 0;
+     XEvent ev;
+     int events = 0;
+-    long mask = /* x11_event_mask | */
+-#ifdef USE_EXPOSURE
+-      ButtonPressMask | ButtonReleaseMask | PointerMotionMask | ExposureMask;
+-#else
+-      ButtonPressMask | ButtonReleaseMask | PointerMotionMask;
+-#endif
++    int mouse_events = 0;
++    /* Handle everything that isn't handled by the keyboard handler */
++    long mask = KeyPressMask | KeyReleaseMask;
++    mask = ~mask;
+ 
+     while (XCheckMaskEvent(x11_dpy, mask, &ev)) {
+ 	if (ev.type == MotionNotify) {
+@@ -110,7 +108,7 @@
+ 		if (ev.xmotion.state & Button3Mask)
+ 		    button |= MWBUTTON_R;
+ 		*bp = button;
+-		events++;
++		mouse_events++;
+ 	    }
+ 	}
+ 	else if (ev.type == ButtonPress) {
+@@ -139,7 +137,7 @@
+ 		*dx = ev.xbutton.x;
+ 		*dy = ev.xbutton.y;
+ 		*dz = 0;
+-		events++;
++		mouse_events++;
+ 	    }
+ 	}
+ 	else if (ev.type == ButtonRelease) {
+@@ -170,13 +168,16 @@
+ 		*dx = ev.xbutton.x;
+ 		*dy = ev.xbutton.y;
+ 		*dz = 0;
+-		events++;
++		mouse_events++;
+ 	    }
+ 	}
+ 	else {
+ 	    x11_handle_event(&ev);
++	    events++;
+ 	}
+     }
++    events += mouse_events;
++#if 0
+     if (events == 0) {
+ 	/* after a bunch of consecutive noevent calls here
+            (meaning select() says there's something to read but nothing
+@@ -192,6 +193,10 @@
+ 	}
+ 	return 0;
+     }
++#endif
+     noevent_count = 0;
+-    return 2;		/* absolute position returned*/
++    if(mouse_events)
++	return 2;		/* absolute position returned*/
++    else
++	return 0;		/* Non-mouse events handled*/
+ }
+diff -ur microwindows-0.91-orig/src/nanox/srvmain.c microwindows-0.91/src/nanox/srvmain.c
+--- microwindows-0.91-orig/src/nanox/srvmain.c	2004-02-28 18:19:25.000000000 +0000
++++ microwindows-0.91/src/nanox/srvmain.c	2009-01-11 11:21:56.000000000 +0000
+@@ -496,6 +496,7 @@
+ 	int	setsize = 0;
+ 	struct timeval tout;
+ 	struct timeval *to;
++	int	handled_event = 0;
+ #if NONETWORK
+ 	int	fd;
+ #endif
+@@ -506,6 +507,7 @@
+ 
+ 	/* Set up the FDs for use in the main select(): */
+ 	FD_ZERO(&rfds);
++#if 0
+ 	if(mouse_fd >= 0) {
+ 		FD_SET(mouse_fd, &rfds);
+ 		if (mouse_fd > setsize)
+@@ -516,6 +518,7 @@
+ 		if (keyb_fd > setsize)
+ 			setsize = keyb_fd;
+ 	}
++#endif
+ #ifdef MW_FEATURE_TWO_KEYBOARDS
+ 	if(keyb2_fd >= 0) {
+ 		FD_SET(keyb2_fd, &rfds);
+@@ -563,6 +566,15 @@
+ 			to = NULL;
+ 	}
+ 
++	while(keyb_fd >= 0 && GsCheckKeyboardEvent())
++		handled_event = 1;
++
++	while(mouse_fd >= 0 && GsCheckMouseEvent())
++		handled_event = 1;
++
++	if(!handled_event)
++	{
++
+ 	/* Wait for some input on any of the fds in the set or a timeout: */
+ 	if((e = select(setsize+1, &rfds, NULL, NULL, to)) > 0) {
+ 		/* If data is present on the mouse fd, service it: */
+@@ -638,6 +650,7 @@
+ 	} else
+ 		if(errno != EINTR)
+ 			EPRINTF("Select() call in main failed\n");
++	} /*End if(handled_event) */
+ }
+ 
+ #if NONETWORK
