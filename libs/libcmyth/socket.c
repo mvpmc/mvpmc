@@ -2071,17 +2071,14 @@ cmyth_rcv_proginfo(cmyth_conn_t conn, int *err, cmyth_proginfo_t buf,
 	* Get Year
 	*/
 	if (buf->proginfo_version >= 43) {
-		consumed = cmyth_rcv_string(conn, err, tmp_str,
-			sizeof(tmp_str) - 1, count);
+		consumed = cmyth_rcv_ushort(conn, err, &buf->proginfo_year,
+						count);
 		count -= consumed;
 		total += consumed;
 		if (*err) {
-			failed = "cmyth_rcv_string";
+			failed = "cmyth_rcv_ushort proginfo_year";
 			goto fail;
 		}
-		if (buf->proginfo_year)
-			ref_release(buf->proginfo_year);
-		buf->proginfo_year = ref_strdup(tmp_str);
 	}
 
 	cmyth_dbg(CMYTH_DBG_INFO, "%s: got recording info\n", __FUNCTION__);
