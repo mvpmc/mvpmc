@@ -3186,7 +3186,7 @@ mythtv_schedule_recording(mvp_widget_t *widget, char *item , void *key, int type
 					'0')", \
 					sqlprog[which].seriesid,sqlprog[which].programid,(int)sqlprog[which].starttime,(int)sqlprog[which].starttime,(int)sqlprog[which].starttime);
 				break;
-			case 32 ... 40:
+			case 32 ... 43:
 				sprintf(query, "REPLACE INTO record ( \
 					recordid,type,chanid,starttime,startdate,endtime, \
 					enddate,search,\
