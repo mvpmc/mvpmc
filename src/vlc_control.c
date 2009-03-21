@@ -115,7 +115,7 @@ int vlc_totalminutes = 0;
 int vlc_totalseconds = 0;
 
 static int
-is_ISO(char *item)
+is_ISO(const char *item)
 {
 	char *wc[] = { ".iso",".ISO", NULL };
 	int i = 0;
@@ -175,7 +175,7 @@ video_callback_t vlc_functions = {
  * 		        of seconds for VLC_SEEK_SEC
  *
  */
-int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char *VlcCommandArgs, int offset)
+int vlc_connect(FILE *outlog,const char *url,int ContentType, int VlcCommandType, char *VlcCommandArgs, int offset)
 {
     struct sockaddr_in server_addr; 
     struct hostent* remoteHost;
@@ -288,29 +288,34 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
 	        // Don't touch the URL if it starts with a quote (ie. 
 		// comes from a playlist).
                 if (*url!='"') {
-		    // If there are single/double quotes or spaces in the filename, 
-		    // escape the quotes and quote the filename.
+		    /* If there are single/double quotes or spaces in the
+		     * filename, escape the double quotes and quote the
+		     * filename. */
 		    if (strchr(url, '\'') || strchr(url, '"') || strchr(url, ' ')) {
-		        newurl = malloc(strlen(url)+32);
-			sprintf(newurl, "\"");
-			for (i = 0; i < strlen(url); i++) {
-			    // Apostrophe
-			    if ( *(url + i) == '\'') 
-			        strcat(newurl, "\\'");
-		            // Double quote
-			    else if ( *(url + i) == '"') 
-			        strcat(newurl, "\\\"");
-			    else 
-			        strncat(newurl, url + i, 1);
+			int j = 0;
+			const int srclen = strlen(url);
+			/* Maximum possible length is if we escape every
+			 * character, and add a quote at each end of the
+			 * string */
+			const int destlen = srclen*2 + 2;
+			/* Add 1 for terminating null character */
+		        newurl = malloc(destlen + 1);
+			newurl[j++] = '"';
+			for (i = 0; (i < srclen) && (j < destlen - 1); i++) {
+		            // Escape double quote
+			    if ( url[i] == '"') 
+				newurl[j++] = '\\';
+			    newurl[j++] = url[i];
 			}
-			strcat(newurl, "\"");
+			newurl[j++] = '"';
+			newurl[j] = '\0';
 		    }
                 } 
 		if (newurl == NULL) {
-                    newurl = strdup(url);
+                    newurl = (char *)url;
 		}
 	    } else {
-                newurl = NULL;
+                newurl = (char *)url;
             }
 
             instream = fdopen(vlc_sock,"r+b");
@@ -610,7 +615,7 @@ int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char
                     break;
                 }
             }
-            if (url!=NULL) {
+            if (newurl != NULL && newurl != url) {
                 free(newurl);
             }
             fflush(outlog);
