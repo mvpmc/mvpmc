@@ -490,7 +490,7 @@ typedef enum {
 extern int using_vlc;
 extern int vlc_broadcast_enabled;
 extern char *vlc_server;
-extern int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char *VlcCommandArg, int offset);
+extern int vlc_connect(FILE *outlog,const char *url,int ContentType, int VlcCommandType, char *VlcCommandArg, int offset);
 extern int vlc_stop();
 extern int vlc_destroy();
 extern int vlc_cmd(char *cmd);
