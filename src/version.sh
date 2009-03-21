@@ -13,10 +13,10 @@ fi
 
 GIT_REV_LIST=`which git-rev-list`
 if [ "$GIT_REV_LIST" != "" ] ; then
-    GIT_REVISION=`git-rev-list --all | head -1`
-    GIT_DIFF_SIZE=`git-diff | wc -c`
+    GIT_REVISION=`git-rev-list HEAD...HEAD^`
+    GIT_DIFF_SIZE=`git-diff $GIT_REVISION | wc -c`
     if [ "$GIT_DIFF_SIZE" != "0" ] ; then
-	GIT_DIFFS=`git-diff | md5sum | cut -d' ' -f1`
+	GIT_DIFFS=`git-diff $GIT_REVISION | md5sum | cut -d' ' -f1`
     else
 	GIT_DIFFS=
     fi
