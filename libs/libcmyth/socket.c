@@ -1168,6 +1168,9 @@ cmyth_rcv_timestamp(cmyth_conn_t conn, int *err, cmyth_timestamp_t *ts,
         if ((strlen(tbuf) == 1) && (tbuf[0] = ' '))
                 return consumed;
 
+	if (strlen(tbuf) == 0)
+       		return consumed;
+
 	if (*ts)
 		ref_release(*ts);
 
