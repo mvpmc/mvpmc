@@ -533,6 +533,7 @@ typedef struct {
 extern osd_settings_t osd_settings;
 extern int mythtv_seek_amount;
 extern int mythtv_commskip;
+extern int mythtv_auto_commskip;
 
 extern void switch_hw_state(mvpmc_state_t new);
 extern void switch_gui_state(mvpmc_state_t new);

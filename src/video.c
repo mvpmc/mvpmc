@@ -996,10 +996,10 @@ video_callback(mvp_widget_t *widget, char key)
 		timed_osd(seek_osd_timeout*1000);
 		break;
 	case MVPW_KEY_SKIP:
-		if (mythtv_seek_amount == 2 ) {
+		if (mythtv_seek_amount == 0 ) {
 			seek_by(30);
 		}
-		else if (mythtv_seek_amount == 3 ) {
+		else if (mythtv_seek_amount == 1 ) {
 			seek_by(60);
 		}
 		else {

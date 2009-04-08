@@ -148,8 +148,9 @@ int em_rtwin = -1;
 int rfb_mode = 3;
 int flicker = -1;
 int wireless = 0;
-int mythtv_seek_amount=2;
-int mythtv_commskip=1;
+int mythtv_seek_amount=0;
+int mythtv_commskip=1;  // manual commskip in mythtv - default value - config overrides
+int mythtv_auto_commskip=0; // auto commskip in mythtv
 int mvpmc_classic = 0;
 
 
@@ -626,6 +627,8 @@ mvpmc_main(int argc, char **argv)
 	config->av_video_output = AV_OUTPUT_COMPOSITE;
 	config->av_tv_aspect = AV_TV_ASPECT_4x3;
 	config->av_mode = AV_MODE_PAL;
+	config->mythtv_commskip = mythtv_commskip;
+	config->mythtv_auto_commskip = mythtv_auto_commskip;
 	//config->mythtv_use_friendly_date = mythtv_use_friendly_date;
 	//config->mythtv_use_duration_minutes = mythtv_use_duration_minutes;
 	vnc_server[0] = 0;

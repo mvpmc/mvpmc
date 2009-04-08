@@ -1289,7 +1289,8 @@ typedef enum {
 } settings_mythtv_t;
 
 typedef enum {
-	COMMSKIP = 1,
+	COMMSKIP,
+	AUTOCOMMSKIP,
 	SEEK30,
 	SEEK60
 } mythtv_options_t;
@@ -3779,27 +3780,50 @@ static void
 settings_mythtv_options_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
         switch ((mythtv_options_t)key) {
-        case COMMSKIP: //COMMSKIP
-		mythtv_commskip ^= 1;
-                mvpw_check_menu_item(widget, (void*)key, mythtv_commskip);
+        case COMMSKIP:
+		 //COMMSKIP
+               	mvpw_check_menu_item(widget, (void*)COMMSKIP, 0 );
+               	mvpw_check_menu_item(widget, (void*)AUTOCOMMSKIP, 0 );
+		mythtv_commskip = 1;
+		mythtv_auto_commskip = 0;
+               	mvpw_check_menu_item(widget, (void*)key, mythtv_commskip);
 		config->mythtv_commskip = mythtv_commskip;
-		//config->bitmask |= CONFIG_MYTHTV_COMMSKIP;
+		config->bitmask |= CONFIG_MYTHTV_COMMSKIP;
+		config->mythtv_auto_commskip = mythtv_auto_commskip;
+		config->bitmask |= CONFIG_MYTHTV_AUTOCOMMSKIP;
                 break;
-	case SEEK30: // seek amount in seconds
+	case SEEK60: 
+		// seek amount in seconds
                 mvpw_check_menu_item(widget, (void*)SEEK30, 0);
                 mvpw_check_menu_item(widget, (void*)SEEK60, 0);
-                mvpw_check_menu_item(widget, (void*)key, 1);
-		mythtv_seek_amount = (int)key;
+		mythtv_seek_amount = 1;
+		config->mythtv_seek = mythtv_seek_amount;
+		config->bitmask |= CONFIG_MYTHTV_SEEK;
+                mvpw_check_menu_item(widget, (void*)SEEK60, 1);
 		break;
-	case SEEK60: // seek amount in seconds
+	case SEEK30: 
+		// seek amount in seconds
                 mvpw_check_menu_item(widget, (void*)SEEK30, 0);
                 mvpw_check_menu_item(widget, (void*)SEEK60, 0);
-                mvpw_check_menu_item(widget, (void*)key, 1);
-		mythtv_seek_amount = (int)key;
-		break;
+		mythtv_seek_amount = 0;
+		config->mythtv_seek = mythtv_seek_amount;
+		config->bitmask |= CONFIG_MYTHTV_SEEK;
+                mvpw_check_menu_item(widget, (void*)SEEK30, 1);
+		break; 
+       	case AUTOCOMMSKIP: 
+		//AUTO COMMSKIP
+               	mvpw_check_menu_item(widget, (void*)COMMSKIP, 0 );
+               	mvpw_check_menu_item(widget, (void*)AUTOCOMMSKIP, 0 );
+		mythtv_auto_commskip = 1;
+		mythtv_commskip = 0;
+                mvpw_check_menu_item(widget, (void*)key, mythtv_auto_commskip);
+		config->mythtv_auto_commskip = mythtv_auto_commskip;
+		config->bitmask |= CONFIG_MYTHTV_AUTOCOMMSKIP;
+		config->mythtv_commskip = mythtv_commskip;
+		config->bitmask |= CONFIG_MYTHTV_COMMSKIP;
+                break; 
         }
 }
-
 
 static void
 tvguide_select_callback(mvp_widget_t *widget, char *item, void *key)
@@ -4321,7 +4345,15 @@ mythtv_select_callback(mvp_widget_t *widget, char *item, void *key)
 		break;
 	case SETTINGS_MYTHTV_OPTIONS:
 		mvpw_check_menu_item(settings_mythtv_options, (void*)COMMSKIP, mythtv_commskip);
-		mvpw_check_menu_item(settings_mythtv_options, (void*)SEEK30, 1);
+		mvpw_check_menu_item(settings_mythtv_options, (void*)AUTOCOMMSKIP, mythtv_auto_commskip);
+		if (mythtv_seek_amount == 1) {
+			mvpw_check_menu_item(settings_mythtv_options, (void*)SEEK30, 0);
+			mvpw_check_menu_item(settings_mythtv_options, (void*)SEEK60, 1);
+		}
+		else {
+			mvpw_check_menu_item(settings_mythtv_options, (void*)SEEK30, 1);
+			mvpw_check_menu_item(settings_mythtv_options, (void*)SEEK60, 0);
+		}
 		mvpw_show(settings_mythtv_options);
 		mvpw_focus(settings_mythtv_options);
 		break;
@@ -5144,7 +5176,8 @@ settings_init(void)
 	settings_item_attr.hilite = NULL;
 	settings_item_attr.select = settings_mythtv_options_select_callback;
 
-	mvpw_add_menu_item(settings_mythtv_options, "Enable Commercial Skip", (void*)COMMSKIP, &settings_item_attr);
+	mvpw_add_menu_item(settings_mythtv_options, "Manual Commercial Skip", (void*)COMMSKIP, &settings_item_attr);
+	mvpw_add_menu_item(settings_mythtv_options, "Auto Commercial Skip", (void*)AUTOCOMMSKIP, &settings_item_attr);
 
 	mvpw_add_menu_item(settings_mythtv_options,"Skip 30 seconds",(void*)SEEK30,&settings_item_attr);
 	mvpw_add_menu_item(settings_mythtv_options,"Skip 60 seconds",(void*)SEEK60,&settings_item_attr);
@@ -8148,12 +8181,20 @@ popup_init(void)
 	mvpw_set_menu_title(osd_mythtv_options, "OSD MythTV Options");
 	mvpw_set_key(osd_mythtv_options, popup_key_callback);
 	popup_item_attr.select = settings_mythtv_options_select_callback;
-	mvpw_add_menu_item(osd_mythtv_options, "Enable Commercial Skip", (void*)COMMSKIP, &popup_item_attr);
+	mvpw_add_menu_item(osd_mythtv_options, "Manual Commercial Skip", (void*)COMMSKIP, &popup_item_attr);
 	mvpw_check_menu_item(osd_mythtv_options, (void*)COMMSKIP, mythtv_commskip);
-	
+	mvpw_add_menu_item(osd_mythtv_options, "Auto Commercial Skip", (void*)AUTOCOMMSKIP, &popup_item_attr);
+	mvpw_check_menu_item(osd_mythtv_options, (void*)AUTOCOMMSKIP, mythtv_auto_commskip);
 	mvpw_add_menu_item(osd_mythtv_options,"Skip 30 seconds",(void*)SEEK30,&popup_item_attr);
 	mvpw_add_menu_item(osd_mythtv_options,"Skip 60 seconds",(void*)SEEK60,&popup_item_attr);
-	mvpw_check_menu_item(osd_mythtv_options, (void*)SEEK30, 1);
+	if (mythtv_seek_amount == 1) {
+		mvpw_check_menu_item(osd_mythtv_options, (void*)SEEK30, 0);
+		mvpw_check_menu_item(osd_mythtv_options, (void*)SEEK60, 1);
+	}
+	else {
+		mvpw_check_menu_item(osd_mythtv_options, (void*)SEEK30, 1);
+		mvpw_check_menu_item(osd_mythtv_options, (void*)SEEK60, 0);
+	}
 
 	/*
 	 * Brightness menu
