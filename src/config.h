@@ -70,6 +70,9 @@ typedef struct {
 #define CONFIG_DURATION_MINUTES 	0x0000000800000000LL
 #define CONFIG_MYTHTV_AUTOCOMMSKIP  	0x0000001000000000LL
 #define CONFIG_MYTHTV_SEEK	  	0x0000002000000000LL
+#define CONFIG_MYTHTV_DISABLE_ALL_COMMSKIP	  	0x0000004000000000LL
+#define CONFIG_MYTHTV_DISABLE_COMMSKIP_OSD	  	0x0000008000000000LL
+#define CONFIG_MYTHTV_DISABLE_BOOKMARK_OSD	  	0x0000010000000000LL
 
 #define MYTHTV_RG_MAX	32
 
@@ -129,9 +132,12 @@ typedef struct {
 	char			weather_location[20];
 	int			mythtv_commskip;
 	int			mythtv_auto_commskip;
+	int			mythtv_disable_all_commskip;
         int			mythtv_use_friendly_date;
         int			mythtv_use_duration_minutes;
 	int			mythtv_seek;
+	int			mythtv_disable_commskip_osd;
+	int			mythtv_disable_bookmark_osd;
 } config_t;
 
 extern config_t *config;
@@ -179,6 +185,9 @@ extern config_t *config;
 #define CONFIG_ITEM_MYTHTV_COMMSKIP	0x0030
 #define CONFIG_ITEM_MYTHTV_AUTOCOMMSKIP	0x0031
 #define CONFIG_ITEM_MYTHTV_SEEK		0x0032
+#define CONFIG_ITEM_MYTHTV_DISABLE_ALL_COMMSKIP		0x0033
+#define CONFIG_ITEM_MYTHTV_DISABLE_COMMSKIP_OSD 	0x0034
+#define CONFIG_ITEM_MYTHTV_DISABLE_BOOKMARK_OSD 	0x0035
 
 
 /*

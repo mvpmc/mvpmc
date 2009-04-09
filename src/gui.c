@@ -1292,7 +1292,10 @@ typedef enum {
 	COMMSKIP,
 	AUTOCOMMSKIP,
 	SEEK30,
-	SEEK60
+	SEEK60,
+	DISABLE_ALL_COMMSKIP,
+	DISABLE_COMMSKIP_OSD,
+	DISABLE_BOOKMARK_OSD
 } mythtv_options_t;
 
 typedef enum {
@@ -3780,10 +3783,38 @@ static void
 settings_mythtv_options_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
         switch ((mythtv_options_t)key) {
+	case DISABLE_COMMSKIP_OSD:
+		mythtv_disable_commskip_osd ^= 1;
+		config->mythtv_disable_commskip_osd = mythtv_disable_commskip_osd;
+		config->bitmask |= CONFIG_MYTHTV_DISABLE_COMMSKIP_OSD;
+               	mvpw_check_menu_item(widget, (void*)DISABLE_COMMSKIP_OSD, mythtv_disable_commskip_osd );
+		break;
+	case DISABLE_BOOKMARK_OSD:
+		mythtv_disable_bookmark_osd ^= 1;
+		config->mythtv_disable_bookmark_osd = mythtv_disable_bookmark_osd;
+		config->bitmask |= CONFIG_MYTHTV_DISABLE_BOOKMARK_OSD;
+               	mvpw_check_menu_item(widget, (void*)DISABLE_BOOKMARK_OSD, mythtv_disable_bookmark_osd );
+		break;
+	case DISABLE_ALL_COMMSKIP:
+               	mvpw_check_menu_item(widget, (void*)COMMSKIP, 0 );
+               	mvpw_check_menu_item(widget, (void*)AUTOCOMMSKIP, 0 );
+		mythtv_disable_all_commskip = 1;
+               	mvpw_check_menu_item(widget, (void*)DISABLE_ALL_COMMSKIP, 1 );
+		mythtv_commskip = 0;
+		mythtv_auto_commskip = 0;
+		config->mythtv_commskip = mythtv_commskip;
+		config->bitmask |= CONFIG_MYTHTV_COMMSKIP;
+		config->mythtv_auto_commskip = mythtv_auto_commskip;
+		config->bitmask |= CONFIG_MYTHTV_AUTOCOMMSKIP;
+		config->mythtv_disable_all_commskip = mythtv_disable_all_commskip;
+		config->bitmask |= CONFIG_MYTHTV_DISABLE_ALL_COMMSKIP;
+                break;
         case COMMSKIP:
 		 //COMMSKIP
                	mvpw_check_menu_item(widget, (void*)COMMSKIP, 0 );
                	mvpw_check_menu_item(widget, (void*)AUTOCOMMSKIP, 0 );
+               	mvpw_check_menu_item(widget, (void*)DISABLE_ALL_COMMSKIP, 0 );
+		mythtv_disable_all_commskip = 0;
 		mythtv_commskip = 1;
 		mythtv_auto_commskip = 0;
                	mvpw_check_menu_item(widget, (void*)key, mythtv_commskip);
@@ -3791,6 +3822,8 @@ settings_mythtv_options_select_callback(mvp_widget_t *widget, char *item, void *
 		config->bitmask |= CONFIG_MYTHTV_COMMSKIP;
 		config->mythtv_auto_commskip = mythtv_auto_commskip;
 		config->bitmask |= CONFIG_MYTHTV_AUTOCOMMSKIP;
+		config->mythtv_disable_all_commskip = mythtv_disable_all_commskip;
+		config->bitmask |= CONFIG_MYTHTV_DISABLE_ALL_COMMSKIP;
                 break;
 	case SEEK60: 
 		// seek amount in seconds
@@ -3814,6 +3847,8 @@ settings_mythtv_options_select_callback(mvp_widget_t *widget, char *item, void *
 		//AUTO COMMSKIP
                	mvpw_check_menu_item(widget, (void*)COMMSKIP, 0 );
                	mvpw_check_menu_item(widget, (void*)AUTOCOMMSKIP, 0 );
+               	mvpw_check_menu_item(widget, (void*)DISABLE_ALL_COMMSKIP, 0 );
+		mythtv_disable_all_commskip = 0;
 		mythtv_auto_commskip = 1;
 		mythtv_commskip = 0;
                 mvpw_check_menu_item(widget, (void*)key, mythtv_auto_commskip);
@@ -3821,6 +3856,8 @@ settings_mythtv_options_select_callback(mvp_widget_t *widget, char *item, void *
 		config->bitmask |= CONFIG_MYTHTV_AUTOCOMMSKIP;
 		config->mythtv_commskip = mythtv_commskip;
 		config->bitmask |= CONFIG_MYTHTV_COMMSKIP;
+		config->mythtv_disable_all_commskip = mythtv_disable_all_commskip;
+		config->bitmask |= CONFIG_MYTHTV_DISABLE_ALL_COMMSKIP;
                 break; 
         }
 }
@@ -4344,6 +4381,7 @@ mythtv_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mvpw_focus(settings_mythtv_filter_pending);
 		break;
 	case SETTINGS_MYTHTV_OPTIONS:
+		mvpw_check_menu_item(settings_mythtv_options, (void*)DISABLE_ALL_COMMSKIP, mythtv_disable_all_commskip);
 		mvpw_check_menu_item(settings_mythtv_options, (void*)COMMSKIP, mythtv_commskip);
 		mvpw_check_menu_item(settings_mythtv_options, (void*)AUTOCOMMSKIP, mythtv_auto_commskip);
 		if (mythtv_seek_amount == 1) {
@@ -4354,6 +4392,8 @@ mythtv_select_callback(mvp_widget_t *widget, char *item, void *key)
 			mvpw_check_menu_item(settings_mythtv_options, (void*)SEEK30, 1);
 			mvpw_check_menu_item(settings_mythtv_options, (void*)SEEK60, 0);
 		}
+		mvpw_check_menu_item(settings_mythtv_options, (void*)DISABLE_COMMSKIP_OSD, mythtv_disable_commskip_osd);
+		mvpw_check_menu_item(settings_mythtv_options, (void*)DISABLE_BOOKMARK_OSD, mythtv_disable_bookmark_osd);
 		mvpw_show(settings_mythtv_options);
 		mvpw_focus(settings_mythtv_options);
 		break;
@@ -5164,7 +5204,7 @@ settings_init(void)
 	/* 
 	* mythtv options menu
 	*/
-	settings_mythtv_options = mvpw_create_menu(NULL, x, y, w, h,
+	settings_mythtv_options = mvpw_create_menu(NULL, x, y, w, h+80,
 					   settings_attr.bg,
 					   settings_attr.border,
 					   settings_attr.border_size);
@@ -5176,11 +5216,14 @@ settings_init(void)
 	settings_item_attr.hilite = NULL;
 	settings_item_attr.select = settings_mythtv_options_select_callback;
 
+	mvpw_add_menu_item(settings_mythtv_options, "Disable Commercial Skip", (void*)DISABLE_ALL_COMMSKIP, &settings_item_attr);
 	mvpw_add_menu_item(settings_mythtv_options, "Manual Commercial Skip", (void*)COMMSKIP, &settings_item_attr);
 	mvpw_add_menu_item(settings_mythtv_options, "Auto Commercial Skip", (void*)AUTOCOMMSKIP, &settings_item_attr);
 
 	mvpw_add_menu_item(settings_mythtv_options,"Skip 30 seconds",(void*)SEEK30,&settings_item_attr);
 	mvpw_add_menu_item(settings_mythtv_options,"Skip 60 seconds",(void*)SEEK60,&settings_item_attr);
+	mvpw_add_menu_item(settings_mythtv_options, "Disable Commskip OSD Message", (void*)DISABLE_COMMSKIP_OSD, &settings_item_attr);
+	mvpw_add_menu_item(settings_mythtv_options, "Disable Bookmark OSD Message", (void*)DISABLE_BOOKMARK_OSD, &settings_item_attr);
 
 	/*
 	 * tvguide settings menu
@@ -8195,6 +8238,10 @@ popup_init(void)
 		mvpw_check_menu_item(osd_mythtv_options, (void*)SEEK30, 1);
 		mvpw_check_menu_item(osd_mythtv_options, (void*)SEEK60, 0);
 	}
+	mvpw_add_menu_item(osd_mythtv_options, "Disable Commskip OSD Message", (void*)DISABLE_COMMSKIP_OSD, &popup_item_attr);
+	mvpw_check_menu_item(osd_mythtv_options, (void*)COMMSKIP, mythtv_disable_commskip_osd);
+	mvpw_add_menu_item(osd_mythtv_options, "Disable Bookmark OSD Message", (void*)DISABLE_BOOKMARK_OSD, &popup_item_attr);
+	mvpw_check_menu_item(osd_mythtv_options, (void*)COMMSKIP, mythtv_disable_commskip_osd);
 
 	/*
 	 * Brightness menu

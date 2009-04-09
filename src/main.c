@@ -151,6 +151,9 @@ int wireless = 0;
 int mythtv_seek_amount=0;
 int mythtv_commskip=1;  // manual commskip in mythtv - default value - config overrides
 int mythtv_auto_commskip=0; // auto commskip in mythtv
+int mythtv_disable_all_commskip=0; 
+int mythtv_disable_commskip_osd=0; 
+int mythtv_disable_bookmark_osd=0; 
 int mvpmc_classic = 0;
 
 

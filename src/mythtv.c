@@ -253,17 +253,17 @@ mythtv_video_key(char key)
 	char starttime[24];
 	int mode=0;
 	mode=av_get_mode();
-	fprintf(stderr, "VIDEO MODE = %d\n",mode);
+	//fprintf(stderr, "VIDEO MODE = %d\n",mode);
 
 	switch (key) {
 		case MVPW_KEY_SKIP:
 			if ( (mythtv_commskip) &&  ((breakidx = in_commbreak()) >= 0) ) {
 				fprintf(stderr, "Jumping to %lli\n", current_breaklist->commbreak_list[breakidx]->end_offset);
 				seek_to(current_breaklist->commbreak_list[breakidx]->end_offset);
-				display_bookmark_status_osd(2);
+				if (!mythtv_disable_commskip_osd) display_bookmark_status_osd(2);
 				rc = 1;
 			} else {
-				display_bookmark_status_osd(3);
+				if (!mythtv_disable_commskip_osd) display_bookmark_status_osd(3);
 				fprintf(stderr, "Not in commbreak or disabled.  Reverting to standard skip.\n");
 			}
 			break;
@@ -282,18 +282,18 @@ mythtv_video_key(char key)
 				cmyth_timestamp_to_string(starttime,cmyth_proginfo_rec_start(current_prog));
 				if ((offset = cmyth_get_bookmark_offset(mythtv_database,chanid,mark,starttime,mode)) <0) {
 					fprintf(stderr,"No offset found in recordedseek chanid=%ld mark=%qd\n",chanid,mark);
-					display_bookmark_status_osd(4);
+					if (!mythtv_disable_bookmark_osd) display_bookmark_status_osd(4);
 				}
 				else {
-					display_bookmark_status_osd(0);
-					fprintf(stderr,"Jumping to bookmark %qd : offset %qd\n",mark,offset);
+					if (!mythtv_disable_bookmark_osd) display_bookmark_status_osd(0);
 					seek_to(offset);
+					fprintf(stderr,"Jumping to bookmark %qd : offset %qd\n",mark,offset);
 					rc=1;
 				}
 			}
 			else {
 				fprintf (stderr,"No bookmark found\n");
-				display_bookmark_status_osd(4);
+				if (!mythtv_disable_bookmark_osd) display_bookmark_status_osd(4);
 			}
 			break;
 		case MVPW_KEY_YELLOW: //set bookmark
@@ -301,17 +301,17 @@ mythtv_video_key(char key)
 			bk= bookmark;
 			if ((dbmark=cmyth_get_bookmark_mark(mythtv_database,current_prog,bk,mode)) < 0) {
 				fprintf(stderr, "Bookmark not set\n");
-				display_bookmark_status_osd(4);
+				if (!mythtv_disable_bookmark_osd) display_bookmark_status_osd(4);
 			}
 			else {
 				fprintf (stderr,"keyframe mark = %lld\n",dbmark);
 				if ( cmyth_set_bookmark(ctrl, current_prog, dbmark ) < 0 ) {
-					display_bookmark_status_osd(4);
+					if (!mythtv_disable_bookmark_osd) display_bookmark_status_osd(4);
 					cmyth_dbg(CMYTH_DBG_DEBUG, "ERROR bookmark FAILED, value: %qd \n",bookmark);
 				}
 				else {
 					cmyth_dbg(CMYTH_DBG_DEBUG, "bookmark saved, value: %qd \n",bookmark);
-					display_bookmark_status_osd(1);
+					if (!mythtv_disable_bookmark_osd) display_bookmark_status_osd(1);
 					if (cmyth_update_bookmark_setting(mythtv_database, current_prog) <0) {
 						cmyth_dbg(CMYTH_DBG_DEBUG, "ERROR cmyth_update_bookmark_setting failed\n");
 					}
@@ -1865,6 +1865,7 @@ static void*
 control_start(void *arg)
 {
 	int len = 0;
+	int breakidx;
 	int size = MAX_BSIZE;
 	demux_attr_t *attr;
 	pid_t pid;
@@ -1907,6 +1908,13 @@ control_start(void *arg)
 			if (seeking || jumping) {
 				size = 1024*96;
 			} else {
+				
+				if ( (mythtv_auto_commskip) &&  ((breakidx = in_commbreak()) >= 0) ) {
+					fprintf(stderr, "AUTO Jumping to %lli\n", current_breaklist->commbreak_list[breakidx]->end_offset);
+					seek_to(current_breaklist->commbreak_list[breakidx]->end_offset);
+					if (!mythtv_disable_commskip_osd) display_bookmark_status_osd(2);
+				}
+				
 				if ((attr->video.bufsz -
 				     attr->video.stats.cur_bytes) < MAX_BSIZE) {
 					if (paused) {

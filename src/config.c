@@ -275,10 +275,13 @@ add_item(config_list_t *list, int type)
 		ITEM_FIXED(VLC_AB, vlc_ab);
 		ITEM_STRING(WEATHER_LOCATION, weather_location);
 		ITEM_FIXED(MYTHTV_COMMSKIP,mythtv_commskip);
+		ITEM_FIXED(MYTHTV_DISABLE_ALL_COMMSKIP,mythtv_disable_all_commskip);
 		ITEM_FIXED(MYTHTV_AUTOCOMMSKIP,mythtv_auto_commskip);
 		ITEM_FIXED(FRIENDLY_DATE, mythtv_use_friendly_date);
 		ITEM_FIXED(DURATION_MINUTES, mythtv_use_duration_minutes);
 		ITEM_FIXED(MYTHTV_SEEK, mythtv_seek);
+		ITEM_FIXED(MYTHTV_DISABLE_COMMSKIP_OSD, mythtv_disable_commskip_osd);
+		ITEM_FIXED(MYTHTV_DISABLE_BOOKMARK_OSD, mythtv_disable_bookmark_osd);
 	case CONFIG_ITEM_MYTHTV_RG_HIDE:
 		if ((config->bitmask & CONFIG_MYTHTV_RECGROUP) == 0)
 			return 0;
@@ -411,10 +414,13 @@ get_item(config_item_t *item, int override)
 		ITEM_FIXED(VLC_AB, vlc_ab);
 		ITEM_STRING(WEATHER_LOCATION, weather_location);
 		ITEM_FIXED(MYTHTV_COMMSKIP, mythtv_commskip);
+		ITEM_FIXED(MYTHTV_DISABLE_ALL_COMMSKIP, mythtv_disable_all_commskip);
 		ITEM_FIXED(MYTHTV_AUTOCOMMSKIP, mythtv_auto_commskip);
 		ITEM_FIXED(MYTHTV_SEEK, mythtv_seek);
 		ITEM_FIXED(FRIENDLY_DATE, mythtv_use_friendly_date);
 		ITEM_FIXED(DURATION_MINUTES, mythtv_use_duration_minutes);
+		ITEM_FIXED(MYTHTV_DISABLE_COMMSKIP_OSD, mythtv_disable_commskip_osd);
+		ITEM_FIXED(MYTHTV_DISABLE_BOOKMARK_OSD, mythtv_disable_bookmark_osd);
 	case CONFIG_ITEM_MYTHTV_RG_HIDE:
 	case CONFIG_ITEM_MYTHTV_RG_SHOW:
 		config->bitmask |= CONFIG_MYTHTV_RECGROUP;
@@ -531,7 +537,13 @@ save_config_file(char *file)
 		goto err;
 	if (add_item(list, CONFIG_ITEM_WEATHER_LOCATION) < 0) 
 		goto err;
+	if (add_item(list, CONFIG_ITEM_MYTHTV_DISABLE_COMMSKIP_OSD) < 0) 
+		goto err;
+	if (add_item(list, CONFIG_ITEM_MYTHTV_DISABLE_BOOKMARK_OSD) < 0) 
+		goto err;
 	if (add_item(list, CONFIG_ITEM_MYTHTV_COMMSKIP) < 0) 
+		goto err;
+	if (add_item(list, CONFIG_ITEM_MYTHTV_DISABLE_ALL_COMMSKIP) < 0) 
 		goto err;
 	if (add_item(list, CONFIG_ITEM_MYTHTV_AUTOCOMMSKIP) < 0) 
 		goto err;
@@ -650,10 +662,25 @@ set_config(void)
 		mythtv_filter = config->mythtv_filter;
 	if (config->bitmask & CONFIG_WEATHER_LOCATION)
 		weather_location = strdup(config->weather_location);
-	if (config->bitmask & CONFIG_MYTHTV_COMMSKIP)
+	if (config->bitmask & CONFIG_MYTHTV_DISABLE_COMMSKIP_OSD) 
+		mythtv_disable_commskip_osd = config->mythtv_disable_commskip_osd;
+	if (config->bitmask & CONFIG_MYTHTV_DISABLE_BOOKMARK_OSD) 
+		mythtv_disable_bookmark_osd = config->mythtv_disable_bookmark_osd;
+	if (config->bitmask & CONFIG_MYTHTV_COMMSKIP) {
 		mythtv_commskip = config->mythtv_commskip;
-	if (config->bitmask & CONFIG_MYTHTV_AUTOCOMMSKIP) 
+		mythtv_disable_all_commskip = config->mythtv_disable_all_commskip;
 		mythtv_auto_commskip = config->mythtv_auto_commskip;
+	}
+	if (config->bitmask & CONFIG_MYTHTV_DISABLE_ALL_COMMSKIP) {
+		mythtv_disable_all_commskip = config->mythtv_disable_all_commskip;
+		mythtv_commskip = config->mythtv_commskip;
+		mythtv_auto_commskip = config->mythtv_auto_commskip;
+	}
+	if (config->bitmask & CONFIG_MYTHTV_AUTOCOMMSKIP) {
+		mythtv_auto_commskip = config->mythtv_auto_commskip;
+		mythtv_commskip = config->mythtv_commskip;
+		mythtv_disable_all_commskip = config->mythtv_disable_all_commskip;
+	}
 	if (config->bitmask & CONFIG_FRIENDLY_DATE)
 		mythtv_use_friendly_date = config->mythtv_use_friendly_date;
 	if (config->bitmask & CONFIG_DURATION_MINUTES)
