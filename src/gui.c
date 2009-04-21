@@ -451,6 +451,7 @@ static mvpw_text_attr_t description_attr = {
 	.bg = MVPW_BLACK,
 	.border = MVPW_BLACK,
 	.border_size = 0,
+	.utf8 = true,
 };
 
 mvpw_text_attr_t display_attr = {
