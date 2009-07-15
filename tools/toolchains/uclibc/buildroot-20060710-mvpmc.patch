@@ -44,14 +44,14 @@ diff -Nur buildroot.old/.config buildroot/.config
 +#
 +# Kernel Header Options
 +#
-+BR2_KERNEL_HEADERS_2_4_25=y
++# BR2_KERNEL_HEADERS_2_4_25 is not set
 +# BR2_KERNEL_HEADERS_2_4_27 is not set
 +# BR2_KERNEL_HEADERS_2_4_29 is not set
-+# BR2_KERNEL_HEADERS_2_4_31 is not set
++BR2_KERNEL_HEADERS_2_4_31=y
 +# BR2_KERNEL_HEADERS_2_6_9 is not set
 +# BR2_KERNEL_HEADERS_2_6_11 is not set
 +# BR2_KERNEL_HEADERS_2_6_12 is not set
-+BR2_DEFAULT_KERNEL_HEADERS="2.4.25"
++BR2_DEFAULT_KERNEL_HEADERS="2.4.31"
 +
 +#
 +# uClibc Options
@@ -328,18 +328,6 @@ diff -Nur buildroot.old/.config buildroot/.config
 +# BR2_TARGET_GENERIC_ACCESS_POINT is not set
 +# BR2_TARGET_GENERIC_FIREWALL is not set
 +# BR2_TARGET_GENERIC_DEV_SYSTEM is not set
-diff -Nur buildroot.old/toolchain/kernel-headers/kernel-headers.mk buildroot/toolchain/kernel-headers/kernel-headers.mk
---- buildroot.old/toolchain/kernel-headers/kernel-headers.mk	2006-07-10 08:15:05.000000000 +0100
-+++ buildroot/toolchain/kernel-headers/kernel-headers.mk	2009-04-21 22:06:04.000000000 +0100
-@@ -19,7 +19,7 @@
- VERSION:=2
- PATCHLEVEL:=4
- SUBLEVEL:=25
--LINUX_HEADERS_SITE:=http://www.uclibc.org/downloads/toolchain
-+LINUX_HEADERS_SITE:=http://www.mvpmc.org/dl
- LINUX_HEADERS_SOURCE:=linux-libc-headers-2.4.25.tar.bz2
- LINUX_HEADERS_UNPACK_DIR:=$(TOOL_BUILD_DIR)/linux-libc-headers-2.4.25
- endif
 diff -Nur buildroot.old/toolchain/uClibc/uClibc.config buildroot/toolchain/uClibc/uClibc.config
 --- buildroot.old/toolchain/uClibc/uClibc.config	2006-07-10 08:15:02.000000000 +0100
 +++ buildroot/toolchain/uClibc/uClibc.config	2006-07-13 22:18:32.000000000 +0100
