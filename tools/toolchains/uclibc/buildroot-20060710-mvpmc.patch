@@ -44,14 +44,14 @@ diff -Nur buildroot.old/.config buildroot/.config
 +#
 +# Kernel Header Options
 +#
-+BR2_KERNEL_HEADERS_2_4_25=y
++# BR2_KERNEL_HEADERS_2_4_25 is not set
 +# BR2_KERNEL_HEADERS_2_4_27 is not set
 +# BR2_KERNEL_HEADERS_2_4_29 is not set
-+# BR2_KERNEL_HEADERS_2_4_31 is not set
++BR2_KERNEL_HEADERS_2_4_31=y
 +# BR2_KERNEL_HEADERS_2_6_9 is not set
 +# BR2_KERNEL_HEADERS_2_6_11 is not set
 +# BR2_KERNEL_HEADERS_2_6_12 is not set
-+BR2_DEFAULT_KERNEL_HEADERS="2.4.25"
++BR2_DEFAULT_KERNEL_HEADERS="2.4.31"
 +
 +#
 +# uClibc Options

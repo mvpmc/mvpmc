@@ -108,7 +108,7 @@ mkdir -p filesystem/install/union
 if [ -a $RAMDISK ] ; then
 	rm -rf $RAMDISK
 fi
-../tools/squashfs/squashfs2.2-r2/squashfs-tools/mksquashfs filesystem/install ${RAMDISK} -be -all-root -if filesystem/devtable || error "mksquashfs failed"
+../tools/squashfs/mksquashfs filesystem/install ${RAMDISK} -be -all-root -if filesystem/devtable || error "mksquashfs failed"
 
 if [ "$KERNELVER" = "2.4.31" ] ; then
 	#
@@ -126,7 +126,7 @@ fi
 if [ "$KERNELVER" = "2.4.31" ] ; then
     cp ${RAMDISK} filesystem/install_wrapper/etc/rootfs.img
     rm -f ${RAMDISK}
-    ../tools/squashfs/squashfs2.2-r2/squashfs-tools/mksquashfs filesystem/install_wrapper ${RAMDISK} -be -all-root -if filesystem/devtable || error "mksquashfs failed"
+    ../tools/squashfs/mksquashfs filesystem/install_wrapper ${RAMDISK} -be -all-root -if filesystem/devtable || error "mksquashfs failed"
 fi
 
 make_dongle filesystem/kernel_files/vmlinux.gz ${RAMDISK}

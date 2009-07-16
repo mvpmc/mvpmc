@@ -4,19 +4,22 @@
 #
 
 import os
+import mvpmc
 
 Import('env')
 
-home = os.environ['HOME']
-downloads = env['DOWNLOADS']
-target = env['TARG']
+target = [ env['CC'] ]
 pwd = os.getcwd()
 
-file = downloads + '/buildroot-20060710.tar.bz2'
-
+e = Environment()
 #url = 'http://buildroot.uclibc.org/downloads/snapshots/buildroot-20060710.tar.bz2'
-url = 'http://www.mvpmc.org/dl/buildroot-20060710.tar.bz2'
-uclibc = os.system(pwd +'/mvpmc-uclibc.sh '+file + ' ' + url)
-uclibc = ''
+url = [ 'http://www.mvpmc.org/dl/buildroot-20060710.tar.bz2' ]
+
+patches = [ 'buildroot-20060710-mvpmc.patch',
+	    'buildroot-fix-kernel-header-urls.patch' ]
+
+cmd = [ 'CC=gcc make oldconfig', 'CC=gcc make' ]
+
+uclibc = mvpmc.OSSBuild(target, url, env, e, cmd, patches)
 
 Return('uclibc')

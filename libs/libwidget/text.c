@@ -51,7 +51,8 @@ expose(mvp_widget_t *widget)
 	if (!mvpw_visible(widget))
 		return;
 
-	if (widget->data.text.str == NULL) {
+	if (widget->data.text.str == NULL
+	    || widget->data.text.str[0] == '\0') {
 		gc = GrNewGC();
 		GrSetGCForeground(gc, widget->bg);
 		GrFillRect(widget->wid, gc, 0, 0,
@@ -169,7 +170,7 @@ expose(mvp_widget_t *widget)
 			consume_spaces = 1;
 			
 		i = 0;
-		while (i < sl) {
+		while (i < sl && cl < 128) {
 			j = 0;
 
 			/*
@@ -222,7 +223,7 @@ expose(mvp_widget_t *widget)
 				while ((j > 0) && (str[i+j] != ' '))
 					j--;
 
-				while ((j > 0) && (str[j] == ' '))
+				while ((j > 0) && (str[i+j] == ' '))
 					j--;
 
 				j++;
@@ -350,6 +351,7 @@ mvpw_set_text_str(mvp_widget_t *widget, char *str)
 		if (widget->data.text.str)
 			free(widget->data.text.str);
 		widget->data.text.str = NULL;
+		widget->data.text.buflen = 0;
 		expose(widget);
 		return;
 	}

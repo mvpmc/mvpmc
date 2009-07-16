@@ -490,7 +490,7 @@ typedef enum {
 extern int using_vlc;
 extern int vlc_broadcast_enabled;
 extern char *vlc_server;
-extern int vlc_connect(FILE *outlog,char *url,int ContentType, int VlcCommandType, char *VlcCommandArg, int offset);
+extern int vlc_connect(FILE *outlog,const char *url,int ContentType, int VlcCommandType, char *VlcCommandArg, int offset);
 extern int vlc_stop();
 extern int vlc_destroy();
 extern int vlc_cmd(char *cmd);
@@ -533,6 +533,10 @@ typedef struct {
 extern osd_settings_t osd_settings;
 extern int mythtv_seek_amount;
 extern int mythtv_commskip;
+extern int mythtv_auto_commskip;
+extern int mythtv_disable_all_commskip;
+extern int mythtv_disable_commskip_osd;
+extern int mythtv_disable_bookmark_osd;
 
 extern void switch_hw_state(mvpmc_state_t new);
 extern void switch_gui_state(mvpmc_state_t new);
