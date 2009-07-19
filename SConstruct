@@ -135,11 +135,14 @@ else:
 	# Install the cross compilation tools, if needed.
 	#
 	if target == 'mvp':
-		gcc = env.SConscript('tools/toolchains/uclibc/SConscript')
-		env.Depends(libs, gcc)
-		env.Depends(apps, gcc)
-		env.Depends(mvplibs, gcc)
-		env.Depends(mvpmc, gcc)
+		cc = env['CC']
+		if os.path.exists(cc) == 0:
+			print "build application cross-compiler"
+			gcc = env.SConscript('tools/toolchains/uclibc/SConscript')
+			env.Depends(libs, gcc)
+			env.Depends(apps, gcc)
+			env.Depends(mvplibs, gcc)
+			env.Depends(mvpmc, gcc)
 
 	#
 	# Build the dongle.bin file
