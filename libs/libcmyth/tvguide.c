@@ -429,14 +429,8 @@ get_tvguide_page(MYSQL *mysql, cmyth_chanlist_t chanlist,
 	PRINTF("** SSDEBUG: starttime:%d, endtime:%d\n", starttime, endtime);
 
 	sprintf(query, 
-		"SELECT chanid,UNIX_TIMESTAMP(starttime),UNIX_TIMESTAMP(endtime), \
-						title,description,subtitle,programid,seriesid,category \
-						FROM program \
-						WHERE starttime<FROM_UNIXTIME(%ld) \
-							AND endtime>FROM_UNIXTIME(%ld) \
-							AND chanid in %s \
-							ORDER BY chanid DESC, \
-							starttime ASC", end_time,start_time, channels);
+"SELECT chanid,UNIX_TIMESTAMP(starttime),UNIX_TIMESTAMP(endtime), title,description,subtitle,programid,seriesid,category FROM program WHERE starttime<FROM_UNIXTIME(%ld) AND endtime>FROM_UNIXTIME(%ld) AND chanid in %s ORDER BY chanid DESC, starttime ASC",end_time,start_time, channels);
+
 	cmyth_dbg(CMYTH_DBG_ERROR, "%s: query= %s\n", __FUNCTION__, query);
 	if(mysql_query(mysql,query)) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: mysql_query() Failed: %s\n", 
@@ -988,12 +982,7 @@ myth_tvguide_load_channels(cmyth_database_t db, int sort_desc)
 	 * A table join query is required to generate the bitstring that
 	 * represents the recorders that can be used to access the channel.
 	 */
-	sprintf(query, "SELECT chanid,channum,channum+0 as channumi,cardid, \
-									callsign,name \
-									FROM cardinput, channel \
-									WHERE cardinput.sourceid=channel.sourceid \
-									AND visible=1 \
-									ORDER BY channumi %s, callsign ASC", sort_desc?"DESC":"ASC");
+sprintf(query, "SELECT chanid,channum,channum+0 as channumi,cardid, callsign,name FROM cardinput, channel WHERE cardinput.sourceid=channel.sourceid AND visible=1 ORDER BY channumi %s, callsign ASC", sort_desc?"DESC":"ASC");
 	cmyth_dbg(CMYTH_DBG_ERROR, "%s: query= %s\n", __FUNCTION__, query);
 
 	PRINTF("** SSDEBUG: The query is %s\n", query);
@@ -1056,7 +1045,7 @@ myth_tvguide_load_channels(cmyth_database_t db, int sort_desc)
 			rtrn->chanlist_list[rtrn->chanlist_count].name = ref_strdup(row[5]);
 			rtrn->chanlist_count += 1;
 		}
-		PRINTF("** SSDEBUG: cardid for channel %d is %ld with count %d\n",
+		fprintf(stderr,"** SSDEBUG: cardid for channel %d is %ld with count %d\n",
 			rtrn->chanlist_list[rtrn->chanlist_count-1].channum,
 			rtrn->chanlist_list[rtrn->chanlist_count-1].cardids,
 			rtrn->chanlist_count-1);

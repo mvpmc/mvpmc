@@ -282,6 +282,8 @@ add_item(config_list_t *list, int type)
 		ITEM_FIXED(MYTHTV_SEEK, mythtv_seek);
 		ITEM_FIXED(MYTHTV_DISABLE_COMMSKIP_OSD, mythtv_disable_commskip_osd);
 		ITEM_FIXED(MYTHTV_DISABLE_BOOKMARK_OSD, mythtv_disable_bookmark_osd);
+		ITEM_FIXED(MYTHTV_CHECK_TUNER_TYPE, mythtv_check_tuner_type);
+
 	case CONFIG_ITEM_MYTHTV_RG_HIDE:
 		if ((config->bitmask & CONFIG_MYTHTV_RECGROUP) == 0)
 			return 0;
@@ -421,6 +423,8 @@ get_item(config_item_t *item, int override)
 		ITEM_FIXED(DURATION_MINUTES, mythtv_use_duration_minutes);
 		ITEM_FIXED(MYTHTV_DISABLE_COMMSKIP_OSD, mythtv_disable_commskip_osd);
 		ITEM_FIXED(MYTHTV_DISABLE_BOOKMARK_OSD, mythtv_disable_bookmark_osd);
+		ITEM_FIXED(MYTHTV_CHECK_TUNER_TYPE, mythtv_check_tuner_type);
+
 	case CONFIG_ITEM_MYTHTV_RG_HIDE:
 	case CONFIG_ITEM_MYTHTV_RG_SHOW:
 		config->bitmask |= CONFIG_MYTHTV_RECGROUP;
@@ -553,6 +557,8 @@ save_config_file(char *file)
 		goto err;
 	if (add_item(list, CONFIG_ITEM_MYTHTV_SEEK) < 0) 
 		goto err;
+	if (add_item(list, CONFIG_ITEM_MYTHTV_CHECK_TUNER_TYPE) < 0) 
+		goto err;
 
 	list->crc = 0;
 	list->version = CONFIG_VERSION;
@@ -670,6 +676,9 @@ set_config(void)
 		mythtv_commskip = config->mythtv_commskip;
 		mythtv_disable_all_commskip = config->mythtv_disable_all_commskip;
 		mythtv_auto_commskip = config->mythtv_auto_commskip;
+	}
+	if (config->bitmask & CONFIG_MYTHTV_CHECK_TUNER_TYPE) {
+		mythtv_check_tuner_type = config->mythtv_check_tuner_type;
 	}
 	if (config->bitmask & CONFIG_MYTHTV_DISABLE_ALL_COMMSKIP) {
 		mythtv_disable_all_commskip = config->mythtv_disable_all_commskip;

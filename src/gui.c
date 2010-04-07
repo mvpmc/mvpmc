@@ -1296,7 +1296,8 @@ typedef enum {
 	SEEK60,
 	DISABLE_ALL_COMMSKIP,
 	DISABLE_COMMSKIP_OSD,
-	DISABLE_BOOKMARK_OSD
+	DISABLE_BOOKMARK_OSD,
+	DISABLE_TUNER_CHECK
 } mythtv_options_t;
 
 typedef enum {
@@ -3784,6 +3785,12 @@ static void
 settings_mythtv_options_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
         switch ((mythtv_options_t)key) {
+	case DISABLE_TUNER_CHECK:
+		mythtv_check_tuner_type ^= 1;
+		config->mythtv_check_tuner_type = mythtv_check_tuner_type;
+		config->bitmask |= CONFIG_MYTHTV_CHECK_TUNER_TYPE;
+		mvpw_check_menu_item(widget, (void*)DISABLE_TUNER_CHECK, mythtv_check_tuner_type);
+		break;
 	case DISABLE_COMMSKIP_OSD:
 		mythtv_disable_commskip_osd ^= 1;
 		config->mythtv_disable_commskip_osd = mythtv_disable_commskip_osd;
@@ -4382,6 +4389,7 @@ mythtv_select_callback(mvp_widget_t *widget, char *item, void *key)
 		mvpw_focus(settings_mythtv_filter_pending);
 		break;
 	case SETTINGS_MYTHTV_OPTIONS:
+		mvpw_check_menu_item(settings_mythtv_options, (void*)DISABLE_TUNER_CHECK, mythtv_check_tuner_type);
 		mvpw_check_menu_item(settings_mythtv_options, (void*)DISABLE_ALL_COMMSKIP, mythtv_disable_all_commskip);
 		mvpw_check_menu_item(settings_mythtv_options, (void*)COMMSKIP, mythtv_commskip);
 		mvpw_check_menu_item(settings_mythtv_options, (void*)AUTOCOMMSKIP, mythtv_auto_commskip);
@@ -5217,6 +5225,7 @@ settings_init(void)
 	settings_item_attr.hilite = NULL;
 	settings_item_attr.select = settings_mythtv_options_select_callback;
 
+	mvpw_add_menu_item(settings_mythtv_options, "MythTV Tuner Check", (void*)DISABLE_TUNER_CHECK, &settings_item_attr);
 	mvpw_add_menu_item(settings_mythtv_options, "Disable Commercial Skip", (void*)DISABLE_ALL_COMMSKIP, &settings_item_attr);
 	mvpw_add_menu_item(settings_mythtv_options, "Manual Commercial Skip", (void*)COMMSKIP, &settings_item_attr);
 	mvpw_add_menu_item(settings_mythtv_options, "Auto Commercial Skip", (void*)AUTOCOMMSKIP, &settings_item_attr);

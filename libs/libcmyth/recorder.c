@@ -1375,6 +1375,7 @@ cmyth_recorder_spawn_chain_livetv(cmyth_recorder_t rec)
 	char datestr[32];
 	time_t t;
 
+
 	if (!rec) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: no recorder connection\n",
 			  __FUNCTION__);
@@ -1392,9 +1393,16 @@ cmyth_recorder_spawn_chain_livetv(cmyth_recorder_t rec)
 	strftime(datestr, 32, "%Y-%m-%dT%H:%M:%S", localtime(&t));
 	
 	/* Now build the SPAWN_LIVETV message */
-	snprintf(msg, sizeof(msg),
+	if (rec->rec_conn->conn_version >=50) {
+		snprintf(msg, sizeof(msg),
+		"QUERY_RECORDER %d[]:[]SPAWN_LIVETV[]:[]live-%s-%s[]:[]%d[]:[]",
+		 rec->rec_id, myhostname, datestr, 0);
+	}
+	else {
+		snprintf(msg, sizeof(msg),
 		"QUERY_RECORDER %d[]:[]SPAWN_LIVETV[]:[]live-%s-%s[]:[]%d",
 		 rec->rec_id, myhostname, datestr, 0);
+	}
 
 	if ((err=cmyth_send_message(rec->rec_conn, msg)) < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR,

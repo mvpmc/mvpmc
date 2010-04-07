@@ -537,6 +537,7 @@ extern int mythtv_auto_commskip;
 extern int mythtv_disable_all_commskip;
 extern int mythtv_disable_commskip_osd;
 extern int mythtv_disable_bookmark_osd;
+extern int mythtv_check_tuner_type;
 
 extern void switch_hw_state(mvpmc_state_t new);
 extern void switch_gui_state(mvpmc_state_t new);

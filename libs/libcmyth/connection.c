@@ -821,6 +821,7 @@ cmyth_conn_get_recorder_from_num(cmyth_conn_t conn, int id)
 					conn->conn_tcp_rcvbuf) < 0)
 		goto fail;
 
+
 	pthread_mutex_unlock(&mutex);
 
 	return rec;
