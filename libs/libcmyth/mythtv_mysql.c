@@ -874,7 +874,7 @@ cmyth_mysql_get_commbreak_list(cmyth_database_t db, int chanid, char * start_ts_
 		breaklist->commbreak_count = mysql_num_rows(res) / 2;
 	}
 	breaklist->commbreak_list = malloc(breaklist->commbreak_count * sizeof(cmyth_commbreak_t));
-	cmyth_dbg(CMYTH_DBG_ERROR, "%s: %ld\n",__FUNCTION__,breaklist->commbreak_count);
+	//cmyth_dbg(CMYTH_DBG_ERROR, "%s: %ld\n",__FUNCTION__,breaklist->commbreak_count);
 
 	if (!breaklist->commbreak_list) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: malloc() failed for list\n",
