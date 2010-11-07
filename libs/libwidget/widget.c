@@ -940,7 +940,7 @@ mvpw_reparent(mvp_widget_t *child, mvp_widget_t *parent)
 
 int
 mvpw_read_area(mvp_widget_t *widget, int x, int y, int w, int h,
-	       unsigned long *pixels)
+	       uint32_t *pixels)
 {
 	if ((widget == NULL) || (pixels == NULL))
 		return -1;

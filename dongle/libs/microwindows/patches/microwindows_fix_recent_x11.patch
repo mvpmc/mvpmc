@@ -1,0 +1,142 @@
+diff --git a/src/drivers/mou_x11.c b/src/drivers/mou_x11.c
+index be31634..d909e08 100644
+--- a/src/drivers/mou_x11.c
++++ b/src/drivers/mou_x11.c
+@@ -89,12 +89,10 @@ X11_Read(MWCOORD *dx, MWCOORD *dy, MWCOORD *dz, int *bp)
+     static int noevent_count = 0;
+     XEvent ev;
+     int events = 0;
+-    long mask = /* x11_event_mask | */
+-#ifdef USE_EXPOSURE
+-      ButtonPressMask | ButtonReleaseMask | PointerMotionMask | ExposureMask;
+-#else
+-      ButtonPressMask | ButtonReleaseMask | PointerMotionMask;
+-#endif
++    int mouse_events = 0;
++    /* Handle everything that isn't handled by the keyboard handler */
++    long mask = KeyPressMask | KeyReleaseMask;
++    mask = ~mask;
+ 
+     while (XCheckMaskEvent(x11_dpy, mask, &ev)) {
+ 	if (ev.type == MotionNotify) {
+@@ -110,7 +108,7 @@ X11_Read(MWCOORD *dx, MWCOORD *dy, MWCOORD *dz, int *bp)
+ 		if (ev.xmotion.state & Button3Mask)
+ 		    button |= MWBUTTON_R;
+ 		*bp = button;
+-		events++;
++		mouse_events++;
+ 	    }
+ 	}
+ 	else if (ev.type == ButtonPress) {
+@@ -139,7 +137,7 @@ X11_Read(MWCOORD *dx, MWCOORD *dy, MWCOORD *dz, int *bp)
+ 		*dx = ev.xbutton.x;
+ 		*dy = ev.xbutton.y;
+ 		*dz = 0;
+-		events++;
++		mouse_events++;
+ 	    }
+ 	}
+ 	else if (ev.type == ButtonRelease) {
+@@ -170,13 +168,16 @@ X11_Read(MWCOORD *dx, MWCOORD *dy, MWCOORD *dz, int *bp)
+ 		*dx = ev.xbutton.x;
+ 		*dy = ev.xbutton.y;
+ 		*dz = 0;
+-		events++;
++		mouse_events++;
+ 	    }
+ 	}
+ 	else {
+ 	    x11_handle_event(&ev);
++	    events++;
+ 	}
+     }
++    events += mouse_events;
++#if 0
+     if (events == 0) {
+ 	/* after a bunch of consecutive noevent calls here
+            (meaning select() says there's something to read but nothing
+@@ -192,6 +193,10 @@ X11_Read(MWCOORD *dx, MWCOORD *dy, MWCOORD *dz, int *bp)
+ 	}
+ 	return 0;
+     }
++#endif
+     noevent_count = 0;
+-    return 2;		/* absolute position returned*/
++    if(mouse_events)
++	return 2;		/* absolute position returned*/
++    else
++	return 0;		/* Non-mouse events handled*/
+ }
+diff --git a/src/nanox/srvmain.c b/src/nanox/srvmain.c
+index ba29115..da3e386 100644
+--- a/src/nanox/srvmain.c
++++ b/src/nanox/srvmain.c
+@@ -724,6 +724,7 @@ GsSelect(GR_TIMEOUT timeout)
+ 	int	setsize = 0;
+ 	struct timeval tout;
+ 	struct timeval *to;
++	int	handled_event = 0;
+ #if NONETWORK
+ 	int	fd;
+ #endif
+@@ -835,6 +836,15 @@ GsSelect(GR_TIMEOUT timeout)
+ 			to = NULL;
+ 	}
+ 
++	while(keyb_fd >= 0 && GsCheckKeyboardEvent())
++		handled_event = 1;
++
++	while(mouse_fd >= 0 && GsCheckMouseEvent())
++		handled_event = 1;
++
++	if(!handled_event)
++	{
++
+ 	/* Wait for some input on any of the fds in the set or a timeout: */
+ #if NONETWORK
+ 	SERVER_UNLOCK();	/* allow other threads to run*/
+@@ -844,19 +854,17 @@ GsSelect(GR_TIMEOUT timeout)
+ 	SERVER_LOCK();
+ #endif
+ 	if(e > 0) {
+-		/* If data is present on the mouse fd, service it: */
+-		if(mouse_fd >= 0 && FD_ISSET(mouse_fd, &rfds))
+-			while(GsCheckMouseEvent())
+-				continue;
+-
+-		/* If data is present on the keyboard fd, service it: */
++		/* If data is present on the keyb or mouse fd, service it: */
+ 		if( (keyb_fd >= 0 && FD_ISSET(keyb_fd, &rfds))
+ #ifdef MW_FEATURE_TWO_KEYBOARDS
+ 		 || (keyb2_fd >= 0 && FD_ISSET(keyb2_fd, &rfds))
+ #endif
+-		  )
+-			while(GsCheckKeyboardEvent())
+-				continue;
++		 || (mouse_fd >= 0 && FD_ISSET(mouse_fd, &rfds)))
++		{
++			if(GsCheckKeyboardEvent() || GsCheckMouseEvent())
++				handled_event = 1;
++		}
++		if(!handled_event) {
+ 
+ #if HAVE_VNCSERVER && VNCSERVER_PTHREADED
+                 if ( vnc_thread_fd >= 0 && FD_ISSET(vnc_thread_fd, &rfds) )
+@@ -899,8 +907,8 @@ GsSelect(GR_TIMEOUT timeout)
+ #if HAVE_VNCSERVER && !VNCSERVER_PTHREADED
+                 rfbProcessEvents(rfbScreen, 0);
+ #endif
+-		
+ #endif /* NONETWORK */
++		}/*if !handled_event */
+ 	} 
+ 	else if (e == 0) {
+ #if NONETWORK
+@@ -928,6 +936,7 @@ GsSelect(GR_TIMEOUT timeout)
+ 	} else
+ 		if(errno != EINTR)
+ 			EPRINTF("Select() call in main failed\n");
++	} /*End if(handled_event) */
+ }
+ 
+ #if NONETWORK

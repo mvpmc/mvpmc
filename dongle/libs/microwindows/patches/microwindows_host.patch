@@ -1,0 +1,72 @@
+diff --git a/src/config b/src/config
+index b8e087f..57f9c6e 100644
+--- a/src/config
++++ b/src/config
+@@ -68,7 +68,7 @@ GPROF                    = N
+ ####################################################################
+ MICROWIN                 = Y
+ NANOX                    = Y
+-SHAREDLIBS               = Y
++SHAREDLIBS               = N
+ OBJFRAMEWORK             = N
+ 
+ ####################################################################
+@@ -113,7 +113,7 @@ SCREEN_PIXTYPE           = MWPF_TRUECOLOR0888
+ # or for speed or debugging.  This affects the nano-X server only.
+ #
+ ####################################################################
+-LINK_APP_INTO_SERVER     = N
++LINK_APP_INTO_SERVER     = Y
+ 
+ ####################################################################
+ # Shared memory support for Nano-X client/server protocol speedup
+@@ -147,9 +147,9 @@ LIBJPEG                  = /usr/lib/libjpeg.so
+ # PNG support via libpng and libz
+ ####################################################################
+ HAVE_PNG_SUPPORT         = Y
+-INCPNG                   = .
++INCPNG                   = /usr/include
+ LIBPNG                   = /usr/lib/libpng.so
+-INCZ                     = .
++INCZ                     = /usr/include
+ LIBZ                     = /usr/lib/libz.a
+ 
+ ####################################################################
+@@ -162,14 +162,14 @@ LIBTIFF                  = /usr/lib/libtiff.a
+ ####################################################################
+ # PCF font support - .pcf/.pcf.gz loadable fonts
+ ####################################################################
+-HAVE_PCF_SUPPORT         = Y
+-HAVE_PCFGZ_SUPPORT       = Y
++HAVE_PCF_SUPPORT         = N
++HAVE_PCFGZ_SUPPORT       = N
+ PCF_FONT_DIR             = "fonts/pcf"
+ 
+ ####################################################################
+ # Truetype fonts - .ttf loadable fonts thru Freetype 2.x
+ ####################################################################
+-HAVE_FREETYPE_2_SUPPORT  = Y
++HAVE_FREETYPE_2_SUPPORT  = N
+ INCFT2LIB                = /usr/include
+ LIBFT2LIB                = /usr/lib/libfreetype.a
+ FREETYPE_FONT_DIR        = "fonts/truetype"
+@@ -187,7 +187,7 @@ LIBT1LIB                 = /usr/lib/libt1.a
+ # FNT font support - .fnt/.fnt.gz loadable fonts (native bdf-converted)
+ ####################################################################
+ HAVE_FNT_SUPPORT         = Y
+-HAVE_FNTGZ_SUPPORT       = Y
++HAVE_FNTGZ_SUPPORT       = N
+ FNT_FONT_DIR             = "fonts/fnt"
+ 
+ ####################################################################
+@@ -267,8 +267,8 @@ X11                      = Y
+ 
+ ifeq ($(X11), Y)
+ # startup screen width, height, (depth for palette mode only)
+-SCREEN_WIDTH             = 800
+-SCREEN_HEIGHT            = 600
++SCREEN_WIDTH             = 720
++SCREEN_HEIGHT            = 480
+ SCREEN_DEPTH             = 8
+ 
+ # You may want to turn this on for XFree86 4.x or if your backing store

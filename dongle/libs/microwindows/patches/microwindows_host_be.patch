@@ -1,0 +1,13 @@
+diff --git a/src/config b/src/config
+index b8e087f..b3830e0 100644
+--- a/src/config
++++ b/src/config
+@@ -40,7 +40,7 @@
+ #
+ ####################################################################
+ ARCH                     = LINUX-NATIVE
+-BIGENDIAN                = N
++BIGENDIAN                = Y
+ NATIVETOOLSPREFIX        = 
+ ARMTOOLSPREFIX           = arm-linux-
+ MIPSTOOLSPREFIX          = mipsel-linux-

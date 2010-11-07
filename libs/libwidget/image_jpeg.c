@@ -232,7 +232,7 @@ mvpw_load_image_jpeg(mvp_widget_t *widget, char *file)
 
 	pimage = (PMWIMAGEHDR)malloc(sizeof(MWIMAGEHDR));
 	if(!pimage) {
-		EPRINTF("%s: malloc(%d) failure for pimage\n", __FUNCTION__, sizeof(MWIMAGEHDR));
+		EPRINTF("%s: malloc(%zd) failure for pimage\n", __FUNCTION__, sizeof(MWIMAGEHDR));
 		ret = -1;
 		goto err2;
 	}

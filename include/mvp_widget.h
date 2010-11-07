@@ -318,7 +318,7 @@ extern int mvpw_fdinput_callback(void (*callback)(void));
 extern void mvpw_reparent(mvp_widget_t *child, mvp_widget_t *parent);
 
 extern int mvpw_read_area(mvp_widget_t *widget, int x, int y, int w, int h,
-			  unsigned long *pixels);
+			  uint32_t *pixels);
 
 /**
  * Create a container widget

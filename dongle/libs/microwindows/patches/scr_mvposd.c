@@ -224,7 +224,7 @@ OSD_blit(PSD dstpsd, MWCOORD dstx, MWCOORD dsty, MWCOORD w, MWCOORD h,
 	osd_surface_t *dstsfc = (osd_surface_t*)dstpsd->addr;
 	osd_surface_t *srcsfc = (osd_surface_t*)srcpsd->addr;
 
-	if (op == MWMODE_NOOP)
+	if (op == MWROP_NOOP)
 		return;
 	if(!(srcpsd->flags & PSF_SCREEN) || !(dstpsd->flags & PSF_SCREEN))
 		return;

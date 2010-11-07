@@ -8678,7 +8678,7 @@ capture_screenshot(void)
 {
 	bmp_file_t bmp;
 	mvpw_widget_info_t info;
-	unsigned long *pixels;
+	uint32_t *pixels;
 	unsigned char *buf;
 	int w, h;
 	int fd, len;
@@ -8730,7 +8730,7 @@ capture_screenshot(void)
 	for (i=h-1; i>=0; i--) {
 		if (mvpw_read_area(root, 0, i, w, 1, pixels) == 0) {
 			for (j=0; j<w; j++) {
-				unsigned char *c = (unsigned char*)(pixels+j);
+				uint8_t *c = (uint8_t*)(pixels+j);
 
 				buf[(j*3)+0] = c[3];
 				buf[(j*3)+1] = c[2];

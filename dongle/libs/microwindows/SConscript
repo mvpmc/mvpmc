@@ -16,29 +16,30 @@ libdir = '%s/dongle/install/%s/lib/' % (topdir,build_target)
 incdir = '%s/dongle/install/%s/include/' % (topdir,build_target)
 prefix = '%s/dongle/install/%s' % (topdir,build_target)
 
-patches = [ 'patches/microwindows-0.91_abs.patch',
-            'patches/microwindows-0.91.patch' ]
-
 if build_target == 'mvp':
     config = '--host=powerpc'
+    patches = [	'patches/microwindows-0.91_abs.patch',
+		'patches/microwindows-0.91.patch',
+	        'patches/microwindows-0.91_no_demos.patch',
+		'patches/microwindows-0.91_pixel_compat.patch']
+    url = [ 'http://www.mvpmc.org/dl/microwindows-src-0.91.tar.gz',
+	    'ftp://microwindows.censoft.com/pub/microwindows/microwindows-src-0.91.tar.gz' ]
 else:
     config = ''
+    patches = ['patches/microwindows_host.patch',
+	       'patches/microwindows_fix_recent_x11.patch',
+	       'patches/microwindows_no_demos.patch']
     if machine == 'ppc':
-      patches.append('patches/microwindows-0.91_host_be.patch')
-    else:
-      patches.append('patches/microwindows-0.91_host_le.patch')
-    patches.append('patches/microwindows-0.91_fix_recent_x11.patch')
+      patches.append('patches/microwindows_host_be.patch')
+    url = [ #'http://www.mvpmc.org/dl/microwindows-full-snapshot.tar.gz',
+        'ftp://microwindows.censoft.com/pub/microwindows/microwindows-full-snapshot.tar.gz' ]
   
 e = Environment()
 
-url = [ 'http://www.mvpmc.org/dl/microwindows-src-0.91.tar.gz',
-        'ftp://microwindows.censoft.com/pub/microwindows/microwindows-src-0.91.tar.gz' ]
-
 target = [ libdir + 'libnano-X.a' ]
 
-patches.append('patches/microwindows-0.91_no_demos.patch')
 
-ppccmd = [ 'cp -p --remove-destination src/Configs/config.mvp src/config' ]
+mvpcmd = [ 'cp -p --remove-destination src/Configs/config.mvp src/config' ]
 
 commoncmd = [	'cd src',
                 'cp ../../../patches/*.c drivers',
@@ -48,7 +49,7 @@ commoncmd = [	'cd src',
                 'cp -p src/lib/*.a %s' % libdir ]
 
 if build_target == 'mvp':
-    cmd = ppccmd + commoncmd
+    cmd = mvpcmd + commoncmd
 else:
     cmd = commoncmd
 

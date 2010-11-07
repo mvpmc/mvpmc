@@ -1,0 +1,22 @@
+diff -ur microwindows-0.91.dist/src/include/mwtypes.h microwindows-0.91/src/include/mwtypes.h
+--- microwindows-0.91.dist/src/include/mwtypes.h	2003-05-10 23:03:30.000000000 +0100
++++ microwindows-0.91/src/include/mwtypes.h	2010-11-07 14:30:12.000000000 +0000
+@@ -6,6 +6,9 @@
+  *
+  * Exported Microwindows engine typedefs and defines
+  */
++
++#include <stdint.h> /* For uint32_t */
++
+ #define MWPACKED	__attribute__ ((aligned(1), packed))
+ 
+ /* builtin font std names*/
+@@ -248,7 +251,7 @@
+     #if MWPIXEL_FORMAT == MWPF_PALETTE
+     typedef unsigned char MWPIXELVAL;
+     #else
+-      typedef unsigned long MWPIXELVAL;
++      typedef uint32_t MWPIXELVAL;
+     #endif
+   #endif
+ #endif
