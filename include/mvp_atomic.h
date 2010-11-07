@@ -39,10 +39,10 @@ __mvp_atomic_increment(mvp_atomic_t *valp)
 #else
 	/*
 	 * Don't know how to atomic increment for a generic architecture
-	 * so punt and just increment the value.
+	 * so try to use GCC builtin
 	 */
-#warning unknown architecture, atomic increment is not...
-	__val = ++(*valp);
+//#warning unknown architecture, atomic increment is not...
+	__val = __sync_add_and_fetch(valp,1);
 #endif
 	return __val;
 }
@@ -96,10 +96,11 @@ __mvp_atomic_decrement(mvp_atomic_t *valp)
 #else
 	/*
 	 * Don't know how to atomic decrement for a generic architecture
-	 * so punt and just decrement the value.
+	 * so use GCC builtin
 	 */
-#warning unknown architecture, atomic deccrement is not...
+//#warning unknown architecture, atomic deccrement is not...
 	__val = --(*valp);
+	__val = __sync_sub_and_fetch(valp,1);
 #endif
 	return __val;
 }

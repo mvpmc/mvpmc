@@ -186,7 +186,7 @@ static int build_playlist_from_file(const char *filename)
   int done=0;
   playlist_t *pl_item;
   playlist_t *pl_dest=NULL;
-  int count=0;
+  long count=0;
   char *cwd;
   char *sep = NULL, *name = NULL;
   int seconds = -1;
@@ -304,7 +304,7 @@ static int build_playlist_from_file(const char *filename)
 	  sz = 0;
 	}
   }
-  snprintf(buf, sizeof(buf), "%s - %d files", filename, count);
+  snprintf(buf, sizeof(buf), "%s - %ld files", filename, count);
   mvpw_set_menu_title(playlist_widget, buf);
   if (name)
     free(name);
@@ -431,8 +431,8 @@ void playlist_change(playlist_t *next)
     if(!playlist){
 	    goto out;
     }
-  printf("playlist: play item '%s', file '%s' key %d\n",
-	 playlist->name, playlist->filename, (int)playlist->key);
+  printf("playlist: play item '%s', file '%s' key %ld\n",
+	 playlist->name, playlist->filename, (long)playlist->key);
 
   /*
    * Find ID3 tag information for the selected
@@ -542,7 +542,7 @@ void playlist_clear(void)
 
 void playlist_create(char **item, int n, char *cwd)
 {
-	int i;
+	long i;
 	playlist_t *pl_head, *pl_prev, *pl;
 
 	pthread_once(&init_control,playlist_init);
@@ -587,7 +587,7 @@ void
 playlist_randomize(void)
 {
 	playlist_t *cur, *swap, *hilite = NULL;
-	int i, j, count, r, old;
+	long i, j, count, r, old;
 
 	pthread_mutex_lock(&mutex);
 
@@ -595,7 +595,7 @@ playlist_randomize(void)
 		goto out;
 	}
 
-	old = (int)mvpw_menu_get_hilite(playlist_widget);
+	old = (long)mvpw_menu_get_hilite(playlist_widget);
 
 	count = 0;
 	cur = playlist_head;
@@ -683,7 +683,7 @@ static int build_playlist_from_pls_file(const char *filename)
 	int done=0;
 	playlist_t *pl_item;
 	playlist_t *pl_dest=NULL;
-	int count=0;
+	long count=0;
 	char *cwd;
 	int seconds = -1;
 	char *ptr;
@@ -798,7 +798,7 @@ static int build_playlist_from_pls_file(const char *filename)
 			sz++;
 		}
 	}
-	snprintf(buf, sizeof(buf), "%s - %d files", filename, count);
+	snprintf(buf, sizeof(buf), "%s - %ld files", filename, count);
 	mvpw_set_menu_title(playlist_widget, buf);
 	playlist_head = playlist;
 	free(fdbuf);

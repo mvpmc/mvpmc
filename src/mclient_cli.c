@@ -1024,7 +1024,7 @@ cli_parse_playlist(mclient_cmd * response)
              */
             if (cli_fullscreen_widget_state != STREAMING_RADIO)
             {
-                int i;
+                long i;
 
                 /*
                  * Force a fullscreen update.
@@ -1141,7 +1141,7 @@ cli_parse_playlist(mclient_cmd * response)
              * of this line to normal.
              */
             mvpw_menu_set_item_attr(mclient_fullscreen,
-                                    (void *)(cli_data.index_line +
+                                    (void *)(long)(cli_data.index_line +
                                              2),
                                     &mclient_fullscreen_menu_item_attr_normal);
             /*
@@ -1164,9 +1164,8 @@ cli_parse_playlist(mclient_cmd * response)
 
                 err =
                     mvpw_menu_set_item_attr(mclient_fullscreen,
-                                            (void *)(cli_data.
-                                                     index_line
-                                                     + 2),
+                                            (void *)(long)(cli_data.index_line
+							     + 2),
                                             &mclient_fullscreen_menu_item_attr_nowplaying);
             }
 
@@ -1188,7 +1187,7 @@ cli_parse_playlist(mclient_cmd * response)
                     err =
                         mvpw_menu_set_item_attr
                         (mclient_fullscreen,
-                         (void *)(cli_data.index_line + 2),
+                         (void *)(long)(cli_data.index_line + 2),
                          &mclient_fullscreen_menu_item_attr_userfocus);
                 }
 
@@ -1196,7 +1195,8 @@ cli_parse_playlist(mclient_cmd * response)
             sprintf(string, "%d) %s", (cli_data.index_info + 1),
                     response->param[2]);
             mvpw_menu_change_item(mclient_fullscreen,
-                                  (void *)(cli_data.index_line + 2), string);
+                                  (void *)(long)(cli_data.index_line + 2),
+				  string);
 
             /*
              * If we still have room & haven't listed all titles, get another title.
@@ -1214,7 +1214,7 @@ cli_parse_playlist(mclient_cmd * response)
                     string[0] = '\0';
                     mvpw_menu_change_item
                         (mclient_fullscreen,
-                         (void *)(cli_data.index_line + 2), string);
+                         (void *)(long)(cli_data.index_line + 2), string);
                     cli_data.index_line++;
                 }
                 cli_pick_starting_index();
@@ -1243,7 +1243,7 @@ void
 cli_parse_display(mclient_cmd * response)
 {
     char string[200];
-    int i;
+    long i;
     int userfocus_xofn;
     char *char_ptr;
 

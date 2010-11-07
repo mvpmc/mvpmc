@@ -1849,7 +1849,7 @@ static void delete_show_from_guide( unsigned int show_idx )
 //
 static void rtv_show_popup_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
-   int          which = (int)key;
+   long         which = (long)key;
    int          rc, in_use;
    unsigned int show_idx = 0, play_gop;
    char         delete_msg[512];

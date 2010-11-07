@@ -60,8 +60,8 @@ extern char *vlc_server;
 
 static char *current_pl = NULL;
 
-static int file_count = 0;
-static int dir_count = 0;
+static long int file_count = 0;
+static long int dir_count = 0;
 
 int loaded_offset = 0;
 int loaded_status = 0;
@@ -151,7 +151,7 @@ fb_osd_update(mvp_widget_t *widget)
 		 stc.hour, stc.minute, stc.second);
 	mvpw_set_text_str(fb_time, buf);
 
-	snprintf(buf, sizeof(buf), "Bytes: %lld", sb.st_size);
+	snprintf(buf, sizeof(buf), "Bytes: %lld", (long long)sb.st_size);
 	mvpw_set_text_str(fb_size, buf);
 
 	offset = lseek(fd, 0, SEEK_CUR);
@@ -356,7 +356,7 @@ hilite_callback(mvp_widget_t *widget, char *item, void *key, bool hilite)
 		ctime_r(&sb.st_mtime, date);
 		snprintf(str, sizeof(str),
 			 "File: %s\nSize: %lld\nDate: %s",
-			 item, sb.st_size, date);
+			 item, (long long)sb.st_size, date);
 
 		mvpw_set_text_str(fb_program_widget, str);
 
@@ -617,7 +617,7 @@ fb_next_image(int offset)
 {
 	char path[1024];
 	char *label;
-	int c, i, n, o;
+	long int c, i, n, o;
 
 	if( offset == 0 ) {
 		if( loaded_offset ) {

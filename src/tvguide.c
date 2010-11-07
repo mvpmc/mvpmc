@@ -929,7 +929,7 @@ tvguide_menu_select_callback(mvp_widget_t *widget, char *item, void *key)
 
 	//mvpw_hide(widget);
 
-	switch ((int)key) {
+	switch ((long)key) {
 	case 1: // Autotune
 		// Get the currently selected item.
 		buf = get_tvguide_selected_channel_str(mythtv_livetv_program_list,

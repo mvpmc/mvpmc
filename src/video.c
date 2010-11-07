@@ -36,6 +36,7 @@
 #include <mvp_widget.h>
 #include <mvp_av.h>
 #include <ts_demux.h>
+#include <inttypes.h>
 
 #include "mvpmc.h"
 #include "mythtv.h"
@@ -1131,12 +1132,12 @@ video_callback(mvp_widget_t *widget, char key)
 		 */
 		av_get_audio_sync(&async);
 		av_get_video_sync(&vsync);
-		printf("PRE SYNC:  a 0x%llx 0x%llx  v 0x%llx 0x%llx\n",
+		printf("PRE  SYNC:  a 0x%"PRIx64" 0x%"PRIx64"  v 0x%"PRIx64" 0x%"PRIx64"\n",
 		       async.stc, async.pts, vsync.stc, vsync.pts);
 		av_delay_video(1000);
 		av_get_audio_sync(&async);
 		av_get_video_sync(&vsync);
-		printf("POST SYNC: a 0x%llx 0x%llx  v 0x%llx 0x%llx\n",
+		printf("POST SYNC:  a 0x%"PRIx64" 0x%"PRIx64"  v 0x%"PRIx64" 0x%"PRIx64"\n",
 		       async.stc, async.pts, vsync.stc, vsync.pts);
 		break;
 	case MVPW_KEY_VOL_UP:
@@ -1157,7 +1158,7 @@ add_audio_streams(mvp_widget_t *widget, mvpw_menu_item_attr_t *item_attr)
 	demux_attr_t *attr;
 	int i;
 	char buf[32];
-	unsigned int id;
+	unsigned long id;
 	stream_type_t type;
 	char *str = "";
 
@@ -1179,11 +1180,11 @@ add_audio_streams(mvp_widget_t *widget, mvpw_menu_item_attr_t *item_attr)
 			str = "PCM";
 			break;
 		}
-		snprintf(buf, sizeof(buf), "Stream ID 0x%x - %s", id, str);
+		snprintf(buf, sizeof(buf), "Stream ID 0x%lx - %s", id, str);
 		mvpw_add_menu_item(widget, buf, (void*)id, item_attr);
 	}
 
-	mvpw_check_menu_item(widget, (void*)attr->audio.current, 1);
+	mvpw_check_menu_item(widget, (void*)(long)attr->audio.current, 1);
 }
 
 void
@@ -1192,7 +1193,7 @@ add_video_streams(mvp_widget_t *widget, mvpw_menu_item_attr_t *item_attr)
 	demux_attr_t *attr;
 	int i;
 	char buf[32];
-	unsigned int id;
+	unsigned long id;
 	stream_type_t type;
 	char *str = "";
 
@@ -1205,18 +1206,19 @@ add_video_streams(mvp_widget_t *widget, mvpw_menu_item_attr_t *item_attr)
 		type = attr->video.ids[i].type;
 		if (type == STREAM_MPEG)
 			str = "MPEG";
-		snprintf(buf, sizeof(buf), "Stream ID 0x%x - %s", id, str);
+		snprintf(buf, sizeof(buf), "Stream ID 0x%lx - %s", id, str);
 		mvpw_add_menu_item(widget, buf, (void*)id, item_attr);
 	}
 
-	mvpw_check_menu_item(widget, (void*)attr->video.current, 1);
+	mvpw_check_menu_item(widget, (void*)(long)attr->video.current, 1);
 }
 
 void
 add_subtitle_streams(mvp_widget_t *widget, mvpw_menu_item_attr_t *item_attr)
 {
 	demux_attr_t *attr;
-	int i, current;
+	long i;
+	int current;
 	char buf[32];
 
 	mvpw_clear_menu(widget);
@@ -1227,7 +1229,7 @@ add_subtitle_streams(mvp_widget_t *widget, mvpw_menu_item_attr_t *item_attr)
 
 	for (i=0; i<32; i++) {
 		if (attr->spu[i].bytes > 0) {
-			snprintf(buf, sizeof(buf), "Stream ID 0x%x", i);
+			snprintf(buf, sizeof(buf), "Stream ID 0x%lx", i);
 			mvpw_add_menu_item(widget, buf, (void*)i, item_attr);
 			if (current == i)
 				mvpw_check_menu_item(widget, (void*)i, 1);
@@ -1238,7 +1240,7 @@ add_subtitle_streams(mvp_widget_t *widget, mvpw_menu_item_attr_t *item_attr)
 }
 
 int
-audio_switch_stream(mvp_widget_t *widget, int stream)
+audio_switch_stream(mvp_widget_t *widget, long stream)
 {
 	demux_attr_t *attr;
 
@@ -1246,7 +1248,7 @@ audio_switch_stream(mvp_widget_t *widget, int stream)
 
 	if (attr->audio.current != stream) {
 		stream_type_t type;
-		int old, ret;
+		long old, ret;
 
 		old = attr->audio.current;
 
@@ -1266,7 +1268,7 @@ audio_switch_stream(mvp_widget_t *widget, int stream)
 
 		fd_audio = av_get_audio_fd();
 
-		printf("switched from audio stream 0x%x to 0x%x\n",
+		printf("switched from audio stream 0x%lx to 0x%lx\n",
 		       old, stream);
 
 		if (type != audio_output) {
@@ -1279,14 +1281,14 @@ audio_switch_stream(mvp_widget_t *widget, int stream)
 }
 
 void
-video_switch_stream(mvp_widget_t *widget, int stream)
+video_switch_stream(mvp_widget_t *widget, long stream)
 {
 	demux_attr_t *attr;
 
 	attr = demux_get_attr(handle);
 
 	if (attr->video.current != stream) {
-		int old, ret;
+		long old, ret;
 
 		old = attr->video.current;
 
@@ -1296,15 +1298,15 @@ video_switch_stream(mvp_widget_t *widget, int stream)
 		mvpw_check_menu_item(widget, (void*)old, 0);
 		mvpw_check_menu_item(widget, (void*)stream, 1);
 
-		printf("switched from video stream 0x%x to 0x%x\n",
+		printf("switched from video stream 0x%lx to 0x%lx\n",
 		       old, stream);
 	}
 }
 
 void
-subtitle_switch_stream(mvp_widget_t *widget, int stream)
+subtitle_switch_stream(mvp_widget_t *widget, long stream)
 {
-	int old;
+	long old;
 
 	old = demux_spu_get_id(handle);
 
@@ -1314,7 +1316,7 @@ subtitle_switch_stream(mvp_widget_t *widget, int stream)
 		mvpw_check_menu_item(widget, (void*)old, 0);
 	if (old != stream) {
 		mvpw_check_menu_item(widget, (void*)stream, 1);
-		printf("switched from subtitle stream 0x%x to 0x%x\n",
+		printf("switched from subtitle stream 0x%lx to 0x%lx\n",
 		       old, stream);
 	}
 }

@@ -268,7 +268,7 @@ extern void volume_key_callback(mvp_widget_t *widget, char key);
 extern void timer_hide(mvp_widget_t *widget);
 
 extern uint32_t root_color;
-extern int root_bright;
+extern long int root_bright;
 extern int volume;
 
 extern char *current;
@@ -343,8 +343,8 @@ extern void fb_shuffle(int);
 extern void re_exec(void);
 extern void power_toggle(void);
 
-extern int audio_switch_stream(mvp_widget_t*, int);
-extern void video_switch_stream(mvp_widget_t*, int);
+extern int audio_switch_stream(mvp_widget_t*, long);
+extern void video_switch_stream(mvp_widget_t*, long);
 extern void add_audio_streams(mvp_widget_t*, mvpw_menu_item_attr_t*);
 extern void add_video_streams(mvp_widget_t*, mvpw_menu_item_attr_t*);
 
@@ -441,7 +441,7 @@ extern void gui_error_clear(void);
 extern void playlist_prev(void);
 extern void playlist_stop(void);
 
-extern void subtitle_switch_stream(mvp_widget_t*, int);
+extern void subtitle_switch_stream(mvp_widget_t*, long);
 extern void add_subtitle_streams(mvp_widget_t*, mvpw_menu_item_attr_t*);
 
 extern av_passthru_t audio_output_mode;

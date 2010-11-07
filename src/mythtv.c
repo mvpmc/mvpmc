@@ -634,7 +634,7 @@ hilite_callback(mvp_widget_t *widget, char *item, void *key, bool hilite)
 
 		ref_release(ep_list);
 		ref_release(hi_prog);
-		hi_prog = cmyth_proglist_get_item(ep_list, (int)key);
+		hi_prog = cmyth_proglist_get_item(ep_list, (long)key);
 		CHANGE_GLOBAL_REF(hilite_prog, hi_prog);
 
 /*  SAMPLE CODE TO USE BOOKMARK FUNCTIONS -- not in correct place, I know,
@@ -1021,7 +1021,8 @@ static void
 add_episodes(mvp_widget_t *widget, char *item, int load)
 {
 	char *name, *title, *subtitle;
-	int count, i, n = 0, episodes = 0;
+	int n = 0, episodes = 0;
+	long count, i;
 	char buf[256];
 	char *prog;
 	cmyth_proglist_t ep_list = ref_hold(episode_plist);
@@ -1167,7 +1168,7 @@ add_shows(mvp_widget_t *widget)
 {
 	cmyth_proglist_t ep_list;
 	int count;
-	int i, j, n = 0;
+	long i, j, n = 0;
 	char *titles[1024];
 
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
@@ -1396,7 +1397,7 @@ pending_hilite_callback(mvp_widget_t *widget,
 			char *item,
 			void *key, bool hilite)
 {
-	int n = (int)key;
+	long n = (long)key;
 
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
 		    __FUNCTION__, __FILE__, __LINE__);
@@ -1493,7 +1494,8 @@ mythtv_pending_filter(mvp_widget_t *widget, mythtv_filter_t filter)
 {
 	cmyth_conn_t ctrl;
 	cmyth_proglist_t pnd_list;
-	int i, count, ret = 0;
+	int count, ret = 0;
+	long i;
 	int days = 0, last_day = 0, displayed = 0;
 	cmyth_proginfo_t prog = NULL;
 	time_t t, rec_t, last_t = 0;
@@ -2772,7 +2774,7 @@ mythtv_test_exit(void)
 static void
 mythtv_schedule_options_move(mvp_widget_t *widget, char *item , void *key, bool hilite)
 {
-       	int i = (int)key;
+       	long i = (long)key;
        	mvpw_check_menu_item(widget, (void*)0, 0);
        	mvpw_check_menu_item(widget, (void*)1, 0);
        	mvpw_check_menu_item(widget, (void*)2, 0);
@@ -2785,7 +2787,7 @@ mythtv_schedule_options_move(mvp_widget_t *widget, char *item , void *key, bool 
 void
 schedule_recording_callback(mvp_widget_t *widget, char *item , void *key)
 {
-	int which = (int)key;
+	long which = (long)key;
 	mythtv_schedule_data_t * user_data = mvpw_get_user_data(widget);
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace)  which:%d  item=%s\n",
 		__FUNCTION__, __FILE__, __LINE__,which,item);
@@ -2837,12 +2839,12 @@ static void
 schedule_recording_callback_popup(mvp_widget_t *widget, char *item , void *key)
 {
 	mythtv_schedule_data_t *user_data;
-	int which = (int)key;
+	long which = (long)key;
      	char buf[65];
 	char *recordid;
 	int startoffset;
 	int endoffset;
-	int i;
+	long i;
 
 	switch (which) {
 		case -1:
@@ -2919,7 +2921,7 @@ schedule_recording_callback_popup(mvp_widget_t *widget, char *item , void *key)
 static void
 hilite_schedule_recording_callback(mvp_widget_t *widget, char *item , void *key, bool hilite)
 {
-	int which = (int)key;
+	long which = (long)key;
 	char buf[550];
 	char *record_message;
 	if(which >= 0)
@@ -2984,7 +2986,7 @@ mythtv_schedule_recording_delete(mvp_widget_t *widget, char *item , void *key, i
 	char msg[45];
 	int err=0;
 
-	int which = (int) mvpw_menu_get_hilite(widget);
+	long which = (long) mvpw_menu_get_hilite(widget);
 
 	cmyth_conn_t ctrl = ref_hold(control);
 
@@ -3039,8 +3041,8 @@ mythtv_schedule_recording(mvp_widget_t *widget, char *item , void *key, int type
 {
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s begin\n", __FUNCTION__);
 
-	int which = (int) mvpw_menu_get_hilite(widget);
-	int record_option = (int) key;    //will be 0 if not using schedule options
+	long which = (long) mvpw_menu_get_hilite(widget);
+	long record_option = (long) key;    //will be 0 if not using schedule options
 	mythtv_schedule_data_t * user_data = mvpw_get_user_data(widget);
 	char buf[256];
 	char query[700];
@@ -3050,7 +3052,8 @@ mythtv_schedule_recording(mvp_widget_t *widget, char *item , void *key, int type
 	char guierrormsg[45];
 	int sqlcount=0;
 	int err=0;
-	int i,rec_id=0;
+	long i;
+	int rec_id=0;
 	cmyth_conn_t ctrl = ref_hold(control);
 	char *string;
 	unsigned int len;
@@ -3074,7 +3077,7 @@ mythtv_schedule_recording(mvp_widget_t *widget, char *item , void *key, int type
 		sqlcount=user_data->myptr->sqlcount;
 		startoffset=mvpw_get_dialog_text(user_data->myptr->pane2);
 		endoffset=mvpw_get_dialog_text(user_data->myptr->pane3);
-		rgroup=(int)mvpw_menu_get_hilite(user_data->myptr->pane4);
+		rgroup=(long)mvpw_menu_get_hilite(user_data->myptr->pane4);
 	}
 
 	MYTHTV_RECORD_START=0;
@@ -3083,7 +3086,7 @@ mythtv_schedule_recording(mvp_widget_t *widget, char *item , void *key, int type
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) \n",
 		__FUNCTION__, __FILE__, __LINE__);
 	fprintf(stderr,"DB version = %d\n",cmyth_conn_get_protocol_version(control));
-	fprintf(stderr,"Recording TYPE = %d\n",record_option);
+	fprintf(stderr,"Recording TYPE = %ld\n",record_option);
 	switch (which) {
 		default:
 			fprintf(stderr, "Recording status = %d\n", sqlprog[which].recording);
@@ -3445,7 +3448,8 @@ myth_sql_program_info(time_t now, int sqlcount, int all)
 static int
 mythtv_guide_menu_update(mvp_widget_t *widget, time_t starttime, time_t endtime, mvp_widget_t *pane1, mvp_widget_t *pane2, mvp_widget_t *pane3, mvp_widget_t *pane4)
 {
-	int i=0,sqlcount,count;
+	long i=0;
+	int sqlcount,count;
 	char buf[256];
 	mythtv_schedule_data_t * user_data = mvpw_get_user_data(widget);
 
@@ -3598,7 +3602,7 @@ mythtv_guide_menu(mvp_widget_t *widget, mvp_widget_t *p1, mvp_widget_t *p2, mvp_
 static void
 prog_finder_char_callback(mvp_widget_t *widget, char *item , void *key)
 {
-	int which = (int)key;
+	long which = (long)key;
 
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) \n",
 		__FUNCTION__, __FILE__, __LINE__);
@@ -3616,7 +3620,7 @@ prog_finder_char_callback(mvp_widget_t *widget, char *item , void *key)
 static void
 hilite_prog_finder_char_callback(mvp_widget_t *widget, char *item , void *key, bool hilite)
 {
-	int which = (int)key;
+	long which = (long)key;
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) \n",
 		__FUNCTION__, __FILE__, __LINE__);
 
@@ -3636,7 +3640,7 @@ hilite_prog_finder_char_callback(mvp_widget_t *widget, char *item , void *key, b
 static void
 prog_finder_title_callback(mvp_widget_t *widget, char *item , void *key)
 {
-	int which = (int)key;
+	long which = (long)key;
 
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) \n",
 		__FUNCTION__, __FILE__, __LINE__);
@@ -3663,7 +3667,7 @@ hilite_prog_finder_title_callback(mvp_widget_t *widget, char *item , void *key, 
 static void
 prog_finder_time_callback(mvp_widget_t *widget, char *item , void *key)
 {
-	int which = (int)key;
+	long which = (long)key;
 
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) \n",
 		__FUNCTION__, __FILE__, __LINE__);
@@ -3685,7 +3689,7 @@ hilite_prog_finder_time_callback(mvp_widget_t *widget, char *item , void *key, b
 {
 	char buf[550];
 
-	int which = (int)key;
+	long which = (long)key;
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) \n",
 		__FUNCTION__, __FILE__, __LINE__);
 	if (hilite){
@@ -3704,7 +3708,8 @@ hilite_prog_finder_time_callback(mvp_widget_t *widget, char *item , void *key, b
 int
 mythtv_prog_finder_char_menu_right (int direction, mvp_widget_t *widget, mvp_widget_t *widget2, mvp_widget_t *widget3) 
 {
-	int i=0,sqlcount,count;
+	long i=0;
+	int sqlcount,count;
 	char buf[256];
 	time_t starttime;
 
@@ -3781,7 +3786,7 @@ mythtv_prog_finder_char_menu_right (int direction, mvp_widget_t *widget, mvp_wid
 int
 mythtv_prog_finder_char_menu(mvp_widget_t *widget, mvp_widget_t *widget2, mvp_widget_t *widget3) 
 {
-	int i=0;
+	long i=0;
 #ifdef UPDOWN		/* Remove since up/down arrow does not work to change titles */
 	int sqlcount,count;  
 #endif
@@ -3799,7 +3804,7 @@ mythtv_prog_finder_char_menu(mvp_widget_t *widget, mvp_widget_t *widget2, mvp_wi
 
 	/* Add letters to widget */
 	for(i='A';i<='Z';i++) {
-			snprintf(buf, sizeof(buf),"%c", i);
+			snprintf(buf, sizeof(buf),"%c", (int)i);
 			mvpw_add_menu_item(widget, buf , (void*)i, &item_attr);
 	}
 	/* Add @ sign */
@@ -3808,7 +3813,7 @@ mythtv_prog_finder_char_menu(mvp_widget_t *widget, mvp_widget_t *widget2, mvp_wi
 
 	/* Add Numbers to widget */
 	for(i='0';i<='9';i++) {
-			snprintf(buf, sizeof(buf),"%c", i);
+			snprintf(buf, sizeof(buf),"%c", (int)i);
 			mvpw_add_menu_item(widget, buf , (void*)i, &item_attr);
 	}
 
@@ -3898,7 +3903,8 @@ mythtv_prog_finder_char_menu(mvp_widget_t *widget, mvp_widget_t *widget2, mvp_wi
 int
 mythtv_prog_finder_title_menu_right (mvp_widget_t *widget, mvp_widget_t *widget2, mvp_widget_t *widget3) 
 {
-	int i=0,sqlcount,count;
+	long i=0;
+	int sqlcount,count;
 	char buf[256];
         time_t starttime;
 	char frmttime[25];
@@ -4056,7 +4062,7 @@ mythtv_browser_expose(mvp_widget_t *widget)
 		mythtv_update(widget);
 		mythtv_set_popup_menu(MYTHTV_STATE_EPISODES);
 		if (prog) {
-			int i;
+			long i;
 
 			if ((i=episode_index(prog)) >= 0) {
 				printf("change hilite\n");
@@ -4181,7 +4187,7 @@ RecStatusType {
 void
 hilite_move_mythtv_options(mvp_widget_t *widget, char *item , void *key, bool hilite)
 {
-	int i = (int)key;
+	long i = (long)key;
 	mvpw_check_menu_item(widget, (void*)0, 0);
 	mvpw_check_menu_item(widget, (void*)1, 0);
 	mvpw_check_menu_item(widget, (void*)2, 0);
@@ -4191,8 +4197,8 @@ hilite_move_mythtv_options(mvp_widget_t *widget, char *item , void *key, bool hi
 void
 commit_mythtv_delete_previos_recorded(mvp_widget_t *widget, char *item , void *key)
 {
-	int index = (int)key;
-	int which = (int) mvpw_menu_get_hilite(mythtv_browser);
+	long index = (long)key;
+	long which = (long) mvpw_menu_get_hilite(mythtv_browser);
 	char query[130],msg[25];
 	struct tm loctime;
 	int err;
@@ -4262,7 +4268,7 @@ mythtv_delete_previous_recorded(mvp_widget_t *widget, char *item , void *key)
 void
 hilite_mythtv_delete_previous_recorded(mvp_widget_t *widget, char *item , void *key, bool hilite)
 {
-	int which = (int)key;
+	long which = (long)key;
 	size_t len;
 	char buf[512];
 	char date[30];
@@ -4307,7 +4313,8 @@ hilite_mythtv_delete_previous_recorded(mvp_widget_t *widget, char *item , void *
 void
 run_mythtv_utils_prevrecorded(mvp_widget_t *widget,mvp_widget_t *mythtv_browser)
 {
-	int i,sqlcount=0;
+	long i;
+	int sqlcount=0;
 	char buf[200];
 	char string[64];
 	struct tm loctime;
@@ -4357,8 +4364,8 @@ run_mythtv_utils_prevrecorded(mvp_widget_t *widget,mvp_widget_t *mythtv_browser)
 void
 commit_mythtv_delete_recorded(mvp_widget_t *widget, char *item , void *key)
 {
-	int index = (int)key;
-	int which = (int) mvpw_menu_get_hilite(mythtv_browser);
+	long index = (long)key;
+	long which = (long) mvpw_menu_get_hilite(mythtv_browser);
 	int ret;
 	cmyth_conn_t ctrl = ref_hold(control);
 	cmyth_proglist_t prog = ref_hold(pending_plist);
@@ -4394,7 +4401,7 @@ commit_mythtv_delete_recorded(mvp_widget_t *widget, char *item , void *key)
 void
 mythtv_delete_recorded(mvp_widget_t *widget, char *item , void *key) {
 
-	int which = (int)key;
+	long which = (long)key;
 	cmyth_proglist_t prog = ref_hold(pending_plist);
 	cmyth_proginfo_t progitem = NULL;
 	char *title, *subtitle,*callsign,*description;
@@ -4436,7 +4443,7 @@ mythtv_delete_recorded(mvp_widget_t *widget, char *item , void *key) {
 void
 hilite_mythtv_delete_recorded(mvp_widget_t *widget, char *item , void *key, bool hilite)
 {
-	int which = (int)key;
+	long which = (long)key;
 	cmyth_proglist_t prog = ref_hold(pending_plist);
 	cmyth_proginfo_t progitem = NULL;
 	char *title, *subtitle,*callsign,*description;
@@ -4474,7 +4481,8 @@ run_mythtv_utils_delrecordings(mvp_widget_t *widget)
 	cmyth_conn_t ctrl;
 	cmyth_proglist_t prog = cmyth_proglist_create();
 	cmyth_proginfo_t progitem = NULL;
-	int error,i;
+	int error;
+	long i;
 	int prog_count;
 	char buf[125];
 	char *title, *subtitle;

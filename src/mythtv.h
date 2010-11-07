@@ -101,7 +101,7 @@ extern int mythtv_sort;
 extern int mythtv_sort_dirty;
 
 extern volatile int mythtv_livetv;
-extern volatile int current_livetv;
+extern volatile long current_livetv;
 extern volatile cmyth_conn_t control;		/* master backend */
 extern volatile int playing_via_mythtv;
 extern volatile cmyth_file_t mythtv_file;

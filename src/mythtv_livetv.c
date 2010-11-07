@@ -65,7 +65,7 @@ static mvpw_menu_item_attr_t item_attr = {
 	.checkbox_fg = MVPW_GREEN,
 };
 
-volatile int current_livetv;
+volatile long current_livetv;
 
 #define MAX_TUNER	16
 struct livetv_proginfo {
@@ -843,7 +843,7 @@ void
 livetv_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
 	char *channame = NULL;
-	int i, prog = (int)key;
+	long i, prog = (long)key;
 	int id = -1;
 	int tuner_change = 1, tuner[MAX_TUNER];
 	struct livetv_proginfo *pi;
@@ -967,7 +967,7 @@ livetv_select_callback(mvp_widget_t *widget, char *item, void *key)
 static void
 livetv_hilite_callback(mvp_widget_t *widget, char *item, void *key, bool hilite)
 {
-	int prog = (int)key;
+	long prog = (long)key;
 	char buf[256];
 
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s [%s:%d]: (trace) {\n",
@@ -1259,7 +1259,8 @@ get_livetv_programs(void)
 	for (j=0; j<p; j++) {
 		snprintf(buf, sizeof(buf), "%s: %s - %s",
 			 list[j].pi[0].chan, list[j].title, list[j].subtitle);
-		mvpw_add_menu_item(mythtv_browser, buf, (void*)j, &item_attr);
+		mvpw_add_menu_item(mythtv_browser, buf, (void*)(long)j,
+					&item_attr);
 	}
 
 	ref_release(ctrl);
@@ -1421,7 +1422,7 @@ mythtv_livetv_select(int which)
 
 	switch_hw_state(MVPMC_STATE_MYTHTV);
 
-	printf("starting liveTV on tuner %d channel %s index %d\n",
+	printf("starting liveTV on tuner %d channel %s index %ld\n",
 	       rec_id, channame, current_livetv);
 
 	if (mythtv_livetv_start(tuner) != 0) {

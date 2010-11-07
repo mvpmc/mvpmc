@@ -37,6 +37,7 @@
 #include <errno.h>
 #include <pthread.h>
 #include <sched.h>
+#include <inttypes.h>
 
 #include <signal.h>
 #include <pwd.h>
@@ -2145,7 +2146,7 @@ Bool media_read_message(stream_t *stream)
 				stream->length = media_offset_64(ptr);
 				ptr = buf + 24;
 				uint64_t dropoff = media_offset_64(ptr);
-				printf("%s bps %d length %lld dropoff %lld\n",logstr,stream->bps,stream->length,dropoff);
+				printf("%s bps %d length %" PRId64 " dropoff %" PRId64 "\n",logstr,stream->bps,stream->length,dropoff);
 
 				if (stream->length < 400000) {
 					usleep(10000);
@@ -3154,11 +3155,11 @@ int displayOSDFile(char *filename)
 	char *buf1;
 	FILE *infile;
 	infile = fopen(filename,"rb");
-	printf("%x\n",fread((char*)&osdHeader,1,sizeof(struct osdHeader),infile));
+	printf("%zx\n",fread((char*)&osdHeader,1,sizeof(struct osdHeader),infile));
 	buf = (char *)malloc(osdHeader.yuv_len*sizeof(char));
-	printf("%x\n",fread(buf,sizeof(char),osdHeader.yuv_len,infile));
+	printf("%zx\n",fread(buf,sizeof(char),osdHeader.yuv_len,infile));
 	buf1 = (char *)malloc(osdHeader.alpha_len*sizeof(char));
-	printf("%x\n",fread(buf1,sizeof(char),osdHeader.alpha_len,infile));
+	printf("%zx\n",fread(buf1,sizeof(char),osdHeader.alpha_len,infile));
 	fclose(infile);
 	printf("%x %x %x %x\n",osdHeader.x,osdHeader.y,osdHeader.w,osdHeader.h);
 	RectangleUpdateHauppaugeAYVU(osdHeader.x,osdHeader.y,osdHeader.w,osdHeader.h,(unsigned char *)buf,(unsigned char *)buf1);

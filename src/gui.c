@@ -1013,7 +1013,7 @@ static int init_done = 0;
 static pthread_mutex_t busy_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 uint32_t root_color = 0;
-int root_bright = 0;
+long root_bright = 0;
 int volume = AV_VOLUME_MAX;
 mvp_widget_t *root;
 mvp_widget_t *iw;
@@ -2370,7 +2370,7 @@ themes_select_callback(mvp_widget_t *widget, char *item, void *key)
 		return;
 	}
 
-	path = theme_list[(int)key].path;
+	path = theme_list[(long)key].path;
 
 	if (strcmp(buf, path) != 0) {
 		printf("switch to theme '%s'\n", item);
@@ -2396,7 +2396,7 @@ fb_menu_select_callback(mvp_widget_t *widget, char *item, void *key)
 
 	mvpw_hide(widget);
 
-	switch ((int)key) {
+	switch ((long)key) {
 	case 1:
 		fb_shuffle(1);
 		break;
@@ -2429,7 +2429,7 @@ pl_menu_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
 	char buf[256];
 
-	switch ((int)key) {
+	switch ((long)key) {
 	case PL_SHUFFLE:
 		mvpw_hide(widget);
 		playlist_randomize();
@@ -2628,7 +2628,7 @@ playlist_key_callback(mvp_widget_t *widget, char key)
 static void
 mythtv_rg_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
-	int i = (int)key;
+	long i = (long)key;
 
 	if (config->mythtv_recgroup[i].hide) {
 		printf("show recgroup '%s'\n", item);
@@ -2643,7 +2643,7 @@ mythtv_rg_select_callback(mvp_widget_t *widget, char *item, void *key)
 static void
 mythtv_popup_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
-	int which = (int)key;
+	long which = (long)key;
 	int filter;
 	char buf[1024];
 	mythtv_filter_t show_filter;
@@ -2865,8 +2865,8 @@ void
 mythtv_set_popup_menu(mythtv_state_t state)
 {
 	int tuners[16], busy[16];
-	int i, count;
-	int filter = 0;
+	long i, count;
+	long filter = 0;
 	char buf[32];
 
 	switch (state) {
@@ -3044,7 +3044,7 @@ MYTHTV_POPUP_SCHED_REC_SHOW_WEEK	10	/* Record one showing every week */
 				   (void*)MYTHTV_POPUP_LIST_RECGROUP,
 				   &mythtv_popup_item_attr);
 		mvpw_check_menu_item(mythtv_popup_check,
-				     (void*)(MYTHTV_POPUP_LIST_TITLE+show_sort),
+				     (void*)(MYTHTV_POPUP_LIST_TITLE+(long)show_sort),
 				     1);
 		mythtv_popup = mythtv_popup_check;
 		break;
@@ -3402,8 +3402,8 @@ mclient_localmenu_callback(mvp_widget_t *widget, char key)
              * If OK key pressed user is selecting one of the local
              * menu's items.  Figure out which and act accordingly.
              */
-	    int which;
-	    which = (int) mvpw_menu_get_hilite(mclient_sub_localmenu);
+	    long which;
+	    which = (long) mvpw_menu_get_hilite(mclient_sub_localmenu);
 	    switch(which)
 	    {
 	        default:
@@ -3489,7 +3489,7 @@ vnc_key_callback(mvp_widget_t *widget, char key)
 		mvpw_focus(main_menu);
 		screensaver_enable();
 	} else {
-		printf("keymap %i = %ld\n", key, kmap[key & 0x7f]);
+		printf("keymap %i = %ld\n", key, (long)kmap[key & 0x7f]);
 //		SendKeyEvent(kmap[key & 0x7f], -1);
 		SendKeyEvent(kmap[(int)key], -1);
 		SendIncrementalFramebufferUpdateRequest();
@@ -3722,19 +3722,19 @@ playlist_init(void)
 static void
 audio_stream_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
-	audio_switch_stream(widget, (int)key);
+	audio_switch_stream(widget, (long)key);
 }
 
 static void
 video_stream_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
-	video_switch_stream(widget, (int)key);
+	video_switch_stream(widget, (long)key);
 }
 
 static void
 subtitle_stream_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
-	subtitle_switch_stream(widget, (int)key);
+	subtitle_switch_stream(widget, (long)key);
 }
 
 static void
@@ -3745,7 +3745,7 @@ osd_select_callback(mvp_widget_t *widget, char *item, void *key)
 
 	on = osd_widget_toggle(type);
 
-	switch ((int)key) {
+	switch ((long)key) {
 	case OSD_BITRATE:
 		osd_settings.bitrate = on;
 		config->osd_bitrate = on;
@@ -3874,7 +3874,7 @@ static void
 tvguide_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
 
-	switch ((int)key) {
+	switch ((long)key) {
 	case SETTINGS_TVGUIDE_CLOCK_12:
 		mythtv_use_12hour_clock ^= 1;
 		mvpw_check_menu_item(widget, (void*)key, mythtv_use_12hour_clock);
@@ -3902,7 +3902,7 @@ tvguide_select_callback(mvp_widget_t *widget, char *item, void *key)
 static void
 bright_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
-	int level = (int)key;
+	long level = (long)key;
 
 	if (root_bright == level)
 		return;
@@ -3948,7 +3948,7 @@ bright_key_callback(mvp_widget_t *widget, char key)
 	}
 
 	if (change) {
-		snprintf(buf, sizeof(buf), "%d", root_bright);
+		snprintf(buf, sizeof(buf), "%ld", root_bright);
 		mvpw_set_dialog_text(bright_dialog, buf);
 		if (root_bright > 0)
 			root_color = mvpw_color_alpha(MVPW_WHITE,
@@ -4012,7 +4012,7 @@ popup_select_callback(mvp_widget_t *widget, char *item, void *key)
 
 	mvpw_hide(popup_menu);
 
-	switch ((int)key) {
+	switch ((long)key) {
 	case MENU_AUDIO_STREAM:
 		popup_item_attr.select = audio_stream_select_callback;
 		add_audio_streams(audio_stream_menu, &popup_item_attr);
@@ -4208,7 +4208,7 @@ settings_select_callback(mvp_widget_t *widget, char *item, void *key)
 				   (void*)DISPLAY_IEE40X2,
 				   &settings_item_attr);
 
-		mvpw_check_menu_item(settings_check, (void*)display_type, 1);
+		mvpw_check_menu_item(settings_check, (void*)(long)display_type, 1);
 
 		mvpw_show(settings_check);
 		mvpw_focus(settings_check);
@@ -4275,7 +4275,7 @@ mythtv_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
 	char buf[18];
 	int old[4] = { 0, 0, 0, 0 };
-	int i;
+	long i;
 	uint32_t c;
 	mvpw_text_attr_t attr;
 
@@ -4415,7 +4415,7 @@ mythtv_select_callback(mvp_widget_t *widget, char *item, void *key)
 static void
 startup_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
-	startup_selection = (int)key;
+	startup_selection = (long)key;
 
 	mvpw_check_menu_item(widget, (void*)SETTINGS_STARTUP_MYTHTV - 1, 0);
 	mvpw_check_menu_item(widget, (void*)SETTINGS_STARTUP_FILESYSTEM - 1, 0);
@@ -4426,7 +4426,7 @@ startup_select_callback(mvp_widget_t *widget, char *item, void *key)
 	mvpw_check_menu_item(widget, (void*)SETTINGS_STARTUP_REPLAYTV - 1, 0);
 	mvpw_check_menu_item(widget, (void*)SETTINGS_STARTUP_MCLIENT - 1, 0);
 
-	mvpw_check_menu_item(widget, (void*)(startup_selection), 1);
+	mvpw_check_menu_item(widget, (void*)(long)(startup_selection), 1);
 
 	if (config->startup_selection != startup_selection) {
 		config->startup_selection = startup_selection;
@@ -4673,7 +4673,7 @@ mclient_select_callback(mvp_widget_t *widget, char *item, void *key)
 
 	mvpw_hide(widget);
 
-	switch ((int)key) {
+	switch ((long)key) {
 	case 0:
 		mvpw_set_text_str(settings_ip_label, "SlimServer");
 		if (mclient_server) {
@@ -4712,7 +4712,7 @@ playback_select_callback(mvp_widget_t *widget, char *item, void *key)
 
 	mvpw_hide(widget);
 
-	switch ((int)key) {
+	switch ((long)key) {
 	case 0:
 		snprintf(buf, sizeof(buf), "%d", seek_osd_timeout);
 		mvpw_set_dialog_text(settings_playback_osd, buf);
@@ -4729,7 +4729,7 @@ playback_select_callback(mvp_widget_t *widget, char *item, void *key)
 static void
 playback_pause_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
-	switch ((int)key) {
+	switch ((long)key) {
 	case 0:
 		mvpw_check_menu_item(widget, (void*)0, 1);
 		mvpw_check_menu_item(widget, (void*)1, 0);
@@ -4742,7 +4742,7 @@ playback_pause_select_callback(mvp_widget_t *widget, char *item, void *key)
 		break;
 	}
 
-	config->playback_pause = (int)key;
+	config->playback_pause = (long)key;
 	config->bitmask |= CONFIG_PLAYBACK_PAUSE;
 }
 
@@ -4778,7 +4778,7 @@ settings_av_aspect_callback(mvp_widget_t *widget, char *item, void *key)
 	mvpw_check_menu_item(settings_check, key, 1);
 	av_set_tv_aspect((av_tv_aspect_t)key);
 
-	config->av_tv_aspect = (int)key;
+	config->av_tv_aspect = (long)key;
 	config->bitmask |= CONFIG_TV_ASPECT;
 #ifndef MVPMC_HOST
 	if(IS_4x3(old_aspect) && IS_16x9((av_tv_aspect_t)key))
@@ -4791,7 +4791,7 @@ settings_av_aspect_callback(mvp_widget_t *widget, char *item, void *key)
 static void
 settings_vlc_video_callback(mvp_widget_t *widget, char *item, void *key)
 {
-	int i;
+	long i;
 	settings_vlc_transcode_video_t k = (settings_vlc_transcode_video_t) key;
 
 	// Clear all check items
@@ -4820,7 +4820,7 @@ settings_vlc_video_callback(mvp_widget_t *widget, char *item, void *key)
 static void
 settings_vlc_audio_callback(mvp_widget_t *widget, char *item, void *key)
 {
-	int i;
+	long i;
 	settings_vlc_transcode_audio_t k = (settings_vlc_transcode_audio_t) key;
 
 	// Clear all check items
@@ -4962,19 +4962,19 @@ fprintf (stderr, "audio_output_mode=%d\n",audio_output_mode);
 static void
 settings_display_mode_callback(mvp_widget_t *widget, char *item, void *key)
 {
-	if ((int)key == display_type)
+	if ((long)key == display_type)
 		return;
-	if (((int)key != DISPLAY_DISABLE) &&
-	    ((int)key != DISPLAY_IEE16X1) &&
-	    ((int)key != DISPLAY_IEE40X2))
+	if (((long)key != DISPLAY_DISABLE) &&
+	    ((long)key != DISPLAY_IEE16X1) &&
+	    ((long)key != DISPLAY_IEE40X2))
 		return;
 
-	mvpw_check_menu_item(settings_check, (void*)display_type, 0);
+	mvpw_check_menu_item(settings_check, (void*)(long)display_type, 0);
 	mvpw_check_menu_item(settings_check, key, 1);
-	display_type = (int)key;
+	display_type = (long)key;
 
 	config->bitmask |= CONFIG_DISPLAY_TYPE;
-	config->display_type = (int)key;
+	config->display_type = (long)key;
 }
 
 static int
@@ -5361,7 +5361,7 @@ settings_init(void)
 	mvpw_add_menu_item(settings_playback_pause,
 			   "Enable",
 			   (void*)1, &settings_item_attr);
-	mvpw_check_menu_item(settings_playback_pause, (void*)pause_osd, 1);
+	mvpw_check_menu_item(settings_playback_pause, (void*)(long)pause_osd, 1);
 
 
 
@@ -5417,7 +5417,7 @@ settings_init(void)
         */
 	if(startup_this_feature != MM_EXIT)
 	{
-		mvpw_check_menu_item(settings_startup, (void*)(startup_this_feature - 1), 1);
+		mvpw_check_menu_item(settings_startup, (void*)(long)(startup_this_feature - 1), 1);
 	}
 
 	/*
@@ -5881,7 +5881,7 @@ static int
 themes_init(void)
 {
 	int x, y, w, h;
-	int i;
+	long i;
 	char buf[256];
 
 	splash_update("Creating themes");
@@ -6336,7 +6336,7 @@ run_mythtv_prog_finder_char_menu(void)
 static void
 myth_utils_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
-	int which = (int)key;
+	long which = (long)key;
 
 	switch (which) {
 	case 1:
@@ -6353,7 +6353,7 @@ myth_utils_select_callback(mvp_widget_t *widget, char *item, void *key)
 static void
 myth_menu_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
-	int which = (int)key;
+	long which = (long)key;
 
 	switch (which) {
 	case 0:
@@ -6822,7 +6822,7 @@ replaytv_browser_init(void)
 static void
 main_select_callback(mvp_widget_t *widget, char *item, void *key)
 {
-	int k = (int)key;
+	long k = (long)key;
 	int i;
 	mvpw_surface_attr_t surface;
 
@@ -7008,7 +7008,7 @@ main_select_callback(mvp_widget_t *widget, char *item, void *key)
 static void
 main_hilite_callback(mvp_widget_t *widget, char *item, void *key, bool hilite)
 {
-	int k = (int)key;
+	long k = (long)key;
 
 	if (!init_done)
 		return;
@@ -7447,7 +7447,8 @@ mclient_init(void)
 static int
 mclient_fullscreen_init(void)
 {
-	int h, w, i;
+	int h, w;
+	long i;
 	int h2;
 	char text[256];
 
@@ -8285,7 +8286,7 @@ popup_init(void)
 	mvpw_set_dialog_attr(bright_dialog, &video_dialog_attr);
 	mvpw_set_key(bright_dialog, bright_key_callback);
 	mvpw_set_dialog_title(bright_dialog, "Brightness");
-	snprintf(buf, sizeof(buf), "%d", root_bright);
+	snprintf(buf, sizeof(buf), "%ld", root_bright);
 	mvpw_set_dialog_text(bright_dialog, buf);
 
 	volume_dialog = mvpw_create_dialog(NULL, x, y, w, h,
@@ -8863,12 +8864,12 @@ gui_init(char *server, char *replaytv)
 
 			mvpw_show(mythtv_image);
 		
-			mvpw_menu_hilite_item(main_menu, (void*)startup_this_feature);
+			mvpw_menu_hilite_item(main_menu, (void*)(long)startup_this_feature);
 
 			snprintf(display_message, sizeof(display_message),
 				  "File:%s\n", "MythTV");
 
-	                main_select_callback(NULL, NULL, (void *)startup_this_feature);
+	                main_select_callback(NULL, NULL, (void *)(long)startup_this_feature);
 		}
 		break;
 	case MM_REPLAYTV:
@@ -8883,12 +8884,12 @@ gui_init(char *server, char *replaytv)
 
 			mvpw_show(replaytv_image);
 		
-			mvpw_menu_hilite_item(main_menu, (void*)startup_this_feature);
+			mvpw_menu_hilite_item(main_menu, (void*)(long)startup_this_feature);
 
 			snprintf(display_message, sizeof(display_message),
 				  "File:%s\n", "ReplayTV");
 
-	                main_select_callback(NULL, NULL, (void *)startup_this_feature);
+	                main_select_callback(NULL, NULL, (void *)(long)startup_this_feature);
 		}
 		break;
 	case MM_FILESYSTEM:
@@ -8903,12 +8904,12 @@ gui_init(char *server, char *replaytv)
 
 			mvpw_show(fb_image);
 		
-			mvpw_menu_hilite_item(main_menu, (void*)startup_this_feature);
+			mvpw_menu_hilite_item(main_menu, (void*)(long)startup_this_feature);
 
 			snprintf(display_message, sizeof(display_message),
 				  "File:%s\n", "File System");
 
-	                main_select_callback(NULL, NULL, (void *)startup_this_feature);
+	                main_select_callback(NULL, NULL, (void *)(long)startup_this_feature);
 		}
 		break;
 	case MM_SETTINGS:
@@ -8923,12 +8924,12 @@ gui_init(char *server, char *replaytv)
 
 			mvpw_show(setup_image);
 		
-			mvpw_menu_hilite_item(main_menu, (void*)startup_this_feature);
+			mvpw_menu_hilite_item(main_menu, (void*)(long)startup_this_feature);
 
 			snprintf(display_message, sizeof(display_message),
 				 "File:%s\n", "Settings");
 
-	                main_select_callback(NULL, NULL, (void *)startup_this_feature);
+	                main_select_callback(NULL, NULL, (void *)(long)startup_this_feature);
 		}
 		break;
 	case MM_ABOUT:
@@ -8943,12 +8944,12 @@ gui_init(char *server, char *replaytv)
 		
 		mvpw_focus(main_menu);
 
-		mvpw_menu_hilite_item(main_menu, (void*)startup_this_feature);
+		mvpw_menu_hilite_item(main_menu, (void*)(long)startup_this_feature);
 
 		snprintf(display_message, sizeof(display_message),
 			  "File:%s\n", "About");
 
-                main_select_callback(NULL, NULL, (void *)startup_this_feature);
+                main_select_callback(NULL, NULL, (void *)(long)startup_this_feature);
 		break;
 	case MM_MCLIENT:
 		if (mclient_server)
@@ -8963,12 +8964,12 @@ gui_init(char *server, char *replaytv)
 
 			mvpw_show(mclient_image);
 		
-			mvpw_menu_hilite_item(main_menu, (void*)startup_this_feature);
+			mvpw_menu_hilite_item(main_menu, (void*)(long)startup_this_feature);
 
 			snprintf(display_message, sizeof(display_message),
 				  "File:%s\n", "Music Client");
 
-	                main_select_callback(NULL, NULL, (void *)startup_this_feature);
+	                main_select_callback(NULL, NULL, (void *)(long)startup_this_feature);
 		}
 		break;
 	case MM_VNC:
@@ -8983,12 +8984,12 @@ gui_init(char *server, char *replaytv)
 
 			mvpw_show(setup_image);
 		
-			mvpw_menu_hilite_item(main_menu, (void*)startup_this_feature);
+			mvpw_menu_hilite_item(main_menu, (void*)(long)startup_this_feature);
 
 			snprintf(display_message, sizeof(display_message),
 				  "File:%s\n", "VNC");
 
-	                main_select_callback(NULL, NULL, (void *)startup_this_feature);
+	                main_select_callback(NULL, NULL, (void *)(long)startup_this_feature);
 		}
 		break;
 	case MM_EMULATE:
@@ -9003,12 +9004,12 @@ gui_init(char *server, char *replaytv)
 
 			mvpw_show(emulate_image);
 		
-			mvpw_menu_hilite_item(main_menu, (void*)startup_this_feature);
+			mvpw_menu_hilite_item(main_menu, (void*)(long)startup_this_feature);
 
 			snprintf(display_message, sizeof(display_message),
 				  "File:%s\n", "Emulate");
 	                
-			main_select_callback(NULL, NULL, (void *)startup_this_feature);
+			main_select_callback(NULL, NULL, (void *)(long)startup_this_feature);
 		}
 		break;
 	}       

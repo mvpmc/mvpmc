@@ -393,7 +393,7 @@ file_details(FILE *stream, char* dir, char* name )
 		(void) fprintf(stream, "<a href=\"%s\">%-32.32s</a>    ???\n", encoded_name, name );
 	else {
 		(void) strftime( timestr, sizeof(timestr), "%d%b%Y %H:%M", localtime( &sb.st_mtime ) );
-		(void) fprintf(stream, "<a href=\"%s\">%-32.32s</a>    %15s %14lld\n", encoded_name, name, timestr, (int64_t) sb.st_size );
+		(void) fprintf(stream, "<a href=\"%s\">%-32.32s</a>    %15s %14lld\n", encoded_name, name, timestr, (long long) sb.st_size );
 	}
 }
 
@@ -425,7 +425,7 @@ send_headers(FILE *stream, int status, char* title, char* extra_header, char* mi
 	if ( mime_type != (char*) 0 )
 		(void) fprintf(stream, "Content-Type: %s\015\012", mime_type );
 	if ( length >= 0 ) {
-		(void) fprintf(stream, "Content-Length: %lld\015\012", (int64_t) 50000  );
+		(void) fprintf(stream, "Content-Length: %lld\015\012", (long long) length );
 	}
 	if ( mod != (time_t) -1 ) {
 		(void) strftime( timebuf, sizeof(timebuf), RFC1123FMT, gmtime( &mod ) );
