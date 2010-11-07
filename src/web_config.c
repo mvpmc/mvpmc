@@ -1586,6 +1586,7 @@ int set_route(int window)
 
 int del_kernel_ip_route(char *dev, long ip, long mask)
 {
+#ifndef MVPMC_HOST
 	int fds;
 	struct rtentry rt;
 	struct sockaddr_in *isa,*ism;
@@ -1611,12 +1612,14 @@ int del_kernel_ip_route(char *dev, long ip, long mask)
 		return 1;
 	}
 	close(fds);
+#endif
 	return 0;
 }
 
 
 int add_kernel_ip_route(char *dev, long ip, long mask,int irtt,int window)
 {
+#ifndef MVPMC_HOST
 	int fds;
 	struct rtentry rt;
 	struct sockaddr_in *isa;
@@ -1657,5 +1660,6 @@ int add_kernel_ip_route(char *dev, long ip, long mask,int irtt,int window)
 		return 1;
 	}
 	close(fds);
+#endif
 	return 0;
 }

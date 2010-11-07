@@ -29,7 +29,7 @@ else:
 	libx11dir = []
 	libFLAC = ['libFLAC']
 	libx11 = []
-	libs = [ 'tiwlan' ]
+	libs = [ 'tiwlan' ,'mwengine', 'mwdrivers', 'mwfonts']
 	linkflags = ''
 	mvpapps = ['ticonfig.c', 'vpdread.c']
 
@@ -56,8 +56,8 @@ mvpmc = mvp.Program('mvpmc',
 		     'weather.c'] + mvpapps,
                     CPPPATH = [ env['INCDIR'], env['INSTINCDIR'],
                                 '.', '../include' ],
-                    LIBS = ['widget', 'nano-X', 'mwengine', 'mwdrivers',
-                            'mwfonts', 'replaytv', 'expat',
+                    LIBS = ['widget', 'nano-X', 
+                            'replaytv', 'expat',
                             'osd', 'av', 'demux', 'cmyth', 'refmem', 'vnc',
                             'mysqlclient', 'png12', 'z', 'jpeg', 'm',
                             'gcc', 'pthread', 'a52', 'm', 'vorbisidec',
