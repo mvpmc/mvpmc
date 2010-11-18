@@ -3197,7 +3197,7 @@ mythtv_schedule_recording(mvp_widget_t *widget, char *item , void *key, int type
 					'0')", \
 					sqlprog[which].seriesid,sqlprog[which].programid,(int)sqlprog[which].starttime,(int)sqlprog[which].starttime,(int)sqlprog[which].starttime);
 				break;
-			case 32 ... 43:
+			case 32 ... 50:
 				sprintf(query, "REPLACE INTO record ( \
 					recordid,type,chanid,starttime,startdate,endtime, \
 					enddate,search,\
@@ -3222,7 +3222,7 @@ mythtv_schedule_recording(mvp_widget_t *widget, char *item , void *key, int type
 				sprintf(query1, " ,'Default','0','%s','0','0','0','0', '%s', '%s','%s','6','15',", sqlprog[which].category,startoffset,endoffset,sqlrecgroups[rgroup].recgroups);
 				sprintf(query2,",'%s','%s','1',DAYOFWEEK(FROM_UNIXTIME(%d)),FROM_UNIXTIME(%d),TO_DAYS(FROM_UNIXTIME(%d)), \
 					'0','0','0','1.00','0','0','0', \
-					'0','0','0', \
+					'0','Default','0', \
 					'00:00:00','00:00:00','00:00:00')", \
 					sqlprog[which].seriesid,sqlprog[which].programid,(int)sqlprog[which].starttime,(int)sqlprog[which].starttime,(int)sqlprog[which].starttime);
 				break;
