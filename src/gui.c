@@ -7894,28 +7894,28 @@ osd_init(void)
 	mvpw_set_text_attr(mute_widget, &display_attr);
 	mvpw_set_text_str(mute_widget, "MUTE");
 
-	pause_widget = mvpw_create_text(NULL, 50, 25, 75, h,
+	pause_widget = mvpw_create_text(NULL, viewport_edges[EDGE_LEFT]+50, viewport_edges[EDGE_TOP]+25, 75, h,
 					display_attr.bg,
 					display_attr.border,
 					display_attr.border_size);
 	mvpw_set_text_attr(pause_widget, &display_attr);
 	mvpw_set_text_str(pause_widget, "PAUSE");
 
-	ffwd_widget = mvpw_create_text(NULL, 50, 25, 75, h,
+	ffwd_widget = mvpw_create_text(NULL, viewport_edges[EDGE_LEFT]+50, viewport_edges[EDGE_TOP]+25, 75, h,
 				       display_attr.bg,
 				       display_attr.border,
 				       display_attr.border_size);
 	mvpw_set_text_attr(ffwd_widget, &display_attr);
 	mvpw_set_text_str(ffwd_widget, "FFWD");
 
-	zoom_widget = mvpw_create_text(NULL, 50, 25, 75, h,
+	zoom_widget = mvpw_create_text(NULL, viewport_edges[EDGE_LEFT]+50, viewport_edges[EDGE_TOP]+25, 75, h,
 				       display_attr.bg,
 				       display_attr.border,
 				       display_attr.border_size);
 	mvpw_set_text_attr(zoom_widget, &display_attr);
 	mvpw_set_text_str(zoom_widget, "ZOOM");
 
-	clock_widget = mvpw_create_text(NULL, 50, 25, 150, h,
+	clock_widget = mvpw_create_text(NULL, viewport_edges[EDGE_LEFT]+50, viewport_edges[EDGE_TOP]+25, 150, h,
 					display_attr.bg,
 					display_attr.border,
 					display_attr.border_size);
@@ -7930,7 +7930,7 @@ osd_init(void)
 	/*
 	 * OSD widgets
 	 */
-	contain = mvpw_create_container(NULL, 50, 80,
+	contain = mvpw_create_container(NULL, viewport_edges[EDGE_LEFT]+50, viewport_edges[EDGE_TOP]+80,
 					300, h, display_attr.bg,
 					display_attr.border,
 					display_attr.border_size);
@@ -7974,18 +7974,17 @@ osd_init(void)
 	/*
 	 * myth OSD
 	 */
-	x = si.cols - viewport_edges[EDGE_RIGHT] - 475;
-	y = si.rows - viewport_edges[EDGE_BOTTOM] - 125;
-	h = FONT_HEIGHT(mythtv_program_attr) +
-		(3 * FONT_HEIGHT(mythtv_description_attr));
+	x = viewport_edges[EDGE_LEFT];
+	y = viewport_edges[EDGE_TOP]+80+h+5;
+	h = si.rows-(y+viewport_edges[EDGE_BOTTOM]);
 	contain = mvpw_create_container(NULL, x, y,
-					400, h,
+					si.cols-(viewport_edges[EDGE_RIGHT]+viewport_edges[EDGE_LEFT]), h,
 					mythtv_description_attr.bg,
 					mythtv_description_attr.border,
 					mythtv_description_attr.border_size);
 	mythtv_program_widget = contain;
 	h = FONT_HEIGHT(mythtv_program_attr);
-	widget = mvpw_create_text(contain, 0, 0, 400, h,
+	widget = mvpw_create_text(contain, 0, 0, si.cols-(viewport_edges[EDGE_RIGHT]+viewport_edges[EDGE_LEFT]), h,
 				  mythtv_program_attr.bg,
 				  mythtv_program_attr.border,
 				  mythtv_program_attr.border_size);
@@ -7993,8 +7992,8 @@ osd_init(void)
 	mvpw_set_text_str(widget, "");
 	mvpw_show(widget);
 	mythtv_osd_program = widget;
-	h = 3 * FONT_HEIGHT(mythtv_description_attr);
-	widget = mvpw_create_text(contain, 0, 0, 400, h,
+	h=si.rows-(y+viewport_edges[EDGE_BOTTOM]+FONT_HEIGHT(mythtv_program_attr));
+	widget = mvpw_create_text(contain, 0, 0, si.cols-(viewport_edges[EDGE_RIGHT]+viewport_edges[EDGE_LEFT]), h,
 				  mythtv_description_attr.bg,
 				  mythtv_description_attr.border,
 				  mythtv_description_attr.border_size);
