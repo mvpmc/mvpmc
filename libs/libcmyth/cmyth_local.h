@@ -47,6 +47,8 @@ extern pthread_mutex_t mutex;
 #define CMYTH_UTC_LEN (sizeof("1240120680") -1)
 #define CMYTH_COMMBREAK_START 4
 #define CMYTH_COMMBREAK_END 5
+#define CMYTH_CUTLIST_START 1
+#define CMYTH_CUTLIST_END 0
 
 /*
  * Typedef for fd to allow windows port in xbmc to work
