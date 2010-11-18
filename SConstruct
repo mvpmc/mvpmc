@@ -124,7 +124,7 @@ else:
 	libs = env.SConscript('dongle/libs/SConscript')
 	mvplibs = env.SConscript('libs/SConscript')
 	mvpmc = env.SConscript('src/SConscript',
-			       build_dir='src/'+dir, duplicate=0)
+			       variant_dir='src/'+dir, duplicate=0)
 	themes = env.SConscript('themes/SConscript')
 	images = env.SConscript('images/SConscript')
 

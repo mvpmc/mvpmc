@@ -7,7 +7,7 @@ import os
 
 Import ('env')
 
-mvp = env.Copy()
+mvp = env.Clone()
 target = mvp['TARG']
 toplevel = mvp['TOPLEVEL']
 

@@ -10,7 +10,7 @@ target = env['TARG']
 libdir = env['INSTLIBDIR']
 incdir = env['INSTINCDIR']
 
-rtv = env.Copy()
+rtv = env.Clone()
 
 rtv.Replace(CCFLAGS = '-DBIGFILE_BY_STDIO -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -D__unix__')
 

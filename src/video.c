@@ -334,8 +334,12 @@ video_clear(void)
 	fd = -1;
 	video_playing = 0;
 	audio_type = 0;
-	pthread_kill(video_write_thread, SIGURG);
-	pthread_kill(audio_write_thread, SIGURG);
+        if (video_write_thread) {
+            pthread_kill(video_write_thread, SIGURG);
+        }
+        if (audio_write_thread) {
+            pthread_kill(audio_write_thread, SIGURG);
+        }
 
 	sem_getvalue(&write_threads_idle_sem, &cnt);
 	while ( cnt != 2 ) {
@@ -523,8 +527,12 @@ seek_to(long long seek_offset)
 		return;
 	}
 
-	pthread_kill(video_write_thread, SIGURG);
-	pthread_kill(audio_write_thread, SIGURG);
+        if (video_write_thread) {
+            pthread_kill(video_write_thread, SIGURG);
+        }
+        if (audio_write_thread) {
+            pthread_kill(audio_write_thread, SIGURG);
+        }
 
 	if (mvpw_visible(ffwd_widget)) {
 		mvpw_hide(ffwd_widget);
@@ -554,8 +562,12 @@ seek_by(int seconds)
 		return;
 	}
 
-	pthread_kill(video_write_thread, SIGURG);
-	pthread_kill(audio_write_thread, SIGURG);
+        if (video_write_thread) {
+            pthread_kill(video_write_thread, SIGURG);
+        }
+        if (audio_write_thread) {
+            pthread_kill(audio_write_thread, SIGURG);
+        }
 
 	if (mvpw_visible(ffwd_widget)) {
 		mvpw_hide(ffwd_widget);
@@ -1033,8 +1045,12 @@ video_callback(mvp_widget_t *widget, char key)
 			size = video_functions->size();
 			jump_target = -1;
 			jumping = 1;
-			pthread_kill(video_write_thread, SIGURG);
-			pthread_kill(audio_write_thread, SIGURG);
+                        if (video_write_thread) {
+                            pthread_kill(video_write_thread, SIGURG);
+                        }
+                        if (audio_write_thread) {
+                            pthread_kill(audio_write_thread, SIGURG);
+                        }
 			offset = video_functions->seek(0, SEEK_CUR);
 			jump_target = ((-size / 100.0) + offset);
 			pthread_cond_broadcast(&video_cond);
@@ -1045,8 +1061,12 @@ video_callback(mvp_widget_t *widget, char key)
 			size = video_functions->size();
 			jump_target = -1;
 			jumping = 1;
-			pthread_kill(video_write_thread, SIGURG);
-			pthread_kill(audio_write_thread, SIGURG);
+                        if (video_write_thread) {
+                            pthread_kill(video_write_thread, SIGURG);
+                        }
+                        if (audio_write_thread) {
+                            pthread_kill(audio_write_thread, SIGURG);
+                        }
 			offset = video_functions->seek(0, SEEK_CUR);
 			jump_target = ((size / 100.0) + offset);
 			pthread_cond_broadcast(&video_cond);
@@ -1070,8 +1090,12 @@ video_callback(mvp_widget_t *widget, char key)
 			size = video_functions->size();
 			jump_target = -1;
 			jumping = 1;
-			pthread_kill(video_write_thread, SIGURG);
-			pthread_kill(audio_write_thread, SIGURG);
+                        if (video_write_thread) {
+                            pthread_kill(video_write_thread, SIGURG);
+                        }
+                        if (audio_write_thread) {
+                            pthread_kill(audio_write_thread, SIGURG);
+                        }
 			jump = key;
 			jump_target = size * (jump / 10.0);
 			pthread_cond_broadcast(&video_cond);
@@ -1460,8 +1484,12 @@ file_open(void)
 		fd = -1;
 	}
 
-	pthread_kill(video_write_thread, SIGURG);
-	pthread_kill(audio_write_thread, SIGURG);
+        if (video_write_thread) {
+            pthread_kill(video_write_thread, SIGURG);
+        }
+        if (audio_write_thread) {
+            pthread_kill(audio_write_thread, SIGURG);
+        }
 
 	if ( http_playing == HTTP_FILE_CLOSED ) {
 		if (gui_state != MVPMC_STATE_EMULATE) {

@@ -19,13 +19,13 @@ demuxtest_t = env.Program('demuxtest_t',['demuxtest_t.c'],
     			  CPPPATH=[ env['INCDIR'], '.'],
 			  LIBS = [ 'demux','pthread' ],
 			  LIBPATH = [ '.' ],
-	                  LINKFLAGS = [ '-static' ])
+			  LINKFLAGS = [ '-static' ])
 
 demuxtest = env.Program('demuxtest',['demuxtest.c'],
     			CPPPATH=[ env['INCDIR'], '.'],
 			LIBS = [ 'demux','pthread' ],
 			LIBPATH = [ '.' ],
-	                LINKFLAGS = [ '-static' ])
+			LINKFLAGS = [ '-static' ])
 
 env.Depends(demuxtest_t, static)
 env.Depends(demuxtest, static)

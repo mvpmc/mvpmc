@@ -9,7 +9,7 @@ dir = env['BUILD_DIR']
 target = env['TARG']
 libdir = env['INSTLIBDIR']
 cppflags = env['CPPFLAGS']
-vnc = env.Copy()
+vnc = env.Clone()
 
 vnc.Replace(CCFLAGS = '-O3 -g')
 

@@ -23,7 +23,7 @@ if target == 'mvp':
 	                      CPPPATH = [ env['INCDIR'] ],
 	                      LIBS = [ 'osd' ],
 	                      LIBPATH = [ libdir ],
-	                      LINKFLAGS = [ '-static' ])
+                              LINKFLAGS = [ '-static' ])
 	env.Depends(osdtest, static)
 
 Return('inst')

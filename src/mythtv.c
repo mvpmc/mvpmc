@@ -3045,7 +3045,7 @@ mythtv_schedule_recording(mvp_widget_t *widget, char *item , void *key, int type
 	long record_option = (long) key;    //will be 0 if not using schedule options
 	mythtv_schedule_data_t * user_data = mvpw_get_user_data(widget);
 	char buf[256];
-	char query[700];
+	char query[800];
 	char query1[700];
 	char query2[570];
 	char msg[45];
@@ -3224,6 +3224,36 @@ mythtv_schedule_recording(mvp_widget_t *widget, char *item , void *key, int type
 					'0','0','0','1.00','0','0','0', \
 					'0','Default','0', \
 					'00:00:00','00:00:00','00:00:00')", \
+					sqlprog[which].seriesid,sqlprog[which].programid,(int)sqlprog[which].starttime,(int)sqlprog[which].starttime,(int)sqlprog[which].starttime);
+				break;
+			case 23056:
+				sprintf(query, "REPLACE INTO record ( \
+					recordid,type,chanid,starttime,startdate,endtime, \
+					enddate,search,\
+					title,\
+					subtitle, \
+					description, \
+					profile,recpriority,category,maxnewest,inactive,maxepisodes, \
+					autoexpire,startoffset,endoffset,recgroup,dupmethod,dupin, \
+					station,\
+					seriesid,programid,autocommflag,findday,findtime,findid, \
+					autotranscode,parentid,transcoder,tsdefault,autouserjob1,autouserjob2,autouserjob3, \
+					autouserjob4,playgroup,prefinput, \
+					next_record,last_record,last_delete, \
+                                        storagegroup, avg_delay) values \
+					('%s','%d','%d',FROM_UNIXTIME(%d), \
+					FROM_UNIXTIME(%d), FROM_UNIXTIME(%d), \
+					FROM_UNIXTIME(%d),'',", recordid,
+					type, sqlprog[which].chanid,
+					(int)sqlprog[which].starttime,
+					(int)sqlprog[which].starttime,
+					(int)sqlprog[which].endtime,
+					(int)sqlprog[which].endtime);
+				sprintf(query1, " ,'Default','0','%s','0','0','0','0', '%s', '%s','%s','6','15',", sqlprog[which].category,startoffset,endoffset,sqlrecgroups[rgroup].recgroups);
+				sprintf(query2,",'%s','%s','1',DAYOFWEEK(FROM_UNIXTIME(%d)),FROM_UNIXTIME(%d),TO_DAYS(FROM_UNIXTIME(%d)), \
+					'0','0','0','1.00','0','0','0', \
+					'0','0','0', \
+					'00:00:00','00:00:00','00:00:00','Default','100')", \
 					sqlprog[which].seriesid,sqlprog[which].programid,(int)sqlprog[which].starttime,(int)sqlprog[which].starttime,(int)sqlprog[which].starttime);
 				break;
 			default:

@@ -7,14 +7,14 @@ import os
 
 Import ('env')
 
-mvp = env.Copy()
+mvp = env.Clone()
 libdir = mvp['INSTLIBDIR']
 mysql_libdir = mvp['INSTLIBDIR'] + '/mysql'
 target = mvp['TARG']
 toplevel = mvp['TOPLEVEL']
 bindir = mvp['INSTBINDIR']
 
-mvp.Append(CCFLAGS = ' -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE')
+mvp.Append(CCFLAGS = ' -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE --no-strict-aliasing')
 
 version = os.system(toplevel + '/src/version.sh ' + toplevel + ' ' + toplevel + '/src')
 

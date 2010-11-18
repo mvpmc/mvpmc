@@ -7,29 +7,29 @@ target = env['TARG']
 dir = env['BUILD_DIR']
 
 av = SConscript('libav/SConscript',
-		build_dir='libav/'+dir, duplicate=0)
+		variant_dir='libav/'+dir, duplicate=0)
 cmyth = SConscript('libcmyth/SConscript',
-		   build_dir='libcmyth/'+dir, duplicate=0)
+		   variant_dir='libcmyth/'+dir, duplicate=0)
 demux = SConscript('libdemux/SConscript',
-		   build_dir='libdemux/'+dir, duplicate=0)
+		   variant_dir='libdemux/'+dir, duplicate=0)
 osd = SConscript('libosd/SConscript',
-		 build_dir='libosd/'+dir, duplicate=0)
+		 variant_dir='libosd/'+dir, duplicate=0)
 replaytv = SConscript('libreplaytv/SConscript',
-		      build_dir='libreplaytv/'+dir, duplicate=0)
+		      variant_dir='libreplaytv/'+dir, duplicate=0)
 ts_demux = SConscript('libts_demux/SConscript',
-		      build_dir='libts_demux/'+dir, duplicate=0)
+		      variant_dir='libts_demux/'+dir, duplicate=0)
 vnc = SConscript('libvnc/SConscript',
-		 build_dir='libvnc/'+dir, duplicate=0)
+		 variant_dir='libvnc/'+dir, duplicate=0)
 widget = SConscript('libwidget/SConscript',
-		    build_dir='libwidget/'+dir, duplicate=0)
+		    variant_dir='libwidget/'+dir, duplicate=0)
 refmem = SConscript('librefmem/SConscript',
-		    build_dir='librefmem/'+dir, duplicate=0)
+		    variant_dir='librefmem/'+dir, duplicate=0)
 
 libs = [ av, cmyth, demux, osd, replaytv, ts_demux, vnc, widget, refmem ]
 
 if target == 'mvp':
 	tiwlan = SConscript('libtiwlan/SConscript',
-			    build_dir='libtiwlan/'+dir, duplicate=0)
+			    variant_dir='libtiwlan/'+dir, duplicate=0)
 	libs.append(tiwlan)
 
 Return('libs')
