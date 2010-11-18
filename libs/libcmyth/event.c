@@ -54,8 +54,23 @@ cmyth_event_get(cmyth_conn_t conn, char * data, int len)
 
 	consumed = cmyth_rcv_string(conn, &err, tmp, sizeof(tmp) - 1, count);
 	count -= consumed;
-	if (strcmp(tmp, "RECORDING_LIST_CHANGE") == 0) {
+	if (strncmp(tmp, "RECORDING_LIST_CHANGE", 21) == 0) {
 		event = CMYTH_EVENT_RECORDING_LIST_CHANGE;
+		if (cmyth_conn_get_protocol_version(conn) >= 55
+		    && strcmp(tmp, "RECORDING_LIST_CHANGE UPDATE") == 0) {
+			/* receive a proginfo structure - do nothing with it (yet?)*/
+			proginfo = cmyth_proginfo_create();
+			if (!proginfo) {
+				cmyth_dbg(CMYTH_DBG_ERROR,
+				  "%s: cmyth_proginfo_create() failed\n",
+				  __FUNCTION__);
+				goto fail;
+			}	
+			consumed = cmyth_rcv_proginfo(conn, &err, proginfo, count);
+			ref_release(proginfo);
+			proginfo = NULL;
+			count -= consumed;
+		}	
 	} else if (strcmp(tmp, "SCHEDULE_CHANGE") == 0) {
 		event = CMYTH_EVENT_SCHEDULE_CHANGE;
 	} else if (strncmp(tmp, "DONE_RECORDING", 14) == 0) {
