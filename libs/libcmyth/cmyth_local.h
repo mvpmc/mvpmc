@@ -32,6 +32,7 @@
 #include <mysql/mysql.h>
 
 #define mutex __cmyth_mutex
+#include <stdint.h>
 extern pthread_mutex_t mutex;
 
 /*
