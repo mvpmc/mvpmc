@@ -888,7 +888,7 @@ cmyth_rcv_long_long(cmyth_conn_t conn, int *err, long long *buf, int count)
 		return consumed;
 	}
 
-	val = ((long long)hi << 32) | ((long long)lo);
+	val = ((long long)hi << 32) | (((long long)lo) & 0xffffffff);
 
 	*err = 0;
 	*buf = val;
