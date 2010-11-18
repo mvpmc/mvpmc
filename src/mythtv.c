@@ -776,7 +776,7 @@ show_select_callback(mvp_widget_t *widget, char *item, void *key)
 		}
 
 		cmyth_conn_t ctrl=ref_hold(control);
-		loc_breaklist = cmyth_get_commbreaklist(mythtv_database, ctrl, hi_prog);
+		loc_breaklist = cmyth_mysql_get_commbreaklist(mythtv_database, ctrl, hi_prog);
 		ref_release(ctrl);
 		CHANGE_GLOBAL_REF(current_breaklist, loc_breaklist);
 

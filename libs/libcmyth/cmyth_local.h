@@ -43,6 +43,7 @@ extern pthread_mutex_t mutex;
 #define CMYTH_BYTE_LEN (sizeof("-256") - 1)
 #define CMYTH_TIMESTAMP_LEN (sizeof("YYYY-MM-DDTHH:MM:SS") - 1)
 #define CMYTH_DATESTAMP_LEN (sizeof("YYYY-MM-DD") - 1)
+#define CMYTH_UTC_LEN (sizeof("1240120680") -1)
 #define CMYTH_COMMBREAK_START 4
 #define CMYTH_COMMBREAK_END 5
 
