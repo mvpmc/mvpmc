@@ -19,6 +19,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <ctype.h>
 #include <unistd.h>
 #include <dirent.h>
 #include <glob.h>
@@ -523,6 +524,121 @@ fb_exit(void)
 		playlist_clear();
 }
 
+static void 
+recurse_find_audio(char* cur, char** item, int* nextitem)
+{
+	DIR *d = NULL;
+	struct dirent *de = NULL;
+	struct stat64 sb;
+	int i;
+        char comp1[PATH_SIZE];
+        char comp2[PATH_SIZE];
+	char curdir[PATH_SIZE];
+
+	// Append a trailing slash to the current path
+	snprintf(curdir, PATH_SIZE, "%s/", cur);
+	printf("Recursing directory %s for audio files\n", curdir);
+
+	d = opendir(curdir);
+	if (d == NULL) {
+		printf("Not a directory: %s", curdir);
+		return;
+	}
+
+	int noitems = 0;
+	char** contents = alloca(sizeof(char*) * MAX_PLAYLIST_ENTRIES);
+	while ( (de = readdir(d)) != NULL && noitems < MAX_PLAYLIST_ENTRIES) {
+
+		// Ignore ./.. or blank name directories
+		if (*de->d_name == '.' || *de->d_name == '/' || *de->d_name == '\0') {
+			continue;
+		}
+
+		char path[PATH_SIZE];
+		snprintf(path, PATH_SIZE, "%s/%s", cur, de->d_name);
+
+		if (stat64(path, &sb) != 0) {
+			printf("Couldn't stat file: %s\n", path);
+			return;
+		}
+		else if (S_ISDIR(sb.st_mode)) {
+			// It's a directory, recurse it
+			printf("Found directory %s, recursing...\n", path);
+			recurse_find_audio(path, item, nextitem);
+		}
+		else if (is_audio(de->d_name)) {
+			// We have an audio file, add it to the list
+			printf("Found audio file %s, adding as item %d\n", path, noitems);
+			contents[noitems++] = strdup(path);
+			printf("Next item is %d\n",  noitems);
+		}
+		else {
+			printf("Skipping non-audio file %s\n", path);
+		}
+	}
+	closedir(d);
+
+        // Sort the directory contents via bubblesort (space efficient - 
+        // everything else inefficient :-)
+        printf("Sorting directory contents\n");
+        int sorted = 0;
+        while (!sorted) {
+            sorted = 1;
+            for (i = 0; i < noitems-1; i++) {
+               
+                // Create a copy of our two items to compare. If
+                // they start with a single digit by itself, then prepend
+                // a zero for alphanumeric comparison - we're guessing the 
+                // filename must start with a track number and we'd like 
+                // numbers < 10 to order correctly to be below numbers > 10.
+		char* fname1 = (char*) strrchr(contents[i], '/');
+		char* fname2 = (char*) strrchr(contents[i+1], '/');
+		fname1++;
+		fname2++;
+
+                if (isdigit(*fname1) && !isdigit(*(fname1 + 1)))
+                    sprintf(comp1, "0%s", fname1);
+                else
+                    strcpy(comp1, fname1);
+                if (isdigit(*fname2) && !isdigit(*(fname2 + 1)))
+                    sprintf(comp2, "0%s", fname2);
+                else
+                    strcpy(comp2, fname2);
+            
+                if (strcmp(comp1, comp2) > 0) {
+                    printf("SWAP: %s with %s\n", comp1, comp2);
+                    char* tmp = contents[i];
+                    contents[i] = contents[i+1];
+                    contents[i+1] = tmp;
+                    sorted = 0;
+                }
+                else {
+                    printf("NOSWAP: %s with %s\n", comp1, comp2);
+                }
+            }
+        }
+
+        // Append the sorted contents to our list of items
+        printf("Adding sorted contents to item list\n");
+        for (i = 0; i < noitems; i++) {
+
+            // If we've hit the limit of the playlist size, free up
+            // directory entries from now on as we can't reassign them
+            // to the playlist (where they would be freed)
+            if (*nextitem == MAX_PLAYLIST_ENTRIES) {
+                free(contents[i]);
+                continue;
+            }
+
+            // Add the item to the playlist
+            item[*nextitem] = contents[i];
+            printf("playlist item %d: %s\n", *nextitem, contents[i]);
+            (*nextitem)++;
+
+        }
+
+}
+
 void
 fb_shuffle(int shuffle)
 {
@@ -533,35 +649,21 @@ fb_shuffle(int shuffle)
 		mvpw_set_menu_title(playlist_widget, "Shuffle Play");
 	else
 		mvpw_set_menu_title(playlist_widget, "Play All");
+	
+	item = alloca(sizeof(char*) * MAX_PLAYLIST_ENTRIES);
 
-	if (file_count == 0) {
-		gui_error("No files exist in this directory.");
-		return;
-	}
-
-	if (file_count > 256)
-		n = 256;
-	else
-		n = file_count;
-
-	item = alloca(sizeof(char*)*n);
-
-	j = 0;
-	for (i=0; i<n; i++) {
-		tmp = mvpw_get_menu_item(file_browser, (void*)(i+dir_count));
-		if (is_audio(tmp)) {
-			item[j++] = tmp;
-		}
-	}
-	n = j;
-
+	// Recurse from the current directory and find all
+	// audio files
+	n = 0;
+	recurse_find_audio(cwd, item, &n);
+	
 	if (n == 0) {
-		gui_error("No audio files exist in this directory.");
+		gui_error("No audio files exist in this directory or its subdirectories");
 		return;
 	}
 
 	if (shuffle && (n > 1)) {
-		for (i=0; i<1024; i++) {
+		for (i=0; i < MAX_PLAYLIST_ENTRIES; i++) {
 			j = rand() % n;
 			k = rand() % n;
 			tmp = item[k];
@@ -580,7 +682,11 @@ fb_shuffle(int shuffle)
 	mvpw_show(playlist_widget);
 	mvpw_focus(playlist_widget);
 
-	playlist_create(item, n, cwd);
+	playlist_create(item, n);
+
+	// Release the list of items
+	for (i = 0; i < n; i++)
+		free(item[i]);
 
 	if (shuffle)
 		mvpw_set_text_str(fb_name, "Shuffle Play");

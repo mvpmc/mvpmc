@@ -540,7 +540,7 @@ void playlist_clear(void)
 	}
 }
 
-void playlist_create(char **item, int n, char *cwd)
+void playlist_create(char **item, int n)
 {
 	long i;
 	playlist_t *pl_head, *pl_prev, *pl;
@@ -549,7 +549,7 @@ void playlist_create(char **item, int n, char *cwd)
 	pthread_mutex_lock(&mutex);
 
 	mvpw_clear_menu(playlist_widget);
-	playlist_repeat = 0;
+	playlist_repeat = 1;
 	mvpw_check_menu_item(pl_menu, (void*)PL_REPEAT, playlist_repeat);
 
 	pl_head = pl_prev = NULL;
@@ -558,22 +558,46 @@ void playlist_create(char **item, int n, char *cwd)
 		memset(pl, 0, sizeof(*pl));
 		if (pl_head == NULL)
 			pl_head = pl;
-		pl->filename = malloc(strlen(item[i])+strlen(cwd)+2);
+		pl->filename = malloc(strlen(item[i])+1);
 		snprintf(pl->filename,
-			 strlen(item[i])+strlen(cwd)+2,
-			 "%s/%s", cwd, item[i]);
+			 strlen(item[i])+1,
+			 "%s", item[i]);
 		pl->key = (void*)i;
 		pl->next = NULL;
 		pl->prev = pl_prev;
 		if (pl_prev)
 			pl_prev->next = pl;
 		pl_prev = pl;
+
+		char* trackname = NULL;
+
+		// Try and parse ID3 tag information (obviously,
+		// this fails for non-mp3 files)
+		ID3 *info;
+		info = create_ID3(NULL);
+		if (parse_file_ID3(info, (unsigned char*) item[i]) == 0) {
+			trackname = (char*) malloc(sizeof(char) * 1024);
+			snprintf(trackname, 1024, "%s - %s / %s (%s)", info->track, info->title, info->album, info->artist);
+		}
+		else {
+			// Fall back to the filename - no tag
+			char* filename = strrchr(item[i], '/');
+			if (filename == NULL) 
+				filename = item[i];
+			else
+				filename++;
+			trackname = strdup(filename);
+		}
+
 		item_attr.select = select_callback;
-		mvpw_add_menu_item(playlist_widget, item[i],
+		mvpw_add_menu_item(playlist_widget, trackname,
 				   pl->key, &item_attr);
 		if (pl->label)
 			free(pl->label);
-		pl->label = strdup(item[i]);
+		pl->label = strdup(trackname);
+
+		destroy_ID3(info);
+		free(trackname);
 	}
 
 	playlist_head = pl_head;

@@ -26,6 +26,13 @@
 
 #define VIDEO_BUFF_SIZE	(1024*96)	/**< video input buffer size */
 
+/** Maximum number of playlist entries */
+#define MAX_PLAYLIST_ENTRIES 2048 
+
+/** Maximum size of a filepath */
+#define PATH_SIZE 256
+
+
 /**
  * Portion of the mvpmc application which owns either the gui or
  * the audio/video playback hardware. 
@@ -161,9 +168,8 @@ struct playlist_struct {
  * Create a playlist.
  * \param item playlist item list
  * \param n number of items
- * \param cwd basename for files in the playlist
  */
-extern void playlist_create(char **item, int n, char *cwd);
+extern void playlist_create(char **item, int n);
 
 /**
  * Video playback functions for the current streaming method.
