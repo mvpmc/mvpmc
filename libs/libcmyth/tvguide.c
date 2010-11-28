@@ -24,9 +24,6 @@
 #include <errno.h>
 #include <string.h>
 #include <sys/time.h>
-#include <mysql/mysql.h>
-#include <mvp_refmem.h>
-#include <cmyth.h>
 #include <cmyth_local.h>
 #include <mvp_widget.h>
 

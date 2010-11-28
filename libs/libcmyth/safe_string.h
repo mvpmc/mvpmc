@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2004-2010, Eric Lund
+ *  Copyright (C) 2006-2009, Simon Hyde
  *  http://www.mvpmc.org/
  *
  *  This library is free software; you can redistribute it and/or
@@ -17,40 +17,33 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-/*
- * freespace.c - functions to manage freespace structures.
+/** \file safe_string.h
+ * Some basic string handling routines to help avoid segfaults/buffer overflows
  */
-#include <sys/types.h>
-#include <stdlib.h>
+
+#ifndef __CMYTH_STRING_H
+#define __CMYTH_STRING_H
+
 #include <stdio.h>
-#include <errno.h>
-#include <cmyth_local.h>
 
-/*
- * cmyth_freespace_create(void)
- * 
- * Scope: PUBLIC
- *
- * Description
- *
- * Create a key frame structure.
- *
- * Return Value:
- *
- * Success: A non-NULL cmyth_freespace_t (this type is a pointer)
- *
- * Failure: A NULL cmyth_freespace_t
- */
-cmyth_freespace_t
-cmyth_freespace_create(void)
+static inline char * safe_strncpy(char *dest,const char *src,size_t n)
 {
-	cmyth_freespace_t ret = ref_alloc(sizeof(*ret));
-	cmyth_dbg(CMYTH_DBG_DEBUG, "%s\n", __FUNCTION__);
- 	if (!ret) {
-	       return NULL;
-	}
-
-	ret->freespace_total = 0;
-	ret->freespace_used = 0;
-	return ret;
+    if(src == NULL)
+    {
+	dest[0] = '\0';
+    }
+    else
+    {
+	dest[n-1] = '\0';
+	strncpy(dest,src,n-1);
+    }
+    return dest;
 }
+
+#define sizeof_strncpy(dest,src) (safe_strncpy(dest,src,sizeof(dest)))
+
+#define safe_atol(str) (((str) == NULL)? (long)0: atol(str))
+#define safe_atoll(str) (((str) == NULL)? (long long)0: atoll(str))
+#define safe_atoi(str) (((str) == NULL)? (int)0: atoi(str))
+
+#endif /* __CMYTH_STRING_H */

@@ -17,6 +17,22 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+/*! \mainpage cmyth
+ *
+ * cmyth is a library that provides a C language API to access and control
+ * a MythTV backend.
+ *
+ * \section projectweb Project website
+ * http://www.mvpmc.org/
+ *
+ * \section repos Source repositories
+ * http://git.mvpmc.org/
+ *
+ * \section libraries Libraries
+ * \li \link cmyth.h libcmyth \endlink
+ * \li \link refmem.h librefmem \endlink
+ */
+
 /** \file cmyth.h
  * A C library for communicating with a MythTV server.
  */

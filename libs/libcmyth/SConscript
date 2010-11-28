@@ -16,6 +16,10 @@ src = [ 'bookmark.c', 'connection.c', 'debug.c', 'event.c',
         'recorder.c', 'ringbuf.c', 'socket.c', 'timestamp.c',
         'livetv.c', 'tvguide.c', 'mysql_query.c', 'commbreak.c' ]
 
+conf = Configure(env)
+conf.env.Append(CPPFLAGS = ' -DHAS_MYSQL')
+env = conf.Finish()
+
 static = env.StaticLibrary('cmyth', src, CPPPATH = [ env['INCDIR'],  toplevel + '/dongle/install/' + target + '/lib/mysql', '.', toplevel + '/dongle/install/' + target + '/include' ])
 shared = env.SharedLibrary('cmyth', src, CPPPATH = [ env['INCDIR'],  toplevel + '/dongle/install/' + target + '/lib/mysql', '.', toplevel + '/dongle/install/' + target + '/include' ])
 

@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2006, Simon Hyde
+ *  Copyright (C) 2006-2009, Simon Hyde
  *  http://www.mvpmc.org/
  *
  *  This library is free software; you can redistribute it and/or
@@ -20,8 +20,6 @@
 #include <sys/types.h>
 #include <string.h>
 #include <stdio.h>
-#include <mvp_refmem.h>
-#include <cmyth.h>
 #include <cmyth_local.h>
 
 #define CMYTH_ULONG_STRLEN ((sizeof(long)*3)+1)

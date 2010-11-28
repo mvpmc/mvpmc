@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2004-2006, Eric Lund, Jon Gettler
+ *  Copyright (C) 2004-2009, Eric Lund, Jon Gettler
  *  http://www.mvpmc.org/
  *
  *  This library is free software; you can redistribute it and/or
@@ -33,8 +33,6 @@
 #include <errno.h>
 #include <string.h>
 #include <signal.h>
-#include <mvp_refmem.h>
-#include <cmyth.h>
 #include <cmyth_local.h>
 
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -820,7 +818,6 @@ cmyth_conn_get_recorder_from_num(cmyth_conn_t conn, int id)
 	if (cmyth_conn_connect_recorder(rec, conn->conn_buflen,
 					conn->conn_tcp_rcvbuf) < 0)
 		goto fail;
-
 
 	pthread_mutex_unlock(&mutex);
 

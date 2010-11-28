@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2004-2006, Eric Lund
+ *  Copyright (C) 2004-2009, Eric Lund
  *  http://www.mvpmc.org/
  *
  *  This library is free software; you can redistribute it and/or
@@ -31,8 +31,6 @@
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
-#include <mvp_refmem.h>
-#include <cmyth.h>
 #include <cmyth_local.h>
 #include <string.h>
 

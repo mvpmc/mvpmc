@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2004-2006, Eric Lund
+ *  Copyright (C) 2004-2009, Eric Lund
  *  http://www.mvpmc.org/
  *
  *  This library is free software; you can redistribute it and/or
@@ -25,12 +25,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
-#include <mvp_debug.h>
 #include <refmem_local.h>
 
-static mvp_debug_ctx_t refmem_debug_ctx = MVP_DEBUG_CTX_INIT("refmem",
-							     REF_DBG_COUNTERS,
-							     NULL);
+#include "mvp_debug.h"
+
+static cmyth_debug_ctx_t refmem_debug_ctx = CMYTH_DEBUG_CTX_INIT("refmem",
+								 REF_DBG_COUNTERS,
+								 NULL);
 /*
  * refmem_dbg_level(int l)
  * 
@@ -49,7 +50,7 @@ static mvp_debug_ctx_t refmem_debug_ctx = MVP_DEBUG_CTX_INIT("refmem",
 void
 refmem_dbg_level(int l)
 {
-	mvp_dbg_setlevel(&refmem_debug_ctx, l);
+	__cmyth_dbg_setlevel(&refmem_debug_ctx, l);
 }
 
 /*
@@ -68,7 +69,7 @@ refmem_dbg_level(int l)
 void
 refmem_dbg_all()
 {
-	mvp_dbg_setlevel(&refmem_debug_ctx, REF_DBG_ALL);
+	__cmyth_dbg_setlevel(&refmem_debug_ctx, REF_DBG_ALL);
 }
 
 /*
@@ -87,7 +88,7 @@ refmem_dbg_all()
 void
 refmem_dbg_none()
 {
-	mvp_dbg_setlevel(&refmem_debug_ctx, REF_DBG_NONE);
+	__cmyth_dbg_setlevel(&refmem_debug_ctx, REF_DBG_NONE);
 }
 
 /*
@@ -111,6 +112,6 @@ refmem_dbg(int level, char *fmt, ...)
 	va_list ap;
 
 	va_start(ap, fmt);
-	mvp_dbg(&refmem_debug_ctx, level, fmt, ap);
+	__cmyth_dbg(&refmem_debug_ctx, level, fmt, ap);
 	va_end(ap);
 }

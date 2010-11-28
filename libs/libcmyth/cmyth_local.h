@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2004-2006, Eric Lund, Jon Gettler
+ *  Copyright (C) 2004-2009, Eric Lund, Jon Gettler
  *  http://www.mvpmc.org/
  *
  *  This library is free software; you can redistribute it and/or
@@ -26,10 +26,13 @@
 #define __CMYTH_LOCAL_H
 
 #include <unistd.h>
+#include <mvp_refmem.h>
 #include <cmyth.h>
 #include <time.h>
 #include <pthread.h>
+#if defined(HAS_MYSQL)
 #include <mysql/mysql.h>
+#endif
 
 #define mutex __cmyth_mutex
 #include <stdint.h>
@@ -44,7 +47,7 @@ extern pthread_mutex_t mutex;
 #define CMYTH_BYTE_LEN (sizeof("-256") - 1)
 #define CMYTH_TIMESTAMP_LEN (sizeof("YYYY-MM-DDTHH:MM:SS") - 1)
 #define CMYTH_DATESTAMP_LEN (sizeof("YYYY-MM-DD") - 1)
-#define CMYTH_UTC_LEN (sizeof("1240120680") -1)
+#define CMYTH_UTC_LEN (sizeof("1240120680") - 1)
 #define CMYTH_COMMBREAK_START 4
 #define CMYTH_COMMBREAK_END 5
 #define CMYTH_CUTLIST_START 1
@@ -87,6 +90,7 @@ struct cmyth_livetv_chain {
 	cmyth_file_t *chain_files; /* File pointers for the urls */
 };
 
+#if defined(HAS_MYSQL)
 /* Sergio: Added to clean up database interaction */
 struct cmyth_database {
 	char * db_host;
@@ -95,6 +99,7 @@ struct cmyth_database {
 	char * db_name;
 	MYSQL * mysql;
 };	
+#endif /* HAS_MYSQL */
 
 /* Sergio: Added to clean up channel list handling */
 struct cmyth_channel {
@@ -373,6 +378,7 @@ extern cmyth_file_t cmyth_file_create(cmyth_conn_t control);
 #define cmyth_timestamp_diff __cmyth_timestamp_diff
 extern int cmyth_timestamp_diff(cmyth_timestamp_t, cmyth_timestamp_t);
 
+#if defined(HAS_MYSQL)
 /*
  * From mythtv_mysql.c
  */
@@ -405,6 +411,7 @@ extern int cmyth_mysql_query_param_str(cmyth_mysql_query_t * query, const char *
 extern char * cmyth_mysql_query_string(cmyth_mysql_query_t * query);
 
 extern MYSQL_RES * cmyth_mysql_query_result(cmyth_mysql_query_t * query);
+#endif /* HAS_MYSQL */
 
 
 

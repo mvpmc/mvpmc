@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005-2006, Jon Gettler
+ *  Copyright (C) 2005-2009, Jon Gettler
  *  http://www.mvpmc.org/
  *
  *  This library is free software; you can redistribute it and/or
@@ -21,8 +21,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-#include <mvp_refmem.h>
-#include <cmyth.h>
 #include <cmyth_local.h>
 
 
@@ -33,6 +31,8 @@ long long cmyth_get_bookmark(cmyth_conn_t conn, cmyth_proginfo_t prog)
 	int err;
 	long long ret;
 	int count;
+	long long ll;
+	int r;
 	char start_ts_dt[CMYTH_TIMESTAMP_LEN + 1];
 	cmyth_datetime_to_string(start_ts_dt, prog->proginfo_rec_start_ts);
 	buf = alloca(len);
@@ -57,8 +57,6 @@ long long cmyth_get_bookmark(cmyth_conn_t conn, cmyth_proginfo_t prog)
 		ret = count;
 		goto out;
 	}
-	long long ll;
-	int r;
 	if ((r=cmyth_rcv_long_long(conn, &err, &ll, count)) < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			"%s: cmyth_rcv_longlong() failed (%d)\n",

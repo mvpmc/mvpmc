@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2006, Sergio Slobodrian
+ *  Copyright (C) 2006-2010, Sergio Slobodrian
  *  http://www.mvpmc.org/
  *
  *  This library is free software; you can redistribute it and/or
@@ -25,14 +25,11 @@
  *                and so forth on live-tv.
  */
 #include <sys/types.h>
-#include <stdlib.h>
-#include <unistd.h>
 #include <sys/socket.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
-#include <mvp_refmem.h>
-#include <cmyth.h>
 #include <cmyth_local.h>
 #include <string.h>
 

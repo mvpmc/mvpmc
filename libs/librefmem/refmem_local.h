@@ -10,7 +10,7 @@
 #define REF_DBG_ERRORS   0 
 #define REF_DBG_COUNTERS 1
 #define REF_DBG_DEBUG    2 
-#define REF_DBG_ALL      2 
+#define REF_DBG_ALL      3 
 
 void refmem_dbg_level(int l);
 
