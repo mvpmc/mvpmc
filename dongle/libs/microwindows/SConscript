@@ -31,8 +31,8 @@ else:
 	       'patches/microwindows_no_demos.patch']
     if machine == 'ppc':
       patches.append('patches/microwindows_host_be.patch')
-    url = [ #'http://www.mvpmc.org/dl/microwindows-full-snapshot.tar.gz',
-        'ftp://microwindows.censoft.com/pub/microwindows/microwindows-full-snapshot.tar.gz' ]
+    url = [ 'http://www.mvpmc.org/~shyde/libs/microwindows-full-snapshot.tar.gz',
+	    'ftp://microwindows.censoft.com/pub/microwindows/microwindows-full-snapshot.tar.gz' ]
   
 e = Environment()
 
