@@ -17,7 +17,8 @@ url = [ '%s/buildroot-20060710.tar.bz2'%mvpmc.dlprefix ]
 
 patches = [ 'buildroot-20060710-mvpmc.patch',
 	    'buildroot-fix-kernel-header-urls.patch',
-	    'buildroot-fix-uClibc-download.patch' ]
+	    'buildroot-fix-uClibc-download.patch',
+	    'buildroot-fix-gdb-download.patch' ]
 
 cmd = [ 'CC=gcc make oldconfig', 'CC=gcc make' ]
 
