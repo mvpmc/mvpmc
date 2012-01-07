@@ -1,0 +1,13 @@
+diff -urNp buildroot.dist//toolchain/gdb/gdb.mk buildroot/toolchain/gdb/gdb.mk
+--- buildroot.dist//toolchain/gdb/gdb.mk        2006-07-10 03:15:19.000000000 -0400
++++ buildroot/toolchain/gdb/gdb.mk      2012-01-05 18:57:38.000000000 -0500
+@@ -14,7 +14,7 @@ GDB_CAT:=bzcat
+ GDB_DIR:=$(TOOL_BUILD_DIR)/gdb-$(GDB_VERSION)
+ else
+ GDB_SITE:=http://ftp.gnu.org/gnu/gdb
+-GDB_SOURCE:=gdb-$(GDB_VERSION).tar.bz2
++GDB_SOURCE:=gdb-$(GDB_VERSION)a.tar.bz2
+ GDB_CAT:=bzcat
+ 
+ GDB_DIR:=$(TOOL_BUILD_DIR)/gdb-$(GDB_VERSION)
+

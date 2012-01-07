@@ -31,7 +31,8 @@ def GetSourceFile(url, output_dir, env):
   return node
 
 
-url = 'http://www.mvpmc.org/dl/fuse-2.5.3.tar.gz'
+import mvpmc
+url = '%s/fuse-2.5.3.tar.gz'%mvpmc.dlprefix
 pwd = os.getcwd()
 
 

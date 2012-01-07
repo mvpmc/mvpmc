@@ -15,7 +15,7 @@ prefix = '%s/dongle/install/%s' % (topdir,build_target)
 
 e = Environment()
 
-url = [ 'http://www.mvpmc.org/dl/fuse-2.5.3.tar.gz' ]
+url = [ '%s/fuse-2.5.3.tar.gz'%mvpmc.dlprefix ]
 
 target = [ bindir + 'fusermount' ]
 cmd = [ 'MOUNT_FUSE_PATH="%s"/sbin UDEV_RULES_PATH="%s"/etc/udev/rules.d ./configure --host=powerpc-linux -with-gnu-ld --disable-debug  --enable-lib --enable-util --enable-example=no --disable-kernel-module --disable-shared --prefix="%s"' % (prefix, prefix, prefix),

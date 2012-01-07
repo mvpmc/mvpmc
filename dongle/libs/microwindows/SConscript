@@ -22,7 +22,7 @@ if build_target == 'mvp':
 		'patches/microwindows-0.91.patch',
 	        'patches/microwindows-0.91_no_demos.patch',
 		'patches/microwindows-0.91_pixel_compat.patch']
-    url = [ 'http://www.mvpmc.org/dl/microwindows-src-0.91.tar.gz',
+    url = [ '%s/microwindows-src-0.91.tar.gz'%mvpmc.dlprefix,
 	    'ftp://microwindows.censoft.com/pub/microwindows/microwindows-src-0.91.tar.gz' ]
 else:
     config = ''

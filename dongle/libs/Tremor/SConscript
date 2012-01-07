@@ -23,7 +23,7 @@ else:
 
 e = Environment()
 
-url = [ 'http://www.mvpmc.org/dl/tremor-1.0.2.tar.gz' ]
+url = [ '%s/tremor-1.0.2.tar.gz'%mvpmc.dlprefix ]
 
 target = [ libdir + 'libvorbisidec.a',
            incdir + 'ivorbiscodec.h',

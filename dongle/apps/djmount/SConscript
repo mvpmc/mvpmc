@@ -15,7 +15,7 @@ prefix = '%s/dongle/install/%s' % (topdir,build_target)
 
 e = Environment()
 
-url = [ 'http://www.mvpmc.org/dl/djmount-0.71.tar.gz' ]
+url = [ '%s/djmount-0.71.tar.gz'%mvpmc.dlprefix ]
 
 pwd = os.getcwd()
 

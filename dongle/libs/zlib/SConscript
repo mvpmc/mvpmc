@@ -21,7 +21,7 @@ else:
   
 e = Environment()
 
-url = [ 'http://www.mvpmc.org/dl/zlib-1.2.3.tar.gz',
+url = [ '%s/zlib-1.2.3.tar.gz'%mvpmc.dlprefix,
         'http://www.zlib.net/zlib-1.2.3.tar.gz' ]
 
 target = [ libdir + 'libz.a',

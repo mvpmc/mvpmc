@@ -21,7 +21,7 @@ else:
   
 e = Environment()
 
-url = [ 'http://www.mvpmc.org/dl/jpegsrc.v6b.tar.gz',
+url = [ '%s/jpegsrc.v6b.tar.gz'%mvpmc.dlprefix,
         'http://www.ijg.org/files/jpegsrc.v6b.tar.gz' ]
 
 target = [ libdir + 'libjpeg.a' ]

@@ -1,0 +1,12 @@
+diff -urNp buildroot.dist/toolchain/uClibc/uclibc.mk buildroot/toolchain/uClibc/uclibc.mk
+--- buildroot.dist/toolchain/uClibc/uclibc.mk	2012-01-05 16:33:49.000000000 -0500
++++ buildroot/toolchain/uClibc/uclibc.mk	2012-01-05 16:46:44.000000000 -0500
+@@ -22,7 +22,7 @@ else
+ UCLIBC_VER:=0.9.28
+ UCLIBC_DIR:=$(TOOL_BUILD_DIR)/uClibc-$(UCLIBC_VER)
+ UCLIBC_SOURCE:=uClibc-$(UCLIBC_VER).tar.bz2
+-UCLIBC_SITE:=http://www.uclibc.org/downloads
++UCLIBC_SITE:=http://www.uclibc.org/downloads/old-releases/
+ endif
+ 
+ UCLIBC_TARGET_ARCH:=$(shell echo $(ARCH) | sed -e s'/-.*//' \

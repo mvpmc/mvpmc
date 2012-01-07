@@ -14,7 +14,7 @@ bindir = '%s/dongle/install/%s/bin/' % (topdir,build_target)
 
 e = Environment()
 
-url = [ 'http://www.mvpmc.org/dl/mtd.tar.gz' ]
+url = [ '%s/mtd.tar.gz'%mvpmc.dlprefix ]
 
 target = [ bindir + 'flashcp' ]
 cmd = [ 'cd util',

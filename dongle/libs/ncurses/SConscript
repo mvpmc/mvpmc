@@ -23,7 +23,7 @@ else:
 
 e = Environment()
 
-url = [ 'http://www.mvpmc.org/dl/ncurses-5.5.tar.gz',
+url = [ '%s/ncurses-5.5.tar.gz'%mvpmc.dlprefix,
         'http://ftp.gnu.org/pub/gnu/ncurses/ncurses-5.5.tar.gz' ]
 
 target = [ libdir + 'libncurses.a' ]

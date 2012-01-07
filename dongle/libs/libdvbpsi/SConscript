@@ -21,7 +21,7 @@ else:
   
 e = Environment()
 
-url = [ 'http://www.mvpmc.org/dl/libdvbpsi4-0.1.5.tar.gz',
+url = [ '%s/libdvbpsi4-0.1.5.tar.gz'%mvpmc.dlprefix,
         'http://download.videolan.org/pub/libdvbpsi/0.1.5/libdvbpsi4-0.1.5.tar.gz' ]
 
 target = [ libdir + 'libdvbpsi.a',

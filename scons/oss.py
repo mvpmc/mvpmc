@@ -6,7 +6,7 @@
 
 import os
 import tarfile
-import popen2
+import subprocess
 
 import SCons.Action
 import SCons.Builder
@@ -23,8 +23,7 @@ def url_get(proto, url, path):
     url = url[i:]
     url = '%s://%s' % (proto,url)
     debug(1, 'wget %s' % url)
-    cmd = popen2.Popen4('wget -O %s %s' % (path,url))
-    rc = cmd.wait()
+    rc = subprocess.call( ['wget', '-O', path, url])
     if rc == 0 :
         return True
     else:
