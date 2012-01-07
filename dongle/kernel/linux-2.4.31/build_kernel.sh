@@ -16,10 +16,10 @@ rm -rf fuse/fuse-2.5.3
 
 mkdir -p $TARBALLS_DIR
 if [[ ! -a $TARBALLS_DIR/linux-2.4.31.tar.bz2 ]] ; then
-    wget -O $TARBALLS_DIR/linux-2.4.31.tar.bz2 http://www.mvpmc.org/dl/linux-2.4.31.tar.bz2
+    wget -O $TARBALLS_DIR/linux-2.4.31.tar.bz2 http://dl.mvpmc.org/linux-2.4.31.tar.bz2
 fi
 if [[ ! -a $TARBALLS_DIR/unionfs-1.0.14.tar.gz ]] ; then
-    wget -O $TARBALLS_DIR/unionfs-1.0.14.tar.gz http://www.mvpmc.org/dl/unionfs-1.0.14.tar.gz
+    wget -O $TARBALLS_DIR/unionfs-1.0.14.tar.gz http://dl.mvpmc.org/unionfs-1.0.14.tar.gz
 fi
 tar --bzip2 -xf $TARBALLS_DIR/linux-2.4.31.tar.bz2
 tar -xzf $TARBALLS_DIR/unionfs-1.0.14.tar.gz

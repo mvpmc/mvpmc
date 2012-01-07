@@ -19,3 +19,5 @@ def OSSBuild(targets, urls, env, e, cmd=[], patches=[]):
                   prefix=instdir,
                   buildtarget=build_target)
     return build
+
+dlprefix='http://dl.mvpmc.org/'

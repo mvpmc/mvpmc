@@ -15,7 +15,7 @@ prefix = '%s/dongle/install/%s' % (topdir,build_target)
 
 e = Environment()
 
-url = [ 'http://www.mvpmc.org/dl/dropbear-0.48.1.tar.gz',
+url = [ '%s/dropbear-0.48.1.tar.gz'%mvpmc.dlprefix,
         'http://matt.ucc.asn.au/dropbear/releases/dropbear-0.48.1.tar.gz' ]
 
 target = [ sbindir + 'dropbear' ]
