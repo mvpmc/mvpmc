@@ -1333,6 +1333,8 @@ int is_streaming(char *url)
 		".OGM",
 		".iso",
 		".ISO",
+		".MKV",
+		".mkv",
 		NULL
 	};
 	int i=0;
