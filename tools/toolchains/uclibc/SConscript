@@ -13,7 +13,7 @@ pwd = os.getcwd()
 
 e = Environment()
 #url = 'http://buildroot.uclibc.org/downloads/snapshots/buildroot-20060710.tar.bz2'
-url = [ 'http://www.mvpmc.org/dl/buildroot-20060710.tar.bz2' ]
+url = [ '%s/buildroot-20060710.tar.bz2'%mvpmc.dlprefix ]
 
 patches = [ 'buildroot-20060710-mvpmc.patch',
 	    'buildroot-fix-kernel-header-urls.patch' ]

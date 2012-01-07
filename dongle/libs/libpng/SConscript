@@ -21,7 +21,7 @@ else:
   
 e = Environment()
 
-url = [ 'http://www.mvpmc.org/dl/libpng-1.2.6-config.tar.gz',
+url = [ '%s/libpng-1.2.6-config.tar.gz'%mvpmc.dlprefix,
         'http://surfnet.dl.sourceforge.net/libpng/libpng-1.2.6-config.tar.gz' ]
 
 target = [ libdir + 'libpng12.a' ]

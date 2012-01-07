@@ -25,7 +25,7 @@ config_opts = '--without-docs --without-man --without-debug --without-server --w
 
 e = Environment()
 
-url = [ 'http://www.mvpmc.org/dl/mysql-5.0.21.tar.gz' ]
+url = [ '%s/mysql-5.0.21.tar.gz'%mvpmc.dlprefix ]
 
 target = [ libdir + 'mysql/libmysqlclient.a' ]
 cmd = [
