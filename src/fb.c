@@ -471,6 +471,7 @@ add_files(mvp_widget_t *fbw)
 		char *vlc[] = { "*.divx", "*.DIVX", "*.flv", "*.FLV", "*.avi", "*.AVI", "*.wmv",
 			"*.WMV", "*.wma", "*.WMA", "*.mp4", "*.MP4",
  			"*.mov", "*.MOV",
+			"*.mkv", "*.MKV",
 			"*.rm", "*.RM", "*.ogm", "*.OGM", "*.iso", "*.ISO", NULL };
 		do_glob(fbw, vlc);
 	}
