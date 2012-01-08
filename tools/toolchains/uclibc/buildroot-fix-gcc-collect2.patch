@@ -1,0 +1,15 @@
+diff -ruN buildroot-orig/toolchain/gcc/3.4.5/920-collect2.patch buildroot/toolchain/gcc/3.4.5/920-collect2.patch
+--- buildroot-orig/toolchain/gcc/3.4.5/920-collect2.patch	1969-12-31 19:00:00.000000000 -0500
++++ buildroot/toolchain/gcc/3.4.5/920-collect2.patch	2012-01-07 17:14:18.000000000 -0600
+@@ -0,0 +1,11 @@
++--- gcc-3.4.3/gcc/collect2.c
+++++ gcc-3.4.3-new/gcc/collect2.c
++@@ -1534,7 +1534,7 @@
++   if (redir)
++     {
++       /* Open response file.  */
++-      redir_handle = open (redir, O_WRONLY | O_TRUNC | O_CREAT);
+++      redir_handle = open (redir, O_WRONLY | O_TRUNC | O_CREAT, 0644);
++ 
++       /* Duplicate the stdout and stderr file handles
++ 	 so they can be restored later.  */

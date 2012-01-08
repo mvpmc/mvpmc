@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# $Id: SConscript 20 2006-03-14 05:26:56Z gettler $
+# SConscript file for building the uclibc toolchain
 #
 
 import os
@@ -18,7 +18,16 @@ url = [ '%s/buildroot-20060710.tar.bz2'%mvpmc.dlprefix ]
 patches = [ 'buildroot-20060710-mvpmc.patch',
 	    'buildroot-fix-kernel-header-urls.patch',
 	    'buildroot-fix-uClibc-download.patch',
-	    'buildroot-fix-gdb-download.patch' ]
+	    'buildroot-fix-gdb-download.patch',
+	    'buildroot-fix-gcc-collect2.patch'
+	  ]
+
+#
+# Building 64-bit binaries results in ar crashing on my system (core i7).
+# The following commands result in a good toolchain being created, except
+# that gdb doesn't build.
+#
+#cmd = [ 'CFLAGS=-m32 CC=gcc make oldconfig', 'CFLAGS=-m32 CC=gcc make' ]
 
 cmd = [ 'CC=gcc make oldconfig', 'CC=gcc make' ]
 
