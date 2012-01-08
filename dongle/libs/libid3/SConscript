@@ -22,7 +22,8 @@ else:
 
 e = Environment()
 
-url = [ '%s/libid3-1.0.tar.gz'%mvpmc.dlprefix,
+url = [ '%s/libid3-1.0.tar.gz'%mvpmc.dlprefix0,
+	'%s/libid3-1.0.tar.gz'%mvpmc.dlprefix1,
         'http://download.tangent.org/libid3-1.0.tar.gz' ]
 
 target = [ libdir + 'libid3.a',

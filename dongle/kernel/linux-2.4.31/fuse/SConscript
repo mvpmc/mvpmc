@@ -19,20 +19,24 @@ file = downloads + '/fuse-2.5.3.tar.gz'
 e = Environment()
 e.Tool('WGet', toolpath=['../../../../scons'])
 
-def GetSourceFile(url, output_dir, env):
+def GetSourceFile(urls, output_dir, env):
   '''
   Create a node for a file retrieved via wget.
   This node can be used as a dependency in other rules.
   '''
   # Nab everything after the last slash as the filename
-  basefilename = str(url)[str( url).rfind(os.sep) + 1:]
-  munged = output_dir + os.sep + basefilename + os.sep + url
-  node = env.SourceCode( munged, env.WGet() )
-  return node
+  for url in urls:
+    basefilename = str(url)[str( url).rfind(os.sep) + 1:]
+    munged = output_dir + os.sep + basefilename + os.sep + url
+    node = env.SourceCode( munged, env.WGet() )
+    if node != None:
+      return node
+  return None
 
 
 import mvpmc
-url = '%s/fuse-2.5.3.tar.gz'%mvpmc.dlprefix
+url = [ '%s/fuse-2.5.3.tar.gz'%mvpmc.dlprefix0,
+	'%s/fuse-2.5.3.tar.gz'%mvpmc.dlprefix1 ]
 pwd = os.getcwd()
 
 
@@ -42,7 +46,7 @@ build = env.Command('../../../filesystem/tree/lib/modules/2.4.31-v1.1-hcwmvp/mis
                     '-I ' + pwd + '/../../../filesystem/tree/lib/modules/2.4.31-v1.1-hcwmvp/misc/' + ' -k ' + crosspath )
 
 if not os.path.exists(file):
-	dl = GetSourceFile(url, '#' + downloads, e)
+	dl = GetSourceFile(urls, '#' + downloads, e)
 	env.Depends(build, dl)
 
 Return('build')

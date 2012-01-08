@@ -21,7 +21,8 @@ else:
 
 e = Environment()
 
-url = [ '%s/flac-1.2.1.tar.gz'%mvpmc.dlprefix,
+url = [ '%s/flac-1.2.1.tar.gz'%mvpmc.dlprefix0,
+	'%s/flac-1.2.1.tar.gz'%mvpmc.dlprefix1,
         'http://flac.sourceforge.net/files/flac-1.2.1.tar.gz' ]
 
 target = [ libdir + 'libFLAC.a',

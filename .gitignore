@@ -24,3 +24,6 @@ tools/misc/mvpdbg
 tools/mktree/mktree
 tools/mvprelay/mvprelay
 tools/squashfs/squashfs2.2-r2
+tools/toolchains/uclibc/mvp
+tools/squashfs/mksquashfs
+config.log

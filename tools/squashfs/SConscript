@@ -10,7 +10,8 @@ Import('env')
 
 e = Environment()
 
-url = [ '%s/squashfs2.2-r2.tar.gz'%mvpmc.dlprefix,
+url = [ '%s/squashfs2.2-r2.tar.gz'%mvpmc.dlprefix0,
+	'%s/squashfs2.2-r2.tar.gz'%mvpmc.dlprefix1,
 	'http://surfnet.dl.sourceforge.net/squashfs/squashfs2.2-r2.tar.gz' ]
 
 pwd = os.getcwd()

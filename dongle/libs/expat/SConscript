@@ -21,7 +21,8 @@ else:
   
 e = Environment()
 
-url = [ '%s/expat-1.95.8.tar.gz'%mvpmc.dlprefix ]
+url = [ '%s/expat-1.95.8.tar.gz'%mvpmc.dlprefix0,
+	'%s/expat-1.95.8.tar.gz'%mvpmc.dlprefix1 ]
 
 target = [ libdir + 'libexpat.a',
            incdir + 'expat.h' ]

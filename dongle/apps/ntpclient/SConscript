@@ -15,7 +15,8 @@ prefix = '%s/dongle/install/%s' % (topdir,build_target)
 
 e = Environment()
 
-url = [ '%s/ntpclient_2003_194.tar.gz'%mvpmc.dlprefix,
+url = [ '%s/ntpclient_2003_194.tar.gz'%mvpmc.dlprefix0,
+	'%s/ntpclient_2003_194.tar.gz'%mvpmc.dlprefix1,
         'http://doolittle.icarus.com/ntpclient/ntpclient_2003_194.tar.gz' ]
 
 target = [ bindir + 'ntpclient' ]

@@ -20,7 +20,8 @@ if build_target == 'mvp':
 
 e = Environment()
 
-url = [ '%s/a52dec-snapshot.tar.gz'%mvpmc.dlprefix,
+url = [ '%s/a52dec-snapshot.tar.gz'%mvpmc.dlprefix0,
+	'%s/a52dec-snapshot.tar.gz'%mvpmc.dlprefix1,
         'http://liba52.sourceforge.net/files/a52dec-snapshot.tar.gz' ]
 
 target = [ libdir + 'liba52.a',

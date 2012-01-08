@@ -14,7 +14,8 @@ bindir = '%s/dongle/install/%s/bin/' % (topdir,build_target)
 
 e = Environment()
 
-url = [ '%s/busybox-1.1.3.tar.bz2'%mvpmc.dlprefix,
+url = [ '%s/busybox-1.1.3.tar.bz2'%mvpmc.dlprefix0,
+	'%s/busybox-1.1.3.tar.bz2'%mvpmc.dlprefix1,
 	'http://busybox.net/downloads/busybox-1.1.3.tar.bz2' ]
 
 target = [ bindir + 'busybox' ]

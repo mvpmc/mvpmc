@@ -27,6 +27,7 @@ def url_get(proto, url, path):
     if rc == 0 :
         return True
     else:
+        os.unlink(path)
         return False
 
 def get_sources(node, env, path):

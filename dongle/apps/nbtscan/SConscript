@@ -15,7 +15,8 @@ bindir = '%s/dongle/install/%s/bin/' % (topdir,build_target)
 
 e = Environment()
 
-url = [ '%s/nbtscan-1.5.1.tar.gz'%mvpmc.dlprefix,
+url = [ '%s/nbtscan-1.5.1.tar.gz'%mvpmc.dlprefix0,
+	'%s/nbtscan-1.5.1.tar.gz'%mvpmc.dlprefix1,
         'http://www.inetcat.net/software/nbtscan-1.5.1.tar.gz' ]
 
 target = [ bindir + 'nbtscan' ]

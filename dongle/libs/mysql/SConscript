@@ -25,7 +25,8 @@ config_opts = '--without-docs --without-man --without-debug --without-server --w
 
 e = Environment()
 
-url = [ '%s/mysql-5.0.21.tar.gz'%mvpmc.dlprefix ]
+url = [ '%s/mysql-5.0.21.tar.gz'%mvpmc.dlprefix0,
+	'%s/mysql-5.0.21.tar.gz'%mvpmc.dlprefix1 ]
 
 target = [ libdir + 'mysql/libmysqlclient.a' ]
 cmd = [

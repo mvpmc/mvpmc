@@ -20,4 +20,5 @@ def OSSBuild(targets, urls, env, e, cmd=[], patches=[]):
                   buildtarget=build_target)
     return build
 
-dlprefix='http://dl.mvpmc.org/'
+dlprefix0='http://dl.mvpmc.org/'
+dlprefix1='http://dl.dropbox.com/u/11476367/mvpmc/dl/'
