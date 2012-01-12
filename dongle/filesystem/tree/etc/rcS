@@ -213,6 +213,16 @@ if [ -z "`pidof mvpmc`" ] ; then
         . /etc/dongle.config
     fi
     #
+    # mounting a share failed, try tftp from mvpconfig, a fixed hostname
+    #
+    if [ -z "`pidof mvpmc`" ] ; then    
+        tftp -g -l /etc/dongle.config -r dongle.config mvpconfig
+        if [ -e "/etc/dongle.config" ] ; then
+	    dos2unix -u /etc/dongle.config        
+            . /etc/dongle.config
+        fi
+    fi
+    #
     # mounting a share failed lets try a tftp from the same server
     #   
     if [ -z "`pidof mvpmc`" ] ; then    
