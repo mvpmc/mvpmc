@@ -130,6 +130,7 @@ typedef struct {
 	char			vlc_aopts[6];
 	int			vlc_vb;
 	int			vlc_ab;
+	char			vlc_fps[8];
 	char			weather_location[20];
 	int			mythtv_commskip;
 	int			mythtv_auto_commskip;
