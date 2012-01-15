@@ -75,6 +75,7 @@
 #define	PREV_CHAN_BUTTON	18
 
 #define	KEYBOARD	"/dev/rawir"	/* keyboard associated with screen*/
+#define PORT		16000
 
 static int  IRM_Open(KBDDEVICE *pkd);
 static void IRM_Close(void);
@@ -91,6 +92,73 @@ KBDDEVICE kbddev = {
 
 static	int		fd;		/* file descriptor for keyboard */
 
+
+#include <pthread.h>
+#include <sys/select.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+
+int open_udp(void)
+{
+	int sock;
+	int x;
+	struct sockaddr_in sai;
+
+	memset(&sai, 0, sizeof(sai));
+	sock = socket(AF_INET,SOCK_DGRAM, IPPROTO_UDP);
+	sai.sin_family = AF_INET;
+	sai.sin_port = htons(PORT);
+	x = bind(sock, (struct sockaddr *) &sai, sizeof(sai));
+	if(x<0)
+		printf("openUDP bind = %d:%d\n", x, errno);
+
+//	x=fcntl(sock,F_GETFL,0);
+//	fcntl(sock,F_SETFL,x | O_NONBLOCK);
+
+	printf("openUDP socket=%d\n", sock);
+	return sock;
+}
+
+void keyboard_thread(void *arg) {
+	int rfd, ufd;
+	fd_set	rfds;
+	int maxfd;
+	int ret;
+	int pipefd = *( (int *) arg);
+	short buf;
+
+	rfd = open(KEYBOARD, O_RDONLY);
+	ufd = open_udp();
+
+	maxfd = rfd;
+	if(ufd>maxfd)
+		maxfd = ufd;
+
+	maxfd++;
+
+	while(1) {
+		FD_ZERO(&rfds);
+		FD_SET(ufd, &rfds);
+		FD_SET(rfd, &rfds);
+		ret = select(maxfd, &rfds, NULL, NULL, NULL);
+
+		if(FD_ISSET(ufd, &rfds)) {
+			ret = read(ufd, &buf, sizeof(buf));
+			if(ret == sizeof(buf)) 
+				write(pipefd, &buf, ret);
+			printf("Got UDP: %d (err=%d)\n", ret, errno);
+		}
+		if(FD_ISSET(rfd, &rfds)) {
+			ret = read(rfd, &buf, sizeof(buf));
+			if(ret == sizeof(buf)) 
+				write(pipefd, &buf, ret);
+			printf("Got IR: %d (err=%d)\n", ret, errno);
+		}
+	}
+}
+
 /*
  * Open the keyboard.
  * This is real simple, we just use a special file handle
@@ -100,12 +168,19 @@ static	int		fd;		/* file descriptor for keyboard */
 static int
 IRM_Open(KBDDEVICE *pkd)
 {
-	fd = open(KEYBOARD, O_RDONLY | O_NONBLOCK);
-	if (fd < 0)
-		return -1;
+	int pipes[2];
+	pthread_t handle;
+	int x;
+
+	pipe(pipes);
+
+	pthread_create(&handle, NULL, keyboard_thread, pipes+1);
+	fd = pipes[0];
+
+	x=fcntl(fd,F_GETFL,0);
+	fcntl(fd,F_SETFL,x | O_NONBLOCK);
 
 	return fd;
-
 }
 
 /*
