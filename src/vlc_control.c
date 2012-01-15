@@ -665,6 +665,10 @@ char* vlc_get_video_transcode()
 		fps = "29.9700";
 	}
 
+	/* allow override of framerate */
+	if (config->vlc_fps[0])
+		fps = config->vlc_fps;
+
 	/* bitrate settings */
 	int ab = config->vlc_ab;
 	if (ab == 0) ab = 192;

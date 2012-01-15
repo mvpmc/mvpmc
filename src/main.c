@@ -111,6 +111,7 @@ static struct option opts[] = {
 	{ "vlc-aopts", required_argument, 0, 0},
 	{ "vlc-vb", required_argument, 0, 0},
 	{ "vlc-ab", required_argument, 0, 0},
+	{ "vlc-fps", required_argument, 0, 0},
 	{ "use-mplayer", no_argument, 0, 0 },
 	{ "emulate", required_argument, 0, 0},
 	{ "rfb-mode", required_argument, 0, 0},
@@ -329,6 +330,7 @@ print_help(char *prog)
 	printf("\t--vlc-aopts opt\t[mp3|flac] VLC audio stream encoding\n");
 	printf("\t--vlc-vb rate\tVLC video stream bitrate (Mb)\n");
 	printf("\t--vlc-ab rate\tVLC audio stream bitrate(Kb)\n");
+	printf("\t--vlc-fps framerate\tVLC video framerate(fps)\n");
 	printf("\t--use-mplayer \tenable mplayer\n");
 	printf("\n");
 	printf("\t--emulate server \tIP address or ?\n");
@@ -730,6 +732,9 @@ mvpmc_main(int argc, char **argv)
 			}
 			if (strcmp(opts[opt_index].name, "vlc-ab") == 0) {
 				config->vlc_ab = atoi(optarg);
+			}
+			if (strcmp(opts[opt_index].name, "vlc-fps") == 0) {
+				sizeof_strncpy(config->vlc_fps, optarg);
 			}
 			if (strcmp(opts[opt_index].name, "emulate") == 0) {
 				mvp_server = strdup(optarg);
