@@ -3062,6 +3062,7 @@ mythtv_schedule_recording(mvp_widget_t *widget, char *item , void *key, int type
 	char *recordid=NULL;
 	int rgroup=0;
 	int newschedule=0;
+	int DBSchemaVer=0;
 
 	if (user_data==NULL) {
 		newschedule=0;
@@ -3079,6 +3080,16 @@ mythtv_schedule_recording(mvp_widget_t *widget, char *item , void *key, int type
 		endoffset=mvpw_get_dialog_text(user_data->myptr->pane3);
 		rgroup=(long)mvpw_menu_get_hilite(user_data->myptr->pane4);
 	}
+
+	DBSchemaVer = atoi(cmyth_get_dbschemaver_mysql(mythtv_database));
+	printf("========================================\n");
+	printf("Database version: %d\n",DBSchemaVer);
+	printf("========================================\n");
+	if (DBSchemaVer==0) {
+		sprintf(guierrormsg, "Unable to determine Database Schema version");
+		gui_error(guierrormsg);
+		goto out;
+	}	
 
 	MYTHTV_RECORD_START=0;
 	MYTHTV_RECORD_END=0;
@@ -3197,34 +3208,65 @@ mythtv_schedule_recording(mvp_widget_t *widget, char *item , void *key, int type
 					'0')", \
 					sqlprog[which].seriesid,sqlprog[which].programid,(int)sqlprog[which].starttime,(int)sqlprog[which].starttime,(int)sqlprog[which].starttime);
 				break;
-			case 32 ... 50:
-				sprintf(query, "REPLACE INTO record ( \
-					recordid,type,chanid,starttime,startdate,endtime, \
-					enddate,search,\
-					title,\
-					subtitle, \
-					description, \
-					profile,recpriority,category,maxnewest,inactive,maxepisodes, \
-					autoexpire,startoffset,endoffset,recgroup,dupmethod,dupin, \
-					station,\
-					seriesid,programid,autocommflag,findday,findtime,findid, \
-					autotranscode,parentid,transcoder,tsdefault,autouserjob1,autouserjob2,autouserjob3, \
-					autouserjob4,playgroup,prefinput, \
-					next_record,last_record,last_delete) values \
-					('%s','%d','%d',FROM_UNIXTIME(%d), \
-					FROM_UNIXTIME(%d), FROM_UNIXTIME(%d), \
-					FROM_UNIXTIME(%d),'',", recordid,
-					type, sqlprog[which].chanid,
-					(int)sqlprog[which].starttime,
-					(int)sqlprog[which].starttime,
-					(int)sqlprog[which].endtime,
-					(int)sqlprog[which].endtime);
-				sprintf(query1, " ,'Default','0','%s','0','0','0','0', '%s', '%s','%s','6','15',", sqlprog[which].category,startoffset,endoffset,sqlrecgroups[rgroup].recgroups);
-				sprintf(query2,",'%s','%s','1',DAYOFWEEK(FROM_UNIXTIME(%d)),FROM_UNIXTIME(%d),TO_DAYS(FROM_UNIXTIME(%d)), \
-					'0','0','0','1.00','0','0','0', \
-					'0','Default','0', \
-					'00:00:00','00:00:00','00:00:00')", \
-					sqlprog[which].seriesid,sqlprog[which].programid,(int)sqlprog[which].starttime,(int)sqlprog[which].starttime,(int)sqlprog[which].starttime);
+			case 32 ... 63:
+				if (DBSchemaVer < 1256) {
+					sprintf(query, "REPLACE INTO record ( \
+						recordid,type,chanid,starttime,startdate,endtime, \
+						enddate,search,\
+						title,\
+						subtitle, \
+						description, \
+						profile,recpriority,category,maxnewest,inactive,maxepisodes, \
+						autoexpire,startoffset,endoffset,recgroup,dupmethod,dupin, \
+						station,\
+						seriesid,programid,autocommflag,findday,findtime,findid, \
+						autotranscode,parentid,transcoder,tsdefault,autouserjob1,autouserjob2,autouserjob3, \
+						autouserjob4,playgroup,prefinput, \
+						next_record,last_record,last_delete) values \
+						('%s','%d','%d',FROM_UNIXTIME(%d), \
+						FROM_UNIXTIME(%d), FROM_UNIXTIME(%d), \
+						FROM_UNIXTIME(%d),'',", recordid,
+						type, sqlprog[which].chanid,
+						(int)sqlprog[which].starttime,
+						(int)sqlprog[which].starttime,
+						(int)sqlprog[which].endtime,
+						(int)sqlprog[which].endtime);
+					sprintf(query1, " ,'Default','0','%s','0','0','0','0', '%s', '%s','%s','6','15',", sqlprog[which].category,startoffset,endoffset,sqlrecgroups[rgroup].recgroups);
+					sprintf(query2,",'%s','%s','1',DAYOFWEEK(FROM_UNIXTIME(%d)),FROM_UNIXTIME(%d),TO_DAYS(FROM_UNIXTIME(%d)), \
+						'0','0','0','1.00','0','0','0', \
+						'0','Default','0', \
+						'00:00:00','00:00:00','00:00:00')", \
+						sqlprog[which].seriesid,sqlprog[which].programid,(int)sqlprog[which].starttime,(int)sqlprog[which].starttime,(int)sqlprog[which].starttime);
+				}
+				else {
+					sprintf(query, "REPLACE INTO record ( \
+						recordid,type,chanid,starttime,startdate,endtime, \
+						enddate,search,\
+						title,\
+						subtitle, \
+						description, \
+						profile,recpriority,category,maxnewest,inactive,maxepisodes, \
+						autoexpire,startoffset,endoffset,recgroup,dupmethod,dupin, \
+						station,\
+						seriesid,programid,autocommflag,findday,findtime,findid, \
+						autotranscode,parentid,transcoder,autouserjob1,autouserjob2,autouserjob3, \
+						autouserjob4,playgroup,prefinput, \
+						next_record,last_record,last_delete) values \
+						('%s','%d','%d',FROM_UNIXTIME(%d), \
+						FROM_UNIXTIME(%d), FROM_UNIXTIME(%d), \
+						FROM_UNIXTIME(%d),'',", recordid,
+						type, sqlprog[which].chanid,
+						(int)sqlprog[which].starttime,
+						(int)sqlprog[which].starttime,
+						(int)sqlprog[which].endtime,
+						(int)sqlprog[which].endtime);
+					sprintf(query1, " ,'Default','0','%s','0','0','0','0', '%s', '%s','%s','6','15',", sqlprog[which].category,startoffset,endoffset,sqlrecgroups[rgroup].recgroups);
+					sprintf(query2,",'%s','%s','1',DAYOFWEEK(FROM_UNIXTIME(%d)),FROM_UNIXTIME(%d),TO_DAYS(FROM_UNIXTIME(%d)), \
+						'0','0','0','0','0','0', \
+						'0','Default','0', \
+						'00:00:00','00:00:00','00:00:00')", \
+						sqlprog[which].seriesid,sqlprog[which].programid,(int)sqlprog[which].starttime,(int)sqlprog[which].starttime,(int)sqlprog[which].starttime);
+				}
 				break;
 			case 23056:
 				sprintf(query, "REPLACE INTO record ( \

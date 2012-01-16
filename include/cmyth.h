@@ -985,6 +985,8 @@ extern int cmyth_mysql_delete_scheduled_recording(cmyth_database_t db, char * qu
 extern int cmyth_mysql_insert_into_record(cmyth_database_t db, char * query, char * query1, char * query2, char *title, char * subtitle, char * description, char * callsign);
 
 extern char* cmyth_get_recordid_mysql(cmyth_database_t, int, char *, char *, char *, char *, char *);
+extern char * cmyth_get_dbschemaver_mysql(cmyth_database_t db);
+
 extern int cmyth_get_offset_mysql(cmyth_database_t, int, char *, int, char *, char *, char *, char *, char *);
 
 extern int cmyth_mysql_get_prog_finder_char_title(cmyth_database_t db, cmyth_program_t **prog, time_t starttime, char *program_name);
