@@ -323,6 +323,16 @@ extern int cmyth_conn_get_free_recorder_count(cmyth_conn_t conn);
  */
 extern int cmyth_conn_get_protocol_version(cmyth_conn_t conn);
 
+/**
+ * Return a MythTV setting for a hostname
+ * \param conn connection handle
+ * \param hostname hostname to retreive the setting from
+ * \param setting the setting name to get
+ * \return ref counted string with the setting
+ */
+extern char * cmyth_conn_get_setting(cmyth_conn_t conn,
+               const char* hostname, const char* setting);
+
 /*
  * -----------------------------------------------------------------
  * Event Operations
