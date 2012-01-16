@@ -599,6 +599,8 @@ extern time_t cmyth_timestamp_to_unixtime(cmyth_timestamp_t ts);
 
 extern int cmyth_timestamp_to_string(char *str, cmyth_timestamp_t ts);
 
+extern int cmyth_timestamp_to_mythstring(char *str, cmyth_timestamp_t ts);
+
 extern int cmyth_timestamp_to_isostring(char *str, cmyth_timestamp_t ts);
 
 extern int cmyth_timestamp_to_display_string(char *str, cmyth_timestamp_t ts,
