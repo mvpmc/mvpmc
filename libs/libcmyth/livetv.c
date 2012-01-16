@@ -521,6 +521,10 @@ cmyth_livetv_chain_setup(cmyth_recorder_t rec, int tcp_rcvbuf,
 	cmyth_file_t ft;
 
 
+	cmyth_dbg(CMYTH_DBG_ERROR, "%s: cgb in livetvchainsetup\n",
+		  __FUNCTION__);
+
+
 	if (!rec) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: no recorder connection\n",
 			  __FUNCTION__);
@@ -553,6 +557,9 @@ cmyth_livetv_chain_setup(cmyth_recorder_t rec, int tcp_rcvbuf,
 	}
 
 	if(cmyth_livetv_chain_has_url(new_rec, url) == -1) {
+		cmyth_dbg(CMYTH_DBG_ERROR,
+	 			"%s: cgb in chain_has_url, %s\n",
+	 			__FUNCTION__, url);
 		ft = cmyth_conn_connect_file(loc_prog, new_rec->rec_conn, 16*1024, tcp_rcvbuf);
 		if (!ft) {
 			cmyth_dbg(CMYTH_DBG_ERROR,
@@ -561,6 +568,9 @@ cmyth_livetv_chain_setup(cmyth_recorder_t rec, int tcp_rcvbuf,
 			new_rec = NULL;
 			goto out;
 		}
+		cmyth_dbg(CMYTH_DBG_ERROR,
+	 			"%s: cgb successfully called connect_file, %s\n",
+	 			__FUNCTION__, url);
 		if(cmyth_livetv_chain_add(new_rec, url, ft, loc_prog) == -1) {
 			cmyth_dbg(CMYTH_DBG_ERROR,
 		 			"%s: cmyth_livetv_chain_add(%s) failed\n",
@@ -570,9 +580,16 @@ cmyth_livetv_chain_setup(cmyth_recorder_t rec, int tcp_rcvbuf,
 		}
 		new_rec->rec_livetv_chain->prog_update_callback = prog_update_callback;
 		ref_release(ft);
+		cmyth_dbg(CMYTH_DBG_ERROR,
+	 			"%s: cgb about to call chain_switch, %s\n",
+	 			__FUNCTION__, url);
 		cmyth_livetv_chain_switch(new_rec, 0);
+	} else { /* cgb */
+		
+		cmyth_dbg(CMYTH_DBG_ERROR,
+	 			"%s: cgb no need to call chain_switch, %s\n",
+	 			__FUNCTION__, url);
 	}
-
 
 	ref_release(loc_prog);
     out:
@@ -1071,11 +1088,17 @@ cmyth_spawn_live_tv(cmyth_recorder_t rec, unsigned buflen, int tcp_rcvbuf,
 			goto err;
 		}
  
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cgb about to call livetvchainsetup\n",
+			  __FUNCTION__);
+
 		if ((rtrn = cmyth_livetv_chain_setup(rec, tcp_rcvbuf,
 							prog_update_callback)) == NULL) {
 			*err = "Failed to setup livetv.";
 			goto err;
 		}
+		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cgb have called livetvchainsetup\n",
+			  __FUNCTION__);
+
 
 		for(i=0; i<20; i++) {
 			if(cmyth_recorder_is_recording(rtrn) != 1)

@@ -323,6 +323,16 @@ extern int cmyth_conn_get_free_recorder_count(cmyth_conn_t conn);
  */
 extern int cmyth_conn_get_protocol_version(cmyth_conn_t conn);
 
+/**
+ * Return a MythTV setting for a hostname
+ * \param conn connection handle
+ * \param hostname hostname to retreive the setting from
+ * \param setting the setting name to get
+ * \return ref counted string with the setting
+ */
+extern char * cmyth_conn_get_setting(cmyth_conn_t conn,
+               const char* hostname, const char* setting);
+
 /*
  * -----------------------------------------------------------------
  * Event Operations
@@ -598,6 +608,8 @@ extern cmyth_timestamp_t cmyth_timestamp_from_unixtime(time_t l);
 extern time_t cmyth_timestamp_to_unixtime(cmyth_timestamp_t ts);
 
 extern int cmyth_timestamp_to_string(char *str, cmyth_timestamp_t ts);
+
+extern int cmyth_timestamp_to_mythstring(char *str, cmyth_timestamp_t ts);
 
 extern int cmyth_timestamp_to_isostring(char *str, cmyth_timestamp_t ts);
 
@@ -983,6 +995,8 @@ extern int cmyth_mysql_delete_scheduled_recording(cmyth_database_t db, char * qu
 extern int cmyth_mysql_insert_into_record(cmyth_database_t db, char * query, char * query1, char * query2, char *title, char * subtitle, char * description, char * callsign);
 
 extern char* cmyth_get_recordid_mysql(cmyth_database_t, int, char *, char *, char *, char *, char *);
+extern char * cmyth_get_dbschemaver_mysql(cmyth_database_t db);
+
 extern int cmyth_get_offset_mysql(cmyth_database_t, int, char *, int, char *, char *, char *, char *, char *);
 
 extern int cmyth_mysql_get_prog_finder_char_title(cmyth_database_t db, cmyth_program_t **prog, time_t starttime, char *program_name);

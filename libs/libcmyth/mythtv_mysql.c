@@ -287,6 +287,41 @@ cmyth_get_recordid_mysql(cmyth_database_t db, int chanid, char *title, char *sub
 	}
 }
 
+char *
+cmyth_get_dbschemaver_mysql(cmyth_database_t db)
+{
+	MYSQL_RES *res=NULL;
+	MYSQL_ROW row;
+	char *query;
+	int count;
+
+	if(cmyth_db_check_connection(db) != 0)
+	{
+               cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_db_check_connection failed\n", __FUNCTION__);
+               fprintf(stderr,"%s: cmyth_db_check_connection failed\n", __FUNCTION__);
+	       return NULL;
+	}
+	query = "SELECT data FROM settings WHERE value = 'DBSchemaVer'";
+
+	cmyth_dbg(CMYTH_DBG_ERROR, "%s : query=%s\n",__FUNCTION__, query);
+	
+        if(mysql_query(db->mysql,query)) {
+                 cmyth_dbg(CMYTH_DBG_ERROR, "%s: mysql_query() Failed: %s\n", __FUNCTION__, mysql_error(db->mysql));
+		return NULL;
+        }
+        res = mysql_store_result(db->mysql);
+	if ( (count = mysql_num_rows(res)) >0) {
+		row = mysql_fetch_row(res);
+		fprintf(stderr, "row grabbed done count=%d\n",count);
+        	mysql_free_result(res);
+		return row[0];
+	}
+	else {
+        	mysql_free_result(res);
+		return "NULL";
+	}
+}
+
 int 
 cmyth_mysql_delete_scheduled_recording(cmyth_database_t db, char * query)
 {
