@@ -468,7 +468,7 @@ delete_command(cmyth_conn_t control, cmyth_proginfo_t prog, char *cmd)
 			  __FUNCTION__, control->conn_version);
 		return -EINVAL;
 	}
-	else
+	else if (control->conn_version < 57)
 	{
 		sprintf(buf,
 			"%s 0[]:[]"
@@ -545,6 +545,14 @@ delete_command(cmyth_conn_t control, cmyth_proginfo_t prog, char *cmd)
 				prog->proginfo_videoproperties,
 				prog->proginfo_subtitletype);
 		}		
+	}
+	else {
+	    cmyth_timestamp_to_mythstring(rec_start_ts, prog->proginfo_rec_start_ts);
+		sprintf(buf,
+			"%s %ld %s",
+			cmd,
+			prog->proginfo_chanId,
+			rec_start_ts);
 	}
 
 	pthread_mutex_lock(&mutex);
