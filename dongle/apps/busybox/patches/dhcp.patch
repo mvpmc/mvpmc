@@ -1,0 +1,104 @@
+diff -urNp busybox-1.1.3/networking/udhcp/clientpacket.c busybox-1.1.3-mod//networking/udhcp/clientpacket.c
+--- busybox-1.1.3/networking/udhcp/clientpacket.c	2006-03-22 16:16:19.000000000 -0500
++++ busybox-1.1.3-mod//networking/udhcp/clientpacket.c	2012-01-25 17:20:43.000000000 -0500
+@@ -110,7 +110,7 @@ int send_discover(unsigned long xid, uns
+ 	add_requests(&packet);
+ 	LOG(LOG_DEBUG, "Sending discover...");
+ 	return raw_packet(&packet, INADDR_ANY, CLIENT_PORT, INADDR_BROADCAST,
+-				SERVER_PORT, MAC_BCAST_ADDR, client_config.ifindex);
++				client_config.port, MAC_BCAST_ADDR, client_config.ifindex);
+ }
+ 
+ 
+@@ -130,7 +130,7 @@ int send_selecting(unsigned long xid, un
+ 	addr.s_addr = requested;
+ 	LOG(LOG_DEBUG, "Sending select for %s...", inet_ntoa(addr));
+ 	return raw_packet(&packet, INADDR_ANY, CLIENT_PORT, INADDR_BROADCAST,
+-				SERVER_PORT, MAC_BCAST_ADDR, client_config.ifindex);
++				client_config.port, MAC_BCAST_ADDR, client_config.ifindex);
+ }
+ 
+ 
+@@ -149,7 +149,7 @@ int send_renew(unsigned long xid, unsign
+ 	if (server)
+ 		ret = kernel_packet(&packet, ciaddr, CLIENT_PORT, server, SERVER_PORT);
+ 	else ret = raw_packet(&packet, INADDR_ANY, CLIENT_PORT, INADDR_BROADCAST,
+-				SERVER_PORT, MAC_BCAST_ADDR, client_config.ifindex);
++				client_config.port, MAC_BCAST_ADDR, client_config.ifindex);
+ 	return ret;
+ }
+ 
+@@ -202,7 +202,7 @@ int get_raw_packet(struct dhcpMessage *p
+ 
+ 	/* Make sure its the right packet for us, and that it passes sanity checks */
+ 	if (packet.ip.protocol != IPPROTO_UDP || packet.ip.version != IPVERSION ||
+-	    packet.ip.ihl != sizeof(packet.ip) >> 2 || packet.udp.dest != htons(CLIENT_PORT) ||
++	    packet.ip.ihl != sizeof(packet.ip) >> 2 || packet.udp.dest != htons(client_config.port+1) ||
+ 	    bytes > (int) sizeof(struct udp_dhcp_packet) ||
+ 	    ntohs(packet.udp.len) != (uint16_t) (bytes - sizeof(packet.ip))) {
+ 		DEBUG(LOG_INFO, "unrelated/bogus packet");
+diff -urNp busybox-1.1.3/networking/udhcp/dhcpc.c busybox-1.1.3-mod//networking/udhcp/dhcpc.c
+--- busybox-1.1.3/networking/udhcp/dhcpc.c	2006-03-22 16:16:19.000000000 -0500
++++ busybox-1.1.3-mod//networking/udhcp/dhcpc.c	2012-01-25 17:10:05.000000000 -0500
+@@ -60,6 +60,7 @@ struct client_config_t client_config = {
+ 	.ifindex = 0,
+ 	.retries = 3,
+ 	.timeout = 3,
++	.port = SERVER_PORT,
+ 	.arp = "\0\0\0\0\0\0",		/* appease gcc-3.0 */
+ };
+ 
+@@ -74,6 +75,7 @@ static void ATTRIBUTE_NORETURN show_usag
+ "  -H, --hostname=HOSTNAME         Client hostname\n"
+ "  -h                              Alias for -H\n"
+ "  -F, --fqdn=FQDN                 Client fully qualified domain name\n"
++"  -P, --port                      Alternate server port\n",
+ "  -f, --foreground                Do not fork after getting lease\n"
+ "  -b, --background                Fork to background if lease cannot be\n"
+ "                                  immediately negotiated.\n"
+@@ -208,13 +210,14 @@ int main(int argc, char *argv[])
+ 		{"timeout",	required_argument,	0, 'T'},
+ 		{"version",	no_argument,		0, 'v'},
+ 		{"retries",	required_argument,	0, 't'},		
++		{"port",	required_argument,	0, 'P'},
+ 		{0, 0, 0, 0}
+ 	};
+ 
+ 	/* get options */
+ 	while (1) {
+ 		int option_index = 0;
+-		c = getopt_long(argc, argv, "c:CV:fbH:h:F:i:np:qr:s:T:t:v", arg_options, &option_index);
++		c = getopt_long(argc, argv, "c:CV:fbH:h:F:i:np:qr:s:T:t:P:v", arg_options, &option_index);
+ 		if (c == -1) break;
+ 
+ 		switch (c) {
+@@ -296,6 +299,9 @@ int main(int argc, char *argv[])
+ 		case 't':
+ 			client_config.retries = atoi(optarg);
+ 			break;
++		case 'P':
++			client_config.port = atoi(optarg);
++			break;
+ 		case 'v':
+ 			printf("udhcpcd, version %s\n\n", VERSION);
+ 			return 0;
+@@ -345,7 +351,7 @@ int main(int argc, char *argv[])
+ 
+ 		if (listen_mode != LISTEN_NONE && fd < 0) {
+ 			if (listen_mode == LISTEN_KERNEL)
+-				fd = listen_socket(INADDR_ANY, CLIENT_PORT, client_config.interface);
++				fd = listen_socket(INADDR_ANY, client_config.port+1, client_config.interface);
+ 			else
+ 				fd = raw_socket(client_config.ifindex);
+ 			if (fd < 0) {
+diff -urNp busybox-1.1.3/networking/udhcp/dhcpc.h busybox-1.1.3-mod//networking/udhcp/dhcpc.h
+--- busybox-1.1.3/networking/udhcp/dhcpc.h	2006-03-22 16:16:19.000000000 -0500
++++ busybox-1.1.3-mod//networking/udhcp/dhcpc.h	2012-01-25 16:30:20.000000000 -0500
+@@ -31,6 +31,7 @@ struct client_config_t {
+ 	int ifindex;			/* Index number of the interface to use */
+ 	int retries;			/* Max number of request packets */        
+ 	int timeout;			/* Number of seconds to try to get a lease */
++	int port;			/* server port number to contact */
+ 	uint8_t arp[6];			/* Our arp address */
+ };
+ 
