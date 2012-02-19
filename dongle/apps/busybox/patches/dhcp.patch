@@ -1,16 +1,24 @@
 diff -urNp busybox-1.1.3/networking/udhcp/clientpacket.c busybox-1.1.3-mod//networking/udhcp/clientpacket.c
---- busybox-1.1.3/networking/udhcp/clientpacket.c	2006-03-22 16:16:19.000000000 -0500
-+++ busybox-1.1.3-mod//networking/udhcp/clientpacket.c	2012-01-25 17:20:43.000000000 -0500
-@@ -110,7 +110,7 @@ int send_discover(unsigned long xid, uns
+--- busybox-1.1.3/networking/udhcp/clientpacket.c	2006-03-22 21:16:19.000000000 +0000
++++ busybox-1.1.3-mod//networking/udhcp/clientpacket.c	2012-02-19 20:36:08.000000000 +0000
+@@ -104,13 +104,14 @@ int send_discover(unsigned long xid, uns
+ 
+ 	init_packet(&packet, DHCPDISCOVER);
+ 	packet.xid = xid;
++	packet.ciaddr = requested;
+ 	if (requested)
+ 		add_simple_option(packet.options, DHCP_REQUESTED_IP, requested);
+ 
  	add_requests(&packet);
  	LOG(LOG_DEBUG, "Sending discover...");
- 	return raw_packet(&packet, INADDR_ANY, CLIENT_PORT, INADDR_BROADCAST,
+-	return raw_packet(&packet, INADDR_ANY, CLIENT_PORT, INADDR_BROADCAST,
 -				SERVER_PORT, MAC_BCAST_ADDR, client_config.ifindex);
++	return raw_packet(&packet, requested, CLIENT_PORT, INADDR_BROADCAST,
 +				client_config.port, MAC_BCAST_ADDR, client_config.ifindex);
  }
  
  
-@@ -130,7 +130,7 @@ int send_selecting(unsigned long xid, un
+@@ -130,7 +131,7 @@ int send_selecting(unsigned long xid, un
  	addr.s_addr = requested;
  	LOG(LOG_DEBUG, "Sending select for %s...", inet_ntoa(addr));
  	return raw_packet(&packet, INADDR_ANY, CLIENT_PORT, INADDR_BROADCAST,
@@ -19,7 +27,7 @@ diff -urNp busybox-1.1.3/networking/udhcp/clientpacket.c busybox-1.1.3-mod//netw
  }
  
  
-@@ -149,7 +149,7 @@ int send_renew(unsigned long xid, unsign
+@@ -149,7 +150,7 @@ int send_renew(unsigned long xid, unsign
  	if (server)
  		ret = kernel_packet(&packet, ciaddr, CLIENT_PORT, server, SERVER_PORT);
  	else ret = raw_packet(&packet, INADDR_ANY, CLIENT_PORT, INADDR_BROADCAST,
@@ -28,7 +36,15 @@ diff -urNp busybox-1.1.3/networking/udhcp/clientpacket.c busybox-1.1.3-mod//netw
  	return ret;
  }
  
-@@ -202,7 +202,7 @@ int get_raw_packet(struct dhcpMessage *p
+@@ -178,6 +179,7 @@ int get_raw_packet(struct dhcpMessage *p
+ 	struct udp_dhcp_packet packet;
+ 	uint32_t source, dest;
+ 	uint16_t check;
++	size_t compulsory_len = (void *)&(payload->cookie) - (void *)payload;
+ 
+ 	memset(&packet, 0, sizeof(struct udp_dhcp_packet));
+ 	bytes = read(fd, &packet, sizeof(struct udp_dhcp_packet));
+@@ -202,7 +204,7 @@ int get_raw_packet(struct dhcpMessage *p
  
  	/* Make sure its the right packet for us, and that it passes sanity checks */
  	if (packet.ip.protocol != IPPROTO_UDP || packet.ip.version != IPVERSION ||
@@ -37,9 +53,33 @@ diff -urNp busybox-1.1.3/networking/udhcp/clientpacket.c busybox-1.1.3-mod//netw
  	    bytes > (int) sizeof(struct udp_dhcp_packet) ||
  	    ntohs(packet.udp.len) != (uint16_t) (bytes - sizeof(packet.ip))) {
  		DEBUG(LOG_INFO, "unrelated/bogus packet");
+@@ -233,13 +235,18 @@ int get_raw_packet(struct dhcpMessage *p
+ 		return -2;
+ 	}
+ 
+-	memcpy(payload, &(packet.data), bytes - (sizeof(packet.ip) + sizeof(packet.udp)));
++	bytes -= sizeof(packet.ip) + sizeof(packet.udp);
++	memcpy(payload, &(packet.data), bytes);
+ 
+-	if (ntohl(payload->cookie) != DHCP_MAGIC) {
+-		LOG(LOG_ERR, "received bogus message (bad magic) -- ignoring");
+-		return -2;
++	/* Only check the cookie if there is one */
++	if (bytes <= compulsory_len || ntohl(payload->cookie) != DHCP_MAGIC) {
++		LOG(LOG_ERR, "received bogus vendor extensions message (bad magic) -- ignoring vendor extension options");
++		bytes = compulsory_len;
++		memset(&(payload->cookie),0, sizeof(*payload) - compulsory_len);
++		payload->cookie = htonl(DHCP_MAGIC);
++		payload->options[OPT_CODE] = DHCP_END;
+ 	}
+ 	DEBUG(LOG_INFO, "oooooh!!! got some!");
+-	return bytes - (sizeof(packet.ip) + sizeof(packet.udp));
++	return bytes;
+ 
+ }
 diff -urNp busybox-1.1.3/networking/udhcp/dhcpc.c busybox-1.1.3-mod//networking/udhcp/dhcpc.c
---- busybox-1.1.3/networking/udhcp/dhcpc.c	2006-03-22 16:16:19.000000000 -0500
-+++ busybox-1.1.3-mod//networking/udhcp/dhcpc.c	2012-01-25 17:10:05.000000000 -0500
+--- busybox-1.1.3/networking/udhcp/dhcpc.c	2006-03-22 21:16:19.000000000 +0000
++++ busybox-1.1.3-mod//networking/udhcp/dhcpc.c	2012-02-19 20:49:45.000000000 +0000
 @@ -60,6 +60,7 @@ struct client_config_t client_config = {
  	.ifindex = 0,
  	.retries = 3,
@@ -56,6 +96,15 @@ diff -urNp busybox-1.1.3/networking/udhcp/dhcpc.c busybox-1.1.3-mod//networking/
  "  -f, --foreground                Do not fork after getting lease\n"
  "  -b, --background                Fork to background if lease cannot be\n"
  "                                  immediately negotiated.\n"
+@@ -182,7 +184,7 @@ int main(int argc, char *argv[])
+ 	fd_set rfds;
+ 	int retval;
+ 	struct timeval tv;
+-	int c, len;
++	int c, len, is_bootp;
+ 	struct dhcpMessage packet;
+ 	struct in_addr temp_addr;
+ 	long now;
 @@ -208,13 +210,14 @@ int main(int argc, char *argv[])
  		{"timeout",	required_argument,	0, 'T'},
  		{"version",	no_argument,		0, 'v'},
@@ -91,9 +140,48 @@ diff -urNp busybox-1.1.3/networking/udhcp/dhcpc.c busybox-1.1.3-mod//networking/
  			else
  				fd = raw_socket(client_config.ifindex);
  			if (fd < 0) {
+@@ -474,8 +480,12 @@ int main(int argc, char *argv[])
+ 				DEBUG(LOG_INFO, "packet does not have our chaddr -- ignoring");
+ 				continue;
+ 			}
++			
++			is_bootp = len <= ((void *)&(packet.options) - (void *)&packet);
++			if(is_bootp)
++			    LOG(LOG_DEBUG,"Packet is short, treating as BOOTP");
+ 
+-			if ((message = get_option(&packet, DHCP_MESSAGE_TYPE)) == NULL) {
++			if (!is_bootp && (message = get_option(&packet, DHCP_MESSAGE_TYPE)) == NULL) {
+ 				DEBUG(LOG_ERR, "couldnt get option from packet -- ignoring");
+ 				continue;
+ 			}
+@@ -483,7 +493,7 @@ int main(int argc, char *argv[])
+ 			switch (state) {
+ 			case INIT_SELECTING:
+ 				/* Must be a DHCPOFFER to one of our xid's */
+-				if (*message == DHCPOFFER) {
++				if (is_bootp || *message == DHCPOFFER) {
+ 					if ((temp = get_option(&packet, DHCP_SERVER_ID))) {
+ 						memcpy(&server_addr, temp, 4);
+ 						xid = packet.xid;
+@@ -497,12 +507,13 @@ int main(int argc, char *argv[])
+ 						DEBUG(LOG_ERR, "No server ID in message");
+ 					}
+ 				}
+-				break;
++				if(!is_bootp)
++				    break;
+ 			case RENEW_REQUESTED:
+ 			case REQUESTING:
+ 			case RENEWING:
+ 			case REBINDING:
+-				if (*message == DHCPACK) {
++				if (is_bootp || *message == DHCPACK) {
+ 					if (!(temp = get_option(&packet, DHCP_LEASE_TIME))) {
+ 						LOG(LOG_ERR, "No lease time with ACK, using 1 hour lease");
+ 						lease = 60 * 60;
 diff -urNp busybox-1.1.3/networking/udhcp/dhcpc.h busybox-1.1.3-mod//networking/udhcp/dhcpc.h
---- busybox-1.1.3/networking/udhcp/dhcpc.h	2006-03-22 16:16:19.000000000 -0500
-+++ busybox-1.1.3-mod//networking/udhcp/dhcpc.h	2012-01-25 16:30:20.000000000 -0500
+--- busybox-1.1.3/networking/udhcp/dhcpc.h	2006-03-22 21:16:19.000000000 +0000
++++ busybox-1.1.3-mod//networking/udhcp/dhcpc.h	2012-02-19 16:44:50.000000000 +0000
 @@ -31,6 +31,7 @@ struct client_config_t {
  	int ifindex;			/* Index number of the interface to use */
  	int retries;			/* Max number of request packets */        

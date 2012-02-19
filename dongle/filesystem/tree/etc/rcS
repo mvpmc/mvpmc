@@ -161,17 +161,30 @@ mkdir /tmp/themes
 mkdir /uPnP
 
 #
+# Make another attempt to determin the TFTP server details
+#
+if [ -z "$DONGLE" ] ; then
+    udhcpc -i $ETH -f -q -n -s /usr/share/udhcpc/high_port_dhcp.sh -r $IP -P 16867
+    . /etc/udhcpc.config.high_port
+#
 # Download the users config and theme files, if they exist.
 #
+    if [ -n "$HIGH_PORT_DONGLE" ] ; then
+	tftp -g -l /etc/dongle.config -r ${HIGH_PORT_DONGLE}.config ${HIGH_PORT_SERVER} 16869
+	[ -e "/etc/dongle.config" ] && tftp -g -l /tmp/themes/default.xml -r ${HIGH_PORT_DONGLE}.xml ${HIGH_PORT_SERVER} 16869
+    fi
+fi
+
 if [ -n "$DONGLE" ] ; then
     tftp -g -l /etc/dongle.config -r ${DONGLE}.config ${SERVER}    
-    if [ -e "/etc/dongle.config" ] ; then
-        tftp -g -l /tmp/themes/default.xml -r ${DONGLE}.xml ${SERVER}
-        dos2unix -u /etc/dongle.config
-        . /etc/dongle.config    
-        if [ "$NOMVPMC" != "" ] ; then
-            exit 0
-        fi
+    [ -e "/etc/dongle.config" ] && tftp -g -l /tmp/themes/default.xml -r ${DONGLE}.xml ${SERVER}
+fi
+
+if [ -e "/etc/dongle.config" ] ; then
+    dos2unix -u /etc/dongle.config
+    . /etc/dongle.config    
+    if [ "$NOMVPMC" != "" ] ; then
+	exit 0
     fi
 fi
 progress

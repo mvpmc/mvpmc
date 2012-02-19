@@ -23,6 +23,7 @@ cmd = [ 'make oldconfig',
 	'make install',
 	'cp busybox.links %s' % bindir]
 patches = [ 'patches/busybox_config.patch',
+	    'patches/dhcp.patch',
 	    'patches/busybox-1.1.3.patch' ]
 
 build = mvpmc.OSSBuild(target, url, env, e, cmd, patches)
