@@ -673,6 +673,150 @@ cmyth_conn_connect_file(cmyth_proginfo_t prog,  cmyth_conn_t control,
 }
 
 /*
+ * cmyth_conn_connect_path(char* path, cmyth_conn_t control,
+ *                         unsigned buflen, int tcp_rcvbuf)
+ *
+ * Scope: PUBLIC
+ *
+ * Description:
+ *
+ * Create a file structure containing a data connection for use
+ * transfering a file within the MythTV protocol.  Return a pointer to
+ * the newly created file structure.  The connection in the file
+ * structure is returned held as is the file structure itself.  The
+ * connection will be released when the file structure is released.
+ * The file structure can be released using ref_release().
+ *
+ * Return Value:
+ *
+ * Success: Non-NULL cmyth_file_t (this is a pointer type)
+ *
+ * Failure: NULL cmyth_file_t
+ */
+cmyth_file_t
+cmyth_conn_connect_path(char* path, cmyth_conn_t control,
+                        unsigned buflen, int tcp_rcvbuf)
+{
+        cmyth_conn_t conn = NULL;
+        char *announcement = NULL;
+        char reply[16];
+        char host[256];
+        int err = 0;
+        int count = 0;
+        int r, port;
+        int ann_size = sizeof("ANN FileTransfer  0[]:[][]:[]");
+        struct sockaddr_in addr;
+        socklen_t addr_size = sizeof(addr);
+        cmyth_file_t ret = NULL;
+
+        if (getpeername(control->conn_fd, (struct sockaddr*)&addr, &addr_size)<0) {
+                cmyth_dbg(CMYTH_DBG_ERROR, "%s: getpeername() failed\n",
+                          __FUNCTION__);
+                goto shut;
+        }
+
+        inet_ntop(addr.sin_family, &addr.sin_addr, host, sizeof(host));
+        port = ntohs(addr.sin_port);
+
+        ret = cmyth_file_create(control);
+        if (!ret) {
+                cmyth_dbg(CMYTH_DBG_ERROR, "%s: cmyth_file_create() failed\n",
+                          __FUNCTION__);
+                goto shut;
+        }
+
+        cmyth_dbg(CMYTH_DBG_PROTO, "%s: connecting data connection\n",
+                  __FUNCTION__);
+        conn = cmyth_connect(host, port, buflen, tcp_rcvbuf);
+        cmyth_dbg(CMYTH_DBG_PROTO,
+                  "%s: done connecting data connection, conn = %p\n",
+                  __FUNCTION__, conn);
+        if (!conn) {
+                cmyth_dbg(CMYTH_DBG_ERROR,
+                          "%s: cmyth_connect(%s, %d, %d) failed\n",
+                          __FUNCTION__, host, port, buflen);
+                goto shut;
+        }
+        /*
+         * Explicitly set the conn version to the control version as cmyth_connect() doesn't and some of
+         * the cmyth_rcv_* functions expect it to be the same as the protocol version used by mythbackend.
+         */
+        conn->conn_version = control->conn_version;
+
+        ann_size += strlen(path) + strlen(my_hostname);
+        announcement = malloc(ann_size);
+        if (!announcement) {
+                cmyth_dbg(CMYTH_DBG_ERROR,
+                          "%s: malloc(%d) failed for announcement\n",
+                          __FUNCTION__, ann_size);
+                goto shut;
+        }
+        if (control->conn_version >= 44) {
+                sprintf(announcement, "ANN FileTransfer %s 0[]:[]%s[]:[]",  // write = false
+                          my_hostname, path);
+        }
+        else {
+                sprintf(announcement, "ANN FileTransfer %s[]:[]%s",
+                          my_hostname, path);
+        }
+        if (cmyth_send_message(conn, announcement) < 0) {
+                cmyth_dbg(CMYTH_DBG_ERROR,
+                          "%s: cmyth_send_message('%s') failed\n",
+                          __FUNCTION__, announcement);
+                goto shut;
+        }
+        ret->file_data = ref_hold(conn);
+        count = cmyth_rcv_length(conn);
+        if (count < 0) {
+                cmyth_dbg(CMYTH_DBG_ERROR,
+                          "%s: cmyth_rcv_length() failed (%d)\n",
+                          __FUNCTION__, count);
+                goto shut;
+        }
+        reply[sizeof(reply) - 1] = '\0';
+        r = cmyth_rcv_string(conn, &err, reply, sizeof(reply) - 1, count);
+        if (err != 0) {
+                cmyth_dbg(CMYTH_DBG_ERROR,
+                          "%s: cmyth_rcv_string() failed (%d)\n",
+                          __FUNCTION__, err);
+                goto shut;
+        }
+        if (strcmp(reply, "OK") != 0) {
+                cmyth_dbg(CMYTH_DBG_ERROR, "%s: reply ('%s') is not 'OK'\n",
+                          __FUNCTION__, reply);
+                goto shut;
+        }
+        count -= r;
+        r = cmyth_rcv_long(conn, &err, &ret->file_id, count);
+        if (err) {
+                cmyth_dbg(CMYTH_DBG_ERROR,
+                          "%s: (id) cmyth_rcv_long() failed (%d)\n",
+                          __FUNCTION__, err);
+                goto shut;
+        }
+        count -= r;
+        r = cmyth_rcv_uint64(conn, &err, &ret->file_length, count);
+        if (err) {
+                cmyth_dbg(CMYTH_DBG_ERROR,
+                          "%s: (length) cmyth_rcv_uint64() failed (%d)\n",
+                          __FUNCTION__, err);
+                goto shut;
+        }
+        count -= r;
+        free(announcement);
+        ref_release(conn);
+        return ret;
+
+    shut:
+        if (announcement) {
+                free(announcement);
+        }
+        ref_release(ret);
+        ref_release(conn);
+        return NULL;
+}
+
+/*
  * cmyth_conn_connect_thumbnail(char *server, unsigned short port,
  *                              unsigned buflen
  *                              cmyth_proginfo_t prog)

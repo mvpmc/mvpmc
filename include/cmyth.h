@@ -233,6 +233,18 @@ extern cmyth_conn_t cmyth_conn_connect_ctrl(char *server,
 					    unsigned short port,
 					    unsigned buflen, int tcp_rcvbuf);
 
+
+/**
+ * Create a file connection to a backend.
+ * \param path path to file
+ * \param control control handle
+ * \param buflen buffer size for the connection to use
+ * \param tcp_rcvbuf if non-zero, the TCP receive buffer size for the socket
+ * \return file handle
+ */
+extern cmyth_file_t cmyth_conn_connect_path(char* path, cmyth_conn_t control,
+					    unsigned buflen, int tcp_rcvbuf);
+
 /**
  * Create an event connection to a backend.
  * \param server server hostname or ip address
