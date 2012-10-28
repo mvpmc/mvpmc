@@ -31,6 +31,7 @@
 
 #include <malloc.h>
 #include <winsock2.h>
+#include <Ws2tcpip.h>
 
 #pragma warning(disable:4267)
 #pragma warning(disable:4996)

@@ -200,7 +200,6 @@ cmyth_connect_addr(struct addrinfo* addr, unsigned buflen,
 	temp = tcp_rcvbuf;
 	size = sizeof(temp);
 	setsockopt(fd, SOL_SOCKET, SO_RCVBUF, (void*)&temp, size);
-
 	if(getsockopt(fd, SOL_SOCKET, SO_RCVBUF, (void*)&temp, &size)) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: could not get rcvbuf from socket(%d)\n",
 			  __FUNCTION__, errno);
