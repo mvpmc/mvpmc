@@ -1353,7 +1353,7 @@ int is_streaming(char *url)
 	if (retcode == -1) {
 		i = 0;
 		while (vlcTypes[i]!=NULL) {
-			if ( strstr(url,vlcTypes[i]) !=NULL ) {
+			if (!strncmp(url+strlen(url)-strlen(vlcTypes[i]),vlcTypes[i],strlen(vlcTypes[i]))) { 
 				retcode = 100+i;
 				break;
 			}
