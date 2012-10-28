@@ -1070,7 +1070,7 @@ cmyth_mythtv_remove_previous_recorded(cmyth_database_t db,char *query)
 
 int
 cmyth_mysql_testdb_connection(cmyth_database_t db,char **message) {
-	char buf[1000];
+	char *buf=malloc(sizeof(char)*1001);
 	if (db->mysql != NULL) {
 		if (mysql_stat(db->mysql) == NULL) {
 			cmyth_database_close(db);
@@ -1081,21 +1081,21 @@ cmyth_mysql_testdb_connection(cmyth_database_t db,char **message) {
 		db->mysql = mysql_init(NULL);
 		if(db->mysql == NULL) {
 			fprintf(stderr,"%s: mysql_init() failed, insufficient memory?", __FUNCTION__);
-			snprintf(buf, sizeof(buf), "mysql_init() failed, insufficient memory?");
+			snprintf(buf, 1000, "mysql_init() failed, insufficient memory?");
 			*message=buf;
 			return -1;
 		}
 		if (NULL == mysql_real_connect(db->mysql, db->db_host,db->db_user,db->db_pass,db->db_name,0,NULL,0)) {
 			fprintf(stderr,"%s: mysql_connect() failed: %s\n", __FUNCTION__,
 			mysql_error(db->mysql));
-			snprintf(buf, sizeof(buf), "%s",mysql_error(db->mysql));
+			snprintf(buf, 1000, "%s",mysql_error(db->mysql));
 			fprintf (stderr,"buf = %s\n",buf);
 			*message=buf;
 			cmyth_database_close(db);
 			return -1;
 		}
 	}
-	snprintf(buf, sizeof(buf), "All Test Successful\n");
+	snprintf(buf, 1000, "All Test Successful\n");
 	*message=buf;
 	return 1;
 }
