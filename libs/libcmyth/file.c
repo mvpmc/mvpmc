@@ -140,6 +140,7 @@ cmyth_file_create(cmyth_conn_t control)
 	ret->file_start = 0;
 	ret->file_length = 0;
 	ret->file_pos = 0;
+	ret->file_req = 0;
 	ret->closed_callback = NULL;
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s }\n", __FUNCTION__);
 	return ret;
@@ -271,6 +272,7 @@ cmyth_file_get_block(cmyth_file_t file, char *buf, unsigned long len)
 {
 	struct timeval tv;
 	fd_set fds;
+	int ret;
 
 	if (file == NULL || file->file_data == NULL)
 		return -EINVAL;
@@ -285,7 +287,18 @@ cmyth_file_get_block(cmyth_file_t file, char *buf, unsigned long len)
 	} else {
 		file->file_data->conn_hang = 0;
 	}
-	return recv(file->file_data->conn_fd, buf, len, 0);
+
+	ret = recv(file->file_data->conn_fd, buf, len, 0);
+
+	if(ret < 0)
+		return ret;
+
+	file->file_pos += ret;
+
+	if(file->file_pos > file->file_length)
+		file->file_length = file->file_pos;
+
+	return ret;
 }
 
 int
@@ -377,7 +390,7 @@ cmyth_file_request_block(cmyth_file_t file, unsigned long len)
 		goto out;
 	}
 
-	file->file_pos += c;
+	file->file_req += c;
 	ret = c;
 
     out:
@@ -422,6 +435,18 @@ cmyth_file_seek(cmyth_file_t file, long long offset, int whence)
 
 	if ((offset == 0) && (whence == SEEK_CUR))
 		return file->file_pos;
+
+	if ((offset == file->file_pos) && (whence == SEEK_SET))
+		return file->file_pos;
+
+	while(file->file_pos < file->file_req) {
+		c = file->file_req - file->file_pos;
+		if(c > sizeof(msg))
+			c = sizeof(msg);
+
+		if (cmyth_file_get_block(file, msg, (unsigned long)c) < 0)
+			return -1;
+	}
 
 	pthread_mutex_lock(&mutex);
 
@@ -482,6 +507,10 @@ cmyth_file_seek(cmyth_file_t file, long long offset, int whence)
 		file->file_pos = file->file_length - offset;
 		break;
 	}
+
+	file->file_req = file->file_pos;
+	if(file->file_pos > file->file_length)
+		file->file_length = file->file_pos;
 
 	ret = file->file_pos;
 

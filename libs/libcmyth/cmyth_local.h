@@ -157,6 +157,7 @@ struct cmyth_file {
 	uint64_t file_start;	/**< file start offest */
 	uint64_t file_length;	/**< file length */
 	uint64_t file_pos;	/**< current file position */
+	uint64_t file_req;	/**< current file position requested */
 	cmyth_conn_t file_control;	/**< master backend connection */
 };
 
