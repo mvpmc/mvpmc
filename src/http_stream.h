@@ -69,4 +69,4 @@ int is_streaming(char *url);
 http_content_t http_main(void);
 
 
-#define WEATHER_RSS_HOST "weather.yahooapis.com"
+#define WEATHER_RSS_HOST "xml.weather.yahoo.com"
