@@ -237,7 +237,7 @@ cmyth_get_offset_mysql(cmyth_database_t db, int type, char *recordid, int chanid
 		return -1;
         }
         res = mysql_store_result(db->mysql);
-	if ( (count = mysql_num_rows(res)) >0) {
+	if ( (count = (int)mysql_num_rows(res)) >0) {
 		row = mysql_fetch_row(res);
 		fprintf(stderr, "row grabbed done count=%d\n",count);
         	mysql_free_result(res);
@@ -272,7 +272,7 @@ cmyth_get_recordid_mysql(cmyth_database_t db, int chanid, char *title, char *sub
 		return NULL;
         }
         res = mysql_store_result(db->mysql);
-	if ( (count = mysql_num_rows(res)) >0) {
+	if ( (count = (int)mysql_num_rows(res)) >0) {
 		row = mysql_fetch_row(res);
 		fprintf(stderr, "row grabbed done count=%d\n",count);
         	mysql_free_result(res);
@@ -337,7 +337,7 @@ cmyth_mysql_delete_scheduled_recording(cmyth_database_t db, char * query)
                            __FUNCTION__, mysql_error(db->mysql));
 		return -1;
 	}
-	rows=mysql_affected_rows(db->mysql);
+	rows=(int)mysql_affected_rows(db->mysql);
 
 	if (rows <=0) {
         	cmyth_dbg(CMYTH_DBG_ERROR, "%s: mysql_query() Failed: %s\n", 
@@ -385,7 +385,7 @@ cmyth_mysql_insert_into_record(cmyth_database_t db, char * query, char * query1,
                            __FUNCTION__, mysql_error(db->mysql));
 		return -1;
 	}
-	rows=mysql_insert_id(db->mysql);
+	rows=(int)mysql_insert_id(db->mysql);
 
 	if (rows <=0) {
         	cmyth_dbg(CMYTH_DBG_ERROR, "%s: mysql_query() Failed: %s\n", 
@@ -836,7 +836,7 @@ cmyth_mysql_query_commbreak_count(cmyth_database_t db, int chanid, char * start_
 		cmyth_dbg(CMYTH_DBG_ERROR,"%s, finalisation/execution of query failed!\n", __FUNCTION__);
 		return -1;
 	}
-	count = mysql_num_rows(res);
+	count = (int)mysql_num_rows(res);
 	mysql_free_result(res);
 	return (count);
 } 
@@ -899,7 +899,7 @@ cmyth_mysql_get_commbreak_list(cmyth_database_t db, int chanid, char * start_ts_
 		breaklist->commbreak_count = cmyth_mysql_query_commbreak_count(db,chanid,start_ts_dt);
 	}
 	else {
-		breaklist->commbreak_count = mysql_num_rows(res) / 2;
+		breaklist->commbreak_count = (long)mysql_num_rows(res) / 2;
 	}
 	breaklist->commbreak_list = malloc(breaklist->commbreak_count * sizeof(cmyth_commbreak_t));
 	//cmyth_dbg(CMYTH_DBG_ERROR, "%s: %ld\n",__FUNCTION__,breaklist->commbreak_count);
@@ -1058,7 +1058,7 @@ cmyth_mythtv_remove_previous_recorded(cmyth_database_t db,char *query)
 		return -1;
        	}
 	res = mysql_store_result(db->mysql);
-	rows=mysql_insert_id(db->mysql);
+	rows=(int)mysql_insert_id(db->mysql);
 	if (rows <=0) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: mysql_query() Failed: %s\n", 
 			__FUNCTION__, mysql_error(db->mysql));
