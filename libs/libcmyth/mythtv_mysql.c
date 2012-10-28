@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2004-2009, Eric Lund
+ *  Copyright (C) 2004-2012, Eric Lund
  *  http://www.mvpmc.org/
  *
  *  This library is free software; you can redistribute it and/or
@@ -17,25 +17,13 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include <sys/types.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
-#include <sys/time.h>
 #include <mysql/mysql.h>
 #include <cmyth_local.h>
 #include <safe_string.h>
-
-#if 0
-#define PRINTF(x...) PRINTF(x)
-#define TRC(fmt, args...) PRINTF(fmt, ## args) 
-#else
-#define PRINTF(x...)
-#define TRC(fmt, args...) 
-#endif
-
 
 void
 cmyth_database_close(cmyth_database_t db)
@@ -66,7 +54,6 @@ cmyth_database_init(char *host, char *db_name, char *user, char *pass)
 int
 cmyth_database_set_host(cmyth_database_t db, char *host)
 {
-	PRINTF("** SSDEBUG: setting the db host to %s\n", host);
 	cmyth_database_close(db);
 	ref_release(db->db_host);
 	db->db_host = ref_strdup(host);
@@ -79,7 +66,6 @@ cmyth_database_set_host(cmyth_database_t db, char *host)
 int
 cmyth_database_set_user(cmyth_database_t db, char *user)
 {
-	PRINTF("** SSDEBUG: setting the db user to %s\n", user);
 	cmyth_database_close(db);
 	ref_release(db->db_user);
 	db->db_user = ref_strdup(user);
@@ -92,7 +78,6 @@ cmyth_database_set_user(cmyth_database_t db, char *user)
 int
 cmyth_database_set_pass(cmyth_database_t db, char *pass)
 {
-	PRINTF("** SSDEBUG: setting the db pass to %s\n", pass);
 	cmyth_database_close(db);
 	ref_release(db->db_user);
 	db->db_pass = ref_strdup(pass);
@@ -105,7 +90,6 @@ cmyth_database_set_pass(cmyth_database_t db, char *pass)
 int
 cmyth_database_set_name(cmyth_database_t db, char *name)
 {
-	PRINTF("** SSDEBUG: setting the db name to %s\n", name);
 	cmyth_database_close(db);
 	ref_release(db->db_name);
 	db->db_name = ref_strdup(name);
@@ -119,7 +103,6 @@ cmyth_database_set_name(cmyth_database_t db, char *name)
 static int
 cmyth_db_check_connection(cmyth_database_t db)
 {
-    int new_conn = 0;
     if(db->mysql != NULL)
     {
 	/* Fetch the mysql stats (uptime and stuff) to check the connection is
@@ -133,7 +116,6 @@ cmyth_db_check_connection(cmyth_database_t db)
     if(db->mysql == NULL)
     {
 	db->mysql = mysql_init(NULL);
-	new_conn = 1;
 	if(db->mysql == NULL)
 	{
 	    fprintf(stderr,"%s: mysql_init() failed, insufficient memory?",
@@ -161,6 +143,21 @@ cmyth_db_get_connection(cmyth_database_t db)
        					__FUNCTION__);
        return NULL;
     }
+
+    /*
+     * mythbackend stores any multi-byte characters using utf8 encoding within latin1 database
+     * columns. The MySQL connection needs to be told to use a utf8 character set when reading the
+     * database columns or any multi-byte characters will be treated as 2 or 3 subsequent latin1
+     * characters with nonsense values.
+     *
+     * http://www.mythtv.org/wiki/Fixing_Corrupt_Database_Encoding#Note_on_MythTV_0.21-fixes_and_below_character_encoding
+     * http://dev.mysql.com/doc/refman/5.0/en/charset-connection.html
+     */
+    if(mysql_query(db->mysql,"SET NAMES utf8;")) {
+      cmyth_dbg(CMYTH_DBG_ERROR, "%s: mysql_query() failed: %s\n", __FUNCTION__, mysql_error(db->mysql));
+      return NULL;
+    }
+
     return db->mysql;
 }
 
@@ -707,13 +704,12 @@ cmyth_update_bookmark_setting(cmyth_database_t db, cmyth_proginfo_t prog)
 	return (1);
 }
 
-/* used to set bookmark in mythtv */
 long long 
 cmyth_get_bookmark_mark(cmyth_database_t db, cmyth_proginfo_t prog, long long bk, int mode)
 {
 	MYSQL_RES *res = NULL;
 	MYSQL_ROW row;
-	const char *query_str = "SELECT mark,type FROM recordedseek WHERE chanid = ? AND offset< ? AND (type = 6 or type = 9 )AND starttime = ? ORDER by MARK DESC LIMIT 0,1;";
+	const char *query_str = "SELECT mark, type FROM recordedseek WHERE chanid = ? AND offset < ? AND (type = 6 or type = 9 ) AND starttime = ? ORDER by MARK DESC LIMIT 0, 1;";
 	int rows = 0;
 	long long mark=0;
 	int rectype = 0;
@@ -752,13 +748,9 @@ cmyth_get_bookmark_mark(cmyth_database_t db, cmyth_proginfo_t prog, long long bk
 		}
 	}
 
-
-	return (mark);
+	return mark;
 }
 
-/* used for getting mythtv bookmarks 
-BLUE button on the remote
-*/
 int 
 cmyth_get_bookmark_offset(cmyth_database_t db, long chanid, long long mark, char *starttime, int mode) 
 {
@@ -769,7 +761,6 @@ cmyth_get_bookmark_offset(cmyth_database_t db, long chanid, long long mark, char
 	int rectype = 0;
 	cmyth_mysql_query_t * query;
 	
-	//const char *query_str = "SELECT * FROM recordedseek WHERE chanid = ? AND mark= ? AND starttime = ?;";
 	const char *query_str = "SELECT * FROM recordedseek WHERE chanid = ? AND mark<= ? AND starttime = ? ORDER BY MARK DESC LIMIT 1;";
 
 	query = cmyth_mysql_query_create(db,query_str);
@@ -799,7 +790,7 @@ cmyth_get_bookmark_offset(cmyth_database_t db, long chanid, long long mark, char
 		else if (mode == 1) {
 			mark=(mark/12)+1;
 		}
-		query = cmyth_mysql_query_create(db,query_str);
+		query = cmyth_mysql_query_create(db, query_str);
 		if (cmyth_mysql_query_param_long(query, chanid) < 0
 			|| cmyth_mysql_query_param_long(query, mark) < 0
 			|| cmyth_mysql_query_param_str(query, starttime) < 0
@@ -816,7 +807,6 @@ cmyth_get_bookmark_offset(cmyth_database_t db, long chanid, long long mark, char
 		}
 		while ((row = mysql_fetch_row(res))) {
 			offset = safe_atoi(row[3]);
-			rectype = safe_atoi(row[4]);
 			rows++;
 		}
 	}
@@ -871,6 +861,7 @@ cmyth_mysql_get_commbreak_list(cmyth_database_t db, int chanid, char * start_ts_
 	else { 
 		query_str = "SELECT m.type AS type, m.mark AS mark, s.offset AS offset FROM recordedmarkup m INNER JOIN recordedseek AS s ON (m.chanid = s.chanid AND m.starttime = s.starttime AND (FLOOR(m.mark / 15) + 1) = s.mark) WHERE m.chanid = ? AND m.starttime = ? AND m.type IN (?, ?) ORDER BY mark;";
 	}
+
 	query = cmyth_mysql_query_create(db,query_str);
 		
 	cmyth_dbg(CMYTH_DBG_ERROR,"%s, query=%s\n", __FUNCTION__,query_str);
@@ -936,6 +927,13 @@ cmyth_mysql_get_commbreak_list(cmyth_database_t db, int chanid, char * start_ts_
 				}
 			} else if (safe_atoi(row[0]) == CMYTH_COMMBREAK_END) {
 				if ( safe_atoll(row[1]) != end_previous ) {
+					if (commbreak == NULL) {
+						cmyth_dbg(CMYTH_DBG_ERROR,
+							  "%s: error at %d\n",
+							  __FUNCTION__,
+							  __LINE__);
+						return -1;
+					}
 					commbreak->end_mark = safe_atoll(row[1]);
 					commbreak->end_offset = safe_atoll(row[3]);
 					breaklist->commbreak_list[rows] = commbreak;
@@ -943,6 +941,13 @@ cmyth_mysql_get_commbreak_list(cmyth_database_t db, int chanid, char * start_ts_
 					rows++;
 				}
 				else if ( safe_atoll(row[1]) == safe_atoll(row[2]) ) {
+					if (commbreak == NULL) {
+						cmyth_dbg(CMYTH_DBG_ERROR,
+							  "%s: error at %d\n",
+							  __FUNCTION__,
+							  __LINE__);
+						return -1;
+					}
 					commbreak->end_mark = safe_atoll(row[1]);
 					commbreak->end_offset = safe_atoll(row[3]);
 					breaklist->commbreak_list[rows] = commbreak;
@@ -1031,7 +1036,7 @@ cmyth_tuner_type_check(cmyth_database_t db, cmyth_recorder_t rec, int check_tune
 }
 
 int
-cmyth_mythtv_remove_previos_recorded(cmyth_database_t db,char *query)
+cmyth_mythtv_remove_previous_recorded(cmyth_database_t db,char *query)
 {
 	MYSQL_RES *res=NULL;
 	char N_query[128];
@@ -1058,6 +1063,7 @@ cmyth_mythtv_remove_previos_recorded(cmyth_database_t db,char *query)
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: mysql_query() Failed: %s\n", 
 			__FUNCTION__, mysql_error(db->mysql));
 	}
+	mysql_free_result(res);
 
 	return rows;
 }
@@ -1065,7 +1071,6 @@ cmyth_mythtv_remove_previos_recorded(cmyth_database_t db,char *query)
 int
 cmyth_mysql_testdb_connection(cmyth_database_t db,char **message) {
 	char buf[1000];
-	int new_conn = 0;
 	if (db->mysql != NULL) {
 		if (mysql_stat(db->mysql) == NULL) {
 			cmyth_database_close(db);
@@ -1074,7 +1079,6 @@ cmyth_mysql_testdb_connection(cmyth_database_t db,char **message) {
 	}
 	if (db->mysql == NULL) {
 		db->mysql = mysql_init(NULL);
-		new_conn = 1;
 		if(db->mysql == NULL) {
 			fprintf(stderr,"%s: mysql_init() failed, insufficient memory?", __FUNCTION__);
 			snprintf(buf, sizeof(buf), "mysql_init() failed, insufficient memory?");

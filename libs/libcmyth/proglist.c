@@ -23,7 +23,6 @@
  *               and cmyth_proglist_t and between long long and
  *               cmyth_proglist_t.
  */
-#include <sys/types.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
@@ -317,6 +316,7 @@ cmyth_proglist_get_list(cmyth_conn_t conn,
 cmyth_proglist_t
 cmyth_proglist_get_all_recorded(cmyth_conn_t control)
 {
+	char query[32];
 	cmyth_proglist_t proglist = cmyth_proglist_create();
 
 	ref_get_refcount("Before cmyth_proglist_get_all_recorded:");
@@ -327,8 +327,14 @@ cmyth_proglist_get_all_recorded(cmyth_conn_t control)
 		return NULL;
 	}
 
+	if (control->conn_version < 65) {
+		strcpy(query, "QUERY_RECORDINGS Play");
+	}
+	else {
+		strcpy(query, "QUERY_RECORDINGS Ascending");
+	}
 	if (cmyth_proglist_get_list(control, proglist,
-				    "QUERY_RECORDINGS Play",
+				    query,
 				    __FUNCTION__) < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_proglist_get_list() failed\n",

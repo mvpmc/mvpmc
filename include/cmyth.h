@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2004-2006, Eric Lund, Jon Gettler
+ *  Copyright (C) 2004-2012, Eric Lund, Jon Gettler
  *  http://www.mvpmc.org/
  *
  *  This library is free software; you can redistribute it and/or
@@ -39,6 +39,8 @@
 
 #ifndef __CMYTH_H
 #define __CMYTH_H
+
+#include <time.h>
 
 /*
  * -----------------------------------------------------------------
@@ -102,12 +104,20 @@ typedef enum {
 	CMYTH_EVENT_UNKNOWN = 0,
 	CMYTH_EVENT_CLOSE = 1,
 	CMYTH_EVENT_RECORDING_LIST_CHANGE,
+	CMYTH_EVENT_RECORDING_LIST_CHANGE_ADD,
+	CMYTH_EVENT_RECORDING_LIST_CHANGE_UPDATE,
+	CMYTH_EVENT_RECORDING_LIST_CHANGE_DELETE,
 	CMYTH_EVENT_SCHEDULE_CHANGE,
 	CMYTH_EVENT_DONE_RECORDING,
 	CMYTH_EVENT_QUIT_LIVETV,
+	CMYTH_EVENT_WATCH_LIVETV,
 	CMYTH_EVENT_LIVETV_CHAIN_UPDATE,
 	CMYTH_EVENT_SIGNAL,
 	CMYTH_EVENT_ASK_RECORDING,
+	CMYTH_EVENT_SYSTEM_EVENT,
+	CMYTH_EVENT_UPDATE_FILE_SIZE,
+	CMYTH_EVENT_GENERATED_PIXMAP,
+	CMYTH_EVENT_CLEAR_SETTINGS_CACHE,
 } cmyth_event_t;
 
 #define CMYTH_NUM_SORTS 2
@@ -199,6 +209,12 @@ extern void cmyth_dbg_none(void);
  */
 extern void cmyth_dbg(int level, char *fmt, ...);
 
+/**
+ * Define a callback to use to send messages rather than using stdout
+ * \param msgcb function pointer to pass a string to
+ */
+extern void cmyth_set_dbg_msgcallback(void (*msgcb)(int level,char *));
+
 /*
  * -----------------------------------------------------------------
  * Connection Operations
@@ -230,7 +246,7 @@ extern cmyth_conn_t cmyth_conn_connect_event(char *server,
 					     unsigned buflen, int tcp_rcvbuf);
 
 /**
- * Create a file connection to a backend.
+ * Create a file connection to a backend for reading a recording.
  * \param prog program handle
  * \param control control handle
  * \param buflen buffer size for the connection to use
@@ -240,6 +256,19 @@ extern cmyth_conn_t cmyth_conn_connect_event(char *server,
 extern cmyth_file_t cmyth_conn_connect_file(cmyth_proginfo_t prog,
 					    cmyth_conn_t control,
 					    unsigned buflen, int tcp_rcvbuf);
+
+/**
+ * Create a file connection to a backend for reading a recording thumbnail.
+ * \param prog program handle
+ * \param control control handle
+ * \param buflen buffer size for the connection to use
+ * \param tcp_rcvbuf if non-zero, the TCP receive buffer size for the socket
+ * \return file handle
+ */
+extern cmyth_file_t cmyth_conn_connect_thumbnail(cmyth_proginfo_t prog,
+						 cmyth_conn_t control,
+						 unsigned buflen,
+						 int tcp_rcvbuf);
 
 /**
  * Create a ring buffer connection to a recorder.
@@ -581,6 +610,9 @@ extern long long cmyth_ringbuf_seek(cmyth_recorder_t rec,
 				    long long offset,
 				    int whence);
 
+extern int cmyth_ringbuf_read(cmyth_recorder_t rec,
+			      char *buf,
+			      unsigned long len);
 /*
  * -----------------------------------------------------------------
  * Recorder Number Operations
@@ -608,8 +640,6 @@ extern cmyth_timestamp_t cmyth_timestamp_from_unixtime(time_t l);
 extern time_t cmyth_timestamp_to_unixtime(cmyth_timestamp_t ts);
 
 extern int cmyth_timestamp_to_string(char *str, cmyth_timestamp_t ts);
-
-extern int cmyth_timestamp_to_mythstring(char *str, cmyth_timestamp_t ts);
 
 extern int cmyth_timestamp_to_isostring(char *str, cmyth_timestamp_t ts);
 
@@ -729,6 +759,20 @@ extern char *cmyth_proginfo_subtitle(cmyth_proginfo_t prog);
 extern char *cmyth_proginfo_description(cmyth_proginfo_t prog);
 
 /**
+ * Retrieve the season of a program.
+ * \param prog proginfo handle
+ * \return season
+ */
+extern unsigned short cmyth_proginfo_season(cmyth_proginfo_t prog);
+
+/**
+ * Retrieve the episode of a program.
+ * \param prog proginfo handle
+ * \return episode
+ */
+extern unsigned short cmyth_proginfo_episode(cmyth_proginfo_t prog);
+
+/**
  * Retrieve the category of a program.
  * \param prog proginfo handle
  * \return null-terminated string
@@ -785,6 +829,13 @@ extern char *cmyth_proginfo_seriesid(cmyth_proginfo_t prog);
 extern char *cmyth_proginfo_programid(cmyth_proginfo_t prog);
 
 /**
+ * Retrieve the inetref of a program.
+ * \param prog proginfo handle
+ * \return null-terminated string
+ */
+extern char *cmyth_proginfo_inetref(cmyth_proginfo_t prog);
+
+/**
  * Retrieve the critics rating (number of stars) of a program.
  * \param prog proginfo handle
  * \return null-terminated string
@@ -819,6 +870,14 @@ extern cmyth_timestamp_t cmyth_proginfo_originalairdate(cmyth_proginfo_t prog);
  */
 extern cmyth_proginfo_rec_status_t cmyth_proginfo_rec_status(
 	cmyth_proginfo_t prog);
+
+/**
+ * Retrieve the flags associated with a program.
+ * \param prog proginfo handle
+ * \return flags
+ */
+extern unsigned long cmyth_proginfo_flags(
+  cmyth_proginfo_t prog);
 
 /**
  * Retrieve the size, in bytes, of a program.
@@ -882,6 +941,21 @@ extern long cmyth_proginfo_card_id(cmyth_proginfo_t prog);
  * \return null-terminated string
  */
 extern char *cmyth_proginfo_recgroup(cmyth_proginfo_t prog);
+
+/**
+ * Retrieve the channel icon path this program info
+ * \param prog proginfo handle
+ * \return null-terminated string
+ */
+extern char *cmyth_proginfo_chanicon(cmyth_proginfo_t prog);
+
+
+/**
+ * Retrieve the production year for this program info
+ * \param prog proginfo handle
+ * \return production year
+ */
+extern unsigned short cmyth_proginfo_year(cmyth_proginfo_t prog);
 
 /*
  * -----------------------------------------------------------------
@@ -948,18 +1022,21 @@ extern cmyth_freespace_t cmyth_freespace_create(void);
  * -------
  */
 extern long long cmyth_get_bookmark(cmyth_conn_t conn, cmyth_proginfo_t prog);
-extern int cmyth_get_bookmark_offset(cmyth_database_t db, long chanid, long long mark, char *starttime,int mode);
+extern int cmyth_get_bookmark_offset(cmyth_database_t db, long chanid, long long mark, char *starttime, int mode);
 extern int cmyth_update_bookmark_setting(cmyth_database_t, cmyth_proginfo_t);
 extern long long cmyth_get_bookmark_mark(cmyth_database_t, cmyth_proginfo_t, long long, int);
 extern int cmyth_set_bookmark(cmyth_conn_t conn, cmyth_proginfo_t prog,
 	long long bookmark);
 extern cmyth_commbreaklist_t cmyth_commbreaklist_create(void);
 extern cmyth_commbreak_t cmyth_commbreak_create(void);
+#if defined(HAS_MYSQL)
 extern cmyth_commbreaklist_t cmyth_mysql_get_commbreaklist(cmyth_database_t db, cmyth_conn_t conn, cmyth_proginfo_t prog);
+#endif
 extern cmyth_commbreaklist_t cmyth_get_commbreaklist(cmyth_conn_t conn, cmyth_proginfo_t prog);
 extern cmyth_commbreaklist_t cmyth_get_cutlist(cmyth_conn_t conn, cmyth_proginfo_t prog);
 extern int cmyth_rcv_commbreaklist(cmyth_conn_t conn, int *err, cmyth_commbreaklist_t breaklist, int count);
 
+#if defined(HAS_MYSQL)
 /*
  * mysql info
  */
@@ -1008,11 +1085,12 @@ extern char * cmyth_mysql_escape_chars(cmyth_database_t db, char * string);
 extern int cmyth_mysql_get_commbreak_list(cmyth_database_t db, int chanid, char * start_ts_dt, cmyth_commbreaklist_t breaklist, int conn_version);
 
 extern int cmyth_mysql_get_prev_recorded(cmyth_database_t db, cmyth_program_t **prog);
+#endif /* HAS_MYSQL */
 
 extern int cmyth_get_delete_list(cmyth_conn_t, char *, cmyth_proglist_t);
 
 #define PROGRAM_ADJUST  3600
 
-extern int cmyth_mythtv_remove_previos_recorded(cmyth_database_t db,char *query);
+extern int cmyth_mythtv_remove_previous_recorded(cmyth_database_t db,char *query);
 
 #endif /* __CMYTH_H */

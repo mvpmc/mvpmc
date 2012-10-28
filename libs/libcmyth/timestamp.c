@@ -23,14 +23,12 @@
  *               and cmyth_timestamp_t and between time_t and
  *               cmyth_timestamp_t.
  */
-#include <sys/types.h>
 #include <stdlib.h>
-#include <ctype.h>
 #include <stdio.h>
+#include <ctype.h>
 #include <errno.h>
 #include <string.h>
 #include <cmyth_local.h>
-#include <time.h>
 
 /*
  * cmyth_timestamp_create(void)
@@ -88,7 +86,7 @@ cmyth_timestamp_t
 cmyth_timestamp_from_string(char *str)
 {
 	cmyth_timestamp_t ret;
-	int i;
+	unsigned int i;
 	int datetime = 1;
 	char *yyyy = &str[0];
 	char *MM = &str[5];
@@ -299,49 +297,7 @@ cmyth_timestamp_to_string(char *str, cmyth_timestamp_t ts)
 		return -EINVAL;
 	}
 	sprintf(str,
-		"%4.4u-%2.2hhu-%2.2hhuT%2.2hhu:%2.2hhu:%2.2hhu",
-		ts->timestamp_year,
-		ts->timestamp_month,
-		ts->timestamp_day,
-		ts->timestamp_hour,
-		ts->timestamp_minute,
-		ts->timestamp_second);
-	return 0;
-}
-
-/*
- * cmyth_timestamp_to_mythstring(char *str, cmyth_timestamp_t ts)
- * 
- * Scope: PUBLIC
- *
- * Description
- *
- * Create a string from the timestamp structure 'ts' and put it in the
- * user supplied buffer 'str'.  The size of 'str' must be
- * CMYTH_TIMESTAMP_LEN + 1 or this will overwrite beyond 'str'.
- * 
- *
- * Return Value:
- *
- * Success: 0
- *
- * Failure: -(ERRNO)
- */
-int
-cmyth_timestamp_to_mythstring(char *str, cmyth_timestamp_t ts)
-{
-	if (!str) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: NULL output string provided\n",
-			  __FUNCTION__);
-		return -EINVAL;
-	}
-	if (!ts) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: NULL timestamp provided\n",
-			  __FUNCTION__);
-		return -EINVAL;
-	}
-	sprintf(str,
-		"%4.4u%2.2hhu%2.2hhu%2.2hhu%2.2hhu%2.2hhu",
+		"%4.4ld-%2.2ld-%2.2ldT%2.2ld:%2.2ld:%2.2ld",
 		ts->timestamp_year,
 		ts->timestamp_month,
 		ts->timestamp_day,
@@ -383,7 +339,7 @@ cmyth_timestamp_to_isostring(char *str, cmyth_timestamp_t ts)
 		return -EINVAL;
 	}
 	sprintf(str,
-		"%4.4u-%2.2hhu-%2.2hhu",
+		"%4.4ld-%2.2ld-%2.2ld",
 		ts->timestamp_year,
 		ts->timestamp_month,
 		ts->timestamp_day);
@@ -406,7 +362,7 @@ cmyth_timestamp_to_display_string(char *str, cmyth_timestamp_t ts,
 	}
 	if (time_format_12)
 	{
-		unsigned char hour = ts->timestamp_hour;
+		unsigned long hour = ts->timestamp_hour;
 		int pm = 0;
 		if (hour > 11)
 		{
@@ -417,7 +373,7 @@ cmyth_timestamp_to_display_string(char *str, cmyth_timestamp_t ts,
 			hour = 12;
 
 		sprintf(str,
-			"%4.4u-%2.2hhu-%2.2hhuT%2.2hhu:%2.2hhu:%2.2hhu %s",
+			"%4.4ld-%2.2ld-%2.2ldT%2.2ld:%2.2ld:%2.2ld %s",
 			ts->timestamp_year,
 			ts->timestamp_month,
 			ts->timestamp_day,
@@ -429,7 +385,7 @@ cmyth_timestamp_to_display_string(char *str, cmyth_timestamp_t ts,
 	else
 	{
 		sprintf(str,
-			"%4.4u-%2.2hhu-%2.2hhuT%2.2hhu:%2.2hhu:%2.2hhu",
+			"%4.4ld-%2.2ld-%2.2ldT%2.2ld:%2.2ld:%2.2ld",
 			ts->timestamp_year,
 			ts->timestamp_month,
 			ts->timestamp_day,
@@ -485,7 +441,7 @@ cmyth_datetime_to_string(char *str, cmyth_timestamp_t ts)
 	tm_datetime.tm_isdst = ts->timestamp_isdst;
 	t_datetime = mktime(&tm_datetime);
 	sprintf(str,
-		"%4.4u-%2.2hhu-%2.2hhuT%2.2hhu:%2.2hhu:%2.2hhu",
+		"%4.4ld-%2.2ld-%2.2ldT%2.2ld:%2.2ld:%2.2ld",
 		ts->timestamp_year,
 		ts->timestamp_month,
 		ts->timestamp_day,

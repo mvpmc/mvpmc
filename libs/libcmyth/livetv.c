@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2006-2010, Sergio Slobodrian
+ *  Copyright (C) 2006-2012, Sergio Slobodrian
  *  http://www.mvpmc.org/
  *
  *  This library is free software; you can redistribute it and/or
@@ -24,22 +24,12 @@
  *                This allows the watcher to do things like pause, rewind
  *                and so forth on live-tv.
  */
-#include <sys/types.h>
-#include <sys/socket.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
+#include <sys/types.h>
 #include <cmyth_local.h>
-#include <string.h>
-
-#if 0
-#define PRINTF(x...) PRINTF(x)
-#define TRC(fmt, args...) PRINTF(fmt, ## args) 
-#else
-#define PRINTF(x...)
-#define TRC(fmt, args...) 
-#endif
 
 #define LAST 0x7FFFFFFF
 
@@ -421,7 +411,6 @@ cmyth_livetv_chain_update(cmyth_recorder_t rec, char * chainid,
 {
 	int ret=0;
 	char url[1024];
-	cmyth_conn_t control;
 	cmyth_proginfo_t loc_prog;
 	cmyth_file_t ft;
 
@@ -429,8 +418,6 @@ cmyth_livetv_chain_update(cmyth_recorder_t rec, char * chainid,
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: rec is NULL\n", __FUNCTION__);
 		goto out;
 	}
-
-	control = rec->rec_conn;
 
 	loc_prog = cmyth_recorder_get_cur_proginfo(rec);
 	pthread_mutex_lock(&mutex);
@@ -516,13 +503,8 @@ cmyth_livetv_chain_setup(cmyth_recorder_t rec, int tcp_rcvbuf,
 
 	cmyth_recorder_t new_rec = NULL;
 	char url[1024];
-	cmyth_conn_t control;
 	cmyth_proginfo_t loc_prog;
 	cmyth_file_t ft;
-
-
-	cmyth_dbg(CMYTH_DBG_ERROR, "%s: cgb in livetvchainsetup\n",
-		  __FUNCTION__);
 
 
 	if (!rec) {
@@ -530,8 +512,6 @@ cmyth_livetv_chain_setup(cmyth_recorder_t rec, int tcp_rcvbuf,
 			  __FUNCTION__);
 		return NULL;
 	}
-
-	control = rec->rec_conn;
 
 	/* Get the current recording information */
 	loc_prog = cmyth_recorder_get_cur_proginfo(rec);
@@ -557,9 +537,6 @@ cmyth_livetv_chain_setup(cmyth_recorder_t rec, int tcp_rcvbuf,
 	}
 
 	if(cmyth_livetv_chain_has_url(new_rec, url) == -1) {
-		cmyth_dbg(CMYTH_DBG_ERROR,
-	 			"%s: cgb in chain_has_url, %s\n",
-	 			__FUNCTION__, url);
 		ft = cmyth_conn_connect_file(loc_prog, new_rec->rec_conn, 16*1024, tcp_rcvbuf);
 		if (!ft) {
 			cmyth_dbg(CMYTH_DBG_ERROR,
@@ -568,9 +545,6 @@ cmyth_livetv_chain_setup(cmyth_recorder_t rec, int tcp_rcvbuf,
 			new_rec = NULL;
 			goto out;
 		}
-		cmyth_dbg(CMYTH_DBG_ERROR,
-	 			"%s: cgb successfully called connect_file, %s\n",
-	 			__FUNCTION__, url);
 		if(cmyth_livetv_chain_add(new_rec, url, ft, loc_prog) == -1) {
 			cmyth_dbg(CMYTH_DBG_ERROR,
 		 			"%s: cmyth_livetv_chain_add(%s) failed\n",
@@ -580,16 +554,9 @@ cmyth_livetv_chain_setup(cmyth_recorder_t rec, int tcp_rcvbuf,
 		}
 		new_rec->rec_livetv_chain->prog_update_callback = prog_update_callback;
 		ref_release(ft);
-		cmyth_dbg(CMYTH_DBG_ERROR,
-	 			"%s: cgb about to call chain_switch, %s\n",
-	 			__FUNCTION__, url);
 		cmyth_livetv_chain_switch(new_rec, 0);
-	} else { /* cgb */
-		
-		cmyth_dbg(CMYTH_DBG_ERROR,
-	 			"%s: cgb no need to call chain_switch, %s\n",
-	 			__FUNCTION__, url);
 	}
+
 
 	ref_release(loc_prog);
     out:
@@ -697,7 +664,6 @@ cmyth_livetv_chain_switch(cmyth_recorder_t rec, int dir)
 	ret = 0;
 
 	if(dir == LAST) {
-		PRINTF("**SSDEBUG:(cmyth_livetv_chain_switch) dir: %d\n", dir);
 		dir = rec->rec_livetv_chain->chain_ct
 				- rec->rec_livetv_chain->chain_current - 1;
 	}
@@ -707,8 +673,6 @@ cmyth_livetv_chain_switch(cmyth_recorder_t rec, int dir)
 			  rec->rec_livetv_chain->chain_ct - dir )) {
 		ref_release(rec->rec_livetv_file);
 		ret = rec->rec_livetv_chain->chain_current += dir;
-		PRINTF("**SSDEBUG:(cmyth_livetv_chain_switch): %s:%d\n",
-		"dooingSwitcheroo",ret);
 		rec->rec_livetv_file = ref_hold(rec->rec_livetv_chain->chain_files[ret]);
 		rec->rec_livetv_chain
 					->prog_update_callback(rec->rec_livetv_chain->progs[ret]);
@@ -742,7 +706,6 @@ cmyth_livetv_chain_switch_last(cmyth_recorder_t rec)
 	pthread_mutex_lock(&mutex);
 	dir = rec->rec_livetv_chain->chain_ct
 			- rec->rec_livetv_chain->chain_current - 1;
-	PRINTF("#@@@@#SSDEBUG: switch file changing adjusted dir: %d\n", dir);
 	if(dir != 0) {
 		cmyth_livetv_chain_switch(rec, dir);
 	}
@@ -819,8 +782,6 @@ cmyth_livetv_chain_request_block(cmyth_recorder_t rec, unsigned long len)
 
 		if(c == 0) { /* We've gotten to the end, need to progress in the chain */
 			/* Switch if there are files left in the chain */
-			PRINTF("**SSDEBUG:(cmyth_livetv_request_block): %s\n",
-			"reached end of stream must dooSwitcheroo");
 			retry = cmyth_livetv_chain_switch(rec, 1);
 		}
 	}
@@ -869,7 +830,7 @@ cmyth_livetv_chain_seek(cmyth_recorder_t rec, long long offset, int whence)
 	char msg[128];
 	int err;
 	int count;
-	long long c,p;
+	int64_t c;
 	long r;
 	long long ret;
 	cmyth_file_t fp;
@@ -896,8 +857,6 @@ cmyth_livetv_chain_seek(cmyth_recorder_t rec, long long offset, int whence)
 		 	(long)(fp->file_pos >> 32),
 		 	(long)(fp->file_pos & 0xffffffff));
 	
-		PRINTF("** SSDEBUG: offset %lld issuing seek command: %s\n", offset, msg);
-
 		if ((err = cmyth_send_message(rec->rec_conn, msg)) < 0) {
 			cmyth_dbg(CMYTH_DBG_ERROR,
 			  	"%s: cmyth_send_message() failed (%d)\n",
@@ -907,15 +866,13 @@ cmyth_livetv_chain_seek(cmyth_recorder_t rec, long long offset, int whence)
 		}
 
 		count = cmyth_rcv_length(rec->rec_conn);
-		if ((r=cmyth_rcv_long_long(rec->rec_conn, &err, &c, count)) < 0) {
+		if ((r=cmyth_rcv_int64(rec->rec_conn, &err, &c, count)) < 0) {
 			cmyth_dbg(CMYTH_DBG_ERROR,
 			  	"%s: cmyth_rcv_length() failed (%d)\n",
 			  	__FUNCTION__, r);
 			ret = err;
 			goto out;
 		}
-
-		PRINTF("** SSDEBUG: new pos %lld after seek command\n", c);
 
 		/* Check if the seek failed. If so, see if we can go to */
 		/* the previous or next file depending on the direction */
@@ -937,9 +894,10 @@ cmyth_livetv_chain_seek(cmyth_recorder_t rec, long long offset, int whence)
 					break;
 			}
 			fp = rec->rec_livetv_file;
+#if 0
+			long long p;
 			p = fp->file_pos;
 			p += offset;
-#if 0
 			printf("** SSDEBUG: offest %lld file position %lld after switch diff %lld\n", 
 							offset, fp->file_pos, p);
 			if(p < 0) { /* Re-synch the file position */
@@ -1088,17 +1046,11 @@ cmyth_spawn_live_tv(cmyth_recorder_t rec, unsigned buflen, int tcp_rcvbuf,
 			goto err;
 		}
  
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cgb about to call livetvchainsetup\n",
-			  __FUNCTION__);
-
 		if ((rtrn = cmyth_livetv_chain_setup(rec, tcp_rcvbuf,
 							prog_update_callback)) == NULL) {
 			*err = "Failed to setup livetv.";
 			goto err;
 		}
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: cgb have called livetvchainsetup\n",
-			  __FUNCTION__);
-
 
 		for(i=0; i<20; i++) {
 			if(cmyth_recorder_is_recording(rtrn) != 1)

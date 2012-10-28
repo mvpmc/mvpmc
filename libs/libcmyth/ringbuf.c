@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2004-2009, Eric Lund
+ *  Copyright (C) 2004-2012, Eric Lund
  *  http://www.mvpmc.org/
  *
  *  This library is free software; you can redistribute it and/or
@@ -24,15 +24,12 @@
  *                This allows the watcher to do things like pause, rewind
  *                and so forth on live-tv.
  */
-#include <sys/types.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <sys/socket.h>
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
+#include <sys/types.h>
 #include <cmyth_local.h>
-#include <string.h>
 
 /*
  * cmyth_ringbuf_destroy(cmyth_ringbuf_t rb)
@@ -134,7 +131,7 @@ cmyth_ringbuf_setup(cmyth_recorder_t rec)
 
 	int err, count;
 	int r;
-	long long size, fill;
+	int64_t size, fill;
 	char msg[256];
 	char url[1024];
 	char buf[32];
@@ -170,7 +167,7 @@ cmyth_ringbuf_setup(cmyth_recorder_t rec)
 	r = cmyth_rcv_string(control, &err, url, sizeof(url)-1, count); 
 	count -= r;
 
-	if ((r=cmyth_rcv_long_long(control, &err, &size, count)) < 0) {
+	if ((r=cmyth_rcv_int64(control, &err, &size, count)) < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_rcv_length() failed (%d)\n",
 			  __FUNCTION__, r);
@@ -178,7 +175,7 @@ cmyth_ringbuf_setup(cmyth_recorder_t rec)
 	}
 	count -= r;
 
-	if ((r=cmyth_rcv_long_long(control, &err, &fill, count)) < 0) {
+	if ((r=cmyth_rcv_int64(control, &err, &fill, count)) < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_rcv_length() failed (%d)\n",
 			  __FUNCTION__, r);
@@ -187,7 +184,6 @@ cmyth_ringbuf_setup(cmyth_recorder_t rec)
 
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s: url is: '%s'\n",
 		  __FUNCTION__, url);
-	path = url;
 	if (strncmp(url, service, sizeof(service) - 1) == 0) {
 		/*
 		 * The URL starts with rbuf://.  The rest looks like
@@ -216,6 +212,10 @@ cmyth_ringbuf_setup(cmyth_recorder_t rec)
 				  __FUNCTION__);
 			goto out;
 		}
+	} else {
+		cmyth_dbg(CMYTH_DBG_DEBUG, "%s: unrecognized URL '%s'\n",
+			  __FUNCTION__, url);
+		goto out;
 	}
 
 	new_rec = cmyth_recorder_dup(rec);
@@ -274,7 +274,7 @@ cmyth_ringbuf_get_block(cmyth_recorder_t rec, char *buf, unsigned long len)
 	tv.tv_usec = 0;
 	FD_ZERO(&fds);
 	FD_SET(rec->rec_ring->conn_data->conn_fd, &fds);
-	if (select(rec->rec_ring->conn_data->conn_fd+1,
+	if (select((int)rec->rec_ring->conn_data->conn_fd+1,
 		   NULL, &fds, NULL, &tv) == 0) {
 		rec->rec_ring->conn_data->conn_hang = 1;
 		return 0;
@@ -298,7 +298,7 @@ cmyth_ringbuf_select(cmyth_recorder_t rec, struct timeval *timeout)
 	FD_ZERO(&fds);
 	FD_SET(fd, &fds);
 
-	ret = select(fd+1, &fds, NULL, NULL, timeout);
+	ret = select((int)fd+1, &fds, NULL, NULL, timeout);
 
 	if (ret == 0)
 		rec->rec_ring->conn_data->conn_hang = 1;
@@ -376,6 +376,135 @@ cmyth_ringbuf_request_block(cmyth_recorder_t rec, unsigned long len)
 }
 
 /*
+ * cmyth_ringbuf_read (cmyth_recorder_t rec, char *buf, unsigned long len)
+ * 
+ * Scope: PUBLIC
+ *
+ * Description
+ *
+ * Request and read a block of data from backend
+ *
+ * Return Value:
+ *
+ * Sucess: number of bytes transfered
+ *
+ * Failure: an int containing -errno
+ */
+int cmyth_ringbuf_read(cmyth_recorder_t rec, char *buf, unsigned long len)
+{
+	int err, count;
+	int ret, req, nfds;
+	char *end, *cur;
+	char msg[256];
+	struct timeval tv;
+	fd_set fds;
+
+	if (!rec)
+	{
+		cmyth_dbg (CMYTH_DBG_ERROR, "%s: no connection\n",
+		           __FUNCTION__);
+		return -EINVAL;
+	}
+
+	pthread_mutex_lock (&mutex);
+
+	snprintf(msg, sizeof(msg),
+		 "QUERY_RECORDER %u[]:[]REQUEST_BLOCK_RINGBUF[]:[]%ld",
+		 rec->rec_id, len);
+
+	if ( (err = cmyth_send_message (rec->rec_conn, msg) ) < 0)
+	{
+		cmyth_dbg (CMYTH_DBG_ERROR,
+		           "%s: cmyth_send_message() failed (%d)\n",
+		           __FUNCTION__, err);
+		ret = err;
+		goto out;
+	}
+
+	nfds = 0;
+	req = 1;
+	cur = buf;
+	end = buf+len;
+
+	while (cur < end || req)
+	{
+		tv.tv_sec = 20;
+		tv.tv_usec = 0;
+		FD_ZERO (&fds);
+		if(req) {
+			if((int)rec->rec_conn->conn_fd > nfds)
+				nfds = (int)rec->rec_conn->conn_fd;
+			FD_SET (rec->rec_conn->conn_fd, &fds);
+		}
+		if((int)rec->rec_ring->conn_data->conn_fd > nfds)
+			nfds = (int)rec->rec_ring->conn_data->conn_fd;
+		FD_SET (rec->rec_ring->conn_data->conn_fd, &fds);
+
+		if ((ret = select (nfds+1, &fds, NULL, NULL,&tv)) < 0)
+		{
+			cmyth_dbg (CMYTH_DBG_ERROR,
+			           "%s: select(() failed (%d)\n",
+			           __FUNCTION__, ret);
+			goto out;
+		}
+
+		if (ret == 0)
+		{
+			rec->rec_ring->conn_data->conn_hang = 1;
+			rec->rec_conn->conn_hang = 1;
+			ret = -ETIMEDOUT;
+			goto out;
+		}
+
+		/* check control connection */
+		if (FD_ISSET(rec->rec_conn->conn_fd, &fds) )
+		{
+
+			if ((count = cmyth_rcv_length (rec->rec_conn)) < 0)
+			{
+				cmyth_dbg (CMYTH_DBG_ERROR,
+				           "%s: cmyth_rcv_length() failed (%d)\n",
+				           __FUNCTION__, count);
+				ret = count;
+				goto out;
+			}
+
+			if ((ret = cmyth_rcv_ulong (rec->rec_conn, &err, &len, count))< 0)
+			{
+				cmyth_dbg (CMYTH_DBG_ERROR,
+				           "%s: cmyth_rcv_long() failed (%d)\n",
+				           __FUNCTION__, ret);
+				ret = err;
+				goto out;
+			}
+
+			rec->rec_ring->file_pos += len;
+			req = 0;
+			end = buf+len;
+		}
+
+		/* check data connection */
+		if (FD_ISSET(rec->rec_ring->conn_data->conn_fd, &fds))
+		{
+
+			if ((ret = recv (rec->rec_ring->conn_data->conn_fd, cur, end-cur, 0)) < 0)
+			{
+				cmyth_dbg (CMYTH_DBG_ERROR,
+				           "%s: recv() failed (%d)\n",
+				           __FUNCTION__, ret);
+				goto out;
+			}
+			cur += ret;
+		}
+	}
+
+	ret = end - buf;
+out:
+	pthread_mutex_unlock (&mutex);
+	return ret;
+}
+
+/*
  * cmyth_ringbuf_seek(
  *                    cmyth_ringbuf_t file, long long offset, int whence)
  * 
@@ -404,7 +533,7 @@ cmyth_ringbuf_seek(cmyth_recorder_t rec,
 	char msg[128];
 	int err;
 	int count;
-	long long c;
+	int64_t c;
 	long r;
 	long long ret;
 	cmyth_ringbuf_t ring;
@@ -437,7 +566,7 @@ cmyth_ringbuf_seek(cmyth_recorder_t rec,
 	}
 
 	count = cmyth_rcv_length(rec->rec_conn);
-	if ((r=cmyth_rcv_long_long(rec->rec_conn, &err, &c, count)) < 0) {
+	if ((r=cmyth_rcv_int64(rec->rec_conn, &err, &c, count)) < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_rcv_length() failed (%d)\n",
 			  __FUNCTION__, r);

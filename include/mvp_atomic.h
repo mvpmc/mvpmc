@@ -20,6 +20,10 @@
 #ifndef __MVP_ATOMIC_H
 #define __MVP_ATOMIC_H
 
+#if defined(_MSC_VER)
+#define inline __inline
+#endif
+
 #if defined __mips__
 #include <atomic.h>
 #endif
@@ -68,7 +72,9 @@ __mvp_atomic_increment(mvp_atomic_t *valp)
 		      : "=&r" (__val)
 		      : "r" (valp)
 		      : "cc", "memory");
-#elif defined __arm__
+#elif defined ANDROID
+	__val = __atomic_inc(valp) + 1;
+#elif defined __arm__ && !defined __thumb__
 	int tmp1, tmp2;
 	int inc = 1;
 	__asm__ __volatile__ (
@@ -85,13 +91,17 @@ __mvp_atomic_increment(mvp_atomic_t *valp)
 		: "cc", "memory");
 #elif defined __mips__
 	__val = atomic_increment_val(valp);
-#else
+#elif defined __GNUC__
 	/*
 	 * Don't know how to atomic increment for a generic architecture
 	 * so try to use GCC builtin
 	 */
-//#warning unknown architecture, atomic increment is not...
 	__val = __sync_add_and_fetch(valp,1);
+#else
+#if !defined(_MSC_VER)
+#warning unknown architecture, atomic increment is not...
+#endif
+	__val = ++(*valp);
 #endif
 	return __val;
 }
@@ -108,7 +118,7 @@ __mvp_atomic_decrement(mvp_atomic_t *valp)
 #if defined __i486__ || defined __i586__ || defined __i686__
 	__asm__ __volatile__(
 		"lock xaddl %0, (%1);"
-		"     inc   %0;"
+		"     dec   %0;"
 		: "=r" (__val)
 		: "r" (valp), "0" (0x1)
 		: "cc", "memory"
@@ -130,7 +140,9 @@ __mvp_atomic_decrement(mvp_atomic_t *valp)
 		      : "=&r" (__val)
 		      : "r" (valp)
 		      : "cc", "memory");
-#elif defined __arm__
+#elif defined ANDROID
+	__val = __atomic_dec(valp) - 1;
+#elif defined __arm__ && !defined __thumb__
 	int tmp1, tmp2;
 	int inc = -1;
 	__asm__ __volatile__ (
@@ -159,14 +171,17 @@ __mvp_atomic_decrement(mvp_atomic_t *valp)
 	while (__newval != __oldval);
 	/*  The value for __val is in '__oldval' */
 	__val = __oldval;
-#else
+#elif defined __GNUC__
 	/*
 	 * Don't know how to atomic decrement for a generic architecture
 	 * so use GCC builtin
 	 */
-//#warning unknown architecture, atomic deccrement is not...
-	__val = --(*valp);
 	__val = __sync_sub_and_fetch(valp,1);
+#else
+#if !defined(_MSC_VER)
+#warning unknown architecture, atomic deccrement is not...
+#endif
+	__val = --(*valp);
 #endif
 	return __val;
 }

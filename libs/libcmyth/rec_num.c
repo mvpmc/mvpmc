@@ -21,11 +21,9 @@
  * rec_num.c -  functions to manage recorder number structures.  Mostly
  *              just allocating, freeing, and filling them out.
  */
-#include <sys/types.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <errno.h>
 #include <cmyth_local.h>
 
 /*

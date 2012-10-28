@@ -25,7 +25,6 @@
  *            be markers inserted by commercial detection.  A position
  *            map collects these in one place.
  */
-#include <sys/types.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <cmyth_local.h>
@@ -49,7 +48,7 @@
 static void
 cmyth_posmap_destroy(cmyth_posmap_t pm)
 {
-	int i;
+	unsigned int i;
 
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s\n", __FUNCTION__);
 	if (!pm) {

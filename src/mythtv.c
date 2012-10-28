@@ -1857,6 +1857,37 @@ event_start(void *arg)
 		case CMYTH_EVENT_ASK_RECORDING:
 			printf("MythTV event ASK RECORDING\n");
 			break;
+		/* TODO: Do something sensible with the events below */
+		case CMYTH_EVENT_RECORDING_LIST_CHANGE_ADD:
+			printf("MythTV event CMYTH_EVENT_RECORDING_LIST_CHANGE_ADD\n");
+		/*	episode_dirty = 1;
+			mvpw_expose(mythtv_browser);	*/
+			break;
+		case CMYTH_EVENT_RECORDING_LIST_CHANGE_UPDATE:
+			printf("MythTV event CMYTH_EVENT_RECORDING_LIST_CHANGE_UPDATE\n");
+		/*	episode_dirty = 1;
+			mvpw_expose(mythtv_browser);	*/
+			break;
+		case CMYTH_EVENT_RECORDING_LIST_CHANGE_DELETE:
+			printf("MythTV event CMYTH_EVENT_RECORDING_LIST_CHANGE_DELETE\n");
+		/*	episode_dirty = 1;
+			mvpw_expose(mythtv_browser);	*/
+			break;
+		case CMYTH_EVENT_WATCH_LIVETV:
+			printf("MythTV event CMYTH_EVENT_WATCH_LIVETV\n");
+			break;
+		case CMYTH_EVENT_SYSTEM_EVENT:
+			printf("MythTV event CMYTH_EVENT_SYSTEM_EVENT\n");
+			break;
+		case CMYTH_EVENT_UPDATE_FILE_SIZE:
+			printf("MythTV event CMYTH_EVENT_UPDATE_FILE_SIZE\n");
+			break;
+		case CMYTH_EVENT_GENERATED_PIXMAP:
+			printf("MythTV event CMYTH_EVENT_GENERATED_PIXMAP\n");
+			break;
+		case CMYTH_EVENT_CLEAR_SETTINGS_CACHE:
+			printf("MythTV event CMYTH_EVENT_CLEAR_SETTINGS_CACHE\n");
+			break;
 		}
 	}
 
@@ -4267,7 +4298,7 @@ hilite_move_mythtv_options(mvp_widget_t *widget, char *item , void *key, bool hi
 }
 
 void
-commit_mythtv_delete_previos_recorded(mvp_widget_t *widget, char *item , void *key)
+commit_mythtv_delete_previous_recorded(mvp_widget_t *widget, char *item , void *key)
 {
 	long index = (long)key;
 	long which = (long) mvpw_menu_get_hilite(mythtv_browser);
@@ -4288,7 +4319,7 @@ commit_mythtv_delete_previos_recorded(mvp_widget_t *widget, char *item , void *k
 			//fprintf (stderr, "Removing %s\n",sqlprog[which].title);
 			snprintf(query,sizeof(query),"DELETE FROM oldrecorded WHERE chanid = '%d' AND starttime = %s",sqlprog[which].chanid,msg);
 			//fprintf (stderr, "query %s\n",query);
-			if ((err=cmyth_mythtv_remove_previos_recorded(mythtv_database,query))<0) {
+			if ((err=cmyth_mythtv_remove_previous_recorded(mythtv_database,query))<0) {
 				gui_mesg("Error Message","Recorded show was not removed");
 				goto out;
 			}
@@ -4297,7 +4328,7 @@ commit_mythtv_delete_previos_recorded(mvp_widget_t *widget, char *item , void *k
 			//fprintf (stderr, "Removing %s\n",sqlprog[which].title);
 			snprintf(query,sizeof(query),"DELETE FROM oldrecorded WHERE title = '%s'",sqlprog[which].title);
 			//fprintf (stderr, "query %s\n",query);
-			if ((err=cmyth_mythtv_remove_previos_recorded(mythtv_database,query)<0)) {
+			if ((err=cmyth_mythtv_remove_previous_recorded(mythtv_database,query)<0)) {
 				gui_mesg("Error Message","Recorded titles were not removed");
 				goto out;
 			}
@@ -4323,7 +4354,7 @@ mythtv_delete_previous_recorded(mvp_widget_t *widget, char *item , void *key)
 {
 	cmyth_dbg(CMYTH_DBG_ERROR, "FUNCTION: %s\n",__FUNCTION__);
 	mvpw_clear_menu(mythtv_options);
-	item_attr.select = commit_mythtv_delete_previos_recorded;
+	item_attr.select = commit_mythtv_delete_previous_recorded;
 	item_attr.hilite = hilite_move_mythtv_options;
 	mvpw_set_menu_title(mythtv_options,"Previously Recorded Episodes");
 	mvpw_add_menu_item(mythtv_options, "Go Back" , (void*)0, &item_attr);

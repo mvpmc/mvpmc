@@ -7,11 +7,17 @@
 
 #include <stdio.h>
 #include <stdarg.h>
+#include <string.h>
+
+#if defined ANDROID
+#include <android/log.h>
+#endif
 
 typedef struct {
 	char *name;
 	int  cur_level;
 	int  (*selector)(int plevel, int slevel);
+	void (*msg_callback)(int level, char *msg);
 } cmyth_debug_ctx_t;
 
 /**
@@ -21,7 +27,7 @@ typedef struct {
  * \param l initial debug level for the subsystem
  * \param s custom selector function pointer (NULL is okay)
  */
-#define CMYTH_DEBUG_CTX_INIT(n,l,s) { n, l, s }
+#define CMYTH_DEBUG_CTX_INIT(n,l,s) { n, l, s, NULL }
 
 /**
  * Set the debug level to be used for the subsystem
@@ -47,13 +53,24 @@ __cmyth_dbg_setlevel(cmyth_debug_ctx_t *ctx, int level)
 static inline void
 __cmyth_dbg(cmyth_debug_ctx_t *ctx, int level, char *fmt, va_list ap)
 {
+	char msg[4096];
+	int len;
 	if (!ctx) {
 		return;
 	}
 	if ((ctx->selector && ctx->selector(level, ctx->cur_level)) ||
 	    (!ctx->selector && (level < ctx->cur_level))) {
-		fprintf(stderr, "(%s)", ctx->name);
-		vfprintf(stderr, fmt, ap);
+		len = snprintf(msg, sizeof(msg), "(%s)", ctx->name);
+		vsnprintf(msg + len, sizeof(msg)-len, fmt, ap);
+		if (ctx->msg_callback) {
+			ctx->msg_callback(level, msg);
+		} else {
+#if defined ANDROID
+			__android_log_print(ANDROID_LOG_INFO, "cmyth_dbg", buf);
+#else
+			fwrite(msg, strlen(msg), 1, stdout);
+#endif
+		}
 	}
 }
 

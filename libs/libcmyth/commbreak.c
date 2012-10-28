@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005-2009, Jon Gettler
+ *  Copyright (C) 2005-2012, Jon Gettler
  *  http://www.mvpmc.org/
  *
  *  This library is free software; you can redistribute it and/or
@@ -66,8 +66,8 @@ cmyth_commbreak_destroy(cmyth_commbreak_t b)
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s {\n", __FUNCTION__);
 	if (!b) {
 		cmyth_dbg(CMYTH_DBG_DEBUG, "%s }!a\n", __FUNCTION__);
-                return;
-        }
+		return;
+	}
 	cmyth_dbg(CMYTH_DBG_DEBUG, "%s }\n", __FUNCTION__);
 }
 
@@ -190,11 +190,13 @@ int cmyth_rcv_commbreaklist(cmyth_conn_t conn, int *err,
 	int consumed;
 	int total = 0;
 	long rows;
+	int64_t mark;
+	long long start = -1;
 	char *failed = NULL;
 	cmyth_commbreak_t commbreak;
 	unsigned short type;
+	unsigned short start_type=0;
 	int i;
-	int j;
 
 	if (count <= 0) {
 		*err = EINVAL;
@@ -216,93 +218,76 @@ int cmyth_rcv_commbreaklist(cmyth_conn_t conn, int *err,
 		cmyth_dbg(CMYTH_DBG_DEBUG, "%s: no commercial breaks found.\n",
 			__FUNCTION__);
 		return 0;
-	} else {
-		/*
-		 * Don't check for an uneven row count. mythcommflag can mark the start of the last 
-		 * commercial break, but then not mark the end before it reaches the end of the file.
-		 * For this case the last commercial break is ignored.
-		 */
-		breaklist->commbreak_count = rows / 2;
 	}
 
-	breaklist->commbreak_list = malloc(breaklist->commbreak_count * 
-					sizeof(cmyth_commbreak_t));
-	if (!breaklist->commbreak_list) {
-		cmyth_dbg(CMYTH_DBG_ERROR, "%s: malloc() failed for list\n",
-			__FUNCTION__);
-		*err = ENOMEM;
-		return consumed;
-	}
-	memset(breaklist->commbreak_list, 0, breaklist->commbreak_count * sizeof(cmyth_commbreak_t));
-
-	for (i = 0; i < breaklist->commbreak_count; i++) {
-		commbreak = cmyth_commbreak_create();
-
-		for (j = 0; j < 2; j++) {
-			consumed = cmyth_rcv_ushort(conn, err, &type, count);
-			count -= consumed;
-			total += consumed;
-			if (*err) {
-				failed = "cmyth_rcv_ushort";
-				goto fail;
-			}
-			/*
-			 * Do a little sanity-checking.
-			 */
-			if (j == 0 && type != CMYTH_COMMBREAK_START
-					   && type != CMYTH_CUTLIST_START) {
-				cmyth_dbg(CMYTH_DBG_ERROR,
-					"%s: type (%d) was not CMYTH_COMMBREAK_START or CMYTH_CUTLIST_START\n",
-					__FUNCTION__, type);
-				return 0;
-			} else if (j == 1 && type != CMYTH_COMMBREAK_END
-							  && type != CMYTH_CUTLIST_END) {
-				cmyth_dbg(CMYTH_DBG_ERROR,
-					"%s: type (%d) was not CMYTH_COMMBREAK_END or CMYTH_CUTLIST_END\n",
-					__FUNCTION__, type);
-				return 0;
-			}
-
-			/*
-			 * Only marks are returned, not the offsets. Marks are encoded in long_long.
-			 */
-			if (j == 0) {
-				consumed = cmyth_rcv_long_long(conn, err, &commbreak->start_mark, count);
-			} else {
-				consumed = cmyth_rcv_long_long(conn, err, &commbreak->end_mark, count);
-			}
-
-			count -= consumed;
-			total += consumed;
-			if (*err) {
-				failed = "cmyth_rcv_long";
-				goto fail;
-			}
-
+	for (i = 0; i < rows; i++) {
+		consumed = cmyth_rcv_ushort(conn, err, &type, count);
+		count -= consumed;
+		total += consumed;
+		if (*err) {
+			failed = "cmyth_rcv_ushort";
+			goto fail;
 		}
 
-		breaklist->commbreak_list[i] = commbreak;
+		consumed = cmyth_rcv_int64(conn, err, &mark, count);
+		count -= consumed;
+		total += consumed;
+		if (*err) {
+			failed = "cmyth_rcv_long long";
+			goto fail;
+		}
+		if (type == CMYTH_COMMBREAK_START || type == CMYTH_CUTLIST_START) {
+			start = mark;
+			start_type = type;
+		} else if (type == CMYTH_COMMBREAK_END || type == CMYTH_CUTLIST_END) {
+			if (start >= 0 &&
+			    ((type == CMYTH_COMMBREAK_END && start_type == CMYTH_COMMBREAK_START)
+			     || (type == CMYTH_CUTLIST_END && start_type == CMYTH_CUTLIST_START)))
+			{
+				commbreak = cmyth_commbreak_create();
+				commbreak->start_mark = start;
+				commbreak->end_mark = mark;
+				start = -1;
+				breaklist->commbreak_list = realloc(breaklist->commbreak_list,
+					(++breaklist->commbreak_count) * sizeof(cmyth_commbreak_t));
+				breaklist->commbreak_list[breaklist->commbreak_count - 1] = commbreak;
+			} else {
+				cmyth_dbg(CMYTH_DBG_WARN,
+					"%s: ignoring 'end' marker without a 'start' marker at %lld\n",
+					__FUNCTION__, type, mark);
+			}
+		} else {
+				cmyth_dbg(CMYTH_DBG_WARN,
+					"%s: type (%d) is not a COMMBREAK or CUTLIST\n",
+					__FUNCTION__, type);
+		}
 	}
+
+	/*
+	 * If the last entry is a start marker then it doesn't have an associated end marker. In this
+	 * case we choose to simply ignore it. Another option is to put in a really large fake end marker
+	 * but that may cause strange seek behaviour in a client application.
+	 */
 
 	return total;
 
-    fail:
+	fail:
 	cmyth_dbg(CMYTH_DBG_ERROR, "%s: %s() failed (%d)\n",
 		__FUNCTION__, failed, *err);
 	return total;
 }
 
+#if defined(HAS_MYSQL)
 cmyth_commbreaklist_t
 cmyth_mysql_get_commbreaklist(cmyth_database_t db, cmyth_conn_t conn, cmyth_proginfo_t prog)
 {
 	cmyth_commbreaklist_t breaklist = cmyth_commbreaklist_create();
-#if defined(HAS_MYSQL)
-        char start_ts_dt[CMYTH_TIMESTAMP_LEN + 1];
+	char start_ts_dt[CMYTH_TIMESTAMP_LEN + 1];
 	int r;
 
-        cmyth_timestamp_to_display_string(start_ts_dt, prog->proginfo_rec_start_ts, 0);
+	cmyth_timestamp_to_display_string(start_ts_dt, prog->proginfo_rec_start_ts, 0);
 	pthread_mutex_lock(&mutex);
-	if ((r=cmyth_mysql_get_commbreak_list(db, prog->proginfo_chanId, start_ts_dt, breaklist,conn->conn_version)) < 0) {
+	if ((r=cmyth_mysql_get_commbreak_list(db, prog->proginfo_chanId, start_ts_dt, breaklist, conn->conn_version)) < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			"%s: cmyth_mysql_get_commbreak_list() failed (%d)\n",
 			__FUNCTION__, r);
@@ -317,6 +302,6 @@ cmyth_mysql_get_commbreaklist(cmyth_database_t db, cmyth_conn_t conn, cmyth_prog
 	}
 	out:
 	pthread_mutex_unlock(&mutex);
-#endif /* HAS_MYSQL */
 	return breaklist;
 }
+#endif /* HAS_MYSQL */

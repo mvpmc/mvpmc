@@ -49,10 +49,14 @@
 #include <stdio.h>
 
 #ifdef DEBUG
+#include <inttypes.h>
 #include <assert.h>
 #define ALLOC_MAGIC 0xef37a45d
 #define GUARD_MAGIC 0xe3
 #define GUARD_BYTES 1
+#if defined(ANDROID)
+#include <android/log.h>
+#endif
 #endif /* DEBUG */
 
 static mvp_atomic_t total_refcount=0;
@@ -206,6 +210,21 @@ ref_alloc_show(void)
 		}
 	}
 
+#if defined(ANDROID)
+	{
+		char buf[512];
+
+		snprintf(buf, sizeof(buf),
+			 "refmem allocation count: %d\n", count);
+		__android_log_print(ANDROID_LOG_DEBUG, "refmem", buf);
+		snprintf(buf, sizeof(buf),
+			 "refmem allocation bytes: %d\n", bytes);
+		__android_log_print(ANDROID_LOG_DEBUG, "refmem", buf);
+		snprintf(buf, sizeof(buf),
+			 "refmem unique allocation types: %d\n", types);
+		__android_log_print(ANDROID_LOG_DEBUG, "refmem", buf);
+	}
+#else
 	printf("refmem allocation count: %d\n", count);
 	printf("refmem allocation bytes: %d\n", bytes);
 	printf("refmem unique allocation types: %d\n", types);
@@ -214,6 +233,7 @@ ref_alloc_show(void)
 		       alloc_list[i].file, alloc_list[i].func,
 		       alloc_list[i].line, alloc_list[i].count);
 	}
+#endif
 }
 #else
 void
@@ -464,6 +484,7 @@ ref_release(void *p)
 #ifdef DEBUG
 	guard_t *guard;
 #endif /* DEBUG */
+	int refcount;
 
 	refmem_dbg(REF_DBG_DEBUG, "%s(%p) {\n", __FUNCTION__, p);
 	if (p) {
@@ -480,6 +501,8 @@ ref_release(void *p)
 
 		/* Remove a refcount */
 		mvp_atomic_dec(&total_refcount);
+
+		refcount = ((int)ref->refcount) - 1;
 
 		if (mvp_atomic_dec_and_test(&ref->refcount)) {
 			/*
@@ -503,7 +526,7 @@ ref_release(void *p)
 		        total_bytecount -= ( sizeof(refcounter_t) + ref->length);
 			free(block);
 		}
-		if (ref->refcount < 0)
+		if (refcount < 0)
 			fprintf(stderr, "*** %s(): %p refcount %d ***\n",
 				__FUNCTION__, p, ref->refcount);
 	}
