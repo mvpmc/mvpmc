@@ -1625,7 +1625,12 @@ cmyth_proginfo_compare(cmyth_proginfo_t a, cmyth_proginfo_t b)
 	if (STRCMP(a->proginfo_description, b->proginfo_description) != 0)
 		return -1;
 
-	if (STRCMP(a->proginfo_url, b->proginfo_url) != 0)
+	if (a->proginfo_url && b->proginfo_url) {
+          char* aa = strrchr(a->proginfo_url, '/');
+          char* bb = strrchr(b->proginfo_url, '/');
+          if (strcmp(aa ? aa+1 : a->proginfo_url, bb ? bb+1 : b->proginfo_url) != 0)
+		return -1;
+	} else if(!a->proginfo_url != !b->proginfo_url)
 		return -1;
 
 	if (cmyth_timestamp_compare(a->proginfo_start_ts,
