@@ -882,14 +882,14 @@ cmyth_rcv_old_int64(cmyth_conn_t conn, int *err, int64_t *buf, int count)
 	consumed = cmyth_rcv_u_long(conn, err, &hi, count);
 	if (*err) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
-			  "%s: cmyth_rcv_u_long_long() failed (%d)\n",
+			  "%s: cmyth_rcv_u_long() failed (%d)\n",
 			  __FUNCTION__, consumed);
 		return consumed;
 	}
 	consumed += cmyth_rcv_u_long(conn, err, &lo, count-consumed);
 	if (*err) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
-			  "%s: cmyth_rcv_u_long_long() failed (%d)\n",
+			  "%s: cmyth_rcv_u_long() failed (%d)\n",
 			  __FUNCTION__, consumed);
 		return consumed;
 	}
@@ -1303,14 +1303,14 @@ cmyth_rcv_old_uint64(cmyth_conn_t conn, int *err, uint64_t *buf, int count)
 	consumed = cmyth_rcv_u_long(conn, err, &hi, count);
 	if (*err) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
-			  "%s: cmyth_rcv_u_long_long() failed (%d)\n",
+			  "%s: cmyth_rcv_u_long() failed (%d)\n",
 			  __FUNCTION__, consumed);
 		return consumed;
 	}
-	consumed += cmyth_rcv_u_long(conn, err, &lo, count-consumed);
+	consumed += cmyth_rcv_u_long(conn, err, &lo, count - consumed);
 	if (*err) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
-			  "%s: cmyth_rcv_u_long_long() failed (%d)\n",
+			  "%s: cmyth_rcv_u_long() failed (%d)\n",
 			  __FUNCTION__, consumed);
 		return consumed;
 	}

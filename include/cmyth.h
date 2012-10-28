@@ -268,7 +268,6 @@ extern cmyth_conn_t cmyth_conn_connect_event(char *server,
 extern cmyth_file_t cmyth_conn_connect_file(cmyth_proginfo_t prog,
 					    cmyth_conn_t control,
 					    unsigned buflen, int tcp_rcvbuf);
-
 /**
  * Create a file connection to a backend for reading a recording thumbnail.
  * \param prog program handle

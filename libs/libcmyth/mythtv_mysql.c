@@ -819,13 +819,13 @@ cmyth_mysql_query_commbreak_count(cmyth_database_t db, int chanid, char * start_
 	MYSQL_RES *res = NULL;
 	int count = 0;
 	char * query_str;
-	query_str = "SELECT * FROM recordedmarkup WHERE chanid = ? AND starttime = ? AND TYPE IN ( 4 )"; 
-	cmyth_mysql_query_t * query;
+  cmyth_mysql_query_t * query;
+	query_str = "SELECT * FROM recordedmarkup WHERE chanid = ? AND starttime = ? AND TYPE IN ( 4 )";
 
 	query = cmyth_mysql_query_create(db,query_str);
-	if ( (cmyth_mysql_query_param_int(query, chanid) < 0
+	if ((cmyth_mysql_query_param_int(query, chanid) < 0
 		|| cmyth_mysql_query_param_str(query, start_ts_dt) < 0
-		) ) {
+		)) {
 		cmyth_dbg(CMYTH_DBG_ERROR,"%s, binding of query parameters failed! Maybe we're out of memory?\n", __FUNCTION__);
 		ref_release(query);
 		return -1;
@@ -848,42 +848,43 @@ cmyth_mysql_get_commbreak_list(cmyth_database_t db, int chanid, char * start_ts_
 	MYSQL_ROW row;
 	int resolution = 30;
 	char * query_str;
-	int rows = 0;
-	cmyth_mysql_query_t * query;
-	cmyth_commbreak_t commbreak = NULL;
+  int rows = 0;
 	int i = 0;
-	long long start_previous = 0;
+  cmyth_mysql_query_t * query;
+	cmyth_commbreak_t commbreak = NULL;
+  long long start_previous = 0;
 	long long end_previous = 0;
 
-	if (conn_version>=43) {
+	if (conn_version >= 43) {
 		query_str = "SELECT m.type,m.mark,s.mark,s.offset  FROM recordedmarkup m INNER JOIN recordedseek AS s ON m.chanid = s.chanid AND m.starttime = s.starttime  WHERE m.chanid = ? AND m.starttime = ? AND m.type in (?,?) and FLOOR(m.mark/?)=FLOOR(s.mark/?) ORDER BY `m`.`mark` LIMIT 300 ";
 	}
 	else { 
 		query_str = "SELECT m.type AS type, m.mark AS mark, s.offset AS offset FROM recordedmarkup m INNER JOIN recordedseek AS s ON (m.chanid = s.chanid AND m.starttime = s.starttime AND (FLOOR(m.mark / 15) + 1) = s.mark) WHERE m.chanid = ? AND m.starttime = ? AND m.type IN (?, ?) ORDER BY mark;";
 	}
 
-	query = cmyth_mysql_query_create(db,query_str);
-		
 	cmyth_dbg(CMYTH_DBG_ERROR,"%s, query=%s\n", __FUNCTION__,query_str);
 
-	if ( (conn_version>=43) && ( 
+	query = cmyth_mysql_query_create(db,query_str);
+
+	if ((conn_version >= 43) && ( 
 		cmyth_mysql_query_param_int(query, chanid) < 0
 		|| cmyth_mysql_query_param_str(query, start_ts_dt) < 0
 		|| cmyth_mysql_query_param_int(query, CMYTH_COMMBREAK_START) < 0
 		|| cmyth_mysql_query_param_int(query, CMYTH_COMMBREAK_END) < 0
-		|| cmyth_mysql_query_param_int(query, resolution ) < 0
-		|| cmyth_mysql_query_param_int(query, resolution ) < 0
-		) ) {
+		|| cmyth_mysql_query_param_int(query, resolution) < 0
+		|| cmyth_mysql_query_param_int(query, resolution) < 0
+		)) {
 		cmyth_dbg(CMYTH_DBG_ERROR,"%s, binding of query parameters failed! Maybe we're out of memory?\n", __FUNCTION__);
 		ref_release(query);
 		return -1;
 	}
-		
-	if ( (conn_version < 43) && (cmyth_mysql_query_param_int(query, chanid) < 0
+
+	if ((conn_version < 43) && (
+		cmyth_mysql_query_param_int(query, chanid) < 0
 		|| cmyth_mysql_query_param_str(query, start_ts_dt) < 0
 		|| cmyth_mysql_query_param_int(query, CMYTH_COMMBREAK_START) < 0
 		|| cmyth_mysql_query_param_int(query, CMYTH_COMMBREAK_END) < 0
-		) ) {
+		)) {
 		cmyth_dbg(CMYTH_DBG_ERROR,"%s, binding of query parameters failed! Maybe we're out of memory?\n", __FUNCTION__);
 		ref_release(query);
 		return -1;
@@ -895,14 +896,13 @@ cmyth_mysql_get_commbreak_list(cmyth_database_t db, int chanid, char * start_ts_
 		return -1;
 	}
 
-	if (conn_version >=43) {
+	if (conn_version >= 43) {
 		breaklist->commbreak_count = cmyth_mysql_query_commbreak_count(db,chanid,start_ts_dt);
 	}
 	else {
 		breaklist->commbreak_count = (long)mysql_num_rows(res) / 2;
 	}
 	breaklist->commbreak_list = malloc(breaklist->commbreak_count * sizeof(cmyth_commbreak_t));
-	//cmyth_dbg(CMYTH_DBG_ERROR, "%s: %ld\n",__FUNCTION__,breaklist->commbreak_count);
 
 	if (!breaklist->commbreak_list) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s: malloc() failed for list\n",
@@ -911,22 +911,22 @@ cmyth_mysql_get_commbreak_list(cmyth_database_t db, int chanid, char * start_ts_
 	}
 	memset(breaklist->commbreak_list, 0, breaklist->commbreak_count * sizeof(cmyth_commbreak_t));
 
-	if (conn_version >=43) {
+	if (conn_version >= 43) {
 		while ((row = mysql_fetch_row(res))) {
 			if (safe_atoi(row[0]) == CMYTH_COMMBREAK_START) {
-				if ( safe_atoll(row[1]) != start_previous ) {
+				if (safe_atoll(row[1]) != start_previous) {
 					commbreak = cmyth_commbreak_create();
 					commbreak->start_mark = safe_atoll(row[1]);
 					commbreak->start_offset = safe_atoll(row[3]);
 					start_previous = commbreak->start_mark;
 				}
-				else if ( safe_atoll(row[1]) == safe_atoll(row[2]) ) { 
+				else if (safe_atoll(row[1]) == safe_atoll(row[2])) { 
 					commbreak = cmyth_commbreak_create();
 					commbreak->start_mark = safe_atoll(row[1]);
 					commbreak->start_offset = safe_atoll(row[3]);
 				}
 			} else if (safe_atoi(row[0]) == CMYTH_COMMBREAK_END) {
-				if ( safe_atoll(row[1]) != end_previous ) {
+				if (safe_atoll(row[1]) != end_previous) {
 					if (commbreak == NULL) {
 						cmyth_dbg(CMYTH_DBG_ERROR,
 							  "%s: error at %d\n",
@@ -940,7 +940,7 @@ cmyth_mysql_get_commbreak_list(cmyth_database_t db, int chanid, char * start_ts_
 					end_previous = commbreak->end_mark;
 					rows++;
 				}
-				else if ( safe_atoll(row[1]) == safe_atoll(row[2]) ) {
+				else if (safe_atoll(row[1]) == safe_atoll(row[2])) {
 					if (commbreak == NULL) {
 						cmyth_dbg(CMYTH_DBG_ERROR,
 							  "%s: error at %d\n",
@@ -951,7 +951,7 @@ cmyth_mysql_get_commbreak_list(cmyth_database_t db, int chanid, char * start_ts_
 					commbreak->end_mark = safe_atoll(row[1]);
 					commbreak->end_offset = safe_atoll(row[3]);
 					breaklist->commbreak_list[rows] = commbreak;
-					if (end_previous != safe_atoll(row[1]) ) {
+					if (end_previous != safe_atoll(row[1])) {
 						rows++;
 					}
 				}
@@ -1150,9 +1150,9 @@ int cmyth_livetv_keep_recording(cmyth_recorder_t rec, cmyth_database_t db, int k
 	query = cmyth_mysql_query_create(db,"UPDATE recorded SET autoexpire = ?, recgroup = ? WHERE chanid = ? AND starttime = ?");
 
 	if(cmyth_mysql_query_param_long(query,autoexpire) < 0
-	|| cmyth_mysql_query_param_str(query,recgroup) < 0
-	|| cmyth_mysql_query_param_long(query,prog->proginfo_chanId) < 0
-        || cmyth_mysql_query_param_str(query,timestamp) < 0)
+	 || cmyth_mysql_query_param_str(query,recgroup) < 0
+	 || cmyth_mysql_query_param_long(query,prog->proginfo_chanId) < 0
+	 || cmyth_mysql_query_param_str(query,timestamp) < 0) 
 	{
 		cmyth_dbg(CMYTH_DBG_ERROR,"%s, binding of query parameters failed! Maybe we're out of memory?\n", __FUNCTION__);
 		ref_release(query);

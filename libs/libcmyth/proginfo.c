@@ -408,7 +408,7 @@ delete_command(cmyth_conn_t control, cmyth_proginfo_t prog, char *cmd)
 			  __FUNCTION__);
 		return -EINVAL;
 	}
-#define S(a)((a) == NULL ? "": (a))
+#define S(a) ((a) == NULL ? "" : (a))
 
 	len += strlen(S(prog->proginfo_title));
 	len += strlen(S(prog->proginfo_subtitle));
@@ -1315,7 +1315,7 @@ fill_command(cmyth_conn_t control, cmyth_proginfo_t prog, char *cmd)
 			  __FUNCTION__);
 		return -EINVAL;
 	}
-#define S(a)((a) == NULL ? "": (a))
+#define S(a) ((a) == NULL ? "" : (a))
 
 	len += strlen(S(prog->proginfo_title));
 	len += strlen(S(prog->proginfo_subtitle));
@@ -1360,8 +1360,8 @@ fill_command(cmyth_conn_t control, cmyth_proginfo_t prog, char *cmd)
 				     prog->proginfo_originalairdate);
 	    cmyth_datetime_to_string(lastmodified, prog->proginfo_lastmodified);
 	}
-	if(control->conn_version > 32)
-	{
+
+	if(control->conn_version > 32) {
 	    cmyth_timestamp_to_isostring(originalairdate,
 	                         prog->proginfo_originalairdate);
         }				 
@@ -1757,7 +1757,7 @@ cmyth_proginfo_get_from_basename(cmyth_conn_t control, const char* basename)
 			  __FUNCTION__);
 		return NULL;
 	}
-	
+
 	/*
 	 * mythbackend doesn't support spaces in basenames
 	 * when doing QUERY_RECORDING.  If there are spaces, fallback
