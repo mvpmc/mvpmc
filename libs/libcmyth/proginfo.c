@@ -361,30 +361,6 @@ cmyth_proginfo_dup(cmyth_proginfo_t p)
 }
 
 /*
- * cmyth_proginfo_stop_recording(cmyth_conn_t control,
- *                               cmyth_proginfo_t prog)
- * 
- * Scope: PUBLIC
- *
- * Description
- *
- * Make a request on the control connection 'control' to ask the
- * MythTV back end to stop recording the program described in 'prog'.
- *
- * Return Value:
- *
- * Success: 0
- *
- * Failure: -(ERRNO)
- */
-int
-cmyth_proginfo_stop_recording(cmyth_conn_t control, cmyth_proginfo_t prog)
-{
-	cmyth_dbg(CMYTH_DBG_DEBUG, "%s\n", __FUNCTION__);
-	return -ENOSYS;
-}
-
-/*
  * cmyth_proginfo_check_recording(cmyth_conn_t control,
  *                                cmyth_proginfo_t prog)
  * 
@@ -641,6 +617,29 @@ int
 cmyth_proginfo_forget_recording(cmyth_conn_t control, cmyth_proginfo_t prog)
 {
 	return delete_command(control, prog, "FORGET_RECORDING");
+}
+
+/*
+ * cmyth_proginfo_stop_recording(cmyth_conn_t control,
+ *                               cmyth_proginfo_t prog)
+ * 
+ * Scope: PUBLIC
+ *
+ * Description
+ *
+ * Make a request on the control connection 'control' to ask the
+ * MythTV back end to stop recording the program described in 'prog'.
+ *
+ * Return Value:
+ *
+ * Success: 0
+ *
+ * Failure: -(ERRNO)
+ */
+int
+cmyth_proginfo_stop_recording(cmyth_conn_t control, cmyth_proginfo_t prog)
+{
+	return delete_command(control, prog, "STOP_RECORDING");
 }
 
 /*
