@@ -680,7 +680,7 @@ cmyth_recorder_set_channel(cmyth_recorder_t rec, char *channame)
 		goto fail;
 	}
 
-	if ((err=cmyth_rcv_okay(rec->rec_conn, "1")) < 0) {
+	if ((err=cmyth_rcv_okay(rec->rec_conn, "ok")) < 0) {
 		cmyth_dbg(CMYTH_DBG_ERROR,
 			  "%s: cmyth_rcv_okay() failed (%d)\n",
 			  __FUNCTION__, err);
