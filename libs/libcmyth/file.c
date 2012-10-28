@@ -519,3 +519,186 @@ cmyth_file_seek(cmyth_file_t file, long long offset, int whence)
 	
 	return ret;
 }
+
+/*
+ * cmyth_file_read(cmyth_recorder_t rec, char *buf, unsigned long len)
+ * 
+ * Scope: PUBLIC
+ *
+ * Description
+ *
+ * Request and read a block of data from backend
+ *
+ * Return Value:
+ *
+ * Sucess: number of bytes transfered
+ *
+ * Failure: an int containing -errno
+ */
+int cmyth_file_read(cmyth_file_t file, char *buf, unsigned long len)
+{
+	int err, count;
+	int ret, req, nfds, rec;
+	char *end, *cur;
+	char msg[256];
+	int64_t len64;
+	struct timeval tv;
+	fd_set fds;
+
+	if (!file || !file->file_data) {
+		cmyth_dbg (CMYTH_DBG_ERROR, "%s: no connection\n",
+		           __FUNCTION__);
+		return -EINVAL;
+	}
+	if (len == 0)
+		return 0;
+
+	pthread_mutex_lock (&mutex);
+
+	/* make sure we have outstanding requests that fill the buffer that was called with */
+	/* this way we should be able to saturate the network connection better */
+	if (file->file_req < file->file_pos + len) {
+
+		snprintf (msg, sizeof (msg),
+	            "QUERY_FILETRANSFER %ld[]:[]REQUEST_BLOCK[]:[]%ld",
+	            file->file_id, (unsigned long)(file->file_pos + len - file->file_req));
+
+		if ( (err = cmyth_send_message (file->file_control, msg) ) < 0) {
+			cmyth_dbg (CMYTH_DBG_ERROR,
+			           "%s: cmyth_send_message() failed (%d)\n",
+			           __FUNCTION__, err);
+			ret = err;
+			goto out;
+		}
+		req = 1;
+	} else {
+		req = 0;
+	}
+
+	rec = 0;
+	cur = buf;
+	end = buf+len;
+
+	while (cur == buf || req || rec) {
+		if(rec) {
+			tv.tv_sec =  0;
+			tv.tv_usec = 0;
+		} else {
+			tv.tv_sec = 20;
+			tv.tv_usec = 0;
+		}
+		nfds = 0;
+
+		FD_ZERO (&fds);
+		if (req) {
+			if ((int)file->file_control->conn_fd > nfds)
+				nfds = (int)file->file_control->conn_fd;
+			FD_SET (file->file_control->conn_fd, &fds);
+		}
+		if ((int)file->file_data->conn_fd > nfds)
+			nfds = (int)file->file_data->conn_fd;
+		FD_SET (file->file_data->conn_fd, &fds);
+
+		if ((ret = select (nfds+1, &fds, NULL, NULL,&tv)) < 0) {
+			cmyth_dbg (CMYTH_DBG_ERROR,
+			           "%s: select(() failed (%d)\n",
+			           __FUNCTION__, ret);
+			goto out;
+		}
+
+		if (ret == 0 && !rec) {
+			file->file_control->conn_hang = 1;
+			file->file_data->conn_hang = 1;
+			ret = -ETIMEDOUT;
+			goto out;
+		}
+
+		/* check control connection */
+		if (FD_ISSET(file->file_control->conn_fd, &fds)) {
+
+			if ((count=cmyth_rcv_length (file->file_control)) < 0) {
+				cmyth_dbg (CMYTH_DBG_ERROR,
+				           "%s: cmyth_rcv_length() failed (%d)\n",
+				           __FUNCTION__, count);
+				ret = count;
+				goto out;
+			}
+
+			/*
+			 * MythTV originally sent back a signed 32bit value but was changed to a
+			 * signed 64bit value in http://svn.mythtv.org/trac/changeset/18011 (1-Aug-2008).
+			 *
+			 * libcmyth now retrieves the 64-bit signed value, does error-checking,
+			 * and then converts to a 32bit unsigned.
+			 *
+			 * This rcv_ method needs to be forced to use new_int64 to pull back a
+			 * single 64bit number otherwise the handling in rcv_int64 will revert to
+			 * the old two 32bit hi and lo long values.
+			 */
+			if ((ret=cmyth_rcv_new_int64 (file->file_control, &err, &len64, count, 1))< 0) {
+				cmyth_dbg (CMYTH_DBG_ERROR,
+				           "%s: cmyth_rcv_new_int64() failed (%d)\n",
+				           __FUNCTION__, ret);
+				ret = err;
+				goto out;
+			}
+			if (len64 >= 0x100000000LL || len64 < 0) {
+				/* -1 seems to be a common result, but isn't valid so use 0 instead. */
+				cmyth_dbg (CMYTH_DBG_WARN,
+				           "%s: cmyth_rcv_new_int64() returned out of bound value (%"PRId64"). Using 0 instead.\n",
+				           __FUNCTION__, len64);
+				len64 = 0;
+			}
+			len = (unsigned long)len64;
+			req = 0;
+			file->file_req += len;
+
+			if (file->file_req < file->file_pos) {
+				cmyth_dbg (CMYTH_DBG_ERROR,
+				           "%s: received invalid invalid length, read position is ahead of request (req: %"PRIu64", pos: %"PRIu64", len: %"PRId64")\n",
+				           __FUNCTION__, file->file_req, file->file_pos, len64);
+				ret = -1;
+				goto out;
+			}
+
+
+			/* check if we are already done */
+			if (file->file_pos == file->file_req)
+				break;
+		}
+
+		/* restore direct request fleg */
+		rec = 0;
+
+		/* check data connection */
+		if (FD_ISSET(file->file_data->conn_fd, &fds)) {
+			if (end < cur) {
+				cmyth_dbg (CMYTH_DBG_ERROR,
+				           "%s: positions invalid on read, bailing out (cur: %x, end: %x)\n",
+				           __FUNCTION__, cur, end);
+				ret = -1;
+				goto out;
+			}
+			if ((ret = recv (file->file_data->conn_fd, cur, (int)(end-cur), 0)) < 0) {
+				cmyth_dbg (CMYTH_DBG_ERROR,
+				           "%s: recv() failed (%d)\n",
+				           __FUNCTION__, ret);
+				goto out;
+			}
+			cur += ret;
+			file->file_pos += ret;
+			if(ret)
+				rec = 1; /* attempt to read directly again to get all queued packets */
+		}
+	}
+
+	/* make sure file grows, as we move past length */
+	if (file->file_pos > file->file_length)
+		file->file_length = file->file_pos;
+
+	ret = (int)(cur - buf);
+out:
+	pthread_mutex_unlock (&mutex);
+	return ret;
+}
+
