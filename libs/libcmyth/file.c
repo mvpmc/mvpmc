@@ -281,7 +281,7 @@ cmyth_file_get_block(cmyth_file_t file, char *buf, unsigned long len)
 	tv.tv_usec = 0;
 	FD_ZERO(&fds);
 	FD_SET(file->file_data->conn_fd, &fds);
-	if (select(file->file_data->conn_fd+1, NULL, &fds, NULL, &tv) == 0) {
+	if (select((int)(file->file_data->conn_fd)+1, NULL, &fds, NULL, &tv) == 0) {
 		file->file_data->conn_hang = 1;
 		return 0;
 	} else {
@@ -316,7 +316,7 @@ cmyth_file_select(cmyth_file_t file, struct timeval *timeout)
 	FD_ZERO(&fds);
 	FD_SET(fd, &fds);
 
-	ret = select(fd+1, &fds, NULL, NULL, timeout);
+	ret = select((int)fd+1, &fds, NULL, NULL, timeout);
 
 	if (ret == 0)
 		file->file_data->conn_hang = 1;

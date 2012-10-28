@@ -865,7 +865,7 @@ cmyth_conn_check_block(cmyth_conn_t conn, unsigned long size)
 	timeout.tv_sec = timeout.tv_usec = 0;
 	FD_ZERO(&check);
 	FD_SET(conn->conn_fd, &check);
-	if (select(conn->conn_fd + 1, &check, NULL, NULL, &timeout) < 0) {
+	if (select((int)conn->conn_fd + 1, &check, NULL, NULL, &timeout) < 0) {
 		cmyth_dbg(CMYTH_DBG_DEBUG, "%s: select failed (%d)\n",
 			  __FUNCTION__, errno);
 		return -(errno);
