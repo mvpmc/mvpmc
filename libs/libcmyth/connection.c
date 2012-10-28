@@ -505,7 +505,7 @@ cmyth_conn_connect_pathname(cmyth_proginfo_t prog,  cmyth_conn_t control,
 	int err = 0;
 	int count = 0;
 	int r;
-	int ann_size = sizeof("ANN FileTransfer []:[][]:[]");
+	int ann_size = sizeof("ANN FileTransfer  0[]:[][]:[]");
 	cmyth_file_t ret = NULL;
 
 	if (!prog) {
@@ -572,7 +572,7 @@ cmyth_conn_connect_pathname(cmyth_proginfo_t prog,  cmyth_conn_t control,
 		goto shut;
 	}
 	if (control->conn_version >= 44) {
-		sprintf(announcement, "ANN FileTransfer %s[]:[]%s[]:[]",
+		sprintf(announcement, "ANN FileTransfer %s 0[]:[]%s[]:[]", // write = false
 			  my_hostname, pathname);
 	}
 	else {
