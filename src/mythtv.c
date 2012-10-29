@@ -3583,7 +3583,7 @@ mythtv_guide_menu_update(mvp_widget_t *widget, time_t starttime, time_t endtime,
 
 
 	if (sqlprog != NULL) { 
-		free(sqlprog);
+		ref_release(sqlprog);
 		sqlprog=NULL;
 	}
 	if (sqlrecgroups != NULL) { 
@@ -3600,7 +3600,7 @@ mythtv_guide_menu_update(mvp_widget_t *widget, time_t starttime, time_t endtime,
 			__FUNCTION__, __FILE__, __LINE__); 
 		snprintf(buf, sizeof(buf),"No Guide retuned from Database...\nDatabase Error.  Please check your settings\n" );
 		mvpw_add_menu_item(widget, buf , (void*)-1, &item_attr);
-		free(sqlprog);
+		ref_release(sqlprog);
 		goto out;
 	}
        	user_data->myptr->sqlcount = sqlcount;
@@ -3830,7 +3830,7 @@ mythtv_prog_finder_char_menu_right (int direction, mvp_widget_t *widget, mvp_wid
 	pthread_mutex_lock(&myth_mutex);
 
 	if (sqlprog != NULL) { 
-		free(sqlprog);
+		ref_release(sqlprog);
 		sqlprog=NULL;
 	}
 	if ((sqlprog=malloc(sizeof(cmyth_program_t)*50))==NULL) {
@@ -3938,7 +3938,7 @@ mythtv_prog_finder_char_menu(mvp_widget_t *widget, mvp_widget_t *widget2, mvp_wi
 
 #ifdef UPDOWN		/* Remove since up/down arrow does not work to change titles */
 	if (sqlprog != NULL) { 
-		free(sqlprog);
+		ref_release(sqlprog);
 		sqlprog=NULL;
 	}
 	if ((sqlprog=malloc(sizeof(cmyth_program_t)*50))==NULL) {
@@ -4029,7 +4029,7 @@ mythtv_prog_finder_title_menu_right (mvp_widget_t *widget, mvp_widget_t *widget2
 	pthread_mutex_lock(&myth_mutex);
 
 	if (sqlprog != NULL) { 
-		free(sqlprog);
+		ref_release(sqlprog);
 		sqlprog=NULL;
 	}
 	if ((sqlprog=malloc(sizeof(cmyth_program_t)*50))==NULL) {
@@ -4420,7 +4420,7 @@ run_mythtv_utils_prevrecorded(mvp_widget_t *widget,mvp_widget_t *mythtv_browser)
 		goto out;
 	}
 	if (sqlprog != NULL) {
-		free(sqlprog);
+		ref_release(sqlprog);
 		sqlprog=NULL;
 	}
 	sqlcount=cmyth_mysql_get_prev_recorded(mythtv_database,&sqlprog);
@@ -4429,7 +4429,7 @@ run_mythtv_utils_prevrecorded(mvp_widget_t *widget,mvp_widget_t *mythtv_browser)
 			 __FUNCTION__, __FILE__, __LINE__);
 		snprintf(buf, sizeof(buf),"No Data retuned from Database.\n" );
 		mvpw_add_menu_item(widget, buf , (void*)-1, &item_attr);
-		free(sqlprog);
+		ref_release(sqlprog);
 		goto out;
 	}
 	item_attr.select = mythtv_delete_previous_recorded;
