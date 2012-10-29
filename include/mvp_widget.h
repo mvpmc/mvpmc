@@ -349,7 +349,7 @@ extern mvp_widget_t *mvpw_create_container(mvp_widget_t *parent,
  */
 typedef struct {
 	bool	 	wrap;		/**< auto-wrap text */
-	bool	 	justify;	/**< justification type */
+	int	 	justify;	/**< justification type */
 	bool		pack;
 	int	 	margin;		/**< margin in pixels */
 	int	 	font;		/**< font id */

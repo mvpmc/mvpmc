@@ -123,9 +123,8 @@ write_start(void *arg)
 int
 main(int argc, char **argv)
 {
-	int fd, len, n, tot, atot, vtot, i;
+	int fd, len, n, i;
 	int rget = 0;
-	unsigned int ah, vh;
 	char buf[BSIZE];
 	demux_attr_t *attr;
 
@@ -143,9 +142,7 @@ main(int argc, char **argv)
 
 	pthread_create(&thread, NULL, write_start, NULL);
 
-	ah = vh = 0;
 	len = n = 0;
-	tot = atot = vtot = 0;
 	while (1) {
 		do {
 			rget = rand() % sizeof(buf);

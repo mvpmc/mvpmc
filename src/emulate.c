@@ -2105,7 +2105,6 @@ Bool media_read_message(stream_t *stream)
 {
 	char   buf[40];
 	char  *ptr;
-	uint32_t ucount;
 	static int retryZero = 0;
 //	int32_t count;
 	MPRINTF("%s Received Media stream message ",logstr);
@@ -2250,7 +2249,7 @@ Bool media_read_message(stream_t *stream)
 	case MEDIA_STEP:
 		{
 			ptr = buf + 12;
-			BUF_TO_INT32(ucount,ptr);
+//			BUF_TO_INT32(ucount,ptr);
 //			PRINTF("Media msgfast redo %d ffwd %d count %u\n",buf[8],buf[9],ucount);
 			ptr = buf + 16;
 			stream->current_position = media_offset_64(ptr);
@@ -2542,7 +2541,6 @@ void media_queue_data(stream_t *stream)
 {
 	int      n;
 	int retry;
-	static int err_count = 0;
 	for (retry=0;retry<2;retry++) {
 		if (mvp_state==EMU_LIVE) {
 			n = stream->inbuflen- stream->inbufpos;
@@ -2552,7 +2550,6 @@ void media_queue_data(stream_t *stream)
 			n = write(output_pipe,stream->inbuf + stream->inbufpos, stream->inbuflen - stream->inbufpos);
 		}
 		if ( n > 0 ) {
-			err_count = 0;
 			mystream.queued +=n;
 			stream->inbufpos += n;
 			if ( stream->inbufpos == stream->inbuflen || is_stopping!=EMU_RUNNING ) {

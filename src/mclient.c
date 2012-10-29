@@ -969,15 +969,10 @@ void
 read_packet(int s)
 {
     struct sockaddr ina;
-    struct sockaddr_in *ina_in = NULL;
     socklen_t slen = sizeof(struct sockaddr);
     int bytes_read;
 
     bytes_read = recvfrom(s, recvbuf, RECV_BUF_SIZE, 0, &ina, &slen);
-    if (ina.sa_family == AF_INET)
-    {
-        ina_in = (struct sockaddr_in *)(&ina);
-    }
     if (bytes_read < 1)
     {
         if (bytes_read < 0)

@@ -534,6 +534,7 @@ static void post_post_garbage_hack( FILE *stream,int conn_fd )
 	int bytes;
 	set_ndelay( conn_fd );
 	bytes = fread(buf, sizeof(buf),1,stream );
+	if (bytes) {}
 	clear_ndelay( conn_fd );
 }
 

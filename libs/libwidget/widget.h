@@ -61,7 +61,7 @@ typedef struct {
 	char		*str;		/**< text string */
 	bool		 wrap;		/**< allow text to auto-wrap */
 	bool		 pack;		/**< pack text lines */
-	bool		 justify;	/**< justification */
+	int		 justify;	/**< justification */
 	int		 margin;	/**< margin in pixels */
 	GR_FONT_ID	 font;		/**< font id */
 	GR_COLOR	 fg;		/**< foreground color */

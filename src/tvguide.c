@@ -1310,7 +1310,6 @@ int
 mvp_tvguide_start(void)
 {
 	pthread_mutex_lock(&myth_mutex);
-	int rtrn = 0;
 
 	PRINTF("** SSDEBUG: loading channels\n");
 	/* Load the entire list of channels available on all recorders 		*/
@@ -1322,7 +1321,7 @@ mvp_tvguide_start(void)
 																								mythtv_tvguide_sort_desc);
 	if(tvguide_chanlist == NULL) {
 		cmyth_dbg(CMYTH_DBG_ERROR, "%s loading channels failed\n", __FUNCTION__);
-		rtrn = -1;
+		return -1;
 	}
 	PRINTF("** SSDEBUG: channels loaded\n");
 	pthread_mutex_unlock(&myth_mutex);

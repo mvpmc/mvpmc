@@ -44,7 +44,7 @@
 #include "config.h"
 #include "http_stream.h"
 
-#if 0
+#ifdef DEBUG
 #define PRINTF(x...) printf(x)
 #define TRC(fmt, args...) printf(fmt, ## args) 
 #else
@@ -396,11 +396,9 @@ video_progress(mvp_widget_t *widget)
 void
 video_timecode(mvp_widget_t *widget)
 {
-	demux_attr_t *attr;
 	char buf[32];
 	av_stc_t stc;
 
-	attr = demux_get_attr(handle);
 	av_current_stc(&stc);
 	snprintf(buf, sizeof(buf), "%.2d:%.2d:%.2d",
 		 stc.hour, stc.minute, stc.second);
@@ -520,7 +518,9 @@ osd_callback(mvp_widget_t *widget)
 void
 seek_to(long long seek_offset)
 {
+#ifdef DEBUG
 	long long offset;
+#endif
 
 	if (video_functions->seek == NULL) {
 		fprintf(stderr, "cannot seek on this video!\n");
@@ -539,7 +539,9 @@ seek_to(long long seek_offset)
 		av_ffwd();
 	}
 
+#ifdef DEBUG
 	offset = video_functions->seek(seek_offset, SEEK_SET);
+#endif
 
 	jump_target = seek_offset;
 	jumping = 1;
@@ -555,7 +557,10 @@ seek_by(int seconds)
 	demux_attr_t *attr = demux_get_attr(handle);
 	int delta;
 	int stc_time, gop_time, pts_time;
-	long long offset, size;
+	long long size;
+#ifdef DEBUG
+	long long offset;
+#endif
 
 	if (video_functions->seek == NULL) {
 		fprintf(stderr, "cannot seek on this video!\n");
@@ -640,7 +645,9 @@ seek_by(int seconds)
 	seek_attempts = 16;
 	seeking = 1;
 	
+#ifdef DEBUG
 	offset = video_functions->seek(delta, SEEK_CUR);
+#endif
 
 	PRINTF("-> %lld\n", offset);
 
@@ -1553,8 +1560,6 @@ video_read_start(void *arg)
 	int n = 0, len = 0, reset = 1;
 	int sent_idle_notify;
 	demux_attr_t *attr;
-	video_info_t *vi;
-	int set_aspect = 1;
 	char *inbuf = inbuf_static;
 	char *tsbuf;
 	int tslen;
@@ -1608,7 +1613,6 @@ video_read_start(void *arg)
 			}
 			len = 0;
 			reset = 1;
-			set_aspect = 1;
 		}
 
 		if ((seeking && reset) || jumping) {
@@ -1740,7 +1744,6 @@ video_read_start(void *arg)
 		pthread_cond_broadcast(&video_cond);
 
 		attr = demux_get_attr(handle);
-		vi = &attr->video.stats.info.video;
 		if (attr->audio.type != audio_type) {
 			audio_type = attr->audio.type;
 			switch (audio_type) {
@@ -1908,7 +1911,6 @@ audio_write_start(void *arg)
 	int len;
 	sigset_t sigs;
 	demux_attr_t *attr;
-	video_info_t *vi;
 
 	signal(SIGURG, sighandler);
 	sigemptyset(&sigs);
@@ -1942,7 +1944,6 @@ audio_write_start(void *arg)
 
 		if (running_replaytv) {
 			attr = demux_get_attr(handle);
-			vi = &attr->video.stats.info.video;
 			if (attr->audio.type != audio_type) {
             // JBH: FIX ME: This code never gets hit
 				audio_type = attr->audio.type;

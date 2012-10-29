@@ -193,7 +193,7 @@ mvpw_create_array(mvp_widget_t *parent,
 static void
 mvpw_array_layout(mvp_widget_t *widget)
 {
-	int x, y, w, h; 
+	int w, h; 
 	int new_w, new_h;
 	int cell_w, cell_h;
 	int rlw, clh;
@@ -203,8 +203,6 @@ mvpw_array_layout(mvp_widget_t *widget)
 	/* Calculate the size of the cells based on header sizes
 	 * and overall array size.
 	 */
-	x = widget->x;
-	y = widget->y;
 	w = widget->width;
 	h = widget->height;
 	r = widget->data.array.rows;

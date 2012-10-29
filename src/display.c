@@ -136,10 +136,8 @@ int display_init(void)
 void
 display_timecode(mvp_widget_t *widget)
 {
-  demux_attr_t *attr;
   av_stc_t stc;
 
-  attr = demux_get_attr(handle);
   av_current_stc(&stc);
   snprintf(display_struct.Time.String, sizeof(display_struct.Time.String), "%.2d:%.2d:%.2d",
 	   stc.hour, stc.minute, stc.second);
@@ -795,10 +793,6 @@ display_iee_40x2()
 	{
 	  if(display_struct.Message.Scroll > 0)
 	    {
-	      int starting_char;
-
-	      starting_char = strlen(display_struct.Message.String) - display_struct.Message.Scroll;
-
 	      /*
 	       * Copy only what can be shown on the display.
 	       */

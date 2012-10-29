@@ -5834,7 +5834,7 @@ viewport_init(void)
 static int
 colortest_init(void)
 {
-	int i, w, h, num_cols, num_rows, bufpos;
+	int i, w, h, num_cols, bufpos;
 	char buf[255];
 
 	splash_update("Creating colortest");
@@ -5856,7 +5856,6 @@ colortest_init(void)
 	mvpw_set_text_attr(ct_bg_box, &ct_fgbg_box_attr);
 
 	num_cols = 16;
-	num_rows = (96/16);
 	h = (mvpw_font_height(ct_text_box_attr.font, ct_text_box_attr.utf8)
 	     + 10) * ((95 / num_cols) + 1);
 	w = si.cols;
@@ -7447,17 +7446,10 @@ mclient_init(void)
 static int
 mclient_fullscreen_init(void)
 {
-	int h, w;
 	long i;
-	int h2;
 	char text[256];
 
 	splash_update("Creating mclient_fullscreen dialog");
-
-	h = FONT_HEIGHT(mclient_fullscreen_attr);
-	w = si.cols - viewport_edges[EDGE_LEFT] - viewport_edges[EDGE_RIGHT];
-
-	h2 = si.rows - (h*3) - viewport_edges[EDGE_TOP] - viewport_edges[EDGE_BOTTOM];
 
 	mclient_fullscreen = mvpw_create_menu(NULL, 
 			viewport_edges[EDGE_LEFT],

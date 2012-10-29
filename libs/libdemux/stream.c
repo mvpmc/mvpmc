@@ -1193,10 +1193,9 @@ static int
 parse_ac3_frame(demux_handle_t *handle, unsigned char *buf, int len)
 {
 	unsigned int id;
-	int m, header, offset;
+	int m, offset;
 
 	id = buf[buf[2] + 3] - 128;
-	header = buf[2] + 3 + 1;
 
 	if ((id < 0) || (id > 31))
 		return -1;
@@ -1242,10 +1241,9 @@ static int
 parse_pcm_frame(demux_handle_t *handle, unsigned char *buf, int len)
 {
 	unsigned int id;
-	int m, header, offset;
+	int m, offset;
 
 	id = buf[buf[2] + 3] - 160;
-	header = buf[2] + 3 + 1;
 
 	if ((id < 0) || (id > 31))
 		return -1;

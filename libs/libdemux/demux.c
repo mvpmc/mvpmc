@@ -825,7 +825,7 @@ get_nibble(unsigned char *buf, int *i, int *state)
 char*
 demux_spu_decompress(demux_handle_t *handle, spu_item_t *spu)
 {
-	int got_byte, i, state;
+	int i, state;
 	int x, y;
 	unsigned int c;
 	char *img;
@@ -835,7 +835,6 @@ demux_spu_decompress(demux_handle_t *handle, spu_item_t *spu)
 	memset(img, 0, spu->w*spu->h);
 
 	i = spu->line[0];
-	got_byte = 0;
 	x = y = 0;
 	state = 0;
 	PRINTF("spu: i %d size %d h %d\n", i, spu->size, spu->h);

@@ -1150,7 +1150,6 @@ cli_parse_playlist(mclient_cmd * response)
              */
             if (cli_data.index_info == cli_data.index_playing)
             {
-                int err;
                 if (now_playing_timeout > time(NULL))
                 {
                     sprintf(string, "%d) %s <- Up Next",
@@ -1162,7 +1161,6 @@ cli_parse_playlist(mclient_cmd * response)
                             (cli_data.index_info + 1), response->param[2]);
                 }
 
-                err =
                     mvpw_menu_set_item_attr(mclient_fullscreen,
                                             (void *)(long)(cli_data.index_line
 							     + 2),
@@ -1176,15 +1174,12 @@ cli_parse_playlist(mclient_cmd * response)
             if ((cli_data.index_info == cli_data.index_userfocus)
                 && (cli_userfocus_timeout > time(NULL)))
             {
-                int err;
-
                 /*
                  * Don't do user focus hilit'ing if this 
                  * is already what the slimserver is playing.
                  */
                 if (cli_data.index_info != cli_data.index_playing)
                 {
-                    err =
                         mvpw_menu_set_item_attr
                         (mclient_fullscreen,
                          (void *)(long)(cli_data.index_line + 2),
@@ -1490,14 +1485,11 @@ cli_parse_button(mclient_cmd * response)
 void
 cli_parse_player(mclient_cmd * cmd)
 {
-    int count = 0;
-
     if ((cmd != NULL) && (cmd->param[0] != NULL))
     {
         if (strcmp("count", cmd->param[0]) == 0)
         {
-            count = atoi(cmd->param[1]);
-            debug("number of players: %d\n", count);
+            debug("number of players: %d\n", atoi(cmd->param[1]));
         }
         else if (strcmp("id", cmd->param[0]) == 0)
         {

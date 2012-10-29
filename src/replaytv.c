@@ -1064,7 +1064,6 @@ static int get_mpeg_callback(unsigned char *buf, size_t len, size_t offset, void
 static void get_mpeg_file(rtv_device_t *rtv, char *filename, __u64 pos, int ToStdOut) 
 {
    char pathname[MAX_FILENAME_LEN];
-   int i;
    
    if ( strlen(filename) + strlen("/Video/") + 1 > sizeof(pathname) ) {
       fprintf(stderr, "mpeg filename too long\n");
@@ -1077,7 +1076,7 @@ static void get_mpeg_file(rtv_device_t *rtv, char *filename, __u64 pos, int ToSt
    fprintf(stderr, "Retrieving /Video/%s...\n", filename); 
    
    //Send the request for the file
-   i = rtv_read_file_chunked( &(rtv->device), pathname, pos, 0, 0, get_mpeg_callback, NULL );
+   rtv_read_file_chunked( &(rtv->device), pathname, pos, 0, 0, get_mpeg_callback, NULL );
    
    //all done, cleanup as we leave 
    fprintf(stderr, "\nDone.\n"); 
